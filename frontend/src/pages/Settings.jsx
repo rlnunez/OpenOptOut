@@ -1021,7 +1021,7 @@ function PluginSystemSection({ userRole }) {
             <label className="text-slate-400 text-xs mb-1 block">Plugins directory</label>
             <input value={config.plugins_dir || ''} onChange={e => setConfig(c => ({ ...c, plugins_dir: e.target.value }))}
               placeholder="/data/plugins" className={inp} />
-            <p className="text-slate-600 text-xs mt-1">Where plugin folders/bundles live inside the container.</p>
+            <p className="text-slate-600 text-xs mt-1">Root folder for plugins inside the container. Each plugin is stored in a subfolder for its type: email/, captcha/, forms/, discovery/, brokers/, themes/, languages/, general/.</p>
           </div>
 
           {/* Lockdown mode */}

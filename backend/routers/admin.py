@@ -26,6 +26,7 @@ class UserOut(BaseModel):
     role: str
     can_login: bool
     unified_view: bool
+    can_upload_plugins: bool = False
     created_at: datetime
     managing_count: int = 0
     managed_by_count: int = 0
@@ -48,6 +49,7 @@ class UpdateUserRequest(BaseModel):
     role: Optional[str] = None
     password: Optional[str] = None   # set to grant/change login
     unified_view: Optional[bool] = None
+    can_upload_plugins: Optional[bool] = None   # delegate the plugin upload wizard
 
     _validate_password = field_validator("password")(validate_password_length)
 
@@ -90,6 +92,7 @@ def list_users(
             role=u.role,
             can_login=u.can_login,
             unified_view=u.unified_view,
+            can_upload_plugins=bool(u.can_upload_plugins),
             created_at=u.created_at,
             managing_count=len(u.managing),
             managed_by_count=len(u.managed_by),
@@ -129,6 +132,7 @@ def create_user(
     return UserOut(
         id=user.id, full_name=user.full_name, email=user.email,
         role=user.role, can_login=user.can_login, unified_view=user.unified_view,
+        can_upload_plugins=bool(user.can_upload_plugins),
         created_at=user.created_at, managing_count=0, managed_by_count=0,
     )
 
@@ -161,11 +165,15 @@ def update_user(
     if req.unified_view is not None:
         user.unified_view = req.unified_view
 
+    if req.can_upload_plugins is not None:
+        user.can_upload_plugins = req.can_upload_plugins
+
     db.commit()
     db.refresh(user)
     return UserOut(
         id=user.id, full_name=user.full_name, email=user.email,
         role=user.role, can_login=user.can_login, unified_view=user.unified_view,
+        can_upload_plugins=bool(user.can_upload_plugins),
         created_at=user.created_at,
         managing_count=len(user.managing),
         managed_by_count=len(user.managed_by),

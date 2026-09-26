@@ -49,7 +49,7 @@ of the core.
 | 15 | Memory hygiene | Not started |
 | 16 | Operational visibility | Part A built; parts B (log viewer) and C (verbosity) not started |
 | 17 | Internationalization: language packs + right-to-left | Not started |
-| 18 | Typed plugin directories (brokers, captcha, forms, themes, languages, discovery, …) | Not started |
+| 18 | Typed plugin directories (brokers, captcha, forms, themes, languages, discovery, …) | Built; language/theme loaders and the discovery hook not built |
 
 ---
 
@@ -1242,7 +1242,7 @@ plugins/
 └── general/      # event hooks, email parsers, anything else
 ```
 
-**Where things stand today:** one flat directory (`/data/plugins/<id>/`,
+**Where things stood before this was built:** one flat directory (`/data/plugins/<id>/`,
 configurable via `PLUGINS_DIR`), scanned one level deep. A plugin's kind is
 never declared; it's only implied by which hooks it lists. The scan is
 implemented twice (`PluginManager.discover` in `plugins/manager.py` and
@@ -1325,7 +1325,33 @@ roadmap item yet; this one creates their slots and names the hook discovery
 needs. Worth doing before those items ship, so they don't each invent their own
 layout.
 
-**STATUS: not started.**
+**STATUS: built** (layout, manifest `type`, per-type rules, shared scan,
+typed installs, migration, grouped admin UI, upload wizard). Specifically:
+- `plugins/layout.py` owns the layout: `plugins_root`, `install_dir`, one
+  `scan` used by both the manager and the admin API, `sync_bundled`, and
+  `migrate_installed` (runs at every startup, even with the plugin system off).
+- `PluginManifest` has `type` with the per-type rules in `PLUGIN_TYPES` /
+  `SPECIALIZED_HOOKS` (`plugins/permissions.py`). Legacy manifests without
+  `type` still install, with a type inferred from their hooks.
+- The built-in email plugins moved to `backend/plugins/bundled/email/` and are
+  copied into `<root>/email/<id>/` (with a `.privacyshield-bundled` marker,
+  refreshed on upgrade) instead of being run from the app's source tree. All
+  bundled and example manifests declare their type.
+- **Upload wizard:** `POST /api/plugins/upload/inspect` reports a zip's type
+  and destination without writing anything; `POST /api/plugins/upload`
+  installs it into its type folder, disabled. `expected_type` limits an upload
+  to one type (the setup wizard's email step uses `email`). Zip bundles are
+  checked for traversal, symlinks and size.
+- **Delegated uploads:** a super admin can grant a user `can_upload_plugins`
+  (Admin panel). That user gets the wizard on an Upload plugin page; their
+  uploads stay disabled until a super admin enables them, and they can't
+  upload while the plugin system is denied.
+- `/api/plugins/install` now only installs from inside the plugins root,
+  moving a misplaced plugin into its type folder first.
+
+**Not built yet:** nothing loads language packs or themes (they install and
+enable as data, but the UI doesn't read them; see item 17); the `discover`
+hook for discovery bots; and broker add-ons (item 1) as a real format.
 
 ---
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   UserPlus, Shield, ShieldCheck, User, Trash2,
-  Link2, Link2Off, ChevronDown, X, Check, KeyRound, Eye, Edit3
+  Link2, Link2Off, ChevronDown, X, Check, KeyRound, Eye, Edit3, Upload
 } from 'lucide-react'
 import api from '../api'
 
@@ -201,6 +201,16 @@ function EditUserRow({ user, onUpdated, onDeleted, currentUserId }) {
     onDeleted(user.id)
   }
 
+  // Delegate the plugin upload wizard. Uploads still land disabled; only a
+  // super admin can enable a plugin.
+  const toggleUploads = async () => {
+    const grant = !user.can_upload_plugins
+    if (grant && !confirm(`Let ${user.full_name} upload plugins?\n\nThey can add plugin bundles, ` +
+        'which are installed disabled. Only a super admin can enable one.')) return
+    const { data } = await api.patch(`/admin/users/${user.id}`, { can_upload_plugins: grant })
+    onUpdated(data)
+  }
+
   const setPassword = async () => {
     const pw = prompt(`Set new password for ${user.full_name}:`)
     if (!pw) return
@@ -230,6 +240,14 @@ function EditUserRow({ user, onUpdated, onDeleted, currentUserId }) {
         <span className={`text-xs ${user.can_login ? 'text-emerald-400' : 'text-slate-600'}`}>
           {user.can_login ? '✓ can log in' : 'no login'}
         </span>
+        {user.can_login && user.role !== 'super_admin' && (
+          <button onClick={toggleUploads}
+            title={user.can_upload_plugins ? 'Revoke plugin uploads' : 'Allow this user to upload plugins'}
+            className={`mt-1 flex items-center gap-1 text-[11px] ${user.can_upload_plugins
+              ? 'text-shield-300 hover:text-shield-200' : 'text-slate-600 hover:text-slate-400'}`}>
+            <Upload size={10} /> {user.can_upload_plugins ? 'can upload plugins' : 'plugin uploads off'}
+          </button>
+        )}
       </td>
       <td className="px-4 py-3 text-slate-500 text-xs">{user.managing_count} managing</td>
       <td className="px-4 py-3">

@@ -6,6 +6,7 @@ import {
   Lock, Cpu, Activity, FileWarning, Info, Package, Ban, Eye, ShieldAlert, ShieldCheck, Globe, BookOpen
 } from 'lucide-react'
 import api from '../api'
+import PluginUploadWizard from '../components/PluginUploadWizard'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500"
 
@@ -18,6 +19,7 @@ const RISK_STYLES = {
 const STATUS_STYLES = {
   running:  { label: 'Running',  cls: 'text-emerald-400', dot: 'bg-emerald-400' },
   stopped:  { label: 'Stopped',  cls: 'text-slate-400',   dot: 'bg-slate-500' },
+  data:     { label: 'Enabled (data only)', cls: 'text-emerald-400', dot: 'bg-emerald-400' },
   starting: { label: 'Starting', cls: 'text-blue-400',    dot: 'bg-blue-400 animate-pulse' },
   crashed:  { label: 'Crashed',  cls: 'text-red-400',     dot: 'bg-red-400' },
   disabled: { label: 'Disabled', cls: 'text-amber-400',   dot: 'bg-amber-400' },
@@ -437,6 +439,7 @@ function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onView
                   </span>
                 )}
                 <span className="text-slate-600 text-xs">· {plugin.author}</span>
+                <span className="text-slate-600 text-xs font-mono">· {plugin.type}/{plugin.plugin_id}/</span>
               </div>
             </div>
           </div>
@@ -545,18 +548,20 @@ export default function Plugins() {
   const [loading, setLoading]   = useState(true)
   const [enableTarget, setEnableTarget] = useState(null)
   const [auditTarget, setAuditTarget]   = useState(null)
-  const [uploading, setUploading] = useState(false)
+  const [showUpload, setShowUpload] = useState(false)
+  const [types, setTypes] = useState([])
   const [violations, setViolations] = useState([])
 
   const load = async () => {
     setLoading(true)
     try {
-      const [s, list, avail, perms, viol] = await Promise.all([
+      const [s, list, avail, perms, viol, typeList] = await Promise.all([
         api.get('/plugins/status').catch(() => ({ data: { active: false } })),
         api.get('/plugins').catch(() => ({ data: [] })),
         api.get('/plugins/available').catch(() => ({ data: [] })),
         api.get('/plugins/permissions').catch(() => ({ data: {} })),
         api.get('/plugins/violations/all?limit=50').catch(() => ({ data: [] })),
+        api.get('/plugins/types').catch(() => ({ data: [] })),
       ])
       // Merge live status (running plugins) into installed rows
       const runningMap = {}
@@ -569,6 +574,7 @@ export default function Plugins() {
       setAvailable(avail.data)
       setPermInfo(perms.data)
       setViolations(viol.data)
+      setTypes(typeList.data)
     } finally { setLoading(false) }
   }
 
@@ -584,17 +590,10 @@ export default function Plugins() {
     await api.delete(`/plugins/${p.plugin_id}?remove_files=false`); load()
   }
 
-  const upload = async (e) => {
-    const file = e.target.files?.[0]; if (!file) return
-    setUploading(true)
-    const fd = new FormData(); fd.append('file', file)
-    try {
-      await api.post('/plugins/upload', fd)
-      load()
-    } catch (err) {
-      alert(err.response?.data?.detail || 'Upload failed')
-    } finally { setUploading(false); e.target.value = '' }
-  }
+  // Installed plugins grouped by type, in the server's type order.
+  const groups = (types.length ? types : [...new Set(installed.map(p => p.type))].map(t => ({ type: t, label: t, folder: `${t}/` })))
+    .map(t => ({ ...t, plugins: installed.filter(p => p.type === t.type) }))
+    .filter(g => g.plugins.length > 0)
 
   return (
     <div className="p-4 md:p-6 max-w-4xl">
@@ -608,10 +607,10 @@ export default function Plugins() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
             <BookOpen size={13} /> Docs
           </Link>
-          <label className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 cursor-pointer">
-            <Upload size={13} /> {uploading ? 'Uploading…' : 'Upload .zip'}
-            <input type="file" accept=".zip" className="hidden" onChange={upload} disabled={uploading} />
-          </label>
+          <button onClick={() => setShowUpload(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
+            <Upload size={13} /> Upload plugin
+          </button>
           <button onClick={load} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
             <RefreshCw size={13} /> Refresh
           </button>
@@ -633,14 +632,23 @@ export default function Plugins() {
               <div className="text-center py-10 border border-dashed border-slate-700 rounded-xl">
                 <Package size={24} className="text-slate-700 mx-auto mb-2" />
                 <p className="text-slate-500 text-sm">No plugins installed yet.</p>
-                <p className="text-slate-600 text-xs mt-1">Upload a .zip bundle or drop a plugin folder into the plugins directory.</p>
+                <p className="text-slate-600 text-xs mt-1">Upload a .zip bundle, or put a plugin folder in its type folder (plugins/&lt;type&gt;/&lt;id&gt;/).</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {installed.map(p => (
-                  <PluginCard key={p.plugin_id} plugin={p} permInfo={permInfo}
-                    onEnable={setEnableTarget} onDisable={doDisable}
-                    onUninstall={doUninstall} onViewAudit={setAuditTarget} />
+              <div className="space-y-5">
+                {groups.map(g => (
+                  <div key={g.type}>
+                    <p className="text-slate-500 text-xs mb-2">
+                      {g.label} <span className="font-mono text-slate-600">· plugins/{g.folder}</span>
+                    </p>
+                    <div className="space-y-3">
+                      {g.plugins.map(p => (
+                        <PluginCard key={p.plugin_id} plugin={p} permInfo={permInfo}
+                          onEnable={setEnableTarget} onDisable={doDisable}
+                          onUninstall={doUninstall} onViewAudit={setAuditTarget} />
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -665,7 +673,10 @@ export default function Plugins() {
                           </span>
                         )}
                       </div>
-                      <p className="text-slate-500 text-xs mt-0.5">{p.author} · {p.permissions.length} permissions</p>
+                      <p className="text-slate-500 text-xs mt-0.5">
+                        {p.author} · {p.type_label} · {p.permissions.length} permissions
+                        {p.legacy_location && <span className="text-amber-300/90"> · will be moved to plugins/{p.destination}</span>}
+                      </p>
                       {!p.valid && p.errors?.length > 0 && (
                         <p className="text-red-400/80 text-xs mt-1">{p.errors.join('; ')}</p>
                       )}
@@ -689,6 +700,9 @@ export default function Plugins() {
       )}
       {auditTarget && (
         <AuditModal plugin={auditTarget} onClose={() => setAuditTarget(null)} />
+      )}
+      {showUpload && (
+        <PluginUploadWizard onClose={() => setShowUpload(false)} onInstalled={load} />
       )}
     </div>
   )

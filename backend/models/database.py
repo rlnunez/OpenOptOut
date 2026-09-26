@@ -88,6 +88,9 @@ class User(Base):
     full_name        = Column(String, nullable=False)
     role             = Column(SAEnum(UserRole), default=UserRole.member, nullable=False)
     unified_view     = Column(Boolean, default=True)   # parent pref: see all managed profiles at once
+    # Granted by a super admin: may use the plugin upload wizard. Uploads land
+    # disabled; only a super admin can enable a plugin (grant its permissions).
+    can_upload_plugins = Column(Boolean, default=False, nullable=False)
     created_at       = Column(DateTime, default=datetime.utcnow)
     created_by_id    = Column(Integer, ForeignKey("users.id"), nullable=True)  # who created this account
 

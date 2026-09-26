@@ -2,6 +2,7 @@
   "id": "example-broker-filler",
   "name": "Example Custom Broker Form Filler",
   "version": "1.0.0",
+  "type": "forms",
   "author": "PrivacyShield",
   "description": "Demonstrates a custom form-filling strategy for a specific broker, with method-level declarations. Requests read_pii to place member details into form fields.",
   "api_version": "1.0",

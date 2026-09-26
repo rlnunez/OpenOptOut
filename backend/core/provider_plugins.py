@@ -1,6 +1,7 @@
 """
 Auto-provisioning for the email-provider plugins PrivacyShield ships with
-(Gmail, Outlook, Yahoo — under backend/plugins/bundled/).
+(Gmail, Outlook, Yahoo — source under backend/plugins/bundled/email/, installed
+into <plugins root>/email/<id>/ like any other email plugin).
 
 Connecting an OAuth account (POST /api/email-oauth/*) only obtains and stores
 tokens — it talks to Google/Microsoft/Yahoo directly and has nothing to do
@@ -30,12 +31,15 @@ import os
 log = logging.getLogger(__name__)
 
 # provider_key (as stored in settings["email"]["provider"], and as ConnectOAuth
-# in the wizard sends it) -> the bundled plugin dir that serves it.
-_BUNDLED_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "plugins", "bundled")
+# in the wizard sends it) -> the bundled plugin source dir that serves it. The
+# source is never run in place: it's copied into <plugins root>/email/<id>/ and
+# the copy is what gets installed (see plugins/layout.py, sync_bundled).
+_BUNDLED_EMAIL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                  "plugins", "bundled", "email")
 _PROVIDER_TO_PLUGIN_DIR = {
-    "gmail":   os.path.join(_BUNDLED_DIR, "email-gmail"),
-    "outlook": os.path.join(_BUNDLED_DIR, "email-outlook"),
-    "yahoo":   os.path.join(_BUNDLED_DIR, "email-yahoo"),
+    "gmail":   os.path.join(_BUNDLED_EMAIL_DIR, "email-gmail"),
+    "outlook": os.path.join(_BUNDLED_EMAIL_DIR, "email-outlook"),
+    "yahoo":   os.path.join(_BUNDLED_EMAIL_DIR, "email-yahoo"),
 }
 
 
@@ -61,31 +65,49 @@ def ensure_provider_plugin(provider_key: str, db_session_factory=None) -> bool:
         from ..plugins.permissions import PluginManifest, Permission
         from ..plugins.email_inspector import inspect_email_plugin, summarize_findings
         from ..plugins import get_manager, init_plugin_system
+        from ..plugins import layout
 
         manifest = PluginManifest.from_dict(json.load(open(os.path.join(plugin_dir, "manifest.json"))))
         errors = manifest.validate()
         if errors:
             log.error("Bundled plugin %s failed validation, not provisioning: %s", provider_key, errors)
             return False
+        root = layout.plugins_root()
 
         Session = db_session_factory or SessionLocal
         db = Session()
         try:
             row = db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == manifest.id).first()
 
+            # An admin's own plugin registered under the same id (not a copy of
+            # ours) is left exactly as it is — never replaced by the built-in.
+            ours = row is None or layout.is_bundled_copy(row.install_path) or \
+                not os.path.isdir(row.install_path or "") or \
+                layout.is_strictly_inside(row.install_path, layout.BUNDLED_ROOT)
+            if not ours:
+                log.info("Plugin %s at %s isn't the built-in copy; leaving it to the admin",
+                         manifest.id, row.install_path)
+                return bool(row.enabled and row.status == "running")
+
+            # Same hidden-recipient inspection an admin's manual upload goes
+            # through — first-party doesn't mean unchecked.
+            findings = summarize_findings(inspect_email_plugin(plugin_dir))
+            if findings["high"]:
+                log.error("Bundled plugin %s has high-severity findings, refusing to "
+                         "auto-install: %s", provider_key, findings["high"])
+                return False
+            # Copy into <root>/email/<id>/ (or refresh the copy after an upgrade).
+            install_path = layout.sync_bundled(plugin_dir, root, manifest)
+            if row is not None and row.install_path != install_path:
+                row.install_path = install_path
+                db.commit()
+
             if row is None:
-                # Same hidden-recipient inspection an admin's manual upload goes
-                # through — first-party doesn't mean unchecked.
-                findings = summarize_findings(inspect_email_plugin(plugin_dir))
-                if findings["high"]:
-                    log.error("Bundled plugin %s has high-severity findings, refusing to "
-                             "auto-install: %s", provider_key, findings["high"])
-                    return False
                 row = InstalledPlugin(
                     plugin_id=manifest.id, name=manifest.name, version=manifest.version,
                     author=manifest.author, description=manifest.description,
                     manifest_json=json.dumps(manifest.to_dict()),
-                    granted_permissions="[]", enabled=False, install_path=plugin_dir,
+                    granted_permissions="[]", enabled=False, install_path=install_path,
                     status="stopped",
                 )
                 db.add(row); db.commit()

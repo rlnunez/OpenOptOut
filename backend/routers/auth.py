@@ -47,6 +47,7 @@ class UserOut(BaseModel):
     full_name: str
     role: str
     unified_view: bool
+    can_upload_plugins: bool = False
 
     class Config:
         from_attributes = True

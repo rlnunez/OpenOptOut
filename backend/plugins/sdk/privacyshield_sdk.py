@@ -62,9 +62,10 @@ class PermissionDenied(Exception):
 def manifest(id, name, version, author, description="", permissions=None,
              hooks=None, methods=None, events=None, outbound_domains=None,
              api_version="1.0", max_memory_mb=256,
-             max_cpu_seconds=30, timeout_seconds=20) -> dict:
+             max_cpu_seconds=30, timeout_seconds=20, type="") -> dict:
     return {
         "id": id, "name": name, "version": version, "author": author,
+        "type": type,
         "description": description, "permissions": permissions or [],
         "hooks": hooks or [], "methods": methods or [],
         "events": events or [], "outbound_domains": outbound_domains or [],

@@ -235,6 +235,45 @@ HIGH_RISK_WRITE_METHODS = {
 }
 
 
+# ── Plugin types ──────────────────────────────────────────────────────────────
+# Every plugin declares one type in its manifest ("type": "email", ...). The type
+# decides which subdirectory of the plugins root it installs into
+# (<root>/<type>/<id>/) and which rules it must satisfy. The directory is a
+# convenience; these rules are what make the type a real boundary.
+#
+#   required_hooks  the plugin must declare these hooks
+#   data_only       the plugin is data the host loads (translations, design
+#                   tokens), never code: no entrypoint, hooks, permissions,
+#                   methods or egress, and it is never launched as a process.
+PLUGIN_TYPES = {
+    "email":     {"label": "Email providers", "required_hooks": {"email_provider"}},
+    "captcha":   {"label": "CAPTCHA solvers", "required_hooks": {"solve_captcha"}},
+    "forms":     {"label": "Form handlers",   "required_hooks": {"fill_form"}},
+    "discovery": {"label": "Discovery bots"},   # no discovery hook exists yet
+    "brokers":   {"label": "Broker add-ons"},   # broker specs land with roadmap item 1
+    "themes":    {"label": "Themes",          "data_only": True},
+    "languages": {"label": "Language packs",  "data_only": True},
+    "general":   {"label": "General"},          # event hooks, email parsers, anything else
+}
+
+# Hooks that belong to exactly one type. A plugin declaring one of these must
+# be of that type, so e.g. a "general" plugin can't quietly act as an email
+# provider (the trusted class with its own egress exemptions).
+SPECIALIZED_HOOKS = {
+    "email_provider": "email",
+    "solve_captcha":  "captcha",
+    "fill_form":      "forms",
+}
+
+
+def infer_plugin_type(hooks) -> str:
+    """Best-guess type for a manifest that predates the `type` field."""
+    for hook in hooks or []:
+        if hook in SPECIALIZED_HOOKS:
+            return SPECIALIZED_HOOKS[hook]
+    return "general"
+
+
 def methods_for_permission(permission: str) -> list[str]:
     """All host methods a given permission could unlock (for UI display)."""
     return [m for m, info in HOST_METHODS.items() if info["permission"] == permission]
@@ -249,6 +288,7 @@ class PluginManifest:
     author:      str
     description: str = ""
     api_version: str = "1.0"
+    type:        str = ""              # one of PLUGIN_TYPES; "" = legacy manifest
     permissions: list[str] = field(default_factory=list)
     hooks:       list[str] = field(default_factory=list)
     methods:     list[str] = field(default_factory=list)   # exact host methods it calls
@@ -279,6 +319,7 @@ class PluginManifest:
             errors.append("version is required")
         if not self.author:
             errors.append("author is required")
+        errors.extend(self._type_errors())
         for p in self.permissions:
             if not Permission.is_valid(p):
                 errors.append(f"unknown permission: {p}")
@@ -360,6 +401,47 @@ class PluginManifest:
         return errors
 
     @property
+    def effective_type(self) -> str:
+        """The declared type, or for a legacy manifest the type inferred from
+        its hooks. This is what decides where the plugin is installed."""
+        return self.type or infer_plugin_type(self.hooks)
+
+    @property
+    def type_inferred(self) -> bool:
+        return not self.type
+
+    @property
+    def is_data_only(self) -> bool:
+        return bool(PLUGIN_TYPES.get(self.effective_type, {}).get("data_only"))
+
+    def _type_errors(self) -> list[str]:
+        # A legacy manifest (no `type`) gets the inferred type and no type rules,
+        # so plugins installed before types existed keep working. Rules apply as
+        # soon as a manifest declares its type.
+        if not self.type:
+            return []
+        rules = PLUGIN_TYPES.get(self.type)
+        if rules is None:
+            return [f"unknown plugin type '{self.type}' "
+                    f"(expected one of: {', '.join(PLUGIN_TYPES)})"]
+        errors = []
+        for hook in rules.get("required_hooks", ()):
+            if hook not in self.hooks:
+                errors.append(f"a '{self.type}' plugin must declare the '{hook}' hook")
+        for hook in self.hooks:
+            owner = SPECIALIZED_HOOKS.get(hook)
+            if owner and owner != self.type:
+                errors.append(f"the '{hook}' hook is only allowed in '{owner}' plugins, "
+                              f"not '{self.type}'")
+        if rules.get("data_only"):
+            for fld in ("hooks", "permissions", "methods", "outbound_domains"):
+                if getattr(self, fld):
+                    errors.append(f"a '{self.type}' plugin is data only and may not declare {fld}")
+            if self.entrypoint:
+                errors.append(f"a '{self.type}' plugin is data only and may not have an entrypoint")
+        return errors
+
+    @property
     def has_wildcard_outbound(self) -> bool:
         """True if this (email-provider) plugin defers its outbound host to
         operator configuration. The host must bind the real host at enable time."""
@@ -367,6 +449,9 @@ class PluginManifest:
 
     @classmethod
     def from_dict(cls, d: dict) -> "PluginManifest":
+        ptype = d.get("type", "") or ""
+        # Data-only types have no code, so no default entrypoint either.
+        default_entry = "" if PLUGIN_TYPES.get(ptype, {}).get("data_only") else "plugin.py"
         return cls(
             id=d.get("id", ""),
             name=d.get("name", ""),
@@ -374,12 +459,13 @@ class PluginManifest:
             author=d.get("author", ""),
             description=d.get("description", ""),
             api_version=d.get("api_version", "1.0"),
+            type=ptype,
             permissions=d.get("permissions", []),
             hooks=d.get("hooks", []),
             methods=d.get("methods", []),
             events=d.get("events", []),
             outbound_domains=d.get("outbound_domains", []),
-            entrypoint=d.get("entrypoint", "plugin.py"),
+            entrypoint=d.get("entrypoint", default_entry),
             max_memory_mb=int(d.get("max_memory_mb", 256)),
             max_cpu_seconds=int(d.get("max_cpu_seconds", 30)),
             timeout_seconds=int(d.get("timeout_seconds", 20)),
@@ -391,7 +477,8 @@ class PluginManifest:
         return {
             "id": self.id, "name": self.name, "version": self.version,
             "author": self.author, "description": self.description,
-            "api_version": self.api_version, "permissions": self.permissions,
+            "api_version": self.api_version, "type": self.type,
+            "permissions": self.permissions,
             "hooks": self.hooks, "methods": self.methods, "events": self.events,
             "outbound_domains": self.outbound_domains, "entrypoint": self.entrypoint,
             "max_memory_mb": self.max_memory_mb,

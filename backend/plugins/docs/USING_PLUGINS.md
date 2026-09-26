@@ -276,9 +276,11 @@ loopback channel keeps working.
 
 1. **Enable the system** — Settings → Plugin system → enable, choose storage
    backend (database or file), set the plugins directory. Restart the server.
-2. **Install a plugin** — either drop its folder into the plugins directory (it
-   appears under "Discovered on disk" → Install), or upload a `.zip` bundle on
-   the Plugins page.
+2. **Install a plugin** — click **Upload plugin** on the Plugins page and pick a
+   `.zip` bundle. The wizard shows what kind of plugin it is and the folder it
+   will go into before anything is written, then installs it (disabled). You
+   can also put a plugin folder in its type folder yourself
+   (`plugins/<type>/<id>/`); it appears under "Discovered on disk" → Install.
 3. **Enable + grant** — click Enable, review the requested permissions and their
    risk, uncheck any you don't want to grant (hook-required ones are mandatory),
    confirm. The plugin launches immediately.
@@ -286,6 +288,47 @@ loopback channel keeps working.
    and a per-plugin audit log (install/enable/disable/crash/auto-disable).
 5. **Disable / uninstall** — one click; the process is stopped and the token
    revoked.
+
+### Where plugins live
+
+Every plugin is stored at `<plugins directory>/<type>/<id>/`, where the type
+comes from the plugin's manifest:
+
+| Folder | Type | Notes |
+|---|---|---|
+| `email/` | Email providers | Includes the built-in Gmail, Outlook and Yahoo plugins |
+| `captcha/` | CAPTCHA solvers | Must provide the `solve_captcha` hook |
+| `forms/` | Form handlers | Must provide the `fill_form` hook |
+| `discovery/` | Discovery bots | Reserved; no discovery hook exists yet |
+| `brokers/` | Broker add-ons | Reserved for broker add-ons (roadmap item 1) |
+| `themes/` | Themes | Data only: no code, never run |
+| `languages/` | Language packs | Data only: no code, never run |
+| `general/` | Everything else | Event hooks, email parsers |
+
+The type is enforced, not just a folder name. A plugin sitting in the wrong
+folder is flagged as invalid, the `email_provider`, `solve_captcha` and
+`fill_form` hooks are only accepted in their own type, and a `themes` or
+`languages` plugin may not contain code, permissions or network access.
+
+**Built-in plugins** ship inside the app (`backend/plugins/bundled/email/`) and
+are copied into `email/` when they're first needed. The copy carries a
+`.privacyshield-bundled` marker and is refreshed automatically when you
+upgrade PrivacyShield. A plugin of your own with the same ID (no marker) is
+never overwritten.
+
+**Upgrading from the old flat layout** (`<plugins directory>/<id>/`): on
+startup, each installed plugin is moved into its type folder and its recorded
+location is updated. Plugins installed from outside the plugins directory are
+left where they are.
+
+### Letting other users upload plugins
+
+A super admin can let another user upload plugins: Admin panel → the user's
+row → **plugin uploads off / can upload plugins**. That user gets an
+**Upload plugin** page with the same wizard. What they upload is always
+installed disabled; only a super admin can enable a plugin and grant its
+permissions. Their uploads are recorded in the plugin's audit log, and they
+can't upload while the plugin system is denied.
 
 ### Verifying the runtime before you trust it
 
