@@ -1605,10 +1605,252 @@ def t_plugin_layout_migration():
     session.close()
 
 
+@test(1, "access.effective_permissions",
+      "Manager permissions = (editable defaults + granted) - revoked; super admins hold "
+      "everything, parents and members nothing; editing all members' data implies viewing it.")
+def t_access_effective():
+    from types import SimpleNamespace as NS
+    try:
+        access = _imp("core.access")
+        settings_store = _imp("core.settings_store")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    settings = {}
+    orig = settings_store.load_settings
+    settings_store.load_settings = lambda: settings
+    try:
+        sa = NS(is_super_admin=True, is_manager=False)
+        parent = NS(is_super_admin=False, is_manager=False)
+        mgr = lambda g=None, r=None: NS(is_super_admin=False, is_manager=True,
+                                        permissions_granted=g, permissions_revoked=r)
+        assert access.effective_permissions(sa) == list(access.PERMISSIONS)
+        assert access.effective_permissions(parent) == []
+        assert access.effective_permissions(mgr()) == access.clean(access.DEFAULT_MANAGER_PERMISSIONS)
+        assert not access.has_permission(mgr(), "members.view_all"), "member data must be off by default"
+        m = mgr(g='["users.manage"]', r='["help.edit"]')
+        held = access.effective_permissions(m)
+        assert "users.manage" in held and "help.edit" not in held and "brokers.manage" in held
+        assert access.has_permission(mgr(g='["members.edit_all"]'), "members.view_all")
+        # Editing the defaults changes every manager, except their own changes.
+        settings["access"] = {"manager_defaults": ["reporting.view", "help.edit"]}
+        assert access.effective_permissions(mgr()) == ["reporting.view", "help.edit"]
+        assert access.effective_permissions(m) == ["users.manage", "reporting.view"]
+        # Garbage in stored overrides is ignored, unknown keys refused in code.
+        assert access.effective_permissions(mgr(g="not json")) == ["reporting.view", "help.edit"]
+        try:
+            access.has_permission(sa, "no.such.permission")
+            raise AssertionError("unknown permission key accepted")
+        except ValueError:
+            pass
+    finally:
+        settings_store.load_settings = orig
+
+
+@test(2, "access.manager_escalation_guards",
+      "A manager with 'Manage users' handles parents and members only: can't create, change "
+      "or delete super admins or managers, change roles, share profiles with themselves, or "
+      "issue super admin/manager invite codes. Only super admins set permissions and defaults.")
+def t_access_escalation():
+    import json, tempfile
+    try:
+        from fastapi import HTTPException
+        admin_router = _imp("routers.admin")
+        auth_router = _imp("routers.auth")
+        settings_store = _imp("core.settings_store")
+        db, session = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    def expect_http(status, fn, *a, **kw):
+        try:
+            fn(*a, **kw)
+        except HTTPException as e:
+            assert e.status_code == status, f"expected {status}, got {e.status_code}: {e.detail}"
+            return
+        raise AssertionError(f"expected HTTP {status} from {fn.__name__}")
+
+    def user(email, role, **kw):
+        u = db.User(email=email, full_name=email.split("@")[0], role=role, hashed_password="x", **kw)
+        session.add(u); session.commit(); return u
+
+    with tempfile.TemporaryDirectory() as tmp:
+        settings_file = os.path.join(tmp, "settings.json")
+        json.dump({}, open(settings_file, "w"))
+        orig_load, orig_file = settings_store.load_settings, settings_store.SETTINGS_FILE
+        settings_store.load_settings = lambda: json.load(open(settings_file))
+        settings_store.SETTINGS_FILE = settings_file
+        try:
+            R = db.UserRole
+            sa = user("sa@example.org", R.super_admin)
+            mgr = user("mgr@example.org", R.manager, permissions_granted='["users.manage", "users.registration"]')
+            other_mgr = user("mgr2@example.org", R.manager)
+            parent = user("p@example.org", R.parent)
+            parent2 = user("p2@example.org", R.parent)
+            Create, Update = admin_router.CreateUserRequest, admin_router.UpdateUserRequest
+
+            out = admin_router.create_user(Create(full_name="New", email="new@example.org",
+                                                  role="parent", password="password123"), session, mgr)
+            assert out.role == "parent"
+            for role in ("super_admin", "manager"):
+                expect_http(403, admin_router.create_user, Create(full_name="X", email=f"{role}@example.org",
+                            role=role, password="password123"), session, mgr)
+            expect_http(403, admin_router.update_user, parent.id, Update(role="super_admin"), session, mgr)
+            expect_http(403, admin_router.update_user, sa.id, Update(full_name="Hacked"), session, mgr)
+            expect_http(403, admin_router.update_user, other_mgr.id, Update(password="password123"), session, mgr)
+            expect_http(403, admin_router.delete_user, sa.id, session, mgr)
+            admin_router.update_user(parent.id, Update(full_name="Renamed"), session, mgr)   # allowed
+
+            Grant = admin_router.AccessGrantRequest
+            expect_http(403, admin_router.create_grant, Grant(manager_id=mgr.id, managed_id=parent.id), session, mgr)
+            expect_http(403, admin_router.create_grant, Grant(manager_id=parent.id, managed_id=sa.id), session, mgr)
+            admin_router.create_grant(Grant(manager_id=parent.id, managed_id=parent2.id), session, mgr)
+
+            Invite = auth_router.InviteCodeCreate
+            for role in ("super_admin", "manager"):
+                expect_http(403, auth_router.create_invite_code, Invite(role=role), session, mgr)
+            expect_http(400, auth_router.create_invite_code, Invite(role="emperor"), session, sa)
+            assert auth_router.create_invite_code(Invite(role="parent"), session, mgr).role == "parent"
+            assert auth_router.create_invite_code(Invite(role="manager"), session, sa).role == "manager"
+
+            # Super admin sets a manager's permissions; stored as the difference
+            # from the defaults so unchanged keys keep following them.
+            Perms = admin_router.ManagerPermissionsRequest
+            out = admin_router.set_manager_permissions(
+                other_mgr.id, Perms(permissions=["reporting.view", "plugins.upload"]), session, sa)
+            assert out.permissions == ["reporting.view", "plugins.upload"], out.permissions
+            assert out.permissions_granted == ["plugins.upload"]
+            assert "reporting.view" not in out.permissions_revoked and "brokers.manage" in out.permissions_revoked
+            expect_http(400, admin_router.set_manager_permissions, parent.id, Perms(permissions=[]), session, sa)
+            expect_http(400, admin_router.set_manager_permissions, other_mgr.id,
+                        Perms(permissions=["root"]), session, sa)
+            admin_router.set_manager_defaults(admin_router.ManagerDefaultsRequest(permissions=["help.edit"]), sa)
+            assert json.load(open(settings_file))["access"]["manager_defaults"] == ["help.edit"]
+            # Leaving the manager role drops the per-manager changes.
+            admin_router.update_user(other_mgr.id, Update(role="parent"), session, sa)
+            session.refresh(other_mgr)
+            assert other_mgr.permissions_granted is None and other_mgr.permissions_revoked is None
+        finally:
+            settings_store.load_settings, settings_store.SETTINGS_FILE = orig_load, orig_file
+            session.close()
+
+
+@test(2, "access.member_data_and_broker_writes",
+      "Managers see only their own and shared profiles unless granted 'view/edit all members' "
+      "data'; broker edits, deletes and imports need 'Manage brokers' (before, any signed-in "
+      "user could make them).")
+def t_access_member_data_and_brokers():
+    import json, tempfile
+    try:
+        from fastapi import FastAPI, HTTPException
+        from fastapi.testclient import TestClient
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        auth = _imp("core.auth")
+        brokers_router = _imp("routers.brokers")
+        settings_store = _imp("core.settings_store")
+        db = _imp("models.database")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    # One in-memory database shared across threads: TestClient runs endpoints
+    # in a worker thread.
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False},
+                           poolclass=StaticPool)
+    db.Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+    orig_load = settings_store.load_settings
+    settings_store.load_settings = lambda: {}
+    try:
+        R = db.UserRole
+        def person(email, role, **kw):
+            u = db.User(email=email, full_name=email, role=role, hashed_password="x", **kw)
+            session.add(u); session.flush()
+            session.add(db.FamilyMember(user_id=u.id, full_name=email)); session.commit()
+            return u
+        mgr = person("m@example.org", R.manager)
+        viewer = person("v@example.org", R.manager, permissions_granted='["members.view_all"]')
+        editor = person("e@example.org", R.manager, permissions_granted='["members.edit_all"]')
+        fam = person("f@example.org", R.parent)
+        fam_member = session.query(db.FamilyMember).filter_by(user_id=fam.id).one()
+
+        assert fam_member.id not in auth.get_accessible_member_ids(session, mgr)
+        try:
+            auth.assert_can_view(session, mgr, fam_member.id)
+            raise AssertionError("manager without members.view_all saw another family")
+        except HTTPException as e:
+            assert e.status_code == 403
+        assert fam_member.id in auth.get_accessible_member_ids(session, viewer)
+        auth.assert_can_view(session, viewer, fam_member.id)
+        try:
+            auth.assert_can_edit(session, viewer, fam_member.id)
+            raise AssertionError("view-only manager could edit")
+        except HTTPException as e:
+            assert e.status_code == 403
+        auth.assert_can_edit(session, editor, fam_member.id)
+
+        # Broker writes over real HTTP: a parent gets 403, a manager with the
+        # default set (includes brokers.manage) gets through.
+        broker = db.Broker(name="Example Broker", opt_out_url="https://example.com/optout")
+        session.add(broker); session.commit()
+        app = FastAPI(); app.include_router(brokers_router.router)
+        app.dependency_overrides[db.get_db] = lambda: session
+        client = TestClient(app)
+        who = {"user": fam}
+        app.dependency_overrides[auth.get_current_user] = lambda: who["user"]
+        for method, path, kw in (("patch", f"/api/brokers/{broker.id}", {"json": {"notes": "x"}}),
+                                 ("delete", f"/api/brokers/{broker.id}", {}),
+                                 ("post", "/api/brokers/import-json",
+                                  {"files": {"file": ("b.json", b"[]", "application/json")}})):
+            r = getattr(client, method)(path, **kw)
+            assert r.status_code == 403, f"parent {method.upper()} {path} -> {r.status_code}"
+        assert client.get("/api/brokers").status_code == 200, "reading brokers stays open"
+        who["user"] = mgr
+        r = client.patch(f"/api/brokers/{broker.id}", json={
+            "opt_out_url": "https://example.com/optout", "method": "form",
+            "difficulty": "easy", "notes": "checked"})
+        assert r.status_code == 200, r.text
+    finally:
+        settings_store.load_settings = orig_load
+        session.close()
+
+
+@test(2, "access.migrates_plugin_upload_grants",
+      "Users given the earlier per-user 'can upload plugins' switch become managers holding "
+      "only plugins.upload, so nobody gains or loses access; the old switch is cleared.")
+def t_access_migrate_upload_grants():
+    import json
+    try:
+        migrations = _imp("core.migrations")
+        access = _imp("core.access")
+        settings_store = _imp("core.settings_store")
+        db, session = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    R = db.UserRole
+    u = db.User(email="up@example.org", full_name="Up", role=R.parent, hashed_password="x",
+                can_upload_plugins=True)
+    keep = db.User(email="sa@example.org", full_name="SA", role=R.super_admin, hashed_password="x",
+                   can_upload_plugins=True)
+    session.add_all([u, keep]); session.commit()
+    orig_session, orig_load = db.SessionLocal, settings_store.load_settings
+    db.SessionLocal = lambda: session
+    settings_store.load_settings = lambda: {}
+    try:
+        migrations.migrate_plugin_upload_grants()   # closes the session it's given
+        u = session.query(db.User).filter_by(email="up@example.org").one()
+        keep = session.query(db.User).filter_by(email="sa@example.org").one()
+        assert u.role == R.manager and not u.can_upload_plugins
+        assert access.effective_permissions(u) == ["plugins.upload"], access.effective_permissions(u)
+        assert keep.role == R.super_admin
+    finally:
+        db.SessionLocal, settings_store.load_settings = orig_session, orig_load
+        session.close()
+
+
 @test(2, "plugins.upload_wizard_routes_by_type",
       "The upload wizard inspects a zip, installs it into <root>/<type>/<id>/ (email "
       "providers into email/), enforces expected_type, refuses unsafe zips, and only "
-      "lets users a super admin has granted can_upload_plugins use it.")
+      "lets super admins and managers with the plugins.upload permission use it.")
 def t_plugin_upload_wizard():
     import io, json, tempfile
     from types import SimpleNamespace as NS
@@ -1616,6 +1858,7 @@ def t_plugin_upload_wizard():
         from fastapi import HTTPException, UploadFile
         plugins_router = _imp("routers.plugins")
         settings_store = _imp("core.settings_store")
+        access = _imp("core.access")
         db, session = _memory_db()
     except ImportError as e:
         raise Skip(f"needs full backend deps / package layout: {e}")
@@ -1631,9 +1874,12 @@ def t_plugin_upload_wizard():
             return e.detail
         raise AssertionError(f"expected HTTP {status}")
 
-    admin = NS(id=1, email="admin@example.org", is_super_admin=True, can_upload_plugins=False)
-    staff = NS(id=2, email="staff@example.org", is_super_admin=False, can_upload_plugins=True)
-    other = NS(id=3, email="other@example.org", is_super_admin=False, can_upload_plugins=False)
+    admin = NS(id=1, email="admin@example.org", is_super_admin=True, is_manager=False)
+    staff = NS(id=2, email="staff@example.org", is_super_admin=False, is_manager=True,
+               permissions_granted='["plugins.upload"]', permissions_revoked=None)
+    other = NS(id=3, email="other@example.org", is_super_admin=False, is_manager=True,
+               permissions_granted=None, permissions_revoked=None)   # defaults only
+    can_upload = access.require_permission("plugins.upload")
 
     email_manifest = {"id": "email-acme", "name": "Acme Mail", "version": "1.0.0",
                       "type": "email", "author": "t", "hooks": ["email_provider"],
@@ -1651,11 +1897,11 @@ def t_plugin_upload_wizard():
         settings_store.load_settings = lambda: settings
         saved_env = os.environ.pop("PLUGINS_DIR", None)
         try:
-            # Permission: super admins and granted users only; granted users are
-            # refused while the plugin system is denied.
-            assert plugins_router.require_plugin_uploader(admin) is admin
+            # Permission: super admins and managers holding plugins.upload (not
+            # in the default set); managers are refused while the system is denied.
+            assert can_upload(admin) is admin and can_upload(staff) is staff
+            expect_http(403, can_upload, other)
             assert plugins_router.require_plugin_uploader(staff) is staff
-            expect_http(403, plugins_router.require_plugin_uploader, other)
             settings["plugins"]["denied"] = True
             expect_http(403, plugins_router.require_plugin_uploader, staff)
             settings["plugins"]["denied"] = False
@@ -2312,6 +2558,73 @@ def t_app_import():
     # EXPECTED: main imports, app object exists.
     # IF THIS FAILS: this is almost certainly why the api container crash-loops.
     #   The traceback names the exact module/line.
+
+
+@test(4, "access.route_gates",
+      "Every route's gate matches the permission design: never-delegated actions stay "
+      "super-admin only, delegated ones need their permission, broker writes aren't open.")
+def t_access_route_gates():
+    main = _import_app_main()
+    from fastapi.routing import APIRoute
+    auth = _imp("core.auth")
+
+    def gates(route):
+        found = set()
+        def walk(dep):
+            call = dep.call
+            if call is auth.require_super_admin:
+                found.add("SUPER")
+            for k in getattr(call, "required_permissions", ()):
+                found.add(k)
+            for sub in dep.dependencies:
+                walk(sub)
+        walk(route.dependant)
+        return found
+
+    table = {}
+    for r in main.app.routes:
+        if isinstance(r, APIRoute):
+            for m in r.methods:
+                table[(m, r.path)] = gates(r)
+
+    expect = {
+        # Never delegated
+        ("PUT", "/api/admin/permissions/defaults"): {"SUPER"},
+        ("PUT", "/api/admin/users/{user_id}/permissions"): {"SUPER"},
+        ("POST", "/api/plugins/{plugin_id}/enable"): {"SUPER"},
+        ("POST", "/api/plugins/install"): {"SUPER"},
+        ("DELETE", "/api/plugins/{plugin_id}"): {"SUPER"},
+        ("PATCH", "/api/settings/plugins"): {"SUPER"},
+        ("POST", "/api/database/migrate-to-postgres"): {"SUPER"},
+        ("PATCH", "/api/database/connection-config"): {"SUPER"},
+        ("DELETE", "/api/settings/danger/reset-requests"): {"SUPER"},
+        # Delegated
+        ("GET", "/api/admin/users"): {"users.manage"},
+        ("POST", "/api/auth/invite-codes"): {"users.registration"},
+        ("PATCH", "/api/brokers/{broker_id}"): {"brokers.manage"},
+        ("DELETE", "/api/brokers/{broker_id}"): {"brokers.manage"},
+        ("POST", "/api/brokers/import-csv"): {"brokers.manage"},
+        ("POST", "/api/brokers/import-json"): {"brokers.manage"},
+        ("PUT", "/api/automation/scripts/{broker_id}"): {"brokers.automation"},
+        ("POST", "/api/scheduler/trigger/{job_name}"): {"scheduler.manage"},
+        ("GET", "/api/reporting/summary"): {"reporting.view"},
+        ("POST", "/api/help/notes"): {"help.edit"},
+        ("GET", "/api/cert-monitor/alerts"): {"certificates.view"},
+        ("PATCH", "/api/settings/email"): {"email.manage"},
+        ("PATCH", "/api/branding/config"): {"branding.manage"},
+        ("PATCH", "/api/branding/auth-providers/ldap"): {"auth.providers"},
+        ("PUT", "/api/auth/saml/config"): {"auth.providers"},
+        ("PATCH", "/api/settings/proxy"): {"settings.system"},
+        ("GET", "/api/database/health"): {"database.view"},
+        ("GET", "/api/plugins"): {"plugins.view"},
+        ("POST", "/api/plugins/upload"): {"plugins.upload"},
+    }
+    wrong = {k: (table.get(k), v) for k, v in expect.items() if table.get(k) != v}
+    assert not wrong, "route gates differ from the design (got, expected): " + \
+        "; ".join(f"{m} {p}: {g}" for (m, p), g in wrong.items())
+    # Nothing left requiring BOTH a permission and super admin (a half-done remap).
+    mixed = [k for k, g in table.items() if "SUPER" in g and len(g) > 1]
+    assert not mixed, f"routes gated by both super admin and a permission: {mixed}"
 
 
 @test(4, "app.routes_registered",

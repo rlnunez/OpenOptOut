@@ -8,6 +8,7 @@ import csv, io
 
 from ..models.database import get_db, Broker, RemovalRequest, RequestStatus, BrokerStatus, OptOutMethod, Difficulty
 from ..core.auth import get_current_user, User
+from ..core.access import require_permission, has_permission
 
 router = APIRouter(prefix="/api/brokers", tags=["brokers"])
 
@@ -144,7 +145,7 @@ def update_broker(
     broker_id: int,
     data: BrokerUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_permission("brokers.manage")),
 ):
     b = db.query(Broker).filter(Broker.id == broker_id).first()
     if not b:
@@ -165,7 +166,7 @@ def update_broker(
 def import_csv(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_permission("brokers.manage")),
 ):
     """
     Import brokers from the enriched CSV we generated.
@@ -230,7 +231,7 @@ class BrokerCreate(BaseModel):
 def create_broker(
     data: BrokerCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_permission("brokers.manage")),
 ):
     """Add a single broker via form."""
     from ..core.auth import require_super_admin
@@ -264,7 +265,7 @@ def create_broker(
 def delete_broker(
     broker_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_permission("brokers.manage")),
 ):
     b = db.query(Broker).filter(Broker.id == broker_id).first()
     if not b: raise HTTPException(404, "Broker not found")
@@ -277,7 +278,7 @@ def delete_broker(
 def import_json_brokers(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_permission("brokers.manage")),
 ):
     """
     Import brokers from a JSON file.
@@ -428,8 +429,8 @@ def disable_broker(
     user: User = Depends(get_current_user),
 ):
     """Manually turn a broker off. It will be skipped by all runs until re-enabled."""
-    if not user.is_super_admin:
-        raise HTTPException(403, "Super admin access required")
+    if not has_permission(user, "brokers.manage"):
+        raise HTTPException(403, "This needs the 'Manage brokers' permission")
     from ..models.database import BrokerHealth
     broker = db.query(Broker).filter(Broker.id == broker_id).first()
     if not broker:
@@ -450,8 +451,8 @@ def enable_broker(
     Re-enable a broker (clears an auto-disable and resets its consecutive-failure
     count). Use after reviewing why it was failing — e.g. fixing its add-on.
     """
-    if not user.is_super_admin:
-        raise HTTPException(403, "Super admin access required")
+    if not has_permission(user, "brokers.manage"):
+        raise HTTPException(403, "This needs the 'Manage brokers' permission")
     from ..models.database import BrokerHealth
     broker = db.query(Broker).filter(Broker.id == broker_id).first()
     if not broker:
@@ -466,14 +467,14 @@ def enable_broker(
 # One source of truth: Broker.priority (1..5) + priority_source (default|rule|
 # manual). See core/broker_priority.py. Rules are destructive bulk writes that
 # only touch matching brokers; the UI previews the effect first (with a
-# manual-overwrite count) before applying. All priority endpoints are super-admin.
+# manual-overwrite count) before applying. Priority changes need brokers.manage.
 
 from ..core import broker_priority as _bp
 
 
 def _require_admin(user: User):
-    if not user.is_super_admin:
-        raise HTTPException(403, "Super admin access required")
+    if not has_permission(user, "brokers.manage"):
+        raise HTTPException(403, "This needs the 'Manage brokers' permission")
 
 
 class PrioritySet(BaseModel):
@@ -506,7 +507,7 @@ def _rule_from_model(m: "RuleModel") -> "_bp.PriorityRule":
 @router.patch("/{broker_id}/priority", response_model=BrokerOut)
 def set_broker_priority(broker_id: int, body: PrioritySet,
                         db: Session = Depends(get_db),
-                        user: User = Depends(get_current_user)):
+                        user: User = Depends(require_permission("brokers.manage"))):
     """Manually set one broker's priority (marks source = manual)."""
     _require_admin(user)
     if not (1 <= body.priority <= 5):
@@ -523,7 +524,7 @@ def set_broker_priority(broker_id: int, body: PrioritySet,
 @router.post("/priority/bulk-set")
 def bulk_set_priority(body: BulkPrioritySet,
                       db: Session = Depends(get_db),
-                      user: User = Depends(get_current_user)):
+                      user: User = Depends(require_permission("brokers.manage"))):
     """Manually set priority on a bulk-selected set of brokers (source = manual)."""
     _require_admin(user)
     if not (1 <= body.priority <= 5):
@@ -563,7 +564,7 @@ def preview_priority_rule(rule: RuleModel,
 @router.post("/priority/rule/apply")
 def apply_priority_rule(rule: RuleModel,
                         db: Session = Depends(get_db),
-                        user: User = Depends(get_current_user)):
+                        user: User = Depends(require_permission("brokers.manage"))):
     """
     Apply a rule: writes the priority into every matching broker (source = rule).
     Only matching brokers are touched. The client should have shown the preview
@@ -583,7 +584,7 @@ def apply_priority_rule(rule: RuleModel,
 @router.post("/{broker_id}/priority/reset", response_model=BrokerOut)
 def reset_broker_priority(broker_id: int,
                           db: Session = Depends(get_db),
-                          user: User = Depends(get_current_user)):
+                          user: User = Depends(require_permission("brokers.manage"))):
     """Reset one broker to its derived default priority (source = default)."""
     _require_admin(user)
     b = db.query(Broker).filter(Broker.id == broker_id).first()
@@ -596,7 +597,7 @@ def reset_broker_priority(broker_id: int,
 
 @router.post("/priority/reset-all")
 def reset_all_priorities(db: Session = Depends(get_db),
-                         user: User = Depends(get_current_user)):
+                         user: User = Depends(require_permission("brokers.manage"))):
     """Reset ALL brokers to derived default. Clears every manual/rule value."""
     _require_admin(user)
     brokers = db.query(Broker).all()
@@ -629,7 +630,7 @@ def export_priorities(kind: str = Query("both", description="rankings | rules | 
 @router.post("/priority/import")
 def import_priorities(data: dict,
                       db: Session = Depends(get_db),
-                      user: User = Depends(get_current_user)):
+                      user: User = Depends(require_permission("brokers.manage"))):
     """
     Import a priority export (rankings, rules, or both). Rankings are applied to
     matching brokers by name (source = manual). Any rules in the file are

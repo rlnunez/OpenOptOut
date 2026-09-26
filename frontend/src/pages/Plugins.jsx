@@ -6,6 +6,7 @@ import {
   Lock, Cpu, Activity, FileWarning, Info, Package, Ban, Eye, ShieldAlert, ShieldCheck, Globe, BookOpen
 } from 'lucide-react'
 import api from '../api'
+import { useAuth, can } from '../hooks/useAuth'
 import PluginUploadWizard from '../components/PluginUploadWizard'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500"
@@ -409,7 +410,7 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
 }
 
 // ── Plugin card ───────────────────────────────────────────────────────────────
-function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onViewAudit }) {
+function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onViewAudit, canManage }) {
   const [expanded, setExpanded] = useState(false)
   const st = STATUS_STYLES[plugin.status] || STATUS_STYLES.stopped
 
@@ -444,7 +445,8 @@ function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onView
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {plugin.enabled ? (
+            {/* Enabling, disabling and uninstalling stay with super admins. */}
+            {canManage && (plugin.enabled ? (
               <button onClick={() => onDisable(plugin)}
                 className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-amber-400 border border-amber-800/50 rounded-lg hover:bg-amber-900/20">
                 <Square size={11} /> Disable
@@ -454,7 +456,7 @@ function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onView
                 className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-emerald-400 border border-emerald-800/50 rounded-lg hover:bg-emerald-900/20">
                 <Play size={11} /> Enable
               </button>
-            )}
+            ))}
             <button onClick={() => setExpanded(e => !e)}
               className="p-1.5 text-slate-500 hover:text-slate-300">
               {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
@@ -494,10 +496,12 @@ function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onView
               className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-400 border border-slate-700 rounded-lg hover:bg-slate-700/50">
               <Activity size={11} /> Audit log
             </button>
-            <button onClick={() => onUninstall(plugin)}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-red-400 border border-red-800/50 rounded-lg hover:bg-red-900/20">
-              <Trash2 size={11} /> Uninstall
-            </button>
+            {canManage && (
+              <button onClick={() => onUninstall(plugin)}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-red-400 border border-red-800/50 rounded-lg hover:bg-red-900/20">
+                <Trash2 size={11} /> Uninstall
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -541,6 +545,9 @@ function AuditModal({ plugin, onClose }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function Plugins() {
+  const { user } = useAuth()
+  const canManage = user?.role === 'super_admin'   // install / enable / disable / uninstall
+  const canUpload = can(user, 'plugins.upload')
   const [status, setStatus]     = useState(null)
   const [installed, setInstalled] = useState([])
   const [available, setAvailable] = useState([])
@@ -607,10 +614,12 @@ export default function Plugins() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
             <BookOpen size={13} /> Docs
           </Link>
-          <button onClick={() => setShowUpload(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
-            <Upload size={13} /> Upload plugin
-          </button>
+          {canUpload && (
+            <button onClick={() => setShowUpload(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
+              <Upload size={13} /> Upload plugin
+            </button>
+          )}
           <button onClick={load} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
             <RefreshCw size={13} /> Refresh
           </button>
@@ -645,7 +654,7 @@ export default function Plugins() {
                       {g.plugins.map(p => (
                         <PluginCard key={p.plugin_id} plugin={p} permInfo={permInfo}
                           onEnable={setEnableTarget} onDisable={doDisable}
-                          onUninstall={doUninstall} onViewAudit={setAuditTarget} />
+                          onUninstall={doUninstall} onViewAudit={setAuditTarget} canManage={canManage} />
                       ))}
                     </div>
                   </div>
@@ -681,10 +690,10 @@ export default function Plugins() {
                         <p className="text-red-400/80 text-xs mt-1">{p.errors.join('; ')}</p>
                       )}
                     </div>
-                    <button onClick={() => doInstall(p.path)} disabled={!p.valid}
+                    {canManage && <button onClick={() => doInstall(p.path)} disabled={!p.valid}
                       className="flex items-center gap-1 px-3 py-1.5 text-xs bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white rounded-lg shrink-0">
                       <Package size={11} /> Install
-                    </button>
+                    </button>}
                   </div>
                 ))}
               </div>

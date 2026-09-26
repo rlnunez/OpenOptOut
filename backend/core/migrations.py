@@ -40,6 +40,14 @@ MIGRATIONS = [
         "Add can_upload_plugins to users",
         "ALTER TABLE users ADD COLUMN can_upload_plugins BOOLEAN NOT NULL DEFAULT FALSE"
     ),
+    (
+        "Add permissions_granted to users",
+        "ALTER TABLE users ADD COLUMN permissions_granted TEXT"
+    ),
+    (
+        "Add permissions_revoked to users",
+        "ALTER TABLE users ADD COLUMN permissions_revoked TEXT"
+    ),
 ]
 
 # Known property brokers — flagged on first startup
@@ -52,6 +60,53 @@ PROPERTY_BROKER_PATTERNS = [
     "realtyhop", "propertyshark", "realtytrac", "homefacts.com",
     "neighborhoodscout.com", "blockchainrealty.com",
 ]
+
+
+def add_manager_role():
+    """
+    Postgres stores UserRole as a native enum type, which needs the new
+    'manager' value added explicitly (SQLite stores it as plain text). Uses
+    IF NOT EXISTS so it's safe on every startup.
+    """
+    if engine.dialect.name != "postgresql":
+        return
+    try:
+        # ALTER TYPE ... ADD VALUE can't run inside a transaction block on older
+        # Postgres versions, so use autocommit.
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            conn.execute(text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'manager'"))
+    except Exception as e:
+        log.warning(f"Could not add 'manager' to the userrole enum: {e}")
+
+
+def migrate_plugin_upload_grants():
+    """
+    Before the manager role existed, a super admin could give a parent a
+    per-user "can upload plugins" switch. Turn each of those into a manager
+    whose only permission is plugins.upload, so nobody gains or loses access,
+    then clear the old switch so this runs once per user.
+    """
+    import json
+    from ..models.database import SessionLocal, User, UserRole
+    from .access import manager_defaults
+    db = SessionLocal()
+    try:
+        users = db.query(User).filter(User.can_upload_plugins == True,  # noqa: E712
+                                      User.role != UserRole.super_admin).all()
+        for u in users:
+            u.role = UserRole.manager
+            u.permissions_granted = json.dumps(["plugins.upload"])
+            u.permissions_revoked = json.dumps([k for k in manager_defaults() if k != "plugins.upload"])
+            u.can_upload_plugins = False
+            log.info(f"Converted plugin-upload grant for user {u.id} into a manager "
+                     f"with only the plugins.upload permission")
+        if users:
+            db.commit()
+    except Exception as e:
+        db.rollback()
+        log.warning(f"Could not migrate plugin-upload grants: {e}")
+    finally:
+        db.close()
 
 
 def run_migrations():

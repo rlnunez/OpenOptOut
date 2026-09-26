@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Search, Upload, ExternalLink, ChevronDown } from 'lucide-react'
 import api from '../api'
+import { useAuth, can } from '../hooks/useAuth'
 import Badge from '../components/Badge'
 
 const STATUS_OPTIONS   = ['', 'compliant', 'resistant', 'inconsistent', 'undetermined']
@@ -8,6 +9,8 @@ const METHOD_OPTIONS   = ['', 'form', 'email', 'manual', 'phone']
 const DIFF_OPTIONS     = ['', 'easy', 'medium', 'hard']
 
 export default function Brokers() {
+  const { user } = useAuth()
+  const canManage = can(user, 'brokers.manage')   // importing brokers
   const [brokers, setBrokers]     = useState([])
   const [loading, setLoading]     = useState(true)
   const [search, setSearch]       = useState('')
@@ -58,7 +61,7 @@ export default function Brokers() {
           <h1 className="text-white text-xl font-semibold">Brokers</h1>
           <p className="text-slate-400 text-sm mt-0.5">{brokers.length} brokers loaded</p>
         </div>
-        <label className={`flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg cursor-pointer transition-colors ${
+        {canManage && <label className={`flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg cursor-pointer transition-colors ${
           importing
             ? 'text-slate-500 border-slate-700'
             : 'text-slate-300 border-slate-700 hover:bg-slate-800'
@@ -66,7 +69,7 @@ export default function Brokers() {
           <Upload size={13} />
           {importing ? 'Importing…' : 'Import CSV'}
           <input type="file" accept=".csv" className="hidden" onChange={handleImport} disabled={importing} />
-        </label>
+        </label>}
       </div>
 
       {importMsg && (

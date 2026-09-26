@@ -180,11 +180,14 @@ checklist below covers the same ground plus what comes after:
 
 | Role | What they can do |
 |---|---|
-| `super_admin` | Full access to everything — all families, all settings, admin panel |
+| `super_admin` | Full access to everything — all families, all settings, admin panel — and the only role that assigns roles and permissions |
+| `manager` | Everything a parent has, plus the admin features a super admin grants them (see below) |
 | `parent` | Login access, manages their own profile + any profiles granted by admin |
 | `member` | Profile only, no login required — managed by parent(s) |
 
 The first registered user is automatically `super_admin`. All subsequent registrations default to `parent`. Members are created by the super admin and don't need passwords unless you want to upgrade them to `parent` later.
+
+**Managers** are for staff who run part of the system without full control of it (a library's help desk or IT, a school's office). Each permission unlocks one area: managing parent and member accounts, registration and invite codes, viewing or editing all members' data, brokers, automation scripts, the scheduler, reports, help notes, certificate status, email settings, branding, sign-in providers, system settings, database status, and viewing or uploading plugins. New managers get an editable default set (brokers, automation scripts, scheduler, reports, help notes and certificate status); a super admin changes that set under **Admin panel → Manager defaults**, and adds or removes permissions for one manager with that manager's **Permissions** button. Member data is off by default. Some things are never delegated: assigning roles and permissions, the setup wizard, enabling plugins and the plugin-system switch, database migration, and resetting all requests.
 
 **Family example:** You (super admin) create accounts for your sister-in-law Maria (parent) and her husband Carlos (parent), plus their children Sofia, Diego, and Ana (members). You grant Maria and Carlos mutual edit access to each other's profiles, and both edit access to the children. Maria and Carlos each see all four profiles when they log in. The children have no login.
 

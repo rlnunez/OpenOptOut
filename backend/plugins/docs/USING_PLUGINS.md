@@ -321,14 +321,23 @@ startup, each installed plugin is moved into its type folder and its recorded
 location is updated. Plugins installed from outside the plugins directory are
 left where they are.
 
-### Letting other users upload plugins
+### Letting managers see or upload plugins
 
-A super admin can let another user upload plugins: Admin panel → the user's
-row → **plugin uploads off / can upload plugins**. That user gets an
-**Upload plugin** page with the same wizard. What they upload is always
-installed disabled; only a super admin can enable a plugin and grant its
-permissions. Their uploads are recorded in the plugin's audit log, and they
-can't upload while the plugin system is denied.
+Two manager permissions cover plugins (Admin panel → a manager's
+**Permissions** button, or **Manager defaults** for every manager):
+
+- **View plugins** — the Plugins page: installed plugins, status, audit logs,
+  violations and plugin docs, without the install/enable/disable/uninstall
+  buttons.
+- **Upload plugins** — the upload wizard (on the Plugins page, or an **Upload
+  plugin** page if they can't view plugins). What they upload is always
+  installed disabled, can't replace files already in a plugin folder, and is
+  recorded in the plugin's audit log. They can't upload while the plugin
+  system is denied.
+
+Enabling, disabling, installing from disk and uninstalling plugins, and the
+plugin-system switch itself, are never delegated: only super admins can do
+them.
 
 ### Verifying the runtime before you trust it
 

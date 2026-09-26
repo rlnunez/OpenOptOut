@@ -39,8 +39,9 @@ _PENDING: dict = {}
 
 
 def _admin(user: User):
-    if not user.is_super_admin:
-        raise HTTPException(403, "Super admin access required")
+    from ..core.access import has_permission, PERMISSIONS
+    if not has_permission(user, "email.manage"):
+        raise HTTPException(403, f"This needs the '{PERMISSIONS['email.manage']['label']}' permission")
 
 
 def _save(data: dict):

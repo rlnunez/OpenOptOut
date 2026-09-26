@@ -14,6 +14,7 @@ from typing import Optional, List
 
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, get_current_user_optional, require_super_admin
+from ..core.access import require_permission, has_permission
 from ..core.settings_store import load_settings, SETTINGS_FILE
 from ..core.auth_providers import OIDC_PRESETS
 
@@ -181,7 +182,7 @@ def get_branding(_: Optional[User] = Depends(get_current_user_optional)):
 
 
 @router.patch("/config", response_model=BrandingConfig)
-def save_branding(data: BrandingConfig, _: User = Depends(require_super_admin)):
+def save_branding(data: BrandingConfig, _: User = Depends(require_permission("branding.manage"))):
     s = load_settings()
     s["branding"] = data.model_dump(exclude={"logo_url"})
     _save(s)
@@ -189,7 +190,7 @@ def save_branding(data: BrandingConfig, _: User = Depends(require_super_admin)):
 
 
 @router.post("/logo")
-def upload_logo(file: UploadFile = File(...), _: User = Depends(require_super_admin)):
+def upload_logo(file: UploadFile = File(...), _: User = Depends(require_permission("branding.manage"))):
     # Was: ext always came out "png" for jpeg/webp uploads too (only svg was
     # distinguished), silently mislabeling those files while still leaving the
     # GET /logo and DELETE endpoints' now-unreachable jpeg/webp branches dead
@@ -221,7 +222,7 @@ def get_logo():
 
 
 @router.delete("/logo", status_code=204)
-def delete_logo(_: User = Depends(require_super_admin)):
+def delete_logo(_: User = Depends(require_permission("branding.manage"))):
     for ext in ("svg", "png", "jpeg", "webp"):
         path = os.path.join(LOGO_PATH, f"logo.{ext}")
         if os.path.exists(path):
@@ -231,14 +232,14 @@ def delete_logo(_: User = Depends(require_super_admin)):
 # ── Registration config ───────────────────────────────────────────────────────
 
 @router.get("/registration", response_model=RegistrationConfig)
-def get_registration(_: User = Depends(require_super_admin)):
+def get_registration(_: User = Depends(require_permission("users.registration"))):
     s = load_settings()
     r = s.get("registration", {})
     return RegistrationConfig(**{k: r.get(k, v) for k, v in RegistrationConfig().model_dump().items()})
 
 
 @router.patch("/registration", response_model=RegistrationConfig)
-def save_registration(data: RegistrationConfig, _: User = Depends(require_super_admin)):
+def save_registration(data: RegistrationConfig, _: User = Depends(require_permission("users.registration"))):
     s = load_settings()
     s["registration"] = data.model_dump()
     _save(s)
@@ -264,7 +265,7 @@ def get_banner(_: Optional[User] = Depends(get_current_user_optional)):
 
 
 @router.put("/banner")
-def set_banner(data: AnnouncementBanner, _: User = Depends(require_super_admin)):
+def set_banner(data: AnnouncementBanner, _: User = Depends(require_permission("branding.manage"))):
     s = load_settings()
     s["banner"] = data.model_dump()
     _save(s)
@@ -272,7 +273,7 @@ def set_banner(data: AnnouncementBanner, _: User = Depends(require_super_admin))
 
 
 @router.delete("/banner", status_code=204)
-def clear_banner(_: User = Depends(require_super_admin)):
+def clear_banner(_: User = Depends(require_permission("branding.manage"))):
     s = load_settings()
     s.pop("banner", None)
     _save(s)
@@ -292,12 +293,13 @@ def get_auth_providers(user: Optional[User] = Depends(get_current_user_optional)
     ldap = ap.get("ldap", {})
     sip2 = ap.get("sip2", {})
 
-    # Is the caller an authenticated super admin? Only they get the full config
+    # May the caller see sign-in configuration (super admin, or a manager with
+    # the "Sign-in providers" permission)? Only they get the full config
     # (LDAP host/bind DN, OIDC client IDs). The login page calls this while
     # LOGGED OUT to know which SSO buttons to show, so we must answer publicly —
     # but a public caller gets ONLY enabled flags + provider labels, never the
     # sensitive infrastructure details.
-    is_admin = bool(user and getattr(user, "is_super_admin", False))
+    is_admin = bool(user and has_permission(user, "auth.providers"))
 
     oidc_providers = []
     for key, preset in OIDC_PRESETS.items():
@@ -366,7 +368,7 @@ def get_auth_providers(user: Optional[User] = Depends(get_current_user_optional)
 
 
 @router.patch("/auth-providers/ldap")
-def save_ldap(data: dict, _: User = Depends(require_super_admin)):
+def save_ldap(data: dict, _: User = Depends(require_permission("auth.providers"))):
     s  = load_settings()
     ap = s.setdefault("auth_providers", {})
     cur = ap.get("ldap", {})
@@ -402,7 +404,7 @@ def save_ldap(data: dict, _: User = Depends(require_super_admin)):
 
 
 @router.patch("/auth-providers/sip2")
-def save_sip2(data: dict, _: User = Depends(require_super_admin)):
+def save_sip2(data: dict, _: User = Depends(require_permission("auth.providers"))):
     s  = load_settings()
     ap = s.setdefault("auth_providers", {})
     cur = ap.get("sip2", {})
@@ -439,7 +441,7 @@ def save_sip2(data: dict, _: User = Depends(require_super_admin)):
 def save_oidc_provider(
     provider_key: str,
     data: OIDCProviderConfig,
-    _: User = Depends(require_super_admin),
+    _: User = Depends(require_permission("auth.providers")),
 ):
     s  = load_settings()
     ap = s.setdefault("auth_providers", {})
@@ -472,7 +474,7 @@ def save_oidc_provider(
 
 
 @router.post("/auth-providers/ldap/test")
-def test_ldap(_: User = Depends(require_super_admin)):
+def test_ldap(_: User = Depends(require_permission("auth.providers"))):
     """Test LDAP connectivity + service-account bind with the stored settings,
     using exactly the same TLS/verification path as real logins."""
     from ..core.auth_providers import (get_provider_config, decrypt_password,
@@ -498,7 +500,7 @@ def test_ldap(_: User = Depends(require_super_admin)):
 
 
 @router.get("/auth-providers/ldap/cert-status")
-def ldap_cert_status_stored(_: User = Depends(require_super_admin)):
+def ldap_cert_status_stored(_: User = Depends(require_permission("auth.providers"))):
     """Most recent stored certificate check (daily job), for the dashboard."""
     from ..core.auth_providers import get_provider_config
     cfg = get_provider_config("ldap")
@@ -510,19 +512,19 @@ def ldap_cert_status_stored(_: User = Depends(require_super_admin)):
 
 
 @router.post("/auth-providers/ldap/cert-check")
-def ldap_cert_check_now(_: User = Depends(require_super_admin)):
+def ldap_cert_check_now(_: User = Depends(require_permission("auth.providers"))):
     from ..core.auth_providers import run_ldap_cert_check
     return run_ldap_cert_check()
 
 
 @router.get("/auth-providers/sip2/presets")
-def sip2_presets(_: User = Depends(require_super_admin)):
+def sip2_presets(_: User = Depends(require_permission("auth.providers"))):
     from ..core.auth_providers import SIP2_ILS_PRESETS
     return SIP2_ILS_PRESETS
 
 
 @router.post("/auth-providers/sip2/test")
-def test_sip2(_: User = Depends(require_super_admin)):
+def test_sip2(_: User = Depends(require_permission("auth.providers"))):
     """Test SIP2 / SIP2-over-TLS connectivity with the same verification as logins."""
     from ..core.auth_providers import (get_provider_config, sip2_endpoint, tls_diagnose,
                                        sip2_cert_status)
@@ -550,13 +552,13 @@ def test_sip2(_: User = Depends(require_super_admin)):
 
 
 @router.get("/auth-providers/sip2/presets")
-def sip2_presets(_: User = Depends(require_super_admin)):
+def sip2_presets(_: User = Depends(require_permission("auth.providers"))):
     from ..core.auth_providers import SIP2_ILS_PRESETS
     return SIP2_ILS_PRESETS
 
 
 @router.post("/auth-providers/sip2/test")
-def test_sip2(_: User = Depends(require_super_admin)):
+def test_sip2(_: User = Depends(require_permission("auth.providers"))):
     """
     Test SIP2 / SIP2S connectivity.
     For TLS connections, also validates the certificate chain.

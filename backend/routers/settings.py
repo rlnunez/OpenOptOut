@@ -13,6 +13,7 @@ from cryptography.fernet import Fernet
 
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, require_super_admin
+from ..core.access import require_permission
 from ..core.settings_store import load_settings, SETTINGS_FILE
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -215,7 +216,7 @@ def get_settings(_: User = Depends(get_current_user)):
 # ── Appearance ────────────────────────────────────────────────────────────────
 
 @router.patch("/appearance")
-def save_appearance(data: AppearanceSettings, _: User = Depends(require_super_admin)):
+def save_appearance(data: AppearanceSettings, _: User = Depends(require_permission("branding.manage"))):
     s = load_settings(); s["appearance"] = data.model_dump(); _save(s)
     return s["appearance"]
 
@@ -223,12 +224,12 @@ def save_appearance(data: AppearanceSettings, _: User = Depends(require_super_ad
 # ── Email ─────────────────────────────────────────────────────────────────────
 
 @router.get("/email/presets")
-def get_presets(_: User = Depends(require_super_admin)):
+def get_presets(_: User = Depends(require_permission("email.manage"))):
     return PRESETS
 
 
 @router.patch("/email")
-def save_email(data: EmailConfig, _: User = Depends(require_super_admin)):
+def save_email(data: EmailConfig, _: User = Depends(require_permission("email.manage"))):
     s = load_settings(); cur = s.get("email", {})
 
     # apply preset host/port defaults if preset selected (don't overwrite manual values)
@@ -260,7 +261,7 @@ def save_email(data: EmailConfig, _: User = Depends(require_super_admin)):
 
 
 @router.post("/email/test")
-def test_connection(_: User = Depends(require_super_admin)):
+def test_connection(_: User = Depends(require_permission("email.manage"))):
     import imaplib, smtplib, ssl as ssl_module
     s   = load_settings(); e = s.get("email", {})
     res = {"imap": False, "smtp": False, "errors": []}
@@ -295,7 +296,7 @@ def test_connection(_: User = Depends(require_super_admin)):
 # ── Scheduler ─────────────────────────────────────────────────────────────────
 
 @router.patch("/scheduler")
-def save_scheduler(data: SchedulerConfig, _: User = Depends(require_super_admin)):
+def save_scheduler(data: SchedulerConfig, _: User = Depends(require_permission("scheduler.manage"))):
     s = load_settings(); s["scheduler"] = data.model_dump(); _save(s)
     # reload live scheduler to pick up changes
     from ..core.scheduler import reload_scheduler
@@ -307,7 +308,7 @@ def save_scheduler(data: SchedulerConfig, _: User = Depends(require_super_admin)
 # ── Privacy / export / danger ─────────────────────────────────────────────────
 
 @router.patch("/privacy")
-def save_privacy(data: PrivacyDataSettings, _: User = Depends(require_super_admin)):
+def save_privacy(data: PrivacyDataSettings, _: User = Depends(require_permission("settings.system"))):
     s = load_settings(); s["privacy"] = data.model_dump(); _save(s)
     return s["privacy"]
 
@@ -373,7 +374,7 @@ def get_vault_limits(_: User = Depends(get_current_user)):
 @router.patch("/vault-limits", response_model=VaultLimits)
 def save_vault_limits(
     data: VaultLimits,
-    _: User = Depends(require_super_admin),
+    _: User = Depends(require_permission("settings.system")),
 ):
     # Sanity caps — prevent absurd values that would generate millions of combos
     if data.max_names               > 20:  raise HTTPException(400, "max_names cannot exceed 20")
@@ -391,7 +392,7 @@ def save_vault_limits(
 # ── Encryption status ─────────────────────────────────────────────────────────
 
 @router.get("/encryption-status")
-def encryption_status(_: User = Depends(require_super_admin)):
+def encryption_status(_: User = Depends(require_permission("database.view"))):
     """Return current encryption configuration and status."""
     from ..core.encryption import get_db_encryption_key, get_field_encryption_key
     import os
@@ -444,7 +445,7 @@ def get_automation(_: User = Depends(get_current_user)):
 
 
 @router.patch("/automation", response_model=AutomationConfig)
-def save_automation(data: AutomationConfig, _: User = Depends(require_super_admin)):
+def save_automation(data: AutomationConfig, _: User = Depends(require_permission("settings.system"))):
     # Sanity: cap delay to reasonable bounds
     if data.inter_submission_delay_seconds < 0.5:
         data.inter_submission_delay_seconds = 0.5
@@ -460,7 +461,7 @@ def save_automation(data: AutomationConfig, _: User = Depends(require_super_admi
 
 
 @router.get("/automation/builtin-agents")
-def list_builtin_agents(_: User = Depends(require_super_admin)):
+def list_builtin_agents(_: User = Depends(require_permission("settings.system"))):
     """Return the built-in user-agent pool for display."""
     from ..core.user_agents import BUILTIN_AGENTS
     return [{"ua": a["ua"], "platform": a["platform"]} for a in BUILTIN_AGENTS]
@@ -478,7 +479,7 @@ class ProxyConfig(BaseModel):
 
 
 @router.get("/proxy")
-def get_proxy(_: User = Depends(require_super_admin)):
+def get_proxy(_: User = Depends(require_permission("settings.system"))):
     """Return proxy config (non-secret) + resolved status."""
     from ..core.proxy import get_proxy_status, PROXY_PRESETS
     s = load_settings()
@@ -498,7 +499,7 @@ def get_proxy(_: User = Depends(require_super_admin)):
 
 
 @router.patch("/proxy")
-def save_proxy(data: ProxyConfig, _: User = Depends(require_super_admin)):
+def save_proxy(data: ProxyConfig, _: User = Depends(require_permission("settings.system"))):
     """
     Save non-secret proxy config. Credentials are NEVER accepted here —
     they come from environment variables or mounted files only.
@@ -515,7 +516,7 @@ def save_proxy(data: ProxyConfig, _: User = Depends(require_super_admin)):
 
 
 @router.post("/proxy/test")
-def test_proxy_endpoint(_: User = Depends(require_super_admin)):
+def test_proxy_endpoint(_: User = Depends(require_permission("settings.system"))):
     """Test the configured proxy and report the exit IP."""
     from ..core.proxy import test_proxy
     from playwright.async_api import async_playwright

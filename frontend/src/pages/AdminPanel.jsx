@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react'
 import {
   UserPlus, Shield, ShieldCheck, User, Trash2,
-  Link2, Link2Off, ChevronDown, X, Check, KeyRound, Eye, Edit3, Upload
+  Link2, Link2Off, ChevronDown, X, Check, KeyRound, Eye, Edit3,
+  Briefcase, SlidersHorizontal, AlertTriangle, RotateCcw
 } from 'lucide-react'
 import api from '../api'
 
 const ROLE_STYLES = {
   super_admin: 'bg-purple-900/40 text-purple-300 border-purple-700',
+  manager:     'bg-sky-900/40    text-sky-300    border-sky-700',
   parent:      'bg-teal-900/40   text-teal-300   border-teal-700',
   member:      'bg-slate-800     text-slate-400  border-slate-700',
 }
 const ROLE_ICONS = {
   super_admin: ShieldCheck,
+  manager:     Briefcase,
   parent:      Shield,
   member:      User,
 }
@@ -26,7 +29,7 @@ function RoleBadge({ role }) {
 }
 
 // ── Create user modal ─────────────────────────────────────────────────────────
-function CreateUserModal({ onClose, onCreated }) {
+function CreateUserModal({ onClose, onCreated, isSuper }) {
   const [form, setForm] = useState({ full_name: '', email: '', role: 'member', password: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
@@ -67,7 +70,8 @@ function CreateUserModal({ onClose, onCreated }) {
                 className={`${input} appearance-none pr-7`}>
                 <option value="member">member — managed profile, no login</option>
                 <option value="parent">parent — can log in, manages profiles</option>
-                <option value="super_admin">super_admin — full access</option>
+                {isSuper && <option value="manager">manager — a parent plus the permissions you grant</option>}
+                {isSuper && <option value="super_admin">super_admin — full access</option>}
               </select>
               <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
@@ -79,6 +83,9 @@ function CreateUserModal({ onClose, onCreated }) {
           </Field>
           {form.role === 'member' && (
             <p className="text-slate-500 text-xs">Member profiles don't need a password — they're managed by a parent. You can upgrade them later.</p>
+          )}
+          {form.role === 'manager' && (
+            <p className="text-slate-500 text-xs">New managers start with the manager defaults. Adjust them from the user's Permissions button.</p>
           )}
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose} className={cancelBtn}>Cancel</button>
@@ -180,11 +187,14 @@ function UserSelect({ users, value, onChange, placeholder }) {
 }
 
 // ── Edit user inline ──────────────────────────────────────────────────────────
-function EditUserRow({ user, onUpdated, onDeleted, currentUserId }) {
+function EditUserRow({ user, onUpdated, onDeleted, currentUserId, isSuper, onEditPermissions }) {
   const [editing, setEditing] = useState(false)
   const [role, setRole]       = useState(user.role)
   const [saving, setSaving]   = useState(false)
   const isSelf = user.id === currentUserId
+  // Managers act on parent and member accounts only; roles are super-admin only.
+  const privileged = user.role === 'super_admin' || user.role === 'manager'
+  const canAct = isSuper || !privileged
 
   const save = async () => {
     setSaving(true)
@@ -199,16 +209,6 @@ function EditUserRow({ user, onUpdated, onDeleted, currentUserId }) {
     if (!confirm(`Delete ${user.full_name}? This removes all their data.`)) return
     await api.delete(`/admin/users/${user.id}`)
     onDeleted(user.id)
-  }
-
-  // Delegate the plugin upload wizard. Uploads still land disabled; only a
-  // super admin can enable a plugin.
-  const toggleUploads = async () => {
-    const grant = !user.can_upload_plugins
-    if (grant && !confirm(`Let ${user.full_name} upload plugins?\n\nThey can add plugin bundles, ` +
-        'which are installed disabled. Only a super admin can enable one.')) return
-    const { data } = await api.patch(`/admin/users/${user.id}`, { can_upload_plugins: grant })
-    onUpdated(data)
   }
 
   const setPassword = async () => {
@@ -231,23 +231,22 @@ function EditUserRow({ user, onUpdated, onDeleted, currentUserId }) {
               className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none appearance-none pr-6">
               <option value="member">member</option>
               <option value="parent">parent</option>
+              <option value="manager">manager</option>
               <option value="super_admin">super_admin</option>
             </select>
           </div>
         ) : <RoleBadge role={user.role} />}
+        {user.role === 'manager' && (
+          <p className="text-slate-500 text-[11px] mt-1">
+            {user.permissions.length} permission{user.permissions.length === 1 ? '' : 's'}
+            {(user.permissions_granted.length > 0 || user.permissions_revoked.length > 0) && ' · customized'}
+          </p>
+        )}
       </td>
       <td className="px-4 py-3">
         <span className={`text-xs ${user.can_login ? 'text-emerald-400' : 'text-slate-600'}`}>
           {user.can_login ? '✓ can log in' : 'no login'}
         </span>
-        {user.can_login && user.role !== 'super_admin' && (
-          <button onClick={toggleUploads}
-            title={user.can_upload_plugins ? 'Revoke plugin uploads' : 'Allow this user to upload plugins'}
-            className={`mt-1 flex items-center gap-1 text-[11px] ${user.can_upload_plugins
-              ? 'text-shield-300 hover:text-shield-200' : 'text-slate-600 hover:text-slate-400'}`}>
-            <Upload size={10} /> {user.can_upload_plugins ? 'can upload plugins' : 'plugin uploads off'}
-          </button>
-        )}
       </td>
       <td className="px-4 py-3 text-slate-500 text-xs">{user.managing_count} managing</td>
       <td className="px-4 py-3">
@@ -257,9 +256,12 @@ function EditUserRow({ user, onUpdated, onDeleted, currentUserId }) {
               <button onClick={save} disabled={saving} className="p-1 text-emerald-400 hover:text-emerald-300"><Check size={13} /></button>
               <button onClick={() => setEditing(false)} className="p-1 text-slate-500 hover:text-white"><X size={13} /></button>
             </>
-          ) : (
+          ) : canAct && (
             <>
-              <button onClick={() => setEditing(true)} className="p-1 text-slate-500 hover:text-shield-400" title="Edit role"><Edit3 size={13} /></button>
+              {isSuper && user.role === 'manager' && (
+                <button onClick={() => onEditPermissions(user)} className="p-1 text-slate-500 hover:text-sky-300" title="Permissions"><SlidersHorizontal size={13} /></button>
+              )}
+              {isSuper && <button onClick={() => setEditing(true)} className="p-1 text-slate-500 hover:text-shield-400" title="Edit role"><Edit3 size={13} /></button>}
               <button onClick={setPassword} className="p-1 text-slate-500 hover:text-amber-400" title="Set password"><KeyRound size={13} /></button>
               {!isSelf && <button onClick={del} className="p-1 text-slate-500 hover:text-red-400" title="Delete"><Trash2 size={13} /></button>}
             </>
@@ -278,16 +280,34 @@ export default function AdminPanel() {
   const [showCreate, setShowCreate] = useState(false)
   const [showGrant, setShowGrant]   = useState(false)
   const [me, setMe] = useState(null)
+  const [perms, setPerms] = useState(null)          // { catalog, defaults, builtin_defaults }
+  const [permTarget, setPermTarget] = useState(null) // a manager, or 'defaults'
+  const isSuper = me?.role === 'super_admin'
+
+  const loadUsers = () => api.get('/admin/users').then(r => setUsers(r.data))
 
   useEffect(() => {
     Promise.all([
       api.get('/admin/users'),
       api.get('/admin/access'),
       api.get('/auth/me'),
-    ]).then(([u, g, m]) => {
-      setUsers(u.data); setGrants(g.data); setMe(m.data)
+      api.get('/admin/permissions'),
+    ]).then(([u, g, m, p]) => {
+      setUsers(u.data); setGrants(g.data); setMe(m.data); setPerms(p.data)
     }).finally(() => setLoading(false))
   }, [])
+
+  const savePermissions = async (keys) => {
+    if (permTarget === 'defaults') {
+      const { data } = await api.put('/admin/permissions/defaults', { permissions: keys })
+      setPerms(p => ({ ...p, defaults: data.defaults }))
+      await loadUsers()   // every manager's effective permissions may have changed
+    } else {
+      const { data } = await api.put(`/admin/users/${permTarget.id}/permissions`, { permissions: keys })
+      setUsers(us => us.map(x => x.id === data.id ? data : x))
+    }
+    setPermTarget(null)
+  }
 
   const revokeGrant = async id => {
     if (!confirm('Revoke this access grant?')) return
@@ -302,7 +322,13 @@ export default function AdminPanel() {
           <h1 className="text-white text-xl font-semibold">Admin panel</h1>
           <p className="text-slate-400 text-sm mt-0.5">Manage users, roles, and profile access grants</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-end">
+          {isSuper && (
+            <button onClick={() => setPermTarget('defaults')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
+              <SlidersHorizontal size={13} /> Manager defaults
+            </button>
+          )}
           <button onClick={() => setShowGrant(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
             <Link2 size={13} /> Grant access
@@ -338,6 +364,8 @@ export default function AdminPanel() {
                 <EditUserRow
                   key={u.id} user={u}
                   currentUserId={me?.id}
+                  isSuper={isSuper}
+                  onEditPermissions={setPermTarget}
                   onUpdated={updated => setUsers(us => us.map(x => x.id === updated.id ? updated : x))}
                   onDeleted={id => setUsers(us => us.filter(x => x.id !== id))}
                 />
@@ -409,6 +437,7 @@ export default function AdminPanel() {
 
       {showCreate && (
         <CreateUserModal
+          isSuper={isSuper}
           onClose={() => setShowCreate(false)}
           onCreated={u => setUsers(us => [...us, u])}
         />
@@ -420,6 +449,99 @@ export default function AdminPanel() {
           onGranted={g => setGrants(gs => [...gs, g])}
         />
       )}
+      {permTarget && perms && (
+        <PermissionsModal
+          catalog={perms.catalog}
+          defaults={permTarget === 'defaults' ? perms.builtin_defaults : perms.defaults}
+          initial={permTarget === 'defaults' ? perms.defaults : permTarget.permissions}
+          title={permTarget === 'defaults' ? 'Manager defaults' : `Permissions for ${permTarget.full_name}`}
+          subtitle={permTarget === 'defaults'
+            ? 'What every manager gets, unless you changed it for that manager.'
+            : 'Changes apply to this manager only. Anything left matching the defaults keeps following them.'}
+          resetLabel={permTarget === 'defaults' ? 'Restore built-in defaults' : 'Reset to manager defaults'}
+          onSave={savePermissions}
+          onClose={() => setPermTarget(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Permissions editor (super admin) ──────────────────────────────────────────
+// One grouped checklist, used both for a single manager and for the manager
+// defaults. `defaults` is what "reset" restores and what gets the "default" tag.
+function PermissionsModal({ catalog, defaults, initial, title, subtitle, resetLabel, onSave, onClose }) {
+  const [selected, setSelected] = useState(new Set(initial))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const groups = [...new Set(catalog.map(p => p.group))]
+  const toggle = key => setSelected(s => {
+    const next = new Set(s)
+    next.has(key) ? next.delete(key) : next.add(key)
+    return next
+  })
+  const save = async () => {
+    setSaving(true); setError('')
+    try { await onSave(catalog.map(p => p.key).filter(k => selected.has(k))) }
+    catch (e) { setError(e.response?.data?.detail ?? 'Could not save permissions'); setSaving(false) }
+  }
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col"
+        onClick={e => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-slate-700/50 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-white font-semibold">{title}</h2>
+            <p className="text-slate-500 text-xs mt-0.5">{subtitle}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-white" aria-label="Close"><X size={16} /></button>
+        </div>
+        <div className="px-5 py-4 overflow-y-auto space-y-4">
+          {error && <p className="text-red-400 text-sm bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
+          {groups.map(g => (
+            <div key={g}>
+              <p className="text-slate-500 text-[11px] uppercase tracking-wide mb-1.5">{g}</p>
+              <div className="space-y-1">
+                {catalog.filter(p => p.group === g).map(p => (
+                  <label key={p.key} className="flex items-start gap-2.5 px-2 py-1.5 rounded-lg hover:bg-slate-800/60 cursor-pointer">
+                    <input type="checkbox" checked={selected.has(p.key)} onChange={() => toggle(p.key)}
+                      className="mt-0.5 accent-sky-500" />
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-slate-200 text-sm">{p.label}</span>
+                        {defaults.includes(p.key) && <span className="text-[10px] px-1 rounded border border-slate-700 text-slate-500">default</span>}
+                        {p.sensitive && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] px-1 rounded border border-amber-800 text-amber-300">
+                            <AlertTriangle size={9} /> sensitive
+                          </span>
+                        )}
+                      </span>
+                      <span className="block text-slate-500 text-xs mt-0.5">{p.description}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+          <p className="text-slate-600 text-xs">
+            Always kept for super admins: roles and permissions, the setup wizard, enabling
+            plugins and the plugin-system switch, database migration, and resetting all requests.
+          </p>
+        </div>
+        <div className="px-5 py-3 border-t border-slate-700/50 flex items-center justify-between gap-2">
+          <button onClick={() => setSelected(new Set(defaults))}
+            className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200">
+            <RotateCcw size={11} /> {resetLabel}
+          </button>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-3 py-1.5 border border-slate-700 rounded-lg text-slate-400 text-sm hover:bg-slate-800">Cancel</button>
+            <button onClick={save} disabled={saving}
+              className="px-3 py-1.5 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white rounded-lg text-sm">
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

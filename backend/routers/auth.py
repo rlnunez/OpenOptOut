@@ -5,7 +5,7 @@ registration with domain/invite controls, token refresh, me endpoint.
 
 import secrets, json
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
@@ -17,6 +17,7 @@ from ..core.auth import (
     hash_password, verify_password, create_access_token,
     get_current_user, require_super_admin, validate_password_length
 )
+from ..core.access import require_permission
 from ..core.auth_providers import (
     try_ldap_auth, try_sip2_auth,
     get_oidc_login_url, exchange_oidc_code,
@@ -47,7 +48,7 @@ class UserOut(BaseModel):
     full_name: str
     role: str
     unified_view: bool
-    can_upload_plugins: bool = False
+    permissions: List[str] = []   # manager/super admin permissions (core/access.py)
 
     class Config:
         from_attributes = True
@@ -166,7 +167,11 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
 
 @router.get("/me", response_model=UserOut)
 def me(current_user: User = Depends(get_current_user)):
-    return current_user
+    from ..core.access import effective_permissions
+    return UserOut(id=current_user.id, email=current_user.email,
+                   full_name=current_user.full_name, role=current_user.role,
+                   unified_view=current_user.unified_view,
+                   permissions=effective_permissions(current_user))
 
 
 @router.patch("/me/unified-view")
@@ -241,7 +246,7 @@ def oidc_callback(
 
 
 @router.get("/oidc/presets")
-def oidc_presets(_: User = Depends(require_super_admin)):
+def oidc_presets(_: User = Depends(require_permission("auth.providers"))):
     return OIDC_PRESETS
 
 
@@ -330,7 +335,7 @@ class InviteCodeOut(BaseModel):
 
 
 @router.get("/invite-codes", response_model=list[InviteCodeOut])
-def list_invite_codes(db: Session = Depends(get_db), _: User = Depends(require_super_admin)):
+def list_invite_codes(db: Session = Depends(get_db), _: User = Depends(require_permission("users.registration"))):
     return db.query(InviteCode).order_by(InviteCode.created_at.desc()).all()
 
 
@@ -338,15 +343,24 @@ def list_invite_codes(db: Session = Depends(get_db), _: User = Depends(require_s
 def create_invite_code(
     data: InviteCodeCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_super_admin),
+    current_user: User = Depends(require_permission("users.registration")),
 ):
+    # The code's role is what whoever redeems it becomes, so only a super admin
+    # may issue codes for super admin or manager accounts.
+    try:
+        role = UserRole(data.role or "parent")
+    except ValueError:
+        raise HTTPException(400, f"Invalid role. Must be one of: {[r.value for r in UserRole]}")
+    if role in (UserRole.super_admin, UserRole.manager) and not current_user.is_super_admin:
+        raise HTTPException(403, "Only a super admin can create invite codes for super admin "
+                                 "or manager accounts")
     expires = datetime.utcnow() + timedelta(days=data.expires_days) if data.expires_days else None
     code = InviteCode(
         code=secrets.token_urlsafe(12),
         created_by=current_user.id,
         max_uses=data.max_uses,
         expires_at=expires,
-        role=data.role,
+        role=role.value,
         note=data.note,
     )
     db.add(code); db.commit(); db.refresh(code)
@@ -357,7 +371,7 @@ def create_invite_code(
 def revoke_invite_code(
     code_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_super_admin),
+    _: User = Depends(require_permission("users.registration")),
 ):
     code = db.query(InviteCode).filter(InviteCode.id == code_id).first()
     if not code: raise HTTPException(404, "Code not found")

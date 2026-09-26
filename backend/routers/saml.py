@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 
 from ..models.database import get_db, User
 from ..core.auth import require_super_admin
+from ..core.access import require_permission
 from ..core.settings_store import load_settings, SETTINGS_FILE
 from ..core import saml_sp
 from .auth import _resolve_external_user, _sso_redirect
@@ -124,13 +125,13 @@ def _public_view(cfg: dict, request: Request) -> dict:
 
 
 @router.get("/config")
-def get_config(request: Request, _: User = Depends(require_super_admin)):
+def get_config(request: Request, _: User = Depends(require_permission("auth.providers"))):
     return _public_view(_cfg(), request)
 
 
 @router.put("/config")
 def save_config(body: SamlConfigIn, request: Request,
-                _: User = Depends(require_super_admin)):
+                _: User = Depends(require_permission("auth.providers"))):
     s = load_settings()
     ap = s.setdefault("auth_providers", {})
     cfg = dict(ap.get("saml", {}) or {})

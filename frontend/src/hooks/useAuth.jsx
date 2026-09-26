@@ -41,3 +41,11 @@ export function AuthProvider({ children }) {
 }
 
 export const useAuth = () => useContext(AuthContext)
+
+// Does this user hold at least one of these permissions? Super admins hold
+// every permission; managers hold what /auth/me reports (backend core/access.py).
+export function can(user, ...keys) {
+  if (!user) return false
+  if (user.role === 'super_admin') return true
+  return keys.some(k => user.permissions?.includes(k))
+}

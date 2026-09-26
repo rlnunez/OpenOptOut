@@ -20,6 +20,7 @@ from ..core.auth import (
     get_current_user, require_super_admin,
     assert_can_edit, get_accessible_member_ids
 )
+from ..core.access import require_permission
 from ..core.scheduler import (
     get_scheduler, get_next_run_times,
     daily_optout_job, email_monitor_job, recheck_job,
@@ -79,7 +80,7 @@ class MemberConfigUpdate(BaseModel):
 # ── Status ────────────────────────────────────────────────────────────────────
 
 @router.get("/status", response_model=SchedulerStatus)
-def scheduler_status(_: User = Depends(require_super_admin)):
+def scheduler_status(_: User = Depends(require_permission("scheduler.manage"))):
     cfg   = load_settings()
     sched = cfg.get("scheduler", {})
     s     = get_scheduler()
@@ -107,7 +108,7 @@ JOB_MAP = {
 @router.post("/trigger/{job_name}")
 def trigger_job(
     job_name: str,
-    _: User = Depends(require_super_admin),
+    _: User = Depends(require_permission("scheduler.manage")),
 ):
     fn = JOB_MAP.get(job_name)
     if not fn:
@@ -118,7 +119,7 @@ def trigger_job(
 
 
 @router.post("/reload")
-def reload(_: User = Depends(require_super_admin)):
+def reload(_: User = Depends(require_permission("scheduler.manage"))):
     """Re-read scheduler config and restart jobs."""
     reload_scheduler()
     return {"reloaded": True}
@@ -131,7 +132,7 @@ def list_runs(
     limit: int = 50,
     run_type: Optional[str] = None,
     db: Session = Depends(get_db),
-    _: User = Depends(require_super_admin),
+    _: User = Depends(require_permission("scheduler.manage")),
 ):
     q = db.query(SchedulerRun)
     if run_type:

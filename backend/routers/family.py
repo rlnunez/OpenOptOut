@@ -15,6 +15,7 @@ from ..core.auth import (
     get_current_user, get_accessible_member_ids,
     assert_can_view, assert_can_edit
 )
+from ..core.access import has_permission
 
 family_router   = APIRouter(prefix="/api/family",   tags=["family"])
 identity_router = APIRouter(prefix="/api/identity", tags=["identity"])
@@ -86,7 +87,8 @@ def list_members(
     result = []
     for m in members:
         # determine edit permission
-        can_edit = current_user.is_super_admin or m.user_id == current_user.id
+        can_edit = current_user.is_super_admin or m.user_id == current_user.id or \
+            has_permission(current_user, "members.edit_all")
         if not can_edit:
             from ..models.database import ProfileAccess
             grant = db.query(ProfileAccess).filter(

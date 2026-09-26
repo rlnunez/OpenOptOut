@@ -1,5 +1,5 @@
 """
-Plugin management API (super admin only, except the upload wizard).
+Plugin management API.
 
 Plugins live at <plugins root>/<type>/<id>/ (see plugins/layout.py). Uploads
 and installs put them there based on the manifest's type.
@@ -18,9 +18,10 @@ Endpoints:
   POST   /api/plugins/upload/inspect  — check a zip: its type and where it would go
   POST   /api/plugins/upload          — upload a plugin zip bundle
 
-The two upload endpoints are open to super admins and to users a super admin
-has granted can_upload_plugins. Uploaded plugins are always installed
-disabled; enabling one (granting its permissions) stays super-admin only.
+Viewing is open to managers with "plugins.view" and uploading to managers with
+"plugins.upload" (core/access.py). Uploaded plugins are always installed
+disabled; installing from disk, enabling, disabling and uninstalling stay
+super-admin only.
 """
 
 import os
@@ -39,6 +40,7 @@ from sqlalchemy.orm import Session
 
 from ..models.database import get_db, User, InstalledPlugin, PluginAuditLog, PluginViolation
 from ..core.auth import require_super_admin, get_current_user
+from ..core.access import require_permission
 from ..plugins.permissions import PluginManifest, Permission, PERMISSION_INFO, PLUGIN_TYPES
 from ..plugins.manager import get_manager
 from ..plugins import layout
@@ -57,13 +59,12 @@ def _plugins_dir() -> str:
     return layout.plugins_root()
 
 
-def require_plugin_uploader(current_user: User = Depends(get_current_user)) -> User:
-    """Super admins, plus users a super admin has granted can_upload_plugins.
-    Delegated uploaders are refused while the plugin system is denied."""
+def require_plugin_uploader(
+        current_user: User = Depends(require_permission("plugins.upload"))) -> User:
+    """Super admins, plus managers with the "Upload plugins" permission.
+    Managers are refused while the plugin system is denied."""
     if current_user.is_super_admin:
         return current_user
-    if not getattr(current_user, "can_upload_plugins", False):
-        raise HTTPException(403, "Uploading plugins requires permission from a super admin")
     from ..core.settings_store import load_settings
     if load_settings().get("plugins", {}).get("denied", False):
         raise HTTPException(403, "The plugin system is currently denied by a super admin")
@@ -216,20 +217,20 @@ class EnableRequest(BaseModel):
 # ---- endpoints ----
 
 @router.get("/methods")
-def method_catalog(_: User = Depends(require_super_admin)):
+def method_catalog(_: User = Depends(require_permission("plugins.view"))):
     """The full host-method catalog: each callable method + the permission it needs."""
     from ..plugins.permissions import HOST_METHODS
     return HOST_METHODS
 
 
 @router.get("/permissions")
-def permission_catalog(_: User = Depends(require_super_admin)):
+def permission_catalog(_: User = Depends(require_permission("plugins.view"))):
     """The full permission catalog with labels, risk levels, and descriptions."""
     return PERMISSION_INFO
 
 
 @router.get("/types")
-def plugin_types(_: User = Depends(require_plugin_uploader)):
+def plugin_types(_: User = Depends(require_permission("plugins.view", "plugins.upload"))):
     """Plugin types, in display order: each one's folder, label and rules."""
     return [
         {"type": t, "label": r["label"], "folder": f"{t}/",
@@ -240,7 +241,7 @@ def plugin_types(_: User = Depends(require_plugin_uploader)):
 
 
 @router.get("/status")
-def plugin_system_status(_: User = Depends(require_super_admin)):
+def plugin_system_status(_: User = Depends(require_permission("plugins.view"))):
     mgr = get_manager()
     if not mgr:
         return {"active": False, "reason": "Plugin system not enabled or gRPC unavailable"}
@@ -248,7 +249,7 @@ def plugin_system_status(_: User = Depends(require_super_admin)):
 
 
 @router.get("")
-def list_plugins(db: Session = Depends(get_db), _: User = Depends(require_super_admin)):
+def list_plugins(db: Session = Depends(get_db), _: User = Depends(require_permission("plugins.view"))):
     rows = db.query(InstalledPlugin).order_by(InstalledPlugin.installed_at.desc()).all()
     out = []
     for r in rows:
@@ -273,7 +274,7 @@ def list_plugins(db: Session = Depends(get_db), _: User = Depends(require_super_
 
 
 @router.get("/available")
-def available_plugins(db: Session = Depends(get_db), _: User = Depends(require_super_admin)):
+def available_plugins(db: Session = Depends(get_db), _: User = Depends(require_permission("plugins.view"))):
     """Plugins present on disk (in any type folder) that aren't yet registered."""
     registered = {r.plugin_id for r in db.query(InstalledPlugin.plugin_id).all()}
     available = []
@@ -431,7 +432,7 @@ def upload_plugin(file: UploadFile = File(...), expected_type: Optional[str] = N
     _register(db, m, dest)
     _audit(db, m.id, "uploaded", current.id,
            f"v{m.version} -> {layout.relative_install_dir(m)}"
-           + ("" if current.is_super_admin else f" (delegated uploader: {current.email})"))
+           + ("" if current.is_super_admin else f" (uploaded by manager {current.email})"))
     return {"installed": True, "plugin_id": m.id, "enabled": False,
             **_type_info(m),
             "destination": layout.relative_install_dir(m),
@@ -616,7 +617,7 @@ def uninstall_plugin(plugin_id: str, remove_files: bool = False,
 
 @router.get("/{plugin_id}/audit")
 def plugin_audit(plugin_id: str, db: Session = Depends(get_db),
-                 _: User = Depends(require_super_admin)):
+                 _: User = Depends(require_permission("plugins.view"))):
     rows = (db.query(PluginAuditLog)
             .filter(PluginAuditLog.plugin_id == plugin_id)
             .order_by(PluginAuditLog.created_at.desc())
@@ -627,7 +628,7 @@ def plugin_audit(plugin_id: str, db: Session = Depends(get_db),
 
 @router.get("/violations/all")
 def all_violations(limit: int = 100, db: Session = Depends(get_db),
-                   _: User = Depends(require_super_admin)):
+                   _: User = Depends(require_permission("plugins.view"))):
     """Recent security violations across all plugins (for the monitoring dashboard)."""
     from ..plugins.monitor import VIOLATION_TYPES
     rows = (db.query(PluginViolation)
@@ -644,7 +645,7 @@ def all_violations(limit: int = 100, db: Session = Depends(get_db),
 
 @router.get("/{plugin_id}/violations")
 def plugin_violations(plugin_id: str, db: Session = Depends(get_db),
-                      _: User = Depends(require_super_admin)):
+                      _: User = Depends(require_permission("plugins.view"))):
     from ..plugins.monitor import VIOLATION_TYPES
     rows = (db.query(PluginViolation)
             .filter(PluginViolation.plugin_id == plugin_id)
@@ -669,7 +670,7 @@ _PLUGIN_DOC_FILES = {
 
 
 @router.get("/docs/{doc}")
-def plugin_doc(doc: str, _: User = Depends(require_super_admin)):
+def plugin_doc(doc: str, _: User = Depends(require_permission("plugins.view"))):
     """
     Return the raw Markdown of a plugin guide for in-app rendering.
     doc = 'using' (administrator guide) | 'writing' (developer guide).

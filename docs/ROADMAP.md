@@ -50,6 +50,7 @@ of the core.
 | 16 | Operational visibility | Part A built; parts B (log viewer) and C (verbosity) not started |
 | 17 | Internationalization: language packs + right-to-left | Not started |
 | 18 | Typed plugin directories (brokers, captcha, forms, themes, languages, discovery, …) | Built; language/theme loaders and the discovery hook not built |
+| 19 | Manager role with delegated permissions | Built |
 
 ---
 
@@ -1342,16 +1343,69 @@ typed installs, migration, grouped admin UI, upload wizard). Specifically:
   installs it into its type folder, disabled. `expected_type` limits an upload
   to one type (the setup wizard's email step uses `email`). Zip bundles are
   checked for traversal, symlinks and size.
-- **Delegated uploads:** a super admin can grant a user `can_upload_plugins`
-  (Admin panel). That user gets the wizard on an Upload plugin page; their
-  uploads stay disabled until a super admin enables them, and they can't
-  upload while the plugin system is denied.
+- **Delegated uploads:** the manager role's "Upload plugins" permission (item
+  19). Uploads stay disabled until a super admin enables them, and managers
+  can't upload while the plugin system is denied.
 - `/api/plugins/install` now only installs from inside the plugins root,
   moving a misplaced plugin into its type folder first.
 
 **Not built yet:** nothing loads language packs or themes (they install and
 enable as data, but the UI doesn't read them; see item 17); the `discover`
 hook for discovery bots; and broker add-ons (item 1) as a real format.
+
+---
+
+### 19. Manager role with delegated permissions
+**Goal:** a fourth role between super admin and parent. The super admin has
+everything and hands out specific admin features to managers as each
+deployment needs (a library's help desk might manage accounts and brokers but
+never see sign-in configuration). A default permission set applies
+automatically and can be customized, both for everyone and per manager.
+
+**Design (built):**
+- Roles: `super_admin`, `manager`, `parent`, `member`. A manager keeps
+  everything a parent has (own profile, profiles shared with them) plus the
+  permissions they hold.
+- 17 permissions in `core/access.py`, grouped as users & access, member data,
+  brokers, operations, system configuration and plugins. Each endpoint that
+  used to be super-admin-only now requires the one permission for its area
+  (`require_permission(...)`); the `access.route_gates` test pins the mapping.
+- Effective permissions = (manager defaults ∪ granted) − revoked. The defaults
+  live in settings (`access.manager_defaults`) and fall back to a built-in
+  operational set: brokers, automation scripts, scheduler, reports, help
+  notes, certificate status. Per-manager changes are stored as the difference
+  from the defaults (`users.permissions_granted` / `permissions_revoked`), so
+  editing the defaults still reaches every manager except where a super admin
+  chose something specific.
+- **Member data is off by default.** "View all members' data" and "Edit all
+  members' data" plug into the central access checks (`core/auth.py`); without
+  them a manager sees only their own and shared profiles.
+- **Never delegated:** assigning roles and permissions, the setup wizard,
+  installing/enabling/disabling/uninstalling plugins and the plugin-system
+  switch, database migration and connection changes, and resetting all
+  requests.
+- **Escalation guards:** a manager with "Manage users" only acts on parent and
+  member accounts, can't change roles, can't share profiles with themselves or
+  involving super admins/managers, and can't issue super admin or manager
+  invite codes. SSO never provisions managers. "Manage users" is marked
+  sensitive and its description says plainly that setting a password means
+  being able to sign in as that person.
+- UI: Admin panel role picker, a per-manager Permissions editor and a Manager
+  defaults editor (super admin only); the sidebar, routes and page controls
+  follow the user's permissions (`can()` in `hooks/useAuth.jsx`).
+- Migration: Postgres gets the new enum value; users given the earlier per-user
+  "can upload plugins" switch become managers holding only "Upload plugins".
+
+**Found while building it:** broker edits, deletes, CSV/JSON imports, priority
+rule application and priority imports only required being signed in, so any
+parent or patron could change or delete the broker list. They now need
+"Manage brokers".
+
+**Possible follow-ups:** named permission profiles (e.g. "Help desk", "IT")
+if deployments want several distinct kinds of manager; admin notification
+emails currently go to super admins only.
+
+**STATUS: built.**
 
 ---
 
