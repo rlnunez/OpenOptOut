@@ -22,8 +22,14 @@ From inside the running backend container (recommended, because that's where
 all dependencies exist):
 
 ```bash
-docker compose exec api python -m tests.run_tests
+docker compose exec api python -m app.tests.run_tests
 ```
+
+Inside the container the backend is installed as a package named `app` and the
+working directory is `/`, so every `python -m` command in this guide takes an
+`app.` prefix there: `python -m app.tests.run_tests`,
+`python -m app.plugins.smoke_test`, `python -m app.plugins.preflight_sandbox`.
+The unprefixed forms below are for running from `backend/` in a checkout.
 
 Or on a checkout where the backend deps are installed:
 

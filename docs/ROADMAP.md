@@ -42,7 +42,7 @@ of the core.
 | 8 | Git repo → marketplace | Not started |
 | 9 | Capacity calculator | Not started |
 | 10 | Email-first via parent companies | Substantially built; automatic trigger, live test, legal review open |
-| 11 | First-run setup wizard | Built; email-mode switching + grace period not built |
+| 11 | First-run setup wizard | Built; per-user email mode and mode switching + grace period not built |
 | 12 | School district parent-portal SSO | Not started |
 | 13 | SAML 2.0 SSO | Built; not yet run against a live external IdP |
 | 14 | Built-in HTTPS | Built; DNS-01 and some real-host runs outstanding |
@@ -501,7 +501,9 @@ wizard after the admin account is created.
 skip, complete). The email step offers provider choices (OAuth-first, with
 Proton-via-Bridge guidance). **Not built:** email-mode switching with the
 old-inbox grace period (Prerequisite 2 below) — the wizard records the mode, but
-nothing yet keeps monitoring the old inbox after a switch.
+nothing yet keeps monitoring the old inbox after a switch. The **per-user**
+mode itself is also only recorded: the send and monitor paths still use the
+single shared account, so choosing per-user has no effect yet.
 
 **Wizard steps (all strongly-prompted but SKIPPABLE):**
 1. **Database** — detect/confirm SQLite (assumed same machine) vs PostgreSQL.

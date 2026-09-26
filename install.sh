@@ -2,12 +2,12 @@
 # ==============================================================================
 # PrivacyShield one-line installer.
 #
-#   curl -fsSL https://get.privacyshield.example/ | sh
-#   curl -fsSL https://get.privacyshield.example/ | sh -s -- --native
-#   curl -fsSL https://get.privacyshield.example/ | sh -s -- --dir /srv/privacyshield
+#   curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sh -s -- --native
+#   curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sh -s -- --dir /srv/privacyshield
 #
-# (Replace get.privacyshield.example with wherever you actually host this file
-# — e.g. a GitHub raw URL. REPO_URL below also needs to point at your fork.)
+# (Installing from a fork? Pass --repo with your fork's git URL, or change
+# REPO_URL below.)
 #
 # What it does: clones PrivacyShield, then picks ONE path automatically and
 # hands off to it — it does not duplicate that path's own logic:
@@ -33,7 +33,7 @@
 # ==============================================================================
 set -e
 
-REPO_URL="https://github.com/YOUR_USERNAME/privacyshield.git"
+REPO_URL="https://github.com/rlnunez/Privacy-Shield.git"
 REF="main"
 MODE=""
 DIR=""

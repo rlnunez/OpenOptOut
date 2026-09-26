@@ -46,7 +46,7 @@ run the venv/pip/npm steps yourself — the systemd unit and nginx config are
 distro-agnostic.
 
 ```
-git clone https://github.com/YOUR_USERNAME/privacyshield.git
+git clone https://github.com/rlnunez/Privacy-Shield.git privacyshield
 cd privacyshield
 sudo ./deploy/native/install.sh
 ```
@@ -149,7 +149,7 @@ process, and IIS is the public-facing web server.
 
 **Option 1 — automated (steps 2-6 below):**
 ```powershell
-git clone https://github.com/YOUR_USERNAME/privacyshield.git C:\PrivacyShield
+git clone https://github.com/rlnunez/Privacy-Shield.git C:\PrivacyShield
 cd C:\PrivacyShield
 .\deploy\native\install-native.ps1
 ```
@@ -167,7 +167,7 @@ the script doesn't handle for your setup:
 1. **Install Python 3.12** and **Node.js LTS** (for building the frontend).
 2. **Clone the repo** and set up the backend:
    ```powershell
-   git clone https://github.com/YOUR_USERNAME/privacyshield.git C:\PrivacyShield
+   git clone https://github.com/rlnunez/Privacy-Shield.git C:\PrivacyShield
    cd C:\PrivacyShield\backend
    python -m venv venv
    .\venv\Scripts\pip install -r requirements.txt
