@@ -10,11 +10,9 @@ interface and two implementations:
     the compiled job is coherent and the executor contract holds.
 
   - PlaywrightExecutor: the real one, which drives a headless browser for form
-    jobs and hands email jobs to the existing send path. It is intentionally a
-    thin skeleton here — the actual browser calls are the part that must be
-    validated in Docker with Playwright installed. It documents exactly where
-    that integration plugs in, so wiring it up later is filling in marked TODOs,
-    not designing from scratch.
+    jobs and hands email jobs to the existing send path. It is on the live
+    opt-out path (core/optout_engine.py), with the plugin manager's
+    solve_captcha and fill_form dispatchers wired in.
 
 Result shape is uniform across executors so the engine treats them identically:
     ExecResult(ok, steps_run, steps_total, detail, needs_captcha, needs_manual)

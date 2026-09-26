@@ -18,7 +18,7 @@ Encrypted fields:
   User.email             — stored encrypted; looked up via SHA-256 hash index
 
 Migration from unencrypted to SQLCipher:
-  Run: python -m privacyshield.core.encryption migrate
+  Run (in the container): python -m app.core.encryption migrate
   This creates a new encrypted copy using sqlcipher_export().
 """
 
@@ -209,7 +209,7 @@ def migrate_to_encrypted(source_path: str, dest_path: str, key: str):
     Migrate an existing unencrypted SQLite database to SQLCipher.
 
     Usage:
-        from privacyshield.core.encryption import migrate_to_encrypted
+        from app.core.encryption import migrate_to_encrypted
         migrate_to_encrypted(
             "/data/privacy_pipeline.db",
             "/data/privacy_pipeline_encrypted.db",
@@ -268,4 +268,4 @@ if __name__ == "__main__":
         migrate_to_encrypted(src, dest, key)
         print(f"Done. Review {dest}, then replace the original and restart with DB_ENCRYPTION_KEY set.")
     else:
-        print("Usage: python -m privacyshield.core.encryption migrate")
+        print("Usage: python -m app.core.encryption migrate")

@@ -83,7 +83,7 @@ Data brokers collect your name, address, phone number, relatives, and more — t
 ### One-line install (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rlnunez/privacyshield/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sh
 ```
 
 Detects your situation and does the right thing: uses Docker if it's
@@ -100,7 +100,7 @@ first, that's exactly what the sections below walk through by hand.
 
 ```bash
 # 1. Clone
-git clone https://github.com/rlnunez/privacyshield.git
+git clone https://github.com/rlnunez/Privacy-Shield.git privacyshield
 cd privacyshield
 
 # 2. Create environment file
@@ -131,15 +131,20 @@ win-acme on Windows.
 
 **Backend:**
 ```bash
-cd backend
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-cp ../.env.example ../.env      # edit SECRET_KEY
-uvicorn main:app --reload
+python -m venv backend/venv
+source backend/venv/bin/activate        # Windows: backend\venv\Scripts\activate
+pip install -r backend/requirements.txt
+cp .env.example .env                    # edit SECRET_KEY
+uvicorn backend.main:app --reload       # run from the repo root, not backend/
 # API runs at http://localhost:8000
 # Interactive docs at http://localhost:8000/docs
 ```
+
+Run uvicorn from the repo root as `backend.main:app`. The backend uses
+package-relative imports (`from .models ...`), so `cd backend && uvicorn
+main:app` fails with "attempted relative import with no known parent package".
+(The Docker image and native installer instead lay the code out as a package
+named `app`, which is why commands run inside the container use `app.`.)
 
 **Frontend:**
 ```bash
@@ -153,9 +158,13 @@ npm run dev
 
 ## First-time setup checklist
 
-After your first login (which creates the super admin account):
+On a fresh install the app shows a create-administrator screen instead of a
+login page; that account becomes the super admin. A guided **setup wizard**
+then walks through database, email, branding, and HTTPS deployment. Every step
+is skippable, and everything it sets can be changed later in Settings. The
+checklist below covers the same ground plus what comes after:
 
-- [ ] **Settings → Email** — configure your dedicated removal inbox (Gmail App Password recommended)
+- [ ] **Email** (wizard or Settings → Email) — connect your dedicated removal inbox, via app password or OAuth (see [Email setup](#email-setup))
 - [ ] **Brokers → Import CSV** — upload `incogni_brokers_enriched.csv` if you have one, or use the pre-loaded list
 - [ ] **Family members** — add yourself and each family member
 - [ ] **Identity vault** — for each member, add all name variants, emails, phones, and past/present addresses
@@ -252,23 +261,41 @@ privacyshield/
 │   │   ├── reporting.py           # Usage/enrollment/compliance reports + CSV
 │   │   ├── database_admin.py      # SQLite→Postgres migration tooling
 │   │   ├── email_monitor.py       # Inbox view of matched confirmations
+│   │   ├── email_oauth.py         # OAuth connect flow for Gmail / Outlook mailboxes
+│   │   ├── automation.py          # Per-broker automation scripts (form selectors)
+│   │   ├── parent_companies.py    # Parent-company grouping + email opt-outs
+│   │   ├── test_broker.py         # Test broker for validating email delivery
+│   │   ├── wizard.py              # First-run setup wizard
+│   │   ├── saml.py                # SAML 2.0 service-provider endpoints
+│   │   ├── cert_monitor.py        # Certificate expiry status + HTTPS check
 │   │   ├── plugins.py             # Plugin install/enable/disable/violations
 │   │   └── help.py                # Admin-editable documentation notes
 │   ├── core/
 │   │   ├── auth.py                # Password hashing, JWT, RBAC
 │   │   ├── auth_providers.py      # LDAP/AD, SIP2/SIP2S, OIDC SSO
+│   │   ├── saml_sp.py             # SAML 2.0 service provider (pysaml2)
+│   │   ├── sso_policy.py          # Shared sign-in policy for all external logins
+│   │   ├── cert_monitor.py        # Daily LDAP/SIP2/SAML/HTTPS certificate checks
 │   │   ├── encryption.py          # SQLCipher + Fernet field-level encryption
 │   │   ├── db_connection.py       # Enterprise Postgres auth (SSL/mTLS/IAM/Kerberos)
-│   │   ├── optout_engine.py       # Playwright form-fill + SMTP opt-out
+│   │   ├── discovery.py           # Discovery bot (find listings before opting out)
+│   │   ├── optout_engine.py       # Opt-out dispatch: interpreter, legacy form-fill, email
+│   │   ├── email_send.py          # Email sending (SMTP or provider plugins)
+│   │   ├── oauth_engine.py        # OAuth token handling for email providers
+│   │   ├── optout_email_template.py # Opt-out email wording (incl. parent companies)
+│   │   ├── parent_company.py      # Parent-company grouping + effectiveness tracking
 │   │   ├── broker_health.py       # Broker health tracking + auto-disable
 │   │   ├── broker_priority.py     # Broker priority (1–5): defaults, rules, import/export
 │   │   ├── interpreter/           # Declarative broker-spec engine (add-on reframe)
 │   │   │   ├── broker_spec.py     #   the declarative description format
 │   │   │   ├── compiler.py        #   spec + member -> executable Job
-│   │   │   └── executor.py        #   dry-run + Playwright executors
-│   │   ├── scheduler.py           # APScheduler jobs (opt-out, email, recheck)
+│   │   │   ├── executor.py        #   dry-run + Playwright executors
+│   │   │   ├── script_bridge.py   #   builds a spec from a broker's stored script
+│   │   │   └── live_test.py       #   run one spec against a real browser
+│   │   ├── scheduler.py           # APScheduler jobs (opt-out, email, recheck, certs)
 │   │   ├── proxy.py               # Residential proxy presets + rotation
 │   │   ├── migrations.py          # Additive schema migrations
+│   │   ├── version.py             # Version + commit reporting
 │   │   └── settings_store.py      # Settings file helpers
 │   └── plugins/                   # Process-isolated plugin system (see docs/PLUGINS.md)
 │       ├── proto/plugin.proto     # gRPC host↔plugin contract
@@ -286,11 +313,14 @@ privacyshield/
 │       ├── pages/                 # Dashboard, Brokers, Family, IdentityVault,
 │       │                         #   Scheduled, AdminPanel, Settings, Branding,
 │       │                         #   Reporting, DatabaseAdmin, EmailMonitor,
-│       │                         #   Discovery, Help, Plugins, BrokerHealth, BrokerPriority, Login
+│       │                         #   Discovery, Help, Plugins, PluginHelp, BrokerHealth,
+│       │                         #   BrokerPriority, BrokerSubmit, ParentCompanies,
+│       │                         #   SetupWizard, Login
 │       ├── components/            # Sidebar, Badge, …
 │       └── hooks/                 # useAuth, useBranding
 ├── backend/tests/                 # Self-contained test runner (see tests/TESTING.md)
-├── examples/plugins/              # Reference plugins (tracker, form-filler, watchdog)
+├── examples/plugins/              # Reference plugins (tracker, form-filler, watchdog,
+│                                  #   email providers)
 ├── examples/broker-specs/         # Reference broker descriptions (form, email)
 ├── docs/
 │   ├── PLUGINS.md                 # Plugin system security model + author guide
@@ -345,9 +375,10 @@ privacyshield/
 
 | Job | When | What it does |
 |---|---|---|
-| Opt-out sender | Daily at configured time | Sends opt-out emails/forms up to daily limits |
-| Email monitor | Every N minutes (default: 15) | Polls IMAP, matches UUID keys, marks confirmations |
+| Opt-out sender | Daily at configured time (burst), or spread out by the window / rate-limited / distributed modes | Sends opt-out emails/forms up to the per-member and global daily limits |
+| Email monitor | Every N minutes (default: 15) | Polls the inbox, matches UUID keys, marks confirmations |
 | Recheck scanner | Daily (30 min after opt-out job) | Re-queues expired confirmed removals |
+| Certificate monitor | Every 24 hours (runs even when opt-out scheduling is off) | Checks LDAP, SIP2, SAML IdP, and PrivacyShield's own HTTPS certificates; alerts admins before expiry |
 
 ---
 
@@ -377,7 +408,7 @@ Two independent layers, both optional and configurable via `.env`:
 To migrate an existing unencrypted SQLite database to SQLCipher:
 
 ```bash
-docker exec privacyshield-api python -m backend.core.encryption migrate
+docker exec privacyshield-api python -m app.core.encryption migrate
 ```
 
 For Postgres, use provider-level encryption (RDS storage encryption, Azure TDE, Cloud SQL CMEK) alongside the field-level layer.
@@ -449,7 +480,13 @@ Please do not commit `.env`, `*.db`, or `privacyshield_settings.json` — they c
 - [x] Built-in HTTPS — Docker (managed via an optional Caddy container), native no-container installs (certbot/win-acme), or an existing reverse proxy (external) — see [`docs/HTTPS.md`](docs/HTTPS.md) and [`docs/NATIVE_INSTALL.md`](docs/NATIVE_INSTALL.md)
 - [x] Version + git commit logged at startup and served from `GET /api/health` — no ambiguity about what code is actually running (see `docs/ROADMAP.md` item 16 for the larger in-app log viewer / adjustable verbosity work this is the first piece of)
 
-**Planned:**
+- [x] Broker health tracking with automatic disable of repeatedly failing brokers, plus per-broker enable/disable and priority
+- [x] Parent-company email opt-outs — one email to a parent company covering all its child sites, with effectiveness tracking
+- [x] First-run setup wizard (database, email, branding, HTTPS deployment)
+- [x] OAuth email connection for Gmail and Outlook, via bundled email-provider plugins
+- [x] Declarative broker-spec interpreter, live for brokers with an automation script — see [`docs/INTERPRETER.md`](docs/INTERPRETER.md)
+
+**Planned** (the architectural plan and per-item status are in [`docs/ROADMAP.md`](docs/ROADMAP.md)):
 - [ ] Notification system — email/webhook alerts for overdue re-checks
 - [ ] Further mobile-responsive UI improvements
 - [ ] Public broker database — community-maintained list with open PRs
