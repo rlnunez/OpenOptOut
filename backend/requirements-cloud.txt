@@ -1,0 +1,12 @@
+# Optional cloud IAM authentication dependencies.
+# Install only what your deployment needs:
+#   pip install -r requirements-cloud.txt
+
+# AWS RDS IAM authentication
+boto3==1.34.100
+
+# GCP Cloud SQL IAM authentication
+google-auth==2.29.0
+
+# Azure AD authentication
+azure-identity==1.16.0

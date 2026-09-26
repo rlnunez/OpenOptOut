@@ -1,0 +1,30 @@
+{
+  "id": "email-gmail",
+  "name": "Gmail Email Provider",
+  "version": "1.0.0",
+  "author": "PrivacyShield",
+  "description": "Sends opt-out emails and reads confirmations via the Gmail API using OAuth 2.0. A reference email-provider plugin. Trusted class: it sends member identifiers to Gmail, so it declares read_pii + network, and the host inspects it for hidden recipients and enforces the actual recipient at send time.",
+  "api_version": "1.0",
+  "permissions": [
+    "email_provider",
+    "read_pii",
+    "network",
+    "settings_read"
+  ],
+  "hooks": [
+    "email_provider"
+  ],
+  "methods": [
+    "settings.get",
+    "log",
+    "email.get_credentials"
+  ],
+  "outbound_domains": [
+    "gmail.googleapis.com",
+    "oauth2.googleapis.com"
+  ],
+  "entrypoint": "plugin.py",
+  "max_memory_mb": 1536,
+  "max_cpu_seconds": 30,
+  "timeout_seconds": 30
+}

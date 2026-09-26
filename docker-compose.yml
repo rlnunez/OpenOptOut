@@ -1,0 +1,188 @@
+# ==============================================================================
+# PrivacyShield — Docker Compose
+#
+# Quickstart (SQLite, single node — good for families and small deployments):
+#   1. cp .env.example .env   and set SECRET_KEY (openssl rand -hex 32)
+#   2. docker compose up -d --build
+#   3. open http://localhost  (first account created becomes super admin)
+#
+# For institutional / patron-scale deployments, switch to PostgreSQL and enable
+# encryption — see the commented sections below and docs in README.md.
+# ==============================================================================
+
+services:
+
+  api:
+    build:
+      context: ./backend
+      args:
+        # Picked up from the shell environment (or .env) if set — install.sh
+        # and deploy/native/install.sh set this automatically from the git
+        # checkout being built; a manual `docker compose build` without it
+        # just gets "unknown", which core/version.py handles fine. See
+        # backend/Dockerfile for where this actually gets used.
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    container_name: privacyshield-api
+    restart: unless-stopped
+    environment:
+      # ── Core (required) ─────────────────────────────────────────────────────
+      # SECRET_KEY MUST be set to a strong random value in production:
+      #   openssl rand -hex 32
+      - SECRET_KEY=${SECRET_KEY:-change-me-please}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      - SETTINGS_FILE=/data/privacyshield_settings.json
+
+      # ── Database ────────────────────────────────────────────────────────────
+      # SQLite by default (fine for families / small staff deployments).
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////data/privacy_pipeline.db}
+      #
+      # For PostgreSQL (patron-scale), set DATABASE_URL instead, e.g.:
+      #   DATABASE_URL=postgresql://user:password@db:5432/privacyshield
+      # and uncomment the `db` service at the bottom of this file.
+      #
+      # For hardened enterprise DB auth (SSL, client certs, cloud IAM, Kerberos),
+      # set DB_USE_STRUCTURED_CONFIG=true and configure via Admin → Database.
+      # Secrets are read from env or mounted files, never stored in the app:
+      #- DB_USE_STRUCTURED_CONFIG=true
+      #- DB_PASSWORD=${DB_PASSWORD}
+      #- DB_PASSWORD_FILE=/run/secrets/db_password
+
+      # ── Encryption at rest (optional, recommended for PII) ──────────────────
+      # Generate each with: openssl rand -hex 32  (use DISTINCT keys)
+      #- DB_ENCRYPTION_KEY=${DB_ENCRYPTION_KEY}       # SQLCipher whole-DB encryption
+      #- FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY} # Fernet field-level PII encryption
+
+      # ── Institutional / OIDC ────────────────────────────────────────────────
+      # Public URL of the deployment, used for SSO (OIDC/SAML) redirects.
+      # MUST match how people reach the site (https://your.domain once HTTPS is on).
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}
+      # HTTPS front door (Caddy) — lets the certificate monitor watch our own cert.
+      - HTTPS_MODE=${HTTPS_MODE:-}
+      - DOMAIN=${DOMAIN:-}
+      - HTTPS_CHECK_HOST=${HTTPS_CHECK_HOST:-caddy}
+      # Where uploaded white-label logos are stored:
+      - LOGO_PATH=${LOGO_PATH:-/data/logo}
+
+      # ── Plugin system (optional) ────────────────────────────────────────────
+      # Process-isolated, sandboxed plugins. Enable in Settings → Plugin system,
+      # then restart. Full OS sandboxing requires the bubblewrap + libseccomp
+      # packages that the backend image already installs. See docs/PLUGINS.md.
+      # These default to /data/... so they persist on the db_data volume:
+      - PLUGINS_DIR=${PLUGINS_DIR:-/data/plugins}
+      - PLUGIN_STORAGE_DIR=${PLUGIN_STORAGE_DIR:-/data/plugin_storage}
+
+      # ── Residential proxy / IP masking (optional) ───────────────────────────
+      # For the opt-out automation engine. Secrets are read ONLY from env or
+      # mounted files, never persisted. See the "Proxy & VPN" help article.
+      #- PROXY_ENABLED=true
+      #- PROXY_HOST=${PROXY_HOST}
+      #- PROXY_PORT=${PROXY_PORT}
+      #- PROXY_USER=${PROXY_USER}
+      #- PROXY_PASS=${PROXY_PASS}
+      #- PROXY_USER_FILE=/run/secrets/proxy_user
+      #- PROXY_PASS_FILE=/run/secrets/proxy_pass
+      #- PROXY_POOL=${PROXY_POOL}                  # comma-separated rotating pool
+      #- PROXY_POOL_FILE=/run/secrets/proxy_pool
+    volumes:
+      # Single named volume holds the DB, settings, screenshots, logos, plugins,
+      # and plugin storage (all live under /data). One volume = one backup unit.
+      - app_data:/data
+    ports:
+      # host:container. The container always listens on 8000 internally; only
+      # the HOST port is configurable (via API_PORT in .env) so you can avoid
+      # conflicts with other local services. Default 8010 to sidestep the very
+      # common 8000 collision. nginx reaches the API as http://api:8000 over the
+      # Docker network regardless of this mapping.
+      # Bound to 127.0.0.1 by default: the web UI reaches the API internally, and
+      # publishing it on all interfaces would let anyone on the network skip HTTPS
+      # and send passwords to the API in plain HTTP. Set API_BIND=0.0.0.0 only if
+      # you really need direct API access from other machines.
+      - "${API_BIND:-127.0.0.1}:${API_PORT:-8010}:8000"
+    # ── Plugin sandboxing note ────────────────────────────────────────────────
+    # Full OS-level plugin sandboxing (bubblewrap namespaces + seccomp) needs
+    # elevated privileges most container runtimes drop by default. If you run
+    # untrusted third-party plugins and want full isolation, you may need:
+    #   security_opt:
+    #     - seccomp:unconfined   # so the plugin's OWN seccomp filter can install
+    #   cap_add:
+    #     - SYS_ADMIN            # for user namespaces used by bubblewrap
+    # Leave these OFF unless you actually run untrusted plugins — they widen the
+    # container's own privileges. The app degrades gracefully and reports its
+    # real sandbox posture on the Plugins page. See docs/PLUGINS.md.
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  web:
+    build: ./frontend
+    container_name: privacyshield-web
+    restart: unless-stopped
+    ports:
+      # Host port for the web UI (nginx). Change WEB_PORT in .env if 80 is taken.
+      # With HTTPS on, scripts/enable-https.sh sets WEB_BIND=127.0.0.1 and
+      # WEB_PORT=8080 so Caddy owns ports 80/443 and plain HTTP isn't exposed.
+      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-80}:80"
+    depends_on:
+      - api
+
+  # ── HTTPS front door (optional) ─────────────────────────────────────────────
+  # Automatic certificates (Let's Encrypt, an internal ACME CA, Caddy's own
+  # private CA, or your own files), automatic renewal, HTTP→HTTPS redirect.
+  # Enable with:  ./scripts/enable-https.sh   (sets COMPOSE_PROFILES=https etc.)
+  # See docs/HTTPS.md.
+  caddy:
+    image: caddy:2.8.4-alpine
+    container_name: privacyshield-caddy
+    profiles: ["https"]
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/deploy/entrypoint.sh"]
+    environment:
+      - HTTPS_MODE=${HTTPS_MODE:-}
+      - DOMAIN=${DOMAIN:-}
+      - ACME_EMAIL=${ACME_EMAIL:-}
+      - ACME_CA=${ACME_CA:-}
+      - ACME_CA_ROOT=${ACME_CA_ROOT:-}
+      - TLS_CERT_FILE=${TLS_CERT_FILE:-/certs/fullchain.pem}
+      - TLS_KEY_FILE=${TLS_KEY_FILE:-/certs/privkey.pem}
+      - HSTS=${HSTS:-on}
+      - UPSTREAM=web:80
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"      # HTTP/3
+    volumes:
+      - ./deploy/caddy/entrypoint.sh:/deploy/entrypoint.sh:ro
+      - ./deploy/certs:/certs:ro          # custom certs / internal CA root, if used
+      # Issued certificates + ACME account. KEEP this volume: without it every
+      # restart requests new certificates and can hit Let's Encrypt rate limits.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+  # ── PostgreSQL (optional — uncomment for patron-scale deployments) ──────────
+  # Also set DATABASE_URL on the api service to point here.
+  #db:
+  #  image: postgres:16
+  #  container_name: privacyshield-db
+  #  restart: unless-stopped
+  #  environment:
+  #    - POSTGRES_USER=${POSTGRES_USER:-privacyshield}
+  #    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+  #    - POSTGRES_DB=${POSTGRES_DB:-privacyshield}
+  #  volumes:
+  #    - pg_data:/var/lib/postgresql/data
+  #  healthcheck:
+  #    test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-privacyshield}"]
+  #    interval: 10s
+  #    timeout: 5s
+  #    retries: 5
+
+volumes:
+  app_data:
+  caddy_data:
+  caddy_config:
+  #pg_data:

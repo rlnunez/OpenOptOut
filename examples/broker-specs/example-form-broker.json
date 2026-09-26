@@ -1,0 +1,21 @@
+{
+  "broker_id": "example-form",
+  "name": "Example Form Broker",
+  "method": "form",
+  "spec_version": "1.0",
+  "opt_out_url": "https://optout.example.com/remove",
+  "steps": [
+    { "kind": "wait_for", "selector": "#optout-form", "timeout_ms": 10000 },
+    { "kind": "fill", "selector": "input[name=firstName]", "field": "first_name" },
+    { "kind": "fill", "selector": "input[name=lastName]",  "field": "last_name" },
+    { "kind": "fill", "selector": "input[name=email]",     "field": "email" },
+    { "kind": "fill", "selector": "input[name=city]",      "field": "city", "optional": true },
+    { "kind": "select", "selector": "select[name=state]",  "field": "state" },
+    { "kind": "check", "selector": "input[name=confirm]" },
+    { "kind": "solve_captcha", "selector": ".g-recaptcha", "optional": true },
+    { "kind": "click", "selector": "button[type=submit]" },
+    { "kind": "expect_success", "text": "Your request has been received" }
+  ],
+  "success_text": "Your request has been received",
+  "notes": "Reference form-method add-on demonstrating the spec format."
+}

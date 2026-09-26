@@ -1,0 +1,474 @@
+syntax = "proto3";
+
+package privacyshield.plugin;
+
+// ============================================================================
+// PrivacyShield Plugin Protocol
+//
+// Two services define the bidirectional contract:
+//
+//   PluginService  — implemented BY the plugin, called BY the host.
+//                    The host invokes hooks (fill_form, parse_email, on_event).
+//
+//   HostService    — implemented BY the host, called BY the plugin.
+//                    The plugin requests capabilities (storage, settings, log)
+//                    which the host gates by the plugin's granted permissions.
+//
+// All plugin capability requests carry a session token issued at handshake;
+// the host validates the token AND the permission on every call. A plugin
+// process never touches the host DB, credentials, or memory directly.
+// ============================================================================
+
+
+// ---------- Plugin-implemented service ----------
+
+service PluginService {
+  // Called once after the process starts so the plugin can report its
+  // manifest and confirm which hooks it implements.
+  rpc Initialize (InitializeRequest) returns (InitializeResponse);
+
+  // Health/liveness probe. Host calls periodically; a plugin that fails to
+  // respond within the deadline is considered hung and is killed.
+  rpc Ping (PingRequest) returns (PingResponse);
+
+  // Extension point: custom form-filling strategy for a broker opt-out.
+  // The host provides broker + (permission-gated) member field data and the
+  // plugin returns the actions to perform, or a completed status.
+  rpc FillForm (FillFormRequest) returns (FillFormResponse);
+
+  // Extension point: parse/interpret an inbound email for confirmation
+  // matching. The plugin returns whether it matched and any extracted data.
+  rpc ParseEmail (ParseEmailRequest) returns (ParseEmailResponse);
+
+  // Extension point: react to a lifecycle event (opt-out sent, confirmation
+  // received, scheduled tick, etc). Fire-and-observe; return value is advisory.
+  rpc OnEvent (EventRequest) returns (EventResponse);
+
+  // A plugin that declares the "solve_captcha" hook receives a CAPTCHA challenge
+  // encountered during a form opt-out and returns a solution token — or signals
+  // that it should be handed to a human. This is the extension point that lets a
+  // deployment plug in its own solver (human-in-the-loop, a paid service, an
+  // AI-vision solver) without the core ever "solving" CAPTCHAs itself.
+  rpc SolveCaptcha (SolveCaptchaRequest) returns (SolveCaptchaResponse);
+
+  // ── Email-provider adapter ("email_provider" hook) ────────────────────────
+  // An email-provider plugin implements a transport (Gmail API, MS Graph, IMAP/
+  // SMTP, etc.) behind one contract, so the rest of the system can send opt-out
+  // emails and read confirmations without knowing which provider is underneath.
+  // These plugins are a trusted class (they legitimately send member PII to a
+  // mail API) but are code-inspected for hidden/hardcoded recipients — the host
+  // also enforces the actual recipient at send time (see EmailProviderSend).
+  rpc EmailProviderInfo (EmailProviderInfoRequest) returns (EmailProviderInfoResponse);
+  rpc EmailProviderSend (EmailProviderSendRequest) returns (EmailProviderSendResponse);
+  rpc EmailProviderList (EmailProviderListRequest) returns (EmailProviderListResponse);
+
+  // Graceful shutdown request before the host terminates the process.
+  rpc Shutdown (ShutdownRequest) returns (ShutdownResponse);
+}
+
+
+// ---------- Host-implemented service (capabilities) ----------
+
+service HostService {
+  // Key/value storage scoped to the plugin. Backed by DB or file per config.
+  // Requires the "storage" permission.
+  rpc StorageGet    (StorageGetRequest)    returns (StorageGetResponse);
+  rpc StorageSet    (StorageSetRequest)    returns (StorageSetResponse);
+  rpc StorageDelete (StorageDeleteRequest) returns (StorageDeleteResponse);
+  rpc StorageList   (StorageListRequest)   returns (StorageListResponse);
+
+  // Read a plugin-registered or global (non-secret) setting.
+  // Requires the "settings_read" permission. Secrets are never returned.
+  rpc SettingGet (SettingGetRequest) returns (SettingGetResponse);
+
+  // Write a plugin-scoped setting value. Requires "settings_write".
+  rpc SettingSet (SettingSetRequest) returns (SettingSetResponse);
+
+  // Structured logging routed into the host's plugin log.
+  rpc Log (LogRequest) returns (LogResponse);
+
+  // Emit a custom event back into the host event bus (requires "emit_events").
+  rpc EmitEvent (HostEventRequest) returns (HostEventResponse);
+
+  // ── Broker data (read-only, no member PII) — requires "broker_read" ──────
+  rpc BrokerGet     (BrokerGetRequest)     returns (BrokerGetResponse);
+  rpc BrokerList    (BrokerListRequest)    returns (BrokerListResponse);
+  rpc BrokerHistory (BrokerHistoryRequest) returns (BrokerHistoryResponse);
+
+  // ── Request lifecycle (status only, no member PII) ────────────────────────
+  // Reads require "request_read". Writes require "request_write" and are
+  // logged to the audit trail with a before/after status diff.
+  rpc RequestGetStatus    (RequestGetStatusRequest)    returns (RequestGetStatusResponse);
+  rpc RequestMarkSent      (RequestMarkRequest)         returns (RequestMarkResponse);
+  rpc RequestMarkConfirmed (RequestMarkRequest)         returns (RequestMarkResponse);
+  rpc RequestMarkFailed    (RequestMarkRequest)         returns (RequestMarkResponse);
+
+  // ── Constrained opt-out email trigger — requires "trigger_optout_email" ──
+  // Sends the EXISTING opt-out email template for one pending request via the
+  // host's own SMTP config. No custom subject/body/recipient — the plugin
+  // supplies only a request_id.
+  rpc TriggerOptoutEmail (TriggerOptoutEmailRequest) returns (TriggerOptoutEmailResponse);
+
+  // ── Host-mediated HTTP fetch — requires "http_fetch" ──────────────────────
+  // The HOST makes this call, not the plugin. Restricted to domains the
+  // plugin declared in its manifest's outbound_domains.
+  rpc HttpFetch (HttpFetchRequest) returns (HttpFetchResponse);
+
+  // ── Custom recheck scheduling — requires "schedule_write" ─────────────────
+  rpc ScheduleSetRecheck (ScheduleSetRecheckRequest) returns (ScheduleSetRecheckResponse);
+
+  // ── Email-provider credential lookup — requires "email_provider" ──────────
+  // Only callable by a plugin declaring the email_provider hook, and only
+  // returns the token for an account_ref whose stored provider matches THAT
+  // specific plugin's own declared provider_key (a Gmail plugin can't read an
+  // Outlook account's token). Returns the CURRENT access token only, already
+  // refreshed by the host if needed before the send that's in progress — never
+  // the refresh token or the OAuth client secret, neither of which the plugin
+  // needs to send a single message. This is the intended channel for an
+  // email-provider plugin's own credential — generic settings.get() refuses
+  // anything matching "credential"/"token" by design, on purpose, for every
+  // OTHER kind of plugin.
+  rpc GetEmailCredentials (GetEmailCredentialsRequest) returns (GetEmailCredentialsResponse);
+}
+
+
+// ---------- Common ----------
+
+// Every capability call from plugin -> host carries this for auth.
+message Auth {
+  string session_token = 1;   // issued by host at handshake
+  string plugin_id     = 2;
+}
+
+message Manifest {
+  string id            = 1;   // unique slug, e.g. "acme-broker-pack"
+  string name          = 2;
+  string version       = 3;
+  string author        = 4;
+  string description    = 5;
+  repeated string permissions = 6;  // e.g. "read_pii", "storage", "network"
+  repeated string hooks       = 7;  // which hooks this plugin implements
+  string api_version   = 8;   // plugin SDK/protocol version it targets
+}
+
+
+// ---------- Initialize ----------
+
+message InitializeRequest {
+  string host_version  = 1;
+  string session_token = 2;   // plugin stores this for capability calls
+  int32  host_port     = 3;   // port where HostService listens
+  map<string, string> granted_permissions = 4;  // permission -> "true"
+}
+
+message InitializeResponse {
+  Manifest manifest = 1;
+  bool     ok       = 2;
+  string   error    = 3;
+}
+
+
+// ---------- Ping / Shutdown ----------
+
+message PingRequest  { int64 nonce = 1; }
+message PingResponse { int64 nonce = 1; bool healthy = 2; }
+
+message ShutdownRequest  { string reason = 1; }
+message ShutdownResponse { bool ok = 1; }
+
+
+// ---------- FillForm hook ----------
+
+// Field values are only populated if the plugin was granted "read_pii".
+// Otherwise they arrive redacted (empty) and the plugin must operate on
+// structure alone.
+message MemberField {
+  string key   = 1;   // "first_name", "last_name", "email", "address", ...
+  string value = 2;   // redacted to "" if no read_pii permission
+}
+
+message FillFormRequest {
+  string broker_id      = 1;
+  string broker_name    = 2;
+  string opt_out_url    = 3;
+  string page_html      = 4;   // current page DOM (may be truncated)
+  repeated MemberField fields = 5;
+  map<string, string> broker_meta = 6;  // method, difficulty, etc.
+}
+
+// The plugin returns a list of browser actions for the host to execute in
+// its sandboxed Playwright context. The plugin itself never drives the
+// browser — it only describes what to do, keeping the browser in the host.
+message BrowserAction {
+  // "fill" | "click" | "select" | "check" | "submit" | "wait" | "wait_for" |
+  // "screenshot" | "solve_captcha" | "expect_success"
+  string action   = 1;
+  string selector = 2;
+  string value    = 3;
+  int32  timeout_ms = 4;
+  bool   optional = 5;   // if true, failure of this action doesn't fail the flow
+}
+
+message FillFormResponse {
+  bool   handled            = 1;   // false => host falls back to default engine
+  repeated BrowserAction actions = 2;
+  string success_selector   = 3;   // element/text signalling success
+  string error              = 4;
+  bool   needs_captcha      = 5;   // plugin hit a CAPTCHA mid-flow; host invokes
+                                   // the solve_captcha hook, then may resume
+  CaptchaChallenge captcha  = 6;   // populated when needs_captcha is true
+}
+
+
+// ---------- SolveCaptcha hook ----------
+
+message CaptchaChallenge {
+  string type      = 1;   // "recaptcha_v2" | "recaptcha_v3" | "hcaptcha" | "image" | "other"
+  string site_key  = 2;   // the CAPTCHA provider site key, when detectable
+  string page_url  = 3;   // URL of the page the challenge is on
+  bytes  screenshot = 4;  // optional screenshot of the challenge (may be empty)
+  map<string, string> meta = 5;  // extra hints (broker_id, action, etc.)
+}
+
+message SolveCaptchaRequest {
+  CaptchaChallenge challenge = 1;
+}
+
+message SolveCaptchaResponse {
+  bool   solved       = 1;   // true if a token/answer is provided
+  string token        = 2;   // the solution token to inject (e.g. g-recaptcha-response)
+  bool   defer_to_human = 3; // plugin can't/won't solve; host should use the human path
+  string error        = 4;
+}
+
+
+// ---------- ParseEmail hook ----------
+
+message ParseEmailRequest {
+  string message_id   = 1;
+  string subject      = 2;
+  string from_addr    = 3;
+  string body_text    = 4;
+  string body_html    = 5;
+  repeated string tracking_keys = 6;  // known UUID keys awaiting confirmation
+}
+
+message ParseEmailResponse {
+  bool   handled        = 1;   // false => host uses default matcher
+  bool   matched        = 2;
+  string matched_key    = 3;   // which tracking key this email confirms
+  string status         = 4;   // "confirmed" | "rejected" | "needs_action"
+  map<string, string> extracted = 5;  // any extra structured data
+}
+
+
+// ---------- OnEvent hook ----------
+
+message EventRequest {
+  string event_type = 1;   // "optout_sent" | "confirmation_received" | "tick" ...
+  string entity_id  = 2;   // request id, member id, etc.
+  map<string, string> data = 3;  // event payload (permission-filtered)
+  int64  timestamp  = 4;
+}
+
+message EventResponse {
+  bool   ok      = 1;
+  string message = 2;
+}
+
+
+// ---------- Host capabilities ----------
+
+message StorageGetRequest  { Auth auth = 1; string key = 2; }
+message StorageGetResponse { bool found = 1; string value = 2; }
+
+message StorageSetRequest  { Auth auth = 1; string key = 2; string value = 3; }
+message StorageSetResponse { bool ok = 1; string error = 2; }
+
+message StorageDeleteRequest  { Auth auth = 1; string key = 2; }
+message StorageDeleteResponse { bool ok = 1; }
+
+message StorageListRequest  { Auth auth = 1; string prefix = 2; }
+message StorageListResponse { repeated string keys = 1; }
+
+message SettingGetRequest  { Auth auth = 1; string key = 2; }
+message SettingGetResponse { bool found = 1; string value = 2; }
+
+message SettingSetRequest  { Auth auth = 1; string key = 2; string value = 3; }
+message SettingSetResponse { bool ok = 1; string error = 2; }
+
+message LogRequest  { Auth auth = 1; string level = 2; string message = 3; }
+message LogResponse { bool ok = 1; }
+
+message HostEventRequest  { Auth auth = 1; string event_type = 2; map<string, string> data = 3; }
+message HostEventResponse { bool ok = 1; }
+
+
+// ---- Broker data (read-only, no member PII) ----
+
+message BrokerGetRequest  { Auth auth = 1; int32 broker_id = 2; }
+message BrokerGetResponse {
+  bool   found       = 1;
+  int32  broker_id   = 2;
+  string name        = 3;
+  string method      = 4;   // "form" | "email" | "manual" | "phone"
+  string difficulty  = 5;   // "easy" | "medium" | "hard"
+  string status      = 6;   // "compliant" | "resistant" | "inconsistent" | "undetermined"
+}
+
+message BrokerListRequest  { Auth auth = 1; int32 limit = 2; }
+message BrokerListResponse { repeated BrokerGetResponse brokers = 1; }
+
+message BrokerHistoryRequest  { Auth auth = 1; int32 broker_id = 2; }
+message BrokerHistoryResponse {
+  bool  found              = 1;
+  int32 total_requests     = 2;
+  int32 confirmed_count    = 3;
+  int32 failed_count       = 4;
+  int32 pending_count      = 5;
+}
+
+
+// ---- Request lifecycle (status only, no member PII) ----
+
+message RequestGetStatusRequest  { Auth auth = 1; int32 request_id = 2; }
+message RequestGetStatusResponse {
+  bool   found        = 1;
+  int32  request_id    = 2;
+  string status        = 3;   // "pending" | "sent" | "confirmed" | "rejected" | "recheck_due" | "failed"
+  string method_used   = 4;
+  int64  sent_at        = 5;   // unix ts, 0 if unset
+  int64  confirmed_at   = 6;
+  int64  recheck_after  = 7;
+}
+
+message RequestMarkRequest {
+  Auth  auth        = 1;
+  int32 request_id  = 2;
+  string reason     = 3;   // plugin's stated reason, stored in the audit log only
+}
+message RequestMarkResponse {
+  bool   ok            = 1;
+  string error          = 2;
+  string previous_status = 3;
+  string new_status      = 4;
+}
+
+
+// ---- Constrained opt-out email trigger ----
+
+message TriggerOptoutEmailRequest {
+  Auth  auth        = 1;
+  int32 request_id  = 2;   // must reference a PENDING request; no custom content accepted
+}
+message TriggerOptoutEmailResponse {
+  bool   ok     = 1;
+  string error  = 2;
+}
+
+
+// ---- Host-mediated HTTP fetch ----
+
+message HttpFetchRequest {
+  Auth   auth     = 1;
+  string method   = 2;   // "GET" | "POST"
+  string url      = 3;   // must match a domain in the plugin's declared outbound_domains
+  string body     = 4;   // optional POST body
+  map<string, string> headers = 5;
+}
+message HttpFetchResponse {
+  bool   ok           = 1;
+  string error         = 2;
+  int32  status_code   = 3;
+  string body           = 4;   // truncated by the host to a size cap
+}
+
+
+// ---- Custom recheck scheduling ----
+
+message ScheduleSetRecheckRequest {
+  Auth  auth               = 1;
+  int32 request_id         = 2;
+  int64 recheck_after_ts   = 3;   // unix ts
+  string reason            = 4;    // stored in the audit log only
+}
+message ScheduleSetRecheckResponse {
+  bool  ok               = 1;
+  string error            = 2;
+  int64 previous_recheck  = 3;
+  int64 new_recheck       = 4;
+}
+
+
+// ---------- Email-provider adapter ----------
+
+message EmailProviderInfoRequest {}
+message EmailProviderInfoResponse {
+  string provider_key   = 1;   // "gmail" | "outlook" | "yahoo" | custom
+  string display_name   = 2;
+  string auth_type      = 3;   // "oauth" | "app_password" | "smtp"
+  bool   can_send       = 4;
+  bool   can_receive    = 5;   // can list/read confirmations
+  string oauth_scopes   = 6;   // space-separated, if auth_type == oauth
+  string notes          = 7;
+  // ── OAuth flow DESCRIPTION (plugin describes; HOST executes) ──────────────
+  // The plugin declares WHAT OAuth to run; the host performs it, holds the
+  // client secret, and stores the resulting tokens. Sensitive material (client
+  // secret, tokens) NEVER passes through the sandboxed plugin. Populated only
+  // when auth_type == "oauth".
+  string oauth_auth_url    = 8;   // authorization endpoint (consent screen)
+  string oauth_token_url   = 9;   // token exchange / refresh endpoint
+  bool   oauth_use_pkce    = 10;  // whether to use PKCE
+  string oauth_extra_params = 11; // provider-specific auth params, "k=v&k=v"
+}
+
+// The host controls the recipient list — the plugin sends ONLY to `to`/`cc`
+// exactly as given, and returns which recipients it actually sent to so the
+// host can verify no hidden BCC/extra destination was introduced.
+message EmailProviderSendRequest {
+  Auth   auth        = 1;      // plugin session token
+  string account_ref = 2;      // which configured account/credential to use
+  repeated string to  = 3;
+  repeated string cc  = 4;
+  string subject     = 5;
+  string body        = 6;      // plain text
+  map<string, string> meta = 7;
+}
+message EmailProviderSendResponse {
+  bool   ok                 = 1;
+  string message_id         = 2;
+  repeated string sent_to   = 3;   // recipients the plugin reports it sent to
+  string error              = 4;
+}
+
+message GetEmailCredentialsRequest {
+  Auth   auth        = 1;
+  string account_ref = 2;
+}
+message GetEmailCredentialsResponse {
+  bool   found        = 1;
+  string access_token  = 2;
+  string token_type    = 3;   // usually "Bearer"
+  string error         = 4;   // set (found=false) if account_ref isn't this
+                              // plugin's own provider, or isn't connected
+}
+
+// List/fetch inbound messages (for confirmation matching).
+message EmailProviderListRequest {
+  Auth   auth        = 1;
+  string account_ref = 2;
+  int32  max_results = 3;
+  int64  since_ts    = 4;    // only messages after this unix ts
+}
+message InboundMessage {
+  string message_id = 1;
+  string from       = 2;
+  string subject    = 3;
+  string snippet    = 4;     // first chars of body
+  int64  received_ts = 5;
+}
+message EmailProviderListResponse {
+  bool   ok                     = 1;
+  repeated InboundMessage messages = 2;
+  string error                  = 3;
+}

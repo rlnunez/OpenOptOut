@@ -1,0 +1,17 @@
+{
+  "id": "example-request-watchdog",
+  "name": "Example Request Watchdog",
+  "version": "1.0.0",
+  "author": "PrivacyShield",
+  "description": "Demonstrates broker-read and request-lifecycle capabilities. On a schedule tick, it checks broker aggregate stats and can mark a specific stuck request as failed with a stated reason — all through the PII-free, audit-logged request API.",
+  "api_version": "1.0",
+  "permissions": ["receive_events", "broker_read", "request_read", "request_write", "storage"],
+  "hooks": ["on_event"],
+  "methods": ["broker.get", "broker.history", "request.get_status", "request.mark_failed", "storage.get", "storage.set", "log"],
+  "events": ["tick"],
+  "outbound_domains": [],
+  "entrypoint": "plugin.py",
+  "max_memory_mb": 128,
+  "max_cpu_seconds": 15,
+  "timeout_seconds": 10
+}

@@ -1,0 +1,16 @@
+{
+  "id": "email-outlook",
+  "name": "Outlook / Microsoft 365 Email Provider",
+  "version": "1.0.0",
+  "author": "PrivacyShield",
+  "description": "Sends opt-out emails and reads confirmations via Microsoft Graph using OAuth 2.0. Trusted email-provider class; host inspects for hidden recipients and enforces the recipient at send time.",
+  "api_version": "1.0",
+  "permissions": ["email_provider", "read_pii", "network", "settings_read"],
+  "hooks": ["email_provider"],
+  "methods": ["settings.get", "log", "email.get_credentials"],
+  "outbound_domains": ["graph.microsoft.com", "login.microsoftonline.com"],
+  "entrypoint": "plugin.py",
+  "max_memory_mb": 192,
+  "max_cpu_seconds": 30,
+  "timeout_seconds": 30
+}

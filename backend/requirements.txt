@@ -1,0 +1,45 @@
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+sqlalchemy==2.0.30
+pydantic[email]==2.7.1
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+# passlib 1.7.4 (its last release, 2020) does a one-time internal self-test on
+# first use (detect_wrap_bug) that calls into the underlying `bcrypt` package
+# in a way that's incompatible with bcrypt>=4.1 (which tightened its 72-byte
+# handling and dropped an attribute passlib's probe reads). Since `bcrypt` is
+# only an unpinned extra of passlib[bcrypt] above, pip installs whatever the
+# latest bcrypt is — which now breaks EVERY password hash, immediately, with
+# ValueError: password cannot be longer than 72 bytes (misleading: it happens
+# even for a short password, since the crash is passlib's own internal probe,
+# not anything about what the user typed). Pin a version from before that
+# break; bcrypt 4.0.1 is confirmed compatible with passlib 1.7.4.
+bcrypt==4.0.1
+python-multipart==0.0.9
+aiofiles==23.2.1
+cryptography==42.0.8
+APScheduler==3.10.4
+pytz==2024.1
+playwright==1.44.0
+python-ldap==3.4.4
+httpx==0.27.0
+authlib==1.3.1
+psycopg2-binary==2.9.9
+grpcio==1.62.2
+grpcio-tools==1.62.2
+protobuf==4.25.3
+# SAML 2.0 sign-in. 7.5.4 is the newest pysaml2 compatible with cryptography==42.0.8
+# (7.5.5 requires cryptography>=46). pyopenssl pinned below 24.3 per pysaml2.
+pysaml2==7.5.4
+pyopenssl==24.2.1
+
+# ── Bundled email-provider plugin dependencies ──────────────────────────────
+# Only Gmail's provider plugin (backend/plugins/bundled/email-gmail/) needs
+# anything beyond the main app's own dependencies — Outlook's uses `requests`
+# (already pulled in transitively above), Yahoo's and generic SMTP's use only
+# the standard library. Plugin subprocesses run under the SAME interpreter as
+# the API (see plugins/runner.py), so these need to be installed here, not in
+# a separate plugin-specific environment, for the bundled Gmail plugin to
+# actually be usable once auto-provisioned (see core/provider_plugins.py).
+google-auth==2.29.0
+google-api-python-client==2.129.0

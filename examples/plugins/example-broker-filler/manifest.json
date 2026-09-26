@@ -1,0 +1,17 @@
+{
+  "id": "example-broker-filler",
+  "name": "Example Custom Broker Form Filler",
+  "version": "1.0.0",
+  "author": "PrivacyShield",
+  "description": "Demonstrates a custom form-filling strategy for a specific broker, with method-level declarations. Requests read_pii to place member details into form fields.",
+  "api_version": "1.0",
+  "permissions": ["fill_forms", "read_pii", "storage"],
+  "hooks": ["fill_form"],
+  "methods": ["storage.get", "storage.set", "log"],
+  "events": [],
+  "outbound_domains": [],
+  "entrypoint": "plugin.py",
+  "max_memory_mb": 128,
+  "max_cpu_seconds": 15,
+  "timeout_seconds": 15
+}

@@ -1,0 +1,228 @@
+"""
+Additive schema migrations — run on startup after init_db().
+Uses ALTER TABLE for SQLite compatibility (add columns only, no drops).
+For Postgres these are no-ops if columns already exist.
+"""
+
+import logging
+from sqlalchemy import text
+from ..models.database import engine
+
+log = logging.getLogger(__name__)
+
+# Each migration is (description, SQL).
+# SQLite doesn't support IF NOT EXISTS on ALTER TABLE,
+# so we catch the "duplicate column" error and continue.
+
+MIGRATIONS = [
+    (
+        "Add formal_name to family_members",
+        "ALTER TABLE family_members ADD COLUMN formal_name VARCHAR"
+    ),
+    (
+        "Add max_children_override to profile_access",
+        "ALTER TABLE profile_access ADD COLUMN max_children_override INTEGER"
+    ),
+    (
+        "Add is_deed to identities",
+        "ALTER TABLE identities ADD COLUMN is_deed BOOLEAN DEFAULT 0"
+    ),
+    (
+        "Add is_mortgage to identities",
+        "ALTER TABLE identities ADD COLUMN is_mortgage BOOLEAN DEFAULT 0"
+    ),
+    (
+        "Add is_property_broker to brokers",
+        "ALTER TABLE brokers ADD COLUMN is_property_broker BOOLEAN DEFAULT 0"
+    ),
+]
+
+# Known property brokers — flagged on first startup
+PROPERTY_BROKER_PATTERNS = [
+    "homes.com", "realtytrac.com", "propertyshark.com", "zillow.com",
+    "realtor.com", "redfin.com", "trulia.com", "realeflow.com",
+    "realtyhop.com", "propertyrec.com", "propertyrecs.com",
+    "propertyrecord.com", "propertyreach.com", "propertychecker.com",
+    "publicrecord.com", "publicrecords.info", "staterecords.org",
+    "realtyhop", "propertyshark", "realtytrac", "homefacts.com",
+    "neighborhoodscout.com", "blockchainrealty.com",
+]
+
+
+def run_migrations():
+    """Run all additive migrations idempotently."""
+    with engine.connect() as conn:
+        for desc, sql in MIGRATIONS:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+                log.info(f"Migration applied: {desc}")
+            except Exception as e:
+                if "duplicate column" in str(e).lower() or "already exists" in str(e).lower():
+                    pass  # already applied
+                else:
+                    log.warning(f"Migration '{desc}' skipped: {e}")
+
+
+def seed_property_brokers():
+    """Flag known property brokers in the brokers table."""
+    from ..models.database import SessionLocal
+    from ..models.database import Broker
+    db = SessionLocal()
+    try:
+        flagged = 0
+        for pattern in PROPERTY_BROKER_PATTERNS:
+            brokers = db.query(Broker).filter(
+                Broker.name.ilike(f"%{pattern}%"),
+                Broker.is_property_broker == False,
+            ).all()
+            for b in brokers:
+                b.is_property_broker = True
+                flagged += 1
+        if flagged:
+            db.commit()
+            log.info(f"Flagged {flagged} property brokers")
+    finally:
+        db.close()
+
+
+INSTITUTIONAL_MIGRATIONS = [
+    ("Add invite_codes table",
+     """CREATE TABLE IF NOT EXISTS invite_codes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code VARCHAR UNIQUE NOT NULL,
+        created_by INTEGER REFERENCES users(id),
+        max_uses INTEGER DEFAULT 1,
+        uses INTEGER DEFAULT 0,
+        expires_at DATETIME,
+        role VARCHAR DEFAULT 'parent',
+        note VARCHAR,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        is_active BOOLEAN DEFAULT 1
+     )"""),
+    ("Add usage_events table",
+     """CREATE TABLE IF NOT EXISTS usage_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_type VARCHAR NOT NULL,
+        user_id INTEGER REFERENCES users(id),
+        member_id INTEGER REFERENCES family_members(id),
+        broker_id INTEGER REFERENCES brokers(id),
+        meta TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+     )"""),
+    ("Add installed_plugins table",
+     """CREATE TABLE IF NOT EXISTS installed_plugins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        plugin_id VARCHAR UNIQUE NOT NULL,
+        name VARCHAR NOT NULL,
+        version VARCHAR NOT NULL,
+        author VARCHAR,
+        description TEXT,
+        manifest_json TEXT NOT NULL,
+        granted_permissions TEXT,
+        enabled BOOLEAN DEFAULT 0,
+        install_path VARCHAR NOT NULL,
+        installed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        enabled_at DATETIME,
+        enabled_by INTEGER REFERENCES users(id),
+        status VARCHAR DEFAULT 'stopped',
+        crash_count INTEGER DEFAULT 0,
+        last_error TEXT,
+        last_started DATETIME
+     )"""),
+    ("Add plugin_storage table",
+     """CREATE TABLE IF NOT EXISTS plugin_storage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        plugin_id VARCHAR NOT NULL,
+        key VARCHAR NOT NULL,
+        value TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(plugin_id, key)
+     )"""),
+    ("Add plugin_audit_logs table",
+     """CREATE TABLE IF NOT EXISTS plugin_audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        plugin_id VARCHAR NOT NULL,
+        action VARCHAR NOT NULL,
+        detail TEXT,
+        actor_id INTEGER REFERENCES users(id),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+     )"""),
+    ("Add plugin_violations table",
+     """CREATE TABLE IF NOT EXISTS plugin_violations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        plugin_id VARCHAR NOT NULL,
+        vtype VARCHAR NOT NULL,
+        severity VARCHAR NOT NULL,
+        detail TEXT,
+        action_taken VARCHAR,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+     )"""),
+    ("Add needs_reapproval to installed_plugins",
+     "ALTER TABLE installed_plugins ADD COLUMN needs_reapproval BOOLEAN DEFAULT 0"),
+    ("Add enabled column to brokers",
+     "ALTER TABLE brokers ADD COLUMN enabled BOOLEAN DEFAULT 1"),
+    ("Add priority column to brokers",
+     "ALTER TABLE brokers ADD COLUMN priority INTEGER DEFAULT 3"),
+    ("Add priority_source column to brokers",
+     "ALTER TABLE brokers ADD COLUMN priority_source VARCHAR DEFAULT 'default'"),
+    ("Add parent_companies table",
+     """CREATE TABLE IF NOT EXISTS parent_companies (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name VARCHAR NOT NULL UNIQUE,
+        optout_email VARCHAR,
+        cc_emails VARCHAR,
+        locale VARCHAR DEFAULT 'en',
+        website VARCHAR,
+        notes TEXT,
+        date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
+        honor_status VARCHAR DEFAULT 'unknown',
+        emails_sent INTEGER DEFAULT 0,
+        emails_confirmed INTEGER DEFAULT 0,
+        emails_failed INTEGER DEFAULT 0,
+        last_sent_at DATETIME,
+        last_confirmed_at DATETIME
+     )"""),
+    ("Add parent_company_id column to brokers",
+     "ALTER TABLE brokers ADD COLUMN parent_company_id INTEGER"),
+    ("Add is_test column to brokers",
+     "ALTER TABLE brokers ADD COLUMN is_test BOOLEAN DEFAULT 0"),
+    ("Add is_test column to parent_companies",
+     "ALTER TABLE parent_companies ADD COLUMN is_test BOOLEAN DEFAULT 0"),
+    ("Add auth_source column to users (external/SSO login)",
+     "ALTER TABLE users ADD COLUMN auth_source VARCHAR"),
+    ("Allow parent-level email logs (nullable request_id) — Postgres; no-op error on SQLite",
+     "ALTER TABLE email_logs ALTER COLUMN request_id DROP NOT NULL"),
+    ("Add broker_health table",
+     """CREATE TABLE IF NOT EXISTS broker_health (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        broker_id INTEGER NOT NULL UNIQUE,
+        consecutive_failures INTEGER DEFAULT 0,
+        total_attempts INTEGER DEFAULT 0,
+        total_successes INTEGER DEFAULT 0,
+        total_failures INTEGER DEFAULT 0,
+        last_success_at DATETIME,
+        last_failure_at DATETIME,
+        last_failure_reason VARCHAR,
+        last_failure_detail TEXT,
+        auto_disabled BOOLEAN DEFAULT 0,
+        auto_disabled_at DATETIME,
+        auto_disabled_reason VARCHAR,
+        needs_review BOOLEAN DEFAULT 0,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+     )"""),
+]
+
+
+def run_institutional_migrations():
+    with engine.connect() as conn:
+        for desc, sql in INSTITUTIONAL_MIGRATIONS:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+                log.info(f"Migration applied: {desc}")
+            except Exception as e:
+                if "already exists" in str(e).lower():
+                    pass
+                else:
+                    log.warning(f"Migration '{desc}' skipped: {e}")

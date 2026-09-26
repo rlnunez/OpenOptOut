@@ -1,0 +1,53 @@
+# PrivacyShield API — systemd unit (native install, no Docker).
+#
+# Install:
+#   sudo cp deploy/native/privacyshield-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now privacyshield-api
+#
+# This assumes deploy/native/install.sh (or the equivalent manual steps in
+# docs/NATIVE_INSTALL.md) has already: created /opt/privacyshield/app (the
+# backend code, laid out as an importable "app" package — main.py's relative
+# imports require this, exactly like the Docker image does), a venv at
+# /opt/privacyshield/venv, and an EnvironmentFile at /opt/privacyshield/.env
+# (the same keys as .env.example — SECRET_KEY, FRONTEND_URL, HTTPS_MODE/DOMAIN
+# if using scripts/enable-https-native.sh, etc). Adjust the paths below if you
+# installed somewhere else.
+#
+# Workers: 2 is a conservative default for a small-to-medium install. Increase
+# --workers for more concurrent users, roughly (2 x CPU cores) + 1 as a
+# starting point — watch memory, since each worker is a separate process.
+
+[Unit]
+Description=PrivacyShield API
+After=network.target
+# Uncomment if using a local PostgreSQL managed by systemd too:
+# After=network.target postgresql.service
+# Requires=postgresql.service
+
+[Service]
+Type=simple
+User=privacyshield
+Group=privacyshield
+WorkingDirectory=/opt/privacyshield
+EnvironmentFile=/opt/privacyshield/.env
+ExecStart=/opt/privacyshield/venv/bin/uvicorn app.main:app \
+    --host 127.0.0.1 --port 8000 --workers 2
+Restart=on-failure
+RestartSec=5
+
+# Hardening (safe defaults for a service that writes only to its own data dir
+# and reads/writes its own settings file; loosen if your setup needs more).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/privacyshield/data /var/log/privacyshield
+# Plugin system sandboxing uses Linux namespaces (bubblewrap) the same way the
+# Docker image does. If you enable the plugin system on a native install,
+# these hardening options can conflict with what bubblewrap itself needs to
+# set up — if plugins fail to start, try removing ProtectSystem/ProtectHome
+# here first before troubleshooting further, and see docs/PLUGINS.md.
+
+[Install]
+WantedBy=multi-user.target

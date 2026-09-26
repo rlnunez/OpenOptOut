@@ -1,0 +1,14 @@
+# Optional: file-level (whole-database) encryption via SQLCipher.
+#
+# The application runs fine WITHOUT this — it falls back to unencrypted SQLite
+# and reports the reduced posture in the UI. Install this only if you want
+# DB_ENCRYPTION_KEY / SQLCipher whole-file encryption enabled.
+#
+# Prebuilt binary wheels are published for linux x86_64 (and macOS/Windows via
+# sqlcipher3-wheels). On platforms without a wheel (e.g. some ARM images) this
+# will attempt a source build, which needs libsqlcipher-dev + build tooling.
+#
+# To enable at image-build time, set the Docker build arg WITH_ENCRYPTION=true
+# (see backend/Dockerfile), or install manually inside the container:
+#     pip install -r requirements-encryption.txt
+sqlcipher3-binary==0.6.0

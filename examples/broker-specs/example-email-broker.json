@@ -1,0 +1,14 @@
+{
+  "broker_id": "example-email",
+  "name": "Example Email Broker",
+  "method": "email",
+  "spec_version": "1.0",
+  "email": {
+    "to_address": "privacy@databroker.example",
+    "subject_template": "Opt-out request for {full_name}",
+    "body_template": "To whom it may concern,\n\nI am requesting the removal of my personal information associated with {full_name}, residing at {address}, {city}, {state} {zip}.\n\nPlease confirm removal in writing.\n\nRegards,\n{full_name}",
+    "locale": "en",
+    "require_fields": ["full_name", "address"]
+  },
+  "notes": "Reference email-method add-on. Body must be in the locale the broker requires."
+}
