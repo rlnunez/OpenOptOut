@@ -1,7 +1,8 @@
 # PrivacyShield — Architectural Roadmap: Broker-Addon Engine
 
-Status: **planning / not yet built.** This document captures the intended
-direction, not shipped functionality. It reframes PrivacyShield from a
+Status: **partly built.** This document captures the intended direction; each
+item carries its own STATUS line, and the "Status at a glance" table below
+summarizes what is shipped vs. still open. It reframes PrivacyShield from a
 monolithic opt-out app into an **interpretation engine that runs broker
 add-ons**, where the core hosts orchestration and each broker is maintained
 independently.
@@ -27,6 +28,29 @@ of the core.
 
 ---
 
+## Status at a glance
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Broker-as-add-on model | Partial — spec format exists; declarative-vs-code boundary still open |
+| 2 | Interpretation engine | Built, live; legacy combination-matrix engine still the fallback |
+| 3 | Multi-form page add-on | Partial — `fill_form` hook wired; richer page context still open |
+| 4 | CAPTCHA handling | Partial — solver hook wired; human-in-the-loop default not built |
+| 5 | Enable/disable brokers | Built |
+| 6 | Broker health + auto-disable | Built |
+| 7 | Control plane + worker fleet | Not started (rate-limiting/chunking groundwork built) |
+| 8 | Git repo → marketplace | Not started |
+| 9 | Capacity calculator | Not started |
+| 10 | Email-first via parent companies | Substantially built; automatic trigger, live test, legal review open |
+| 11 | First-run setup wizard | Built; email-mode switching + grace period not built |
+| 12 | School district parent-portal SSO | Not started |
+| 13 | SAML 2.0 SSO | Built; not yet run against a live external IdP |
+| 14 | Built-in HTTPS | Built; DNS-01 and some real-host runs outstanding |
+| 15 | Memory hygiene | Not started |
+| 16 | Operational visibility | Part A built; parts B (log viewer) and C (verbosity) not started |
+
+---
+
 ## Work items
 
 ### 1. Broker-as-add-on model
@@ -41,6 +65,10 @@ Make every broker its own add-on rather than a row of hardcoded behavior.
   easy to write) vs. how much needs real code (powerful, but reintroduces the
   untrusted-code security problem). Likely a spectrum: declarative for simple
   brokers, sandboxed plugin code for complex ones.
+- **STATUS: partial.** The declarative `BrokerSpec` format (item 2) is the
+  add-on description, and per-broker enable/disable is built (item 5). Not yet
+  built: packaging a broker as an independently installable add-on (manifest +
+  spec + optional code), and the declarative-vs-code boundary is still open.
 
 ### 2. Interpretation engine (the core's main job)
 A runtime that reads a broker add-on's declarative description and executes it
@@ -75,12 +103,16 @@ each deployment/community contributor extend the platform as needed. This cashes
 in the plugin architecture that already exists.
 
 **What this requires (API-robustness work, not core features):**
-- Connect the existing `fill_form` plugin hook to the interpreter/executor so a
-  plugin can actually take over execution for a broker (today the hook exists
-  but isn't wired to the new engine).
+- ~~Connect the existing `fill_form` plugin hook to the interpreter/executor so a
+  plugin can actually take over execution for a broker.~~ **Done** — the
+  plugin manager's fill_form dispatcher is wired into `PlaywrightExecutor` on
+  the live path (see item 2).
 - Give the hook enough context (the page/DOM handle or a mediated interface, the
   member fields it's permitted to use) to do real multi-form work.
 - Keep it inside the sandbox + permission model already built.
+
+**STATUS: partial.** Hook wired; the richer page context and a real multi-form
+plugin are still open.
 
 ### 4. CAPTCHA handling — AS AN ADD-ON (pluggable solvers)
 **Reframed:** the core does NOT solve CAPTCHAs. It detects them, pauses, and
@@ -96,9 +128,11 @@ part of the problem. Making it an add-on means the core never has to "solve" it
 open-source strategy applied concretely.
 
 **What this requires (the real gap to close):**
-- Add a CAPTCHA-solving HOOK + capability to the plugin API. Today the executor
-  detects and pauses (`needs_captcha`) but there is NOTHING for a plugin to
-  receive the challenge and return a solution — the seam is a dead-end.
+- ~~Add a CAPTCHA-solving HOOK + capability to the plugin API.~~ **Done** — a
+  `solve_captcha` hook exists in the plugin API (`plugins/proto/plugin.proto`,
+  `plugins/manager.py`) and `PlaywrightExecutor` takes a `captcha_solver`
+  callback wired from the plugin manager. With no solver installed it still
+  pauses (`needs_captcha`). (`DryRunExecutor` only simulates the handoff.)
 - Define the challenge/solution contract: the plugin receives challenge context
   (type, site-key, page URL, maybe a screenshot) and returns a token/answer, or
   signals "hand to a human."
@@ -114,9 +148,18 @@ make CAPTCHAs *solved*. A no-CAPTCHA-solver deployment still can't get past them
 except via the human path. The value is that the platform is extensible enough
 that someone CAN build the solver, rather than the core pretending to.
 
+**STATUS: partial.** Solver hook built and wired. Not built: the
+human-in-the-loop reference implementation (pause, surface to an operator,
+resume) — so today a CAPTCHA with no solver plugin installed just stalls that
+opt-out. No solver plugin ships.
+
 ### 5. Enable/disable brokers individually
 Users choose which brokers are active. Disabled brokers consume no resources and
 are skipped by the engine and scheduler.
+
+**STATUS: built.** `Broker.enabled` (`models/database.py`); only enabled brokers
+are attempted by the batch runner. Brokers can be disabled manually by an admin
+or automatically by the health monitor (item 6).
 
 ### 6. Broker health reporting + auto-disable (resilience)
 A mechanism to report that a broker's add-on isn't working, and let an admin
@@ -129,6 +172,12 @@ resources.
 - This is the single most important reliability feature for running at scale —
   it's what turns "one broker breaks and wastes hours" into "one broker is
   quietly marked broken and skipped."
+
+**STATUS: built.** `core/broker_health.py` + the `BrokerHealth` model record
+every attempt, classify failures (timeout / form_not_found / captcha / error),
+auto-disable after a run of consecutive failures (a success resets the count),
+and flag `needs_review` for the admin. Health tracking never raises into the
+opt-out pipeline.
 
 ### 7. Distributed execution: control plane + worker fleet (horizontal scaling)
 Split the system into two roles so the removal workload can scale independently
@@ -250,6 +299,9 @@ profiles-per-worker figure as unknown.
   is what exhausts a worker.** Enabling fewer, higher-value brokers per profile
   dramatically increases how many profiles a worker supports.
 
+**STATUS: not started** beyond the rate-limiting/chunking groundwork noted
+above. Execution still runs in the API process on APScheduler; no job queue.
+
 ### 8. Distribution: Git-backed repo → marketplace
 Start simple, grow into a marketplace.
 - **Phase 1:** a Git repository of add-ons the system can pull from. An add-on's
@@ -286,6 +338,8 @@ process, and a way to keep it in sync with what the in-app browser reads —
 worth scoping properly, including how it talks to the in-app browser (a
 simple JSON feed the app polls is the obvious starting point), when phase 2
 is actually picked up.
+
+**STATUS: not started.**
 
 ### 9. Capacity calculator (operator-facing planning tool)
 A form where an operator enters their worker's system specs and their intended
@@ -330,6 +384,8 @@ broker mix, and sees how many broker add-ons / profiles that worker can support
 an operator can act on, and it makes the email/form/CAPTCHA cost difference
 visible — which nudges operators toward enabling cheaper, higher-value brokers.
 It is a planning aid, not a guarantee; label it as such.
+
+**STATUS: not started.** Blocked on the item-7 benchmark for real coefficients.
 
 ---
 
@@ -376,19 +432,18 @@ It is a planning aid, not a guarantee; label it as such.
 
 ## Suggested build order (highest-leverage first)
 
-1. **Broker health reporting + auto-disable (item 6).** Smallest, highest
-   reliability payoff; makes everything else safe to iterate on. Buildable on
-   the current architecture today.
-2. **Prove the sandbox runs one real plugin end-to-end.** Unblocks everything
-   involving third-party code; pure validation, no new features.
-3. **Interpretation engine + declarative broker description (items 2, 1).** The
-   core reframing. Design the description format first, against 3–5 real
-   brokers, before generalizing.
-4. **Multi-form page interpreter (item 3).** Extends the engine to real-world
-   messy pages.
+1. ~~**Broker health reporting + auto-disable (item 6).**~~ **Done.**
+2. ~~**Prove the sandbox runs one real plugin end-to-end.**~~ **Done** for the
+   bundled email-provider plugins (see cross-cutting concerns); a third-party
+   plugin is still untested.
+3. **Interpretation engine + declarative broker description (items 2, 1).**
+   Engine built and live; remaining work is retiring the legacy engine and
+   packaging brokers as add-ons.
+4. **Multi-form page interpreter (item 3).** Hook wired; needs richer page
+   context and a real plugin.
 5. **CAPTCHA layer — human-in-the-loop first, pluggable solver second (item 4).**
-   The handoff has no current answer and gates many brokers; build the reliable
-   human path before the imperfect automated one.
+   The pluggable-solver hook now exists; the human path is the remaining gap and
+   gates many brokers.
 6. **Design the job boundary now, build the worker fleet when load demands it
    (item 7).** Write the engine (item 3) as produce-a-job / execute-a-job from
    the start so execution can move to workers later without a rewrite. Actually
@@ -431,7 +486,8 @@ child sites, can clear a whole family of listings.
 
 **Remaining:**
 - Trigger the parent-send from a real action/scheduler hook (currently the
-  capability exists but nothing calls it automatically).
+  capability exists but its only caller is the admin test-broker tool,
+  `routers/test_broker.py`).
 - Live SMTP test to a real parent company.
 - Legal-wording review (the template's CCPA/rights language is a strong starting
   point, not vetted law — see docs/LEGISLATION.md law-librarian callout).
@@ -439,7 +495,13 @@ child sites, can clear a whole family of listings.
 ### 11. First-run setup wizard
 On a fresh install the app detects zero accounts and shows a create-administrator
 screen instead of a dead-end login (**built**). The next step is a full guided
-wizard after the admin account is created. **Design decided; ready to build.**
+wizard after the admin account is created.
+
+**STATUS: built** (`routers/wizard.py`: database, email, branding, deployment,
+skip, complete). The email step offers provider choices (OAuth-first, with
+Proton-via-Bridge guidance). **Not built:** email-mode switching with the
+old-inbox grace period (Prerequisite 2 below) — the wizard records the mode, but
+nothing yet keeps monitoring the old inbox after a switch.
 
 **Wizard steps (all strongly-prompted but SKIPPABLE):**
 1. **Database** — detect/confirm SQLite (assumed same machine) vs PostgreSQL.
@@ -1051,3 +1113,4 @@ rushed implementation.**
 - Whether human-in-the-loop CAPTCHA solving is viable at institutional scale, or
   only for small deployments (item 4).
 - Economic/ethical stance on third-party CAPTCHA-solving services (item 4).
+- Which SIS / identity platforms to support first for school districts (item 12).
