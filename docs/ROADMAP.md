@@ -48,6 +48,7 @@ of the core.
 | 14 | Built-in HTTPS | Built; DNS-01 and some real-host runs outstanding |
 | 15 | Memory hygiene | Not started |
 | 16 | Operational visibility | Part A built; parts B (log viewer) and C (verbosity) not started |
+| 17 | Internationalization: language packs + right-to-left | Not started |
 
 ---
 
@@ -1106,6 +1107,124 @@ rushed implementation.**
 
 ---
 
+### 17. Internationalization: language packs + right-to-left
+**Goal:** the interface can be shown in languages other than English, those
+languages can be added by add-ons (not only by editing the core), and
+right-to-left languages (Arabic, Hebrew, Persian, Urdu) get a correctly
+mirrored layout, not just translated words in a left-to-right page.
+
+**Why it matters:** the institutions this app targets serve people who don't
+read English. A public library's patrons, a school district's parents, and a
+credit union's members often include large Spanish-, Arabic-, Chinese-,
+Vietnamese- or Somali-speaking communities, and they're among the people least
+able to navigate broker opt-outs alone. A patron self-service tool that only
+speaks English leaves them out.
+
+**Where things stand today (nothing to build on yet):**
+- No translation layer. The frontend (~10k lines of JSX) has every string
+  hard-coded in English, and no i18n library is installed.
+- `frontend/index.html` hard-codes `<html lang="en">` with no `dir` attribute.
+- The layout uses physical directions throughout: ~78 Tailwind classes like
+  `ml-`, `pr-`, `left-`, `text-left`, `border-l`, and 14 directional icons
+  (chevrons/arrows) that would point the wrong way in right-to-left.
+- Backend strings shown to users are English too: API error messages, admin
+  notification emails, the in-app Help markdown, and plugin docs.
+- **Plugins can't touch the UI at all.** Every plugin is a sandboxed backend
+  process and every hook is backend-side (fill_form, parse_email, on_event,
+  solve_captcha, email_provider). "Plugins change the language" therefore
+  needs a new kind of add-on, not a new hook.
+- One related seed exists: `ParentCompany.locale` and the opt-out email
+  template accept a locale, but only English is templated
+  (`core/optout_email_template.py`).
+
+**Work needed:**
+
+1. **A translation layer in the core.** Pick a library (e.g. i18next /
+   react-i18next, or FormatJS for ICU message formatting with plurals and
+   gender) and move every user-visible string behind a message key.
+   This is the bulk of the effort and is mechanical but large. English becomes
+   the default catalog that ships with the core and is the fallback for any
+   missing key. Dates, numbers and relative times go through `Intl` with the
+   active locale (there are ~24 existing `toLocale*`/`Intl` call sites to
+   check).
+
+2. **Language packs as data add-ons, not code plugins.** A language pack is a
+   manifest (locale code, display name, text direction, core version it
+   targets) plus translation catalogs (JSON). It needs **no sandboxed
+   process**, because it's data the frontend loads, not code the host runs.
+   That makes packs far safer than code plugins and a natural first
+   add-on type for the distribution work in item 8 (same Git-backed install
+   path, much lower trust bar).
+   - Admin installs/enables packs on the Plugins page; the admin sets a
+     deployment default language; each user can pick their own in their
+     profile; the browser's `Accept-Language` is a sensible first-visit
+     default.
+   - Coverage reporting: the pack manager shows what percentage of the core's
+     keys a pack translates, and missing keys fall back to English rather
+     than showing raw keys.
+   - Code plugins that add their own UI text later can ship catalogs the same
+     way, namespaced by plugin ID so they can't overwrite core strings.
+
+3. **Right-to-left support.**
+   - Set `lang` and `dir="rtl"` on `<html>` from the active pack's declared
+     direction.
+   - Replace physical Tailwind classes with logical ones (Tailwind 3.3+ has
+     `ms-`/`me-`, `ps-`/`pe-`, `start-`/`end-`, `text-start`/`text-end`, and an
+     `rtl:` variant for the few cases that need it). This is a one-time sweep
+     worth doing even before any RTL pack exists, so new code stays
+     direction-neutral.
+   - Mirror directional icons (chevrons, arrows) in RTL; don't mirror icons
+     that aren't directional (checkmarks, logos, media controls).
+   - **Bidirectional text in user data:** member names, addresses and broker
+     names can mix scripts (an Arabic name next to an English broker name, a
+     Latin-script email address inside RTL text). Wrap user-supplied values in
+     `<bdi>` / `dir="auto"` so they render correctly in both directions.
+   - Check the pieces that don't follow CSS direction on their own: Recharts
+     charts in Reporting, tables, form input alignment, and the Markdown
+     renderer used for Help.
+   - Test with a real RTL pack and a native reader, not a pseudo-locale alone.
+
+4. **Backend and email text.**
+   - API errors return a stable error code alongside the English message, so
+     the frontend can show translated text for known errors.
+   - Admin notification emails use the recipient's language.
+   - **Opt-out emails are a separate, harder problem:** their language is set
+     by what the *broker* requires (item 1's per-broker locale), not the user's
+     UI language, and the legal wording (CCPA citations etc.) needs a
+     qualified review per language, not just translation. Keep this apart
+     from UI language packs, reusing the existing `locale` field.
+   - In-app Help and plugin docs are long-form markdown; translated copies can
+     ship in a pack, falling back to English per page.
+
+**Security notes (translation text is still untrusted content):**
+- Render translations as **plain text only**. Never inject pack strings as HTML
+  (`dangerouslySetInnerHTML`); a malicious pack could otherwise run script in
+  every user's browser.
+- **Translated Help pages must go through a safe renderer, and today's two
+  aren't fully safe.** `components/Markdown.jsx` escapes HTML but passes link
+  URLs through unchecked, so `[x](javascript:...)` becomes a clickable script
+  link. `pages/Help.jsx`'s `renderInline` doesn't escape HTML at all, and it
+  renders the admin-editable Help notes that every signed-in user (patrons
+  included) sees. Fix both before any pack can ship markdown: escape
+  everything, and allow only `http:`, `https:` and `mailto:` link URLs.
+- A pack can still *mislead* without code, e.g. relabeling "Delete member" as
+  "Save", or adding text that asks users for passwords. Treat packs as needing
+  review before install and before any marketplace listing (item 8), even
+  though they're data.
+- Placeholder checking: a translation must use the same `{variables}` as the
+  English message, validated at install time, so a broken pack can't crash a
+  page or drop information from it.
+
+**Build order note:** the logical-CSS sweep and the translation layer (with
+English as the only catalog) come first and are pure core work. The
+language-pack add-on format comes after, and can ride item 8 phase 1's install
+path or ship as simple uploads before that exists. Opt-out email localization
+is tracked separately, under items 1 and 10.
+
+**STATUS: not started.**
+
+---
+
 ## Explicitly deferred / open questions
 
 - Declarative-vs-code boundary for broker add-ons (item 1).
@@ -1116,3 +1235,5 @@ rushed implementation.**
   only for small deployments (item 4).
 - Economic/ethical stance on third-party CAPTCHA-solving services (item 4).
 - Which SIS / identity platforms to support first for school districts (item 12).
+- Which languages to ship first, and who maintains and reviews each language
+  pack (item 17). Let the first deployments' communities decide.
