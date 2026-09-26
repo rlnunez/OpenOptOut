@@ -979,6 +979,32 @@ def t_saml_cert_status():
     # IF THIS FAILS: SAML sign-in can break with no warning, or warn needlessly.
 
 
+@test(1, "plugins.uninstall_path_containment",
+      "Plugin uninstall only deletes paths strictly inside the plugins dir: not a "
+      "sibling that shares its name as a prefix, not the dir itself, not a parent.")
+def t_plugin_uninstall_containment():
+    try:
+        plugins_router = _imp("routers.plugins")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    import tempfile
+    inside = plugins_router._is_strictly_inside
+    with tempfile.TemporaryDirectory() as tmp:
+        root = os.path.join(tmp, "plugins")
+        os.makedirs(os.path.join(root, "email", "email-gmail"))
+        os.makedirs(os.path.join(tmp, "plugins-other", "x"))
+        assert inside(os.path.join(root, "email", "email-gmail"), root)
+        assert not inside(os.path.join(tmp, "plugins-other", "x"), root), \
+            "sibling dir sharing the root's name as a prefix must not count as inside"
+        assert not inside(root, root), "the plugins root itself must never be removed"
+        assert not inside(tmp, root)
+        assert not inside(os.path.join(root, "..", "plugins-other"), root)
+        # A symlink inside the root that points outside it resolves outside.
+        link = os.path.join(root, "escape")
+        os.symlink(os.path.join(tmp, "plugins-other"), link)
+        assert not inside(link, root), "symlink pointing outside the root must not count"
+
+
 @test(1, "https.status_endpoint_unconfigured",
       "GET /cert-monitor/https-status reports 'not configured yet' (not an error) when "
       "HTTPS_MODE/DOMAIN aren't set, so the dashboard doesn't show a false alarm.")

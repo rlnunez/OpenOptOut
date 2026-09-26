@@ -1201,13 +1201,12 @@ speaks English leaves them out.
 - Render translations as **plain text only**. Never inject pack strings as HTML
   (`dangerouslySetInnerHTML`); a malicious pack could otherwise run script in
   every user's browser.
-- **Translated Help pages must go through a safe renderer, and today's two
-  aren't fully safe.** `components/Markdown.jsx` escapes HTML but passes link
-  URLs through unchecked, so `[x](javascript:...)` becomes a clickable script
-  link. `pages/Help.jsx`'s `renderInline` doesn't escape HTML at all, and it
-  renders the admin-editable Help notes that every signed-in user (patrons
-  included) sees. Fix both before any pack can ship markdown: escape
-  everything, and allow only `http:`, `https:` and `mailto:` link URLs.
+- **Translated Help pages must go through the safe markdown renderers.** Both
+  (`components/Markdown.jsx`, and `pages/Help.jsx` for admin-editable notes)
+  now escape all HTML including quotes and allow only `http:`, `https:`,
+  `mailto:` and relative link URLs. Before that fix, `Help.jsx` didn't escape
+  HTML at all, and both passed `javascript:` links through. Keep any new
+  renderer on the same helpers (`escapeHtml`, `renderLinks`).
 - A pack can still *mislead* without code, e.g. relabeling "Delete member" as
   "Save", or adding text that asks users for passwords. Treat packs as needing
   review before install and before any marketplace listing (item 8), even
@@ -1309,11 +1308,12 @@ everything.
      `core/provider_plugins.py`, which hard-codes the bundled paths.
 
 **Security notes:**
-- The uninstall safety check (`routers/plugins.py`) confirms a path is inside
-  the plugins root with a plain `startswith` on the real path. That also
-  matches a sibling like `/data/plugins-other/`. Nested type directories are a
-  good moment to switch to `os.path.commonpath`-based containment checks
-  everywhere a plugin path is resolved.
+- Path containment: the uninstall safety check (`routers/plugins.py`) used a
+  plain `startswith` on the real path, which also matched a sibling like
+  `/data/plugins-other/`. It now uses `_is_strictly_inside` (`commonpath`
+  based, never the root itself; covered by the
+  `plugins.uninstall_path_containment` test). Use the same helper everywhere
+  a plugin path is resolved once type directories exist.
 - Type is a security boundary only if the host enforces it. The directory name
   is a convenience; the checks in step 2 are what make it safe.
 

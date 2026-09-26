@@ -34,6 +34,12 @@ router = APIRouter(prefix="/api/plugins", tags=["plugins"])
 log = logging.getLogger(__name__)
 
 
+def _is_strictly_inside(path: str, root: str) -> bool:
+    """True if path resolves to somewhere below root (not root itself)."""
+    p, r = os.path.realpath(path), os.path.realpath(root)
+    return p != r and os.path.commonpath([p, r]) == r
+
+
 def _plugins_dir() -> str:
     from ..core.settings_store import load_settings
     s = load_settings()
@@ -425,8 +431,10 @@ def uninstall_plugin(plugin_id: str, remove_files: bool = False,
     _audit(db, plugin_id, "uninstalled", current.id)
 
     if remove_files and install_path and os.path.isdir(install_path):
-        # Only remove if it's inside the managed plugins dir (safety)
-        if os.path.realpath(install_path).startswith(os.path.realpath(_plugins_dir())):
+        # Only remove if it's strictly inside the managed plugins dir (safety).
+        # commonpath, not a string prefix: "/data/plugins-other" starts with
+        # "/data/plugins" but isn't inside it; and never the root itself.
+        if _is_strictly_inside(install_path, _plugins_dir()):
             shutil.rmtree(install_path, ignore_errors=True)
 
     return {"uninstalled": True}
