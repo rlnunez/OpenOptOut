@@ -83,7 +83,7 @@ Data brokers collect your name, address, phone number, relatives, and more — t
 ### One-line install (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/privacyshield/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/rlnunez/privacyshield/main/install.sh | sh
 ```
 
 Detects your situation and does the right thing: uses Docker if it's
@@ -100,7 +100,7 @@ first, that's exactly what the sections below walk through by hand.
 
 ```bash
 # 1. Clone
-git clone https://github.com/YOUR_USERNAME/privacyshield.git
+git clone https://github.com/rlnunez/privacyshield.git
 cd privacyshield
 
 # 2. Create environment file
