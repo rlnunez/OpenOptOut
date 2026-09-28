@@ -150,6 +150,12 @@ def _email_inspection(manifest: PluginManifest, plugin_dir: str):
     return summarize_findings(inspect_email_plugin(plugin_dir))
 
 
+def _code_inspection(manifest: PluginManifest, plugin_dir: str) -> dict:
+    """Install-time inspection of every file (plugins/code_inspector.py)."""
+    from ..plugins.code_inspector import inspect_plugin_code, summarize
+    return summarize(inspect_plugin_code(plugin_dir, manifest))
+
+
 def _register(db: Session, manifest: PluginManifest, install_path: str) -> InstalledPlugin:
     row = InstalledPlugin(
         plugin_id=manifest.id, name=manifest.name, version=manifest.version,
@@ -157,6 +163,9 @@ def _register(db: Session, manifest: PluginManifest, install_path: str) -> Insta
         manifest_json=json.dumps(manifest.to_dict()),
         granted_permissions="[]", enabled=False, install_path=install_path,
         status="stopped",
+        # What was inspected and approved; the manager won't launch it if the
+        # files later differ (see PluginManager._verify_integrity).
+        code_hash=layout.dir_hash(install_path),
     )
     db.add(row); db.commit()
     return row
@@ -326,6 +335,9 @@ def install_plugin(path: str, db: Session = Depends(get_db),
         raise HTTPException(400,
             "Email-provider plugin rejected: it appears to send to a hardcoded/hidden "
             f"recipient (possible data exfiltration). Findings: {inspection['high']}")
+    code = _code_inspection(m, path)
+    if code["blocked"]:
+        raise HTTPException(400, "Plugin rejected by code inspection: " + "; ".join(code["high"]))
 
     dest = layout.install_dir(root, m)
     if os.path.realpath(path) != os.path.realpath(dest):
@@ -369,6 +381,8 @@ def inspect_upload(file: UploadFile = File(...), expected_type: Optional[str] = 
         if inspection and inspection["high"]:
             problems.append("it appears to send email to a hardcoded/hidden recipient "
                             f"(possible data exfiltration): {inspection['high']}")
+        code = _code_inspection(m, plugin_dir)
+        problems.extend(code["high"])
         return {
             "plugin_id": m.id, "name": m.name, "version": m.version,
             "author": m.author, "description": m.description,
@@ -377,6 +391,7 @@ def inspect_upload(file: UploadFile = File(...), expected_type: Optional[str] = 
             "permissions": m.permissions, "hooks": m.hooks,
             "outbound_domains": m.outbound_domains,
             "email_inspection": inspection,
+            "code_warnings": code["medium"],
             "can_install": not problems,
             "problems": problems,
             "enable_requires_super_admin": not current.is_super_admin,
@@ -412,6 +427,10 @@ def upload_plugin(file: UploadFile = File(...), expected_type: Optional[str] = N
                 "hardcoded/hidden recipient (possible data exfiltration). "
                 f"Findings: {email_inspection['high']}")
 
+        code = _code_inspection(m, plugin_dir)
+        if code["blocked"]:
+            raise HTTPException(400, "Plugin rejected by code inspection: " + "; ".join(code["high"]))
+
         if db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == m.id).first():
             raise HTTPException(400, f"Plugin '{m.id}' is already installed")
 
@@ -439,6 +458,7 @@ def upload_plugin(file: UploadFile = File(...), expected_type: Optional[str] = N
             "requested_permissions": m.permissions,
             "is_email_provider": "email_provider" in (m.hooks or []),
             "email_inspection": email_inspection,
+            "code_warnings": code["medium"],
             "enable_requires_super_admin": not current.is_super_admin}
 
 
@@ -457,6 +477,15 @@ def enable_plugin(plugin_id: str, req: EnableRequest, db: Session = Depends(get_
     requested = set(manifest.permissions)
     granting  = set(req.granted_permissions)
 
+    # Enabling approves the plugin's files as they are now: inspect them again
+    # (they may have changed on disk since install), then record their hash so
+    # the manager refuses to launch anything different later.
+    if os.path.isdir(row.install_path or ""):
+        code = _code_inspection(manifest, row.install_path)
+        if code["blocked"]:
+            raise HTTPException(400, "Plugin blocked by code inspection: " + "; ".join(code["high"]))
+        row.code_hash = layout.dir_hash(row.install_path)
+
     if manifest.is_data_only:
         # Language packs and themes: nothing to grant and nothing to launch.
         row.enabled = True
@@ -473,9 +502,9 @@ def enable_plugin(plugin_id: str, req: EnableRequest, db: Session = Depends(get_
     if getattr(row, "needs_reapproval", False) and not req.acknowledge_methods:
         raise HTTPException(
             409,
-            "This plugin was disabled for calling a host method it did not declare. "
-            "Review its declared methods and re-enable with acknowledge_methods=true "
-            "to confirm you accept the current manifest."
+            f"This plugin was disabled pending re-approval ({row.last_error or 'a security violation'}). "
+            "Review it and re-enable with acknowledge_methods=true to confirm you accept "
+            "its current manifest and files."
         )
 
     # Can't grant a permission the plugin never requested

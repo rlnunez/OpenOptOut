@@ -48,6 +48,10 @@ MIGRATIONS = [
         "Add permissions_revoked to users",
         "ALTER TABLE users ADD COLUMN permissions_revoked TEXT"
     ),
+    (
+        "Add code_hash to installed_plugins",
+        "ALTER TABLE installed_plugins ADD COLUMN code_hash VARCHAR"
+    ),
 ]
 
 # Known property brokers — flagged on first startup

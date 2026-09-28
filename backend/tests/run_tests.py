@@ -1028,6 +1028,106 @@ def t_plugin_type_rules():
     assert legacy.to_dict()["type"] == ""
 
 
+@test(1, "plugins.type_permission_limits",
+      "Each plugin type may only request the permissions its job needs (a CAPTCHA solver "
+      "can't ask for member data, a form handler can't ask for the network); checked for "
+      "legacy manifests too, by their inferred type.")
+def t_plugin_type_permission_limits():
+    M = _imp("plugins.permissions").PluginManifest.from_dict
+    base = {"id": "p", "name": "P", "version": "1", "author": "a"}
+    def errs(**kw):
+        return M({**base, **kw}).validate()
+    e = errs(type="captcha", hooks=["solve_captcha"], permissions=["solve_captcha", "read_pii"])
+    assert any("may not request the 'read_pii'" in x for x in e), e
+    e = errs(type="forms", hooks=["fill_form"], permissions=["fill_forms", "network"])
+    assert any("may not request the 'network'" in x for x in e), e
+    e = errs(type="brokers", permissions=["request_write"])
+    assert any("may not request the 'request_write'" in x for x in e), e
+    e = errs(hooks=["solve_captcha"], permissions=["solve_captcha", "trigger_optout_email"])
+    assert any("'captcha' plugin may not request" in x for x in e), "legacy manifests must be limited too"
+    assert errs(type="general", hooks=["on_event"], permissions=["receive_events", "storage"]) == []
+    assert errs(type="email", hooks=["email_provider"], permissions=["email_provider", "read_pii",
+                "network", "settings_read"], outbound_domains=["gmail.googleapis.com"]) == []
+
+
+@test(1, "plugins.code_inspector_rules",
+      "Install-time code inspection passes every bundled and example plugin, and blocks "
+      "plugins that write files, run programs, load code dynamically, use native code, reach "
+      "the network without permission, or ship binaries/scripts.")
+def t_plugin_code_inspector():
+    import glob, json, tempfile
+    perms = _imp("plugins.permissions")
+    insp = _imp("plugins.code_inspector")
+    here = os.path.dirname(os.path.abspath(insp.__file__))
+    for d in sorted(glob.glob(os.path.join(here, "bundled", "*", "*", ""))):
+        m = perms.PluginManifest.from_dict(json.load(open(os.path.join(d, "manifest.json"))))
+        s = insp.summarize(insp.inspect_plugin_code(d, m))
+        assert s["clean"], f"bundled {m.id} flagged: {s['high'] + s['medium']}"
+    general = perms.PluginManifest.from_dict({"id": "x", "name": "x", "version": "1",
+                                              "author": "a", "type": "general"})
+    samples = {
+        "file write": "open('plugin.py', 'w').write('x')\n",
+        "append": "f = open('log.txt', mode='a')\n",
+        "subprocess": "import subprocess\nsubprocess.run(['id'])\n",
+        "os.system": "import os\nos.system('id')\n",
+        "os file": "import os as o\no.remove('x')\n",
+        "eval": "eval('1+1')\n",
+        "exec": "exec(compile('1', 'x', 'eval'))\n",
+        "__import__": "__import__('socket')\n",
+        "importlib": "import importlib\n",
+        "builtins": "getattr(__builtins__, 'eval')\n",
+        "ctypes": "from ctypes import CDLL\n",
+        "pathlib write": "from pathlib import Path\nPath('x').write_bytes(b'')\n",
+        "Path.open write": "from pathlib import Path\nPath('x.py').open('w')\n",
+        "io.FileIO write": "import io\nio.FileIO('x.py', 'w')\n",
+        "shutil": "import shutil\n",
+        "pickle": "import pickle\n",
+        "network without permission": "import requests\n",
+        "unparseable": "def broken(:\n",
+    }
+    for label, code in samples.items():
+        with tempfile.TemporaryDirectory() as d:
+            open(os.path.join(d, "plugin.py"), "w").write(code)
+            s = insp.summarize(insp.inspect_plugin_code(d, general))
+            assert s["blocked"], f"{label!r} was not blocked: {s}"
+    # Ordinary code isn't flagged: reading files, str.replace, the SDK storage API.
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, "plugin.py"), "w").write(
+            "import json\ntext = open('data.json').read().replace('a', 'b')\n"
+            "plugin.storage.set('k', json.dumps({'n': 1}))\n")
+        assert insp.summarize(insp.inspect_plugin_code(d, general))["clean"]
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, "helper.so"), "wb").write(b"\x7fELF\x02")
+        open(os.path.join(d, "run.sh"), "w").write("#!/bin/sh\n")
+        open(os.path.join(d, "hidden"), "w").write("#!/usr/bin/env python\n")
+        s = insp.summarize(insp.inspect_plugin_code(d, general))
+        assert len(s["high"]) == 3, s["high"]
+    lang = perms.PluginManifest.from_dict({"id": "l", "name": "l", "version": "1",
+                                           "author": "a", "type": "languages"})
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, "messages.json"), "w").write("{}")
+        open(os.path.join(d, "sneaky.py"), "w").write("x = 1\n")
+        s = insp.summarize(insp.inspect_plugin_code(d, lang))
+        assert s["blocked"] and "data only" in s["high"][0], s
+
+
+@test(1, "plugins.sandbox_code_dir_read_only",
+      "Under bubblewrap the plugin's own folder is mounted read-only (it can't rewrite its "
+      "code or add program files) and its only writable space is a private /tmp.")
+def t_plugin_sandbox_read_only():
+    sandbox = _imp("plugins.sandbox")
+    perms = _imp("plugins.permissions")
+    caps = sandbox.SandboxCapabilities(bubblewrap=True, rlimits=False, platform="linux")
+    m = perms.PluginManifest.from_dict({"id": "x", "name": "x", "version": "1", "author": "a"})
+    cmd, _ = sandbox.build_sandboxed_command(["python", "runner.py"], "/data/plugins/general/x", caps, False, m)
+    pairs = [cmd[i:i + 3] for i in range(len(cmd) - 2)]
+    assert ["--ro-bind", "/data/plugins/general/x", "/data/plugins/general/x"] in pairs, cmd
+    assert ["--bind", "/data/plugins/general/x", "/data/plugins/general/x"] not in pairs, cmd
+    assert "--tmpfs" in cmd and cmd[cmd.index("--tmpfs") + 1] == "/tmp"
+    i = cmd.index("HOME")
+    assert cmd[i + 1] == "/tmp", "HOME must point at the writable /tmp, not the plugin folder"
+
+
 @test(1, "plugins.layout_scan_and_placement",
       "The plugin scan walks every type folder, flags a plugin sitting in the wrong "
       "folder, and still finds (as legacy) plugins in the old flat layout.")
@@ -1847,6 +1947,44 @@ def t_access_migrate_upload_grants():
         session.close()
 
 
+@test(2, "plugins.integrity_check_blocks_changed_code",
+      "The manager refuses to launch a plugin whose files changed since it was installed or "
+      "enabled (e.g. it rewrote itself), disables it, flags it for re-approval and logs a "
+      "violation; a plugin with no recorded hash gets one on first launch.")
+def t_plugin_integrity():
+    import tempfile
+    from types import SimpleNamespace as NS
+    try:
+        manager_mod = _imp("plugins.manager")
+        layout = _imp("plugins.layout")
+        db, session = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, "plugin.py"), "w").write("x = 1\n")
+        session.add(db.InstalledPlugin(plugin_id="p", name="p", version="1", manifest_json="{}",
+                                       granted_permissions="[]", enabled=True, install_path=d,
+                                       status="running"))
+        session.commit()
+        fake = NS(session_factory=lambda: session)
+        verify = manager_mod.PluginManager._verify_integrity
+        verify(fake, "p", d)   # no hash yet: recorded, allowed
+        row = session.query(db.InstalledPlugin).filter_by(plugin_id="p").one()
+        assert row.code_hash == layout.dir_hash(d)
+        verify(fake, "p", d)   # unchanged: allowed
+        open(os.path.join(d, "extra.py"), "w").write("import os\n")   # plugin adds a file
+        try:
+            verify(fake, "p", d)
+            raise AssertionError("changed plugin was allowed to launch")
+        except PermissionError:
+            pass
+        row = session.query(db.InstalledPlugin).filter_by(plugin_id="p").one()
+        assert not row.enabled and row.needs_reapproval and "changed" in row.last_error
+        v = session.query(db.PluginViolation).filter_by(plugin_id="p").one()
+        assert v.vtype == "code_changed" and v.severity == "critical"
+    session.close()
+
+
 @test(2, "plugins.upload_wizard_routes_by_type",
       "The upload wizard inspects a zip, installs it into <root>/<type>/<id>/ (email "
       "providers into email/), enforces expected_type, refuses unsafe zips, and only "
@@ -1945,6 +2083,17 @@ def t_plugin_upload_wizard():
             assert open(os.path.join(placed, "plugin.py")).read().startswith("# placed by")
             plugins_router.upload_plugin(upload(forms_zip), None, session, admin)   # a super admin may
             assert open(os.path.join(placed, "plugin.py")).read() == "x = 1\n"
+
+            # Code inspection blocks a plugin that writes files / runs programs.
+            evil_zip = _plugin_zip({"manifest.json": json.dumps(
+                {"id": "evil", "name": "E", "version": "1", "type": "general", "author": "t"}),
+                "plugin.py": "import subprocess\nopen('plugin.py', 'w')\n"})
+            plan = plugins_router.inspect_upload(upload(evil_zip), None, session, admin)
+            assert not plan["can_install"] and any("subprocess" in p for p in plan["problems"]), plan
+            expect_http(400, plugins_router.upload_plugin, upload(evil_zip), None, session, admin)
+            assert not os.path.exists(os.path.join(root, "general", "evil"))
+            r = session.query(db.InstalledPlugin).filter_by(plugin_id="email-acme").one()
+            assert r.code_hash, "installed plugins record the hash of what was inspected"
 
             # Unsafe zips are refused before anything is extracted into the root.
             for evil in (_plugin_zip({"../escape.txt": "x", "manifest.json": "{}"}),

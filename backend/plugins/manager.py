@@ -301,6 +301,47 @@ class PluginManager:
         finally:
             db.close()
 
+    def _verify_integrity(self, plugin_id: str, install_path: str):
+        """
+        Refuse to run a plugin whose files changed since a super admin installed
+        or enabled it: a plugin rewriting its own code or adding program files,
+        or anyone tampering with it on disk. Works whatever sandbox the host has.
+        A plugin installed before hashes were recorded gets one on first launch.
+        On a mismatch the plugin is disabled and flagged for re-approval.
+        """
+        from .layout import dir_hash
+        from ..models.database import InstalledPlugin, PluginViolation, PluginAuditLog
+        current = dir_hash(install_path)
+        db = self.session_factory()
+        try:
+            row = db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == plugin_id).first()
+            if row is None:
+                return
+            if not row.code_hash:
+                row.code_hash = current
+                db.commit()
+                log.info("Recorded code hash for plugin %s (installed before integrity checks)",
+                         plugin_id)
+                return
+            if row.code_hash == current:
+                return
+            detail = "plugin files changed since it was installed or last enabled"
+            row.enabled = False
+            row.status = "disabled"
+            row.needs_reapproval = True
+            row.last_error = (detail[0].upper() + detail[1:] + "; not started. Review it and "
+                              "enable it again to accept the change.")
+            db.add(PluginViolation(plugin_id=plugin_id, vtype="code_changed", severity="critical",
+                                   detail=detail, action_taken="disabled_pending_reapproval"))
+            db.add(PluginAuditLog(plugin_id=plugin_id, action="violation",
+                                  detail=f"[critical] code_changed: {detail} -> disabled_pending_reapproval"))
+            db.commit()
+        finally:
+            db.close()
+        log.error("Plugin %s: files at %s changed since install; refusing to launch",
+                  plugin_id, install_path)
+        raise PermissionError(f"plugin {plugin_id} failed its integrity check")
+
     def launch_plugin(self, manifest: PluginManifest, install_path: str, granted: set):
         """Launch a single plugin as a sandboxed subprocess and handshake."""
         if manifest.is_data_only:
@@ -310,6 +351,7 @@ class PluginManager:
         if manifest.id in self.running:
             log.info("Plugin %s already running", manifest.id)
             return
+        self._verify_integrity(manifest.id, install_path)
 
         session_token = uuid.uuid4().hex
         self.sessions.register(session_token, manifest.id, granted,
@@ -345,6 +387,7 @@ class PluginManager:
                 cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE, env=env, preexec_fn=preexec,
                 text=True, bufsize=1,
+                cwd=install_path,   # never the API server's own directory
             )
         except Exception as e:
             log.error("Could not start plugin %s process: %s", manifest.id, e)

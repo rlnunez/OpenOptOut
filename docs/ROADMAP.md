@@ -51,6 +51,8 @@ of the core.
 | 17 | Internationalization: language packs + right-to-left | Not started |
 | 18 | Typed plugin directories (brokers, captcha, forms, themes, languages, discovery, …) | Built; language/theme loaders and the discovery hook not built |
 | 19 | Manager role with delegated permissions | Built |
+| 20 | Library separation: consortium → systems → branches | Designed, not built |
+| 21 | Plugin runtime reliability under the sandbox | Known issues, not fixed |
 
 ---
 
@@ -1349,6 +1351,15 @@ typed installs, migration, grouped admin UI, upload wizard). Specifically:
 - `/api/plugins/install` now only installs from inside the plugins root,
   moving a misplaced plugin into its type folder first.
 
+**Follow-up (built):** plugins can't change themselves or overreach. Each
+type may only request the permissions it needs; every code plugin's files are
+inspected at install and enable (file writes, running programs, dynamic code,
+native code, network without permission, uninspectable files); the plugin's
+folder is read-only in the sandbox (bubblewrap, or a private mount namespace
+where bubblewrap isn't available); and a hash of its files is checked at
+every launch, refusing and flagging any plugin whose files changed. See
+`plugins/code_inspector.py` and USING_PLUGINS.md.
+
 **Not built yet:** nothing loads language packs or themes (they install and
 enable as data, but the UI doesn't read them; see item 17); the `discover`
 hook for discovery bots; and broker add-ons (item 1) as a real format.
@@ -1406,6 +1417,90 @@ if deployments want several distinct kinds of manager; admin notification
 emails currently go to super admins only.
 
 **STATUS: built.**
+
+---
+
+### 20. Library separation: consortium → systems → branches
+**Goal:** when PrivacyShield is deployed for a consortium or statewide, each
+library's staff can see and manage only the patrons who belong to their
+library, so data stays with the library a patron actually uses.
+
+**Where things stand today:** there's one pool of users. One SIP2 server, one
+set of sign-in providers, and managers (item 19) are scoped by permission
+only, so a manager with "View all members' data" sees every patron in the
+deployment.
+
+**Design:**
+- **Hierarchy:** consortium (the deployment) → library systems → branches.
+  A system can have one branch (a single-building library) or many.
+- **Patron's home library from SIP2.** At sign-in, the SIP2 Patron
+  Information response (message 64, already parsed by `try_sip2_auth`) is
+  read for the patron's home location. `AQ` (permanent location) is the
+  standard field, but ILSs differ, so which field holds the branch code is
+  configurable per SIP2 connection. The code is matched to a branch through a
+  mapping table (ILS location code → branch), and the patron is assigned to
+  that branch and its system. It's refreshed on each sign-in, so a patron who
+  moves their home library follows automatically.
+- **Several SIP2 connections.** A consortium may run one shared ILS or one per
+  system. Each connection is tied to a system (or the whole consortium).
+  Sign-in tries the connection chosen by barcode prefix when a system has one;
+  prefixes are optional, since some libraries and consortia share or don't use
+  them. Otherwise the configured connections are tried in order.
+- **Staff override.** A manager with the right permission, or a super admin,
+  can change a patron's branch, e.g. when the ILS has no usable home-location
+  field. An override is kept until staff clear it, and is logged.
+- **Scoped managers.** Each manager is assigned one or more systems or
+  branches. Every member-data permission (item 19), plus reports and logs, is
+  limited to patrons in that scope. Being assigned a system covers all its
+  branches. Super admins stay consortium-wide; a manager can also be made
+  consortium-wide explicitly.
+- **Enforcement point:** `core/auth.py`'s `get_accessible_member_ids` /
+  `assert_can_view` / `assert_can_edit`, the same place item 19 plugged into,
+  so every query that already goes through them is scoped automatically.
+  Reporting and any aggregate queries get the same filter.
+- **Patrons who can't be placed** (no home-location field, unmapped code) go
+  to an "unassigned" queue that consortium-level staff can sort out.
+- **Data model sketch:** `library_systems`, `branches` (with their ILS location
+  codes), `users.branch_id` and `users.branch_source` (sip2 | staff),
+  `manager_scopes` (manager → system or branch), and a system reference on each
+  SIP2 connection.
+
+**Open questions before building:**
+- Should patrons in one system ever be visible to another system's staff
+  (e.g. a patron registered at two libraries)? Default: no, one home branch.
+- Per-system branding and registration settings, or consortium-wide only?
+- Which ILS location codes to map for the first deployment. Let that
+  deployment's data decide.
+
+**STATUS: designed, not built.**
+
+---
+
+### 21. Plugin runtime reliability under the sandbox
+Found while testing the read-only plugin folder (item 18 follow-up); both
+predate that change and affect every sandboxed host:
+
+- **Plugins without the network permission can't start.** The sandbox gives
+  them their own network namespace, but the host and plugin talk to each other
+  over TCP on 127.0.0.1, which is a different loopback inside that namespace,
+  so the host's connection is refused and the plugin is marked crashed. Only
+  network-enabled plugins (such as the bundled email providers) have worked.
+  Fix: move both host↔plugin channels to Unix domain sockets in a per-plugin
+  runtime directory bind-mounted into the sandbox (sockets cross network
+  namespaces), which needs matching changes in the runner and SDK.
+- **The memory cap can starve gRPC of threads.** The runner caps a plugin's
+  address space at its `max_memory_mb`, and each thread reserves stack
+  address space, so at 128–256 MB a plugin can only start about ten threads
+  and its gRPC server may fail to answer. Fix: set a smaller thread stack size
+  (`threading.stack_size`) and a bounded gRPC thread pool in the runner/SDK, or
+  cap resident memory instead of address space.
+
+Fixed alongside the read-only folder, since they were part of the same gap:
+plugins used to start in the API server's own working directory, so relative
+file writes landed there (in Docker, the container's root filesystem); they
+now always start in their own folder.
+
+**STATUS: known issues, not fixed.**
 
 ---
 

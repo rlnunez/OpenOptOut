@@ -266,6 +266,38 @@ Bundles are refused if they contain absolute paths, `..` segments, symbolic
 links, more than 5,000 files, or more than 50 MB compressed / 200 MB
 extracted.
 
+### Rules your code is checked against
+
+Permissions each type may request (host methods each need one of these, so
+this is also the API surface available to the type):
+
+| `type` | Allowed permissions |
+|---|---|
+| `email` | email_provider, read_pii, network, settings_read, storage |
+| `captcha` | solve_captcha, network, http_fetch, settings_read, storage |
+| `forms` | fill_forms, read_pii, broker_read, settings_read, storage |
+| `discovery` | read_pii, network, http_fetch, broker_read, settings_read, storage, emit_events |
+| `brokers` | broker_read, settings_read, storage |
+| `general` | anything except email_provider, solve_captcha, fill_forms |
+| `themes`, `languages` | none (data only) |
+
+The install-time code inspection refuses a plugin that:
+- opens files for writing or deletes/moves/changes files (use `plugin.storage`
+  for anything you need to keep; your folder is read-only at runtime anyway)
+- runs other programs (`subprocess`, `os.system`, `os.exec*`, `pty`, ...)
+- builds or loads code at runtime (`eval`, `exec`, `compile`, `__import__`,
+  `importlib`, `runpy`, `marshal`, `pickle` loading, reaching into `__builtins__`)
+- calls native code (`ctypes`, `cffi`)
+- imports network libraries without requesting `network`
+- ships compiled or native binaries, shell scripts or other executables, or
+  Python that doesn't parse
+- (themes, languages) contains any code at all
+
+Direct network libraries in a plugin that does have `network` are allowed but
+noted for review (email providers talking to their mail service are expected).
+Your plugin's files are hashed when it's approved; if they change afterwards,
+it won't start until a super admin reviews and re-enables it.
+
 ### Building the protocol stubs (for local plugin development)
 The SDK imports the compiled gRPC stubs. Generate them once:
 ```bash
