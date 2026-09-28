@@ -27,9 +27,22 @@ def main():
     parser.add_argument("--plugin-file", required=True)
     parser.add_argument("--plugin-id", required=True)
     parser.add_argument("--max-memory-mb", type=int, default=192)
+    parser.add_argument("--uds-path", default="",
+                        help="Unix domain socket path for plugin gRPC service")
     parser.add_argument("--allow-network", action="store_true",
                         help="plugin was granted the network permission")
     args = parser.parse_args()
+
+    # ── Thread stack size reduction to prevent RLIMIT_AS thread starvation ──
+    # Default stack size on Linux is 8-10MB per thread. Under tight address space
+    # limits (e.g. 128-256MB), starting gRPC worker/event threads quickly exhausts
+    # RLIMIT_AS with ENOMEM. Setting thread stack size to 512KB provides plenty of
+    # headroom for plugin handlers while keeping thread memory negligible.
+    try:
+        import threading
+        threading.stack_size(512 * 1024)
+    except (ValueError, RuntimeError, AttributeError):
+        pass
 
     # ── Memory cap, applied to OUR OWN process, as the very first thing ──
     # Deliberately NOT done via preexec_fn on the manager side: that runs
@@ -44,7 +57,7 @@ def main():
     # or long-running the host process has become.
     try:
         import resource
-        mem_bytes = args.max_memory_mb * 1024 * 1024
+        mem_bytes = max(args.max_memory_mb, 128) * 1024 * 1024
         resource.setrlimit(resource.RLIMIT_AS, (mem_bytes, mem_bytes))
     except Exception as e:
         print(f"WARNING: could not set memory limit: {e}", file=sys.stderr)
@@ -103,6 +116,8 @@ def main():
 
     # The session token + host port arrive via env; the SDK reads them when the
     # host calls Initialize, but we also expose them for plugins that want them.
+    if args.uds_path:
+        os.environ["PS_PLUGIN_UDS_PATH"] = args.uds_path
     os.environ.setdefault("PS_PLUGIN_ID", args.plugin_id)
 
     # Execute the plugin file as __main__ so its `if __name__ == "__main__"`

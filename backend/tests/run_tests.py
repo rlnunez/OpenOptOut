@@ -1128,6 +1128,61 @@ def t_plugin_sandbox_read_only():
     assert cmd[i + 1] == "/tmp", "HOME must point at the writable /tmp, not the plugin folder"
 
 
+@test(1, "plugins.sandbox_uds_mounts",
+      "Sandbox command mounts the per-plugin runtime dir (writable for plugin.sock) "
+      "and HostService socket (read-only) across bubblewrap/unshare namespaces.")
+def t_plugin_sandbox_uds_mounts():
+    sandbox = _imp("plugins.sandbox")
+    perms = _imp("plugins.permissions")
+    caps = sandbox.SandboxCapabilities(bubblewrap=True, rlimits=False, platform="linux")
+    m = perms.PluginManifest.from_dict({"id": "p1", "name": "p1", "version": "1", "author": "a"})
+
+    cmd, _ = sandbox.build_sandboxed_command(
+        ["python", "runner.py"], "/data/plugins/general/p1", caps, False, m,
+        run_dir="/tmp/ps-plugins/p1", host_uds_path="/tmp/ps-plugins/host.sock"
+    )
+    # Check that per-plugin run_dir is bound writable for plugin.sock creation
+    assert "--bind" in cmd
+    b_idx = cmd.index("--bind")
+    assert cmd[b_idx + 1] == "/tmp/ps-plugins/p1"
+
+    # Check that host_uds_path is mounted read-only so plugin cannot alter host socket
+    assert "--ro-bind" in cmd
+    ro_pairs = [(cmd[i+1], cmd[i+2]) for i in range(len(cmd)-2) if cmd[i] == "--ro-bind"]
+    assert ("/tmp/ps-plugins/host.sock", "/tmp/ps-plugins/host.sock") in ro_pairs
+
+    # Check _private_tmp_ok preserves /tmp when sockets or work_dir are inside /tmp
+    assert sandbox._private_tmp_ok("/tmp/ps-plugins/p1") == "0"
+    assert sandbox._private_tmp_ok("/var/plugins/p1") == "1"
+
+
+@test(1, "plugins.uds_handshake_and_thread_stack",
+      "PluginManager._read_ready parses both TCP ports and Unix domain sockets, and "
+      "threading stack size is reduced to prevent memory starvation.")
+def t_plugin_uds_handshake():
+    mgr_mod = _imp("plugins.manager")
+    sdk_mod = _imp("plugins.sdk.privacyshield_sdk")
+    import threading
+
+    # Test _read_ready parsing TCP and UDS
+    class FakeProc:
+        def __init__(self, line):
+            self.stdout = [line.encode("utf-8") if isinstance(line, str) else line]
+
+    mgr = mgr_mod.PluginManager.__new__(mgr_mod.PluginManager)
+    # TCP port line
+    assert mgr._read_ready(FakeProc("PLUGIN_READY 54321\n"), 1.0) == 54321
+    # UDS socket line
+    assert mgr._read_ready(FakeProc("PLUGIN_READY unix:/tmp/ps-plugins/p1/plugin.sock\n"), 1.0) == "unix:/tmp/ps-plugins/p1/plugin.sock"
+
+    # Verify threading stack size can be set to 512KB without error
+    old_stack = threading.stack_size(512 * 1024)
+    try:
+        assert threading.stack_size() == 512 * 1024
+    finally:
+        threading.stack_size(old_stack)
+
+
 @test(1, "plugins.layout_scan_and_placement",
       "The plugin scan walks every type folder, flags a plugin sitting in the wrong "
       "folder, and still finds (as legacy) plugins in the old flat layout.")

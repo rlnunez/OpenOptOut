@@ -37,17 +37,18 @@ const STATIC_DOCS = {
 - All confirmation emails land in one place, making the monitor's job simple.
 - You can see at a glance whether a broker replied.
 
-**Recommended setup with Gmail:**
-1. Create a new Gmail account (e.g. \`yourname.removals@gmail.com\`)
-2. Enable 2-Step Verification on the account
-3. Go to **myaccount.google.com/apppasswords**
-4. Generate an App Password for "Mail" — copy the 16-character code
-5. In PrivacyShield Settings → Email, select the Gmail preset
-6. Enter your new Gmail address as both the IMAP and SMTP username
-7. Paste the App Password (not your Gmail password) into both password fields
-8. Click "Test connection" — both IMAP and SMTP should show green
+**Recommended setup (OAuth 2.0 — Most Secure):**
+1. Create or use a dedicated mailbox (e.g. `yourname.removals@gmail.com` or Outlook).
+2. In PrivacyShield Settings → Email (or during the initial Setup Wizard), click **Connect with Google** or **Connect with Microsoft**.
+3. Authorize the requested mail permissions. OAuth uses temporary scoped tokens instead of storing long-lived passwords.
 
-**For Outlook / Yahoo / Fastmail:** the same App Password pattern applies. Each provider's preset includes a link to their App Password setup page.`,
+**Alternative setup (App Passwords / SMTP):**
+If you use Yahoo, Fastmail, or prefer traditional IMAP/SMTP:
+1. Enable 2-Step Verification on the account
+2. Generate an App Password in your provider's security settings (e.g. `myaccount.google.com/apppasswords`)
+3. In PrivacyShield Settings → Email, select your provider preset
+4. Enter your email and paste the App Password (not your primary password) into the password fields
+5. Click "Test connection" — both IMAP and SMTP should show green`,
     },
     {
       id: 'recheck-explained',

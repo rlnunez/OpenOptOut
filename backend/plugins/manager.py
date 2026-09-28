@@ -60,7 +60,7 @@ def _load_grpc():
 class RunningPlugin:
     manifest: PluginManifest
     process: subprocess.Popen
-    port: int
+    port: Union[int, str]
     session_token: str
     stub: object
     channel: object
@@ -71,6 +71,7 @@ class RunningPlugin:
     provider_key: str = ""   # cached from EmailProviderInfo() once confirmed —
                              # lets the credential-lookup RPC verify a plugin
                              # only ever reads ITS OWN provider's token.
+    run_dir: Optional[str] = None
 
 
 class PluginManager:
@@ -101,8 +102,16 @@ class PluginManager:
         self.plugin_outbound_domains: dict[str, set] = {}
         self._host_server = None
         self._host_port   = None
+        self._host_uds_path = None
         self._supervisor_thread = None
         self._stop = threading.Event()
+
+        # Filesystem base for per-plugin runtime directories and Unix domain sockets
+        self.runtime_base = "/tmp/ps-plugins"
+        try:
+            os.makedirs(self.runtime_base, exist_ok=True, mode=0o777)
+        except Exception:
+            pass
 
         # Runtime violation monitor (detect + auto-disable leak/escape attempts)
         from .monitor import ViolationMonitor
@@ -180,6 +189,26 @@ class PluginManager:
         self._host_server = _grpc.server(futures.ThreadPoolExecutor(max_workers=8))
         _pb_grpc.add_HostServiceServicer_to_server(HostServiceImpl(broker, _pb), self._host_server)
         self._host_port = self._host_server.add_insecure_port(f"127.0.0.1:{self.host_bind_port}")
+
+        # Bind Unix domain socket for sandboxed plugin IPC across network namespaces
+        uds_file = os.path.join(self.runtime_base, "host.sock")
+        if os.path.exists(uds_file):
+            try:
+                os.unlink(uds_file)
+            except OSError:
+                pass
+        try:
+            self._host_server.add_insecure_port(f"unix:{uds_file}")
+            try:
+                os.chmod(uds_file, 0o666)
+            except OSError:
+                pass
+            self._host_uds_path = uds_file
+            log.info("HostService listening on 127.0.0.1:%s and UDS %s", self._host_port, self._host_uds_path)
+        except Exception as e:
+            log.warning("Could not bind HostService to UDS %s (%s); fallback to TCP", uds_file, e)
+            self._host_uds_path = None
+
         self._host_server.start()
 
     def _audit_write(self, plugin_id: str, action: str, detail: str):
@@ -362,13 +391,30 @@ class PluginManager:
         runner = os.path.join(os.path.dirname(__file__), "runner.py")
         allow_network = Permission.NETWORK.value in granted
 
+        # Setup per-plugin runtime dir for Unix domain sockets
+        plugin_run_dir = os.path.join(self.runtime_base, manifest.id)
+        try:
+            os.makedirs(plugin_run_dir, exist_ok=True, mode=0o777)
+        except Exception:
+            pass
+        plugin_uds_path = os.path.join(plugin_run_dir, "plugin.sock")
+        if os.path.exists(plugin_uds_path):
+            try:
+                os.unlink(plugin_uds_path)
+            except OSError:
+                pass
+
         base_cmd = [sys.executable, runner, "--plugin-file", entry,
                     "--plugin-id", manifest.id,
                     "--max-memory-mb", str(manifest.max_memory_mb)]
+        if self._host_uds_path:
+            base_cmd.extend(["--uds-path", plugin_uds_path])
         if allow_network:
             base_cmd.append("--allow-network")
+
         cmd, preexec = build_sandboxed_command(
-            base_cmd, install_path, self.caps, allow_network, manifest
+            base_cmd, install_path, self.caps, allow_network, manifest,
+            run_dir=plugin_run_dir, host_uds_path=self._host_uds_path,
         )
 
         env = {
@@ -379,7 +425,9 @@ class PluginManager:
             ]),
             "PYTHONDONTWRITEBYTECODE": "1",
             "PS_SESSION_TOKEN": session_token,
-            "PS_HOST_PORT": str(self._host_port),
+            "PS_HOST_PORT": str(self._host_port or 0),
+            "PS_HOST_UDS_PATH": self._host_uds_path or "",
+            "PS_PLUGIN_UDS_PATH": plugin_uds_path if self._host_uds_path else "",
         }
 
         try:
@@ -393,26 +441,38 @@ class PluginManager:
             log.error("Could not start plugin %s process: %s", manifest.id, e)
             self.sessions.revoke(session_token)
             self._set_status(manifest.id, "crashed", str(e))
+            if os.path.isdir(plugin_run_dir):
+                shutil.rmtree(plugin_run_dir, ignore_errors=True)
             return
 
-        # Read the handshake line: "PLUGIN_READY <port>"
-        port = self._read_ready(proc, manifest.timeout_seconds)
-        if port is None:
+        # Read the handshake line: "PLUGIN_READY <port>" or "PLUGIN_READY unix:<path>"
+        endpoint = self._read_ready(proc, manifest.timeout_seconds)
+        if endpoint is None:
             log.error("Plugin %s did not report ready — killing", manifest.id)
             self._kill(proc)
             self.sessions.revoke(session_token)
             self._set_status(manifest.id, "crashed", "no ready handshake")
+            if os.path.isdir(plugin_run_dir):
+                shutil.rmtree(plugin_run_dir, ignore_errors=True)
             return
 
-        channel = _grpc.insecure_channel(f"127.0.0.1:{port}")
+        if isinstance(endpoint, int):
+            target = f"127.0.0.1:{endpoint}"
+        elif endpoint.startswith("unix:"):
+            target = endpoint
+        else:
+            target = f"unix:{endpoint}"
+
+        channel = _grpc.insecure_channel(target)
         stub = _pb_grpc.PluginServiceStub(channel)
 
         # Initialize the plugin
         try:
             resp = stub.Initialize(_pb.InitializeRequest(
                 host_version="1.0", session_token=session_token,
-                host_port=self._host_port,
+                host_port=self._host_port or 0,
                 granted_permissions={p: "true" for p in granted},
+                host_uds_path=self._host_uds_path or "",
             ), timeout=manifest.timeout_seconds)
             if not resp.ok:
                 raise RuntimeError(resp.error or "initialize failed")
@@ -421,12 +481,15 @@ class PluginManager:
             self._kill(proc); channel.close()
             self.sessions.revoke(session_token)
             self._set_status(manifest.id, "crashed", str(e))
+            if os.path.isdir(plugin_run_dir):
+                shutil.rmtree(plugin_run_dir, ignore_errors=True)
             return
 
         self.running[manifest.id] = RunningPlugin(
-            manifest=manifest, process=proc, port=port,
+            manifest=manifest, process=proc, port=endpoint,
             session_token=session_token, stub=stub, channel=channel,
             granted=granted, last_started=time.time(),
+            run_dir=plugin_run_dir,
         )
         # Register with the violation monitor (detect leak/escape attempts).
         # Heavy monitoring kicks in whenever a plugin runs with BOTH read_pii
@@ -441,21 +504,30 @@ class PluginManager:
         log.info("Plugin %s v%s launched (pid %s)%s", manifest.id, manifest.version, proc.pid,
                  " [HEAVY MONITORING: read_pii+network]" if heavy else "")
 
-    def _read_ready(self, proc, timeout) -> Optional[int]:
-        """Read the PLUGIN_READY handshake line with a timeout."""
-        result = {"port": None}
+    def _read_ready(self, proc, timeout) -> Optional[Union[int, str]]:
+        """Read the PLUGIN_READY handshake line with a timeout.
+        Returns integer port or string UDS endpoint (e.g. 'unix:/path/to/sock')."""
+        result = {"endpoint": None}
         def _reader():
             try:
                 for line in proc.stdout:
+                    if isinstance(line, bytes):
+                        line = line.decode("utf-8", errors="replace")
                     line = line.strip()
                     if line.startswith("PLUGIN_READY"):
-                        result["port"] = int(line.split()[1])
+                        parts = line.split(None, 1)
+                        if len(parts) > 1:
+                            val = parts[1].strip()
+                            if val.isdigit():
+                                result["endpoint"] = int(val)
+                            else:
+                                result["endpoint"] = val
                         return
             except Exception:
                 pass
         t = threading.Thread(target=_reader, daemon=True)
         t.start(); t.join(timeout)
-        return result["port"]
+        return result["endpoint"]
 
     def _stop_plugin(self, plugin_id: str, reason: str = ""):
         rp = self.running.pop(plugin_id, None)
@@ -474,6 +546,11 @@ class PluginManager:
         except Exception: pass
         self.sessions.revoke(rp.session_token)
         self.plugin_outbound_domains.pop(plugin_id, None)
+        if rp.run_dir and os.path.isdir(rp.run_dir):
+            try:
+                shutil.rmtree(rp.run_dir, ignore_errors=True)
+            except Exception:
+                pass
         self._set_status(plugin_id, "stopped", None)
         log.info("Plugin %s stopped (%s)", plugin_id, reason)
 
@@ -953,6 +1030,7 @@ class PluginManager:
             "monitor": monitor_caps,
             "lockdown_mode": self._is_lockdown(),
             "host_port": self._host_port,
+            "host_uds_path": self._host_uds_path,
             "running": [
                 {"plugin_id": pid, "name": rp.manifest.name,
                  "version": rp.manifest.version, "pid": rp.process.pid,

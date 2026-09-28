@@ -145,10 +145,14 @@ class FormResult:
 class _HostClient:
     """Talks back to the host's HostService. All calls are permission-gated host-side."""
 
-    def __init__(self, host_port: int, session_token: str, plugin_id: str):
+    def __init__(self, host_target: Any, session_token: str, plugin_id: str):
         self._token = session_token
         self._pid   = plugin_id
-        self._channel = grpc.insecure_channel(f"127.0.0.1:{host_port}")
+        if isinstance(host_target, str) and (host_target.startswith("unix:") or "/" in host_target):
+            addr = host_target if host_target.startswith("unix:") else f"unix:{host_target}"
+        else:
+            addr = f"127.0.0.1:{host_target}"
+        self._channel = grpc.insecure_channel(addr)
         self._stub = pb_grpc.HostServiceStub(self._channel)
 
     def _auth(self):
@@ -401,8 +405,10 @@ class Plugin:
 
     # ---- connect host capabilities once handshake provides the token ----
 
-    def _attach_host(self, host_port: int, session_token: str):
-        self._host = _HostClient(host_port, session_token, self.manifest["id"])
+    def _attach_host(self, host_port: int, session_token: str, host_uds_path: str = ""):
+        uds = host_uds_path or os.getenv("PS_HOST_UDS_PATH", "")
+        target = uds if uds else host_port
+        self._host = _HostClient(target, session_token, self.manifest["id"])
         self.storage  = _StorageProxy(self._host)
         self.settings = _SettingsProxy(self._host)
         self.log = _LogProxy(self._host)
@@ -426,15 +432,43 @@ class Plugin:
         if not _GRPC_AVAILABLE:
             print("ERROR: grpc not available. Run compile.sh and install grpcio.", file=sys.stderr)
             sys.exit(1)
+        import threading
+        try:
+            threading.stack_size(512 * 1024)
+        except (ValueError, RuntimeError, AttributeError):
+            pass
+
         from concurrent import futures
-        server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
+        server_options = [
+            ("grpc.max_concurrent_streams", 4),
+            ("grpc.so_reuseport", 0),
+        ]
+        server = grpc.server(futures.ThreadPoolExecutor(max_workers=4), options=server_options)
         servicer = _PluginServicer(self)
         pb_grpc.add_PluginServiceServicer_to_server(servicer, server)
-        # Bind to an ephemeral local port; report it on stdout for the host.
-        port = server.add_insecure_port("127.0.0.1:0")
-        server.start()
-        # Handshake line the host reads from stdout:
-        print(f"PLUGIN_READY {port}", flush=True)
+
+        uds_path = os.getenv("PS_PLUGIN_UDS_PATH")
+        if uds_path:
+            os.makedirs(os.path.dirname(uds_path), exist_ok=True)
+            if os.path.exists(uds_path):
+                try:
+                    os.unlink(uds_path)
+                except OSError:
+                    pass
+            server.add_insecure_port(f"unix:{uds_path}")
+            try:
+                os.chmod(uds_path, 0o666)
+            except OSError:
+                pass
+            server.start()
+            print(f"PLUGIN_READY unix:{uds_path}", flush=True)
+        else:
+            # Bind to an ephemeral local port; report it on stdout for the host.
+            port = server.add_insecure_port("127.0.0.1:0")
+            server.start()
+            # Handshake line the host reads from stdout:
+            print(f"PLUGIN_READY {port}", flush=True)
+
         servicer._server = server
         server.wait_for_termination()
 
@@ -448,7 +482,8 @@ class _PluginServicer:
 
     def Initialize(self, request, context):
         m = self.plugin.manifest
-        self.plugin._attach_host(request.host_port, request.session_token)
+        uds_path = getattr(request, "host_uds_path", "") or os.getenv("PS_HOST_UDS_PATH", "")
+        self.plugin._attach_host(request.host_port, request.session_token, host_uds_path=uds_path)
         return pb.InitializeResponse(
             ok=True,
             manifest=pb.Manifest(

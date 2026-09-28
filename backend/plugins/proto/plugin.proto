@@ -159,6 +159,7 @@ message InitializeRequest {
   string session_token = 2;   // plugin stores this for capability calls
   int32  host_port     = 3;   // port where HostService listens
   map<string, string> granted_permissions = 4;  // permission -> "true"
+  string host_uds_path = 5;   // Unix domain socket where HostService listens
 }
 
 message InitializeResponse {

@@ -1,9 +1,6 @@
 # Using Plugins (Administrator Guide)
 
-PrivacyShield supports **process-isolated, sandboxed plugins** so third parties
-can extend the app — custom form-filling strategies, email parsers, event
-reactions, and plugin-scoped storage — without being able to touch the host's
-memory, database, credentials, or (unless granted) the network.
+PrivacyShield supports **process-isolated, sandboxed plugins** so third parties can extend the app — custom form-filling strategies, email parsers, event reactions, and plugin-scoped storage — without being able to touch the host's memory, database, credentials, or (unless granted) the network.
 
 This guide covers the security model, the permissions plugins can request, and how to install, enable, and safely operate plugins as an administrator.
 
@@ -11,38 +8,22 @@ This guide covers the security model, the permissions plugins can request, and h
 
 ## Why this design
 
-The app holds sensitive personal data, sometimes for minors and library patrons.
-Plugins are untrusted third-party code. A naive "drop a .py file in a folder and
-import it" approach gives that code full access to everything the host process
-can see — PII, IMAP/SMTP passwords, database, filesystem, network. There is no
-reliable way to sandbox in-process Python (`import os` defeats it).
+The app holds sensitive personal data, sometimes for minors and library patrons. Plugins are untrusted third-party code. A naive "drop a .py file in a folder and import it" approach gives that code full access to everything the host process can see — PII, IMAP/SMTP passwords, database, filesystem, network. There is no reliable way to sandbox in-process Python (`import os` defeats it).
 
-So PrivacyShield never executes plugin code in its own interpreter. Each plugin
-runs as a **separate OS process**, and the host and plugin communicate over
-**gRPC**. Everything a plugin can do goes through a small, **capability-gated**
-API that the host enforces. On Linux with bubblewrap, plugins additionally run
-inside namespace/resource sandboxes.
+So PrivacyShield never executes plugin code in its own interpreter. Each plugin runs as a **separate OS process**, and the host and plugin communicate over **gRPC**. Everything a plugin can do goes through a small, **capability-gated** API that the host enforces. On Linux with bubblewrap, plugins additionally run inside namespace/resource sandboxes.
 
 ---
 
 ## Security model
 
 ### 1. Process isolation
-Every plugin is a subprocess. A crash, hang, or infinite loop cannot take down
-the host — the manager supervises with liveness pings, per-call timeouts, and
-hard process-group kills. Three crashes auto-disables the plugin.
+Every plugin is a subprocess. A crash, hang, or infinite loop cannot take down the host — the manager supervises with liveness pings, per-call timeouts, and hard process-group kills. Three crashes auto-disables the plugin.
 
 ### 2. Capability gating
-The plugin calls back into the host only through the `HostService` gRPC API.
-Every call carries a session token (issued at launch, unique per run) and is
-checked against the plugin's **granted** permissions. If a plugin didn't get
-`storage`, storage calls are refused. If it didn't get `read_pii`, hook payloads
-arrive with member field values redacted to empty strings.
+The plugin calls back into the host only through the `HostService` gRPC API. Every call carries a session token (issued at launch, unique per run) and is checked against the plugin's **granted** permissions. If a plugin didn't get `storage`, storage calls are refused. If it didn't get `read_pii`, hook payloads arrive with member field values redacted to empty strings.
 
 ### 3. Explicit, human trust gate
-Plugins install **disabled**. A super admin must open the plugin, see each
-requested permission with its **risk level** and description, and explicitly
-grant them to enable it. Nothing runs until a person decides to trust it.
+Plugins install **disabled**. A super admin must open the plugin, see each requested permission with its **risk level** and description, and explicitly grant them to enable it. Nothing runs until a person decides to trust it.
 
 ### 4. OS sandboxing (Linux)
 When launching a plugin the host applies the strongest available controls:
@@ -55,18 +36,12 @@ When launching a plugin the host applies the strongest available controls:
 | Namespaces | `unshare` fallback | PID/mount isolation if bubblewrap absent |
 | Privileges | never root | Plugins run unprivileged; core dumps disabled |
 
-The host logs its effective posture at startup — **FULL** or **PARTIAL** — and
-the Plugins admin page shows it. On macOS (development) or a container without
-bubblewrap, only resource limits + the process boundary apply, and the UI warns
-that untrusted plugins are **not** fully contained.
+The host logs its effective posture at startup — **FULL** or **PARTIAL** — and the Plugins admin page shows it. On macOS (development) or a container without bubblewrap, only resource limits + the process boundary apply, and the UI warns that untrusted plugins are **not** fully contained.
 
-> **Operator action:** for production with untrusted third-party plugins, deploy
-> on Linux and install bubblewrap. The provided Dockerfile installs it.
+> **Operator action:** for production with untrusted third-party plugins, deploy on Linux and install bubblewrap. The provided Dockerfile installs it.
 
 ### 5. Secrets never reach plugins
-The settings accessor refuses any key that looks like a credential (`password`,
-`secret`, `token`, `_enc`, etc.), even with `settings_read`. Plugins get their
-own scoped settings namespace and non-secret globals only.
+The settings accessor refuses any key that looks like a credential (`password`, `secret`, `token`, `_enc`, etc.), even with `settings_read`. Plugins get their own scoped settings namespace and non-secret globals only.
 
 ---
 
@@ -85,19 +60,13 @@ own scoped settings namespace and non-secret globals only.
 | `parse_email` | medium | Interpret confirmation emails |
 | `receive_events` | low | Be notified of lifecycle events |
 
-A hook requires its matching permission (`fill_form`→`fill_forms`,
-`parse_email`→`parse_email`, `on_event`→`receive_events`). The host refuses to
-enable a plugin whose declared hook lacks its permission.
+A hook requires its matching permission (`fill_form`→`fill_forms`, `parse_email`→`parse_email`, `on_event`→`receive_events`). The host refuses to enable a plugin whose declared hook lacks its permission.
 
 ---
 
 ## Method-level allowlisting (least privilege)
 
-Permissions are coarse — holding `storage` could, in principle, unlock reading,
-writing, *and* deleting. PrivacyShield tightens this to the individual method.
-Every plugin must declare in its manifest the **exact host methods** it will
-call, and the broker refuses any method not on that list — even when the plugin
-holds the broader permission.
+Permissions are coarse — holding `storage` could, in principle, unlock reading, writing, *and* deleting. PrivacyShield tightens this to the individual method. Every plugin must declare in its manifest the **exact host methods** it will call, and the broker refuses any method not on that list — even when the plugin holds the broader permission.
 
 The callable host methods are:
 
@@ -129,84 +98,34 @@ Declare them in the manifest under `methods`:
 "methods": ["storage.get", "storage.set", "log"]
 ```
 
-That plugin can read and write its store and log — but a call to
-`storage.delete` is refused **and treated as a security violation**, because it
-reached for capability surface it never disclosed.
+That plugin can read and write its store and log — but a call to `storage.delete` is refused **and treated as a security violation**, because it reached for capability surface it never disclosed.
 
-**What happens on an undeclared-method call:** the broker refuses it, the
-manager records a `critical` violation, a banner is raised on the Plugins page,
-the plugin is **disabled immediately**, and it is flagged `needs_reapproval`.
-It cannot be re-enabled until a super admin re-opens it, reviews the declared
-method list, and re-approves (the enable call must set `acknowledge_methods`).
-This makes the manifest a binding contract: the code can only do what the
-manifest says, and any drift takes the plugin offline until a human re-reviews.
+**What happens on an undeclared-method call:** the broker refuses it, the manager records a `critical` violation, a banner is raised on the Plugins page, the plugin is **disabled immediately**, and it is flagged `needs_reapproval`. It cannot be re-enabled until a super admin re-opens it, reviews the declared method list, and re-approves (the enable call must set `acknowledge_methods`). This makes the manifest a binding contract: the code can only do what the manifest says, and any drift takes the plugin offline until a human re-reviews.
 
-The enable page shows the person exactly which methods, event types, and (if
-`network` is granted) outbound domains the plugin declared — so they approve a
-precise, visible capability surface rather than a vague permission bucket.
+The enable page shows the person exactly which methods, event types, and (if `network` is granted) outbound domains the plugin declared — so they approve a precise, visible capability surface rather than a vague permission bucket.
 
 ### Declared inbound and egress
 
-- **`events`** — the event types an `on_event` plugin expects (e.g.
-  `optout_sent`, `confirmation_received`). Shown to the admin; informational.
-- **`outbound_domains`** — if the plugin requests `network`, it declares the
-  domains it intends to contact. These are surfaced prominently (network egress
-  is high-risk) so the admin sees exactly where a networked plugin will reach.
+- **`events`** — the event types an `on_event` plugin expects (e.g. `optout_sent`, `confirmation_received`). Shown to the admin; informational.
+- **`outbound_domains`** — if the plugin requests `network`, it declares the domains it intends to contact. These are surfaced prominently (network egress is high-risk) so the admin sees exactly where a networked plugin will reach.
 
 ---
 
 
 ## The exfiltration path: `read_pii` + `network`, blocked by default
 
-Every other control in this document governs the host's own API surface — what
-a plugin can ask the *host* to do. It does not stop a plugin that holds both
-`read_pii` (member data arrives in hook payloads) and `network` (its own
-process can open a raw socket inside the sandbox) from writing its own code to
-send that data anywhere: its own HTTP POST, its own SMTP connection, anything.
-That is the one path where a plugin's own code — not a host API call — could
-exfiltrate member data. It gets a dedicated, stricter control:
+Every other control in this document governs the host's own API surface — what a plugin can ask the *host* to do. It does not stop a plugin that holds both `read_pii` (member data arrives in hook payloads) and `network` (its own process can open a raw socket inside the sandbox) from writing its own code to send that data anywhere: its own HTTP POST, its own SMTP connection, anything. That is the one path where a plugin's own code — not a host API call — could exfiltrate member data. It gets a dedicated, stricter control:
 
-**Blocked at manifest validation, before installation is even possible.** A
-manifest requesting both `read_pii` and `network` is invalid unless it also
-sets `requires_pii_network_exception: true` and provides a
-`pii_network_justification` of real substance (20+ characters, not filler) plus
-a non-empty `outbound_domains` list. Without all three, the plugin cannot be
-installed — this isn't an admin choice at that point, it's a hard manifest
-error.
+**Blocked at manifest validation, before installation is even possible.** A manifest requesting both `read_pii` and `network` is invalid unless it also sets `requires_pii_network_exception: true` and provides a `pii_network_justification` of real substance (20+ characters, not filler) plus a non-empty `outbound_domains` list. Without all three, the plugin cannot be installed — this isn't an admin choice at that point, it's a hard manifest error.
 
-**A second, separate confirmation at enable time — not the normal grant flow.**
-Even with a valid exception declared, granting both permissions together
-requires `confirm_pii_network_exception` as a distinct field on the enable
-request, shown in the UI as its own red-bordered block with the author's
-justification and declared domains, separate from the ordinary permission
-checkboxes. Missing it refuses the enable with a 409 and echoes back the
-justification/domains so the admin can decide. Every grant is logged to the
-audit trail as `pii_network_exception_granted`, separately from ordinary
-"enabled" entries.
+**A second, separate confirmation at enable time — not the normal grant flow.** Even with a valid exception declared, granting both permissions together requires `confirm_pii_network_exception` as a distinct field on the enable request, shown in the UI as its own red-bordered block with the author's justification and declared domains, separate from the ordinary permission checkboxes. Missing it refuses the enable with a 409 and echoes back the justification/domains so the admin can decide. Every grant is logged to the audit trail as `pii_network_exception_granted`, separately from ordinary "enabled" entries.
 
-**Heavy monitoring for the life of the process.** Any plugin running with both
-permissions granted is flagged for heavy monitoring the moment it launches:
-- Socket-count tolerance drops from the normal baseline to almost zero — even
-  a single unexpected connection beyond the host's loopback channel is flagged.
-- Outbound byte volume is tracked via the plugin's own network-namespace device
-  counters (`/proc/<pid>/net/dev`, excluding loopback). More than 5MB
-  transferred since launch is treated as a `critical` violation and the plugin
-  is disabled immediately — the same auto-disable policy as every other
-  violation type.
-- This is on top of, not instead of, the domain restriction that already
-  applies to `http.fetch` — heavy monitoring is watching the plugin's *own*
-  socket use, which `http.fetch`'s domain allowlist does not cover, since
-  `http.fetch` is a separate, host-mediated path a well-behaved plugin can
-  choose instead of raw `network`.
+**Heavy monitoring for the life of the process.** Any plugin running with both permissions granted is flagged for heavy monitoring the moment it launches:
+- Socket-count tolerance drops from the normal baseline to almost zero — even a single unexpected connection beyond the host's loopback channel is flagged.
+- Outbound byte volume is tracked via the plugin's own network-namespace device counters (`/proc/<pid>/net/dev`, excluding loopback). More than 5MB transferred since launch is treated as a `critical` violation and the plugin is disabled immediately — the same auto-disable policy as every other violation type.
+- This is on top of, not instead of, the domain restriction that already applies to `http.fetch` — heavy monitoring is watching the plugin's *own* socket use, which `http.fetch`'s domain allowlist does not cover, since `http.fetch` is a separate, host-mediated path a well-behaved plugin can choose instead of raw `network`.
 
-**What this does not do.** It does not make raw network access from a
-`read_pii`-holding plugin *safe* — a sufficiently small, infrequent transfer
-could stay under the byte threshold, and detection still lags prevention on a
-host without full OS sandboxing. The honest position: avoid granting this
-combination at all if there's any other way to accomplish the plugin's goal —
-`http.fetch` with a domain allowlist, or splitting the plugin into a
-PII-handling half and a network-handling half that only exchange non-PII data,
-are both safer designs than holding both permissions in one process.
+**What this does not do.** It does not make raw network access from a `read_pii`-holding plugin *safe* — a sufficiently small, infrequent transfer could stay under the byte threshold, and detection still lags prevention on a host without full OS sandboxing. The honest position: avoid granting this combination at all if there's any other way to accomplish the plugin's goal — `http.fetch` with a domain allowlist, or splitting the plugin into a PII-handling half and a network-handling half that only exchange non-PII data, are both safer designs than holding both permissions in one process.
 
 ---
 
@@ -216,24 +135,13 @@ are both safer designs than holding both permissions in one process.
 Three layers of admin-facing safety sit on top of the sandbox.
 
 ### Master kill-switch ("Deny")
-Settings → Plugin system → **Deny & stop all plugins** immediately stops every
-running plugin process and marks the whole system *denied*. While denied, the
-plugin controls are locked and nothing can launch — even enabled plugins stay
-down across restarts. Re-allowing requires a typed confirmation (`ALLOW`), and
-does **not** auto-restart anything: the admin must deliberately re-enable the
-system and each plugin. Use this the instant something looks wrong.
+Settings → Plugin system → **Deny & stop all plugins** immediately stops every running plugin process and marks the whole system *denied*. While denied, the plugin controls are locked and nothing can launch — even enabled plugins stay down across restarts. Re-allowing requires a typed confirmation (`ALLOW`), and does **not** auto-restart anything: the admin must deliberately re-enable the system and each plugin. Use this the instant something looks wrong.
 
 ### Lockdown mode
-A toggle that makes the violation policy maximally strict: **any single detected
-violation auto-disables the offending plugin immediately**. Recommended whenever
-untrusted third-party plugins are installed. (Even without lockdown, the default
-is already to auto-disable on the first violation — lockdown also records the
-action as a lockdown event and applies uniformly.)
+A toggle that makes the violation policy maximally strict: **any single detected violation auto-disables the offending plugin immediately**. Recommended whenever untrusted third-party plugins are installed. (Even without lockdown, the default is already to auto-disable on the first violation — lockdown also records the action as a lockdown event and applies uniformly.)
 
 ### Runtime violation monitor
-While plugins run, the host polls each plugin process (via `/proc` on Linux) for
-signs of leak or escape attempts and records them to an audit trail shown on the
-Plugins page:
+While plugins run, the host polls each plugin process (via `/proc` on Linux) for signs of leak or escape attempts and records them to an audit trail shown on the Plugins page:
 
 | Violation | Meaning | Severity |
 |---|---|---|
@@ -243,56 +151,31 @@ Plugins page:
 | `memory_exceeded` | Resident memory over its manifest cap | high |
 | `dir_bloat` | Its storage dir grew abnormally (possible staging) | medium |
 
-On detection the plugin is stopped, marked disabled so it won't relaunch, and
-the violation is surfaced in the UI with what it attempted and the action taken.
+On detection the plugin is stopped, marked disabled so it won't relaunch, and the violation is surfaced in the UI with what it attempted and the action taken.
 
-> **Prevention vs. monitoring — read this.** The monitor is a *safety net and
-> audit trail*, not the primary defense. On a fully sandboxed host the dangerous
-> actions are already *prevented* at the OS layer (see below); the monitor
-> mostly confirms the sandbox is holding and catches resource abuse. On a host
-> *without* full sandboxing, the monitor is detect-then-kill — it reacts quickly
-> but a determined plugin could act in the gap before the kill lands. That is
-> why untrusted plugins should only run on Linux with bubblewrap.
+> **Prevention vs. monitoring — read this.** The monitor is a *safety net and audit trail*, not the primary defense. On a fully sandboxed host the dangerous actions are already *prevented* at the OS layer (see below); the monitor mostly confirms the sandbox is holding and catches resource abuse. On a host *without* full sandboxing, the monitor is detect-then-kill — it reacts quickly but a determined plugin could act in the gap before the kill lands. That is why untrusted plugins should only run on Linux with bubblewrap.
 
 ### seccomp syscall filtering (prevention)
-Inside each plugin process, before any plugin code runs, a seccomp-bpf filter is
-installed that blocks dangerous syscalls at the kernel level and cannot be
-removed by the plugin (`NO_NEW_PRIVS`):
+Inside each plugin process, before any plugin code runs, a seccomp-bpf filter is installed that blocks dangerous syscalls at the kernel level and cannot be removed by the plugin (`NO_NEW_PRIVS`):
 
 - process/exec: `execve`, `execveat`, `fork`, `vfork`, `clone`, `clone3`
 - escape/priv: `ptrace`, `mount`, `pivot_root`, `chroot`, `setuid`/`setgid` family, `bpf`, `kexec_*`, `init_module`, `unshare`, `setns`
 
-This turns "spawn a process" or "load a kernel module" from something the monitor
-*detects after the fact* into something the kernel *refuses outright*. If
-libseccomp bindings aren't importable in the running interpreter, the runner
-logs that syscall filtering is inactive and relies on namespace + resource
-limits; the admin UI reports the reduced posture. Network egress is blocked by
-the network namespace (no interface) rather than seccomp, so the host↔plugin
-loopback channel keeps working.
+This turns "spawn a process" or "load a kernel module" from something the monitor *detects after the fact* into something the kernel *refuses outright*. If libseccomp bindings aren't importable in the running interpreter, the runner logs that syscall filtering is inactive and relies on namespace + resource limits; the admin UI reports the reduced posture. Network egress is blocked by the network namespace (no interface) rather than seccomp, so the host↔plugin loopback channel keeps working.
 
 ---
 
 ## Operating the system
 
-1. **Enable the system** — Settings → Plugin system → enable, choose storage
-   backend (database or file), set the plugins directory. Restart the server.
-2. **Install a plugin** — click **Upload plugin** on the Plugins page and pick a
-   `.zip` bundle. The wizard shows what kind of plugin it is and the folder it
-   will go into before anything is written, then installs it (disabled). You
-   can also put a plugin folder in its type folder yourself
-   (`plugins/<type>/<id>/`); it appears under "Discovered on disk" → Install.
-3. **Enable + grant** — click Enable, review the requested permissions and their
-   risk, uncheck any you don't want to grant (hook-required ones are mandatory),
-   confirm. The plugin launches immediately.
-4. **Monitor** — the Plugins page shows live status, crash counts, last errors,
-   and a per-plugin audit log (install/enable/disable/crash/auto-disable).
-5. **Disable / uninstall** — one click; the process is stopped and the token
-   revoked.
+1. **Enable the system** — Settings → Plugin system → enable, choose storage backend (database or file), set the plugins directory. Restart the server.
+2. **Install a plugin** — click **Upload plugin** on the Plugins page and pick a `.zip` bundle. The wizard shows what kind of plugin it is and the folder it will go into before anything is written, then installs it (disabled). You can also put a plugin folder in its type folder yourself (`plugins/<type>/<id>/`); it appears under "Discovered on disk" → Install.
+3. **Enable + grant** — click Enable, review the requested permissions and their risk, uncheck any you don't want to grant (hook-required ones are mandatory), confirm. The plugin launches immediately.
+4. **Monitor** — the Plugins page shows live status, crash counts, last errors, and a per-plugin audit log (install/enable/disable/crash/auto-disable).
+5. **Disable / uninstall** — one click; the process is stopped and the token revoked.
 
 ### Where plugins live
 
-Every plugin is stored at `<plugins directory>/<type>/<id>/`, where the type
-comes from the plugin's manifest:
+Every plugin is stored at `<plugins directory>/<type>/<id>/`, where the type comes from the plugin's manifest:
 
 | Folder | Type | Notes |
 |---|---|---|
@@ -305,106 +188,45 @@ comes from the plugin's manifest:
 | `languages/` | Language packs | Data only: no code, never run |
 | `general/` | Everything else | Event hooks, email parsers |
 
-The type is enforced, not just a folder name. A plugin sitting in the wrong
-folder is flagged as invalid, the `email_provider`, `solve_captcha` and
-`fill_form` hooks are only accepted in their own type, and a `themes` or
-`languages` plugin may not contain code, permissions or network access.
+The type is enforced, not just a folder name. A plugin sitting in the wrong folder is flagged as invalid, the `email_provider`, `solve_captcha` and `fill_form` hooks are only accepted in their own type, and a `themes` or `languages` plugin may not contain code, permissions or network access.
 
-**Built-in plugins** ship inside the app (`backend/plugins/bundled/email/`) and
-are copied into `email/` when they're first needed. The copy carries a
-`.privacyshield-bundled` marker and is refreshed automatically when you
-upgrade PrivacyShield. A plugin of your own with the same ID (no marker) is
-never overwritten.
+**Built-in plugins** ship inside the app (`backend/plugins/bundled/email/`) and are copied into `email/` when they're first needed. The copy carries a `.privacyshield-bundled` marker and is refreshed automatically when you upgrade PrivacyShield. A plugin of your own with the same ID (no marker) is never overwritten.
 
-**Upgrading from the old flat layout** (`<plugins directory>/<id>/`): on
-startup, each installed plugin is moved into its type folder and its recorded
-location is updated. Plugins installed from outside the plugins directory are
-left where they are.
+**Upgrading from the old flat layout** (`<plugins directory>/<id>/`): on startup, each installed plugin is moved into its type folder and its recorded location is updated. Plugins installed from outside the plugins directory are left where they are.
 
 ### Letting managers see or upload plugins
 
-Two manager permissions cover plugins (Admin panel → a manager's
-**Permissions** button, or **Manager defaults** for every manager):
+Two manager permissions cover plugins (Admin panel → a manager's **Permissions** button, or **Manager defaults** for every manager):
 
-- **View plugins** — the Plugins page: installed plugins, status, audit logs,
-  violations and plugin docs, without the install/enable/disable/uninstall
-  buttons.
-- **Upload plugins** — the upload wizard (on the Plugins page, or an **Upload
-  plugin** page if they can't view plugins). What they upload is always
-  installed disabled, can't replace files already in a plugin folder, and is
-  recorded in the plugin's audit log. They can't upload while the plugin
-  system is denied.
+- **View plugins** — the Plugins page: installed plugins, status, audit logs, violations and plugin docs, without the install/enable/disable/uninstall buttons.
+- **Upload plugins** — the upload wizard (on the Plugins page, or an **Upload plugin** page if they can't view plugins). What they upload is always installed disabled, can't replace files already in a plugin folder, and is recorded in the plugin's audit log. They can't upload while the plugin system is denied.
 
-Enabling, disabling, installing from disk and uninstalling plugins, and the
-plugin-system switch itself, are never delegated: only super admins can do
-them.
+Enabling, disabling, installing from disk and uninstalling plugins, and the plugin-system switch itself, are never delegated: only super admins can do them.
 
 ### What stops a plugin from changing itself or overreaching
 
 Four layers, from install to every launch:
 
-1. **Per-type permission limits.** Each plugin type may only request the
-   permissions its job needs, and every host API call needs a permission, so
-   this also limits which APIs it can use. For example, a CAPTCHA solver can't
-   ask for member data, a form handler can't ask for the network, and broker
-   add-ons get read-only broker lookups and their own storage. The full table
-   is in the developer guide.
-2. **Code inspection at install** (and again when a plugin is enabled). Every
-   file of every code plugin is scanned. A plugin is refused if it writes,
-   deletes or changes files, runs other programs, builds and runs code at
-   runtime (`eval`, `exec`, dynamic imports, unpickling), calls native code,
-   uses network libraries without the network permission, or ships files that
-   can't be inspected (compiled or native binaries, scripts, executables).
-   Lesser findings are shown in the upload wizard for review.
-3. **A read-only plugin folder.** The plugin's own folder is mounted
-   read-only inside its sandbox, so it can't rewrite its code or drop new
-   program files; its only writable space is a private, throwaway `/tmp`.
-   This works with bubblewrap, and on hosts without it via a private mount
-   namespace (the Plugins page lists `readonly_code` among the active
-   controls when that's in effect). Plugins always run from their own folder,
-   never the server's.
-4. **An integrity check at every launch.** The hash of a plugin's files is
-   recorded when a super admin installs or enables it. If the files differ
-   later, whether the plugin changed itself or someone changed them on disk,
-   the plugin isn't started: it's disabled, flagged for re-approval, and a
-   `code_changed` violation is logged. Re-enabling it re-inspects the
-   current files and accepts them.
+1. **Per-type permission limits.** Each plugin type may only request the permissions its job needs, and every host API call needs a permission, so this also limits which APIs it can use. For example, a CAPTCHA solver can't ask for member data, a form handler can't ask for the network, and broker add-ons get read-only broker lookups and their own storage. The full table is in the developer guide.
+2. **Code inspection at install** (and again when a plugin is enabled). Every file of every code plugin is scanned. A plugin is refused if it writes, deletes or changes files, runs other programs, builds and runs code at runtime (`eval`, `exec`, dynamic imports, unpickling), calls native code, uses network libraries without the network permission, or ships files that can't be inspected (compiled or native binaries, scripts, executables). Lesser findings are shown in the upload wizard for review.
+3. **A read-only plugin folder.** The plugin's own folder is mounted read-only inside its sandbox, so it can't rewrite its code or drop new program files; its only writable space is a private, throwaway `/tmp`. This works with bubblewrap, and on hosts without it via a private mount namespace (the Plugins page lists `readonly_code` among the active controls when that's in effect). Plugins always run from their own folder, never the server's.
+4. **An integrity check at every launch.** The hash of a plugin's files is recorded when a super admin installs or enables it. If the files differ later, whether the plugin changed itself or someone changed them on disk, the plugin isn't started: it's disabled, flagged for re-approval, and a `code_changed` violation is logged. Re-enabling it re-inspects the current files and accepts them.
 
-Code inspection is a static check, and a determined author can hide intent
-from any static check; that's why layers 3 and 4 enforce the same rule at
-runtime rather than relying on it.
+Code inspection is a static check, and a determined author can hide intent from any static check; that's why layers 3 and 4 enforce the same rule at runtime rather than relying on it.
 
 ### Verifying the runtime before you trust it
 
-Two scripts prove the plugin runtime actually works on your host (run them
-inside the backend container, where grpcio and the compiled stubs exist):
+Two scripts prove the plugin runtime actually works on your host (run them inside the backend container, where grpcio and the compiled stubs exist):
 
-- **`python -m plugins.smoke_test`** — launches a real plugin over real gRPC and
-  exercises the full round-trip: the host initializes the plugin, pings it,
-  delivers an event, the plugin's handler calls a host capability
-  (storage) back, and the value is confirmed persisted host-side, then a clean
-  shutdown. Exit code 0 means the protocol and capability plumbing work. Run this
-  once after deploying, and any time you change the proto or the SDK.
-- **`python -m plugins.preflight_sandbox`** — reports what OS-level isolation
-  your host can actually provide (bubblewrap, seccomp, rlimits) and prints the
-  posture: FULL, PARTIAL, MINIMAL, or NONE. Run untrusted third-party plugins
-  only when this reports FULL. It also prints the exact sandboxed launch command
-  the manager will use, so you can see the isolation for yourself.
+- **`python -m plugins.smoke_test`** — launches a real plugin over real gRPC and exercises the full round-trip: the host initializes the plugin, pings it, delivers an event, the plugin's handler calls a host capability (storage) back, and the value is confirmed persisted host-side, then a clean shutdown. Exit code 0 means the protocol and capability plumbing work. Run this once after deploying, and any time you change the proto or the SDK.
+- **`python -m plugins.preflight_sandbox`** — reports what OS-level isolation your host can actually provide (bubblewrap, seccomp, rlimits) and prints the posture: FULL, PARTIAL, MINIMAL, or NONE. Run untrusted third-party plugins only when this reports FULL. It also prints the exact sandboxed launch command the manager will use, so you can see the isolation for yourself.
 
 ---
 
 
 ## Limitations & honest caveats
 
-- **Full OS sandboxing is Linux-only.** Without bubblewrap, plugins are bounded
-  by resource limits and the process boundary but not filesystem/network
-  namespaces. Don't run untrusted plugins on such a host.
-- **gRPC is required.** If `grpcio` isn't installed or the stubs aren't
-  compiled, the plugin system stays inactive (the rest of the app is unaffected).
-- **A granted permission is real trust.** `read_pii` + `network` together means
-  a plugin can receive personal data and make network calls — grant that
-  combination only to plugins you genuinely trust.
-- **This has not been battle-tested against a determined attacker.** The design
-  follows least-privilege and defense-in-depth, but for high-stakes untrusted
-  code you should add your own container-level isolation (separate container per
-  plugin, network policies) on top.
+- **Full OS sandboxing is Linux-only.** Without bubblewrap, plugins are bounded by resource limits and the process boundary but not filesystem/network namespaces. Don't run untrusted plugins on such a host.
+- **gRPC is required.** If `grpcio` isn't installed or the stubs aren't compiled, the plugin system stays inactive (the rest of the app is unaffected).
+- **A granted permission is real trust.** `read_pii` + `network` together means a plugin can receive personal data and make network calls — grant that combination only to plugins you genuinely trust.
+- **This has not been battle-tested against a determined attacker.** The design follows least-privilege and defense-in-depth, but for high-stakes untrusted code you should add your own container-level isolation (separate container per plugin, network policies) on top.

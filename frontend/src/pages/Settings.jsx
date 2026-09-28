@@ -243,7 +243,7 @@ function ConnectedAccounts({ currentProvider, onChanged }) {
       {loading ? (
         <p className="text-slate-500 text-xs">Loading…</p>
       ) : accounts.length === 0 ? (
-        <p className="text-slate-500 text-xs mb-2">No OAuth account connected yet — connect one below, or use SMTP/App Password instead.</p>
+        <p className="text-slate-500 text-xs mb-2">No OAuth account connected yet — connect one below (recommended for highest security), or configure SMTP/App Password below.</p>
       ) : (
         <div className="space-y-1.5 mb-2">
           {accounts.map(a => (

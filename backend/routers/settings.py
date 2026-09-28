@@ -46,12 +46,12 @@ PRESETS = {
     "gmail": {
         "imap_host": "imap.gmail.com",       "imap_port": 993, "imap_ssl": True,
         "smtp_host": "smtp.gmail.com",       "smtp_port": 587, "smtp_tls": True,
-        "note": "Use a Gmail App Password — not your account password. Enable 2-Step Verification first, then visit myaccount.google.com/apppasswords and create an App Password for 'Mail'.",
+        "note": "For highest security, connect via OAuth above. If using SMTP, use a Gmail App Password — not your account password. Enable 2-Step Verification first, then visit myaccount.google.com/apppasswords and create an App Password for 'Mail'.",
     },
     "outlook": {
         "imap_host": "outlook.office365.com","imap_port": 993, "imap_ssl": True,
         "smtp_host": "smtp.office365.com",   "smtp_port": 587, "smtp_tls": True,
-        "note": "Works with Outlook.com, Hotmail, and Microsoft 365. Use your full email address as the username. If you have 2FA enabled, create an App Password at account.microsoft.com/security.",
+        "note": "For highest security, connect via OAuth above. If using SMTP, works with Outlook.com, Hotmail, and Microsoft 365. If you have 2FA enabled, create an App Password at account.microsoft.com/security.",
     },
     "yahoo": {
         "imap_host": "imap.mail.yahoo.com",  "imap_port": 993, "imap_ssl": True,

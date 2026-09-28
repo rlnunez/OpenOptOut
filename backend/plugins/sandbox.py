@@ -137,10 +137,14 @@ _READONLY_MOUNT_SCRIPT = ('d="$1"; t="$2"; shift 2; '
 
 def _private_tmp_ok(*paths) -> str:
     """ "1" if a private /tmp can be mounted without hiding any of these paths
-    (the plugin directory and the Python runtime), else "0"."""
+    (the plugin directory, runtime sockets, and the Python runtime), else "0"."""
+    tmp_real = os.path.realpath("/tmp")
     def under_tmp(p):
-        p = os.path.realpath(p)
-        return p == "/tmp" or p.startswith("/tmp/")
+        if not p:
+            return False
+        p_real = os.path.realpath(p)
+        return (p == "/tmp" or p.startswith("/tmp/") or
+                p_real == tmp_real or p_real.startswith(tmp_real + "/"))
     return "0" if any(under_tmp(p) for p in paths if p) else "1"
 
 
@@ -217,6 +221,8 @@ def build_sandboxed_command(
     caps: SandboxCapabilities,
     allow_network: bool,
     manifest,
+    run_dir: Optional[str] = None,
+    host_uds_path: Optional[str] = None,
 ) -> tuple[list[str], Optional[callable]]:
     """
     Wrap base_cmd (e.g. ["python", "runner.py", ...]) with the strongest
@@ -260,6 +266,16 @@ def build_sandboxed_command(
         py_real = os.path.realpath(sys.executable)
         if not py_real.startswith(os.path.realpath(sys.prefix)):
             bwrap += ["--ro-bind", os.path.dirname(py_real), os.path.dirname(py_real)]
+
+        # Unix domain socket mounts for host <-> plugin IPC across network namespaces:
+        # 1. Mount the per-plugin runtime directory (writable, where plugin.sock is created)
+        if run_dir:
+            bwrap += ["--dir", run_dir, "--bind", run_dir, run_dir]
+        # 2. Mount HostService socket (read-only, so the plugin cannot delete or overwrite it)
+        if host_uds_path:
+            bwrap += ["--dir", os.path.dirname(host_uds_path),
+                      "--ro-bind", host_uds_path, host_uds_path]
+
         return bwrap + base_cmd, preexec
 
     # ---- unshare: namespace isolation without bubblewrap ----
@@ -270,7 +286,7 @@ def build_sandboxed_command(
             unshare = list(_UNSHARE_MOUNT)
             if not allow_network:
                 unshare.append("--net")
-            private_tmp = _private_tmp_ok(work_dir, sys.executable, sys.prefix)
+            private_tmp = _private_tmp_ok(work_dir, sys.executable, sys.prefix, run_dir, host_uds_path)
             return (unshare + ["--", "sh", "-c", _READONLY_MOUNT_SCRIPT, "sh", work_dir, private_tmp]
                     + base_cmd), preexec
         unshare = ["unshare", "--fork", "--pid", "--mount-proc"]
