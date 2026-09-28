@@ -4,7 +4,7 @@ import {
   AlertCircle, Link, Play
 } from 'lucide-react'
 import api from '../api'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth, can } from '../hooks/useAuth'
 import Badge from '../components/Badge'
 
 function StatusDot({ ok }) {
@@ -120,7 +120,7 @@ export default function EmailMonitor() {
   const [loading,  setLoading]  = useState(true)
   const [polling,  setPolling]  = useState(false)
   const [filter,   setFilter]   = useState('all')  // 'all' | 'matched' | 'unmatched' | 'sent'
-  const isAdmin = user?.role === 'super_admin'
+  const isAdmin = can(user, 'scheduler.manage')   // may poll the inbox now
 
   const load = useCallback(() => {
     setLoading(true)

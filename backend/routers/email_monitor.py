@@ -11,6 +11,7 @@ from datetime import datetime
 
 from ..models.database import get_db, EmailLog, SchedulerRun, User
 from ..core.auth import get_current_user, require_super_admin
+from ..core.access import require_permission
 from ..core.settings_store import load_settings
 
 router = APIRouter(prefix="/api/email-monitor", tags=["email-monitor"])
@@ -93,7 +94,7 @@ def list_email_logs(
 
 
 @router.post("/poll")
-def manual_poll(_: User = Depends(require_super_admin)):
+def manual_poll(_: User = Depends(require_permission("scheduler.manage"))):
     """Manually trigger an immediate IMAP poll."""
     from ..core.scheduler import email_monitor_job
     threading.Thread(target=email_monitor_job, daemon=True).start()

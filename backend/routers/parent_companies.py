@@ -22,8 +22,9 @@ router = APIRouter(prefix="/api/parent-companies", tags=["parent-companies"])
 
 
 def _admin(user: User):
-    if not user.is_super_admin:
-        raise HTTPException(403, "Super admin access required")
+    from ..core.access import has_permission, PERMISSIONS
+    if not has_permission(user, "brokers.manage"):
+        raise HTTPException(403, f"This needs the '{PERMISSIONS['brokers.manage']['label']}' permission")
 
 
 class ParentIn(BaseModel):

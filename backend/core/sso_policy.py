@@ -142,4 +142,4 @@ def evaluate_sso_login(result, provider_cfg: dict, registration_cfg: dict,
     if wanted in SSO_ASSIGNABLE_ROLES:
         return Decision(True, "new account", role=wanted)
     return Decision(True, "new account", role="parent",
-                    downgraded=(wanted == "super_admin"))
+                    downgraded=(wanted in ("super_admin", "manager")))

@@ -5,7 +5,7 @@ import {
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
   Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload
 } from 'lucide-react'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
 import api from '../api'
 import { useState } from 'react'
@@ -59,7 +59,24 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
     } finally { setToggling(false) }
   }
 
-  const roleColor = { super_admin: 'text-purple-400', parent: 'text-teal-400', member: 'text-slate-400' }[user?.role] ?? 'text-slate-400'
+  // Admin links, each shown only to users holding its permission (super admins
+  // hold them all). Upload plugin shows on its own for managers who can upload
+  // but not see the Plugins page.
+  const adminLinks = [
+    { to: '/admin',            icon: ShieldAlert, label: 'Admin panel',      perms: ['users.manage'] },
+    { to: '/broker-health',    icon: Activity,    label: 'Broker health',    perms: ['brokers.manage'] },
+    { to: '/broker-priority',  icon: ListOrdered, label: 'Broker priority',  perms: ['brokers.manage'] },
+    { to: '/parent-companies', icon: Building2,   label: 'Parent companies', perms: ['brokers.manage'] },
+    { to: '/branding',         icon: Palette,     label: 'Branding',         perms: ['branding.manage', 'users.registration', 'auth.providers'] },
+    { to: '/reporting',        icon: BarChart2,   label: 'Reporting',        perms: ['reporting.view'] },
+    { to: '/database',         icon: HardDrive,   label: 'Database',         perms: ['database.view'] },
+    { to: '/plugins',          icon: Puzzle,      label: 'Plugins',          perms: ['plugins.view'] },
+    ...(!can(user, 'plugins.view') ? [{ to: '/plugin-upload', icon: Upload, label: 'Upload plugin', perms: ['plugins.upload'] }] : []),
+    { to: '/plugin-help',      icon: BookOpen,    label: 'Plugin docs',      perms: ['plugins.view', 'plugins.upload'] },
+    { to: '/brokers/add',      icon: PlusCircle,  label: 'Add brokers',      perms: ['brokers.manage'] },
+  ].filter(n => can(user, ...n.perms)).map(({ perms, ...n }) => n)
+
+  const roleColor = { super_admin: 'text-purple-400', manager: 'text-sky-400', parent: 'text-teal-400', member: 'text-slate-400' }[user?.role] ?? 'text-slate-400'
   const systemName = branding?.system_name || 'PrivacyShield'
 
   const handleNavigate = () => onClose()
@@ -100,30 +117,15 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
           {nav.map(n => <NavItem key={n.to} {...n} onNavigate={handleNavigate} />)}
           <p className="text-slate-600 text-xs px-4 mt-3 mb-1 uppercase tracking-widest">Setup</p>
           {setup.map(n => <NavItem key={n.to} {...n} onNavigate={handleNavigate} />)}
-          {user?.role === 'super_admin' && (
+          {adminLinks.length > 0 && (
             <>
               <p className="text-slate-600 text-xs px-4 mt-3 mb-1 uppercase tracking-widest">Admin</p>
-              <NavItem to="/admin"     icon={ShieldAlert} label="Admin panel" onNavigate={handleNavigate} />
-              <NavItem to="/broker-health" icon={Activity} label="Broker health" onNavigate={handleNavigate} />
-              <NavItem to="/broker-priority" icon={ListOrdered} label="Broker priority" onNavigate={handleNavigate} />
-              <NavItem to="/parent-companies" icon={Building2} label="Parent companies" onNavigate={handleNavigate} />
-              <NavItem to="/branding"  icon={Palette}     label="Branding" onNavigate={handleNavigate} />
-              <NavItem to="/reporting" icon={BarChart2}    label="Reporting" onNavigate={handleNavigate} />
-              <NavItem to="/database"  icon={HardDrive}   label="Database" onNavigate={handleNavigate} />
-              <NavItem to="/plugins"   icon={Puzzle}      label="Plugins" onNavigate={handleNavigate} />
-              <NavItem to="/plugin-help" icon={BookOpen}  label="Plugin docs" onNavigate={handleNavigate} />
-              <NavItem to="/brokers/add" icon={PlusCircle} label="Add brokers" onNavigate={handleNavigate} />
-            </>
-          )}
-          {user?.role !== 'super_admin' && user?.can_upload_plugins && (
-            <>
-              <p className="text-slate-600 text-xs px-4 mt-3 mb-1 uppercase tracking-widest">Plugins</p>
-              <NavItem to="/plugin-upload" icon={Upload} label="Upload plugin" onNavigate={handleNavigate} />
+              {adminLinks.map(n => <NavItem key={n.to} {...n} onNavigate={handleNavigate} />)}
             </>
           )}
         </nav>
 
-        {user?.role === 'parent' && (
+        {(user?.role === 'parent' || user?.role === 'manager') && (
           <div className="mx-2 mt-2 px-3 py-2.5 bg-slate-800 rounded-lg border border-slate-700/50">
             <p className="text-slate-500 text-xs mb-2">Dashboard view</p>
             <button onClick={toggleView} disabled={toggling} className="flex items-center gap-2 w-full text-left">

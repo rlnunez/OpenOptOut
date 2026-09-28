@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { Menu } from 'lucide-react'
-import { AuthProvider, useAuth } from './hooks/useAuth'
+import { AuthProvider, useAuth, can } from './hooks/useAuth'
 import { BrandingProvider, useBranding } from './hooks/useBranding'
 import AnnouncementBanner from './components/AnnouncementBanner'
 import Sidebar from './components/Sidebar'
@@ -28,16 +28,10 @@ import ParentCompanies from './pages/ParentCompanies'
 import Login from './pages/Login'
 import SetupWizard from './pages/SetupWizard'
 
-function RequireRole({ role, children }) {
+// Super admins, plus managers holding at least one of these permissions.
+function RequirePermission({ perms, children }) {
   const { user } = useAuth()
-  if (user?.role !== role) return <Navigate to="/" replace />
-  return children
-}
-
-// Super admins, plus users a super admin has granted plugin uploads.
-function RequirePluginUploader({ children }) {
-  const { user } = useAuth()
-  if (user?.role !== 'super_admin' && !user?.can_upload_plugins) return <Navigate to="/" replace />
+  if (!can(user, ...perms)) return <Navigate to="/" replace />
   return children
 }
 
@@ -90,7 +84,7 @@ function Layout() {
           <Routes>
             <Route path="/"            element={<Dashboard />} />
             <Route path="/brokers"     element={<Brokers />} />
-            <Route path="/brokers/add" element={<RequireRole role="super_admin"><BrokerSubmit /></RequireRole>} />
+            <Route path="/brokers/add" element={<RequirePermission perms={['brokers.manage']}><BrokerSubmit /></RequirePermission>} />
             <Route path="/email"       element={<EmailMonitor />} />
             <Route path="/scheduled"   element={<Scheduled />} />
             <Route path="/discovery"   element={<Discovery />} />
@@ -98,16 +92,16 @@ function Layout() {
             <Route path="/identity"    element={<IdentityVault />} />
             <Route path="/settings"    element={<Settings />} />
             <Route path="/help"        element={<Help />} />
-            <Route path="/admin"       element={<RequireRole role="super_admin"><AdminPanel /></RequireRole>} />
-            <Route path="/branding"    element={<RequireRole role="super_admin"><Branding /></RequireRole>} />
-            <Route path="/reporting"   element={<RequireRole role="super_admin"><Reporting /></RequireRole>} />
-            <Route path="/database"    element={<RequireRole role="super_admin"><DatabaseAdmin /></RequireRole>} />
-            <Route path="/plugins"     element={<RequireRole role="super_admin"><Plugins /></RequireRole>} />
-            <Route path="/plugin-help" element={<RequireRole role="super_admin"><PluginHelp /></RequireRole>} />
-            <Route path="/plugin-upload" element={<RequirePluginUploader><PluginUpload /></RequirePluginUploader>} />
-            <Route path="/broker-health" element={<RequireRole role="super_admin"><BrokerHealth /></RequireRole>} />
-            <Route path="/broker-priority" element={<RequireRole role="super_admin"><BrokerPriority /></RequireRole>} />
-            <Route path="/parent-companies" element={<RequireRole role="super_admin"><ParentCompanies /></RequireRole>} />
+            <Route path="/admin"       element={<RequirePermission perms={['users.manage']}><AdminPanel /></RequirePermission>} />
+            <Route path="/branding"    element={<RequirePermission perms={['branding.manage', 'users.registration', 'auth.providers']}><Branding /></RequirePermission>} />
+            <Route path="/reporting"   element={<RequirePermission perms={['reporting.view']}><Reporting /></RequirePermission>} />
+            <Route path="/database"    element={<RequirePermission perms={['database.view']}><DatabaseAdmin /></RequirePermission>} />
+            <Route path="/plugins"     element={<RequirePermission perms={['plugins.view']}><Plugins /></RequirePermission>} />
+            <Route path="/plugin-help" element={<RequirePermission perms={['plugins.view', 'plugins.upload']}><PluginHelp /></RequirePermission>} />
+            <Route path="/plugin-upload" element={<RequirePermission perms={['plugins.upload']}><PluginUpload /></RequirePermission>} />
+            <Route path="/broker-health" element={<RequirePermission perms={['brokers.manage']}><BrokerHealth /></RequirePermission>} />
+            <Route path="/broker-priority" element={<RequirePermission perms={['brokers.manage']}><BrokerPriority /></RequirePermission>} />
+            <Route path="/parent-companies" element={<RequirePermission perms={['brokers.manage']}><ParentCompanies /></RequirePermission>} />
           </Routes>
         </main>
       </div>

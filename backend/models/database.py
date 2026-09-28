@@ -37,6 +37,7 @@ def get_db():
 
 class UserRole(str, enum.Enum):
     super_admin = "super_admin"
+    manager     = "manager"      # a parent plus permissions a super admin grants (core/access.py)
     parent      = "parent"
     member      = "member"
 
@@ -88,9 +89,13 @@ class User(Base):
     full_name        = Column(String, nullable=False)
     role             = Column(SAEnum(UserRole), default=UserRole.member, nullable=False)
     unified_view     = Column(Boolean, default=True)   # parent pref: see all managed profiles at once
-    # Granted by a super admin: may use the plugin upload wizard. Uploads land
-    # disabled; only a super admin can enable a plugin (grant its permissions).
+    # Superseded by the manager role's "plugins.upload" permission; kept only so
+    # grants made before the role existed can be migrated (core/migrations.py).
     can_upload_plugins = Column(Boolean, default=False, nullable=False)
+    # Manager permissions that differ from the manager defaults (JSON lists of
+    # keys from core/access.py). Only meaningful for role == manager.
+    permissions_granted = Column(Text, nullable=True)
+    permissions_revoked = Column(Text, nullable=True)
     created_at       = Column(DateTime, default=datetime.utcnow)
     created_by_id    = Column(Integer, ForeignKey("users.id"), nullable=True)  # who created this account
 
@@ -108,8 +113,14 @@ class User(Base):
         return self.role == UserRole.super_admin
 
     @property
+    def is_manager(self):
+        return self.role == UserRole.manager
+
+    @property
     def is_parent(self):
-        return self.role in (UserRole.super_admin, UserRole.parent)
+        # Managers keep everything a parent has; their extra permissions are
+        # checked separately (core/access.py).
+        return self.role in (UserRole.super_admin, UserRole.manager, UserRole.parent)
 
     @property
     def can_login(self):
@@ -527,6 +538,9 @@ class InstalledPlugin(Base):
     last_error     = Column(Text, nullable=True)
     last_started   = Column(DateTime, nullable=True)
     needs_reapproval = Column(Boolean, default=False)  # set when a manifest-integrity violation occurs
+    # SHA-256 of the plugin's files when it was installed (plugins/layout.py
+    # dir_hash). The manager refuses to launch the plugin if they've changed.
+    code_hash      = Column(String, nullable=True)
 
 
 class PluginStorage(Base):

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from ..models.database import get_db, engine, User, FamilyMember, Broker, RemovalRequest
 from ..core.auth import require_super_admin
+from ..core.access import require_permission
 
 router = APIRouter(prefix="/api/database", tags=["database"])
 log    = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ _migration_status: dict = {"running": False, "progress": [], "done": False, "err
 # ── Health & stats ────────────────────────────────────────────────────────────
 
 @router.get("/health")
-def db_health(db: Session = Depends(get_db), _=Depends(require_super_admin)):
+def db_health(db: Session = Depends(get_db), _=Depends(require_permission("database.view"))):
     """Connection health, engine info, and basic row counts."""
     db_url  = os.getenv("DATABASE_URL", "sqlite:///./privacy_pipeline.db")
     db_type = "postgres" if "postgresql" in db_url else "sqlite"
@@ -151,7 +152,7 @@ def _get_recommendations(db_type: str, counts: dict, file_size_mb: Optional[floa
 # ── Table stats ───────────────────────────────────────────────────────────────
 
 @router.get("/tables")
-def table_stats(db: Session = Depends(get_db), _=Depends(require_super_admin)):
+def table_stats(db: Session = Depends(get_db), _=Depends(require_permission("database.view"))):
     """Detailed per-table statistics."""
     db_url  = os.getenv("DATABASE_URL", "sqlite:///./privacy_pipeline.db")
     db_type = "postgres" if "postgresql" in db_url else "sqlite"
@@ -188,7 +189,7 @@ def table_stats(db: Session = Depends(get_db), _=Depends(require_super_admin)):
 # ── Migration: SQLite → Postgres ──────────────────────────────────────────────
 
 @router.get("/migration-status")
-def migration_status(_=Depends(require_super_admin)):
+def migration_status(_=Depends(require_permission("database.view"))):
     return _migration_status
 
 
@@ -395,7 +396,7 @@ AUTH_METHOD_INFO = {
 
 
 @router.get("/connection-config")
-def get_connection_config(_=Depends(require_super_admin)):
+def get_connection_config(_=Depends(require_permission("database.view"))):
     """
     Return the current structured connection config (non-secret fields only)
     plus metadata about each auth method and which secrets it requires.

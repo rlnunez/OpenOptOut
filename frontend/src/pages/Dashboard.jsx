@@ -4,7 +4,7 @@ import { RefreshCw, Send, AlertCircle, CheckCircle, Clock, ShieldOff, Activity }
 import { RadialBarChart, RadialBar, ResponsiveContainer, Tooltip } from 'recharts'
 import api from '../api'
 import Badge from '../components/Badge'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth, can } from '../hooks/useAuth'
 
 function StatCard({ label, value, icon: Icon, color }) {
   return (
@@ -46,7 +46,7 @@ export default function Dashboard() {
   // Broker-health alert: pull brokers flagged for review so the admin is told
   // on the dashboard, not only if they happen to open the health page.
   useEffect(() => {
-    if (user?.role !== 'super_admin') return
+    if (!can(user, 'brokers.manage')) return
     api.get('/brokers/health/all?needs_review=true')
       .then(r => setUnhealthy(r.data))
       .catch(() => setUnhealthy([]))
@@ -55,7 +55,7 @@ export default function Dashboard() {
   // Certificate alerts (LDAP, SIP2, SAML IdP) from the daily check: shown to super
   // admins before sign-in breaks. SAML signing certs warn from 30 days out.
   useEffect(() => {
-    if (user?.role !== 'super_admin') return
+    if (!can(user, 'certificates.view')) return
     api.get('/cert-monitor/alerts')
       .then(r => setCertAlerts(r.data.alerts || []))
       .catch(() => setCertAlerts([]))

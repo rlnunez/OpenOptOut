@@ -9,6 +9,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from ..core.auth import get_current_user, require_super_admin, User
+from ..core.access import require_permission
 from ..core.settings_store import load_settings, SETTINGS_FILE
 import json, os
 
@@ -56,7 +57,7 @@ def list_notes(_: User = Depends(get_current_user)):
 @router.post("/notes", response_model=CustomNote, status_code=201)
 def create_note(
     data: CustomNoteCreate,
-    current_user: User = Depends(require_super_admin),
+    current_user: User = Depends(require_permission("help.edit")),
 ):
     notes = _load_notes()
     slug  = data.id or data.title.lower().replace(" ", "-").replace("/","")[:40]
@@ -81,7 +82,7 @@ def create_note(
 def update_note(
     note_id: str,
     data: CustomNoteCreate,
-    current_user: User = Depends(require_super_admin),
+    current_user: User = Depends(require_permission("help.edit")),
 ):
     notes = _load_notes()
     if note_id not in notes:
@@ -101,7 +102,7 @@ def update_note(
 @router.delete("/notes/{note_id}", status_code=204)
 def delete_note(
     note_id: str,
-    _: User = Depends(require_super_admin),
+    _: User = Depends(require_permission("help.edit")),
 ):
     notes = _load_notes()
     notes.pop(note_id, None)

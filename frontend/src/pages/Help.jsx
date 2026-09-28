@@ -5,7 +5,7 @@ import {
   ExternalLink, Info, Lightbulb, ShieldAlert
 } from 'lucide-react'
 import api from '../api'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth, can } from '../hooks/useAuth'
 import { escapeHtml, renderLinks } from '../components/Markdown'
 
 // ── Static documentation data ─────────────────────────────────────────────────
@@ -639,7 +639,7 @@ export default function Help() {
   const [customNotes, setCustomNotes] = useState([])
   const [editing, setEditing]         = useState(null)   // null | 'new' | noteObj
   const [activeTab, setActiveTab]     = useState('docs') // 'docs' | 'resistant' | 'notes'
-  const isAdmin = user?.role === 'super_admin'
+  const isAdmin = can(user, 'help.edit')
 
   useEffect(() => {
     api.get('/help/notes').then(r => setCustomNotes(r.data)).catch(() => {})

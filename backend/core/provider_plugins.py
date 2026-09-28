@@ -96,10 +96,19 @@ def ensure_provider_plugin(provider_key: str, db_session_factory=None) -> bool:
                 log.error("Bundled plugin %s has high-severity findings, refusing to "
                          "auto-install: %s", provider_key, findings["high"])
                 return False
-            # Copy into <root>/email/<id>/ (or refresh the copy after an upgrade).
+            from ..plugins.code_inspector import inspect_plugin_code, summarize
+            code = summarize(inspect_plugin_code(plugin_dir, manifest))
+            if code["blocked"]:
+                log.error("Bundled plugin %s blocked by code inspection, refusing to "
+                          "auto-install: %s", provider_key, code["high"])
+                return False
+            # Copy into <root>/email/<id>/ (or refresh the copy after an upgrade),
+            # and record the hash of what was inspected.
             install_path = layout.sync_bundled(plugin_dir, root, manifest)
-            if row is not None and row.install_path != install_path:
+            if row is not None and (row.install_path != install_path
+                                    or row.code_hash != layout.dir_hash(install_path)):
                 row.install_path = install_path
+                row.code_hash = layout.dir_hash(install_path)
                 db.commit()
 
             if row is None:
@@ -108,7 +117,7 @@ def ensure_provider_plugin(provider_key: str, db_session_factory=None) -> bool:
                     author=manifest.author, description=manifest.description,
                     manifest_json=json.dumps(manifest.to_dict()),
                     granted_permissions="[]", enabled=False, install_path=install_path,
-                    status="stopped",
+                    status="stopped", code_hash=layout.dir_hash(install_path),
                 )
                 db.add(row); db.commit()
                 log.info("Auto-installed bundled plugin %s for provider '%s'", manifest.id, provider_key)

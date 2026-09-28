@@ -5,7 +5,7 @@ import {
   ChevronDown, Globe, Server, CreditCard, AlertTriangle
 } from 'lucide-react'
 import api from '../api'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500"
@@ -906,10 +906,10 @@ function OIDCProviderPanel({ provider, onSaved }) {
 export default function Branding() {
   const { user } = useAuth()
 
-  if (user?.role !== 'super_admin') {
+  if (!can(user, 'branding.manage', 'users.registration', 'auth.providers')) {
     return (
       <div className="p-4 md:p-6">
-        <p className="text-slate-500 text-sm">Super admin access required.</p>
+        <p className="text-slate-500 text-sm">You don't have access to these settings.</p>
       </div>
     )
   }
@@ -920,10 +920,10 @@ export default function Branding() {
         <h1 className="text-white text-xl font-semibold">Branding & institutional settings</h1>
         <p className="text-slate-400 text-sm mt-0.5">White-label, authentication, and deployment configuration</p>
       </div>
-      <BrandingSection />
-      <RegistrationSection />
-      <BannerSection />
-      <AuthProvidersSection />
+      {can(user, 'branding.manage') && <BrandingSection />}
+      {can(user, 'users.registration') && <RegistrationSection />}
+      {can(user, 'branding.manage') && <BannerSection />}
+      {can(user, 'auth.providers') && <AuthProvidersSection />}
     </div>
   )
 }

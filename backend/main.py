@@ -55,9 +55,12 @@ def startup():
     import logging
     logging.getLogger(__name__).info(version_string() + " starting up")
     init_db()
-    from .core.migrations import run_migrations, seed_property_brokers, run_institutional_migrations
+    from .core.migrations import (run_migrations, seed_property_brokers, run_institutional_migrations,
+                                  add_manager_role, migrate_plugin_upload_grants)
+    add_manager_role()
     run_migrations()
     run_institutional_migrations()
+    migrate_plugin_upload_grants()   # needs every users column, so after both lists
     seed_property_brokers()
     start_scheduler()
     # Plugin system — process-isolated, sandboxed, opt-in via settings

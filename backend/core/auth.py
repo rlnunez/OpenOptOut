@@ -123,12 +123,18 @@ def require_parent(current_user: User = Depends(get_current_user)) -> User:
 
 # ── Central access control ────────────────────────────────────────────────────
 
+def _has(user: User, key: str) -> bool:
+    from .access import has_permission
+    return has_permission(user, key)
+
+
 def get_accessible_member_ids(db: Session, user: User) -> List[int]:
     """
     Return the list of FamilyMember IDs this user is allowed to see.
-    Super admins see everyone. Parents see themselves + explicit grants.
+    Super admins, and managers granted "view all members' data", see everyone.
+    Everyone else sees themselves + explicit grants.
     """
-    if user.is_super_admin:
+    if user.is_super_admin or _has(user, "members.view_all"):
         return [m.id for m in db.query(FamilyMember.id).all()]
 
     accessible_user_ids = {user.id}
@@ -154,7 +160,7 @@ def assert_can_view(db: Session, user: User, member_id: int) -> FamilyMember:
     if not member:
         raise HTTPException(404, "Profile not found")
 
-    if user.is_super_admin:
+    if user.is_super_admin or _has(user, "members.view_all"):
         return member
 
     allowed = get_accessible_member_ids(db, user)
@@ -167,7 +173,7 @@ def assert_can_edit(db: Session, user: User, member_id: int) -> FamilyMember:
     """Raise 403 if user cannot edit this family member. Returns the member."""
     member = assert_can_view(db, user, member_id)
 
-    if user.is_super_admin:
+    if user.is_super_admin or _has(user, "members.edit_all"):
         return member
 
     # own profile is always editable

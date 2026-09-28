@@ -43,8 +43,9 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def _admin(user: User):
-    if not user.is_super_admin:
-        raise HTTPException(403, "Super admin access required")
+    from ..core.access import has_permission, PERMISSIONS
+    if not has_permission(user, "brokers.automation"):
+        raise HTTPException(403, f"This needs the '{PERMISSIONS['brokers.automation']['label']}' permission")
 
 
 def _get_test_parent(db: Session) -> Optional[ParentCompany]:

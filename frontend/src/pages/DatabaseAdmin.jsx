@@ -6,6 +6,7 @@ import {
   Lock, Key, Shield, FileKey, CheckCircle2, XCircle
 } from 'lucide-react'
 import api from '../api'
+import { useAuth } from '../hooks/useAuth'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500"
 
@@ -197,7 +198,9 @@ function SecretStatusPill({ ok, label }) {
   )
 }
 
-function ConnectionConfig() {
+// readOnly: managers with 'Database status' can see the connection settings;
+// testing and changing them stays with super admins.
+function ConnectionConfig({ readOnly = false }) {
   const [config, setConfig]         = useState(null)
   const [methods, setMethods]       = useState({})
   const [secretStatus, setSecretStatus] = useState({})
@@ -375,6 +378,7 @@ function ConnectionConfig() {
           )}
 
           {/* Actions */}
+          {!readOnly && <>
           <div className="flex gap-2 justify-end">
             <button onClick={test} disabled={testing}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-40">
@@ -388,6 +392,8 @@ function ConnectionConfig() {
             </button>
           </div>
           <p className="text-slate-600 text-xs text-right">Restart the container for changes to take effect.</p>
+          </>}
+          {readOnly && <p className="text-slate-600 text-xs text-right">Only a super admin can test or change the connection.</p>}
         </>
       )}
     </div>
@@ -397,6 +403,8 @@ function ConnectionConfig() {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function DatabaseAdmin() {
+  const { user } = useAuth()
+  const isSuper = user?.role === 'super_admin'   // migrating and changing the connection
   const [health,  setHealth]  = useState(null)
   const [tables,  setTables]  = useState([])
   const [loading, setLoading] = useState(true)
@@ -490,7 +498,7 @@ export default function DatabaseAdmin() {
             {[
               { key: 'tables',     label: 'Tables' },
               { key: 'connection', label: 'Connection' },
-              ...(isSQLite ? [{ key: 'migrate', label: 'Migrate to Postgres' }] : []),
+              ...(isSQLite && isSuper ? [{ key: 'migrate', label: 'Migrate to Postgres' }] : []),
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)}
                 className={`px-3 py-1.5 text-sm rounded transition-colors ${tab === t.key ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
@@ -520,7 +528,7 @@ export default function DatabaseAdmin() {
 
           {tab === 'connection' && (
             <div className="bg-slate-800 rounded-xl border border-slate-700/50 p-5">
-              <ConnectionConfig />
+              <ConnectionConfig readOnly={!isSuper} />
             </div>
           )}
 

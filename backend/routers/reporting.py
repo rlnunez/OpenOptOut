@@ -14,12 +14,13 @@ from ..models.database import (
     RequestStatus, Broker, UsageEvent, SchedulerRun
 )
 from ..core.auth import require_super_admin
+from ..core.access import require_permission
 
 router = APIRouter(prefix="/api/reporting", tags=["reporting"])
 
 
 @router.get("/summary")
-def summary(db: Session = Depends(get_db), _=Depends(require_super_admin)):
+def summary(db: Session = Depends(get_db), _=Depends(require_permission("reporting.view"))):
     """Top-level KPIs for the admin dashboard."""
     total_users   = db.query(User).count()
     total_members = db.query(FamilyMember).count()
@@ -57,7 +58,7 @@ def summary(db: Session = Depends(get_db), _=Depends(require_super_admin)):
 def enrollments_over_time(
     months: int = Query(12, ge=1, le=36),
     db: Session = Depends(get_db),
-    _=Depends(require_super_admin),
+    _=Depends(require_permission("reporting.view")),
 ):
     """Monthly user enrollment counts for the past N months."""
     since = datetime.utcnow() - timedelta(days=months * 31)
@@ -78,7 +79,7 @@ def enrollments_over_time(
 def optouts_over_time(
     months: int = Query(12, ge=1, le=36),
     db: Session = Depends(get_db),
-    _=Depends(require_super_admin),
+    _=Depends(require_permission("reporting.view")),
 ):
     """Monthly opt-out sent + confirmed counts."""
     since = datetime.utcnow() - timedelta(days=months * 31)
@@ -102,7 +103,7 @@ def optouts_over_time(
 def broker_compliance(
     limit: int = Query(20, ge=5, le=100),
     db: Session = Depends(get_db),
-    _=Depends(require_super_admin),
+    _=Depends(require_permission("reporting.view")),
 ):
     """Per-broker compliance rates — most and least compliant."""
     rows = (
@@ -139,7 +140,7 @@ def broker_compliance(
 @router.get("/per-member")
 def per_member_stats(
     db: Session = Depends(get_db),
-    _=Depends(require_super_admin),
+    _=Depends(require_permission("reporting.view")),
 ):
     """Per-member summary — useful for institutional reporting."""
     rows = (
@@ -168,7 +169,7 @@ def per_member_stats(
 @router.get("/scheduler-health")
 def scheduler_health(
     db: Session = Depends(get_db),
-    _=Depends(require_super_admin),
+    _=Depends(require_permission("reporting.view")),
 ):
     """Last 30 days of scheduler run health."""
     since = datetime.utcnow() - timedelta(days=30)

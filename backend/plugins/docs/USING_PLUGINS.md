@@ -321,14 +321,58 @@ startup, each installed plugin is moved into its type folder and its recorded
 location is updated. Plugins installed from outside the plugins directory are
 left where they are.
 
-### Letting other users upload plugins
+### Letting managers see or upload plugins
 
-A super admin can let another user upload plugins: Admin panel → the user's
-row → **plugin uploads off / can upload plugins**. That user gets an
-**Upload plugin** page with the same wizard. What they upload is always
-installed disabled; only a super admin can enable a plugin and grant its
-permissions. Their uploads are recorded in the plugin's audit log, and they
-can't upload while the plugin system is denied.
+Two manager permissions cover plugins (Admin panel → a manager's
+**Permissions** button, or **Manager defaults** for every manager):
+
+- **View plugins** — the Plugins page: installed plugins, status, audit logs,
+  violations and plugin docs, without the install/enable/disable/uninstall
+  buttons.
+- **Upload plugins** — the upload wizard (on the Plugins page, or an **Upload
+  plugin** page if they can't view plugins). What they upload is always
+  installed disabled, can't replace files already in a plugin folder, and is
+  recorded in the plugin's audit log. They can't upload while the plugin
+  system is denied.
+
+Enabling, disabling, installing from disk and uninstalling plugins, and the
+plugin-system switch itself, are never delegated: only super admins can do
+them.
+
+### What stops a plugin from changing itself or overreaching
+
+Four layers, from install to every launch:
+
+1. **Per-type permission limits.** Each plugin type may only request the
+   permissions its job needs, and every host API call needs a permission, so
+   this also limits which APIs it can use. For example, a CAPTCHA solver can't
+   ask for member data, a form handler can't ask for the network, and broker
+   add-ons get read-only broker lookups and their own storage. The full table
+   is in the developer guide.
+2. **Code inspection at install** (and again when a plugin is enabled). Every
+   file of every code plugin is scanned. A plugin is refused if it writes,
+   deletes or changes files, runs other programs, builds and runs code at
+   runtime (`eval`, `exec`, dynamic imports, unpickling), calls native code,
+   uses network libraries without the network permission, or ships files that
+   can't be inspected (compiled or native binaries, scripts, executables).
+   Lesser findings are shown in the upload wizard for review.
+3. **A read-only plugin folder.** The plugin's own folder is mounted
+   read-only inside its sandbox, so it can't rewrite its code or drop new
+   program files; its only writable space is a private, throwaway `/tmp`.
+   This works with bubblewrap, and on hosts without it via a private mount
+   namespace (the Plugins page lists `readonly_code` among the active
+   controls when that's in effect). Plugins always run from their own folder,
+   never the server's.
+4. **An integrity check at every launch.** The hash of a plugin's files is
+   recorded when a super admin installs or enables it. If the files differ
+   later, whether the plugin changed itself or someone changed them on disk,
+   the plugin isn't started: it's disabled, flagged for re-approval, and a
+   `code_changed` violation is logged. Re-enabling it re-inspects the
+   current files and accepts them.
+
+Code inspection is a static check, and a determined author can hide intent
+from any static check; that's why layers 3 and 4 enforce the same rule at
+runtime rather than relying on it.
 
 ### Verifying the runtime before you trust it
 

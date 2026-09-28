@@ -1,5 +1,5 @@
 """
-Plugin management API (super admin only, except the upload wizard).
+Plugin management API.
 
 Plugins live at <plugins root>/<type>/<id>/ (see plugins/layout.py). Uploads
 and installs put them there based on the manifest's type.
@@ -18,9 +18,10 @@ Endpoints:
   POST   /api/plugins/upload/inspect  — check a zip: its type and where it would go
   POST   /api/plugins/upload          — upload a plugin zip bundle
 
-The two upload endpoints are open to super admins and to users a super admin
-has granted can_upload_plugins. Uploaded plugins are always installed
-disabled; enabling one (granting its permissions) stays super-admin only.
+Viewing is open to managers with "plugins.view" and uploading to managers with
+"plugins.upload" (core/access.py). Uploaded plugins are always installed
+disabled; installing from disk, enabling, disabling and uninstalling stay
+super-admin only.
 """
 
 import os
@@ -39,6 +40,7 @@ from sqlalchemy.orm import Session
 
 from ..models.database import get_db, User, InstalledPlugin, PluginAuditLog, PluginViolation
 from ..core.auth import require_super_admin, get_current_user
+from ..core.access import require_permission
 from ..plugins.permissions import PluginManifest, Permission, PERMISSION_INFO, PLUGIN_TYPES
 from ..plugins.manager import get_manager
 from ..plugins import layout
@@ -57,13 +59,12 @@ def _plugins_dir() -> str:
     return layout.plugins_root()
 
 
-def require_plugin_uploader(current_user: User = Depends(get_current_user)) -> User:
-    """Super admins, plus users a super admin has granted can_upload_plugins.
-    Delegated uploaders are refused while the plugin system is denied."""
+def require_plugin_uploader(
+        current_user: User = Depends(require_permission("plugins.upload"))) -> User:
+    """Super admins, plus managers with the "Upload plugins" permission.
+    Managers are refused while the plugin system is denied."""
     if current_user.is_super_admin:
         return current_user
-    if not getattr(current_user, "can_upload_plugins", False):
-        raise HTTPException(403, "Uploading plugins requires permission from a super admin")
     from ..core.settings_store import load_settings
     if load_settings().get("plugins", {}).get("denied", False):
         raise HTTPException(403, "The plugin system is currently denied by a super admin")
@@ -149,6 +150,12 @@ def _email_inspection(manifest: PluginManifest, plugin_dir: str):
     return summarize_findings(inspect_email_plugin(plugin_dir))
 
 
+def _code_inspection(manifest: PluginManifest, plugin_dir: str) -> dict:
+    """Install-time inspection of every file (plugins/code_inspector.py)."""
+    from ..plugins.code_inspector import inspect_plugin_code, summarize
+    return summarize(inspect_plugin_code(plugin_dir, manifest))
+
+
 def _register(db: Session, manifest: PluginManifest, install_path: str) -> InstalledPlugin:
     row = InstalledPlugin(
         plugin_id=manifest.id, name=manifest.name, version=manifest.version,
@@ -156,6 +163,9 @@ def _register(db: Session, manifest: PluginManifest, install_path: str) -> Insta
         manifest_json=json.dumps(manifest.to_dict()),
         granted_permissions="[]", enabled=False, install_path=install_path,
         status="stopped",
+        # What was inspected and approved; the manager won't launch it if the
+        # files later differ (see PluginManager._verify_integrity).
+        code_hash=layout.dir_hash(install_path),
     )
     db.add(row); db.commit()
     return row
@@ -216,20 +226,20 @@ class EnableRequest(BaseModel):
 # ---- endpoints ----
 
 @router.get("/methods")
-def method_catalog(_: User = Depends(require_super_admin)):
+def method_catalog(_: User = Depends(require_permission("plugins.view"))):
     """The full host-method catalog: each callable method + the permission it needs."""
     from ..plugins.permissions import HOST_METHODS
     return HOST_METHODS
 
 
 @router.get("/permissions")
-def permission_catalog(_: User = Depends(require_super_admin)):
+def permission_catalog(_: User = Depends(require_permission("plugins.view"))):
     """The full permission catalog with labels, risk levels, and descriptions."""
     return PERMISSION_INFO
 
 
 @router.get("/types")
-def plugin_types(_: User = Depends(require_plugin_uploader)):
+def plugin_types(_: User = Depends(require_permission("plugins.view", "plugins.upload"))):
     """Plugin types, in display order: each one's folder, label and rules."""
     return [
         {"type": t, "label": r["label"], "folder": f"{t}/",
@@ -240,7 +250,7 @@ def plugin_types(_: User = Depends(require_plugin_uploader)):
 
 
 @router.get("/status")
-def plugin_system_status(_: User = Depends(require_super_admin)):
+def plugin_system_status(_: User = Depends(require_permission("plugins.view"))):
     mgr = get_manager()
     if not mgr:
         return {"active": False, "reason": "Plugin system not enabled or gRPC unavailable"}
@@ -248,7 +258,7 @@ def plugin_system_status(_: User = Depends(require_super_admin)):
 
 
 @router.get("")
-def list_plugins(db: Session = Depends(get_db), _: User = Depends(require_super_admin)):
+def list_plugins(db: Session = Depends(get_db), _: User = Depends(require_permission("plugins.view"))):
     rows = db.query(InstalledPlugin).order_by(InstalledPlugin.installed_at.desc()).all()
     out = []
     for r in rows:
@@ -273,7 +283,7 @@ def list_plugins(db: Session = Depends(get_db), _: User = Depends(require_super_
 
 
 @router.get("/available")
-def available_plugins(db: Session = Depends(get_db), _: User = Depends(require_super_admin)):
+def available_plugins(db: Session = Depends(get_db), _: User = Depends(require_permission("plugins.view"))):
     """Plugins present on disk (in any type folder) that aren't yet registered."""
     registered = {r.plugin_id for r in db.query(InstalledPlugin.plugin_id).all()}
     available = []
@@ -325,6 +335,9 @@ def install_plugin(path: str, db: Session = Depends(get_db),
         raise HTTPException(400,
             "Email-provider plugin rejected: it appears to send to a hardcoded/hidden "
             f"recipient (possible data exfiltration). Findings: {inspection['high']}")
+    code = _code_inspection(m, path)
+    if code["blocked"]:
+        raise HTTPException(400, "Plugin rejected by code inspection: " + "; ".join(code["high"]))
 
     dest = layout.install_dir(root, m)
     if os.path.realpath(path) != os.path.realpath(dest):
@@ -368,6 +381,8 @@ def inspect_upload(file: UploadFile = File(...), expected_type: Optional[str] = 
         if inspection and inspection["high"]:
             problems.append("it appears to send email to a hardcoded/hidden recipient "
                             f"(possible data exfiltration): {inspection['high']}")
+        code = _code_inspection(m, plugin_dir)
+        problems.extend(code["high"])
         return {
             "plugin_id": m.id, "name": m.name, "version": m.version,
             "author": m.author, "description": m.description,
@@ -376,6 +391,7 @@ def inspect_upload(file: UploadFile = File(...), expected_type: Optional[str] = 
             "permissions": m.permissions, "hooks": m.hooks,
             "outbound_domains": m.outbound_domains,
             "email_inspection": inspection,
+            "code_warnings": code["medium"],
             "can_install": not problems,
             "problems": problems,
             "enable_requires_super_admin": not current.is_super_admin,
@@ -411,6 +427,10 @@ def upload_plugin(file: UploadFile = File(...), expected_type: Optional[str] = N
                 "hardcoded/hidden recipient (possible data exfiltration). "
                 f"Findings: {email_inspection['high']}")
 
+        code = _code_inspection(m, plugin_dir)
+        if code["blocked"]:
+            raise HTTPException(400, "Plugin rejected by code inspection: " + "; ".join(code["high"]))
+
         if db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == m.id).first():
             raise HTTPException(400, f"Plugin '{m.id}' is already installed")
 
@@ -431,13 +451,14 @@ def upload_plugin(file: UploadFile = File(...), expected_type: Optional[str] = N
     _register(db, m, dest)
     _audit(db, m.id, "uploaded", current.id,
            f"v{m.version} -> {layout.relative_install_dir(m)}"
-           + ("" if current.is_super_admin else f" (delegated uploader: {current.email})"))
+           + ("" if current.is_super_admin else f" (uploaded by manager {current.email})"))
     return {"installed": True, "plugin_id": m.id, "enabled": False,
             **_type_info(m),
             "destination": layout.relative_install_dir(m),
             "requested_permissions": m.permissions,
             "is_email_provider": "email_provider" in (m.hooks or []),
             "email_inspection": email_inspection,
+            "code_warnings": code["medium"],
             "enable_requires_super_admin": not current.is_super_admin}
 
 
@@ -456,6 +477,15 @@ def enable_plugin(plugin_id: str, req: EnableRequest, db: Session = Depends(get_
     requested = set(manifest.permissions)
     granting  = set(req.granted_permissions)
 
+    # Enabling approves the plugin's files as they are now: inspect them again
+    # (they may have changed on disk since install), then record their hash so
+    # the manager refuses to launch anything different later.
+    if os.path.isdir(row.install_path or ""):
+        code = _code_inspection(manifest, row.install_path)
+        if code["blocked"]:
+            raise HTTPException(400, "Plugin blocked by code inspection: " + "; ".join(code["high"]))
+        row.code_hash = layout.dir_hash(row.install_path)
+
     if manifest.is_data_only:
         # Language packs and themes: nothing to grant and nothing to launch.
         row.enabled = True
@@ -472,9 +502,9 @@ def enable_plugin(plugin_id: str, req: EnableRequest, db: Session = Depends(get_
     if getattr(row, "needs_reapproval", False) and not req.acknowledge_methods:
         raise HTTPException(
             409,
-            "This plugin was disabled for calling a host method it did not declare. "
-            "Review its declared methods and re-enable with acknowledge_methods=true "
-            "to confirm you accept the current manifest."
+            f"This plugin was disabled pending re-approval ({row.last_error or 'a security violation'}). "
+            "Review it and re-enable with acknowledge_methods=true to confirm you accept "
+            "its current manifest and files."
         )
 
     # Can't grant a permission the plugin never requested
@@ -616,7 +646,7 @@ def uninstall_plugin(plugin_id: str, remove_files: bool = False,
 
 @router.get("/{plugin_id}/audit")
 def plugin_audit(plugin_id: str, db: Session = Depends(get_db),
-                 _: User = Depends(require_super_admin)):
+                 _: User = Depends(require_permission("plugins.view"))):
     rows = (db.query(PluginAuditLog)
             .filter(PluginAuditLog.plugin_id == plugin_id)
             .order_by(PluginAuditLog.created_at.desc())
@@ -627,7 +657,7 @@ def plugin_audit(plugin_id: str, db: Session = Depends(get_db),
 
 @router.get("/violations/all")
 def all_violations(limit: int = 100, db: Session = Depends(get_db),
-                   _: User = Depends(require_super_admin)):
+                   _: User = Depends(require_permission("plugins.view"))):
     """Recent security violations across all plugins (for the monitoring dashboard)."""
     from ..plugins.monitor import VIOLATION_TYPES
     rows = (db.query(PluginViolation)
@@ -644,7 +674,7 @@ def all_violations(limit: int = 100, db: Session = Depends(get_db),
 
 @router.get("/{plugin_id}/violations")
 def plugin_violations(plugin_id: str, db: Session = Depends(get_db),
-                      _: User = Depends(require_super_admin)):
+                      _: User = Depends(require_permission("plugins.view"))):
     from ..plugins.monitor import VIOLATION_TYPES
     rows = (db.query(PluginViolation)
             .filter(PluginViolation.plugin_id == plugin_id)
@@ -669,7 +699,7 @@ _PLUGIN_DOC_FILES = {
 
 
 @router.get("/docs/{doc}")
-def plugin_doc(doc: str, _: User = Depends(require_super_admin)):
+def plugin_doc(doc: str, _: User = Depends(require_permission("plugins.view"))):
     """
     Return the raw Markdown of a plugin guide for in-app rendering.
     doc = 'using' (administrator guide) | 'writing' (developer guide).

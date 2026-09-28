@@ -4,26 +4,27 @@ from sqlalchemy.orm import Session
 
 from ..models.database import get_db, User
 from ..core.auth import require_super_admin
+from ..core.access import require_permission
 from ..core import cert_monitor as cm
 
 router = APIRouter(prefix="/api/cert-monitor", tags=["cert-monitor"])
 
 
 @router.get("/alerts")
-def get_alerts(_: User = Depends(require_super_admin)):
+def get_alerts(_: User = Depends(require_permission("certificates.view"))):
     """Certificates needing attention (for the dashboard banner)."""
     state = cm.load_state()
     return {"checked_at": state.get("checked_at"), "alerts": cm.alerts(state)}
 
 
 @router.get("/status")
-def get_status(_: User = Depends(require_super_admin)):
+def get_status(_: User = Depends(require_permission("certificates.view"))):
     state = cm.load_state()
     return {"checked_at": state.get("checked_at"), "results": state.get("results", {})}
 
 
 @router.get("/https-status")
-def get_https_status(_: User = Depends(require_super_admin)):
+def get_https_status(_: User = Depends(require_permission("certificates.view"))):
     """
     A live, on-demand read of PrivacyShield's own HTTPS certificate — separate
     from /run so it stays fast and side-effect-free (no email, no touching the
@@ -48,7 +49,7 @@ def get_https_status(_: User = Depends(require_super_admin)):
 
 
 @router.post("/run")
-def run_now(db: Session = Depends(get_db), _: User = Depends(require_super_admin)):
+def run_now(db: Session = Depends(get_db), _: User = Depends(require_permission("certificates.view"))):
     """Run every certificate check now (also sends any due milestone reminders)."""
     out = cm.run_cert_checks(db=db)
     return {"results": out["results"], "emailed": out["emailed"],

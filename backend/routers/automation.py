@@ -17,6 +17,7 @@ from ..core.auth import (
     get_current_user, require_super_admin,
     get_accessible_member_ids, assert_can_view
 )
+from ..core.access import require_permission
 
 router = APIRouter(prefix="/api/automation", tags=["automation"])
 
@@ -194,7 +195,7 @@ def trigger_single_optout(
 @router.get("/scripts", response_model=List[BrokerScriptOut])
 def list_scripts(
     db: Session = Depends(get_db),
-    _: User = Depends(require_super_admin),
+    _: User = Depends(require_permission("brokers.automation")),
 ):
     scripts = db.query(BrokerScript).all()
     return [_script_out(s) for s in scripts]
@@ -204,7 +205,7 @@ def list_scripts(
 def get_script(
     broker_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_super_admin),
+    _: User = Depends(require_permission("brokers.automation")),
 ):
     s = db.query(BrokerScript).filter(BrokerScript.broker_id == broker_id).first()
     if not s: raise HTTPException(404, "No script for this broker")
@@ -216,7 +217,7 @@ def upsert_script(
     broker_id: int,
     data: BrokerScriptUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_super_admin),
+    _: User = Depends(require_permission("brokers.automation")),
 ):
     broker = db.query(Broker).filter(Broker.id == broker_id).first()
     if not broker: raise HTTPException(404, "Broker not found")
@@ -237,7 +238,7 @@ def upsert_script(
 def delete_script(
     broker_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_super_admin),
+    _: User = Depends(require_permission("brokers.automation")),
 ):
     s = db.query(BrokerScript).filter(BrokerScript.broker_id == broker_id).first()
     if not s: raise HTTPException(404, "No script for this broker")

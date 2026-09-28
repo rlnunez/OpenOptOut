@@ -6,7 +6,7 @@ import {
   Clock, Zap, RotateCcw, Users, Puzzle, Ban, ShieldCheck, Star, Plus
 } from 'lucide-react'
 import api from '../api'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth, can } from '../hooks/useAuth'
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500"
@@ -22,6 +22,9 @@ function Field({ label, hint, children }) {
   )
 }
 
+// Sections unlock their admin controls when userRole is 'super_admin'. The
+// Settings page passes that for managers too when they hold the section's
+// permission (see sectionRole below).
 function Section({ icon: Icon, title, description, children, adminOnly, userRole }) {
   const locked = adminOnly && userRole !== 'super_admin'
   return (
@@ -34,7 +37,7 @@ function Section({ icon: Icon, title, description, children, adminOnly, userRole
             {description && <p className="text-slate-500 text-xs mt-0.5">{description}</p>}
           </div>
         </div>
-        {locked && <span className="text-xs text-slate-600 border border-slate-700 px-2 py-0.5 rounded">super_admin only</span>}
+        {locked && <span className="text-xs text-slate-600 border border-slate-700 px-2 py-0.5 rounded">admin only</span>}
       </div>
       <div className={`px-5 py-4 space-y-4 ${locked ? 'pointer-events-none select-none' : ''}`}>
         {children}
@@ -483,7 +486,7 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
   const [saved, setSaved]   = useState(false)
   const [triggering, setTriggering] = useState({})
   const isAdmin = userRole === 'super_admin'
-  const isParent = userRole === 'parent' || isAdmin
+  const isParent = userRole === 'parent' || userRole === 'manager' || isAdmin
 
   useEffect(() => {
     if (!isAdmin) return
@@ -1459,7 +1462,7 @@ export default function Settings() {
   const [vaultLimits, setVaultLimits] = useState({ max_names: 4, max_addresses: 10, max_phones: 5, max_emails: 5 })
 
   useEffect(() => {
-    const isParent = user?.role === 'parent' || user?.role === 'super_admin'
+    const isParent = ['parent', 'manager', 'super_admin'].includes(user?.role)
     Promise.all([
       api.get('/settings'),
       isParent ? api.get('/scheduler/members') : Promise.resolve({ data: [] }),
@@ -1473,29 +1476,33 @@ export default function Settings() {
 
   if (loading) return <div className="p-4 md:p-6"><p className="text-slate-500 text-sm">Loading…</p></div>
 
+  // A manager holding the section's permission gets its admin controls.
+  const sectionRole = perm => (can(user, perm) ? 'super_admin' : user?.role)
+
   return (
     <div className="p-4 md:p-6 max-w-3xl">
       <div className="mb-6">
         <h1 className="text-white text-xl font-semibold">Settings</h1>
         <p className="text-slate-400 text-sm mt-0.5">Configure how PrivacyShield looks and behaves</p>
       </div>
-      <AppearanceSection initial={settings?.appearance ?? {}} onSaved={a => setSettings(s=>({...s,appearance:a}))} userRole={user?.role}/>
-      <EmailSection initial={settings?.email ?? {}} userRole={user?.role}/>
+      <AppearanceSection initial={settings?.appearance ?? {}} onSaved={a => setSettings(s=>({...s,appearance:a}))} userRole={sectionRole('branding.manage')}/>
+      <EmailSection initial={settings?.email ?? {}} userRole={sectionRole('email.manage')}/>
       <SchedulerSection
         initial={settings?.scheduler ?? {}}
         memberConfigs={memberConfigs}
         onMemberConfigUpdate={updated => setMemberConfigs(mc => mc.map(x => x.member_id === updated.member_id ? updated : x))}
-        userRole={user?.role}
+        userRole={sectionRole('scheduler.manage')}
         onSaved={s => setSettings(prev=>({...prev,scheduler:s}))}
       />
-      <AutomationSection userRole={user?.role}/>
-      <ProxySection userRole={user?.role}/>
+      <AutomationSection userRole={sectionRole('settings.system')}/>
+      <ProxySection userRole={sectionRole('settings.system')}/>
       <VaultLimitsSection
         initial={vaultLimits}
-        userRole={user?.role}
+        userRole={sectionRole('settings.system')}
         onSaved={v => setVaultLimits(v)}
       />
-      <EncryptionSection userRole={user?.role}/>
+      <EncryptionSection userRole={sectionRole('database.view')}/>
+      {/* Never delegated: the plugin-system switch and the danger zone. */}
       <PluginSystemSection userRole={user?.role}/>
       <DataSection userRole={user?.role}/>
     </div>
