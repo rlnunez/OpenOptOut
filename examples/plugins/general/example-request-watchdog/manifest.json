@@ -2,6 +2,7 @@
   "id": "example-request-watchdog",
   "name": "Example Request Watchdog",
   "version": "1.0.0",
+  "type": "general",
   "author": "PrivacyShield",
   "description": "Demonstrates broker-read and request-lifecycle capabilities. On a schedule tick, it checks broker aggregate stats and can mark a specific stuck request as failed with a stated reason — all through the PII-free, audit-logged request API.",
   "api_version": "1.0",

@@ -167,22 +167,21 @@ function EmailStep({ onNext, onSkip, onBack, busy, setError }) {
     try {
       const fd = new FormData()
       fd.append('file', file)
-      const r = await api.post('/plugins/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
-      if (!r.data.is_email_provider) {
-        setError('That plugin is not an email provider (no email_provider hook).')
-      } else {
-        // Enable it (email providers are a trusted class; the upload already ran
-        // the hidden-recipient inspection and blocked on high-severity findings).
-        try {
-          await api.post(`/plugins/${r.data.plugin_id}/enable`, {
-            granted_permissions: r.data.requested_permissions || [],
-            acknowledge_methods: true,
-          })
-        } catch (_) { /* enable may need review; still selectable */ }
-        setUploaded(u => [...u, { plugin_id: r.data.plugin_id, name: r.data.plugin_id }])
-        setProvider(r.data.plugin_id)
-        setUploadMsg(`Installed and selected "${r.data.plugin_id}".`)
-      }
+      // expected_type=email: the server refuses any other kind of plugin before
+      // installing it, and puts this one in the email plugins folder.
+      const r = await api.post('/plugins/upload?expected_type=email', fd,
+        { headers: { 'Content-Type': 'multipart/form-data' } })
+      // Enable it (email providers are a trusted class; the upload already ran
+      // the hidden-recipient inspection and blocked on high-severity findings).
+      try {
+        await api.post(`/plugins/${r.data.plugin_id}/enable`, {
+          granted_permissions: r.data.requested_permissions || [],
+          acknowledge_methods: true,
+        })
+      } catch (_) { /* enable may need review; still selectable */ }
+      setUploaded(u => [...u, { plugin_id: r.data.plugin_id, name: r.data.plugin_id }])
+      setProvider(r.data.plugin_id)
+      setUploadMsg(`Installed "${r.data.plugin_id}" into plugins/${r.data.destination} and selected it.`)
     } catch (err) {
       setError(err.response?.data?.detail || 'Upload failed (the inspector may have rejected it).')
     } finally { setUploading(false); e.target.value = '' }

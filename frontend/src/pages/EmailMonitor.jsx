@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Mail, RefreshCw, Check, X, Clock, Inbox,
-  AlertCircle, Link, LinkOff, Play
+  AlertCircle, Link, Play
 } from 'lucide-react'
 import api from '../api'
 import { useAuth } from '../hooks/useAuth'

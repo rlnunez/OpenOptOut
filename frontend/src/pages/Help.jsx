@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import api from '../api'
 import { useAuth } from '../hooks/useAuth'
+import { escapeHtml, renderLinks } from '../components/Markdown'
 
 // ── Static documentation data ─────────────────────────────────────────────────
 
@@ -499,11 +500,12 @@ function SimpleMarkdown({ content }) {
   )
 }
 
+// Escapes first: this renders admin-editable notes that every signed-in user
+// sees, so the content must never be able to inject markup or script links.
 function renderInline(text) {
-  return text
+  return renderLinks(escapeHtml(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-medium">$1</strong>')
-    .replace(/`(.+?)`/g, '<code class="bg-slate-700 px-1 py-0.5 rounded text-xs text-slate-200 font-mono">$1</code>')
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-shield-400 hover:underline">$1</a>')
+    .replace(/`(.+?)`/g, '<code class="bg-slate-700 px-1 py-0.5 rounded text-xs text-slate-200 font-mono">$1</code>'))
 }
 
 // ── Accordion item ────────────────────────────────────────────────────────────

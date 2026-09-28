@@ -35,6 +35,11 @@ MIGRATIONS = [
         "Add is_property_broker to brokers",
         "ALTER TABLE brokers ADD COLUMN is_property_broker BOOLEAN DEFAULT 0"
     ),
+    (
+        # FALSE, not 0: Postgres rejects an integer default on a BOOLEAN column.
+        "Add can_upload_plugins to users",
+        "ALTER TABLE users ADD COLUMN can_upload_plugins BOOLEAN NOT NULL DEFAULT FALSE"
+    ),
 ]
 
 # Known property brokers — flagged on first startup

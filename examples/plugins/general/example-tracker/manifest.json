@@ -2,6 +2,7 @@
   "id": "example-tracker",
   "name": "Example Activity Tracker",
   "version": "1.0.0",
+  "type": "general",
   "author": "PrivacyShield",
   "description": "Reference plugin demonstrating the on_event hook, permission-gated storage, and method-level declarations. Use it as a template for your own plugins.",
   "api_version": "1.0",

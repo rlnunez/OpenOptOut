@@ -199,6 +199,7 @@ A plugin is a directory with a `manifest.json` and an entrypoint (default
   "id": "my-plugin",
   "name": "My Plugin",
   "version": "1.0.0",
+  "type": "general",
   "author": "you",
   "description": "What it does.",
   "permissions": ["receive_events", "storage"],
@@ -212,12 +213,27 @@ A plugin is a directory with a `manifest.json` and an entrypoint (default
 }
 ```
 
+`type` decides where the plugin is installed (`plugins/<type>/<id>/`) and
+which rules it has to meet:
+
+| `type` | Rules |
+|---|---|
+| `email` | must declare the `email_provider` hook |
+| `captcha` | must declare the `solve_captcha` hook |
+| `forms` | must declare the `fill_form` hook |
+| `discovery`, `brokers`, `general` | no required hook |
+| `themes`, `languages` | data only: no `entrypoint`, `hooks`, `permissions`, `methods` or `outbound_domains` |
+
+The `email_provider`, `solve_captcha` and `fill_form` hooks are only allowed in
+their own type. A manifest without `type` still installs (its type is worked
+out from its hooks, `general` if none match), but new plugins should declare it.
+
 ### plugin.py
 ```python
 from privacyshield_sdk import Plugin, manifest, FormResult
 
 plugin = Plugin(manifest(
-    id="my-plugin", name="My Plugin", version="1.0.0", author="you",
+    id="my-plugin", name="My Plugin", version="1.0.0", author="you", type="general",
     permissions=["receive_events", "storage"], hooks=["on_event"],
     methods=["storage.get", "storage.set", "log"],
 ))
@@ -242,8 +258,13 @@ The SDK exposes, once the host completes the handshake:
 Calls to capabilities you didn't request are refused by the host.
 
 ### Packaging
-Zip the plugin directory (with `manifest.json` at the root or one level down)
-and upload it, or place the folder directly in the plugins directory.
+Zip the plugin directory (with `manifest.json` at the root or inside one
+top-level folder) and upload it with the Plugins page's upload wizard, which
+installs it into `plugins/<type>/<id>/`. Or place the folder there yourself.
+
+Bundles are refused if they contain absolute paths, `..` segments, symbolic
+links, more than 5,000 files, or more than 50 MB compressed / 200 MB
+extracted.
 
 ### Building the protocol stubs (for local plugin development)
 The SDK imports the compiled gRPC stubs. Generate them once:

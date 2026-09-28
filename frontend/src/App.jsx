@@ -20,6 +20,7 @@ import Branding from './pages/Branding'
 import Reporting from './pages/Reporting'
 import DatabaseAdmin from './pages/DatabaseAdmin'
 import Plugins from './pages/Plugins'
+import PluginUpload from './pages/PluginUpload'
 import PluginHelp from './pages/PluginHelp'
 import BrokerHealth from './pages/BrokerHealth'
 import BrokerPriority from './pages/BrokerPriority'
@@ -30,6 +31,13 @@ import SetupWizard from './pages/SetupWizard'
 function RequireRole({ role, children }) {
   const { user } = useAuth()
   if (user?.role !== role) return <Navigate to="/" replace />
+  return children
+}
+
+// Super admins, plus users a super admin has granted plugin uploads.
+function RequirePluginUploader({ children }) {
+  const { user } = useAuth()
+  if (user?.role !== 'super_admin' && !user?.can_upload_plugins) return <Navigate to="/" replace />
   return children
 }
 
@@ -96,6 +104,7 @@ function Layout() {
             <Route path="/database"    element={<RequireRole role="super_admin"><DatabaseAdmin /></RequireRole>} />
             <Route path="/plugins"     element={<RequireRole role="super_admin"><Plugins /></RequireRole>} />
             <Route path="/plugin-help" element={<RequireRole role="super_admin"><PluginHelp /></RequireRole>} />
+            <Route path="/plugin-upload" element={<RequirePluginUploader><PluginUpload /></RequirePluginUploader>} />
             <Route path="/broker-health" element={<RequireRole role="super_admin"><BrokerHealth /></RequireRole>} />
             <Route path="/broker-priority" element={<RequireRole role="super_admin"><BrokerPriority /></RequireRole>} />
             <Route path="/parent-companies" element={<RequireRole role="super_admin"><ParentCompanies /></RequireRole>} />

@@ -2,6 +2,7 @@
   "id": "email-smtp",
   "name": "Generic SMTP / IMAP Email Provider",
   "version": "1.0.0",
+  "type": "email",
   "author": "PrivacyShield",
   "description": "A server-agnostic email provider: sends via SMTP and reads confirmations via IMAP against ANY server the operator configures (host, port, TLS). Use it for self-hosted / on-premises mail, or any provider without a dedicated plugin. No server is hardcoded — the SMTP/IMAP host and port come from the stored account settings. Trusted email-provider class; host inspects for hidden recipients and enforces the recipient at send time.",
   "api_version": "1.0",

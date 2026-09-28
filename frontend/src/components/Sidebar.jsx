@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Store, Mail, CalendarClock, Radar,
   Users, ShieldCheck, Settings, LogOut, ShieldAlert,
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
-  Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2
+  Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
@@ -113,6 +113,12 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
               <NavItem to="/plugins"   icon={Puzzle}      label="Plugins" onNavigate={handleNavigate} />
               <NavItem to="/plugin-help" icon={BookOpen}  label="Plugin docs" onNavigate={handleNavigate} />
               <NavItem to="/brokers/add" icon={PlusCircle} label="Add brokers" onNavigate={handleNavigate} />
+            </>
+          )}
+          {user?.role !== 'super_admin' && user?.can_upload_plugins && (
+            <>
+              <p className="text-slate-600 text-xs px-4 mt-3 mb-1 uppercase tracking-widest">Plugins</p>
+              <NavItem to="/plugin-upload" icon={Upload} label="Upload plugin" onNavigate={handleNavigate} />
             </>
           )}
         </nav>

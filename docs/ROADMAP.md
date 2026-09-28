@@ -48,6 +48,8 @@ of the core.
 | 14 | Built-in HTTPS | Built; DNS-01 and some real-host runs outstanding |
 | 15 | Memory hygiene | Not started |
 | 16 | Operational visibility | Part A built; parts B (log viewer) and C (verbosity) not started |
+| 17 | Internationalization: language packs + right-to-left | Not started |
+| 18 | Typed plugin directories (brokers, captcha, forms, themes, languages, discovery, …) | Built; language/theme loaders and the discovery hook not built |
 
 ---
 
@@ -1106,6 +1108,253 @@ rushed implementation.**
 
 ---
 
+### 17. Internationalization: language packs + right-to-left
+**Goal:** the interface can be shown in languages other than English, those
+languages can be added by add-ons (not only by editing the core), and
+right-to-left languages (Arabic, Hebrew, Persian, Urdu) get a correctly
+mirrored layout, not just translated words in a left-to-right page.
+
+**Why it matters:** the institutions this app targets serve people who don't
+read English. A public library's patrons, a school district's parents, and a
+credit union's members often include large Spanish-, Arabic-, Chinese-,
+Vietnamese- or Somali-speaking communities, and they're among the people least
+able to navigate broker opt-outs alone. A patron self-service tool that only
+speaks English leaves them out.
+
+**Where things stand today (nothing to build on yet):**
+- No translation layer. The frontend (~10k lines of JSX) has every string
+  hard-coded in English, and no i18n library is installed.
+- `frontend/index.html` hard-codes `<html lang="en">` with no `dir` attribute.
+- The layout uses physical directions throughout: ~78 Tailwind classes like
+  `ml-`, `pr-`, `left-`, `text-left`, `border-l`, and 14 directional icons
+  (chevrons/arrows) that would point the wrong way in right-to-left.
+- Backend strings shown to users are English too: API error messages, admin
+  notification emails, the in-app Help markdown, and plugin docs.
+- **Plugins can't touch the UI at all.** Every plugin is a sandboxed backend
+  process and every hook is backend-side (fill_form, parse_email, on_event,
+  solve_captcha, email_provider). "Plugins change the language" therefore
+  needs a new kind of add-on, not a new hook.
+- One related seed exists: `ParentCompany.locale` and the opt-out email
+  template accept a locale, but only English is templated
+  (`core/optout_email_template.py`).
+
+**Work needed:**
+
+1. **A translation layer in the core.** Pick a library (e.g. i18next /
+   react-i18next, or FormatJS for ICU message formatting with plurals and
+   gender) and move every user-visible string behind a message key.
+   This is the bulk of the effort and is mechanical but large. English becomes
+   the default catalog that ships with the core and is the fallback for any
+   missing key. Dates, numbers and relative times go through `Intl` with the
+   active locale (there are ~24 existing `toLocale*`/`Intl` call sites to
+   check).
+
+2. **Language packs as data add-ons, not code plugins.** A language pack is a
+   manifest (locale code, display name, text direction, core version it
+   targets) plus translation catalogs (JSON). It needs **no sandboxed
+   process**, because it's data the frontend loads, not code the host runs.
+   That makes packs far safer than code plugins and a natural first
+   add-on type for the distribution work in item 8 (same Git-backed install
+   path, much lower trust bar).
+   - Admin installs/enables packs on the Plugins page; the admin sets a
+     deployment default language; each user can pick their own in their
+     profile; the browser's `Accept-Language` is a sensible first-visit
+     default.
+   - Coverage reporting: the pack manager shows what percentage of the core's
+     keys a pack translates, and missing keys fall back to English rather
+     than showing raw keys.
+   - Code plugins that add their own UI text later can ship catalogs the same
+     way, namespaced by plugin ID so they can't overwrite core strings.
+
+3. **Right-to-left support.**
+   - Set `lang` and `dir="rtl"` on `<html>` from the active pack's declared
+     direction.
+   - Replace physical Tailwind classes with logical ones (Tailwind 3.3+ has
+     `ms-`/`me-`, `ps-`/`pe-`, `start-`/`end-`, `text-start`/`text-end`, and an
+     `rtl:` variant for the few cases that need it). This is a one-time sweep
+     worth doing even before any RTL pack exists, so new code stays
+     direction-neutral.
+   - Mirror directional icons (chevrons, arrows) in RTL; don't mirror icons
+     that aren't directional (checkmarks, logos, media controls).
+   - **Bidirectional text in user data:** member names, addresses and broker
+     names can mix scripts (an Arabic name next to an English broker name, a
+     Latin-script email address inside RTL text). Wrap user-supplied values in
+     `<bdi>` / `dir="auto"` so they render correctly in both directions.
+   - Check the pieces that don't follow CSS direction on their own: Recharts
+     charts in Reporting, tables, form input alignment, and the Markdown
+     renderer used for Help.
+   - Test with a real RTL pack and a native reader, not a pseudo-locale alone.
+
+4. **Backend and email text.**
+   - API errors return a stable error code alongside the English message, so
+     the frontend can show translated text for known errors.
+   - Admin notification emails use the recipient's language.
+   - **Opt-out emails are a separate, harder problem:** their language is set
+     by what the *broker* requires (item 1's per-broker locale), not the user's
+     UI language, and the legal wording (CCPA citations etc.) needs a
+     qualified review per language, not just translation. Keep this apart
+     from UI language packs, reusing the existing `locale` field.
+   - In-app Help and plugin docs are long-form markdown; translated copies can
+     ship in a pack, falling back to English per page.
+
+**Security notes (translation text is still untrusted content):**
+- Render translations as **plain text only**. Never inject pack strings as HTML
+  (`dangerouslySetInnerHTML`); a malicious pack could otherwise run script in
+  every user's browser.
+- **Translated Help pages must go through the safe markdown renderers.** Both
+  (`components/Markdown.jsx`, and `pages/Help.jsx` for admin-editable notes)
+  now escape all HTML including quotes and allow only `http:`, `https:`,
+  `mailto:` and relative link URLs. Before that fix, `Help.jsx` didn't escape
+  HTML at all, and both passed `javascript:` links through. Keep any new
+  renderer on the same helpers (`escapeHtml`, `renderLinks`).
+- A pack can still *mislead* without code, e.g. relabeling "Delete member" as
+  "Save", or adding text that asks users for passwords. Treat packs as needing
+  review before install and before any marketplace listing (item 8), even
+  though they're data.
+- Placeholder checking: a translation must use the same `{variables}` as the
+  English message, validated at install time, so a broken pack can't crash a
+  page or drop information from it.
+
+**Build order note:** the logical-CSS sweep and the translation layer (with
+English as the only catalog) come first and are pure core work. The
+language-pack add-on format comes after, and can ride item 8 phase 1's install
+path or ship as simple uploads before that exists. Opt-out email localization
+is tracked separately, under items 1 and 10.
+
+**STATUS: not started.**
+
+---
+
+### 18. Typed plugin directories
+**Goal:** organize add-ons by what they are, under one `plugins/` root with a
+subdirectory per type, so each type can have its own rules, its own admin
+view, and its own trust level:
+
+```
+plugins/
+├── brokers/      # broker add-ons: opt-out spec + optional code (items 1, 2)
+├── captcha/      # CAPTCHA solvers (item 4)
+├── forms/        # form handlers for pages a spec can't express (item 3)
+├── discovery/    # discovery bots that find a member's listings
+├── email/        # email providers (today's Gmail/Outlook/Yahoo/SMTP plugins)
+├── themes/       # look-and-feel packs
+├── languages/    # language packs (item 17)
+└── general/      # event hooks, email parsers, anything else
+```
+
+**Where things stood before this was built:** one flat directory (`/data/plugins/<id>/`,
+configurable via `PLUGINS_DIR`), scanned one level deep. A plugin's kind is
+never declared; it's only implied by which hooks it lists. The scan is
+implemented twice (`PluginManager.discover` in `plugins/manager.py` and
+`available_plugins` in `routers/plugins.py`). Bundled plugins live separately
+in `backend/plugins/bundled/`, reference copies in `examples/plugins/`, and
+each installed plugin's location is stored as `InstalledPlugin.install_path`.
+
+**Why the type matters, beyond tidiness:** the types have very different risk.
+A language pack or theme is data the frontend loads; it should never start a
+process. A CAPTCHA solver or email provider is code that may send PII to a
+third party. A flat directory treats them all the same. With declared types,
+the host can apply the right rules per type instead of one set of rules for
+everything.
+
+**Work needed:**
+
+1. **Declare the type in the manifest.** Add a required `type` field (one of
+   the directory names above). The host rejects a plugin whose declared type
+   doesn't match the directory it sits in, so a plugin can't land in a
+   low-trust category while carrying code.
+
+2. **Per-type rules, enforced at install and launch:**
+   - `languages`, `themes`: **data only.** No `entrypoint`, no hooks, no
+     permissions, never launched as a process. Validated as data (catalog
+     schema, placeholder checks; for themes, only design tokens such as colors,
+     fonts, spacing, and no arbitrary CSS or script).
+   - `captcha`: must declare the `solve_captcha` hook; nothing else from the
+     pipeline.
+   - `forms`: must declare `fill_form`.
+   - `email`: must declare `email_provider`; keeps today's recipient
+     enforcement.
+   - `discovery`: needs a **new `discover` hook**. Discovery is hard-coded in
+     `core/discovery.py` today, with no plugin seam.
+   - `brokers`: a broker spec (item 2's format) plus optional code; the spec
+     is data and validates without running anything.
+   - `general`: today's catch-all behavior (event hooks, email parsing).
+   Each type's allowed hooks and permissions become a small table, like the
+   existing `HOOK_PERMISSION` map, so a new type is one entry, not scattered
+   checks.
+
+3. **One discovery function.** Replace the two duplicated scans with a single
+   function that walks the known type subdirectories and returns manifests
+   tagged with their type. Every caller uses it.
+
+4. **Installs go to the right place.** A `.zip` upload is validated, then
+   extracted into `plugins/<type>/<id>/` based on its manifest. Plugin IDs stay
+   globally unique across types, so `id` alone still identifies a plugin.
+
+5. **Admin UI grouped by type.** The Plugins page shows a tab or section per
+   type, with type-appropriate details (a language pack's translation
+   coverage, a CAPTCHA solver's outbound domains, a theme's preview).
+
+6. **Migration of existing installs.**
+   - On first start after the change, move each existing
+     `/data/plugins/<id>/` into its type directory (type inferred from its
+     hooks: `email_provider` → `email`, `solve_captcha` → `captcha`,
+     `fill_form` → `forms`, otherwise `general`) and update
+     `InstalledPlugin.install_path`.
+   - Until a plugin's manifest declares `type`, still load it with a warning
+     and the inferred type, so no deployment breaks on upgrade.
+   - Reorganize `backend/plugins/bundled/` and `examples/plugins/` the same
+     way (the four email providers → `email/`), and update
+     `core/provider_plugins.py`, which hard-codes the bundled paths.
+
+**Security notes:**
+- Path containment: the uninstall safety check (`routers/plugins.py`) used a
+  plain `startswith` on the real path, which also matched a sibling like
+  `/data/plugins-other/`. It now uses `_is_strictly_inside` (`commonpath`
+  based, never the root itself; covered by the
+  `plugins.uninstall_path_containment` test). Use the same helper everywhere
+  a plugin path is resolved once type directories exist.
+- Type is a security boundary only if the host enforces it. The directory name
+  is a convenience; the checks in step 2 are what make it safe.
+
+**Depends on / enables:** this is the structural groundwork for items 1
+(broker add-ons), 3 (form handlers), 4 (CAPTCHA solvers), 8 (distribution:
+each type can have its own review bar, with data-only types the easiest to
+open up first), and 17 (language packs). Themes and discovery bots have no
+roadmap item yet; this one creates their slots and names the hook discovery
+needs. Worth doing before those items ship, so they don't each invent their own
+layout.
+
+**STATUS: built** (layout, manifest `type`, per-type rules, shared scan,
+typed installs, migration, grouped admin UI, upload wizard). Specifically:
+- `plugins/layout.py` owns the layout: `plugins_root`, `install_dir`, one
+  `scan` used by both the manager and the admin API, `sync_bundled`, and
+  `migrate_installed` (runs at every startup, even with the plugin system off).
+- `PluginManifest` has `type` with the per-type rules in `PLUGIN_TYPES` /
+  `SPECIALIZED_HOOKS` (`plugins/permissions.py`). Legacy manifests without
+  `type` still install, with a type inferred from their hooks.
+- The built-in email plugins moved to `backend/plugins/bundled/email/` and are
+  copied into `<root>/email/<id>/` (with a `.privacyshield-bundled` marker,
+  refreshed on upgrade) instead of being run from the app's source tree. All
+  bundled and example manifests declare their type.
+- **Upload wizard:** `POST /api/plugins/upload/inspect` reports a zip's type
+  and destination without writing anything; `POST /api/plugins/upload`
+  installs it into its type folder, disabled. `expected_type` limits an upload
+  to one type (the setup wizard's email step uses `email`). Zip bundles are
+  checked for traversal, symlinks and size.
+- **Delegated uploads:** a super admin can grant a user `can_upload_plugins`
+  (Admin panel). That user gets the wizard on an Upload plugin page; their
+  uploads stay disabled until a super admin enables them, and they can't
+  upload while the plugin system is denied.
+- `/api/plugins/install` now only installs from inside the plugins root,
+  moving a misplaced plugin into its type folder first.
+
+**Not built yet:** nothing loads language packs or themes (they install and
+enable as data, but the UI doesn't read them; see item 17); the `discover`
+hook for discovery bots; and broker add-ons (item 1) as a real format.
+
+---
+
 ## Explicitly deferred / open questions
 
 - Declarative-vs-code boundary for broker add-ons (item 1).
@@ -1116,3 +1365,7 @@ rushed implementation.**
   only for small deployments (item 4).
 - Economic/ethical stance on third-party CAPTCHA-solving services (item 4).
 - Which SIS / identity platforms to support first for school districts (item 12).
+- Which languages to ship first, and who maintains and reviews each language
+  pack (item 17). Let the first deployments' communities decide.
+- What a theme may change (item 18): design tokens only, or also layout?
+  Anything beyond tokens starts to need the same review as code.

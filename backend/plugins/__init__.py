@@ -28,18 +28,27 @@ def init_plugin_system():
     from ..core.settings_store import load_settings
     from ..models.database import SessionLocal
 
+    from .layout import plugins_root, ensure_layout, migrate_installed
+
     settings = load_settings()
     pcfg = settings.get("plugins", {})
+    plugins_dir = plugins_root()
+
+    # Keep the typed layout (<root>/<type>/<id>/) in shape even while the
+    # system is off, so installs from older versions and refreshed built-in
+    # plugins are already in place whenever it's turned on. Never fatal.
+    try:
+        ensure_layout(plugins_dir)
+        migrate_installed(plugins_dir, SessionLocal)
+    except Exception as e:
+        log.error("Plugin layout check failed: %s", e)
 
     if not pcfg.get("enabled", False):
         log.info("Plugin system disabled in settings — not starting.")
         return None
 
-    plugins_dir  = os.getenv("PLUGINS_DIR", pcfg.get("plugins_dir", "/data/plugins"))
     storage_mode = pcfg.get("storage_mode", "db")   # "db" | "file"
     storage_root = os.getenv("PLUGIN_STORAGE_DIR", "/data/plugin_storage")
-
-    os.makedirs(plugins_dir, exist_ok=True)
 
     storage_backend = make_storage_backend(
         storage_mode, session_factory=SessionLocal, storage_root=storage_root

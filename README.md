@@ -66,7 +66,7 @@ Data brokers collect your name, address, phone number, relatives, and more — t
 11. **Encryption at rest** — SQLCipher for the whole database file plus Fernet field-level encryption for PII
 12. **PostgreSQL support** — for patron-scale deployments, with enterprise connection auth (SSL, client certs, cloud IAM, Kerberos) and a one-click SQLite→Postgres migration tool
 13. **Usage reporting** — enrollment trends, opt-out volume, broker compliance rates, per-member stats, CSV export
-14. **Plugin system** — extend the app with process-isolated, OS-sandboxed, permission-gated plugins (custom form-filling, email parsing, event hooks, plugin storage). See [`docs/PLUGINS.md`](docs/PLUGINS.md)
+14. **Plugin system** — extend the app with process-isolated, OS-sandboxed, permission-gated plugins (custom form-filling, email parsing, event hooks, plugin storage), organized by type (email, CAPTCHA, forms, discovery, brokers, themes, languages) and installed through an upload wizard that super admins can delegate. See [`docs/PLUGINS.md`](docs/PLUGINS.md)
 
 ---
 
@@ -307,6 +307,8 @@ privacyshield/
 │       ├── extended_capabilities.py # Broker/request/email/fetch/schedule APIs
 │       ├── monitor.py             # Runtime violation + egress monitoring
 │       ├── storage.py             # Per-plugin DB/file storage
+│       ├── layout.py              # Typed plugin folders: <root>/<type>/<id>/
+│       ├── bundled/email/         # Built-in email-provider plugins (Gmail, Outlook, Yahoo, SMTP)
 │       └── sdk/                   # Plugin author SDK
 ├── frontend/
 │   └── src/
@@ -319,8 +321,7 @@ privacyshield/
 │       ├── components/            # Sidebar, Badge, …
 │       └── hooks/                 # useAuth, useBranding
 ├── backend/tests/                 # Self-contained test runner (see tests/TESTING.md)
-├── examples/plugins/              # Reference plugins (tracker, form-filler, watchdog,
-│                                  #   email providers)
+├── examples/plugins/              # Reference plugins by type: email/, forms/, general/
 ├── examples/broker-specs/         # Reference broker descriptions (form, email)
 ├── docs/
 │   ├── PLUGINS.md                 # Plugin system security model + author guide

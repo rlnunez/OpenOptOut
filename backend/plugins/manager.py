@@ -242,24 +242,14 @@ class PluginManager:
     # ---- discovery ----
 
     def discover(self) -> list[PluginManifest]:
-        """Scan the plugins dir for manifest.json files."""
+        """Valid plugins on disk, across all type folders (see plugins/layout.py)."""
+        from .layout import scan
         found = []
-        if not os.path.isdir(self.plugins_dir):
-            return found
-        for entry in os.listdir(self.plugins_dir):
-            pdir = os.path.join(self.plugins_dir, entry)
-            manifest_path = os.path.join(pdir, "manifest.json")
-            if os.path.isfile(manifest_path):
-                try:
-                    with open(manifest_path) as f:
-                        m = PluginManifest.from_dict(json.load(f))
-                    errors = m.validate()
-                    if errors:
-                        log.warning("Plugin %s has invalid manifest: %s", entry, errors)
-                        continue
-                    found.append(m)
-                except Exception as e:
-                    log.warning("Could not read manifest for %s: %s", entry, e)
+        for f in scan(self.plugins_dir):
+            if f.valid:
+                found.append(f.manifest)
+            else:
+                log.warning("Plugin at %s is invalid: %s", f.path, f.errors)
         return found
 
     # ---- launch / stop ----
@@ -274,7 +264,7 @@ class PluginManager:
         current as of right now; the DB copy is a point-in-time snapshot that
         goes stale the moment the on-disk plugin changes without a matching
         uninstall/reinstall. This matters most for the bundled email-provider
-        plugins (backend/plugins/bundled/), which ship as part of the app
+        plugins (copied from backend/plugins/bundled/), which ship as part of the app
         image and get updated on every rebuild — without this, a manifest
         fix (e.g. a corrected resource limit) would silently never take
         effect for an already-installed plugin, launched here again on every
@@ -302,6 +292,8 @@ class PluginManager:
             for row in enabled:
                 try:
                     manifest = self._load_manifest_for_row(row)
+                    if manifest.is_data_only:
+                        continue
                     granted  = set(json.loads(row.granted_permissions or "[]"))
                     self.launch_plugin(manifest, row.install_path, granted)
                 except Exception as e:
@@ -311,6 +303,10 @@ class PluginManager:
 
     def launch_plugin(self, manifest: PluginManifest, install_path: str, granted: set):
         """Launch a single plugin as a sandboxed subprocess and handshake."""
+        if manifest.is_data_only:
+            # Language packs and themes are data the host loads, never code.
+            raise ValueError(f"{manifest.id} is a '{manifest.effective_type}' plugin "
+                             "(data only) and is never launched as a process")
         if manifest.id in self.running:
             log.info("Plugin %s already running", manifest.id)
             return

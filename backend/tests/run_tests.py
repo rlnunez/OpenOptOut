@@ -267,9 +267,7 @@ def t_builtin_email_providers():
     import os, json
     PluginManifest = _imp("plugins.permissions").PluginManifest
     insp = _imp("plugins.email_inspector")
-    base = os.path.normpath(os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(insp.__file__))),
-        "..", "examples", "plugins"))
+    base = os.path.join(os.path.dirname(os.path.abspath(insp.__file__)), "bundled", "email")
     for pid in ("email-gmail", "email-outlook", "email-yahoo", "email-smtp"):
         d = os.path.join(base, pid)
         if not os.path.isdir(d):
@@ -277,6 +275,7 @@ def t_builtin_email_providers():
         mani = PluginManifest.from_dict(json.load(open(os.path.join(d, "manifest.json"))))
         errs = mani.validate()
         assert not errs, f"{pid} manifest invalid: {errs}"
+        assert mani.type == "email", f"{pid} manifest must declare type 'email', got {mani.type!r}"
         summary = insp.summarize_findings(insp.inspect_email_plugin(d))
         assert summary["clean"], f"{pid} flagged by inspector: {summary['high']}"
     # EXPECTED: all four built-in email providers are valid and hide no recipients.
@@ -979,6 +978,87 @@ def t_saml_cert_status():
     # IF THIS FAILS: SAML sign-in can break with no warning, or warn needlessly.
 
 
+@test(1, "plugins.uninstall_path_containment",
+      "Plugin uninstall only deletes paths strictly inside the plugins dir: not a "
+      "sibling that shares its name as a prefix, not the dir itself, not a parent.")
+def t_plugin_uninstall_containment():
+    import tempfile
+    inside = _imp("plugins.layout").is_strictly_inside
+    with tempfile.TemporaryDirectory() as tmp:
+        root = os.path.join(tmp, "plugins")
+        os.makedirs(os.path.join(root, "email", "email-gmail"))
+        os.makedirs(os.path.join(tmp, "plugins-other", "x"))
+        assert inside(os.path.join(root, "email", "email-gmail"), root)
+        assert not inside(os.path.join(tmp, "plugins-other", "x"), root), \
+            "sibling dir sharing the root's name as a prefix must not count as inside"
+        assert not inside(root, root), "the plugins root itself must never be removed"
+        assert not inside(tmp, root)
+        assert not inside(os.path.join(root, "..", "plugins-other"), root)
+        # A symlink inside the root that points outside it resolves outside.
+        link = os.path.join(root, "escape")
+        os.symlink(os.path.join(tmp, "plugins-other"), link)
+        assert not inside(link, root), "symlink pointing outside the root must not count"
+
+
+@test(1, "plugins.type_rules",
+      "Manifests declare a plugin type; each type's rules are enforced (required hooks, "
+      "specialized hooks stay in their type, language/theme packs are data only).")
+def t_plugin_type_rules():
+    perms = _imp("plugins.permissions")
+    M = perms.PluginManifest.from_dict
+    base = {"id": "p", "name": "P", "version": "1", "author": "a"}
+
+    def errs(**kw):
+        return M({**base, **kw}).validate()
+
+    assert errs(type="bogus") and "unknown plugin type" in errs(type="bogus")[0]
+    assert any("must declare the 'solve_captcha' hook" in e for e in errs(type="captcha"))
+    e = errs(type="general", hooks=["email_provider"], permissions=["email_provider"])
+    assert any("only allowed in 'email' plugins" in x for x in e), e
+    assert any("data only" in x for x in errs(type="languages", permissions=["storage"]))
+    assert any("entrypoint" in x for x in errs(type="themes", entrypoint="plugin.py"))
+    assert errs(type="languages") == [], "a bare language pack should be valid"
+    assert M({**base, "type": "languages"}).entrypoint == "", "data-only types get no default entrypoint"
+    # Legacy manifests (no type) keep working, with a type inferred from hooks.
+    legacy = M({**base, "hooks": ["solve_captcha"], "permissions": ["solve_captcha"]})
+    assert legacy.validate() == [] and legacy.effective_type == "captcha" and legacy.type_inferred
+    assert M(base).effective_type == "general"
+    # to_dict keeps the declared type as written, so a legacy manifest stored
+    # in the database doesn't turn into a declared one on the way back.
+    assert legacy.to_dict()["type"] == ""
+
+
+@test(1, "plugins.layout_scan_and_placement",
+      "The plugin scan walks every type folder, flags a plugin sitting in the wrong "
+      "folder, and still finds (as legacy) plugins in the old flat layout.")
+def t_plugin_layout_scan():
+    import tempfile, json
+    layout = _imp("plugins.layout")
+
+    def put(path, manifest):
+        os.makedirs(path)
+        json.dump({"name": "X", "version": "1", "author": "a", **manifest},
+                  open(os.path.join(path, "manifest.json"), "w"))
+
+    with tempfile.TemporaryDirectory() as root:
+        layout.ensure_layout(root)
+        for t in ("email", "captcha", "forms", "discovery", "brokers", "themes", "languages", "general"):
+            assert os.path.isdir(os.path.join(root, t)), f"{t}/ not created"
+        put(os.path.join(root, "languages", "es"), {"id": "es", "type": "languages"})
+        put(os.path.join(root, "general", "wrong"), {"id": "wrong", "type": "languages"})
+        put(os.path.join(root, "old-flat"), {"id": "old-flat", "hooks": ["on_event"],
+                                              "permissions": ["receive_events"]})
+        os.makedirs(os.path.join(root, "email", ".staging-leftover"))
+        found = {f.manifest.id: f for f in layout.scan(root)}
+        assert set(found) == {"es", "wrong", "old-flat"}, set(found)
+        assert found["es"].valid and found["es"].folder_type == "languages"
+        assert not found["wrong"].valid and "in the 'general/' folder" in found["wrong"].errors[0]
+        assert found["old-flat"].legacy_location and found["old-flat"].valid
+        m = found["old-flat"].manifest
+        assert layout.install_dir(root, m) == os.path.join(root, "general", "old-flat")
+        assert layout.relative_install_dir(found["es"].manifest) == "languages/es/"
+
+
 @test(1, "https.status_endpoint_unconfigured",
       "GET /cert-monitor/https-status reports 'not configured yet' (not an error) when "
       "HTTPS_MODE/DOMAIN aren't set, so the dashboard doesn't show a false alarm.")
@@ -1385,7 +1465,9 @@ def t_provider_plugin_provisioning():
 
     with tempfile.TemporaryDirectory() as tmp:
         settings_file = os.path.join(tmp, "settings.json")
-        json.dump({}, open(settings_file, "w"))
+        plugins_root = os.path.join(tmp, "plugins")
+        json.dump({"plugins": {"plugins_dir": plugins_root}}, open(settings_file, "w"))
+        saved_env = os.environ.pop("PLUGINS_DIR", None)
 
         # Fake plugin manager: proves launch_plugin gets called with the right
         # args WITHOUT actually spawning a sandboxed subprocess (that needs a
@@ -1428,6 +1510,14 @@ def t_provider_plugin_provisioning():
             assert launched and launched[0][0] == "email-gmail", \
                 f"launch_plugin was not called correctly: {launched}"
 
+            # Installed as a copy in the typed layout, never run from the app's
+            # own source tree.
+            expected = os.path.join(plugins_root, "email", "email-gmail")
+            assert row.install_path == expected, f"installed at {row.install_path}, not {expected}"
+            assert launched[0][1] == expected
+            assert os.path.isfile(os.path.join(expected, "manifest.json"))
+            assert os.path.isfile(os.path.join(expected, ".privacyshield-bundled"))
+
             # A provider PrivacyShield has no bundled plugin for (a custom
             # uploaded one, say) must return False, not error or fabricate one.
             assert pp.ensure_provider_plugin("some-custom-uploaded-provider",
@@ -1437,14 +1527,192 @@ def t_provider_plugin_provisioning():
             settings_store.SETTINGS_FILE = orig_settings_file
             plugins_pkg.get_manager = orig_get_manager
             plugins_pkg.init_plugin_system = orig_init
+            if saved_env is not None:
+                os.environ["PLUGINS_DIR"] = saved_env
             session.close()
     # EXPECTED: picking an OAuth provider this app ships a plugin for results in
-    #   that plugin actually being installed, enabled with the permissions it
+    #   that plugin being copied into <plugins root>/email/email-gmail/ and
+    #   installed from there, enabled with the permissions it
     #   needs, and the (opt-in, off-by-default) plugin system turned on — all
     #   without the admin needing to separately discover and do this by hand.
     # IF THIS FAILS: OAuth email connect looks like it works (tokens are
     #   stored) but sending silently falls back to SMTP, which was never
     #   configured — the exact bug this exists to prevent.
+
+
+def _plugin_zip(files: dict, symlinks: dict = None) -> bytes:
+    """Build a plugin .zip in memory: {path: text}, plus optional symlink entries."""
+    import io, zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        for name, text in files.items():
+            z.writestr(name, text)
+        for name, target in (symlinks or {}).items():
+            info = zipfile.ZipInfo(name)
+            info.external_attr = (0o120777 << 16)
+            z.writestr(info, target)
+    return buf.getvalue()
+
+
+@test(2, "plugins.migrate_flat_and_bundled_installs",
+      "On upgrade, installs in the old flat layout move to <root>/<type>/<id>/, built-in "
+      "plugins registered at their old source path are copied into email/, and plugins "
+      "installed from outside the root are left alone.")
+def t_plugin_layout_migration():
+    import tempfile, json
+    try:
+        layout = _imp("plugins.layout")
+        db, session = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    if "email-gmail" not in layout.bundled_plugins():
+        raise Skip("bundled email plugins not present in this checkout layout")
+
+    def row(pid, path, manifest):
+        session.add(db.InstalledPlugin(
+            plugin_id=pid, name=pid, version="1", author="a",
+            manifest_json=json.dumps(manifest), granted_permissions="[]",
+            enabled=False, install_path=path, status="stopped"))
+        session.commit()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = os.path.join(tmp, "plugins")
+        flat = os.path.join(root, "tracker")
+        os.makedirs(flat)
+        legacy_manifest = {"id": "tracker", "name": "T", "version": "1", "author": "a",
+                           "hooks": ["on_event"], "permissions": ["receive_events"]}
+        json.dump(legacy_manifest, open(os.path.join(flat, "manifest.json"), "w"))
+        outside = os.path.join(tmp, "elsewhere", "ext")
+        os.makedirs(outside)
+        json.dump({**legacy_manifest, "id": "ext"}, open(os.path.join(outside, "manifest.json"), "w"))
+
+        row("tracker", flat, legacy_manifest)
+        # Where email-gmail used to be registered before bundled/ was typed.
+        row("email-gmail", os.path.join(layout.BUNDLED_ROOT, "email-gmail"), {"id": "email-gmail"})
+        row("ext", outside, {**legacy_manifest, "id": "ext"})
+
+        changes = layout.migrate_installed(root, lambda: session)
+        paths = {r.plugin_id: r.install_path for r in session.query(db.InstalledPlugin).all()}
+        assert paths["tracker"] == os.path.join(root, "general", "tracker"), paths
+        assert os.path.isfile(os.path.join(root, "general", "tracker", "manifest.json"))
+        assert not os.path.exists(flat), "old flat directory should have been moved"
+        gmail = os.path.join(root, "email", "email-gmail")
+        assert paths["email-gmail"] == gmail and layout.is_bundled_copy(gmail), paths
+        assert paths["ext"] == outside, "a plugin installed outside the root must not move"
+        assert len(changes) == 2, changes
+        # Idempotent: a second run changes nothing.
+        assert layout.migrate_installed(root, lambda: session) == []
+    session.close()
+
+
+@test(2, "plugins.upload_wizard_routes_by_type",
+      "The upload wizard inspects a zip, installs it into <root>/<type>/<id>/ (email "
+      "providers into email/), enforces expected_type, refuses unsafe zips, and only "
+      "lets users a super admin has granted can_upload_plugins use it.")
+def t_plugin_upload_wizard():
+    import io, json, tempfile
+    from types import SimpleNamespace as NS
+    try:
+        from fastapi import HTTPException, UploadFile
+        plugins_router = _imp("routers.plugins")
+        settings_store = _imp("core.settings_store")
+        db, session = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    def upload(data, name="p.zip"):
+        return UploadFile(file=io.BytesIO(data), filename=name)
+
+    def expect_http(status, fn, *a, **kw):
+        try:
+            fn(*a, **kw)
+        except HTTPException as e:
+            assert e.status_code == status, f"expected {status}, got {e.status_code}: {e.detail}"
+            return e.detail
+        raise AssertionError(f"expected HTTP {status}")
+
+    admin = NS(id=1, email="admin@example.org", is_super_admin=True, can_upload_plugins=False)
+    staff = NS(id=2, email="staff@example.org", is_super_admin=False, can_upload_plugins=True)
+    other = NS(id=3, email="other@example.org", is_super_admin=False, can_upload_plugins=False)
+
+    email_manifest = {"id": "email-acme", "name": "Acme Mail", "version": "1.0.0",
+                      "type": "email", "author": "t", "hooks": ["email_provider"],
+                      "permissions": ["email_provider"], "entrypoint": "plugin.py"}
+    email_zip = _plugin_zip({"acme/manifest.json": json.dumps(email_manifest),
+                             "acme/plugin.py": "def send(msg):\n    return True\n"})
+    lang_zip = _plugin_zip({"manifest.json": json.dumps(
+        {"id": "lang-es", "name": "Español", "version": "1", "type": "languages", "author": "t"}),
+        "messages.json": "{}"})
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = os.path.join(tmp, "plugins")
+        settings = {"plugins": {"plugins_dir": root}}
+        orig_load = settings_store.load_settings
+        settings_store.load_settings = lambda: settings
+        saved_env = os.environ.pop("PLUGINS_DIR", None)
+        try:
+            # Permission: super admins and granted users only; granted users are
+            # refused while the plugin system is denied.
+            assert plugins_router.require_plugin_uploader(admin) is admin
+            assert plugins_router.require_plugin_uploader(staff) is staff
+            expect_http(403, plugins_router.require_plugin_uploader, other)
+            settings["plugins"]["denied"] = True
+            expect_http(403, plugins_router.require_plugin_uploader, staff)
+            settings["plugins"]["denied"] = False
+
+            # Inspect: reports type and destination without installing.
+            plan = plugins_router.inspect_upload(upload(email_zip), None, session, staff)
+            assert plan["type"] == "email" and plan["destination"] == "email/email-acme/", plan
+            assert plan["can_install"] and plan["enable_requires_super_admin"], plan
+            assert not os.path.exists(os.path.join(root, "email", "email-acme"))
+            bad_plan = plugins_router.inspect_upload(upload(email_zip), "captcha", session, admin)
+            assert not bad_plan["can_install"] and "can be uploaded here" in bad_plan["problems"][0]
+
+            # Upload: lands in email/, registered disabled; expected_type enforced.
+            expect_http(400, plugins_router.upload_plugin, upload(email_zip), "languages", session, admin)
+            res = plugins_router.upload_plugin(upload(email_zip), "email", session, staff)
+            dest = os.path.join(root, "email", "email-acme")
+            assert res["destination"] == "email/email-acme/" and res["enable_requires_super_admin"]
+            assert os.path.isfile(os.path.join(dest, "plugin.py"))
+            r = session.query(db.InstalledPlugin).filter_by(plugin_id="email-acme").one()
+            assert r.install_path == dest and not r.enabled
+            expect_http(400, plugins_router.upload_plugin, upload(email_zip), None, session, admin)
+
+            # Data-only language pack: lands in languages/, enabling it launches nothing.
+            plugins_router.upload_plugin(upload(lang_zip), None, session, admin)
+            assert os.path.isfile(os.path.join(root, "languages", "lang-es", "messages.json"))
+            out = plugins_router.enable_plugin(
+                "lang-es", plugins_router.EnableRequest(granted_permissions=[]), session, admin)
+            r = session.query(db.InstalledPlugin).filter_by(plugin_id="lang-es").one()
+            assert out["enabled"] and r.enabled and r.status == "data"
+
+            # A delegated uploader can't replace files already in a destination
+            # folder (e.g. a plugin a super admin placed but hasn't installed).
+            placed = os.path.join(root, "forms", "filler")
+            os.makedirs(placed)
+            open(os.path.join(placed, "plugin.py"), "w").write("# placed by the super admin\n")
+            forms_zip = _plugin_zip({"manifest.json": json.dumps(
+                {"id": "filler", "name": "F", "version": "1", "type": "forms", "author": "t",
+                 "hooks": ["fill_form"], "permissions": ["fill_forms"]}), "plugin.py": "x = 1\n"})
+            assert not plugins_router.inspect_upload(upload(forms_zip), None, session, staff)["can_install"]
+            expect_http(409, plugins_router.upload_plugin, upload(forms_zip), None, session, staff)
+            assert open(os.path.join(placed, "plugin.py")).read().startswith("# placed by")
+            plugins_router.upload_plugin(upload(forms_zip), None, session, admin)   # a super admin may
+            assert open(os.path.join(placed, "plugin.py")).read() == "x = 1\n"
+
+            # Unsafe zips are refused before anything is extracted into the root.
+            for evil in (_plugin_zip({"../escape.txt": "x", "manifest.json": "{}"}),
+                         _plugin_zip({"/abs.txt": "x", "manifest.json": "{}"}),
+                         _plugin_zip({"manifest.json": "{}"}, symlinks={"link": "/etc/passwd"})):
+                expect_http(400, plugins_router.upload_plugin, upload(evil), None, session, admin)
+            expect_http(400, plugins_router.upload_plugin, upload(b"not a zip"), None, session, admin)
+            expect_http(400, plugins_router.upload_plugin, upload(email_zip, "p.tar"), None, session, admin)
+            assert not os.path.exists(os.path.join(tmp, "escape.txt"))
+        finally:
+            settings_store.load_settings = orig_load
+            if saved_env is not None:
+                os.environ["PLUGINS_DIR"] = saved_env
+            session.close()
 
 
 @test(2, "branding.logo_extension_mapping",

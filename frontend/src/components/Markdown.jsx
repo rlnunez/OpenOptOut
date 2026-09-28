@@ -11,11 +11,39 @@ import { useMemo } from 'react'
  * markup.
  */
 
-function escapeHtml(s) {
+// Quotes are escaped too: rendered text ends up inside attribute values (link
+// hrefs), where an unescaped " would let content add its own attributes.
+export function escapeHtml(s) {
   return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+// Link URLs: allow http(s), mailto, and relative/anchor links; anything else
+// (javascript:, data:, vbscript:, ...) is rejected. Takes already-escaped text,
+// so entities are decoded before checking, and whitespace/control characters
+// are stripped because browsers ignore them inside a scheme ("java\tscript:").
+export function isSafeHref(escapedUrl) {
+  const url = escapedUrl
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/[\u0000- \u007f]/g, '')
+    .toLowerCase()
+  const scheme = url.match(/^([a-z][a-z0-9+.-]*):/)
+  if (!scheme) return true            // relative URL or #anchor
+  return ['http', 'https', 'mailto'].includes(scheme[1])
+}
+
+// [text](url) -> <a>, or just the text when the URL isn't allowed.
+// Operates on already-escaped text.
+export function renderLinks(t) {
+  return t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) =>
+    isSafeHref(url)
+      ? `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-shield-400 hover:underline">${label}</a>`
+      : label)
 }
 
 // Inline formatting: code, bold, italic, links. Operates on already-escaped text.
@@ -28,8 +56,7 @@ function renderInline(text) {
     return `\u0000CODE${codeSpans.length - 1}\u0000`
   })
   // links [text](url)
-  t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-shield-400 hover:underline">$1</a>')
+  t = renderLinks(t)
   // bold
   t = t.replace(/\*\*([^*]+)\*\*/g, '<strong class="text-slate-100 font-semibold">$1</strong>')
   // italic (avoid touching ** already handled; simple single * or _)
