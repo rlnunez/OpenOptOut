@@ -670,6 +670,10 @@ def t_upload_gate():
 @test(1, "oauth.flow_build_and_exchange",
       "Host-side OAuth: builds a consent URL (with PKCE), exchanges code for tokens, stores them encrypted — secrets stay host-side.")
 def t_oauth_engine():
+    try:
+        import cryptography
+    except ImportError as e:
+        raise Skip(f"cryptography not installed: {e}")
     oe = _imp("core.oauth_engine")
     flow = oe.OAuthFlowDesc(
         provider_key="gmail",
@@ -921,6 +925,86 @@ def t_sip2_parse():
     # EXPECTED: only the real BL/CQ fields decide; delimiters/control chars rejected.
     # IF THIS FAILS: a crafted barcode could sign in without a valid PIN, or inject
     #   fields/messages into the ILS conversation.
+
+
+@test(1, "consortium.sip2_location_code_parsing",
+      "SIP2 location field (AQ, AF, etc.) is parsed from patron response and matched against branch codes.")
+def t_consortium_sip2_location():
+    ap = _imp("core.auth_providers")
+    fixed = "64" + " " * 14 + "000" + "20260101    120000" + "0000" * 6
+    # Response with standard AQ (permanent location)
+    resp_aq = fixed + "AOMAIN|AA21234000123|AEDOE, JANE|BLY|CQY|AQDWTN|AY1AZ0000"
+    fields = ap.sip2_parse_patron_response(resp_aq)
+    assert fields.get("AQ") == "DWTN", f"failed to parse AQ field: {fields}"
+
+    # Response with custom location field e.g. AF
+    resp_af = fixed + "AOMAIN|AA21234000123|AEDOE, JANE|BLY|CQY|AFCENTRAL|AY1AZ0000"
+    fields_af = ap.sip2_parse_patron_response(resp_af)
+    assert fields_af.get("AF") == "CENTRAL", f"failed to parse AF field: {fields_af}"
+
+
+@test(1, "consortium.manager_scope_isolation",
+      "Manager scoping enforces strict isolation: super admin sees all, scoped manager sees only their system/branches, unscoped manager sees only own/shared.")
+def t_consortium_scoping():
+    from types import SimpleNamespace as NS
+    auth = _imp("core.auth")
+
+    class MockQuery:
+        def __init__(self, items):
+            self.items = items
+        def filter(self, *a, **kw):
+            return self
+        def all(self):
+            return self.items
+
+    class MockSession:
+        def __init__(self, members, scopes=None, branches=None, users=None):
+            self._members = members
+            self._scopes = scopes or []
+            self._branches = branches or []
+            self._users = users or []
+
+        def query(self, model):
+            s = str(model)
+            if "FamilyMember" in s:
+                return MockQuery(self._members)
+            elif "ManagerScope" in s:
+                return MockQuery(self._scopes)
+            elif "Branch" in s:
+                return MockQuery(self._branches)
+            elif "User" in s:
+                return MockQuery(self._users)
+            elif "ProfileAccess" in s:
+                return MockQuery([])
+            return MockQuery([])
+
+    m1 = NS(id=1, user_id=101)
+    m2 = NS(id=2, user_id=102)
+    m3 = NS(id=3, user_id=201)
+    all_members = [m1, m2, m3]
+
+    # 1. Super admin sees all
+    sa = NS(id=1, is_super_admin=True, is_manager=False, role="super_admin")
+    db_sa = MockSession(all_members)
+    assert set(auth.get_accessible_member_ids(db_sa, sa)) == {1, 2, 3}
+
+    # 2. Regular user (parent) sees only own
+    p = NS(id=101, is_super_admin=False, is_manager=False, role="parent")
+    db_p = MockSession([m1])
+    assert set(auth.get_accessible_member_ids(db_p, p)) == {1}
+
+    # 3. Manager with consortium-wide scope sees all
+    mgr_consortium = NS(id=99, is_super_admin=False, is_manager=True, role="manager",
+                        permissions_granted='["members.view_all"]', permissions_revoked=None)
+    scope_consortium = [NS(user_id=99, scope_type="consortium", system_id=None, branch_id=None)]
+    db_mc = MockSession(all_members, scopes=scope_consortium)
+    assert set(auth.get_accessible_member_ids(db_mc, mgr_consortium)) == {1, 2, 3}
+
+    # 4. Manager with cross_system permission sees all
+    mgr_cross = NS(id=98, is_super_admin=False, is_manager=True, role="manager",
+                   permissions_granted='["members.view_all", "consortium.cross_system"]', permissions_revoked=None)
+    db_cross = MockSession(all_members, scopes=[])
+    assert set(auth.get_accessible_member_ids(db_cross, mgr_cross)) == {1, 2, 3}
 
 
 @test(1, "certs.reminder_milestones",
@@ -2768,6 +2852,8 @@ def t_app_import():
       "Every route's gate matches the permission design: never-delegated actions stay "
       "super-admin only, delegated ones need their permission, broker writes aren't open.")
 def t_access_route_gates():
+    if _try_import("fastapi") is None:
+        raise Skip("fastapi not installed")
     main = _import_app_main()
     from fastapi.routing import APIRoute
     auth = _imp("core.auth")

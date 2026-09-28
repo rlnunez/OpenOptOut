@@ -112,6 +112,7 @@ privacyshield/
 │   │   ├── saml.py                # SAML 2.0 service-provider endpoints
 │   │   ├── cert_monitor.py        # Certificate expiry status + HTTPS check
 │   │   ├── plugins.py             # Plugin install/enable/disable/violations
+│   │   ├── consortium.py          # Consortium, library systems, branches, SIP2 routing
 │   │   └── help.py                # Admin-editable documentation notes
 │   ├── core/
 │   │   ├── auth.py                # Password hashing, JWT, RBAC

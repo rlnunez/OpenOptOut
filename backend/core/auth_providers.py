@@ -28,6 +28,10 @@ class AuthResult:
     email_verified: Optional[bool] = None   # True/False if the IdP says; None = not stated
     hd: Optional[str] = None                # Google Workspace hosted domain claim
     groups: list = field(default_factory=list)
+    branch_id: Optional[int] = None
+    system_id: Optional[int] = None
+    branch_code: Optional[str] = None
+    raw_profile: dict = field(default_factory=dict)
 
 
 # ── Settings helpers ──────────────────────────────────────────────────────────
@@ -605,15 +609,14 @@ def sip2_endpoint(cfg: dict) -> tuple:
     return cfg.get("host", "localhost"), port, use_tls
 
 
-def try_sip2_auth(barcode: str, pin: str) -> AuthResult:
+def try_sip2_auth(barcode: str, pin: str, db=None) -> AuthResult:
     """
     Authenticate a library patron via SIP2 (message 63/64), optionally over TLS.
     ILS compatibility: Koha 22.x+, Sierra 5.x+, Polaris 7.x, Evergreen 3.x, Alma.
+    Supports multi-connection routing by barcode prefix and dynamic branch resolution
+    from configurable SIP2 location fields (e.g. AQ, AF).
     """
-    import ssl
-    cfg = get_provider_config("sip2")
-    if not cfg.get("enabled"):
-        return AuthResult(success=False, provider="sip2", error="disabled")
+    import ssl, json
 
     generic = "Invalid library card number or PIN."
     barcode = (barcode or "").strip()
@@ -622,20 +625,60 @@ def try_sip2_auth(barcode: str, pin: str) -> AuthResult:
     if not sip2_value_safe(barcode) or not sip2_value_safe(pin) or not pin.strip():
         return AuthResult(success=False, provider="sip2", error=generic)
 
-    host, port, use_tls = sip2_endpoint(cfg)
-    institution  = cfg.get("institution_id", "")
-    ils_login    = cfg.get("ils_login", "")
-    ils_password = decrypt_password(cfg.get("ils_password_enc", ""))
-    timeout      = int(cfg.get("timeout_seconds", 10))
-    if use_tls and cfg.get("verify_cert") is False:
-        log.warning("SIP2: legacy verify_cert=false is ignored — verification is always "
-                    "on. Paste the ILS CA certificate if sign-in fails.")
+    # 1. Connection selection: check database SIP2Connection rows first if db provided
+    conn_obj = None
+    conn_system_id = None
+    branch_field_code = "AQ"
+
+    if db is not None:
+        try:
+            from ..models.database import SIP2Connection
+            conns = db.query(SIP2Connection).filter(SIP2Connection.enabled == True).order_by(SIP2Connection.priority.asc()).all()
+            if conns:
+                # First match by prefix
+                for c in conns:
+                    if c.barcode_prefix and barcode.startswith(c.barcode_prefix.strip()):
+                        conn_obj = c
+                        break
+                if not conn_obj:
+                    # Fallback to connection with no prefix or first by priority
+                    no_prefix = [c for c in conns if not c.barcode_prefix or not c.barcode_prefix.strip()]
+                    conn_obj = no_prefix[0] if no_prefix else conns[0]
+
+                host = conn_obj.host
+                port = conn_obj.port
+                use_tls = conn_obj.use_tls
+                institution = conn_obj.institution_id or ""
+                ils_login = conn_obj.ils_login or ""
+                ils_password = decrypt_password(conn_obj.ils_password_enc or "")
+                timeout = int(conn_obj.timeout_seconds or 10)
+                ca_pem = (conn_obj.ca_cert_pem or "").strip()
+                ca_path = conn_obj.ca_cert_path or ""
+                email_domain = conn_obj.email_domain or "library.local"
+                branch_field_code = conn_obj.branch_field_code or "AQ"
+                conn_system_id = conn_obj.system_id
+        except Exception as e:
+            log.warning("Could not query SIP2Connection table: %s; falling back to settings", e)
+
+    if conn_obj is None:
+        cfg = get_provider_config("sip2")
+        if not cfg.get("enabled"):
+            return AuthResult(success=False, provider="sip2", error="disabled")
+
+        host, port, use_tls = sip2_endpoint(cfg)
+        institution  = cfg.get("institution_id", "")
+        ils_login    = cfg.get("ils_login", "")
+        ils_password = decrypt_password(cfg.get("ils_password_enc", ""))
+        timeout      = int(cfg.get("timeout_seconds", 10))
+        ca_pem       = (cfg.get("ca_cert_pem") or "").strip()
+        ca_path      = cfg.get("ca_cert_path") or ""
+        email_domain = cfg.get("email_domain", "library.local")
+        branch_field_code = cfg.get("branch_field_code", "AQ")
 
     try:
         from datetime import datetime
         date_str = datetime.utcnow().strftime(SIP2_DATE_FMT)
-        sock = _sip2_connect(host, port, timeout, use_tls,
-                             (cfg.get("ca_cert_pem") or "").strip(), cfg.get("ca_cert_path") or "")
+        sock = _sip2_connect(host, port, timeout, use_tls, ca_pem, ca_path)
         try:
             if ils_login:
                 resp = _sip2_send(sock, SIP2_LOGIN_MSG.format(login_id=ils_login, password=ils_password))
@@ -655,10 +698,43 @@ def try_sip2_auth(barcode: str, pin: str) -> AuthResult:
             return AuthResult(success=False, provider="sip2", error=generic)
 
         name = fields.get("AE", "").strip()
-        email = f"{barcode}@{cfg.get('email_domain', 'library.local')}"
+        email = f"{barcode}@{email_domain}"
         log.info("SIP2%s auth OK: host=%s:%s", "S" if use_tls else "", host, port)
-        return AuthResult(success=True, provider="sip2", email=email,
-                          full_name=name or f"Patron {barcode}", external_id=barcode)
+
+        # 2. Extract branch / location code and map to Branch model
+        loc_code = fields.get(branch_field_code, "").strip()
+        branch_id = None
+        system_id = conn_system_id
+
+        if loc_code and db is not None:
+            try:
+                from ..models.database import Branch
+                all_branches = db.query(Branch).all()
+                loc_upper = loc_code.upper()
+                for b in all_branches:
+                    codes = []
+                    if b.ils_location_codes:
+                        raw = b.ils_location_codes.strip()
+                        if raw.startswith("["):
+                            try:
+                                codes = [str(x).strip().upper() for x in json.loads(raw)]
+                            except Exception:
+                                codes = [x.strip().upper() for x in raw.strip("[]").split(",")]
+                        else:
+                            codes = [x.strip().upper() for x in raw.split(",")]
+                    if loc_upper in codes or loc_upper == b.code.upper():
+                        branch_id = b.id
+                        system_id = b.system_id
+                        break
+            except Exception as e:
+                log.warning("Could not map branch code '%s': %s", loc_code, e)
+
+        return AuthResult(
+            success=True, provider="sip2", email=email,
+            full_name=name or f"Patron {barcode}", external_id=barcode,
+            branch_id=branch_id, system_id=system_id, branch_code=loc_code,
+            raw_profile=fields,
+        )
 
     except (ssl.SSLError, ssl.SSLCertVerificationError) as e:
         log.error("SIP2 TLS error (%s:%s): %s", host, port, e)

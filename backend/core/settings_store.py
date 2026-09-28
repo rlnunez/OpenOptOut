@@ -4,7 +4,10 @@ without importing the full FastAPI router (avoids circular imports).
 """
 
 import json, os, base64
-from cryptography.fernet import Fernet
+try:
+    from cryptography.fernet import Fernet
+except ImportError:
+    Fernet = None
 
 SETTINGS_FILE = os.getenv("SETTINGS_FILE", "./privacyshield_settings.json")
 
@@ -16,10 +19,18 @@ def load_settings() -> dict:
         return json.load(f)
 
 
-def _fernet() -> Fernet:
+def _fernet():
+    if Fernet is None:
+        raise RuntimeError("cryptography package is required for password encryption")
     raw    = os.getenv("SECRET_KEY", "change-me-in-production-use-a-long-random-string")
     padded = (raw * 4)[:32].encode()
     return Fernet(base64.urlsafe_b64encode(padded))
+
+
+def encrypt_password(plain: str) -> str:
+    if not plain:
+        return ""
+    return _fernet().encrypt(plain.encode()).decode()
 
 
 def decrypt_password(enc: str) -> str:

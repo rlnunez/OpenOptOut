@@ -6,7 +6,7 @@ writable only by super_admin.
 
 import os, base64, json
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -151,11 +151,36 @@ class OIDCProviderConfig(BaseModel):
 # ── Branding endpoints ────────────────────────────────────────────────────────
 
 @router.get("/config", response_model=BrandingConfig)
-def get_branding(_: Optional[User] = Depends(get_current_user_optional)):
+def get_branding(
+    system: Optional[str] = Query(None),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: Session = Depends(get_db),
+):
     # Public: the login page needs branding (name, colors, logo) before auth.
     # Branding is cosmetic and contains no secrets.
     s = load_settings()
-    b = s.get("branding", {})
+    b = dict(s.get("branding", {}))
+
+    # Per-system branding overlay if enabled by super admin
+    try:
+        from ..models.database import LibrarySystem, Branch
+        sys_obj = None
+        if current_user and getattr(current_user, "branch_id", None):
+            branch = db.query(Branch).filter(Branch.id == current_user.branch_id).first()
+            if branch and branch.system:
+                sys_obj = branch.system
+        elif system:
+            sys_obj = db.query(LibrarySystem).filter(LibrarySystem.code == system.strip().lower()).first()
+
+        if sys_obj and sys_obj.allow_custom_branding and sys_obj.branding_config:
+            custom_b = json.loads(sys_obj.branding_config)
+            if isinstance(custom_b, dict):
+                for k, v in custom_b.items():
+                    if v is not None and v != "":
+                        b[k] = v
+    except Exception:
+        pass
+
     # Check if a logo file exists, in whichever format was last uploaded
     logo_url = "/api/branding/logo" if _logo_exists() else None
     return BrandingConfig(

@@ -52,6 +52,22 @@ MIGRATIONS = [
         "Add code_hash to installed_plugins",
         "ALTER TABLE installed_plugins ADD COLUMN code_hash VARCHAR"
     ),
+    (
+        "Add branch_id to users",
+        "ALTER TABLE users ADD COLUMN branch_id INTEGER"
+    ),
+    (
+        "Add branch_source to users",
+        "ALTER TABLE users ADD COLUMN branch_source VARCHAR DEFAULT 'sip2'"
+    ),
+    (
+        "Add branch_override_by to users",
+        "ALTER TABLE users ADD COLUMN branch_override_by INTEGER"
+    ),
+    (
+        "Add branch_override_at to users",
+        "ALTER TABLE users ADD COLUMN branch_override_at TIMESTAMP"
+    ),
 ]
 
 # Known property brokers — flagged on first startup

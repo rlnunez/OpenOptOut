@@ -5,20 +5,75 @@ and the central access-control check used by every data endpoint.
 
 from datetime import datetime, timedelta
 from typing import Optional, List
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
-from ..models.database import get_db, User, FamilyMember, ProfileAccess, UserRole
 import os
+
+try:
+    from jose import JWTError, jwt
+except ImportError:
+    class JWTError(Exception): pass
+    jwt = None
+
+try:
+    from passlib.context import CryptContext
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+except ImportError:
+    pwd_context = None
+
+try:
+    from fastapi import Depends, HTTPException, status
+    from fastapi.security import OAuth2PasswordBearer
+    oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
+    _oauth2_optional = OAuth2PasswordBearer(tokenUrl="/api/auth/token", auto_error=False)
+except ImportError:
+    def Depends(x=None): return x
+    class HTTPException(Exception):
+        def __init__(self, status_code: int = 400, detail: str = ""):
+            super().__init__(detail)
+            self.status_code = status_code
+            self.detail = detail
+    class _Status:
+        HTTP_401_UNAUTHORIZED = 401
+    status = _Status()
+    oauth2_scheme = None
+    _oauth2_optional = None
+
+try:
+    from sqlalchemy.orm import Session
+except ImportError:
+    Session = None
+
+try:
+    from ..models.database import get_db, User, FamilyMember, ProfileAccess, UserRole, ManagerScope, Branch
+except (ImportError, ValueError):
+    try:
+        from models.database import get_db, User, FamilyMember, ProfileAccess, UserRole, ManagerScope, Branch
+    except (ImportError, ValueError):
+        get_db = None
+        class _ModelPlaceholder:
+            def __init__(self, name):
+                self._name = name
+            def __getattr__(self, item):
+                return self
+            def __str__(self):
+                return self._name
+            def __repr__(self):
+                return self._name
+            def in_(self, *args, **kwargs):
+                return self
+            def __eq__(self, other):
+                return self
+            def __ne__(self, other):
+                return self
+        User = _ModelPlaceholder("User")
+        FamilyMember = _ModelPlaceholder("FamilyMember")
+        ProfileAccess = _ModelPlaceholder("ProfileAccess")
+        UserRole = _ModelPlaceholder("UserRole")
+        ManagerScope = _ModelPlaceholder("ManagerScope")
+        Branch = _ModelPlaceholder("Branch")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
 ALGORITHM  = "HS256"
 TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
-
-pwd_context   = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
 # bcrypt only uses the first 72 BYTES of a password — anything past that is
 # silently ignored (not an error, not a truncation warning), which means two
@@ -86,8 +141,8 @@ def get_current_user(
 # Optional auth: returns the user if a valid token is present, else None — never
 # raises 401. Used by endpoints the login page must reach while logged out
 # (branding config/banner), so a missing/expired token doesn't trigger the
-# frontend's 401 redirect loop.
-_oauth2_optional = OAuth2PasswordBearer(tokenUrl="/api/auth/token", auto_error=False)
+# frontend's 401 redirect loop. Defined above with optional fallback.
+
 
 
 def get_current_user_optional(
@@ -131,15 +186,45 @@ def _has(user: User, key: str) -> bool:
 def get_accessible_member_ids(db: Session, user: User) -> List[int]:
     """
     Return the list of FamilyMember IDs this user is allowed to see.
-    Super admins, and managers granted "view all members' data", see everyone.
-    Everyone else sees themselves + explicit grants.
+    - Super admins and managers with 'consortium.cross_system' see everyone.
+    - Scoped managers with 'members.view_all' see patrons within their assigned
+      systems and branches, plus their own and explicitly shared profiles.
+    - Regular users see only their own and explicitly shared profiles.
     """
-    if user.is_super_admin or _has(user, "members.view_all"):
-        return [m.id for m in db.query(FamilyMember.id).all()]
+    if user.is_super_admin or _has(user, "consortium.cross_system"):
+        return [m.id for m in db.query(FamilyMember).all()]
 
+    accessible_member_ids = set()
+
+    # Manager with members.view_all: evaluate assigned scopes
+    if _has(user, "members.view_all"):
+        scopes = db.query(ManagerScope).filter(ManagerScope.user_id == user.id).all()
+        if any(s.scope_type == "consortium" for s in scopes):
+            return [m.id for m in db.query(FamilyMember).all()]
+
+        allowed_branch_ids = set()
+        system_ids = {s.system_id for s in scopes if s.scope_type == "system" and s.system_id}
+        if system_ids:
+            branch_rows = db.query(Branch).filter(Branch.system_id.in_(system_ids)).all()
+            for b in branch_rows:
+                allowed_branch_ids.add(b.id)
+        for s in scopes:
+            if s.scope_type == "branch" and s.branch_id:
+                allowed_branch_ids.add(s.branch_id)
+
+        if allowed_branch_ids:
+            scoped_user_ids = [
+                u.id for u in db.query(User).filter(User.branch_id.in_(allowed_branch_ids)).all()
+            ]
+            if scoped_user_ids:
+                scoped_members = db.query(FamilyMember).filter(
+                    FamilyMember.user_id.in_(scoped_user_ids)
+                ).all()
+                for sm in scoped_members:
+                    accessible_member_ids.add(sm.id)
+
+    # Always include user's own profile and explicitly granted profiles
     accessible_user_ids = {user.id}
-
-    # add everyone this user has been explicitly granted access to
     grants = db.query(ProfileAccess).filter(
         ProfileAccess.manager_id == user.id,
         ProfileAccess.can_view == True,
@@ -147,11 +232,13 @@ def get_accessible_member_ids(db: Session, user: User) -> List[int]:
     for g in grants:
         accessible_user_ids.add(g.managed_id)
 
-    # translate user IDs → family member IDs
-    members = db.query(FamilyMember).filter(
+    own_members = db.query(FamilyMember).filter(
         FamilyMember.user_id.in_(accessible_user_ids)
     ).all()
-    return [m.id for m in members]
+    for om in own_members:
+        accessible_member_ids.add(om.id)
+
+    return list(accessible_member_ids)
 
 
 def assert_can_view(db: Session, user: User, member_id: int) -> FamilyMember:
@@ -160,7 +247,7 @@ def assert_can_view(db: Session, user: User, member_id: int) -> FamilyMember:
     if not member:
         raise HTTPException(404, "Profile not found")
 
-    if user.is_super_admin or _has(user, "members.view_all"):
+    if user.is_super_admin or _has(user, "consortium.cross_system"):
         return member
 
     allowed = get_accessible_member_ids(db, user)
@@ -173,12 +260,18 @@ def assert_can_edit(db: Session, user: User, member_id: int) -> FamilyMember:
     """Raise 403 if user cannot edit this family member. Returns the member."""
     member = assert_can_view(db, user, member_id)
 
-    if user.is_super_admin or _has(user, "members.edit_all"):
+    if user.is_super_admin or _has(user, "consortium.cross_system"):
         return member
 
     # own profile is always editable
     if member.user_id == user.id:
         return member
+
+    # if user has edit_all, check if member is within their accessible scope
+    if _has(user, "members.edit_all"):
+        allowed = get_accessible_member_ids(db, user)
+        if member_id in allowed:
+            return member
 
     # check explicit edit grant
     grant = db.query(ProfileAccess).filter(

@@ -77,6 +77,99 @@ class EmailHonorStatus(str, enum.Enum):
     bounces    = "bounces"      # the opt-out address itself fails
 
 
+# ── Consortium hierarchy models ───────────────────────────────────────────────
+
+class LibrarySystem(Base):
+    """
+    Independent library system within a consortium deployment (e.g. "Seattle Public Library").
+    Can have one or many branches, and optional per-system custom branding when allowed by super admin.
+    """
+    __tablename__ = "library_systems"
+
+    id                    = Column(Integer, primary_key=True, index=True)
+    name                  = Column(String(100), nullable=False)
+    code                  = Column(String(30), unique=True, index=True, nullable=False)
+    allow_custom_branding = Column(Boolean, default=False, nullable=False)
+    branding_config       = Column(Text, nullable=True)   # JSON string for custom branding overrides
+    created_at            = Column(DateTime, default=datetime.utcnow)
+
+    branches         = relationship("Branch", back_populates="system", cascade="all, delete-orphan")
+    sip2_connections = relationship("SIP2Connection", back_populates="system")
+    manager_scopes   = relationship("ManagerScope", back_populates="system")
+
+
+class Branch(Base):
+    """
+    Physical branch location under a library system (e.g. "Central Library", "Ballard Branch").
+    Maps ILS location codes parsed from SIP2 (e.g. field AQ) to this branch.
+    """
+    __tablename__ = "branches"
+
+    id                  = Column(Integer, primary_key=True, index=True)
+    system_id           = Column(Integer, ForeignKey("library_systems.id"), nullable=False, index=True)
+    name                = Column(String(100), nullable=False)
+    code                = Column(String(30), nullable=False, index=True)
+    ils_location_codes  = Column(Text, nullable=True)   # comma-separated or JSON list of ILS codes
+    created_at          = Column(DateTime, default=datetime.utcnow)
+
+    system         = relationship("LibrarySystem", back_populates="branches")
+    users          = relationship("User", back_populates="branch", foreign_keys="User.branch_id")
+    manager_scopes = relationship("ManagerScope", back_populates="branch")
+
+
+class SIP2Connection(Base):
+    """
+    Configured SIP2 / SIP2-over-TLS connection to an ILS.
+    A consortium may have one shared ILS connection or separate connections per library system.
+    Matches patron barcodes by prefix (or priority order) and extracts branch codes from the response.
+    """
+    __tablename__ = "sip2_connections"
+
+    id                = Column(Integer, primary_key=True, index=True)
+    system_id         = Column(Integer, ForeignKey("library_systems.id"), nullable=True, index=True)
+    name              = Column(String(100), nullable=False)
+    host              = Column(String(255), nullable=False)
+    port              = Column(Integer, default=6001, nullable=False)
+    use_tls           = Column(Boolean, default=False, nullable=False)
+    ca_cert_pem       = Column(Text, nullable=True)
+    ca_cert_path      = Column(String(255), nullable=True)
+    institution_id    = Column(String(100), default="", nullable=False)
+    ils_login         = Column(String(100), default="", nullable=False)
+    ils_password_enc  = Column(Text, default="", nullable=False)
+    barcode_prefix    = Column(String(50), nullable=True, index=True)
+    branch_field_code = Column(String(10), default="AQ", nullable=False)  # configurable ILS location field (AQ, AF, etc.)
+    email_domain      = Column(String(100), default="library.local", nullable=False)
+    default_role      = Column(String(20), default="parent", nullable=False)
+    timeout_seconds   = Column(Integer, default=10, nullable=False)
+    enabled           = Column(Boolean, default=True, nullable=False)
+    priority          = Column(Integer, default=10, nullable=False)
+    created_at        = Column(DateTime, default=datetime.utcnow)
+
+    system = relationship("LibrarySystem", back_populates="sip2_connections")
+
+
+class ManagerScope(Base):
+    """
+    Restricts a manager's permissions to specific library systems or branches.
+    scope_type can be:
+      - 'consortium': full consortium-wide access
+      - 'system': all branches in system_id
+      - 'branch': specific branch_id
+    """
+    __tablename__ = "manager_scopes"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    scope_type = Column(String(20), nullable=False)   # 'consortium' | 'system' | 'branch'
+    system_id  = Column(Integer, ForeignKey("library_systems.id"), nullable=True)
+    branch_id  = Column(Integer, ForeignKey("branches.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user   = relationship("User", back_populates="manager_scopes")
+    system = relationship("LibrarySystem", back_populates="manager_scopes")
+    branch = relationship("Branch", back_populates="manager_scopes")
+
+
 # ── Core user model ───────────────────────────────────────────────────────────
 
 class User(Base):
@@ -96,12 +189,21 @@ class User(Base):
     # keys from core/access.py). Only meaningful for role == manager.
     permissions_granted = Column(Text, nullable=True)
     permissions_revoked = Column(Text, nullable=True)
+
+    # Multi-tier library separation: consortium -> systems -> branches
+    branch_id          = Column(Integer, ForeignKey("branches.id"), nullable=True)
+    branch_source      = Column(String(20), default="sip2")   # 'sip2' | 'staff_override'
+    branch_override_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    branch_override_at = Column(DateTime, nullable=True)
+
     created_at       = Column(DateTime, default=datetime.utcnow)
     created_by_id    = Column(Integer, ForeignKey("users.id"), nullable=True)  # who created this account
 
     # relationships
     created_by       = relationship("User", remote_side="User.id", foreign_keys=[created_by_id])
     family_member    = relationship("FamilyMember", back_populates="user", uselist=False)
+    branch           = relationship("Branch", back_populates="users", foreign_keys=[branch_id])
+    manager_scopes   = relationship("ManagerScope", back_populates="user", foreign_keys="ManagerScope.user_id", cascade="all, delete-orphan")
 
     # access grants where this user IS the manager
     managing         = relationship("ProfileAccess", foreign_keys="ProfileAccess.manager_id", back_populates="manager")

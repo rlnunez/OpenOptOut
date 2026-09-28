@@ -39,7 +39,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 17 | Internationalization (i18n): language packs & RTL | Planned |
 | 18 | Typed plugin directories & runtime isolation | Complete |
 | 19 | Delegated managerial permissions | Complete |
-| 20 | Multi-tier institutional hierarchy (Consortium) | Designed — pending implementation |
+| 20 | Multi-tier institutional hierarchy (Consortium) | Complete |
 | 21 | Plugin sandbox IPC & resource limits | Complete |
 | 22 | Independent security audit & penetration testing | Planned |
 
@@ -343,13 +343,14 @@ plugins/
 ### 20. Multi-tier institutional hierarchy (Consortium)
 **Goal:** Support statewide or consortium-level deployments by partitioning patron management and data visibility across independent library systems and branch locations.
 
-**Architecture:**
-- **Organizational Hierarchy:** Consortium (global deployment) → Library Systems → Branch Locations.
-- **Automated Branch Resolution:** Parses patron home library codes from SIP2 Patron Information responses (field `AQ`) during sign-in, mapping patrons to their home branch.
-- **Multi-Connection ILS Routing:** Supports shared or distinct ILS connections routed by patron barcode prefix.
-- **Scoped Managerial Access:** Staff permissions are bounded by assigned systems or branches, enforced centrally in access queries (`core/auth.py`).
+**Technical Architecture:**
+- **Organizational Hierarchy & Data Model:** Consortium (global instance) → Library Systems (`LibrarySystem`) → Branch Locations (`Branch`). Patrons (`User`) belong to a branch with attribution metadata (`branch_source`, `branch_override_by`, `branch_override_at`).
+- **Dynamic SIP2 ILS Routing & Location Code Mapping:** Routes authentication requests across multiple `SIP2Connection`s prioritized by patron barcode prefix. Dynamically extracts home branch locations from patron responses using configurable ILS field codes (e.g., `AQ`, `AF`), matching against branch codes and aliases.
+- **Strict Isolation & Delegated Scoping:** Centralized access queries in `backend/core/auth.py` strictly isolate non-super-admin managers to patrons within their explicitly assigned `ManagerScope`s (consortium, system, or branch level). Unscoped managers default to self and explicitly shared profile visibility. Cross-system visibility requires the sensitive `consortium.cross_system` permission.
+- **Per-System Branding:** Library systems can customize portal branding (display name, logo, theme colors), governed by super-admin toggle controls.
+- **Management API:** Comprehensive administration router (`backend/routers/consortium.py`) for managing systems, branches, multi-tenant SIP2 connections, manager scopes, unassigned patron queues, and staff branch overrides.
 
-**Status:** Designed; pending implementation.
+**Status:** Complete.
 
 ---
 

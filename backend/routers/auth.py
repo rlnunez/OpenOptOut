@@ -48,6 +48,10 @@ class UserOut(BaseModel):
     full_name: str
     role: str
     unified_view: bool
+    branch_id: Optional[int] = None
+    branch_name: Optional[str] = None
+    system_id: Optional[int] = None
+    system_name: Optional[str] = None
     permissions: List[str] = []   # manager/super admin permissions (core/access.py)
 
     class Config:
@@ -168,9 +172,16 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
 @router.get("/me", response_model=UserOut)
 def me(current_user: User = Depends(get_current_user)):
     from ..core.access import effective_permissions
+    branch_name = current_user.branch.name if current_user.branch else None
+    system_name = current_user.branch.system.name if current_user.branch and current_user.branch.system else None
+    system_id = current_user.branch.system_id if current_user.branch else None
     return UserOut(id=current_user.id, email=current_user.email,
                    full_name=current_user.full_name, role=current_user.role,
                    unified_view=current_user.unified_view,
+                   branch_id=current_user.branch_id,
+                   branch_name=branch_name,
+                   system_id=system_id,
+                   system_name=system_name,
                    permissions=effective_permissions(current_user))
 
 
@@ -199,10 +210,12 @@ def ldap_login(req: LDAPLoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/sip2/login")
 def sip2_login(req: SIP2LoginRequest, db: Session = Depends(get_db)):
-    if not provider_enabled("sip2"):
+    from ..models.database import SIP2Connection
+    has_db_conns = db.query(SIP2Connection).filter(SIP2Connection.enabled == True).count() > 0
+    if not provider_enabled("sip2") and not has_db_conns:
         raise HTTPException(400, "SIP2 authentication is not enabled")
 
-    result = try_sip2_auth(req.barcode, req.pin)
+    result = try_sip2_auth(req.barcode, req.pin, db=db)
     if not result.success:
         raise HTTPException(401, result.error or "Library card authentication failed")
 
@@ -287,7 +300,11 @@ def _resolve_external_user(result, db: Session) -> dict:
         # (Never clear an existing password — local login keeps working.)
         if not existing.auth_source:
             existing.auth_source = source
-            db.commit()
+        # Update branch if dynamically discovered and not staff overridden
+        if getattr(result, "branch_id", None) is not None and existing.branch_source != "staff_override":
+            existing.branch_id = result.branch_id
+            existing.branch_source = "sip2"
+        db.commit()
         token = create_access_token({"sub": existing.email})
         return {"access_token": token, "token_type": "bearer"}
 
@@ -298,6 +315,9 @@ def _resolve_external_user(result, db: Session) -> dict:
     user = _create_user_and_member(db, email, result.full_name or email,
                                    UserRole(decision.role))
     user.auth_source = source
+    if getattr(result, "branch_id", None) is not None:
+        user.branch_id = result.branch_id
+        user.branch_source = "sip2"
     db.commit()
     token = create_access_token({"sub": user.email})
     return {"access_token": token, "token_type": "bearer"}

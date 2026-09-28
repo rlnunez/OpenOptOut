@@ -19,6 +19,7 @@ from .routers.email_oauth import router as email_oauth_router
 from .routers.test_broker import router as test_broker_router
 from .routers.saml import router as saml_router
 from .routers.cert_monitor import router as cert_monitor_router
+from .routers.consortium import router as consortium_router
 from .core.scheduler import start_scheduler, stop_scheduler
 from .core.version import get_version, get_commit, version_string
 
@@ -42,7 +43,9 @@ for r in [
     settings_router, scheduler_router, help_router,
     automation_router, email_monitor_router,
     branding_router, reporting_router,
-    db_admin_router, plugins_router, parent_companies_router, wizard_router, email_oauth_router, test_broker_router, saml_router, cert_monitor_router,
+    db_admin_router, plugins_router, parent_companies_router, wizard_router,
+    email_oauth_router, test_broker_router, saml_router, cert_monitor_router,
+    consortium_router,
 ]:
     app.include_router(r)
 

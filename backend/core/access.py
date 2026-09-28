@@ -27,7 +27,15 @@ plugin-system switch, database migration and connection changes, and the
 import json
 from typing import Iterable
 
-from fastapi import Depends, HTTPException
+try:
+    from fastapi import Depends, HTTPException
+except ImportError:
+    Depends = None
+    class HTTPException(Exception):
+        def __init__(self, status_code: int = 400, detail: str = ""):
+            super().__init__(detail)
+            self.status_code = status_code
+            self.detail = detail
 
 # key -> label, group, description, sensitive (shown with a warning when granting)
 PERMISSIONS = {
@@ -108,6 +116,26 @@ PERMISSIONS = {
         "group": "Plugins", "label": "Upload plugins",
         "description": "Use the plugin upload wizard. Uploaded plugins stay disabled until a "
                        "super admin enables them.",
+    },
+    "consortium.manage": {
+        "group": "Consortium", "label": "Manage consortium hierarchy",
+        "description": "Create, edit, and delete library systems, branches, and map ILS location codes.",
+    },
+    "consortium.sip2": {
+        "group": "Consortium", "label": "Manage SIP2 connections", "sensitive": True,
+        "description": "Configure multiple ILS/SIP2 connections, barcode prefixes, and location field tags.",
+    },
+    "consortium.cross_system": {
+        "group": "Consortium", "label": "Cross-system patron access", "sensitive": True,
+        "description": "View and manage patrons across all library systems and branches in the consortium, bypassing branch isolation.",
+    },
+    "system.branding": {
+        "group": "Consortium", "label": "Manage system branding",
+        "description": "Configure customized branding (logo, colors, name) for assigned library systems when permitted by the super admin.",
+    },
+    "members.override_branch": {
+        "group": "Member data", "label": "Override patron branch",
+        "description": "Manually reassign a patron to a different branch or clear an existing branch override.",
     },
 }
 
