@@ -166,7 +166,9 @@ def place_directory(src: str, dest: str, *, move: bool) -> None:
         shutil.rmtree(staging, ignore_errors=True)
 
 
-def _dir_hash(path: str) -> str:
+def dir_hash(path: str) -> str:
+    """SHA-256 over every file's relative path and contents (ignoring caches and
+    the bundled marker). Used for bundled-copy refresh and install integrity."""
     h = hashlib.sha256()
     for base, dirs, files in os.walk(path):
         dirs[:] = sorted(d for d in dirs if d != "__pycache__")
@@ -196,7 +198,7 @@ def sync_bundled(src: str, root: str, manifest: PluginManifest) -> str:
     (an app upgrade). Refuses to overwrite a directory that isn't a bundled
     copy, so an admin's own plugin with the same id is never clobbered."""
     dest = install_dir(root, manifest)
-    want = _dir_hash(src)
+    want = dir_hash(src)
     marker = os.path.join(dest, BUNDLED_MARKER)
     if os.path.isdir(dest):
         if not os.path.isfile(marker):
@@ -247,6 +249,11 @@ def migrate_installed(root: str, session_factory) -> list[str]:
                 if from_bundled:
                     manifest = read_manifest(src)
                     new_path = sync_bundled(src, root, manifest)
+                    # Refreshed from the app's own source: that's the approved code.
+                    fresh = dir_hash(new_path)
+                    if row.code_hash != fresh:
+                        row.code_hash = fresh
+                        db.commit()
                 elif os.path.isdir(path) and is_strictly_inside(path, root):
                     manifest = (read_manifest(path)
                                 if os.path.isfile(os.path.join(path, "manifest.json"))

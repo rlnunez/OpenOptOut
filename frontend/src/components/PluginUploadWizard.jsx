@@ -153,6 +153,13 @@ export default function PluginUploadWizard({ onClose, onInstalled, expectedType,
               </div>
             )}
 
+            {plan.code_warnings?.length > 0 && (
+              <div className="px-3 py-2 rounded-lg border border-amber-800/60 bg-amber-900/10 text-amber-200/90 text-xs space-y-1">
+                <p className="font-medium">Code inspection found things to review:</p>
+                <ul className="list-disc ms-4">{plan.code_warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+              </div>
+            )}
+
             {plan.problems.length > 0 ? (
               <div className="px-3 py-2 rounded-lg border border-red-800 bg-red-900/20 text-red-300 text-xs space-y-1">
                 <p className="font-medium">This plugin can't be installed:</p>

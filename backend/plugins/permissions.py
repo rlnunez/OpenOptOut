@@ -241,19 +241,49 @@ HIGH_RISK_WRITE_METHODS = {
 # (<root>/<type>/<id>/) and which rules it must satisfy. The directory is a
 # convenience; these rules are what make the type a real boundary.
 #
-#   required_hooks  the plugin must declare these hooks
-#   data_only       the plugin is data the host loads (translations, design
-#                   tokens), never code: no entrypoint, hooks, permissions,
-#                   methods or egress, and it is never launched as a process.
+#   required_hooks       the plugin must declare these hooks
+#   allowed_permissions  the only permissions this type may request. Host API
+#                        methods each need a permission (HOST_METHODS), so this
+#                        also limits which APIs the type can call.
+#   data_only            the plugin is data the host loads (translations, design
+#                        tokens), never code: no entrypoint, hooks, permissions,
+#                        methods or egress, and it is never launched as a process.
+_P = lambda *names: frozenset(names)
 PLUGIN_TYPES = {
-    "email":     {"label": "Email providers", "required_hooks": {"email_provider"}},
-    "captcha":   {"label": "CAPTCHA solvers", "required_hooks": {"solve_captcha"}},
-    "forms":     {"label": "Form handlers",   "required_hooks": {"fill_form"}},
-    "discovery": {"label": "Discovery bots"},   # no discovery hook exists yet
-    "brokers":   {"label": "Broker add-ons"},   # broker specs land with roadmap item 1
-    "themes":    {"label": "Themes",          "data_only": True},
-    "languages": {"label": "Language packs",  "data_only": True},
-    "general":   {"label": "General"},          # event hooks, email parsers, anything else
+    "email": {
+        "label": "Email providers", "required_hooks": {"email_provider"},
+        # Sending opt-outs means member identifiers go to the mail API.
+        "allowed_permissions": _P("email_provider", "read_pii", "network", "settings_read", "storage"),
+    },
+    "captcha": {
+        "label": "CAPTCHA solvers", "required_hooks": {"solve_captcha"},
+        # A challenge carries no member data; a solver may call a solving service.
+        "allowed_permissions": _P("solve_captcha", "network", "http_fetch", "settings_read", "storage"),
+    },
+    "forms": {
+        "label": "Form handlers", "required_hooks": {"fill_form"},
+        # Fills member fields into a page the host already has open: no network.
+        "allowed_permissions": _P("fill_forms", "read_pii", "broker_read", "settings_read", "storage"),
+    },
+    "discovery": {
+        "label": "Discovery bots",   # no discovery hook exists yet
+        # Searching for a member's listings needs their name and the network, so
+        # read_pii + network still goes through the declared-exception gate.
+        "allowed_permissions": _P("read_pii", "network", "http_fetch", "broker_read",
+                                  "settings_read", "storage", "emit_events"),
+    },
+    "brokers": {
+        "label": "Broker add-ons",   # broker specs land with roadmap item 1
+        "allowed_permissions": _P("broker_read", "settings_read", "storage"),
+    },
+    "themes":    {"label": "Themes",         "data_only": True, "allowed_permissions": _P()},
+    "languages": {"label": "Language packs", "data_only": True, "allowed_permissions": _P()},
+    "general": {
+        "label": "General",   # event hooks, email parsers, anything else
+        # Everything except the permissions that belong to a specialized type.
+        "allowed_permissions": frozenset(p.value for p in Permission)
+                               - {"email_provider", "solve_captcha", "fill_forms"},
+    },
 }
 
 # Hooks that belong to exactly one type. A plugin declaring one of these must
@@ -415,16 +445,23 @@ class PluginManifest:
         return bool(PLUGIN_TYPES.get(self.effective_type, {}).get("data_only"))
 
     def _type_errors(self) -> list[str]:
-        # A legacy manifest (no `type`) gets the inferred type and no type rules,
-        # so plugins installed before types existed keep working. Rules apply as
-        # soon as a manifest declares its type.
+        # Which permissions a type may request is checked for every manifest,
+        # including legacy ones (no `type`), against the type inferred from its
+        # hooks: it's a security limit. The structural rules below apply once a
+        # manifest declares its type, so older plugins keep installing.
+        errors = []
+        allowed = PLUGIN_TYPES.get(self.effective_type, {}).get("allowed_permissions")
+        if allowed is not None and not PLUGIN_TYPES.get(self.effective_type, {}).get("data_only"):
+            for p in self.permissions:
+                if Permission.is_valid(p) and p not in allowed:
+                    errors.append(f"a '{self.effective_type}' plugin may not request the '{p}' "
+                                  f"permission (allowed: {', '.join(sorted(allowed)) or 'none'})")
         if not self.type:
-            return []
+            return errors
         rules = PLUGIN_TYPES.get(self.type)
         if rules is None:
             return [f"unknown plugin type '{self.type}' "
                     f"(expected one of: {', '.join(PLUGIN_TYPES)})"]
-        errors = []
         for hook in rules.get("required_hooks", ()):
             if hook not in self.hooks:
                 errors.append(f"a '{self.type}' plugin must declare the '{hook}' hook")

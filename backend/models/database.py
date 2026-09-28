@@ -538,6 +538,9 @@ class InstalledPlugin(Base):
     last_error     = Column(Text, nullable=True)
     last_started   = Column(DateTime, nullable=True)
     needs_reapproval = Column(Boolean, default=False)  # set when a manifest-integrity violation occurs
+    # SHA-256 of the plugin's files when it was installed (plugins/layout.py
+    # dir_hash). The manager refuses to launch the plugin if they've changed.
+    code_hash      = Column(String, nullable=True)
 
 
 class PluginStorage(Base):

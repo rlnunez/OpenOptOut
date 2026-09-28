@@ -17,8 +17,12 @@ Controls, strongest to weakest:
   3. POSIX resource limits (RLIMIT_*) — cap memory, CPU time, file size,
      process count, and open files. Always applied on POSIX.
 
-  4. Filesystem confinement — the plugin's working directory is set to its own
-     isolated dir; with bubblewrap, the rest of the FS is hidden entirely.
+  4. Filesystem confinement — with bubblewrap, the rest of the FS is hidden
+     entirely and the plugin's own directory is mounted READ-ONLY, so a plugin
+     can't rewrite its code or drop new program files; its only writable
+     space is a private, throwaway /tmp (persistent data goes through the
+     storage API). Independently of the sandbox, the manager refuses to launch
+     a plugin whose files changed since install (see manager.launch_plugin).
 
   5. Dropped privileges — never run plugins as root; drop to an unprivileged
      uid/gid when the host has the capability to do so.
@@ -48,6 +52,7 @@ class SandboxCapabilities:
     seccomp:         bool = False   # seccomp filtering available
     rlimits:         bool = False   # POSIX resource limits available
     drop_privileges: bool = False   # can drop to unprivileged user
+    readonly_code:   bool = False   # unshare fallback can mount the plugin dir read-only
     platform:        str  = ""
 
     def summary(self) -> str:
@@ -106,6 +111,8 @@ def detect_capabilities() -> SandboxCapabilities:
         if shutil.which("unshare") is not None:
             caps.unshare = _can_actually_run(
                 ["unshare", "--fork", "--pid", "--mount-proc", "--", "true"])
+            if caps.unshare and not caps.bubblewrap:
+                caps.readonly_code = _probe_readonly_mount()
         # seccomp is available if we can import the helper or use a preload;
         # we conservatively mark it available on Linux where libseccomp exists.
         caps.seccomp    = os.path.exists("/usr/lib/x86_64-linux-gnu/libseccomp.so.2") \
@@ -115,6 +122,42 @@ def detect_capabilities() -> SandboxCapabilities:
         caps.drop_privileges = (os.geteuid() == 0) if hasattr(os, "geteuid") else False
 
     return caps
+
+
+# Runs inside the unshare fallback's private mount namespace. $1 is the plugin
+# directory, $2 is "1" to give the plugin a private /tmp (like bubblewrap's).
+# Re-mounts the plugin directory read-only over itself, then runs the plugin
+# there. Nothing is visible outside the namespace, and if a mount fails the
+# plugin doesn't start (fail closed).
+_READONLY_MOUNT_SCRIPT = ('d="$1"; t="$2"; shift 2; '
+                          'if [ "$t" = 1 ]; then mount -t tmpfs -o size=64m,mode=1777 tmpfs /tmp || exit 1; fi; '
+                          'mount --bind "$d" "$d" && mount -o remount,bind,ro "$d" && '
+                          'cd "$d" && exec "$@"')
+
+
+def _private_tmp_ok(*paths) -> str:
+    """ "1" if a private /tmp can be mounted without hiding any of these paths
+    (the plugin directory and the Python runtime), else "0"."""
+    def under_tmp(p):
+        p = os.path.realpath(p)
+        return p == "/tmp" or p.startswith("/tmp/")
+    return "0" if any(under_tmp(p) for p in paths if p) else "1"
+
+
+_UNSHARE_MOUNT = ["unshare", "--fork", "--pid", "--mount-proc", "--mount", "--propagation", "private"]
+
+
+def _probe_readonly_mount() -> bool:
+    """Can the unshare fallback make a directory read-only for a plugin? Checked
+    for real: the probe must be unable to create a file in the directory."""
+    import tempfile
+    d = tempfile.mkdtemp(prefix="ps-ro-probe-")
+    try:
+        ok = _can_actually_run(_UNSHARE_MOUNT + ["--", "sh", "-c", _READONLY_MOUNT_SCRIPT, "sh", d, "0",
+                                                 "sh", "-c", "! touch probe 2>/dev/null"])
+        return ok and not os.path.exists(os.path.join(d, "probe"))
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
 
 
 def _resource_limit_preexec(max_cpu_seconds: int, allow_network: bool):
@@ -203,13 +246,14 @@ def build_sandboxed_command(
             "--tmpfs", "/tmp",
             # Read-only view of the Python runtime + stdlib
             "--ro-bind", sys.prefix, sys.prefix,
-            # Read-write only the plugin's own working dir
-            "--bind", work_dir, work_dir,
+            # The plugin's own code, READ-ONLY: it can't modify itself or add
+            # program files. Its only writable space is the private /tmp above.
+            "--ro-bind", work_dir, work_dir,
             "--chdir", work_dir,
             # Minimal, clean environment
             "--clearenv",
             "--setenv", "PATH", "/usr/bin:/bin",
-            "--setenv", "HOME", work_dir,
+            "--setenv", "HOME", "/tmp",
             "--setenv", "PYTHONDONTWRITEBYTECODE", "1",
         ]
         # If the interpreter lives outside sys.prefix (venv), bind it too
@@ -220,6 +264,15 @@ def build_sandboxed_command(
 
     # ---- unshare: namespace isolation without bubblewrap ----
     if caps.unshare:
+        if caps.readonly_code:
+            # Same read-only plugin folder as bubblewrap gives, via a private
+            # mount namespace (see _READONLY_MOUNT_SCRIPT).
+            unshare = list(_UNSHARE_MOUNT)
+            if not allow_network:
+                unshare.append("--net")
+            private_tmp = _private_tmp_ok(work_dir, sys.executable, sys.prefix)
+            return (unshare + ["--", "sh", "-c", _READONLY_MOUNT_SCRIPT, "sh", work_dir, private_tmp]
+                    + base_cmd), preexec
         unshare = ["unshare", "--fork", "--pid", "--mount-proc"]
         if not allow_network:
             unshare.append("--net")   # network namespace with no interfaces
