@@ -26,7 +26,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 4 | Pluggable CAPTCHA resolution | Complete |
 | 5 | Granular broker management | Complete |
 | 6 | Automated broker health monitoring | Complete |
-| 7 | Distributed execution: control plane & worker fleet | In Progress (Phases 7.1, 7.2, 7.3 Complete) |
+| 7 | Distributed execution: control plane & worker fleet | In Progress (Phases 7.1, 7.2, 7.3, 7.4 Complete) |
 | 8 | Add-on distribution: Git repo to marketplace | Planned |
 | 9 | Infrastructure capacity planner | Planned — pending empirical performance benchmarking |
 | 10 | Email-first opt-outs via parent companies | Complete |
@@ -189,11 +189,11 @@ To ensure operational stability and maintain continuous testability without disr
   - Implemented retry counter tracking with automatic dead-letter queue (DLQ) routing for exhausted retries and tampered envelopes.
   - *Verification:* Pure Python unit tests in `tests/run_tests.py` (`t_worker_daemon_execution`) verifying removal dispatch, discovery bot execution, tampering rejection, retry/DLQ routing, and multi-slot concurrent execution with graceful draining.
 
-* **Phase 7.4 — Control Plane Ingestion & Dynamic Scheduling (Orchestration Boundary):**
-  - Transition `core/scheduler.py` from an in-process executor to an enqueuing producer (`enqueue_pending_optouts`, `enqueue_pending_discoveries`).
-  - Implement asynchronous result ingestion service on the control plane: updates `RemovalRequest` statuses, stores discovered profile URLs in `DiscoveryResult`, automatically chains discovered URLs into downstream removal requests, triggers parent company cascade confirmations, logs broker health metrics, and routes CAPTCHA challenges to the operator queue.
-  - Lease management & orphan reclamation: automated detection and requeuing of jobs from crashed or unresponsive workers.
-  - *Verification:* End-to-end integration test validating scheduler produce → queue → worker execute (discovery & removal) → control plane ingest.
+* **Phase 7.4 — Control Plane Ingestion & Dynamic Scheduling (Orchestration Boundary) — Complete:**
+  - Transitioned `core/scheduler.py` from direct in-process execution to an enqueuing producer (`enqueue_pending_optouts`, `enqueue_pending_discoveries`), compiling jobs into signed `JobEnvelope`s across priority queues.
+  - Implemented asynchronous result ingestion service on the control plane (`backend/core/distributed/ingestion.py`): drains `JobResultEnvelope`s, updates `RemovalRequest` statuses (`submitted`, `needs_manual`, `failed`, `confirmed`), stores discovered profile URLs in `DiscoveryResult`, automatically chains discovered URLs into downstream removal requests, triggers parent company cascade confirmations, logs broker health metrics, and routes CAPTCHA challenges to the operator queue.
+  - Implemented lease management & orphan reclamation (`reclaim_orphaned_leases`): automated detection and requeuing of jobs from crashed or unresponsive workers to `CHANNEL_RETRY` with retry counter tracking and automatic routing to `CHANNEL_DEAD_LETTER` once retries are exhausted.
+  - *Verification:* Pure Python unit tests in `tests/run_tests.py` (`t_control_plane_ingestion_and_reclamation`) verifying lease expiration reclamation, DLQ routing on retry exhaustion, removal result ingestion, CAPTCHA queue routing, discovery listing persistence with automatic URL chaining into pending removal requests, and result draining.
 
 * **Phase 7.5 — Fleet Monitoring, Admin Telemetry & Orchestration (Operations Boundary):**
   - Worker heartbeat registry (`worker_id`, host, active slots, vCPU/RAM telemetry, uptime).
@@ -201,7 +201,7 @@ To ensure operational stability and maintain continuous testability without disr
   - Distributed Docker Compose topology (`docker-compose.distributed.yml`) featuring scaled worker services (`--scale worker=4`).
   - *Verification:* Smoke test running multi-container distributed discovery and opt-out runs under Docker Compose.
 
-**Status:** In Progress (Phases 7.1, 7.2 & 7.3 Complete).
+**Status:** In Progress (Phases 7.1, 7.2, 7.3 & 7.4 Complete).
 
 ---
 

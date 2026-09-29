@@ -47,6 +47,11 @@ def start_scheduler():
               replace_existing=True, misfire_grace_time=3600,
               next_run_time=datetime.utcnow() + timedelta(minutes=2))
 
+    # Distributed worker fleet: result ingestion and orphan lease reclamation
+    s.add_job(result_ingestion_job, IntervalTrigger(seconds=30), id="result_ingestion",
+              replace_existing=True, misfire_grace_time=60,
+              next_run_time=datetime.utcnow() + timedelta(seconds=15))
+
     if not sc.get("enabled", False):
         s.start()
         log.info("Opt-out scheduling disabled — maintenance jobs only")
@@ -255,15 +260,24 @@ def _run_optout_with_limit(run_type: str, max_this_run: int):
                 errors.append(f"Parent batch error: {e}")
 
         remaining_batch_ids = [rid for rid in batch_ids if rid not in parent_covered_ids]
-        db.close()
 
         if remaining_batch_ids:
-            from .optout_engine import run_optout_batch
-            result = asyncio.run(run_optout_batch(remaining_batch_ids))
-            sent   += result.get("sent", 0)
-            errors.extend(result.get("errors", []))
+            dist_cfg = cfg.get("distributed", {})
+            use_distributed = dist_cfg.get("enabled", False) or bool(os.getenv("REDIS_URL"))
+            if use_distributed:
+                enqueue_res = enqueue_pending_optouts(
+                    db, remaining_batch_ids, secret_key=cfg.get("secret_key")
+                )
+                sent += enqueue_res.get("enqueued", 0)
+                errors.extend(enqueue_res.get("errors", []))
+            else:
+                db.close()
+                from .optout_engine import run_optout_batch
+                result = asyncio.run(run_optout_batch(remaining_batch_ids))
+                sent   += result.get("sent", 0)
+                errors.extend(result.get("errors", []))
+                db = SessionLocal()
 
-        db = SessionLocal()
         _finish_run(db, run_id, status="done", sent=sent, errors=errors)
 
     except Exception as e:
@@ -567,3 +581,187 @@ def recheck_job():
         run.errors = json.dumps(errors) if errors else None
         run.finished_at = datetime.utcnow()
         db.commit(); db.close()
+
+
+# ── Distributed Scheduling & Fleet Orchestration (Phase 7.4) ─────────────────
+
+def enqueue_pending_optouts(
+    db: Session,
+    batch_request_ids: list[int],
+    queue = None,
+    secret_key = None,
+) -> dict:
+    """
+    Compile pending removal requests into signed JobEnvelopes and push to JobQueue.
+    Decouples scheduler from in-process execution for the distributed worker fleet.
+    """
+    from .distributed.envelope import create_removal_envelope
+    from .distributed.queue import get_queue
+    from .interpreter.script_bridge import get_or_build_broker_spec
+    from .interpreter import compile_job
+    from .combinations import _get_values, _parse_address
+
+    q = queue or get_queue(secret_key=secret_key)
+    enqueued = 0
+    errors = []
+
+    for req_id in batch_request_ids:
+        try:
+            req = db.query(RemovalRequest).filter(RemovalRequest.id == req_id).first()
+            if not req:
+                continue
+
+            broker = req.broker
+            member = req.member
+            script = getattr(broker, "script", None)
+
+            spec = get_or_build_broker_spec(broker, script=script, db=db)
+
+            # Resolve member fields
+            def first(kind):
+                vals = _get_values(member, kind, 1)
+                return vals[0] if vals else ""
+
+            raw_addr = first("address")
+            p = _parse_address(raw_addr) if raw_addr else {"address": "", "city": "", "state": "", "zip": ""}
+            parts = (member.full_name or "").split()
+            member_fields = {
+                "full_name": member.full_name or first("name"),
+                "formal_name": getattr(member, "formal_name", "") or member.full_name or "",
+                "first_name": parts[0] if parts else "",
+                "last_name": " ".join(parts[1:]) if len(parts) > 1 else "",
+                "email": first("email"),
+                "phone": first("phone"),
+                "address": p.get("address") or raw_addr,
+                "city": p.get("city", ""),
+                "state": p.get("state", ""),
+                "zip": p.get("zip", ""),
+            }
+
+            job = compile_job(spec, member_fields, member_id=str(member.id))
+            priority = "high" if getattr(broker, "priority", 3) >= 4 else "normal"
+
+            env = create_removal_envelope(
+                job=job,
+                member_fields=member_fields,
+                request_id=req.id,
+                request_key=req.request_key,
+                priority=priority,
+                secret_key=secret_key,
+            )
+
+            q.enqueue(env)
+            req.status = RequestStatus.submitted
+            enqueued += 1
+
+        except Exception as e:
+            log.error("Failed to enqueue request %d: %s", req_id, e)
+            errors.append(f"Request {req_id}: {e}")
+
+    db.commit()
+    return {
+        "enqueued": enqueued,
+        "request_ids": batch_request_ids,
+        "errors": errors,
+    }
+
+
+def enqueue_pending_discoveries(
+    db: Session,
+    member_ids: list[int],
+    broker_ids: Optional[list[int]] = None,
+    queue = None,
+    secret_key = None,
+) -> dict:
+    """
+    Build and enqueue discovery query envelopes for specified family members across brokers.
+    """
+    from .distributed.envelope import create_discovery_envelope
+    from .distributed.queue import get_queue
+    from .combinations import _get_values, _parse_address
+    from ..models.database import Broker
+
+    q = queue or get_queue(secret_key=secret_key)
+    enqueued = 0
+    errors = []
+
+    brokers = []
+    if broker_ids:
+        brokers = db.query(Broker).filter(Broker.id.in_(broker_ids)).all()
+    else:
+        brokers = db.query(Broker).filter(Broker.status != "disabled").all()
+
+    for mem_id in member_ids:
+        try:
+            member = db.query(FamilyMember).filter(FamilyMember.id == mem_id).first()
+            if not member:
+                continue
+
+            def first(kind):
+                vals = _get_values(member, kind, 1)
+                return vals[0] if vals else ""
+
+            raw_addr = first("address")
+            p = _parse_address(raw_addr) if raw_addr else {}
+            name = member.full_name or first("name")
+            city = p.get("city", "")
+            state = p.get("state", "")
+
+            for b in brokers:
+                script = getattr(b, "script", None)
+                query_criteria = {
+                    "name": name,
+                    "city": city,
+                    "state": state,
+                    "broker_domain": b.name.lower().replace(" ", "") + ".com" if not b.opt_out_url else None,
+                    "search_url": script.search_url if script and script.search_url else b.opt_out_url,
+                }
+
+                env = create_discovery_envelope(
+                    query_criteria=query_criteria,
+                    broker_id=str(b.id),
+                    broker_name=b.name,
+                    member_id=str(member.id),
+                    secret_key=secret_key,
+                )
+                q.enqueue(env)
+                enqueued += 1
+
+        except Exception as e:
+            log.error("Failed to enqueue discoveries for member %d: %s", mem_id, e)
+            errors.append(f"Member {mem_id}: {e}")
+
+    return {
+        "enqueued": enqueued,
+        "member_ids": member_ids,
+        "errors": errors,
+    }
+
+
+def result_ingestion_job():
+    """
+    APScheduler job to drain results from the distributed queue
+    and perform periodic orphan lease reclamation.
+    """
+    from .distributed.ingestion import ResultIngestionService
+    from .distributed.queue import get_queue
+
+    q = get_queue()
+    service = ResultIngestionService(queue=q)
+
+    # Ingest up to 50 pending results per cycle
+    ingested = 0
+    for _ in range(50):
+        report = service.process_next(timeout=0.1)
+        if report is None:
+            break
+        ingested += 1
+
+    # Reclaim timed out worker leases
+    reclaim_report = service.reclaim_orphaned_leases(lease_timeout_seconds=300.0)
+
+    if ingested > 0 or reclaim_report.get("reclaimed_retried", 0) > 0:
+        log.info(
+            "Result ingestion cycle: %d results ingested, %d leases reclaimed",
+            ingested, reclaim_report.get("reclaimed_retried", 0)
+        )

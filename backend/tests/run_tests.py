@@ -1490,6 +1490,197 @@ def t_worker_daemon_execution():
     asyncio.run(run_concurrency_test())
 
 
+@test(1, "distributed.control_plane_ingestion_and_reclamation",
+      "Control plane drains execution results, updates requests, auto-chains discovery URLs, and reclaims orphaned leases (Phase 7.4).")
+def t_control_plane_ingestion_and_reclamation():
+    queue_mod = _imp("core.distributed.queue")
+    env_mod = _imp("core.distributed.envelope")
+    ingestion_mod = _imp("core.distributed.ingestion")
+    compiler_mod = _imp("core.interpreter.compiler")
+    Job = compiler_mod.Job
+    JobStep = compiler_mod.JobStep
+
+    secret_key = "test-control-plane-ingestion-key!"
+
+    # ── 1. Orphan Lease Reclamation ───────────────────────────────────────────
+    q = queue_mod.InProcessJobQueue(secret_key=secret_key)
+    dummy_job = Job(
+        broker_id="broker_test",
+        broker_name="Broker Test",
+        member_id="1",
+        method="form",
+        steps=[JobStep(kind="navigate", url="https://test.example")],
+    )
+    env1 = env_mod.create_removal_envelope(dummy_job, secret_key=secret_key)
+    env2 = env_mod.create_removal_envelope(dummy_job, secret_key=secret_key)
+    q.enqueue(env1)
+    q.enqueue(env2)
+
+    # Dequeue env1 to place it in-flight
+    leased = q.dequeue()
+    assert leased is not None
+    assert leased.envelope_id == env1.envelope_id
+    assert q.in_flight_count() == 1
+
+    # Lease timeout = 0 seconds makes it immediately considered orphaned
+    report = ingestion_mod.reclaim_orphaned_leases(q, lease_timeout_seconds=0.0, max_retries=3)
+    assert report["inspected"] == 1
+    assert report["reclaimed_retried"] == 1
+    assert report["reclaimed_dead_lettered"] == 0
+    assert q.queue_depth(queue_mod.CHANNEL_RETRY) == 1
+    assert q.in_flight_count() == 0
+
+    # Test DLQ routing when retries are exhausted
+    requeued_env = q.dequeue(queue_names=[queue_mod.CHANNEL_RETRY])
+    assert requeued_env is not None
+    requeued_env.meta["retries"] = 3  # already at max retries
+    q.enqueue(requeued_env)
+    q.dequeue(queue_names=[queue_mod.CHANNEL_RETRY])  # place in flight
+    report_dlq = ingestion_mod.reclaim_orphaned_leases(q, lease_timeout_seconds=0.0, max_retries=3)
+    assert report_dlq["inspected"] == 1
+    assert report_dlq["reclaimed_retried"] == 0
+    assert report_dlq["reclaimed_dead_lettered"] == 1
+    assert q.queue_depth(queue_mod.CHANNEL_DEAD_LETTER) == 1
+    assert q.in_flight_count() == 0
+
+    # ── 2. Mock Database Setup for Result Ingestion ───────────────────────────
+    class MockRemovalRequest:
+        def __init__(self, id, member_id, broker_id, status="pending", listing_url=None, notes=None):
+            self.id = id
+            self.member_id = member_id
+            self.broker_id = broker_id
+            self.status = status
+            self.listing_url = listing_url
+            self.notes = notes
+            self.sent_at = None
+            self.broker = None
+
+    class MockBroker:
+        def __init__(self, id, name):
+            self.id = id
+            self.name = name
+
+    class MockQuery:
+        def __init__(self, items):
+            self._items = list(items)
+
+        def filter(self, *criteria):
+            return self
+
+        def first(self):
+            return self._items[0] if self._items else None
+
+        def all(self):
+            return list(self._items)
+
+    class MockSession:
+        def __init__(self, requests=None, brokers=None):
+            self.requests = requests or []
+            self.brokers = brokers or []
+            self.added = []
+            self.committed = False
+            self.rolled_back = False
+
+        def query(self, model):
+            name = getattr(model, "__name__", str(model))
+            if "RemovalRequest" in name:
+                return MockQuery(self.requests)
+            if "Broker" in name:
+                return MockQuery(self.brokers)
+            return MockQuery([])
+
+        def add(self, item):
+            self.added.append(item)
+
+        def commit(self):
+            self.committed = True
+
+        def rollback(self):
+            self.rolled_back = True
+
+        def close(self):
+            pass
+
+    # ── 3. Ingestion of Successful Removal Result ─────────────────────────────
+    removal_env_1 = env_mod.create_removal_envelope(dummy_job, request_id=101, secret_key=secret_key)
+    test_req = MockRemovalRequest(id=101, member_id=1, broker_id=5, status="pending")
+    mock_db = MockSession(requests=[test_req])
+    ingestion_service = ingestion_mod.ResultIngestionService(queue=q, db_session_factory=lambda: mock_db)
+
+    succ_result = env_mod.create_result_envelope(
+        request_envelope=removal_env_1,
+        ok=True,
+        status="success",
+        worker_id="worker-node-1",
+        duration_ms=450,
+        secret_key=secret_key,
+        exec_result={"detail": "Submitted form successfully"},
+    )
+    q.publish_result(succ_result)
+    assert q.results_depth() == 1
+
+    processed_succ = ingestion_service.process_next(timeout=0.1)
+    assert processed_succ is not None
+    assert processed_succ["updated_request"] is True
+    assert test_req.status == "submitted"
+    assert test_req.sent_at is not None
+    assert len(mock_db.added) == 1  # AutomationLog added
+    assert mock_db.committed is True
+
+    # ── 4. Ingestion of CAPTCHA Result ────────────────────────────────────────
+    removal_env_2 = env_mod.create_removal_envelope(dummy_job, request_id=102, secret_key=secret_key)
+    captcha_req = MockRemovalRequest(id=102, member_id=1, broker_id=5, status="pending")
+    mock_captcha_db = MockSession(requests=[captcha_req])
+    ingestion_captcha_service = ingestion_mod.ResultIngestionService(queue=q, db_session_factory=lambda: mock_captcha_db)
+
+    captcha_result = env_mod.create_result_envelope(
+        request_envelope=removal_env_2,
+        ok=False,
+        status="captcha",
+        worker_id="worker-node-1",
+        secret_key=secret_key,
+        exec_result={"challenge": {"type": "recaptcha_v2", "site_key": "xyz"}},
+    )
+    q.publish_result(captcha_result)
+    processed_captcha = ingestion_captcha_service.process_next(timeout=0.1)
+    assert processed_captcha is not None
+    assert captcha_req.status == "needs_manual"
+    assert "CAPTCHA" in (captcha_req.notes or "")
+    # Should have added CaptchaChallenge and AutomationLog
+    assert len(mock_captcha_db.added) == 2
+
+    # ── 5. Ingestion of Discovery Result & Auto-Chaining ──────────────────────
+    chaining_req = MockRemovalRequest(id=103, member_id=1, broker_id=5, status="pending", listing_url=None)
+    mock_disc_db = MockSession(requests=[chaining_req])
+    ingestion_disc_service = ingestion_mod.ResultIngestionService(queue=q, db_session_factory=lambda: mock_disc_db)
+
+    disc_env = env_mod.create_discovery_envelope(
+        query_criteria={"name": "Alice Tester"},
+        broker_id="5",
+        broker_name="Broker Five",
+        member_id="1",
+        secret_key=secret_key,
+    )
+    disc_result = env_mod.create_result_envelope(
+        request_envelope=disc_env,
+        ok=True,
+        status="success",
+        worker_id="worker-node-1",
+        secret_key=secret_key,
+        discovery_result={
+            "count": 1,
+            "listings": [{"url": "https://broker.example/profiles/alice-1", "snippet": "Alice Tester Austin TX"}],
+        },
+    )
+    q.publish_result(disc_result)
+    processed_disc = ingestion_disc_service.process_next(timeout=0.1)
+    assert processed_disc is not None
+    assert processed_disc["discovery_listings_saved"] == 1
+    assert processed_disc["chained_requests"] == 1
+    assert chaining_req.listing_url == "https://broker.example/profiles/alice-1"
+    assert "Auto-chained" in (chaining_req.notes or "")
+
+
 @test(1, "broker_addon.manifest_and_spec_validation",
       "Broker add-on manifests and declarative specs parse, validate, and detect bad paths/steps.")
 def t_broker_addon_validation():

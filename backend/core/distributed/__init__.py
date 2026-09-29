@@ -40,6 +40,11 @@ from .worker import (
     execute_discovery_query,
 )
 
+from .ingestion import (
+    reclaim_orphaned_leases,
+    ResultIngestionService,
+)
+
 __all__ = [
     # Envelope (Phase 7.1)
     "JobEnvelope",
@@ -71,4 +76,7 @@ __all__ = [
     "WorkerDaemon",
     "WorkerBrowserPool",
     "execute_discovery_query",
+    # Ingestion & Control Plane (Phase 7.4)
+    "reclaim_orphaned_leases",
+    "ResultIngestionService",
 ]

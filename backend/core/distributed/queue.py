@@ -131,6 +131,11 @@ class JobQueue(ABC):
         pass
 
     @abstractmethod
+    def results_depth(self) -> int:
+        """Return the count of results waiting in the results channel."""
+        pass
+
+    @abstractmethod
     def queue_depth(self, queue_name: Optional[str] = None) -> Union[int, Dict[str, int]]:
         """
         Return the count of pending items for a queue, or a dictionary of depths across all channels.
@@ -141,6 +146,14 @@ class JobQueue(ABC):
     def in_flight_count(self) -> int:
         """
         Return the number of envelopes currently leased/in-flight.
+        """
+        pass
+
+    @abstractmethod
+    def get_in_flight_leases(self) -> List[Dict[str, Any]]:
+        """
+        Return active in-flight lease metadata for orphan detection and reclamation.
+        Each entry is a dict: {'envelope_id': str, 'envelope': JobEnvelope, 'leased_at': float, 'age_seconds': float}
         """
         pass
 
@@ -298,6 +311,10 @@ class InProcessJobQueue(JobQueue):
 
                 self._results_cond.wait(timeout=remaining)
 
+    def results_depth(self) -> int:
+        with self._results_cond:
+            return len(self._results)
+
     def queue_depth(self, queue_name: Optional[str] = None) -> Union[int, Dict[str, int]]:
         with self._lock:
             if queue_name is not None:
@@ -309,6 +326,20 @@ class InProcessJobQueue(JobQueue):
     def in_flight_count(self) -> int:
         with self._lock:
             return len(self._in_flight)
+
+    def get_in_flight_leases(self) -> List[Dict[str, Any]]:
+        with self._lock:
+            now = time.time()
+            leases = []
+            for env_id, info in self._in_flight.items():
+                leases.append({
+                    "envelope_id": env_id,
+                    "envelope": info["envelope"],
+                    "leased_at": info["leased_at"],
+                    "age_seconds": max(0.0, now - info["leased_at"]),
+                    "channel": info.get("channel", ""),
+                })
+            return leases
 
     def clear(self) -> None:
         with self._lock:
@@ -381,7 +412,8 @@ class RedisJobQueue(JobQueue):
                         secret_key=self.secret_key,
                         verify_signature=verify_signature,
                     )
-                    self.client.hset(self.KEY_INFLIGHT, env.envelope_id, raw_json)
+                    lease_data = json.dumps({"leased_at": time.time(), "raw_json": raw_json})
+                    self.client.hset(self.KEY_INFLIGHT, env.envelope_id, lease_data)
                     return env
             return None
 
@@ -399,7 +431,8 @@ class RedisJobQueue(JobQueue):
             secret_key=self.secret_key,
             verify_signature=verify_signature,
         )
-        self.client.hset(self.KEY_INFLIGHT, env.envelope_id, raw_json)
+        lease_data = json.dumps({"leased_at": time.time(), "raw_json": raw_json})
+        self.client.hset(self.KEY_INFLIGHT, env.envelope_id, lease_data)
         return env
 
     def acknowledge(self, envelope_id: str) -> bool:
@@ -458,6 +491,9 @@ class RedisJobQueue(JobQueue):
             verify_signature=bool(self.secret_key),
         )
 
+    def results_depth(self) -> int:
+        return int(self.client.llen(self.KEY_RESULTS))
+
     def queue_depth(self, queue_name: Optional[str] = None) -> Union[int, Dict[str, int]]:
         if queue_name is not None:
             return int(self.client.llen(self._channel_key(queue_name)))
@@ -474,6 +510,37 @@ class RedisJobQueue(JobQueue):
 
     def in_flight_count(self) -> int:
         return int(self.client.hlen(self.KEY_INFLIGHT))
+
+    def get_in_flight_leases(self) -> List[Dict[str, Any]]:
+        now = time.time()
+        leases = []
+        try:
+            entries = self.client.hgetall(self.KEY_INFLIGHT)
+            for env_id_raw, val in entries.items():
+                env_id = env_id_raw.decode("utf-8") if isinstance(env_id_raw, bytes) else str(env_id_raw)
+                val_str = val.decode("utf-8") if isinstance(val, bytes) else str(val)
+                leased_at = now
+                raw_json = val_str
+                try:
+                    data = json.loads(val_str)
+                    if isinstance(data, dict) and "leased_at" in data and "raw_json" in data:
+                        leased_at = float(data["leased_at"])
+                        raw_json = data["raw_json"]
+                except Exception:
+                    pass
+                try:
+                    env = JobEnvelope.from_json(raw_json, secret_key=self.secret_key, verify_signature=False)
+                    leases.append({
+                        "envelope_id": env_id,
+                        "envelope": env,
+                        "leased_at": leased_at,
+                        "age_seconds": max(0.0, now - leased_at),
+                    })
+                except Exception:
+                    pass
+        except Exception as e:
+            log.warning("Could not read in-flight leases from Redis: %s", e)
+        return leases
 
     def clear(self) -> None:
         keys = [self._channel_key(ch) for ch in DEFAULT_CHANNELS + [CHANNEL_DEAD_LETTER]]
