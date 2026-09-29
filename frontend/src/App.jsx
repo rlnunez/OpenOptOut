@@ -30,6 +30,7 @@ import BrokerHealth from './pages/BrokerHealth'
 import BrokerPriority from './pages/BrokerPriority'
 import ParentCompanies from './pages/ParentCompanies'
 import CaptchaQueue from './pages/CaptchaQueue'
+import WorkerFleet from './pages/WorkerFleet'
 import Login from './pages/Login'
 import SetupWizard from './pages/SetupWizard'
 
@@ -111,6 +112,7 @@ function Layout() {
             <Route path="/parent-companies" element={<RequirePermission perms={['brokers.manage']}><ParentCompanies /></RequirePermission>} />
             <Route path="/captcha" element={<CaptchaQueue />} />
             <Route path="/logs" element={<RequirePermission perms={['logs.view']}><SystemLogs /></RequirePermission>} />
+            <Route path="/worker-fleet" element={<RequirePermission perms={['settings.system']}><WorkerFleet /></RequirePermission>} />
           </Routes>
         </main>
       </div>

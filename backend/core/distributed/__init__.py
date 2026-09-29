@@ -45,6 +45,12 @@ from .ingestion import (
     ResultIngestionService,
 )
 
+from .registry import (
+    WorkerRegistry,
+    get_worker_registry,
+    collect_system_telemetry,
+)
+
 __all__ = [
     # Envelope (Phase 7.1)
     "JobEnvelope",
@@ -79,4 +85,8 @@ __all__ = [
     # Ingestion & Control Plane (Phase 7.4)
     "reclaim_orphaned_leases",
     "ResultIngestionService",
+    # Fleet Monitoring & Telemetry (Phase 7.5)
+    "WorkerRegistry",
+    "get_worker_registry",
+    "collect_system_telemetry",
 ]

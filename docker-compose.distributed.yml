@@ -1,0 +1,108 @@
+# ==============================================================================
+# PrivacyShield — Distributed Cluster Topology (Roadmap Phase 7.5)
+#
+# Production / High-Throughput Scaled Architecture:
+#   - api: FastAPI Control Plane + Result Ingestion Service + APScheduler Producer
+#   - redis: Unified High-Throughput Job Queue, Results Channel & Heartbeat Registry
+#   - worker: Stateless Browser Worker Fleet (scale with `--scale worker=N`)
+#   - web: Vite/React Frontend Dashboard
+#   - db: PostgreSQL Database
+#
+# Usage:
+#   docker compose -f docker-compose.distributed.yml up -d --scale worker=4
+# ==============================================================================
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: privacyshield-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy noeviction
+    ports:
+      - "${REDIS_BIND:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db:
+    image: postgres:16
+    container_name: privacyshield-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-privacyshield}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-privacyshield-secret-pw}
+      - POSTGRES_DB=${POSTGRES_DB:-privacyshield}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-privacyshield}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    container_name: privacyshield-api
+    restart: unless-stopped
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change-me-please-32-chars-minimum}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      - SETTINGS_FILE=/data/privacyshield_settings.json
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-privacyshield}:${POSTGRES_PASSWORD:-privacyshield-secret-pw}@db:5432/${POSTGRES_DB:-privacyshield}
+      - REDIS_URL=redis://redis:6379/0
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+    volumes:
+      - app_data:/data
+    ports:
+      - "${API_BIND:-127.0.0.1}:${API_PORT:-8010}:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build:
+      context: ./backend
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    restart: unless-stopped
+    command: python -m worker
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change-me-please-32-chars-minimum}
+      - REDIS_URL=redis://redis:6379/0
+      - WORKER_CONCURRENCY=${WORKER_CONCURRENCY:-2}
+      - WORKER_DRY_RUN=${WORKER_DRY_RUN:-0}
+    volumes:
+      - app_data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+  web:
+    build: ./frontend
+    container_name: privacyshield-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-80}:80"
+    depends_on:
+      - api
+
+volumes:
+  app_data:
+  redis_data:
+  pg_data:

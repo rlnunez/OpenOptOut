@@ -1681,6 +1681,118 @@ def t_control_plane_ingestion_and_reclamation():
     assert "Auto-chained" in (chaining_req.notes or "")
 
 
+@test(1, "distributed.fleet_monitoring_and_telemetry",
+      "Worker fleet registry aggregates heartbeats, telemetry, capacity utilization, and supports node draining (Phase 7.5).")
+def t_fleet_monitoring_and_telemetry():
+    import asyncio, time
+    registry_mod = _imp("core.distributed.registry")
+    queue_mod = _imp("core.distributed.queue")
+    worker_mod = _imp("core.distributed.worker")
+
+    # 1. Heartbeat registration and status computation
+    reg = registry_mod.WorkerRegistry()
+    w1 = reg.record_heartbeat(
+        worker_id="worker-node-1",
+        concurrency=2,
+        active_jobs=1,
+        jobs_completed=10,
+        jobs_failed=1,
+        uptime_seconds=120.0,
+        hostname="node-1.internal",
+    )
+    assert w1["worker_id"] == "worker-node-1"
+    assert w1["status"] == "online"
+
+    # Worker 2: at full concurrency -> "busy"
+    w2 = reg.record_heartbeat(
+        worker_id="worker-node-2",
+        concurrency=4,
+        active_jobs=4,
+        jobs_completed=25,
+        jobs_failed=0,
+        uptime_seconds=300.0,
+        hostname="node-2.internal",
+    )
+    assert w2["status"] == "busy"
+
+    workers = reg.list_workers(timeout_seconds=30.0)
+    assert len(workers) == 2
+    assert workers[0]["worker_id"] == "worker-node-1"
+    assert workers[0]["status"] == "online"
+    assert workers[1]["worker_id"] == "worker-node-2"
+    assert workers[1]["status"] == "busy"
+
+    # 2. Timeout / offline threshold detection
+    offline_workers = reg.list_workers(timeout_seconds=0.0)
+    assert all(w["status"] == "offline" for w in offline_workers)
+
+    # 3. Fleet summary and queue integration
+    mock_q = queue_mod.InProcessJobQueue()
+    summary = reg.get_fleet_summary(timeout_seconds=30.0, queue=mock_q)
+    assert summary["total_nodes"] == 2
+    assert summary["online_nodes"] == 2
+    assert summary["busy_nodes"] == 1
+    assert summary["total_slots"] == 6
+    assert summary["active_slots"] == 5
+    assert summary["idle_slots"] == 1
+    assert summary["utilization_pct"] == 83.3
+    assert summary["total_jobs_completed"] == 35
+    assert summary["total_jobs_failed"] == 1
+    assert "queue_depths" in summary
+
+    # 4. Node draining signal
+    assert reg.is_draining("worker-node-1") is False
+    reg.set_drain_signal("worker-node-1", drain=True)
+    assert reg.is_draining("worker-node-1") is True
+
+    w1_draining = reg.get_worker("worker-node-1", timeout_seconds=30.0)
+    assert w1_draining["status"] == "draining"
+
+    reg.set_drain_signal("worker-node-1", drain=False)
+    assert reg.is_draining("worker-node-1") is False
+
+    # 5. Stale worker pruning
+    reg.record_heartbeat(
+        worker_id="worker-ancient",
+        concurrency=1,
+        active_jobs=0,
+    )
+    with reg._lock:
+        reg._in_memory_workers["worker-ancient"]["last_heartbeat_at"] = time.time() - 1000.0
+
+    pruned = reg.prune_stale_workers(max_age_seconds=100.0)
+    assert pruned == 1
+    assert reg.get_worker("worker-ancient") is None
+
+    # 6. WorkerDaemon heartbeat and graceful drain integration
+    daemon_q = queue_mod.InProcessJobQueue()
+    daemon_config = worker_mod.WorkerConfig(
+        worker_id="worker-daemon-fleet-test",
+        concurrency=1,
+        dry_run=True,
+        enable_heartbeat=True,
+        heartbeat_interval=0.05,
+    )
+    daemon = worker_mod.WorkerDaemon(config=daemon_config, queue=daemon_q, registry=reg)
+
+    async def run_daemon_test():
+        run_task = asyncio.create_task(daemon.run())
+        for _ in range(20):
+            if reg.get_worker("worker-daemon-fleet-test"):
+                break
+            await asyncio.sleep(0.05)
+
+        live_worker = reg.get_worker("worker-daemon-fleet-test")
+        assert live_worker is not None
+        assert live_worker["worker_id"] == "worker-daemon-fleet-test"
+
+        reg.set_drain_signal("worker-daemon-fleet-test", True)
+        await asyncio.wait_for(run_task, timeout=2.0)
+        assert daemon._running is False
+
+    asyncio.run(run_daemon_test())
+
+
 @test(1, "broker_addon.manifest_and_spec_validation",
       "Broker add-on manifests and declarative specs parse, validate, and detect bad paths/steps.")
 def t_broker_addon_validation():

@@ -23,6 +23,7 @@ from .routers.consortium import router as consortium_router
 from .routers.logs import router as logs_router
 from .routers.captcha import router as captcha_router
 from .routers.i18n import router as i18n_router
+from .routers.workers import router as workers_router
 from .core.scheduler import start_scheduler, stop_scheduler
 from .core.version import get_version, get_commit, version_string
 from .core.logging_config import init_logging
@@ -50,6 +51,7 @@ for r in [
     db_admin_router, plugins_router, parent_companies_router, wizard_router,
     email_oauth_router, test_broker_router, saml_router, cert_monitor_router,
     consortium_router, logs_router, captcha_router, i18n_router,
+    workers_router,
 ]:
     app.include_router(r)
 

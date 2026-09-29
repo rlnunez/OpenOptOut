@@ -4,7 +4,7 @@ import {
   Users, ShieldCheck, Settings, LogOut, ShieldAlert,
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
   Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal,
-  Globe, Compass
+  Globe, Compass, Server
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
@@ -75,6 +75,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
     { to: '/translations',     icon: Globe,       label: 'Translations',     perms: ['settings.manage'] },
     { to: '/reporting',        icon: BarChart2,   label: 'Reporting',        perms: ['reporting.view'] },
     { to: '/database',         icon: HardDrive,   label: 'Database',         perms: ['database.view'] },
+    { to: '/worker-fleet',     icon: Server,      label: 'Worker fleet',     perms: ['settings.system'] },
     { to: '/logs',             icon: Terminal,    label: 'System logs',      perms: ['logs.view'] },
     { to: '/plugins',          icon: Puzzle,      label: 'Plugins',          perms: ['plugins.view'] },
     ...(!can(user, 'plugins.view') ? [{ to: '/plugin-upload', icon: Upload, label: 'Upload plugin', perms: ['plugins.upload'] }] : []),

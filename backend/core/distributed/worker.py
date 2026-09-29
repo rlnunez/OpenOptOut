@@ -41,6 +41,7 @@ from .queue import (
     CHANNEL_RETRY,
     CHANNEL_DEAD_LETTER,
 )
+from .registry import WorkerRegistry, get_worker_registry
 from ..interpreter.compiler import Job, JobStep
 from ..interpreter.executor import ExecResult, DryRunExecutor, PlaywrightExecutor
 
@@ -73,6 +74,8 @@ class WorkerConfig:
         default_factory=lambda: int(os.getenv("WORKER_CONCURRENCY", "1"))
     )
     poll_interval: float = 0.5
+    heartbeat_interval: float = 5.0
+    enable_heartbeat: bool = True
     max_retries: int = 3
     secret_key: Optional[Union[str, bytes]] = field(
         default_factory=lambda: os.getenv("SECRET_KEY")
@@ -311,6 +314,7 @@ class WorkerDaemon:
         config: Optional[WorkerConfig] = None,
         queue: Optional[JobQueue] = None,
         browser_pool: Optional[WorkerBrowserPool] = None,
+        registry: Optional[WorkerRegistry] = None,
     ):
         self.config = config or WorkerConfig()
         self.queue = queue or get_queue(
@@ -321,9 +325,15 @@ class WorkerDaemon:
             headless=self.config.headless,
             dry_run=self.config.dry_run,
         )
+        self.registry = registry or get_worker_registry(
+            getattr(self.queue, "client", None) if hasattr(self.queue, "client") else None
+        )
         self._running = False
         self._stop_event = asyncio.Event()
         self._active_tasks: List[asyncio.Task] = []
+        self._heartbeat_task: Optional[asyncio.Task] = None
+        self._busy_slots = 0
+        self._started_at = time.time()
         self._lock = asyncio.Lock()
         self.stats = {
             "processed": 0,
@@ -338,6 +348,35 @@ class WorkerDaemon:
         log.info("Worker [%s] received stop request. Draining tasks...", self.config.worker_id)
         self._running = False
         self._stop_event.set()
+
+    async def _heartbeat_loop(self) -> None:
+        """Background task reporting worker health and checking drain signals."""
+        while self._running and not self._stop_event.is_set():
+            try:
+                # 1. Check drain signal
+                if self.registry.is_draining(self.config.worker_id):
+                    log.info("Worker [%s] received drain command via registry.", self.config.worker_id)
+                    self.request_stop()
+                    break
+
+                # 2. Record heartbeat
+                uptime = time.time() - self._started_at
+                self.registry.record_heartbeat(
+                    worker_id=self.config.worker_id,
+                    concurrency=self.config.concurrency,
+                    active_jobs=self._busy_slots,
+                    jobs_completed=self.stats["success"],
+                    jobs_failed=self.stats["failure"],
+                    uptime_seconds=uptime,
+                    started_at=self._started_at,
+                    is_draining=self._stop_event.is_set(),
+                )
+                await asyncio.sleep(self.config.heartbeat_interval)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                log.debug("Heartbeat cycle error: %s", e)
+                await asyncio.sleep(1.0)
 
     async def execute_envelope(self, envelope: JobEnvelope) -> JobResultEnvelope:
         """
@@ -469,6 +508,7 @@ class WorkerDaemon:
         if envelope is None:
             return False
 
+        self._busy_slots += 1
         log.debug("Worker [%s] picked up envelope %s (%s)",
                   self.config.worker_id, envelope.envelope_id, envelope.action)
 
@@ -531,6 +571,8 @@ class WorkerDaemon:
             self.queue.dead_letter(envelope, reason=f"Unexpected worker exception: {e}")
             self.stats["dead_lettered"] += 1
             return True
+        finally:
+            self._busy_slots = max(0, self._busy_slots - 1)
 
     async def _slot_loop(self, slot_id: int) -> None:
         """Execution loop for one worker concurrency slot."""
@@ -569,16 +611,38 @@ class WorkerDaemon:
             asyncio.create_task(self._slot_loop(slot_id=i))
             for i in range(slots)
         ]
+        if self.config.enable_heartbeat:
+            self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
 
         try:
             await self._stop_event.wait()
         finally:
             self._running = False
+            if self._heartbeat_task:
+                self._heartbeat_task.cancel()
+                self._heartbeat_task = None
+
             # Drain tasks
             for t in self._active_tasks:
                 t.cancel()
             await asyncio.gather(*self._active_tasks, return_exceptions=True)
             self._active_tasks.clear()
+
+            # Record final shutdown heartbeat
+            if self.config.enable_heartbeat:
+                try:
+                    self.registry.record_heartbeat(
+                        worker_id=self.config.worker_id,
+                        concurrency=self.config.concurrency,
+                        active_jobs=0,
+                        jobs_completed=self.stats["success"],
+                        jobs_failed=self.stats["failure"],
+                        uptime_seconds=time.time() - self._started_at,
+                        started_at=self._started_at,
+                        is_draining=True,
+                    )
+                except Exception:
+                    pass
 
             # Clean up browser pool
             await self.browser_pool.close()

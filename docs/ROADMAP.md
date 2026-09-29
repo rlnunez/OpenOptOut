@@ -26,7 +26,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 4 | Pluggable CAPTCHA resolution | Complete |
 | 5 | Granular broker management | Complete |
 | 6 | Automated broker health monitoring | Complete |
-| 7 | Distributed execution: control plane & worker fleet | In Progress (Phases 7.1, 7.2, 7.3, 7.4 Complete) |
+| 7 | Distributed execution: control plane & worker fleet | Complete |
 | 8 | Add-on distribution: Git repo to marketplace | Planned |
 | 9 | Infrastructure capacity planner | Planned — pending empirical performance benchmarking |
 | 10 | Email-first opt-outs via parent companies | Complete |
@@ -195,13 +195,15 @@ To ensure operational stability and maintain continuous testability without disr
   - Implemented lease management & orphan reclamation (`reclaim_orphaned_leases`): automated detection and requeuing of jobs from crashed or unresponsive workers to `CHANNEL_RETRY` with retry counter tracking and automatic routing to `CHANNEL_DEAD_LETTER` once retries are exhausted.
   - *Verification:* Pure Python unit tests in `tests/run_tests.py` (`t_control_plane_ingestion_and_reclamation`) verifying lease expiration reclamation, DLQ routing on retry exhaustion, removal result ingestion, CAPTCHA queue routing, discovery listing persistence with automatic URL chaining into pending removal requests, and result draining.
 
-* **Phase 7.5 — Fleet Monitoring, Admin Telemetry & Orchestration (Operations Boundary):**
-  - Worker heartbeat registry (`worker_id`, host, active slots, vCPU/RAM telemetry, uptime).
-  - Administrative fleet management dashboard (`frontend/src/pages/WorkerFleet.jsx` and `routers/workers.py` gated by `settings.system`) displaying active nodes, queue depths (split by discovery vs. removal), and throughput.
-  - Distributed Docker Compose topology (`docker-compose.distributed.yml`) featuring scaled worker services (`--scale worker=4`).
-  - *Verification:* Smoke test running multi-container distributed discovery and opt-out runs under Docker Compose.
+* **Phase 7.5 — Fleet Monitoring, Admin Telemetry & Orchestration (Operations Boundary) — Complete:**
+  - Implemented thread-safe and Redis-backed worker heartbeat registry (`backend/core/distributed/registry.py`) capturing node telemetry (`worker_id`, `hostname`, active slots, concurrency, CPU/RAM telemetry, uptime, and status transitions).
+  - Wired live periodic heartbeat reporting and remote drain signal detection into `WorkerDaemon` (`backend/core/distributed/worker.py`).
+  - Implemented control plane REST API router (`backend/routers/workers.py` gated by `settings.system`) providing endpoints for fleet listings, operational summaries, individual worker telemetry, remote node draining, and manual lease reclamation sweeps.
+  - Built full-featured administrative worker fleet management dashboard in React (`frontend/src/pages/WorkerFleet.jsx`) with live auto-refresh, queue depth breakdown by priority channel, capacity utilization bars, node telemetry, and drain controls. Added navigation item in `Sidebar.jsx`.
+  - Created distributed multi-container Docker Compose topology (`docker-compose.distributed.yml`) featuring standalone scaled worker services (`--scale worker=4`), Redis cluster transport, PostgreSQL, and FastAPI control plane.
+  - *Verification:* Pure Python unit tests in `tests/run_tests.py` (`t_fleet_monitoring_and_telemetry`) verifying heartbeat registration, status transitions (online, busy, offline threshold), fleet capacity aggregation, drain signal propagation, and stale node pruning.
 
-**Status:** In Progress (Phases 7.1, 7.2, 7.3 & 7.4 Complete).
+**Status:** Complete (Phases 7.1, 7.2, 7.3, 7.4 & 7.5 Complete).
 
 ---
 
