@@ -26,7 +26,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 4 | Pluggable CAPTCHA resolution | Complete |
 | 5 | Granular broker management | Complete |
 | 6 | Automated broker health monitoring | Complete |
-| 7 | Distributed execution: control plane & worker fleet | In Progress (Phase 7.1 Complete) |
+| 7 | Distributed execution: control plane & worker fleet | In Progress (Phases 7.1 & 7.2 Complete) |
 | 8 | Add-on distribution: Git repo to marketplace | Planned |
 | 9 | Infrastructure capacity planner | Planned — pending empirical performance benchmarking |
 | 10 | Email-first opt-outs via parent companies | Complete |
@@ -172,11 +172,13 @@ To ensure operational stability and maintain continuous testability without disr
   - *Verification:* Pure Python unit tests in `tests/run_tests.py` validating round-trip envelope serialization, tampering rejection, expiry enforcement, authenticated encryption, and cryptographic zeroization.
 
 
-* **Phase 7.2 — Unified Queue Abstraction & Pluggable Backends (Transport Boundary):**
-  - Implement abstract `JobQueue` interface (`enqueue`, `dequeue`, `acknowledge`, `requeue`, `publish_result`).
-  - Implement `InProcessJobQueue`: thread-safe in-memory queue preserving zero-dependency single-container operations (default).
-  - Implement `RedisJobQueue`: distributed queue backend supporting priority channels (`removal_high`, `removal_normal`, `discovery`, `retry`) and dead-letter queues.
-  - *Verification:* Test suite runs against `InProcessJobQueue` by default, with optional Redis integration tests when configured.
+* **Phase 7.2 — Unified Queue Abstraction & Pluggable Backends (Transport Boundary) — Complete:**
+  - Implemented abstract `JobQueue` ABC (`enqueue`, `dequeue`, `acknowledge`, `requeue`, `dead_letter`, `publish_result`, `get_result`, `queue_depth`, `in_flight_count`, `clear`) in `backend/core/distributed/queue.py`.
+  - Implemented `InProcessJobQueue`: thread-safe in-memory priority queue supporting priority channels (`removal_high`, `removal_normal`, `discovery`, `retry`), dead-letter queue, in-flight lease tracking, and results queue preserving zero-dependency single-container operations (default).
+  - Implemented `RedisJobQueue`: distributed queue backend supporting priority channels (`removal_high`, `removal_normal`, `discovery`, `retry`), dead-letter queue, atomic pop/push operations, in-flight lease hash, and results queue.
+  - Implemented `get_queue(url, secret_key, reset)` global provider with automatic backend selection.
+  - Extended `Job`, `JobStep`, `EmailJob`, and `ExecResult` with canonical `to_dict()` and `from_dict()` serialization.
+  - *Verification:* Pure Python unit tests in `tests/run_tests.py` (`t_unified_job_queue`) verifying priority channel ordering, in-flight leases, ack/requeue/DLQ routing, results channel, mock Redis client operations, and global queue factory.
 
 * **Phase 7.3 — Stateless Worker Node Daemon (Execution Boundary):**
   - Implement standalone worker daemon (`backend/worker.py`) that boots independently of the FastAPI web application.
@@ -196,7 +198,7 @@ To ensure operational stability and maintain continuous testability without disr
   - Distributed Docker Compose topology (`docker-compose.distributed.yml`) featuring scaled worker services (`--scale worker=4`).
   - *Verification:* Smoke test running multi-container distributed discovery and opt-out runs under Docker Compose.
 
-**Status:** In Progress (Phased Migration Plan Established).
+**Status:** In Progress (Phases 7.1 & 7.2 Complete).
 
 ---
 
