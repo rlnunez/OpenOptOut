@@ -19,6 +19,24 @@ export default function Brokers() {
   const [difficulty, setDifficulty] = useState('')
   const [importing, setImporting] = useState(false)
   const [importMsg, setImportMsg] = useState('')
+  const [solvers, setSolvers]     = useState([])
+
+  useEffect(() => {
+    api.get('/brokers/captcha-solvers')
+      .then(r => setSolvers(r.data || []))
+      .catch(() => {})
+  }, [])
+
+  const handleSolverChange = async (brokerId, solverId) => {
+    try {
+      await api.patch(`/brokers/${brokerId}/captcha-solver`, {
+        captcha_plugin_id: solverId || null
+      })
+      setBrokers(prev => prev.map(b => b.id === brokerId ? { ...b, captcha_plugin_id: solverId || null } : b))
+    } catch (e) {
+      console.error('Failed to update captcha solver', e)
+    }
+  }
 
   const fetchBrokers = useCallback(() => {
     setLoading(true)
@@ -104,7 +122,7 @@ export default function Brokers() {
               <th className="text-left px-4 py-3 font-normal">Incogni status</th>
               <th className="text-left px-4 py-3 font-normal">Method</th>
               <th className="text-left px-4 py-3 font-normal">Difficulty</th>
-              <th className="text-left px-4 py-3 font-normal">Type</th>
+              <th className="text-left px-4 py-3 font-normal">Preferred CAPTCHA</th>
               <th className="text-left px-4 py-3 font-normal">Last request</th>
               <th className="text-left px-4 py-3 font-normal">Re-check</th>
               <th className="px-4 py-3 font-normal"></th>
@@ -112,10 +130,10 @@ export default function Brokers() {
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={7} className="px-4 py-8 text-slate-500 text-center">Loading…</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-slate-500 text-center">Loading…</td></tr>
             )}
             {!loading && brokers.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-slate-500 text-center">
+              <tr><td colSpan={8} className="px-4 py-8 text-slate-500 text-center">
                 No brokers found. Import the enriched CSV to get started.
               </td></tr>
             )}
@@ -125,6 +143,26 @@ export default function Brokers() {
                 <td className="px-4 py-2.5"><Badge value={b.status} /></td>
                 <td className="px-4 py-2.5"><Badge value={b.method} /></td>
                 <td className="px-4 py-2.5"><Badge value={b.difficulty} /></td>
+                <td className="px-4 py-2.5">
+                  {canManage ? (
+                    <select
+                      value={b.captcha_plugin_id || ''}
+                      onChange={e => handleSolverChange(b.id, e.target.value)}
+                      className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-shield-500"
+                    >
+                      <option value="">Default (Any)</option>
+                      {solvers.map(s => (
+                        <option key={s.plugin_id} value={s.plugin_id}>
+                          {s.name} {!s.enabled ? '(disabled)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-xs text-slate-400">
+                      {solvers.find(s => s.plugin_id === b.captcha_plugin_id)?.name || (b.captcha_plugin_id || 'Default')}
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-2.5">
                   {b.latest_status ? <Badge value={b.latest_status} /> : <span className="text-slate-600 text-xs">—</span>}
                 </td>

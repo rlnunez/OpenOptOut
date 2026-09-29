@@ -155,6 +155,11 @@ export default function BrokerHealth() {
                             <div>
                               <div className={`text-xs ${reason?.cls || 'text-slate-400'}`}>{reason?.label || r.last_failure_reason}</div>
                               <div className="text-slate-500 text-[11px]">{fmtDate(r.last_failure_at)}</div>
+                              {r.last_failure_reason === 'captcha' && (
+                                <div className="text-purple-300/80 text-[10px] mt-0.5">
+                                  Solver: {r.captcha_plugin_id || 'default'}
+                                </div>
+                              )}
                             </div>
                           </div>
                         ) : (

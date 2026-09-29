@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [reverseProxy, setReverseProxy] = useState(null)   // 'managed' | 'external' | 'none' | 'unset' | null (loading)
   const [httpsStatus, setHttpsStatus] = useState(null)      // result of /cert-monitor/https-status
   const [httpsChecking, setHttpsChecking] = useState(false)
+  const [pendingCaptchas, setPendingCaptchas] = useState(0)
   const onPlainHttp = typeof window !== 'undefined' && window.location.protocol === 'http:' &&
     !['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) &&
     reverseProxy !== 'external'   // an admin told us this server sits behind its own reverse proxy — take their word for it
@@ -37,9 +38,11 @@ export default function Dashboard() {
     Promise.all([
       api.get('/brokers/stats'),
       api.get('/requests/recheck-due?limit=5'),
-    ]).then(([s, r]) => {
+      api.get('/captcha/stats').catch(() => ({ data: { pending: 0 } })),
+    ]).then(([s, r, c]) => {
       setStats(s.data)
       setRecheck(r.data)
+      setPendingCaptchas(c.data?.pending || 0)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -194,6 +197,29 @@ export default function Dashboard() {
             </p>
           </div>
         </Link>
+      )}
+
+      {/* CAPTCHA / Human-in-the-loop alert — shown when opt-outs are paused for challenges */}
+      {pendingCaptchas > 0 && (
+        <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 rounded-xl border border-amber-800 bg-amber-950/30">
+          <div className="flex items-center gap-2.5">
+            <ShieldAlert size={18} className="text-amber-400 shrink-0" />
+            <div>
+              <p className="text-amber-200 text-sm font-medium">
+                {pendingCaptchas} opt-out {pendingCaptchas === 1 ? 'request requires' : 'requests require'} manual CAPTCHA resolution
+              </p>
+              <p className="text-slate-400 text-xs">
+                Execution paused at a challenge wall. Verify or complete the removal in the queue.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/captcha"
+            className="px-3 py-1.5 text-xs font-medium text-amber-200 bg-amber-900/40 border border-amber-700/60 rounded-lg hover:bg-amber-900/60 transition-colors shrink-0"
+          >
+            Review challenges →
+          </Link>
+        </div>
       )}
 
       {/* Stats grid */}

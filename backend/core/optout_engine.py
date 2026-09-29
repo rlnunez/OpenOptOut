@@ -668,7 +668,8 @@ async def _run_form_via_interpreter(request, context, cfg, db) -> "tuple[bool, s
         from ..plugins import get_manager
         mgr = get_manager()
         if mgr:
-            captcha_solver = lambda ch: mgr.dispatch_solve_captcha(ch)
+            preferred_captcha = getattr(broker, "captcha_plugin_id", None)
+            captcha_solver = lambda ch: mgr.dispatch_solve_captcha(ch, preferred_plugin_id=preferred_captcha)
             def form_handler(job_, page_html):
                 # Pass a provider, not the raw values: the manager materializes
                 # real member fields ONLY for a plugin that holds read_pii;
@@ -689,7 +690,7 @@ async def _run_form_via_interpreter(request, context, cfg, db) -> "tuple[bool, s
         executor = PlaywrightExecutor(
             page=page, captcha_solver=captcha_solver, plugin_form_handler=form_handler)
         res = await executor.run(job)
-        return (res.ok, res.detail or ("ok" if res.ok else "form flow failed"))
+        return res
     finally:
         await page.close()
 
@@ -737,17 +738,66 @@ async def execute_optout(
             # Try the NEW interpreter engine first (this is where the CAPTCHA
             # solver + fill_form plugin hooks fire). Falls back to the legacy
             # combination-matrix engine if the broker has no usable spec/script.
-            interp = await _run_form_via_interpreter(request, context, cfg, db)
-            if interp is not None:
-                ok, detail = interp
+            interp_res = await _run_form_via_interpreter(request, context, cfg, db)
+            if interp_res is not None:
+                ok = interp_res.ok
+                detail = interp_res.detail or ("ok" if ok else "form flow failed")
                 if ok: successes += 1
                 else:  failures  += 1
-                if not ok and "captcha" in (detail or "").lower():
+
+                screenshot_path = None
+                if interp_res.needs_captcha:
                     last_error = "captcha challenge encountered"
+                    ch = interp_res.challenge or {}
+                    # Save screenshot if available
+                    if ch.get("screenshot"):
+                        try:
+                            os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
+                            ts = int(time.time())
+                            bname = broker.name.replace(".", "_").replace(" ", "_")
+                            screenshot_path = f"{SCREENSHOTS_DIR}/captcha_{bname}_{ts}.png"
+                            with open(screenshot_path, "wb") as sf:
+                                sf.write(ch["screenshot"])
+                        except Exception as _se:
+                            log.warning("Could not write captcha screenshot: %s", _se)
+
+                    # Create or update CaptchaChallenge queue entry (Item 4)
+                    from ..models.database import CaptchaChallenge
+                    existing_ch = db.query(CaptchaChallenge).filter(
+                        CaptchaChallenge.request_id == request.id,
+                        CaptchaChallenge.status == "pending"
+                    ).first()
+                    if not existing_ch:
+                        c_entry = CaptchaChallenge(
+                            request_id=request.id,
+                            broker_id=broker.id,
+                            member_id=member.id,
+                            challenge_type=ch.get("type", "other") or "other",
+                            site_key=ch.get("site_key") or None,
+                            page_url=ch.get("page_url") or broker.opt_out_url or None,
+                            screenshot=screenshot_path,
+                            status="pending",
+                        )
+                        db.add(c_entry)
+                        db.commit()
+                        db.refresh(c_entry)
+                        try:
+                            from ..plugins.hooks import fire_event
+                            fire_event("captcha_challenge_detected", entity_id=str(c_entry.id), data={
+                                "broker": broker.name, "member": member.full_name,
+                                "challenge_type": c_entry.challenge_type, "page_url": c_entry.page_url
+                            })
+                        except Exception:
+                            pass
+
+                    request.notes = f"Paused for human CAPTCHA resolution ({ch.get('type', 'other')})"
+
                 db.add(AutomationLog(
                     request_id=request.id, member_id=member.id, broker_id=broker.id,
-                    action="form_fill", status="success" if ok else "failure",
+                    action="captcha_blocked" if interp_res.needs_captcha else "form_fill",
+                    status="captcha" if interp_res.needs_captcha else ("success" if ok else "failure"),
                     detail=f"[interpreter] {detail}",
+                    screenshot=screenshot_path,
                     duration_ms=int((time.monotonic() - start) * 1000),
                 ))
                 db.commit()
@@ -767,10 +817,41 @@ async def execute_optout(
                         if ok: successes += 1
                         else:  failures  += 1
 
+                        is_captcha = bool(shot and "captcha" in (shot or ""))
+                        if is_captcha:
+                            from ..models.database import CaptchaChallenge
+                            existing_ch = db.query(CaptchaChallenge).filter(
+                                CaptchaChallenge.request_id == request.id,
+                                CaptchaChallenge.status == "pending"
+                            ).first()
+                            if not existing_ch:
+                                c_entry = CaptchaChallenge(
+                                    request_id=request.id,
+                                    broker_id=broker.id,
+                                    member_id=member.id,
+                                    challenge_type="other",
+                                    page_url=getattr(page, "url", None) or broker.opt_out_url,
+                                    screenshot=shot,
+                                    status="pending",
+                                )
+                                db.add(c_entry)
+                                db.commit()
+                                db.refresh(c_entry)
+                                try:
+                                    from ..plugins.hooks import fire_event
+                                    fire_event("captcha_challenge_detected", entity_id=str(c_entry.id), data={
+                                        "broker": broker.name, "member": member.full_name,
+                                        "challenge_type": "other", "page_url": c_entry.page_url
+                                    })
+                                except Exception:
+                                    pass
+
+                            request.notes = "Paused for human CAPTCHA resolution"
+
                         db.add(AutomationLog(
                             request_id=request.id, member_id=member.id, broker_id=broker.id,
-                            action="form_fill",
-                            status="success" if ok else ("captcha" if shot and "captcha" in (shot or "") else "failure"),
+                            action="captcha_blocked" if is_captcha else "form_fill",
+                            status="success" if ok else ("captcha" if is_captcha else "failure"),
                             detail=combo.label(),
                             screenshot=shot,
                             duration_ms=int((time.monotonic() - start) * 1000),
@@ -778,8 +859,8 @@ async def execute_optout(
                         db.commit()
 
                         # Stop if CAPTCHA detected — no point continuing
-                        if shot and "captcha" in (shot or ""):
-                            log.warning(f"CAPTCHA on {broker.name} — stopping combo loop")
+                        if is_captcha:
+                            log.warning(f"CAPTCHA on {broker.name} — stopping combo loop for human")
                             last_error = "captcha challenge encountered"
                             break
 
@@ -809,6 +890,9 @@ async def execute_optout(
         request.sent_at   = datetime.utcnow()
         recheck_days      = cfg.get("scheduler", {}).get("recheck_interval_days", 90)
         request.recheck_after = datetime.utcnow() + timedelta(days=recheck_days)
+    elif "captcha" in (last_error or "").lower():
+        # Keep in pending status with paused note so operator can resolve challenge
+        request.status = RequestStatus.pending
     else:
         request.status = RequestStatus.failed
 

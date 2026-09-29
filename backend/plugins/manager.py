@@ -846,16 +846,24 @@ class PluginManager:
                 self._handle_crash(pid, f"fill_form error: {e}")
         return None
 
-    def dispatch_solve_captcha(self, challenge: dict) -> Optional[dict]:
+    def dispatch_solve_captcha(self, challenge: dict, preferred_plugin_id: Optional[str] = None) -> Optional[dict]:
         """
         Ask plugins (that implement solve_captcha) to solve a CAPTCHA. Returns
         the first real result — {"solved": True, "token": ...} or
         {"defer_to_human": True} — or None if no solver plugin is installed
         (in which case the caller uses the human path).
+
+        If preferred_plugin_id is specified, any matching running plugin is
+        tried first before falling back to other registered solvers.
         """
-        for pid, rp in list(self.running.items()):
-            if "solve_captcha" not in rp.manifest.hooks:
-                continue
+        candidates = [
+            (pid, rp) for pid, rp in list(self.running.items())
+            if "solve_captcha" in rp.manifest.hooks
+        ]
+        if preferred_plugin_id:
+            candidates.sort(key=lambda item: 0 if item[0] == preferred_plugin_id else 1)
+
+        for pid, rp in candidates:
             req = _pb.SolveCaptchaRequest(
                 challenge=_pb.CaptchaChallenge(
                     type=challenge.get("type", "other"),

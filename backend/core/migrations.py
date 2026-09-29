@@ -68,6 +68,10 @@ MIGRATIONS = [
         "Add branch_override_at to users",
         "ALTER TABLE users ADD COLUMN branch_override_at TIMESTAMP"
     ),
+    (
+        "Add captcha_plugin_id to brokers",
+        "ALTER TABLE brokers ADD COLUMN captcha_plugin_id VARCHAR(100)"
+    ),
 ]
 
 # Known property brokers — flagged on first startup

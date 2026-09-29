@@ -16,6 +16,7 @@ const nav = [
   { label: 'Discovery',     to: '/discovery',  icon: Radar },
   { label: 'Email monitor', to: '/email',      icon: Mail },
   { label: 'Scheduled',     to: '/scheduled',  icon: CalendarClock },
+  { label: 'CAPTCHA queue', to: '/captcha',    icon: ShieldAlert },
 ]
 const setup = [
   { label: 'Family members', to: '/family',   icon: Users },

@@ -197,6 +197,9 @@ def _select_pending_batch(db, cfg, max_this_run: int) -> list:
         # monitor — a broken broker never consumes a member's daily budget.
         if req.broker and (not req.broker.enabled or getattr(req.broker, "is_test", False)):
             continue
+        # Skip requests currently paused for human CAPTCHA resolution (Item 4)
+        if req.notes and "Paused for human CAPTCHA" in req.notes:
+            continue
         mc = req.member.schedule_config
         if mc and not mc.enabled:
             continue

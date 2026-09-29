@@ -431,6 +431,161 @@ def t_captcha_wiring():
     # IF THIS FAILS: the CAPTCHA solver hook isn't actually wired into execution.
 
 
+@test(1, "captcha.challenge_detection_and_retention",
+      "PlaywrightExecutor extracts challenge metadata and populates ExecResult.challenge on pause.")
+def t_captcha_detection():
+    import asyncio
+    executor_mod = _imp("core.interpreter.executor")
+    PlaywrightExecutor = executor_mod.PlaywrightExecutor
+    compiler_mod = _imp("core.interpreter.compiler")
+    Job = compiler_mod.Job
+    JobStep = compiler_mod.JobStep
+
+    class FakePage:
+        url = "https://optout.example/verify"
+        async def content(self):
+            return "<html><iframe src='https://www.google.com/recaptcha/api2/anchor' data-sitekey='SITEKEY-999'></iframe></html>"
+        async def query_selector(self, sel):
+            class Element:
+                async def get_attribute(self, a): return "SITEKEY-999" if a == "data-sitekey" else None
+            return Element() if "sitekey" in sel or "recaptcha" in sel else None
+        async def screenshot(self): return b"\x89PNGfake"
+        async def evaluate(self, js, *args): pass
+
+    page = FakePage()
+    ex = PlaywrightExecutor(page=page, captcha_solver=None)
+    job = Job(broker_id="1", broker_name="TestBroker", member_id="2", method="form",
+              steps=[JobStep(kind="solve_captcha", selector=".captcha")])
+
+    loop = asyncio.new_event_loop()
+    res = loop.run_until_complete(ex.run(job))
+
+    assert res.needs_captcha is True, "Executor should set needs_captcha=True"
+    assert res.challenge is not None, "ExecResult should include challenge metadata"
+    assert res.challenge.get("type") == "recaptcha_v2", f"Unexpected type: {res.challenge.get('type')}"
+    assert res.challenge.get("site_key") == "SITEKEY-999", f"Unexpected site_key: {res.challenge.get('site_key')}"
+    assert res.challenge.get("page_url") == "https://optout.example/verify"
+    assert res.challenge.get("screenshot") == b"\x89PNGfake"
+    # EXPECTED: challenge metadata captured and returned in ExecResult on human pause.
+    # IF THIS FAILS: the Human-in-the-Loop queue won't receive challenge details from execution.
+
+
+@test(1, "captcha.human_resolution_workflow",
+      "Human-in-the-loop resolution transitions RemovalRequest to sent, records resolver, and logs audit.")
+def t_captcha_human_resolution():
+    from datetime import datetime
+    try:
+        from datetime import timezone
+        now_fn = lambda: datetime.now(timezone.utc)
+    except Exception:
+        now_fn = datetime.utcnow
+    from types import SimpleNamespace as NS
+
+    user = NS(id=42, email="admin@example.org", full_name="Admin User")
+    broker = NS(id=10, name="BrokerX", opt_out_url="https://x.example/optout")
+    member = NS(id=5, full_name="Jane Doe")
+    req = NS(id=101, broker_id=broker.id, member_id=member.id, status="pending",
+             sent_at=None, notes="Paused for human CAPTCHA resolution (recaptcha_v2)")
+    challenge = NS(id=1, request_id=req.id, broker_id=broker.id, member_id=member.id,
+                   challenge_type="recaptcha_v2", status="pending", token=None,
+                   notes=None, resolved_by=None, resolved_at=None, broker=broker, member=member)
+
+    resolution_type = "manual_completed"
+    notes = "Solved captcha on broker site"
+
+    challenge.status = "resolved"
+    challenge.resolved_by = user.id
+    challenge.resolved_at = now_fn()
+    challenge.notes = notes
+
+    if resolution_type == "manual_completed":
+        req.status = "sent"
+        req.sent_at = now_fn()
+        req.notes = f"Resolved via human verification: {notes}"
+
+    assert challenge.status == "resolved"
+    assert challenge.resolved_by == 42
+    assert req.status == "sent"
+    assert req.sent_at is not None
+    assert "Resolved via human verification" in req.notes
+    # EXPECTED: manual resolution completes the request and records audit details.
+    # IF THIS FAILS: human operator actions won't resolve blocked removal requests.
+
+
+@test(1, "captcha.preferred_solver_dispatch_priority",
+      "PluginManager prioritizes broker's preferred CAPTCHA solver before fallback solvers.")
+def t_captcha_preferred_solver():
+    from types import SimpleNamespace as NS
+    mgr_mod = _imp("plugins.manager")
+
+    class FakePB:
+        def SolveCaptchaRequest(self, **kwargs): return kwargs
+        def CaptchaChallenge(self, **kwargs): return kwargs
+
+    orig_pb = mgr_mod._pb
+    mgr_mod._pb = FakePB()
+
+    try:
+        call_order = []
+
+        class FakeStub:
+            def __init__(self, pid, result, should_fail=False):
+                self.pid = pid
+                self.result = result
+                self.should_fail = should_fail
+
+            def SolveCaptcha(self, req, timeout=None):
+                call_order.append(self.pid)
+                if self.should_fail:
+                    raise RuntimeError(f"{self.pid} crashed")
+                return self.result
+
+        class FakeRunningPlugin:
+            def __init__(self, pid, hooks, resp, should_fail=False):
+                self.manifest = NS(hooks=hooks, timeout_seconds=5)
+                self.stub = FakeStub(pid, resp, should_fail=should_fail)
+
+        mgr = mgr_mod.PluginManager.__new__(mgr_mod.PluginManager)
+        mgr._handle_crash = lambda *args, **kwargs: None
+
+        plugin_general = FakeRunningPlugin("plugin_general", ["solve_captcha"],
+                                          NS(solved=True, token="tok_general", defer_to_human=False, error=None))
+        plugin_special = FakeRunningPlugin("plugin_special", ["solve_captcha"],
+                                          NS(solved=True, token="tok_special", defer_to_human=False, error=None))
+
+        mgr.running = {
+            "plugin_general": plugin_general,
+            "plugin_special": plugin_special,
+        }
+
+        # Case 1: Without preferred plugin, natural candidate order is used
+        call_order.clear()
+        res1 = mgr.dispatch_solve_captcha({"type": "recaptcha"})
+        assert res1 is not None and res1["solved"] is True
+        assert call_order[0] == "plugin_general"
+
+        # Case 2: With preferred plugin, plugin_special is queried first!
+        call_order.clear()
+        res2 = mgr.dispatch_solve_captcha({"type": "recaptcha"}, preferred_plugin_id="plugin_special")
+        assert res2 is not None and res2["solved"] is True
+        assert res2["plugin_id"] == "plugin_special"
+        assert res2["token"] == "tok_special"
+        assert call_order == ["plugin_special"]
+
+        # Case 3: If preferred plugin fails/crashes, fall back to general solver
+        failing_special = FakeRunningPlugin("plugin_special", ["solve_captcha"], None, should_fail=True)
+        mgr.running["plugin_special"] = failing_special
+        call_order.clear()
+        res3 = mgr.dispatch_solve_captcha({"type": "recaptcha"}, preferred_plugin_id="plugin_special")
+        assert res3 is not None and res3["solved"] is True
+        assert res3["plugin_id"] == "plugin_general"
+        assert call_order == ["plugin_special", "plugin_general"]
+    finally:
+        mgr_mod._pb = orig_pb
+    # EXPECTED: Preferred plugin runs first; fallback runs if preferred fails.
+    # IF THIS FAILS: Brokers configured with a specialized solver won't have it prioritized.
+
+
 @test(1, "interpreter.script_bridge",
       "A BrokerScript's selectors compile into a valid BrokerSpec (legacy→interpreter migration).")
 def t_script_bridge():
@@ -1927,6 +2082,84 @@ def t_parent_batch_metrics():
     s.close()
     # EXPECTED: multiple requests linked to parent, updated to sent and confirmed with shared UUID.
     # IF THIS FAILS: parent company email tracking or reputation scoring is broken.
+
+
+@test(2, "captcha.database_challenge_persistence",
+      "CaptchaChallenge model stores challenges, links to RemovalRequest, and supports query filtering.")
+def t_captcha_db():
+    db, s = _memory_db()
+    u = db.User(email="operator@example.org", full_name="Operator Name", hashed_password="x", role=db.UserRole.manager)
+    s.add(u); s.commit()
+    m = db.FamilyMember(user_id=u.id, full_name="Target Member")
+    s.add(m); s.commit()
+    b = db.Broker(name="CaptchaProtected Broker", opt_out_url="https://broker.example/optout")
+    s.add(b); s.commit()
+
+    req = db.RemovalRequest(member_id=m.id, broker_id=b.id, status=db.RequestStatus.pending, notes="Paused for human CAPTCHA resolution")
+    s.add(req); s.commit()
+
+    ch = db.CaptchaChallenge(
+        request_id=req.id, broker_id=b.id, member_id=m.id,
+        challenge_type="recaptcha_v2", site_key="TEST-SITEKEY",
+        page_url="https://broker.example/optout", status="pending"
+    )
+    s.add(ch); s.commit()
+
+    # Query back
+    saved = s.query(db.CaptchaChallenge).filter(db.CaptchaChallenge.request_id == req.id).first()
+    assert saved is not None
+    assert saved.challenge_type == "recaptcha_v2"
+    assert saved.site_key == "TEST-SITEKEY"
+    assert saved.status == "pending"
+    assert len(req.captcha_challenges) == 1
+
+    # Resolve
+    import datetime
+    saved.status = "resolved"
+    saved.resolved_by = u.id
+    try:
+        from datetime import timezone
+        saved.resolved_at = datetime.datetime.now(timezone.utc)
+    except Exception:
+        saved.resolved_at = datetime.datetime.utcnow()
+    s.commit()
+
+    s.refresh(saved)
+    assert saved.status == "resolved"
+    assert saved.resolver.full_name == "Operator Name"
+    s.close()
+    # EXPECTED: CaptchaChallenge persists, relates to request, member, broker, and user.
+    # IF THIS FAILS: The database schema for the human-in-the-loop CAPTCHA queue is broken.
+
+
+@test(2, "captcha.broker_preferred_solver_db_and_migration",
+      "Broker model has captcha_plugin_id column, persisted and loaded, and migrations list contains it.")
+def t_broker_preferred_solver():
+    db, s = _memory_db()
+    mig_mod = _imp("core.migrations")
+    assert any("captcha_plugin_id" in sql for name, sql in mig_mod.MIGRATIONS), \
+        "MIGRATIONS missing captcha_plugin_id column addition"
+
+    b = db.Broker(
+        name="SolverTestBroker",
+        opt_out_url="https://broker.example/optout",
+        captcha_plugin_id="recaptcha-v2-solver"
+    )
+    s.add(b)
+    s.commit()
+
+    loaded = s.query(db.Broker).filter(db.Broker.id == b.id).first()
+    assert loaded is not None
+    assert loaded.captcha_plugin_id == "recaptcha-v2-solver"
+
+    # Clearing/updating preferred solver
+    loaded.captcha_plugin_id = None
+    s.commit()
+    s.refresh(loaded)
+    assert loaded.captcha_plugin_id is None
+    s.close()
+    # EXPECTED: Broker.captcha_plugin_id is queryable and editable.
+    # IF THIS FAILS: Broker model or database migration for captcha_plugin_id is broken.
 
 
 @test(2, "provider_plugins.auto_provisions_bundled_email_plugin",

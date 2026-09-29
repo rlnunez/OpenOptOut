@@ -368,6 +368,10 @@ class Broker(Base):
     # opt-out is addressed to the parent and enumerates all sibling child sites.
     parent_company_id = Column(Integer, ForeignKey("parent_companies.id"), nullable=True, index=True)
 
+    # Optional preferred CAPTCHA solver plugin ID (e.g. "recaptcha-v2-solver").
+    # When set, the opt-out engine invokes this solver first for challenges on this broker.
+    captcha_plugin_id = Column(String(100), nullable=True)
+
     requests = relationship("RemovalRequest", back_populates="broker")
     health   = relationship("BrokerHealth", back_populates="broker", uselist=False)
     parent   = relationship("ParentCompany", back_populates="children")
@@ -433,6 +437,7 @@ class RemovalRequest(Base):
     member = relationship("FamilyMember", back_populates="requests")
     broker = relationship("Broker", back_populates="requests")
     emails = relationship("EmailLog", back_populates="request")
+    captcha_challenges = relationship("CaptchaChallenge", back_populates="request", cascade="all, delete-orphan")
 
 
 class EmailLog(Base):
@@ -449,6 +454,37 @@ class EmailLog(Base):
     received_at  = Column(DateTime, default=datetime.utcnow)
 
     request = relationship("RemovalRequest", back_populates="emails")
+
+
+class CaptchaChallenge(Base):
+    """
+    CAPTCHA challenge queue for human-in-the-loop fallback (Item 4).
+    When an automated run encounters a challenge that cannot be solved
+    automatically by a solver plugin (or when a solver defers), execution
+    pauses and records the challenge here for operator review and manual resolution.
+    """
+    __tablename__ = "captcha_challenges"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    request_id     = Column(Integer, ForeignKey("removal_requests.id"), nullable=False, index=True)
+    broker_id      = Column(Integer, ForeignKey("brokers.id"), nullable=False, index=True)
+    member_id      = Column(Integer, ForeignKey("family_members.id"), nullable=False, index=True)
+    challenge_type = Column(String(50), default="other")     # recaptcha_v2 | recaptcha_v3 | hcaptcha | turnstile | image | other
+    site_key       = Column(String(255), nullable=True)
+    page_url       = Column(String(1000), nullable=True)
+    screenshot     = Column(String(500), nullable=True)       # path to screenshot on disk
+    status         = Column(String(30), default="pending", index=True)   # pending | resolved | dismissed
+    token          = Column(Text, nullable=True)             # solution token if injected or manually provided
+    notes          = Column(Text, nullable=True)
+    resolved_by    = Column(Integer, ForeignKey("users.id"), nullable=True)
+    resolved_at    = Column(DateTime, nullable=True)
+    created_at     = Column(DateTime, default=datetime.utcnow)
+    updated_at     = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    request  = relationship("RemovalRequest", back_populates="captcha_challenges")
+    broker   = relationship("Broker")
+    member   = relationship("FamilyMember")
+    resolver = relationship("User")
 
 
 def init_db():

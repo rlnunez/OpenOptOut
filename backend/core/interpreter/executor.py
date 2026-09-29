@@ -33,6 +33,7 @@ class ExecResult:
     needs_captcha: bool = False     # execution paused for a CAPTCHA (item 4)
     needs_manual: bool = False      # broker requires human action
     trace: list[str] = field(default_factory=list)   # human-readable per-step log
+    challenge: Optional[dict] = None  # challenge metadata for human/solver path (type, site_key, page_url, etc.)
 
 
 class JobExecutor:
@@ -170,7 +171,7 @@ class PlaywrightExecutor(JobExecutor):
                 if paused:
                     return ExecResult(ok=False, steps_run=i, steps_total=total,
                                       needs_captcha=True, detail="paused for CAPTCHA",
-                                      trace=trace)
+                                      trace=trace, challenge=getattr(self, "last_challenge", None))
             except Exception as e:
                 if s.optional:
                     trace.append(f"[{i}] {s.kind} optional-failed: {e}")
@@ -197,7 +198,7 @@ class PlaywrightExecutor(JobExecutor):
                 if paused:
                     return ExecResult(ok=False, steps_run=i, steps_total=total,
                                       needs_captcha=True, detail="paused for CAPTCHA (plugin flow)",
-                                      trace=trace)
+                                      trace=trace, challenge=getattr(self, "last_challenge", None))
             except Exception as e:
                 if step.optional:
                     continue
@@ -309,10 +310,11 @@ class PlaywrightExecutor(JobExecutor):
         continue (return False). If it defers, or there's no solver, pause for
         the human path (return True).
         """
+        challenge = await self._detect_challenge(selector)
+        self.last_challenge = challenge
         if not self.captcha_solver:
             trace.append(f"[{i}] CAPTCHA detected — no solver installed, pausing for human")
             return True
-        challenge = await self._detect_challenge(selector)
         try:
             result = await self._maybe_await(self.captcha_solver(challenge))
         except Exception as e:

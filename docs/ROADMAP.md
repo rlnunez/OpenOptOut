@@ -23,7 +23,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 1 | Broker-as-add-on model | Partial — declarative schema operational; standalone packaging pending |
 | 2 | Declarative interpretation engine | Complete — operational in live path; legacy engine maintained as fallback |
 | 3 | Multi-form & complex page interpreter | Partial — `fill_form` hook wired; advanced page context in progress |
-| 4 | Pluggable CAPTCHA resolution | Partial — `solve_captcha` hook wired; human-in-the-loop fallback in progress |
+| 4 | Pluggable CAPTCHA resolution | Complete |
 | 5 | Granular broker management | Complete |
 | 6 | Automated broker health monitoring | Complete |
 | 7 | Distributed execution: control plane & worker fleet | Planned — rate limiting and PostgreSQL support ready; worker queue pending |
@@ -88,12 +88,15 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 
 **Architecture:**
 - **Core Neutrality:** The core engine detects challenges, pauses execution, and delegates challenge resolution via the `solve_captcha` plugin hook.
-- **Challenge Contract:** Passes challenge metadata (type, site-key, target URL) to registered solver plugins.
-- **Human-in-the-Loop Fallback:** Operator notification and manual verification seam for deployments operating without automated solving services.
+- **Challenge Contract:** Passes challenge metadata (type, site-key, target URL, and screenshot) to registered solver plugins.
+- **Broker-Preferred Solver Binding:** Each broker can specify an optional preferred CAPTCHA solver (`Broker.captcha_plugin_id`), which the plugin manager queries first before falling back to general solvers or the human path. Configurable via API and the broker management table.
+- **Human-in-the-Loop Fallback:** Operator notification and manual verification queue (`CaptchaChallenge` model and `/api/captcha` endpoints) for deployments operating without automated solving services.
+- **Operator Dashboard & Verification Seam:** Dedicated queue interface (`frontend/src/pages/CaptchaQueue.jsx`) with challenge screenshots, direct broker form links, token submission, and one-click manual completion verification.
+- **Scheduler & Health Integration:** Paused challenges hold associated removal requests without consuming daily scheduler quotas or prematurely tripping broker auto-disable health thresholds.
 - **Security Boundary:** Challenge solvers adhere to strict network egress controls and access-token policies.
 - **Scope & Limitations:** Exposing integration seams makes solver add-ons possible, but does not solve CAPTCHAs without an active solver plugin or manual operator intervention.
 
-**Status:** Partial. The `solve_captcha` hook is implemented and wired into `PlaywrightExecutor`. Default human-in-the-loop interface and turnkey solver plugins are in progress.
+**Status:** Complete.
 
 ---
 

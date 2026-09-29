@@ -4,7 +4,7 @@ from sqlalchemy import func
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
-import csv, io
+import csv, io, json
 
 from ..models.database import get_db, Broker, RemovalRequest, RequestStatus, BrokerStatus, OptOutMethod, Difficulty
 from ..core.auth import get_current_user, User
@@ -31,17 +31,23 @@ class BrokerOut(BaseModel):
     enabled: bool = True
     priority: int = 3
     priority_source: str = "default"
+    captcha_plugin_id: Optional[str] = None
 
     class Config:
         from_attributes = True
 
 
 class BrokerUpdate(BaseModel):
-    opt_out_url: Optional[str]
-    method: Optional[str]
-    difficulty: Optional[str]
-    notes: Optional[str]
+    opt_out_url: Optional[str] = None
+    method: Optional[str] = None
+    difficulty: Optional[str] = None
+    notes: Optional[str] = None
     is_property_broker: Optional[bool] = None
+    captcha_plugin_id: Optional[str] = None
+
+
+class BrokerCaptchaSolverUpdate(BaseModel):
+    captcha_plugin_id: Optional[str] = None
 
 
 class DashboardStats(BaseModel):
@@ -124,8 +130,41 @@ def list_brokers(
             latest_status=latest_req.status if latest_req else None,
             recheck_after=latest_req.recheck_after if latest_req else None,
             is_property_broker=bool(b.is_property_broker),
+            enabled=bool(b.enabled),
+            priority=b.priority,
+            priority_source=b.priority_source,
+            captcha_plugin_id=b.captcha_plugin_id,
         ))
     return result
+
+
+@router.get("/captcha-solvers")
+def list_captcha_solvers(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """
+    List installed plugins that offer CAPTCHA solving capabilities.
+    """
+    from ..models.database import InstalledPlugin
+    plugins = db.query(InstalledPlugin).all()
+    solvers = []
+    for p in plugins:
+        try:
+            m = json.loads(p.manifest_json or "{}")
+        except Exception:
+            m = {}
+        hooks = m.get("hooks", [])
+        ptype = m.get("type", "")
+        if "solve_captcha" in hooks or ptype == "captcha":
+            solvers.append({
+                "plugin_id": p.plugin_id,
+                "name": p.name,
+                "version": p.version,
+                "enabled": bool(p.enabled),
+                "status": p.status,
+            })
+    return solvers
 
 
 @router.get("/{broker_id}", response_model=BrokerOut)
@@ -159,6 +198,34 @@ def update_broker(
         method=b.method, difficulty=b.difficulty, status=b.status,
         notes=b.notes, date_added=b.date_added,
         request_count=len(b.requests), is_property_broker=bool(b.is_property_broker),
+        enabled=bool(b.enabled), priority=b.priority, priority_source=b.priority_source,
+        captcha_plugin_id=b.captcha_plugin_id,
+    )
+
+
+@router.patch("/{broker_id}/captcha-solver", response_model=BrokerOut)
+def set_broker_captcha_solver(
+    broker_id: int,
+    data: BrokerCaptchaSolverUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_permission("brokers.manage")),
+):
+    """
+    Assign or clear the preferred CAPTCHA solver plugin for a broker.
+    """
+    b = db.query(Broker).filter(Broker.id == broker_id).first()
+    if not b:
+        raise HTTPException(404, "Broker not found")
+    b.captcha_plugin_id = data.captcha_plugin_id.strip() if data.captcha_plugin_id else None
+    db.commit()
+    db.refresh(b)
+    return BrokerOut(
+        id=b.id, name=b.name, opt_out_url=b.opt_out_url,
+        method=b.method, difficulty=b.difficulty, status=b.status,
+        notes=b.notes, date_added=b.date_added,
+        request_count=len(b.requests), is_property_broker=bool(b.is_property_broker),
+        enabled=bool(b.enabled), priority=b.priority, priority_source=b.priority_source,
+        captcha_plugin_id=b.captcha_plugin_id,
     )
 
 
@@ -361,6 +428,7 @@ class BrokerHealthOut(BaseModel):
     auto_disabled_at: Optional[datetime] = None
     auto_disabled_reason: Optional[str] = None
     needs_review: bool = False
+    captcha_plugin_id: Optional[str] = None
 
 
 def _health_out(broker, h) -> "BrokerHealthOut":
@@ -381,6 +449,7 @@ def _health_out(broker, h) -> "BrokerHealthOut":
         auto_disabled_at=h.auto_disabled_at if h else None,
         auto_disabled_reason=h.auto_disabled_reason if h else None,
         needs_review=bool(h.needs_review) if h else False,
+        captcha_plugin_id=getattr(broker, "captcha_plugin_id", None),
     )
 
 

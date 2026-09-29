@@ -26,6 +26,7 @@ import SystemLogs from './pages/SystemLogs'
 import BrokerHealth from './pages/BrokerHealth'
 import BrokerPriority from './pages/BrokerPriority'
 import ParentCompanies from './pages/ParentCompanies'
+import CaptchaQueue from './pages/CaptchaQueue'
 import Login from './pages/Login'
 import SetupWizard from './pages/SetupWizard'
 
@@ -103,6 +104,7 @@ function Layout() {
             <Route path="/broker-health" element={<RequirePermission perms={['brokers.manage']}><BrokerHealth /></RequirePermission>} />
             <Route path="/broker-priority" element={<RequirePermission perms={['brokers.manage']}><BrokerPriority /></RequirePermission>} />
             <Route path="/parent-companies" element={<RequirePermission perms={['brokers.manage']}><ParentCompanies /></RequirePermission>} />
+            <Route path="/captcha" element={<CaptchaQueue />} />
             <Route path="/logs" element={<RequirePermission perms={['logs.view']}><SystemLogs /></RequirePermission>} />
           </Routes>
         </main>
