@@ -26,7 +26,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 4 | Pluggable CAPTCHA resolution | Complete |
 | 5 | Granular broker management | Complete |
 | 6 | Automated broker health monitoring | Complete |
-| 7 | Distributed execution: control plane & worker fleet | Phased plan established (5 migration phases) |
+| 7 | Distributed execution: control plane & worker fleet | In Progress (Phase 7.1 Complete) |
 | 8 | Add-on distribution: Git repo to marketplace | Planned |
 | 9 | Infrastructure capacity planner | Planned — pending empirical performance benchmarking |
 | 10 | Email-first opt-outs via parent companies | Complete |
@@ -164,11 +164,13 @@ workers_needed       = operations_per_cycle ÷ (worker_throughput × hours_in_co
 
 To ensure operational stability and maintain continuous testability without disrupting standalone single-node installations, Item 7 is structured into five progressive, independently verifiable phases:
 
-* **Phase 7.1 — Job Envelope & Secure Payload Serialization (Data Boundary):**
-  - Define `JobEnvelope` schema encapsulating action type (`removal` vs. `discovery`), compiled `Job` / query criteria, job ID, broker metadata, HMAC signature, and encrypted patron payload.
-  - Define `JobResultEnvelope` schema encapsulating `ExecResult`, discovered listing URLs / profile IDs, execution trace, screenshots, challenge metadata, and timing.
-  - Decouple execution from ORM entities: workers operate exclusively on serialized envelopes without direct database connection requirements.
-  - *Verification:* Pure Python unit tests validating round-trip envelope serialization, tampering rejection, and cryptographic zeroization.
+* **Phase 7.1 — Job Envelope & Secure Payload Serialization (Data Boundary) — Complete:**
+  - Implemented `JobEnvelope` schema encapsulating action type (`removal` vs. `discovery`), compiled `Job` / query criteria, job ID, broker metadata, HMAC-SHA256 signature, and authenticated encrypted payload (`backend/core/distributed/envelope.py`).
+  - Implemented `JobResultEnvelope` schema encapsulating `ExecResult`, discovered listing URLs / profile IDs, execution trace, screenshots, challenge metadata, and timing.
+  - Decoupled execution from ORM entities: workers operate exclusively on serialized envelopes without direct database connection requirements.
+  - Built-in memory zeroization (`zeroize()` and context manager) for scrubbing sensitive patron data and screenshot buffers from process memory (Roadmap Item 15).
+  - *Verification:* Pure Python unit tests in `tests/run_tests.py` validating round-trip envelope serialization, tampering rejection, expiry enforcement, authenticated encryption, and cryptographic zeroization.
+
 
 * **Phase 7.2 — Unified Queue Abstraction & Pluggable Backends (Transport Boundary):**
   - Implement abstract `JobQueue` interface (`enqueue`, `dequeue`, `acknowledge`, `requeue`, `publish_result`).
