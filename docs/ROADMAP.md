@@ -22,7 +22,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 |---|------|--------|
 | 1 | Broker-as-add-on model | Complete |
 | 2 | Declarative interpretation engine | Complete — operational in live path; legacy engine maintained as fallback |
-| 3 | Multi-form & complex page interpreter | Partial — `fill_form` hook wired; advanced page context in progress |
+| 3 | Multi-form & complex page interpreter | Complete |
 | 4 | Pluggable CAPTCHA resolution | Complete |
 | 5 | Granular broker management | Complete |
 | 6 | Automated broker health monitoring | Complete |
@@ -74,13 +74,16 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 ---
 
 ### 3. Multi-form & complex page interpreter (add-on hook)
-**Goal:** Support complex, multi-page, or dynamic broker flows via specialized plugin handlers rather than expanding the core engine.
+**Goal:** Support complex, multi-page, or dynamic broker flows via declarative step extensions and specialized plugin handlers rather than expanding hardcoded engine logic.
 
 **Architecture:**
-- **Extension Seam:** The core engine provides standard single-form execution and exposes a `fill_form` hook for custom broker plugins.
-- **Context Delegation:** Passes execution context (DOM handles, permitted patron fields) to sandboxed plugins without breaching security boundaries.
+- **Declarative Complex Page Primitives:** Extended `BrokerSpec` step vocabulary (`click_matching`, `press`, `frame`, `scroll`) allowing declarative specs to traverse multi-page search results, keyboard submissions, scroll-driven loading, and embedded iframes without writing Python code.
+- **Dynamic Iframe Context Switching:** `PlaywrightExecutor` manages frame targeting (`frame` step), automatically switching interaction context into embedded `iframe` forms and resetting back to the main document context.
+- **Rich Page Context Delegation:** The host inspects the browser state and injects comprehensive metadata (`current_url`, `page_title`, `has_iframes`, `stage_index`, and DOM HTML) into the `fill_form` hook payload, allowing plugins to determine exactly which step of a multi-page wizard is active.
+- **Multi-Stage Iterative Takeover:** `PlaywrightExecutor` supports chained multi-stage takeover loops (`next_stage: True`), allowing form plugins to handle progressive wizard workflows (e.g. Stage 0: Search Directory → Stage 1: Select Profile → Stage 2: Submit Opt-Out Form) while all browser automation and network access remain strictly isolated in the host.
+- **Reference Multi-Step Implementation:** Reference plugin (`examples/plugins/forms/example-multistep-filler/`) demonstrating progressive multi-stage broker interaction, record matching, and iframe submission.
 
-**Status:** Partial. The `fill_form` hook is integrated into `PlaywrightExecutor`; richer page context and advanced reference plugins are in development.
+**Status:** Complete.
 
 ---
 

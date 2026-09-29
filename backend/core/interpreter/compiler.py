@@ -135,6 +135,7 @@ def compile_job(spec: BrokerSpec, member_fields: dict, member_id: str) -> Job:
 
     for s in spec.steps:
         value = s.value
+        text = s.text
         if s.kind in ("fill", "select") and s.field:
             if s.field not in KNOWN_FIELDS:
                 raise CompileError(f"step references unknown field: {s.field}")
@@ -144,9 +145,20 @@ def compile_job(spec: BrokerSpec, member_fields: dict, member_id: str) -> Job:
                     f"member has no value for required field '{s.field}' "
                     f"(broker '{spec.broker_id}')")
             value = "" if resolved is None else str(resolved)
+        elif s.kind == "click_matching" and s.field:
+            if s.field not in KNOWN_FIELDS:
+                raise CompileError(f"click_matching references unknown field: {s.field}")
+            resolved = member_fields.get(s.field)
+            if resolved is None and not s.optional:
+                raise CompileError(
+                    f"member has no value for required field '{s.field}' "
+                    f"(broker '{spec.broker_id}')")
+            if not text:
+                text = "" if resolved is None else str(resolved)
+
         steps.append(JobStep(
             kind=s.kind, selector=s.selector, value=value, url=s.url,
-            text=s.text, timeout_ms=s.timeout_ms, optional=s.optional,
+            text=text, timeout_ms=s.timeout_ms, optional=s.optional,
         ))
 
     job.steps = steps

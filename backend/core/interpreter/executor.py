@@ -97,6 +97,14 @@ class DryRunExecutor(JobExecutor):
             return f"[{i}] wait {s.timeout_ms}ms"
         if s.kind == "submit":
             return f"[{i}] submit {s.selector}".rstrip()
+        if s.kind == "click_matching":
+            return f"[{i}] click_matching {s.selector or '*'} matching {s.text or s.value!r}"
+        if s.kind == "press":
+            return f"[{i}] press {s.value!r} on {s.selector or 'body'}"
+        if s.kind == "frame":
+            return f"[{i}] frame context -> {s.selector or 'main'}"
+        if s.kind == "scroll":
+            return f"[{i}] scroll {s.selector or 'window'}"
         if s.kind == "expect_success":
             return f"[{i}] expect_success {s.selector or s.text!r}"
         return f"[{i}] {s.kind}"
@@ -125,6 +133,38 @@ class PlaywrightExecutor(JobExecutor):
         self.email_sender = email_sender
         self.captcha_solver = captcha_solver
         self.plugin_form_handler = plugin_form_handler
+        self._current_frame = None
+
+    def _target(self):
+        """Current interaction target: either an active iframe locator or the main page."""
+        return self._current_frame if self._current_frame is not None else self.page
+
+    async def _get_page_context(self, stage_index: int = 0) -> dict:
+        """Gather rich page state for fill_form plugins (roadmap item 3)."""
+        current_url = getattr(self.page, "url", "") if hasattr(self.page, "url") else ""
+        page_title = ""
+        try:
+            page_title = await self.page.title() if hasattr(self.page, "title") else ""
+        except Exception:
+            pass
+        has_iframes = False
+        try:
+            frames = self.page.frames if hasattr(self.page, "frames") else []
+            has_iframes = len(frames) > 1
+        except Exception:
+            pass
+        page_html = ""
+        try:
+            page_html = await self.page.content() if hasattr(self.page, "content") else ""
+        except Exception:
+            pass
+        return {
+            "url": current_url,
+            "title": page_title,
+            "has_iframes": has_iframes,
+            "html": page_html,
+            "stage_index": stage_index,
+        }
 
     async def run(self, job: Job) -> ExecResult:  # async: mirrors optout_engine
         if job.method == "manual":
@@ -141,26 +181,51 @@ class PlaywrightExecutor(JobExecutor):
             return ExecResult(ok=False, detail="no browser page provided for form job")
 
         trace = []
+        self._current_frame = None
 
-        # Extension point: a fill_form plugin may take over this broker entirely.
-        # If one handles it, we execute the plugin's returned actions instead of
-        # the compiled spec steps (this is how multi-form / broker-specific logic
-        # lives in an add-on rather than the core). If none handles it, fall
-        # through to the default spec-driven execution below.
+        # Extension point: a fill_form plugin may take over this broker entirely
+        # (multi-form / complex wizard flow, roadmap item 3). Supports multi-stage
+        # interactive takeover loops.
         if self.plugin_form_handler:
             try:
                 nav = next((st for st in job.steps if st.kind == "navigate"), None)
                 if nav and nav.url:
                     await self.page.goto(nav.url, timeout=20000)
                     await self.page.wait_for_timeout(1500)
-                page_html = await self.page.content()
-                handled = await self._maybe_await(self.plugin_form_handler(job, page_html))
-                if handled and handled.get("handled"):
+
+                stage = 0
+                max_stages = 5
+                plugin_handled = False
+                while stage < max_stages:
+                    ctx = await self._get_page_context(stage_index=stage)
+                    handled = await self._maybe_await(self.plugin_form_handler(job, ctx))
+                    if not (handled and handled.get("handled")):
+                        break  # not handled, fall back to spec steps
+
+                    plugin_handled = True
                     actions = handled.get("actions", [])
-                    trace.append(f"[plugin:{handled.get('plugin_id','?')}] took over — {len(actions)} actions")
+                    trace.append(f"[plugin:{handled.get('plugin_id','?')}] stage {stage+1} — {len(actions)} actions")
                     res = await self._run_plugin_actions(actions, trace)
-                    if res is not None:
+                    if res is not None and not res.ok:
                         return res
+
+                    # Multi-stage chained flow: if plugin requests another turn, advance
+                    if handled.get("next_stage"):
+                        stage += 1
+                        await self.page.wait_for_timeout(1500)
+                        continue
+
+                    # Success verification if declared by plugin
+                    succ_sel = handled.get("success_selector")
+                    if succ_sel:
+                        try:
+                            await self.page.wait_for_selector(succ_sel, timeout=10000)
+                            trace.append(f"success selector verified: {succ_sel}")
+                        except Exception:
+                            return ExecResult(ok=False, detail=f"success selector not found: {succ_sel}", trace=trace)
+
+                    return res or ExecResult(ok=True, steps_run=len(actions), steps_total=len(actions),
+                                             detail="plugin form flow complete", trace=trace)
             except Exception as e:
                 trace.append(f"fill_form plugin takeover failed ({e}); using default steps")
 
@@ -209,52 +274,86 @@ class PlaywrightExecutor(JobExecutor):
 
     async def _run_step(self, s: JobStep, trace: list, i: int) -> bool:
         """
-        Perform one step against self.page. Returns True if execution should
-        pause for a CAPTCHA. Mirrors the Playwright usage already proven in
-        core/optout_engine.py (goto/fill/click/select/wait, with timeouts).
-        Raises on failure; the caller decides whether the step was optional.
+        Perform one step against self.page (or active frame context).
+        Returns True if execution should pause for a CAPTCHA.
         """
         if s.kind == "solve_captcha":
             return await self._handle_captcha(s.selector, trace, i)
 
+        if s.kind == "frame":
+            # Switch target context into an iframe, or reset to main page
+            if not s.selector or s.selector.lower() in ("main", "top", ":root", "parent"):
+                self._current_frame = None
+                trace.append(f"[{i}] frame context reset to main page")
+            else:
+                self._current_frame = self.page.frame_locator(s.selector)
+                trace.append(f"[{i}] frame context switched to {s.selector}")
+            return False
+
         if s.kind == "navigate":
+            self._current_frame = None  # Navigation resets frame context
             await self.page.goto(s.url, timeout=s.timeout_ms or 20000)
             await self.page.wait_for_timeout(1500)   # let the page settle
 
         elif s.kind == "fill":
-            await self.page.fill(s.selector, s.value, timeout=s.timeout_ms or 8000)
+            target = self._target()
+            await target.fill(s.selector, s.value, timeout=s.timeout_ms or 8000)
 
         elif s.kind == "select":
-            await self.page.select_option(s.selector, s.value, timeout=s.timeout_ms or 8000)
+            target = self._target()
+            await target.select_option(s.selector, s.value, timeout=s.timeout_ms or 8000)
 
         elif s.kind == "check":
-            await self.page.check(s.selector, timeout=s.timeout_ms or 8000)
+            target = self._target()
+            await target.check(s.selector, timeout=s.timeout_ms or 8000)
 
         elif s.kind == "click":
-            await self.page.click(s.selector, timeout=s.timeout_ms or 8000)
+            target = self._target()
+            await target.click(s.selector, timeout=s.timeout_ms or 8000)
             await self.page.wait_for_timeout(500)
 
+        elif s.kind == "click_matching":
+            target = self._target()
+            matching_text = s.text or s.value
+            if s.selector:
+                locator = target.locator(s.selector).filter(has_text=matching_text).first
+            else:
+                locator = target.locator(f"text={matching_text}").first
+            await locator.click(timeout=s.timeout_ms or 8000)
+            await self.page.wait_for_timeout(1000)
+
+        elif s.kind == "press":
+            target = self._target()
+            await target.press(s.selector or "body", s.value or "Enter", timeout=s.timeout_ms or 8000)
+            await self.page.wait_for_timeout(500)
+
+        elif s.kind == "scroll":
+            if s.selector:
+                target = self._target()
+                await target.locator(s.selector).first.scroll_into_view_if_needed(timeout=s.timeout_ms or 8000)
+            else:
+                await self.page.evaluate("window.scrollBy(0, 500)")
+
         elif s.kind == "wait_for":
-            await self.page.wait_for_selector(s.selector, timeout=s.timeout_ms or 8000)
+            target = self._target()
+            await target.wait_for_selector(s.selector, timeout=s.timeout_ms or 8000)
 
         elif s.kind == "wait":
             await self.page.wait_for_timeout(s.timeout_ms or 1000)
 
         elif s.kind == "submit":
-            # Prefer clicking a given submit selector; otherwise submit the
-            # enclosing form via JS as a fallback.
+            target = self._target()
             if s.selector:
-                await self.page.click(s.selector, timeout=s.timeout_ms or 8000)
+                await target.click(s.selector, timeout=s.timeout_ms or 8000)
             else:
                 await self.page.evaluate(
                     "() => { const f = document.querySelector('form'); if (f) f.submit(); }")
             await self.page.wait_for_timeout(2000)
 
         elif s.kind == "expect_success":
-            # Confirm the opt-out landed: either a success selector appears, or
-            # success text is present in the page body. Raises if neither.
+            target = self._target()
             if s.selector:
-                await self.page.wait_for_selector(s.selector, timeout=s.timeout_ms or 8000)
+                await target.wait_for_selector(s.selector, timeout=s.timeout_ms or 8000)
             elif s.text:
                 content = await self.page.content()
                 if s.text not in content:

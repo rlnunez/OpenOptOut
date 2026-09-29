@@ -113,6 +113,10 @@ class FormContext:
     page_html: str
     fields: dict          # key -> value (empty if no read_pii)
     broker_meta: dict
+    current_url: str = ""
+    page_title: str = ""
+    has_iframes: bool = False
+    stage_index: int = 0
 
 
 @dataclass
@@ -122,6 +126,7 @@ class FormResult:
     actions: list = field(default_factory=list)  # list of dict actions
     success_selector: str = ""
     error: str = ""
+    next_stage: bool = False
 
     @staticmethod
     def fill(selector, value, timeout_ms=5000):
@@ -132,12 +137,40 @@ class FormResult:
         return {"action": "click", "selector": selector, "value": "", "timeout_ms": timeout_ms}
 
     @staticmethod
+    def click_matching(selector, text, timeout_ms=5000):
+        return {"action": "click_matching", "selector": selector, "value": text, "timeout_ms": timeout_ms}
+
+    @staticmethod
+    def press(selector, key="Enter", timeout_ms=5000):
+        return {"action": "press", "selector": selector, "value": key, "timeout_ms": timeout_ms}
+
+    @staticmethod
+    def frame(selector=""):
+        return {"action": "frame", "selector": selector, "value": "", "timeout_ms": 1000}
+
+    @staticmethod
+    def scroll(selector="", timeout_ms=5000):
+        return {"action": "scroll", "selector": selector, "value": "", "timeout_ms": timeout_ms}
+
+    @staticmethod
     def select(selector, value, timeout_ms=5000):
         return {"action": "select", "selector": selector, "value": value, "timeout_ms": timeout_ms}
 
     @staticmethod
+    def check(selector, timeout_ms=5000):
+        return {"action": "check", "selector": selector, "value": "", "timeout_ms": timeout_ms}
+
+    @staticmethod
+    def wait_for(selector, timeout_ms=8000):
+        return {"action": "wait_for", "selector": selector, "value": "", "timeout_ms": timeout_ms}
+
+    @staticmethod
     def wait(timeout_ms=1000):
         return {"action": "wait", "selector": "", "value": "", "timeout_ms": timeout_ms}
+
+    @staticmethod
+    def expect_success(selector="", text="", timeout_ms=8000):
+        return {"action": "expect_success", "selector": selector, "value": text, "timeout_ms": timeout_ms}
 
 
 # ---- Host capability client ----
@@ -501,11 +534,16 @@ class _PluginServicer:
         fn = self.plugin._handlers.get("fill_form")
         if not fn:
             return pb.FillFormResponse(handled=False)
+        bmeta = dict(request.broker_meta)
         ctx = FormContext(
             broker_id=request.broker_id, broker_name=request.broker_name,
             opt_out_url=request.opt_out_url, page_html=request.page_html,
             fields={f.key: f.value for f in request.fields},
-            broker_meta=dict(request.broker_meta),
+            broker_meta=bmeta,
+            current_url=bmeta.get("current_url", request.opt_out_url),
+            page_title=bmeta.get("page_title", ""),
+            has_iframes=bmeta.get("has_iframes") in ("True", "true", "1", True),
+            stage_index=int(bmeta.get("stage_index", 0) or 0),
         )
         try:
             result = fn(ctx)

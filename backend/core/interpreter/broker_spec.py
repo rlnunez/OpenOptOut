@@ -37,16 +37,20 @@ KNOWN_FIELDS = {
 # small, closed vocabulary is deliberately not Turing-complete — an add-on
 # describes a flow, it does not run logic.
 STEP_KINDS = {
-    "navigate",      # go to a URL
-    "fill",          # put a member field (or literal) into a form input
-    "select",        # choose an option in a <select>
-    "check",         # tick a checkbox / radio
-    "click",         # click a button/element
-    "wait_for",      # wait until a selector appears
-    "wait",          # fixed delay (ms)
-    "submit",        # submit the form
-    "expect_success",# assert a success signal (selector/text) to confirm the opt-out
-    "solve_captcha", # hand off to the CAPTCHA layer (roadmap item 4)
+    "navigate",       # go to a URL
+    "fill",           # put a member field (or literal) into a form input
+    "select",         # choose an option in a <select>
+    "check",          # tick a checkbox / radio
+    "click",          # click a button/element
+    "click_matching", # click element matching text or field value
+    "press",          # press a keyboard key (e.g. Enter, Tab)
+    "frame",          # switch context to an iframe (or "main" / empty to exit)
+    "scroll",         # scroll element into view or scroll page
+    "wait_for",       # wait until a selector appears
+    "wait",           # fixed delay (ms)
+    "submit",         # submit the form
+    "expect_success", # assert a success signal (selector/text) to confirm the opt-out
+    "solve_captcha",  # hand off to the CAPTCHA layer (roadmap item 4)
 }
 
 
@@ -55,10 +59,10 @@ class Step:
     """One primitive action in a form flow."""
     kind: str
     selector: str = ""          # CSS/xpath target, where applicable
-    field: str = ""             # a KNOWN_FIELDS name, for `fill`
-    value: str = ""             # a literal value (for fill/select when not a field)
+    field: str = ""             # a KNOWN_FIELDS name, for `fill` or `click_matching`
+    value: str = ""             # a literal value (for fill/select/press when not a field)
     url: str = ""               # for `navigate`
-    text: str = ""              # for expect_success (text to look for)
+    text: str = ""              # for expect_success / click_matching (text to look for)
     timeout_ms: int = 8000
     optional: bool = False      # if True, failure of this step doesn't fail the flow
 
@@ -73,6 +77,12 @@ class Step:
             errs.append(f"{self.kind} step requires a field or a value")
         if self.kind == "fill" and self.field and self.field not in KNOWN_FIELDS:
             errs.append(f"fill references unknown field: {self.field}")
+        if self.kind == "click_matching" and self.field and self.field not in KNOWN_FIELDS:
+            errs.append(f"click_matching references unknown field: {self.field}")
+        if self.kind == "click_matching" and not (self.selector or self.text or self.field):
+            errs.append("click_matching requires a selector, text, or field")
+        if self.kind == "press" and not self.value:
+            errs.append("press requires a value (e.g. 'Enter', 'Tab')")
         if self.kind in ("fill", "select", "check", "click", "wait_for") and not self.selector:
             errs.append(f"{self.kind} step requires a selector")
         if self.kind == "expect_success" and not (self.selector or self.text):

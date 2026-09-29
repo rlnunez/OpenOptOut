@@ -1,0 +1,18 @@
+{
+  "id": "example-multistep-filler",
+  "name": "Example Multi-Step Wizard Broker Filler",
+  "version": "1.0.0",
+  "type": "forms",
+  "author": "PrivacyShield",
+  "description": "Demonstrates complex multi-page broker flows (Roadmap Item 3): search directory, profile matching, iframe traversal, and final submission.",
+  "api_version": "1.0",
+  "permissions": ["fill_forms", "read_pii", "storage"],
+  "hooks": ["fill_form"],
+  "methods": ["storage.get", "storage.set", "log"],
+  "events": [],
+  "outbound_domains": [],
+  "entrypoint": "plugin.py",
+  "max_memory_mb": 128,
+  "max_cpu_seconds": 15,
+  "timeout_seconds": 20
+}

@@ -694,15 +694,29 @@ async def _run_form_via_interpreter(request, context, cfg, db) -> "tuple[bool, s
         if mgr:
             preferred_captcha = getattr(broker, "captcha_plugin_id", None)
             captcha_solver = lambda ch: mgr.dispatch_solve_captcha(ch, preferred_plugin_id=preferred_captcha)
-            def form_handler(job_, page_html):
+            def form_handler(job_, page_context):
                 # Pass a provider, not the raw values: the manager materializes
                 # real member fields ONLY for a plugin that holds read_pii;
                 # unpermitted plugins get a redacted (keys-only) view and the
                 # raw PII never reaches them. Defense-in-depth at the boundary.
+                if isinstance(page_context, dict):
+                    page_html = page_context.get("html", "")
+                    meta = {
+                        "method": str(broker.method),
+                        "difficulty": str(broker.difficulty),
+                        "current_url": str(page_context.get("url", "")),
+                        "page_title": str(page_context.get("title", "")),
+                        "has_iframes": str(bool(page_context.get("has_iframes", False))),
+                        "stage_index": str(page_context.get("stage_index", 0)),
+                    }
+                else:
+                    page_html = str(page_context or "")
+                    meta = {"method": str(broker.method), "difficulty": str(broker.difficulty)}
+
                 return mgr.dispatch_fill_form(
                     {"id": broker.id, "name": broker.name,
                      "opt_out_url": broker.opt_out_url or "",
-                     "meta": {"method": str(broker.method), "difficulty": str(broker.difficulty)}},
+                     "meta": meta},
                     page_html,
                     fields_provider=lambda: dict(member_fields),
                 )

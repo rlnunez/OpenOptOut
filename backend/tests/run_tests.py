@@ -835,6 +835,134 @@ def t_script_bridge():
         "empty script should return None for legacy fallback"
 
 
+@test(1, "interpreter.complex_page_actions",
+      "Multi-form interpreter compiles and executes complex steps (click_matching, press, frame, scroll) and multi-stage plugin loops.")
+def t_complex_page_actions():
+    import asyncio
+    bs_mod = _imp("core.interpreter.broker_spec")
+    compiler_mod = _imp("core.interpreter.compiler")
+    executor_mod = _imp("core.interpreter.executor")
+
+    # 1. Declarative spec validation with complex steps
+    spec = bs_mod.BrokerSpec(
+        broker_id="wizard-broker",
+        name="Wizard Broker",
+        method="form",
+        opt_out_url="https://wizard.example/search",
+        steps=[
+            bs_mod.Step(kind="fill", selector="#name-input", field="full_name"),
+            bs_mod.Step(kind="press", selector="#name-input", value="Enter"),
+            bs_mod.Step(kind="scroll", selector="#results-container"),
+            bs_mod.Step(kind="click_matching", selector=".result-card", field="city"),
+            bs_mod.Step(kind="frame", selector="iframe#removal-form"),
+            bs_mod.Step(kind="fill", selector="#email-input", field="email"),
+            bs_mod.Step(kind="click", selector="#submit-btn"),
+            bs_mod.Step(kind="frame", selector="main"),
+            bs_mod.Step(kind="expect_success", text="Removal confirmed"),
+        ]
+    )
+    val_errs = spec.validate()
+    assert not val_errs, f"spec validation failed: {val_errs}"
+
+    # 2. Compilation and field substitution
+    member = {
+        "full_name": "Jane Doe",
+        "city": "Austin",
+        "email": "jane@example.org"
+    }
+    job = compiler_mod.compile_job(spec, member, member_id="42")
+    assert len(job.steps) == 10  # 1 auto-navigate + 9 steps
+    click_matching_step = next(s for s in job.steps if s.kind == "click_matching")
+    assert click_matching_step.text == "Austin"
+
+    # 3. DryRunExecutor
+    dry = executor_mod.DryRunExecutor()
+    res = dry.run(job)
+    assert res.ok is True
+    assert any("press 'Enter'" in t for t in res.trace)
+    assert any("click_matching .result-card matching 'Austin'" in t for t in res.trace)
+    assert any("frame context -> iframe#removal-form" in t for t in res.trace)
+    assert any("frame context -> main" in t for t in res.trace)
+
+    # 4. PlaywrightExecutor multi-stage plugin takeover simulation
+    class FakeLocator:
+        def __init__(self, sel):
+            self.sel = sel
+        def filter(self, has_text=None):
+            return self
+        @property
+        def first(self):
+            return self
+        async def click(self, timeout=None):
+            pass
+        async def scroll_into_view_if_needed(self, timeout=None):
+            pass
+
+    class FakePage:
+        def __init__(self):
+            self.url = "https://wizard.example/search"
+            self.frames = [1, 2]
+        async def title(self):
+            return "Search Directory"
+        async def content(self):
+            return "<html><body><h1>Search Results</h1></body></html>"
+        async def goto(self, url, timeout=None):
+            self.url = url
+        async def wait_for_timeout(self, ms):
+            pass
+        async def wait_for_selector(self, sel, timeout=None):
+            pass
+        def frame_locator(self, sel):
+            return self
+        def locator(self, sel):
+            return FakeLocator(sel)
+        async def press(self, sel, key, timeout=None):
+            pass
+        async def fill(self, sel, val, timeout=None):
+            pass
+        async def click(self, sel, timeout=None):
+            pass
+        async def query_selector(self, sel):
+            return None
+
+    stages_seen = []
+    async def fake_multi_stage_handler(j, ctx):
+        stages_seen.append(ctx.get("stage_index"))
+        assert ctx.get("has_iframes") is True
+        if ctx.get("stage_index") == 0:
+            return {
+                "handled": True,
+                "plugin_id": "test-multistep",
+                "actions": [
+                    {"action": "fill", "selector": "#name", "value": "Jane Doe"},
+                    {"action": "press", "selector": "#name", "value": "Enter"}
+                ],
+                "next_stage": True,
+            }
+        else:
+            return {
+                "handled": True,
+                "plugin_id": "test-multistep",
+                "actions": [
+                    {"action": "frame", "selector": "iframe#optout"},
+                    {"action": "click_matching", "selector": ".card", "value": "Austin"},
+                    {"action": "expect_success", "selector": ".done"}
+                ],
+                "next_stage": False,
+            }
+
+    fake_page = FakePage()
+    pw_exec = executor_mod.PlaywrightExecutor(
+        page=fake_page,
+        plugin_form_handler=fake_multi_stage_handler
+    )
+    pw_res = asyncio.run(pw_exec.run(job))
+    assert pw_res.ok is True, f"pw_exec failed: {pw_res.detail}"
+    assert stages_seen == [0, 1], f"expected stages 0 and 1, got {stages_seen}"
+    assert any("stage 1" in t for t in pw_res.trace)
+    assert any("stage 2" in t for t in pw_res.trace)
+
+
 @test(1, "broker_addon.manifest_and_spec_validation",
       "Broker add-on manifests and declarative specs parse, validate, and detect bad paths/steps.")
 def t_broker_addon_validation():
