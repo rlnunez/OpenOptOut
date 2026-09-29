@@ -49,20 +49,25 @@ That is the goal. Everything here is meant to make that day arrive sooner — an
 
 Data brokers collect your name, address, phone number, relatives, and more — then sell it to anyone who pays. PrivacyShield automates the removal process:
 
-1. **Identity vault** — store all name variants, emails, phones, and addresses for each member (encrypted at rest)
-2. **Broker list** — 400+ pre-loaded brokers with opt-out URLs and methods (form, email, manual), including property-record brokers
-3. **Discovery bot** — searches broker sites for a member's listings before opting out, so you only act where there's actually a record
-4. **Opt-out engine** — automated Playwright form-fill and SMTP email opt-out with per-member rate limits, user-agent rotation, and optional proxy/IP masking
-5. **Email monitor** — polls your removal inbox via IMAP, matches confirmations to requests using UUID tracking keys
-6. **Re-check scheduler** — automatically re-queues confirmed removals before brokers can re-list you, with four job-spreading modes
-7. **Help & docs** — built-in guides for resistant vendors (Epsilon, Ekata, MyLife, etc.) plus admin-editable notes
+1. **Identity vault** — store all name variants, emails, phones, and addresses for each member (encrypted at rest with cryptographic zeroization)
+2. **Pre-loaded broker database** — 400+ built-in brokers with opt-out URLs and execution methods (declarative form spec, email, manual), including property-record brokers, ready out of the box without requiring external plugins
+3. **Parent company cascades** — consolidates email opt-outs to corporate conglomerates (LexisNexis, PeopleConnect, etc.) to confirm multiple subsidiary broker storefronts in a single transaction
+4. **Discovery bot** — searches broker sites for a member's listings before opting out, so you only act where there's actually a record
+5. **Declarative opt-out engine** — single declarative interpreter driving Playwright browser automation and SMTP email opt-outs with per-member rate limits, user-agent rotation, and proxy/IP masking
+6. **Distributed worker fleet** — scale headless browser automation across independent worker nodes via Redis priority queues, with real-time fleet telemetry, CPU/RAM monitoring, and node draining controls
+7. **Email monitor** — polls your removal inbox via IMAP, matches confirmations to requests using UUID tracking keys, with 60-day dual-inbox grace periods for credential transitions
+8. **Re-check scheduler** — automatically re-queues confirmed removals before brokers can re-list you, with four job-spreading modes
+9. **Unified host & fleet installer** — interactive terminal wizard (TUI via `whiptail`/ANSI) and scriptable CLI (`curl -fsSL ... | sudo bash`) supporting specialized roles (`standalone`, `control-plane`, `worker`), automated PostgreSQL provisioning, and zero-touch Nginx with Let's Encrypt TLS
+10. **Plugin architecture & SDK** — secure, Bubblewrap-sandboxed extension runtime for custom broker specs (`brokers/`), CAPTCHA solvers (`captcha/`), discovery bots (`discovery/`), institutional themes (`themes/`), and language packs (`languages/`). Bundled with native OAuth email provider plugins (Gmail, Outlook, Yahoo)
 
-**Institutional add-ons:**
-- **White-label branding** — custom app name, logo, accent colors, and footer HTML
-- **Patron self-service** — patrons manage their own removals without seeing other users' data
-- **Single sign-on** — OIDC (Google Workspace, Microsoft 365, Okta), SAML 2.0, LDAP / Active Directory, and SIP2 / SIP2S (library cards)
-- **PostgreSQL support** — seamless scaling for thousands of concurrent users
-- **Database encryption** — SQLCipher full-database encryption + Fernet column-level encryption
+**Institutional capabilities:**
+- **Consortium hierarchy** — multi-tier partitioning: Consortium → Library Systems → Branch Locations with dynamic SIP2 ILS routing and per-system branding
+- **White-label branding & i18n** — custom app name, logos, accent colors, and full multilingual localization with Right-to-Left (RTL) mirroring (Arabic, Hebrew)
+- **Patron self-service** — patrons manage their own removals without seeing other users' data, supported by a 4-step guided onboarding walkthrough
+- **Delegated managerial permissions** — 17 granular permission scopes allowing staff to manage users, brokers, or logs without granting super-admin credentials
+- **Single sign-on (SSO)** — OIDC (Google Workspace, Microsoft 365, Okta), SAML 2.0 (Shibboleth, Keycloak, Authentik), LDAP / Active Directory, and SIP2 / SIP2S (library cards)
+- **PostgreSQL scaling** — seamless scaling for thousands of concurrent users with mTLS and cloud IAM auth
+- **Comprehensive security** — SQLCipher full-database encryption, Fernet column-level encryption, memory zeroization, and audit logging with an in-app viewer
 - **Usage reporting** — exportable metrics (total opted-out records, active requests, broker response rates)
 
 ---
@@ -118,7 +123,7 @@ For a local development environment with hot reload (FastAPI backend + Vite Reac
 On a fresh install the app shows a create-administrator screen instead of a login page; that account becomes the super admin. A guided **setup wizard** then walks through database, email, branding, and HTTPS deployment. Every step is skippable, and everything it sets can be changed later in Settings. The checklist below covers the same ground plus what comes after:
 
 - [ ] **Email** (wizard or Settings → Email) — connect your dedicated removal inbox via OAuth 2.0 (recommended) or App Password (see [Email setup](#email-setup))
-- [ ] **Brokers → Import CSV** — upload `incogni_brokers_enriched.csv` if you have one, or use the pre-loaded list
+- [ ] **Brokers** (Brokers page) — verify the pre-loaded catalog of 400+ data brokers (or use **Import CSV / JSON** if your organization maintains custom broker lists)
 - [ ] **Family members** — add yourself and family members (Settings → Family Members)
 - [ ] **Identity Vault** — fill in name variants, former addresses, and phone numbers for each member (the more identifiers, the better the removal match)
 - [ ] **Discovery scan** (optional) — run Discovery to identify which brokers actually list your family before submitting removals
@@ -243,7 +248,17 @@ Ideally, PrivacyShield will undergo a formal, independent security audit prior t
 
 **Shipped:**
 - [x] Opt-out engine — Playwright form-fill and SMTP email sending
-- [x] Email monitor UI — live inbox view with matched confirmations
+- [x] Declarative broker-spec interpreter — unified declarative execution engine with action sequences (`navigate`, `fill`, `click`, `select`, `wait_for`, `solve_captcha`, `frame`) — see [`docs/INTERPRETER.md`](docs/INTERPRETER.md)
+- [x] Distributed execution fleet — decoupled control plane and stateless worker nodes backed by Redis priority queues (`removal_high`, `removal_normal`, `discovery`, `retry`, `dead_letter`), signed tamper-proof job envelopes, memory zeroization, dynamic result ingestion, automated lease reclamation sweeps, and administrative fleet monitoring dashboard with node draining controls — see [`docs/ROADMAP.md`](docs/ROADMAP.md#7-distributed-execution-control-plane--worker-fleet)
+- [x] Unified host & fleet installer — interactive terminal wizard (TUI via `whiptail`/ANSI) and non-interactive CLI (`curl -fsSL ... | sudo bash`) supporting specialized roles (`standalone`, `control-plane`, `worker`), automated PostgreSQL provisioning, zero-touch Nginx reverse proxy with WebSockets/SSE, and automated Let's Encrypt TLS — see [`docs/NATIVE_INSTALL.md`](docs/NATIVE_INSTALL.md)
+- [x] Multi-tier institutional hierarchy (Consortium) — global Consortium → Library Systems → Branch Locations partitioning with dynamic barcode-prefixed SIP2 ILS routing, manager scope isolation, and per-system branding
+- [x] Internationalization (i18n) & RTL — dynamic master UI translation dictionary, Right-to-Left (RTL) mirroring (Arabic, Hebrew), admin translation replacement manager, and 4-step user onboarding walkthrough
+- [x] Delegated managerial permissions — tiered `manager` role with 17 granular capability flags and least-privilege scoping
+- [x] Process memory hygiene — ephemeral decrypted buffers with cryptographic zeroization on context exit
+- [x] Operational visibility & diagnostic logging — persistent disk rotation with in-memory ring buffer (2,000 records), dynamic runtime log levels, and automatic PII/credential sanitization
+- [x] Parent-company email opt-outs — consolidated email dispatch to corporate parents (e.g. LexisNexis, PeopleConnect) confirming multiple child broker sites in a single transaction
+- [x] First-run setup wizard — guided onboarding for database, email transports, institutional branding, and HTTPS
+- [x] Email monitor UI — live inbox view with matched confirmations and 60-day dual-inbox transition grace period
 - [x] Discovery bot — searches broker sites for listings before opting out
 - [x] SQLite → Postgres one-click migration tool
 - [x] Database encryption (SQLCipher + field-level)
@@ -253,23 +268,17 @@ Ideally, PrivacyShield will undergo a formal, independent security audit prior t
 - [x] Usage reporting with charts and CSV export
 - [x] User-agent rotation + proxy/IP masking + job-spreading modes
 - [x] Property-record broker support (deeds, mortgages, formal names)
-- [x] Plugin system — process-isolated, OS-sandboxed, permission-gated extensions
-- [x] SAML 2.0 SSO for staff (self-hosted Keycloak/Authentik to university Shibboleth IdPs), LDAPS/StartTLS hardening, SIP2-over-TLS with mandatory verification, and certificate-expiry monitoring/reminders — see [`docs/SSO.md`](docs/SSO.md)
-- [x] Built-in HTTPS — Docker (managed via an optional Caddy container), native no-container installs (certbot/win-acme), or an existing reverse proxy (external) — see [`docs/HTTPS.md`](docs/HTTPS.md) and [`docs/NATIVE_INSTALL.md`](docs/NATIVE_INSTALL.md)
-- [x] Version + git commit logged at startup and served from `GET /api/health` — no ambiguity about what code is actually running
-- [x] Broker health tracking with automatic disable of repeatedly failing brokers, plus per-broker enable/disable and priority
-- [x] Parent-company email opt-outs — one email to a parent company covering all its child sites, with effectiveness tracking
-- [x] First-run setup wizard (database, email, branding, HTTPS deployment)
-- [x] OAuth email connection for Gmail and Outlook, via bundled email-provider plugins
-- [x] Declarative broker-spec interpreter, live for brokers with an automation script — see [`docs/INTERPRETER.md`](docs/INTERPRETER.md)
+- [x] Plugin system & developer SDK — process-isolated, Bubblewrap-sandboxed, gRPC capability broker across typed directories (`brokers/`, `forms/`, `captcha/`, `discovery/`, `themes/`, `languages/`, `email/`, `general/`) with bundled OAuth email plugins (Gmail, Outlook, Yahoo) — see [`docs/PLUGINS.md`](docs/PLUGINS.md)
+- [x] SAML 2.0 SSO for staff (Shibboleth, Keycloak, Authentik), LDAPS/StartTLS hardening, SIP2-over-TLS with mandatory verification, and certificate lifecycle monitoring — see [`docs/SSO.md`](docs/SSO.md)
+- [x] Built-in HTTPS — Docker (managed Caddy proxy), native host installs (Certbot / win-acme), or external reverse proxy — see [`docs/HTTPS.md`](docs/HTTPS.md)
+- [x] Version + git commit logged at startup and served from `GET /api/health`
+- [x] Broker health tracking with automatic disable of repeatedly failing brokers, plus per-broker priority rankings
 
 **Planned:**
-- [ ] Independent security audit & penetration testing — see [`docs/ROADMAP.md`](docs/ROADMAP.md#22-independent-security-audit--penetration-testing)
-- [ ] Notification system — email/webhook alerts for overdue re-checks
-- [ ] Further mobile-responsive UI improvements
-- [ ] Public broker database — community-maintained list with open PRs
-- [ ] Per-broker form-selector library — crowd-sourced automation scripts
-- [ ] Plugin marketplace / signed plugin distribution
+- [ ] Infrastructure capacity planner — administrative sizing calculator for worker nodes and Redis queue throughput (Roadmap Item 9)
+- [ ] Add-on distribution & community marketplace — modular Git-backed catalog and web directory for community broker specs and solver plugins (Roadmap Item 8)
+- [ ] Independent security audit & penetration testing — third-party code audit and threat model verification (Roadmap Item 22)
+- [ ] School district authentication — Parent Portal SSO federation with SIS platforms (Roadmap Item 12, on-demand)
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the complete item-by-item architectural roadmap and implementation status.
 
