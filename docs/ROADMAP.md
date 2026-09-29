@@ -34,7 +34,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 12 | School district authentication (Parent Portal SSO) | Planned |
 | 13 | SAML 2.0 SSO & identity hardening | Complete |
 | 14 | Built-in HTTPS with automated certificates | Complete |
-| 15 | Process memory hygiene & credential lifecycle | Planned |
+| 15 | Process memory hygiene & credential lifecycle | Complete |
 | 16 | Operational visibility & diagnostic logging | Complete |
 | 17 | Internationalization (i18n): language packs & RTL | Planned |
 | 18 | Typed plugin directories & runtime isolation | Complete |
@@ -271,11 +271,11 @@ workers_needed       = operations_per_cycle ÷ (worker_throughput × hours_in_co
 
 **Technical Strategy:**
 - **Language Scope:** Acknowledging Python string immutability and memory allocation behavior, memory hygiene represents disciplined risk reduction (limiting scope, minimizing retention windows, clearing references promptly) rather than a hardware-level zeroization guarantee.
-- **Credential Scoping:** Apply the ephemeral credential delivery pattern (`GetEmailCredentials`) across all integrations, passing short-lived tokens directly to executing operations rather than caching persistent credentials.
-- **Log Sanitization:** Enforce strict review checklists ensuring credentials and PII are never interpolated into log statements or exception tracebacks.
-- **Batch Processing Limits:** Stream patron records during bulk processing to ensure sensitive data goes out of scope promptly.
+- **Credential Scoping & Memory Zeroization:** `core/memory_hygiene.py` provides `SecureBuffer`, `ephemeral_secret`, and `scoped_credentials` context managers. Secrets are decrypted directly into mutable byte buffers, yielded strictly for the execution of connection blocks (SMTP, IMAP, tests), and overwritten with zeros on block exit or exception.
+- **Log Sanitization:** Enforces strict review checklists and automated masking ensuring credentials and PII are never interpolated into log statements or exception tracebacks (Item 16).
+- **Batch Processing Streaming:** Streams patron records (`stream_records` with `yield_per`) during bulk processing to ensure sensitive data goes out of scope promptly rather than accumulating in full-table in-memory collections.
 
-**Status:** Planned.
+**Status:** Complete.
 
 ---
 

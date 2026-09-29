@@ -727,6 +727,81 @@ def t_email_grace_scheduler_dual_inbox():
         sched_mod.SessionLocal = orig_session
 
 
+@test(1, "memory_hygiene.secure_buffer_zeroize",
+      "SecureBuffer stores sensitive data and overwrites its mutable byte buffer with zeros on exit.")
+def t_memory_hygiene_secure_buffer():
+    mh = _imp("core.memory_hygiene")
+    buf = mh.SecureBuffer.from_str("SuperSecretPassword123!")
+    assert buf.as_str() == "SuperSecretPassword123!"
+    assert len(buf) > 0
+    assert buf.is_zeroized is False
+
+    # Manual zeroization
+    buf.zeroize()
+    assert buf.is_zeroized is True
+    assert buf.as_str() == ""
+    assert buf.as_bytes() == b""
+
+    # Context manager zeroization
+    with mh.SecureBuffer.from_str("EphemeralToken456") as ctx_buf:
+        captured_buf = ctx_buf
+        assert ctx_buf.as_str() == "EphemeralToken456"
+        assert ctx_buf.is_zeroized is False
+    assert captured_buf.is_zeroized is True
+    assert captured_buf.as_str() == ""
+
+
+@test(1, "memory_hygiene.ephemeral_secret_lifecycle",
+      "ephemeral_secret yields secret during block execution and wipes buffer upon exit and on exceptions.")
+def t_memory_hygiene_ephemeral_secret():
+    mh = _imp("core.memory_hygiene")
+
+    # Success case
+    with mh.ephemeral_secret("my-plaintext-api-key", decrypt=False) as secret:
+        assert secret == "my-plaintext-api-key"
+
+    # Exception safety: buffer is still wiped even if error occurs
+    caught = False
+    try:
+        with mh.ephemeral_secret("my-failing-secret", decrypt=False) as secret:
+            assert secret == "my-failing-secret"
+            raise ValueError("Intentional error inside secret block")
+    except ValueError:
+        caught = True
+    assert caught is True, "Exception inside ephemeral_secret should propagate"
+
+
+@test(1, "memory_hygiene.scoped_credentials_and_streaming",
+      "scoped_credentials clears secret dictionary upon exit and stream_records streams items cleanly.")
+def t_memory_hygiene_scoped_creds_and_streaming():
+    mh = _imp("core.memory_hygiene")
+
+    # Scoped credentials
+    with mh.scoped_credentials(user="test_user", token="test_token") as creds:
+        assert creds.get("token") == "test_token"
+    # Dictionary cleared on exit
+    assert len(creds) == 0
+
+    # Stream records
+    items = list(range(100))
+    streamed = list(mh.stream_records(items, batch_size=25))
+    assert streamed == items
+
+    # Stream query mock with yield_per
+    class FakeQuery:
+        def __init__(self, data):
+            self.data = data
+            self.yield_per_called_with = None
+        def yield_per(self, n):
+            self.yield_per_called_with = n
+            return iter(self.data)
+
+    fq = FakeQuery(["record1", "record2", "record3"])
+    out = list(mh.stream_records(fq, batch_size=10))
+    assert out == ["record1", "record2", "record3"]
+    assert fq.yield_per_called_with == 10
+
+
 @test(1, "interpreter.script_bridge",
       "A BrokerScript's selectors compile into a valid BrokerSpec (legacy→interpreter migration).")
 def t_script_bridge():

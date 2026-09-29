@@ -369,7 +369,7 @@ def _poll_imap_mailbox(ec: dict, db: Session, cfg: dict, is_grace_period: bool =
     if not ec.get("imap_host") or not ec.get("imap_password_enc"):
         return 0, []
 
-    imap_pw = decrypt_password(ec["imap_password_enc"])
+    from .memory_hygiene import ephemeral_secret
     folder  = ec.get("imap_folder", "INBOX")
 
     try:
@@ -377,7 +377,8 @@ def _poll_imap_mailbox(ec: dict, db: Session, cfg: dict, is_grace_period: bool =
             conn = imaplib.IMAP4_SSL(ec["imap_host"], ec.get("imap_port", 993))
         else:
             conn = imaplib.IMAP4(ec["imap_host"], ec.get("imap_port", 143))
-        conn.login(ec["imap_user"], imap_pw)
+        with ephemeral_secret(ec["imap_password_enc"]) as imap_pw:
+            conn.login(ec["imap_user"], imap_pw)
         conn.select(folder)
 
         _, msg_ids = conn.search(None, "UNSEEN")

@@ -338,25 +338,27 @@ def test_connection(_: User = Depends(require_permission("email.manage"))):
     s   = load_settings(); e = s.get("email", {})
     res = {"imap": False, "smtp": False, "errors": []}
 
+    from ..core.memory_hygiene import ephemeral_secret
     try:
-        pw = _decrypt(e.get("imap_password_enc", ""))
-        if not pw: raise ValueError("No IMAP password saved")
+        if not e.get("imap_password_enc"): raise ValueError("No IMAP password saved")
         if e.get("imap_ssl", True):
             c = imaplib.IMAP4_SSL(e["imap_host"], e.get("imap_port", 993))
         else:
             c = imaplib.IMAP4(e["imap_host"], e.get("imap_port", 143))
-        c.login(e["imap_user"], pw); c.logout()
+        with ephemeral_secret(e.get("imap_password_enc")) as pw:
+            c.login(e["imap_user"], pw)
+        c.logout()
         res["imap"] = True
     except Exception as ex:
         res["errors"].append(f"IMAP: {ex}")
 
     try:
-        pw = _decrypt(e.get("smtp_password_enc", ""))
-        if not pw: raise ValueError("No SMTP password saved")
+        if not e.get("smtp_password_enc"): raise ValueError("No SMTP password saved")
         ctx = ssl_module.create_default_context()
         with smtplib.SMTP(e["smtp_host"], e.get("smtp_port", 587)) as sc:
             if e.get("smtp_tls", True): sc.starttls(context=ctx)
-            sc.login(e["smtp_user"], pw)
+            with ephemeral_secret(e.get("smtp_password_enc")) as pw:
+                sc.login(e["smtp_user"], pw)
         res["smtp"] = True
     except Exception as ex:
         res["errors"].append(f"SMTP: {ex}")

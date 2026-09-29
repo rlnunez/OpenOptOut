@@ -183,13 +183,12 @@ def send_opt_out_email(
     smtp_host  = ec.get("smtp_host")
     smtp_port  = ec.get("smtp_port", 587)
     smtp_user  = ec.get("smtp_user")
-    smtp_pw    = decrypt_password(ec.get("smtp_password_enc", ""))
     from_name  = ec.get("from_name", "PrivacyShield Removals")
     from_email = ec.get("from_email") or smtp_user
     to_email   = _extract_email_from_notes(broker.notes) or \
         f"privacy@{broker.name.lower().replace(' ','').rstrip('.com')}.com"
 
-    if not smtp_host or not smtp_pw:
+    if not smtp_host or not ec.get("smtp_password_enc"):
         log.error("SMTP not configured")
         return False
 
@@ -202,12 +201,17 @@ def send_opt_out_email(
     msg["Reply-To"] = from_email
     msg.attach(MIMEText(body, "plain"))
 
+    from .memory_hygiene import ephemeral_secret
     try:
         ctx = ssl.create_default_context()
         with smtplib.SMTP(smtp_host, smtp_port) as s:
             if ec.get("smtp_tls", True):
                 s.starttls(context=ctx)
-            s.login(smtp_user, smtp_pw)
+            with ephemeral_secret(ec.get("smtp_password_enc")) as smtp_pw:
+                if not smtp_pw:
+                    log.error("SMTP password could not be decrypted")
+                    return False
+                s.login(smtp_user, smtp_pw)
             s.sendmail(from_email, [to_email], msg.as_string())
 
         db.add(EmailLog(
