@@ -130,24 +130,31 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 ---
 
 ### 7. Distributed execution: control plane & worker fleet
-**Goal:** Horizontally scale automated browser operations by separating the administrative API/control plane from stateless headless browser execution workers.
+**Goal:** Horizontally scale automated browser operations—including both opt-out removal executions and pre-removal discovery bots—by separating the administrative API/control plane from stateless headless browser execution workers.
 
 **Target Architecture:**
 - **Control Plane:** Web interface, REST API, database orchestration, scheduling producer, and health monitoring.
-- **Worker Fleet:** Stateless worker nodes executing Playwright browser automations and SMTP transmissions from a centralized task queue.
-- **Task Queue:** Distributed job queue (Redis-backed in production, zero-dependency in-process fallback for standalone installs) replacing in-process monolithic scheduling.
-- **Chunked Batching:** Workload chunking with per-broker rate limiting, concurrency caps, and fault isolation.
+- **Worker Fleet:** Stateless worker nodes executing Playwright browser automations (both **Opt-Out Removals** and **Discovery Bots**) and SMTP transmissions from a centralized task queue.
+- **Unified Browser Automation Stack:** Discovery bots and removal executors run inside the *exact same headless browser environment* (Playwright Firefox with identical anti-detection fingerprinting, user agent rotation, viewport emulation, and proxy routing). This eliminates browser environment drift, shares stealth configurations, and allows pooled browser instance reuse.
+- **Distributed Discovery Bots & Pre-Removal Reconnaissance:**
+  - *Web & Directory Search:* Querying search engines and public directories to uncover exposed patron records across the data broker landscape.
+  - *Broker Site Search & URL Scraping:* Directly querying broker search endpoints, person-lookup pages, and directory structures to identify individual patron records.
+  - *Pre-Removal Prerequisite Resolution:* Many data brokers strictly refuse removals unless provided with the exact profile/listing URL, or mandate that a removal request originate from clicking an on-page "Remove Data" / "Opt Out" button on the listing page itself. Discovery bots locate, verify, and persist these record URLs and entry-point buttons so downstream removal jobs can proceed without manual operator research.
+  - *Pipeline Chaining:* Discovered listing URLs and record identifiers seamlessly populate `DiscoveryResult` records and feed directly into subsequent declarative `RemovalRequest` jobs.
+- **Task Queue:** Distributed job queue (Redis-backed in production, zero-dependency in-process fallback for standalone installs) supporting prioritized channels (`removal_high`, `removal_normal`, `discovery`, `retry`).
+- **Chunked Batching:** Workload chunking with per-broker rate limiting, concurrency caps, and fault isolation across both discovery crawls and removal submissions.
 
 **Architectural Implications:**
 - **Database:** Requires PostgreSQL for multi-node deployments (SQLite remains supported for single-node installations).
 - **Security & Sandboxing:** Worker nodes host the Bubblewrap execution sandbox; credentials and PII transfers across worker boundaries must be strictly scoped, serialized into encrypted job envelopes, and never expose direct database ORM handles.
-- **Proxy Management:** Coordinated proxy pools across distributed workers to prevent rate-limit collisions.
+- **Proxy Management:** Coordinated proxy pools across distributed workers to prevent rate-limit collisions during concurrent discovery queries and opt-out submissions.
+- **Browser Lifecycle:** Workers share a pooled browser runtime so discovery bots and removal tasks leverage identical stealth profiles and proxy contexts without cold-start browser spawning penalties.
 
 **Capacity Planning Model:**
-Worker capacity is determined by form-automation concurrency and browser memory overhead rather than simple patron counts:
+Worker capacity is determined by combined discovery-query and form-automation concurrency and browser memory overhead rather than simple patron counts:
 ```
-operations_per_cycle = active_profiles × avg_enabled_brokers_per_profile
-worker_throughput    = concurrent_slots_per_worker × (3600 / avg_seconds_per_form_optout)
+operations_per_cycle = active_profiles × (avg_discovery_queries + avg_enabled_brokers)
+worker_throughput    = concurrent_slots_per_worker × (3600 / avg_seconds_per_operation)
 workers_needed       = operations_per_cycle ÷ (worker_throughput × hours_in_completion_window)
 ```
 
@@ -156,34 +163,34 @@ workers_needed       = operations_per_cycle ÷ (worker_throughput × hours_in_co
 To ensure operational stability and maintain continuous testability without disrupting standalone single-node installations, Item 7 is structured into five progressive, independently verifiable phases:
 
 * **Phase 7.1 — Job Envelope & Secure Payload Serialization (Data Boundary):**
-  - Define `JobEnvelope` schema encapsulating compiled `Job`, job ID, broker metadata, HMAC signature, and encrypted patron payload.
-  - Define `JobResultEnvelope` schema encapsulating `ExecResult`, execution trace, screenshots, challenge metadata, and timing.
+  - Define `JobEnvelope` schema encapsulating action type (`removal` vs. `discovery`), compiled `Job` / query criteria, job ID, broker metadata, HMAC signature, and encrypted patron payload.
+  - Define `JobResultEnvelope` schema encapsulating `ExecResult`, discovered listing URLs / profile IDs, execution trace, screenshots, challenge metadata, and timing.
   - Decouple execution from ORM entities: workers operate exclusively on serialized envelopes without direct database connection requirements.
   - *Verification:* Pure Python unit tests validating round-trip envelope serialization, tampering rejection, and cryptographic zeroization.
 
 * **Phase 7.2 — Unified Queue Abstraction & Pluggable Backends (Transport Boundary):**
   - Implement abstract `JobQueue` interface (`enqueue`, `dequeue`, `acknowledge`, `requeue`, `publish_result`).
   - Implement `InProcessJobQueue`: thread-safe in-memory queue preserving zero-dependency single-container operations (default).
-  - Implement `RedisJobQueue`: distributed queue backend supporting priority channels (`high`, `normal`, `retry`) and dead-letter queues.
+  - Implement `RedisJobQueue`: distributed queue backend supporting priority channels (`removal_high`, `removal_normal`, `discovery`, `retry`) and dead-letter queues.
   - *Verification:* Test suite runs against `InProcessJobQueue` by default, with optional Redis integration tests when configured.
 
 * **Phase 7.3 — Stateless Worker Node Daemon (Execution Boundary):**
   - Implement standalone worker daemon (`backend/worker.py`) that boots independently of the FastAPI web application.
-  - Worker lifecycle: pulls envelopes from `JobQueue`, initializes sandboxed Playwright/Bubblewrap contexts, executes via `PlaywrightExecutor`, and emits `JobResultEnvelope`.
+  - Unified browser runner: worker pulls envelopes from `JobQueue`, initializes sandboxed Playwright/Bubblewrap contexts, and dispatches to either `PlaywrightExecutor` (for opt-outs) or `DiscoveryBot` (for search engine and broker listing discovery) within the *same* anti-detection browser runtime.
   - Process supervisor integration with concurrency slots (`WORKER_CONCURRENCY=N`) and graceful SIGTERM draining.
-  - *Verification:* Worker unit tests driving mock headless jobs and verifying result publishing without touching the control plane.
+  - *Verification:* Worker unit tests driving mock headless jobs (both discovery and removal) and verifying result publishing without touching the control plane.
 
 * **Phase 7.4 — Control Plane Ingestion & Dynamic Scheduling (Orchestration Boundary):**
-  - Transition `core/scheduler.py` from an in-process executor to an enqueuing producer (`enqueue_pending_optouts`).
-  - Implement asynchronous result ingestion service on the control plane: updates `RemovalRequest` statuses, triggers parent company cascade confirmations, logs broker health metrics, and routes CAPTCHA challenges to the operator queue.
+  - Transition `core/scheduler.py` from an in-process executor to an enqueuing producer (`enqueue_pending_optouts`, `enqueue_pending_discoveries`).
+  - Implement asynchronous result ingestion service on the control plane: updates `RemovalRequest` statuses, stores discovered profile URLs in `DiscoveryResult`, automatically chains discovered URLs into downstream removal requests, triggers parent company cascade confirmations, logs broker health metrics, and routes CAPTCHA challenges to the operator queue.
   - Lease management & orphan reclamation: automated detection and requeuing of jobs from crashed or unresponsive workers.
-  - *Verification:* End-to-end integration test validating scheduler produce → queue → worker execute → control plane ingest.
+  - *Verification:* End-to-end integration test validating scheduler produce → queue → worker execute (discovery & removal) → control plane ingest.
 
 * **Phase 7.5 — Fleet Monitoring, Admin Telemetry & Orchestration (Operations Boundary):**
   - Worker heartbeat registry (`worker_id`, host, active slots, vCPU/RAM telemetry, uptime).
-  - Administrative fleet management dashboard (`frontend/src/pages/WorkerFleet.jsx` and `routers/workers.py` gated by `settings.system`) displaying active nodes, queue depths, and throughput.
+  - Administrative fleet management dashboard (`frontend/src/pages/WorkerFleet.jsx` and `routers/workers.py` gated by `settings.system`) displaying active nodes, queue depths (split by discovery vs. removal), and throughput.
   - Distributed Docker Compose topology (`docker-compose.distributed.yml`) featuring scaled worker services (`--scale worker=4`).
-  - *Verification:* Smoke test running multi-container distributed opt-out runs under Docker Compose.
+  - *Verification:* Smoke test running multi-container distributed discovery and opt-out runs under Docker Compose.
 
 **Status:** In Progress (Phased Migration Plan Established).
 
