@@ -273,8 +273,8 @@ PLUGIN_TYPES = {
                                   "settings_read", "storage", "emit_events"),
     },
     "brokers": {
-        "label": "Broker add-ons",   # broker specs land with roadmap item 1
-        "allowed_permissions": _P("broker_read", "settings_read", "storage"),
+        "label": "Broker add-ons",   # broker specs (roadmap item 1)
+        "allowed_permissions": _P("broker_read", "settings_read", "storage", "fill_forms", "read_pii"),
     },
     "themes":    {"label": "Themes",         "data_only": True, "allowed_permissions": _P()},
     "languages": {"label": "Language packs", "data_only": True, "allowed_permissions": _P()},
@@ -337,6 +337,12 @@ class PluginManifest:
     # both permissions, via a distinct, separately-confirmed enable step.
     requires_pii_network_exception: bool = False
     pii_network_justification: str = ""
+    # Broker add-on specific metadata (Roadmap Item 1)
+    spec_file: str = "spec.json"
+    broker_id: str = ""
+    captcha_plugin_id: str = ""
+    is_property_broker: bool = False
+    difficulty: str = "medium"
 
     def validate(self) -> list[str]:
         """Return a list of validation errors (empty = valid)."""
@@ -428,6 +434,9 @@ class PluginManifest:
                     "plugins (operator-defined mail server); this plugin may not use it"
                 )
             # else: allowed, but the host must bind the concrete host at enable time.
+        if self.effective_type == "brokers":
+            if ".." in (self.spec_file or "") or (self.spec_file or "").startswith(("/", "\\")):
+                errors.append("spec_file must be a relative path without directory traversal")
         return errors
 
     @property
@@ -487,8 +496,9 @@ class PluginManifest:
     @classmethod
     def from_dict(cls, d: dict) -> "PluginManifest":
         ptype = d.get("type", "") or ""
-        # Data-only types have no code, so no default entrypoint either.
-        default_entry = "" if PLUGIN_TYPES.get(ptype, {}).get("data_only") else "plugin.py"
+        # Data-only types and declarative broker add-ons have no code, so no default entrypoint.
+        is_declarative_broker = (ptype == "brokers" and "entrypoint" not in d)
+        default_entry = "" if (PLUGIN_TYPES.get(ptype, {}).get("data_only") or is_declarative_broker) else "plugin.py"
         return cls(
             id=d.get("id", ""),
             name=d.get("name", ""),
@@ -508,6 +518,11 @@ class PluginManifest:
             timeout_seconds=int(d.get("timeout_seconds", 20)),
             requires_pii_network_exception=bool(d.get("requires_pii_network_exception", False)),
             pii_network_justification=d.get("pii_network_justification", ""),
+            spec_file=d.get("spec_file", "spec.json"),
+            broker_id=d.get("broker_id", ""),
+            captcha_plugin_id=d.get("captcha_plugin_id", ""),
+            is_property_broker=bool(d.get("is_property_broker", False)),
+            difficulty=d.get("difficulty", "medium"),
         )
 
     def to_dict(self) -> dict:
@@ -523,4 +538,9 @@ class PluginManifest:
             "timeout_seconds": self.timeout_seconds,
             "requires_pii_network_exception": self.requires_pii_network_exception,
             "pii_network_justification": self.pii_network_justification,
+            "spec_file": self.spec_file,
+            "broker_id": self.broker_id,
+            "captcha_plugin_id": self.captcha_plugin_id,
+            "is_property_broker": self.is_property_broker,
+            "difficulty": self.difficulty,
         }

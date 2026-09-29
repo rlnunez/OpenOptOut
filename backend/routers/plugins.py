@@ -348,6 +348,9 @@ def install_plugin(path: str, db: Session = Depends(get_db),
         layout.place_directory(path, dest, move=True)
 
     _register(db, m, dest)
+    if m.effective_type == "brokers":
+        from ..plugins.broker_addon import sync_broker_from_addon
+        sync_broker_from_addon(db, m, dest, enabled=False)
     _audit(db, m.id, "installed", current.id, f"v{m.version} -> {layout.relative_install_dir(m)}")
     return {"installed": True, "plugin_id": m.id, "enabled": False,
             "destination": layout.relative_install_dir(m), **_type_info(m),
@@ -381,6 +384,12 @@ def inspect_upload(file: UploadFile = File(...), expected_type: Optional[str] = 
         if inspection and inspection["high"]:
             problems.append("it appears to send email to a hardcoded/hidden recipient "
                             f"(possible data exfiltration): {inspection['high']}")
+        broker_info = None
+        if m.effective_type == "brokers":
+            from ..plugins.broker_addon import inspect_broker_addon
+            broker_info = inspect_broker_addon(plugin_dir, m)
+            if not broker_info["valid"]:
+                problems.extend(broker_info["errors"])
         code = _code_inspection(m, plugin_dir)
         problems.extend(code["high"])
         return {
@@ -391,6 +400,7 @@ def inspect_upload(file: UploadFile = File(...), expected_type: Optional[str] = 
             "permissions": m.permissions, "hooks": m.hooks,
             "outbound_domains": m.outbound_domains,
             "email_inspection": inspection,
+            "broker_info": broker_info,
             "code_warnings": code["medium"],
             "can_install": not problems,
             "problems": problems,
@@ -431,6 +441,12 @@ def upload_plugin(file: UploadFile = File(...), expected_type: Optional[str] = N
         if code["blocked"]:
             raise HTTPException(400, "Plugin rejected by code inspection: " + "; ".join(code["high"]))
 
+        if m.effective_type == "brokers":
+            from ..plugins.broker_addon import inspect_broker_addon
+            broker_info = inspect_broker_addon(plugin_dir, m)
+            if not broker_info["valid"]:
+                raise HTTPException(400, "Broker specification invalid: " + "; ".join(broker_info["errors"]))
+
         if db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == m.id).first():
             raise HTTPException(400, f"Plugin '{m.id}' is already installed")
 
@@ -449,6 +465,9 @@ def upload_plugin(file: UploadFile = File(...), expected_type: Optional[str] = N
         layout.place_directory(plugin_dir, dest, move=False)
 
     _register(db, m, dest)
+    if m.effective_type == "brokers":
+        from ..plugins.broker_addon import sync_broker_from_addon
+        sync_broker_from_addon(db, m, dest, enabled=False)
     _audit(db, m.id, "uploaded", current.id,
            f"v{m.version} -> {layout.relative_install_dir(m)}"
            + ("" if current.is_super_admin else f" (uploaded by manager {current.email})"))
@@ -486,14 +505,17 @@ def enable_plugin(plugin_id: str, req: EnableRequest, db: Session = Depends(get_
             raise HTTPException(400, "Plugin blocked by code inspection: " + "; ".join(code["high"]))
         row.code_hash = layout.dir_hash(row.install_path)
 
-    if manifest.is_data_only:
-        # Language packs and themes: nothing to grant and nothing to launch.
+    if manifest.is_data_only or (manifest.effective_type == "brokers" and not manifest.entrypoint):
+        # Language packs, themes, and declarative broker add-ons: no subprocess to launch.
         row.enabled = True
-        row.status = "data"
+        row.status = "spec" if manifest.effective_type == "brokers" else "data"
         row.enabled_at = datetime.utcnow()
         row.enabled_by = current.id
+        if manifest.effective_type == "brokers":
+            from ..plugins.broker_addon import sync_broker_from_addon
+            sync_broker_from_addon(db, manifest, row.install_path, enabled=True)
         db.commit()
-        _audit(db, plugin_id, "enabled", current.id, f"{manifest.effective_type} (data only)")
+        _audit(db, plugin_id, "enabled", current.id, f"{manifest.effective_type} ({row.status})")
         return {"enabled": True, "granted_permissions": []}
 
     # If this plugin was flagged for re-approval after a manifest-integrity
@@ -597,6 +619,10 @@ def enable_plugin(plugin_id: str, req: EnableRequest, db: Session = Depends(get_
     else:
         raise HTTPException(503, "Plugin manager not running — enable the plugin system and restart")
 
+    if manifest.effective_type == "brokers":
+        from ..plugins.broker_addon import sync_broker_from_addon
+        sync_broker_from_addon(db, manifest, row.install_path, enabled=True)
+
     return {"enabled": True, "granted_permissions": sorted(granting)}
 
 
@@ -608,6 +634,14 @@ def disable_plugin(plugin_id: str, db: Session = Depends(get_db),
         raise HTTPException(404, "Plugin not installed")
     row.enabled = False
     row.status = "stopped"
+    manifest_type = ""
+    try:
+        manifest_type = json.loads(row.manifest_json or "{}").get("type", "")
+    except Exception:
+        pass
+    if manifest_type == "brokers":
+        from ..plugins.broker_addon import deactivate_broker_addon
+        deactivate_broker_addon(db, plugin_id)
     db.commit()
     _audit(db, plugin_id, "disabled", current.id)
 
@@ -624,6 +658,15 @@ def uninstall_plugin(plugin_id: str, remove_files: bool = False,
     row = db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == plugin_id).first()
     if not row:
         raise HTTPException(404, "Plugin not installed")
+
+    manifest_type = ""
+    try:
+        manifest_type = json.loads(row.manifest_json or "{}").get("type", "")
+    except Exception:
+        pass
+    if manifest_type == "brokers":
+        from ..plugins.broker_addon import deactivate_broker_addon
+        deactivate_broker_addon(db, plugin_id)
 
     mgr = get_manager()
     if mgr:

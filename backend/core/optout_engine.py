@@ -68,6 +68,7 @@ def _build_exhaustive_email(
     broker: Broker,
     request_key: str,
     script: Optional[BrokerScript],
+    db = None,
 ) -> tuple[str, str]:
     """
     Build a single opt-out email listing ALL identity variants.
@@ -95,14 +96,26 @@ def _build_exhaustive_email(
         primary_name = names[0] if names else member.full_name
         all_names    = names
 
-    if script and script.email_subject_tpl:
+    from ..plugins.broker_addon import get_broker_spec_for_broker
+    addon_spec = get_broker_spec_for_broker(db, broker) if db else None
+    addon_email = addon_spec.email if addon_spec else None
+
+    if addon_email and addon_email.subject_template:
+        subject = addon_email.subject_template.format(
+            name=primary_name, request_key=request_key, broker=broker.name
+        )
+    elif script and script.email_subject_tpl:
         subject = script.email_subject_tpl.format(
             name=primary_name, request_key=request_key, broker=broker.name
         )
     else:
         subject = f"Personal Data Removal Request — {primary_name} [Ref: {request_key}]"
 
-    if script and script.email_body_tpl:
+    if addon_email and addon_email.body_template:
+        body = addon_email.body_template.format(
+            name=primary_name, request_key=request_key, broker=broker.name
+        )
+    elif script and script.email_body_tpl:
         body = script.email_body_tpl.format(
             name=primary_name, request_key=request_key, broker=broker.name
         )
@@ -183,16 +196,19 @@ def send_opt_out_email(
     smtp_host  = ec.get("smtp_host")
     smtp_port  = ec.get("smtp_port", 587)
     smtp_user  = ec.get("smtp_user")
-    from_name  = ec.get("from_name", "PrivacyShield Removals")
-    from_email = ec.get("from_email") or smtp_user
-    to_email   = _extract_email_from_notes(broker.notes) or \
+    from ..plugins.broker_addon import get_broker_spec_for_broker
+    addon_spec = get_broker_spec_for_broker(db, broker) if db else None
+    addon_email = addon_spec.email if addon_spec else None
+
+    to_email = (addon_email.to_address if addon_email and addon_email.to_address else None) or \
+        _extract_email_from_notes(broker.notes) or \
         f"privacy@{broker.name.lower().replace(' ','').rstrip('.com')}.com"
 
     if not smtp_host or not ec.get("smtp_password_enc"):
         log.error("SMTP not configured")
         return False
 
-    subject, body = _build_exhaustive_email(member, broker, request_key, script)
+    subject, body = _build_exhaustive_email(member, broker, request_key, script, db=db)
 
     msg             = MIMEMultipart("alternative")
     msg["Subject"]  = subject
@@ -641,7 +657,11 @@ async def _run_form_via_interpreter(request, context, cfg, db) -> "tuple[bool, s
     member = request.member
     script = db.query(BrokerScript).filter(BrokerScript.broker_id == broker.id).first()
 
-    spec = spec_from_script(broker, script)
+    # Roadmap Item 1: Check installed Broker Add-on declarative spec first
+    from ..plugins.broker_addon import get_broker_spec_for_broker
+    spec = get_broker_spec_for_broker(db, broker)
+    if spec is None:
+        spec = spec_from_script(broker, script)
     if spec is None:
         return None  # fall back to legacy engine
 

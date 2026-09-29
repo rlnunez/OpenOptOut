@@ -32,6 +32,7 @@ class BrokerOut(BaseModel):
     priority: int = 3
     priority_source: str = "default"
     captcha_plugin_id: Optional[str] = None
+    plugin_id: Optional[str] = None
 
     class Config:
         from_attributes = True

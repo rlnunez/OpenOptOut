@@ -372,6 +372,9 @@ class Broker(Base):
     # When set, the opt-out engine invokes this solver first for challenges on this broker.
     captcha_plugin_id = Column(String(100), nullable=True)
 
+    # Optional installed broker add-on plugin ID providing declarative spec / automation (Roadmap Item 1)
+    plugin_id         = Column(String(100), nullable=True, index=True)
+
     requests = relationship("RemovalRequest", back_populates="broker")
     health   = relationship("BrokerHealth", back_populates="broker", uselist=False)
     parent   = relationship("ParentCompany", back_populates="children")

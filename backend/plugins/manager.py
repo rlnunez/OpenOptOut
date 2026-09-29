@@ -321,7 +321,7 @@ class PluginManager:
             for row in enabled:
                 try:
                     manifest = self._load_manifest_for_row(row)
-                    if manifest.is_data_only:
+                    if manifest.is_data_only or not manifest.entrypoint:
                         continue
                     granted  = set(json.loads(row.granted_permissions or "[]"))
                     self.launch_plugin(manifest, row.install_path, granted)
@@ -373,10 +373,9 @@ class PluginManager:
 
     def launch_plugin(self, manifest: PluginManifest, install_path: str, granted: set):
         """Launch a single plugin as a sandboxed subprocess and handshake."""
-        if manifest.is_data_only:
-            # Language packs and themes are data the host loads, never code.
-            raise ValueError(f"{manifest.id} is a '{manifest.effective_type}' plugin "
-                             "(data only) and is never launched as a process")
+        if manifest.is_data_only or not manifest.entrypoint:
+            # Declarative broker add-ons, language packs and themes are loaded by the host, never launched as processes.
+            return
         if manifest.id in self.running:
             log.info("Plugin %s already running", manifest.id)
             return

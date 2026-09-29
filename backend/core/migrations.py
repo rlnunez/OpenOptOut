@@ -72,6 +72,10 @@ MIGRATIONS = [
         "Add captcha_plugin_id to brokers",
         "ALTER TABLE brokers ADD COLUMN captcha_plugin_id VARCHAR(100)"
     ),
+    (
+        "Add plugin_id to brokers",
+        "ALTER TABLE brokers ADD COLUMN plugin_id VARCHAR(100)"
+    ),
 ]
 
 # Known property brokers — flagged on first startup

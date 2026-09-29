@@ -20,7 +20,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 
 | # | Item | Status |
 |---|------|--------|
-| 1 | Broker-as-add-on model | Partial — declarative schema operational; standalone packaging pending |
+| 1 | Broker-as-add-on model | Complete |
 | 2 | Declarative interpretation engine | Complete — operational in live path; legacy engine maintained as fallback |
 | 3 | Multi-form & complex page interpreter | Partial — `fill_form` hook wired; advanced page context in progress |
 | 4 | Pluggable CAPTCHA resolution | Complete |
@@ -31,7 +31,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 9 | Infrastructure capacity planner | Planned — pending empirical performance benchmarking |
 | 10 | Email-first opt-outs via parent companies | Complete |
 | 11 | First-run setup wizard | Complete |
-| 12 | School district authentication (Parent Portal SSO) | Planned |
+| 12 | School district authentication (Parent Portal SSO) | On-Demand (District Request Only) |
 | 13 | SAML 2.0 SSO & identity hardening | Complete |
 | 14 | Built-in HTTPS with automated certificates | Complete |
 | 15 | Process memory hygiene & credential lifecycle | Complete |
@@ -51,12 +51,13 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 **Goal:** Decouple broker-specific logic from the core platform by packaging each data broker as an independent add-on.
 
 **Architecture:**
-- **Add-on Composition:** Manifest, declarative opt-out specification, and optional custom execution code for complex flows.
-- **Specification Scope:** Defines opt-out method (web form, automated email, manual, phone), field mappings, and email requirements (template, locale, legal language).
-- **Operator Controls:** Granular enable/disable toggles and priority assignment per broker.
-- **Design Balance:** Maximize declarative specifications (sandboxed, secure, easily verifiable) while supporting isolated plugin code for multi-step or edge-case brokers.
+- **Add-on Packaging & Layout:** Standardized under `<plugins_root>/brokers/<plugin_id>/` featuring `manifest.json` (`type: "brokers"`), declarative `spec.json` (adhering to `BrokerSpec`), and optional assets/hooks.
+- **Specification Scope:** Defines opt-out method (`form`, `email`, `manual`), field mappings, selector actions, success assertions, email templates, and preferred CAPTCHA solver bindings (`captcha_plugin_id`).
+- **Validation & Safe Execution:** Preflight validation (`plugins/broker_addon.py`) verifies declarative syntax and prevents directory traversal. Pure declarative broker add-ons require 0 permissions, zero code execution, and default to no subprocess launch, ensuring maximum safety.
+- **Catalog Synchronization:** Uploading or installing a broker add-on synchronizes directly with the core `Broker` model (`Broker.plugin_id`), and disabling or uninstalling deactivates the associated broker.
+- **Opt-Out Engine Integration:** `optout_engine.py` checks for installed broker add-ons before falling back to legacy broker scripts.
 
-**Status:** Partial. The declarative `BrokerSpec` schema and per-broker controls are operational. Independent packaging and distribution format remain in progress.
+**Status:** Complete.
 
 ---
 
@@ -228,14 +229,18 @@ workers_needed       = operations_per_cycle ÷ (worker_throughput × hours_in_co
 ---
 
 ### 12. School district authentication (Parent Portal SSO)
-**Goal:** Enable seamless authentication for parents and district staff by federating with Student Information Systems (SIS) and district identity platforms.
+**Goal:** Enable authentication for parents and district staff by federating with Student Information Systems (SIS) and district identity platforms when requested by an institutional partner.
 
-**Architecture:**
-- **Federated Protocols:** Leverages SAML 2.0 and OIDC integrations (ClassLink, Clever, PowerSchool, Infinite Campus, Microsoft Entra, Google Workspace).
+**Scope & Governance:**
+- **On-Demand Prioritization:** School district and parent portal integrations (ClassLink, Clever, PowerSchool, Infinite Campus) are maintained as an on-demand institutional feature, implemented only when formally requested by a district or school system. It is decoupled from the 1.0.0 core milestone.
+- **Student Privacy & Regulatory Boundaries:** While K-12 students are protected by CIPA (Children's Internet Protection Act), COPPA, and FERPA against school data disclosure, older high school students (ages 16–18) frequently appear on commercial consumer data brokers once they obtain driver's licenses, register to vote, or register for standardized tests. Privacy Shield's standard individual/family member profiles protect these students immediately through regular opt-out flows without requiring deep SIS synchronization.
+
+**Architecture (When Activated):**
+- **Federated Protocols:** Leverages existing SAML 2.0 (`core/saml_sp.py`) and OIDC integrations (ClassLink, Clever, PowerSchool, Infinite Campus, Microsoft Entra, Google Workspace).
 - **Role Mapping:** Maps portal accounts to the `parent` role and faculty accounts to appropriate administrative roles.
 - **FERPA Compliance & Privacy Protection:** Strict adherence to minimal identity claims (name, email, unique identifier). System never queries or ingests student educational records; parents register family members independently.
 
-**Status:** Planned.
+**Status:** On-Demand (District Request Only).
 
 ---
 

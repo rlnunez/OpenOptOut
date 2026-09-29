@@ -833,6 +833,106 @@ def t_script_bridge():
         success_text = None; requires_captcha = False; extra_steps = None
     assert sb.spec_from_script(FakeBroker(), EmptyScript()) is None, \
         "empty script should return None for legacy fallback"
+
+
+@test(1, "broker_addon.manifest_and_spec_validation",
+      "Broker add-on manifests and declarative specs parse, validate, and detect bad paths/steps.")
+def t_broker_addon_validation():
+    import tempfile, json, os
+    permissions = _imp("plugins.permissions")
+    broker_addon = _imp("plugins.broker_addon")
+
+    # Declarative broker manifest defaults entrypoint to "" (no subprocess)
+    m = permissions.PluginManifest.from_dict({
+        "id": "broker-fastsearch",
+        "name": "FastSearch Add-on",
+        "version": "1.0.0",
+        "author": "Community",
+        "type": "brokers",
+        "spec_file": "spec.json",
+        "captcha_plugin_id": "recaptcha-solver",
+    })
+    assert m.effective_type == "brokers"
+    assert m.entrypoint == "", "declarative broker add-on must default entrypoint to empty string"
+    assert not m.validate(), f"valid broker manifest had errors: {m.validate()}"
+
+    # Path traversal in spec_file is rejected
+    bad_m = permissions.PluginManifest.from_dict({
+        "id": "broker-bad", "name": "Bad", "version": "1.0", "author": "Attacker",
+        "type": "brokers", "spec_file": "../secret.json"
+    })
+    errs = bad_m.validate()
+    assert any("directory traversal" in e for e in errs), f"expected traversal error, got {errs}"
+
+    # Validate spec file inspection
+    with tempfile.TemporaryDirectory() as tmp:
+        # 1. Missing spec file
+        res = broker_addon.inspect_broker_addon(tmp, m)
+        assert not res["valid"]
+        assert any("not found" in e for e in res["errors"])
+
+        # 2. Well-formed spec file
+        spec_content = {
+            "broker_id": "fastsearch",
+            "name": "FastSearch",
+            "method": "form",
+            "opt_out_url": "https://fastsearch.example/optout",
+            "steps": [
+                {"kind": "navigate", "url": "https://fastsearch.example/optout"},
+                {"kind": "fill", "selector": "#name", "field": "full_name"},
+                {"kind": "submit", "selector": "#submit-btn"},
+                {"kind": "expect_success", "text": "removal confirmed"}
+            ]
+        }
+        with open(os.path.join(tmp, "spec.json"), "w", encoding="utf-8") as f:
+            json.dump(spec_content, f)
+
+        res2 = broker_addon.inspect_broker_addon(tmp, m)
+        assert res2["valid"], f"valid spec was rejected: {res2['errors']}"
+        assert res2["steps_count"] == 4
+        assert res2["captcha_plugin_id"] == "recaptcha-solver"
+
+
+@test(1, "broker_addon.package_round_trip",
+      "package_broker_addon bundles a validated broker add-on into a distributable zip archive.")
+def t_broker_addon_packaging():
+    import tempfile, json, os, zipfile
+    broker_addon = _imp("plugins.broker_addon")
+
+    with tempfile.TemporaryDirectory() as src_dir, tempfile.TemporaryDirectory() as out_dir:
+        # Create valid source addon
+        manifest_data = {
+            "id": "broker-testsite",
+            "name": "TestSite Opt-Out",
+            "version": "1.2.0",
+            "author": "PrivacyShield Team",
+            "type": "brokers",
+            "spec_file": "spec.json"
+        }
+        spec_data = {
+            "broker_id": "testsite",
+            "name": "TestSite",
+            "method": "form",
+            "opt_out_url": "https://testsite.example/optout",
+            "steps": [
+                {"kind": "navigate", "url": "https://testsite.example/optout"},
+                {"kind": "fill", "selector": "input.email", "field": "email"},
+                {"kind": "submit", "selector": "button.submit"}
+            ]
+        }
+        with open(os.path.join(src_dir, "manifest.json"), "w") as f:
+            json.dump(manifest_data, f)
+        with open(os.path.join(src_dir, "spec.json"), "w") as f:
+            json.dump(spec_data, f)
+
+        zip_dest = os.path.join(out_dir, "testsite-1.2.0.zip")
+        packaged_path = broker_addon.package_broker_addon(src_dir, zip_dest)
+        assert os.path.isfile(packaged_path), "packaged zip file should exist"
+
+        # Verify zip contents
+        with zipfile.ZipFile(packaged_path, "r") as z:
+            names = z.namelist()
+            assert "manifest.json" in names and "spec.json" in names, f"zip missing files: {names}"
     # EXPECTED: existing broker scripts translate into interpreter specs; empty ones fall back.
     # IF THIS FAILS: the migration to the interpreter engine can't reuse existing broker data.
 
