@@ -363,20 +363,16 @@ def _count_sent_today_for_member(db, member_id):
 
 # ── Job 2: email monitor ──────────────────────────────────────────────────────
 
-def email_monitor_job():
-    db  = SessionLocal()
-    run = SchedulerRun(run_type="email_poll", status="running")
-    db.add(run); db.commit()
-    errors = []; matched = 0
+def _poll_imap_mailbox(ec: dict, db: Session, cfg: dict, is_grace_period: bool = False) -> tuple:
+    errors = []
+    matched = 0
+    if not ec.get("imap_host") or not ec.get("imap_password_enc"):
+        return 0, []
+
+    imap_pw = decrypt_password(ec["imap_password_enc"])
+    folder  = ec.get("imap_folder", "INBOX")
 
     try:
-        cfg = load_settings(); ec = cfg.get("email", {})
-        if not ec.get("imap_host") or not ec.get("imap_password_enc"):
-            run.status = "done"; run.finished_at = datetime.utcnow(); db.commit(); return
-
-        imap_pw = decrypt_password(ec["imap_password_enc"])
-        folder  = ec.get("imap_folder", "INBOX")
-
         if ec.get("imap_ssl", True):
             conn = imaplib.IMAP4_SSL(ec["imap_host"], ec.get("imap_port", 993))
         else:
@@ -420,9 +416,10 @@ def email_monitor_job():
                             matched += 1
                             plugin_handled = True
                             from ..plugins.hooks import fire_event
+                            via_label = "grace_plugin" if is_grace_period else "plugin"
                             fire_event("confirmation_received", entity_id=str(req.id),
-                                       data={"broker": req.broker.name, "via": "plugin"})
-                            log.info(f"Matched (plugin): {req.broker.name} / {req.member.full_name}")
+                                       data={"broker": req.broker.name, "via": via_label})
+                            log.info(f"Matched ({via_label}): {req.broker.name} / {req.member.full_name}")
                 except Exception as _pe:
                     log.debug("plugin email parse skipped: %s", _pe)
 
@@ -447,13 +444,14 @@ def email_monitor_job():
                                     subject=subj[:500], body_snippet=body[:500], matched_key=key,
                                 ))
                                 matched += 1
-                                log.info(f"Matched: {req.broker.name} / {req.member.full_name}")
+                                via_label = "grace_uuid" if is_grace_period else "uuid"
+                                log.info(f"Matched ({via_label}): {req.broker.name} / {req.member.full_name}")
                                 if req.broker and req.broker.parent_company_id:
                                     parent_ids_to_confirm.add(req.broker.parent_company_id)
                                 try:
                                     from ..plugins.hooks import fire_event
                                     fire_event("confirmation_received", entity_id=str(req.id),
-                                               data={"broker": req.broker.name, "via": "uuid"})
+                                               data={"broker": req.broker.name, "via": via_label})
                                 except Exception:
                                     pass
 
@@ -473,6 +471,46 @@ def email_monitor_job():
                 errors.append(f"Message {mid}: {e}")
 
         conn.logout()
+    except Exception as e:
+        errors.append(str(e))
+        log.warning("IMAP polling error (%s): %s", "grace_period" if is_grace_period else "primary", e)
+
+    return matched, errors
+
+
+def email_monitor_job():
+    db  = SessionLocal()
+    run = SchedulerRun(run_type="email_poll", status="running")
+    db.add(run); db.commit()
+    errors = []; matched = 0
+
+    try:
+        cfg = load_settings(); ec = cfg.get("email", {})
+
+        # 1. Primary Inbox Polling
+        if ec.get("imap_host") and ec.get("imap_password_enc"):
+            succ, errs = _poll_imap_mailbox(ec, db, cfg, is_grace_period=False)
+            matched += succ
+            errors.extend(errs)
+
+        # 2. Mode-Switching Grace Period Dual-Inbox Polling (Roadmap Item 11)
+        try:
+            from .email_grace import get_email_grace_status
+            grace = get_email_grace_status(cfg)
+            if grace.get("active") and grace.get("previous_config"):
+                prev_ec = grace["previous_config"]
+                if prev_ec.get("imap_host") and prev_ec.get("imap_password_enc"):
+                    log.info(
+                        "Polling previous mailbox during mode grace period (%d days remaining)...",
+                        grace.get("days_remaining", 0)
+                    )
+                    g_succ, g_errs = _poll_imap_mailbox(prev_ec, db, cfg, is_grace_period=True)
+                    matched += g_succ
+                    if g_errs:
+                        log.debug("Grace period inbox polling warnings: %s", g_errs)
+        except Exception as ge:
+            log.debug("Grace period inbox check skipped: %s", ge)
+
         run.emails_matched = matched; run.status = "done"
 
     except Exception as e:

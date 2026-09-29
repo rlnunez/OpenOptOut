@@ -586,6 +586,147 @@ def t_captcha_preferred_solver():
     # IF THIS FAILS: Brokers configured with a specialized solver won't have it prioritized.
 
 
+@test(1, "email_grace.snapshot_on_mode_change",
+      "Switching email mode or mailbox creates an active grace period snapshot of the previous config.")
+def t_email_grace_snapshot():
+    eg = _imp("core.email_grace")
+    old_settings = {
+        "email": {
+            "mode": "shared",
+            "imap_host": "imap.example.org",
+            "imap_port": 993,
+            "imap_user": "removals@example.org",
+            "imap_password_enc": "enc123",
+            "from_email": "removals@example.org",
+        }
+    }
+
+    # Case 1: Identical settings -> No snapshot
+    res_noop = eg.maybe_snapshot_grace_period(
+        current_settings=old_settings,
+        new_email_config={"imap_host": "imap.example.org", "imap_user": "removals@example.org"},
+        new_mode="shared"
+    )
+    assert res_noop is None, "Should not snapshot when nothing changed"
+    assert "email_grace_period" not in old_settings
+
+    # Case 2: Mode changed to per_user -> Snapshot created
+    res_mode = eg.maybe_snapshot_grace_period(
+        current_settings=old_settings,
+        new_email_config={},
+        new_mode="per_user"
+    )
+    assert res_mode is not None, "Should snapshot when mode changes"
+    assert res_mode["active"] is True
+    assert res_mode["grace_period_days"] == 60
+    assert res_mode["previous_config"]["imap_user"] == "removals@example.org"
+    assert res_mode["previous_config"]["mode"] == "shared"
+
+
+@test(1, "email_grace.lifecycle_and_expiration",
+      "Grace period status computes remaining days, handles extend/dismiss, and expires when overdue.")
+def t_email_grace_lifecycle():
+    from datetime import datetime, timezone, timedelta
+    eg = _imp("core.email_grace")
+
+    now = datetime.now(timezone.utc)
+    settings = {
+        "email_grace_period": {
+            "active": True,
+            "transition_started_at": (now - timedelta(days=10)).isoformat(),
+            "grace_period_days": 60,
+            "previous_config": {"imap_user": "old@example.org", "mode": "shared"}
+        }
+    }
+
+    # Status check
+    status = eg.get_email_grace_status(settings)
+    assert status["active"] is True
+    assert 49 <= status["days_remaining"] <= 51
+    assert status["previous_inbox"] == "old@example.org"
+
+    # Extend
+    new_days = eg.extend_email_grace_period(settings, extra_days=30)
+    assert new_days == 90
+    status_ext = eg.get_email_grace_status(settings)
+    assert 79 <= status_ext["days_remaining"] <= 81
+
+    # Dismiss
+    dismissed = eg.dismiss_email_grace_period(settings)
+    assert dismissed is True
+    assert eg.get_email_grace_status(settings)["active"] is False
+
+    # Expiration check
+    expired_settings = {
+        "email_grace_period": {
+            "active": True,
+            "transition_started_at": (now - timedelta(days=70)).isoformat(),
+            "grace_period_days": 60,
+            "previous_config": {"imap_user": "expired@example.org"}
+        }
+    }
+    exp_status = eg.get_email_grace_status(expired_settings)
+    assert exp_status["active"] is False
+    assert exp_status["days_remaining"] == 0
+
+
+@test(2, "email_grace.scheduler_dual_inbox_integration",
+      "Scheduler email monitor polls both primary and previous mailboxes when grace period is active.")
+def t_email_grace_scheduler_dual_inbox():
+    if _try_import("apscheduler") is None:
+        raise Skip("apscheduler not installed")
+    if _try_import("sqlalchemy") is None:
+        raise Skip("sqlalchemy not installed")
+    sched_mod = _imp("core.scheduler")
+
+    polled_configs = []
+    def fake_poll(ec, db, cfg, is_grace_period=False):
+        polled_configs.append((ec.get("imap_user"), is_grace_period))
+        return 1, []
+
+    orig_poll = getattr(sched_mod, "_poll_imap_mailbox", None)
+    sched_mod._poll_imap_mailbox = fake_poll
+
+    settings_mod = _imp("core.settings_store")
+    orig_load = settings_mod.load_settings
+    settings_mod.load_settings = lambda: {
+        "email": {
+            "imap_host": "imap.new.org",
+            "imap_user": "new@example.org",
+            "imap_password_enc": "enc_new",
+        },
+        "email_grace_period": {
+            "active": True,
+            "transition_started_at": "2026-01-01T00:00:00+00:00",
+            "grace_period_days": 3650,
+            "previous_config": {
+                "imap_host": "imap.old.org",
+                "imap_user": "old@example.org",
+                "imap_password_enc": "enc_old",
+            }
+        }
+    }
+
+    try:
+        class FakeDB:
+            def add(self, x): pass
+            def commit(self): pass
+            def close(self): pass
+
+        orig_session = sched_mod.SessionLocal
+        sched_mod.SessionLocal = lambda: FakeDB()
+
+        sched_mod.email_monitor_job()
+
+        assert len(polled_configs) == 2, f"Expected 2 polled mailboxes, got {polled_configs}"
+        assert polled_configs[0] == ("new@example.org", False), f"Primary poll mismatch: {polled_configs[0]}"
+        assert polled_configs[1] == ("old@example.org", True), f"Grace poll mismatch: {polled_configs[1]}"
+    finally:
+        sched_mod._poll_imap_mailbox = orig_poll
+        settings_mod.load_settings = orig_load
+        sched_mod.SessionLocal = orig_session
+
+
 @test(1, "interpreter.script_bridge",
       "A BrokerScript's selectors compile into a valid BrokerSpec (legacy→interpreter migration).")
 def t_script_bridge():

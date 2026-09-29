@@ -210,6 +210,12 @@ def save_email(body: EmailStep, db: Session = Depends(get_db),
     if body.mode not in ("shared", "per_user"):
         raise HTTPException(400, "mode must be 'shared' or 'per_user'")
     s = _load()
+    from ..core.email_grace import maybe_snapshot_grace_period
+    maybe_snapshot_grace_period(
+        current_settings=s,
+        new_email_config=body.model_dump(),
+        new_mode=body.mode,
+    )
     email = s.get("email", {})
     email["mode"] = body.mode
     email["provider"] = body.provider or ""

@@ -30,7 +30,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 8 | Add-on distribution: Git repo to marketplace | Planned |
 | 9 | Infrastructure capacity planner | Planned — pending empirical performance benchmarking |
 | 10 | Email-first opt-outs via parent companies | Complete |
-| 11 | First-run setup wizard | Complete — setup flow built; per-user grace period monitoring planned |
+| 11 | First-run setup wizard | Complete |
 | 12 | School district authentication (Parent Portal SSO) | Planned |
 | 13 | SAML 2.0 SSO & identity hardening | Complete |
 | 14 | Built-in HTTPS with automated certificates | Complete |
@@ -221,9 +221,9 @@ workers_needed       = operations_per_cycle ÷ (worker_throughput × hours_in_co
   - **IMAP / SMTP:** Supported for self-hosted mail servers, legacy providers, and app-specific password configurations (e.g., Apple iCloud Mail).
   - **Local Relays & Bridges:** Generic SMTP interface compatible with Proton Mail Bridge, Postfix, or enterprise outbound relays.
 - **Email Mode Architecture:** Supports shared administrative inboxes and per-user mail authorization.
-- **Mode Switching Grace Period:** Background monitoring preserves dual-inbox checks during configuration transitions to match delayed broker confirmations (30–60 day turnaround).
+- **Mode Switching Grace Period:** Background monitoring (`core/email_grace.py`, `core/scheduler.py`, `routers/settings.py`) snapshots previous mailbox credentials during mode or account switches, maintaining automatic 60-day dual-inbox polling to capture delayed broker confirmations, with admin controls to extend or dismiss.
 
-**Status:** Complete for primary setup wizard; per-user inbox transition monitoring is planned.
+**Status:** Complete.
 
 ---
 

@@ -328,12 +328,15 @@ function EmailSection({ initial, userRole }) {
   const [testResult, setTestResult] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved]   = useState(false)
+  const [gracePeriod, setGracePeriod] = useState(initial.grace_period || null)
   const isAdmin = userRole === 'super_admin'
 
   useEffect(() => {
     if (!isAdmin) return
     api.get('/settings/email/presets').then(r => setPresets(r.data))
+    setGracePeriod(initial.grace_period || null)
     setForm({
+      mode: initial.mode ?? 'shared',
       preset: initial.preset, imap_host: initial.imap_host ?? '',
       imap_port: initial.imap_port ?? 993, imap_user: initial.imap_user ?? '',
       imap_ssl: initial.imap_ssl ?? true, imap_folder: initial.imap_folder ?? 'INBOX',
@@ -342,7 +345,7 @@ function EmailSection({ initial, userRole }) {
       smtp_user: initial.smtp_user ?? '', smtp_tls: initial.smtp_tls ?? true,
       from_name: initial.from_name ?? 'PrivacyShield Removals', from_email: initial.from_email ?? '',
     })
-  }, [isAdmin])
+  }, [isAdmin, initial])
 
   const applyPreset = key => {
     const p = presets[key] ?? {}
@@ -354,6 +357,24 @@ function EmailSection({ initial, userRole }) {
         smtp_host: p.smtp_host ?? f.smtp_host, smtp_port: p.smtp_port ?? f.smtp_port, smtp_tls: p.smtp_tls ?? f.smtp_tls,
       } : {}),
     }))
+  }
+
+  const dismissGracePeriod = async () => {
+    try {
+      await api.post('/settings/email/grace-period/dismiss')
+      setGracePeriod(prev => prev ? { ...prev, active: false } : null)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const extendGracePeriod = async () => {
+    try {
+      const { data } = await api.post('/settings/email/grace-period/extend?extra_days=30')
+      setGracePeriod(prev => prev ? { ...prev, days_remaining: (prev.days_remaining || 0) + 30, active: true } : null)
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const save = async () => {
@@ -390,6 +411,62 @@ function EmailSection({ initial, userRole }) {
               ? (initial.provider_connected ? `Connected via ${initial.provider}` : 'Email connected')
               : 'Not configured'}
           </div>
+
+          {gracePeriod?.active && (
+            <div className="p-3.5 bg-indigo-950/40 border border-indigo-700/60 rounded-xl text-xs space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 text-indigo-300 font-medium">
+                  <Clock size={14} className="text-indigo-400" />
+                  <span>Dual-Inbox Grace Period Active (Item 11)</span>
+                </div>
+                <span className="bg-indigo-900/60 text-indigo-200 px-2 py-0.5 rounded text-[11px] font-mono">
+                  {gracePeriod.days_remaining} days remaining
+                </span>
+              </div>
+              <p className="text-slate-300 leading-relaxed">
+                Background monitoring preserves dual-inbox checks during mode and mailbox transitions. Currently polling the previous mailbox (<strong>{gracePeriod.previous_inbox || 'previous account'}</strong>) alongside the primary inbox to catch delayed broker confirmation replies.
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={extendGracePeriod}
+                  className="px-2.5 py-1 bg-indigo-800/50 hover:bg-indigo-800 border border-indigo-600 rounded text-indigo-200 transition-colors"
+                >
+                  Extend +30 Days
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissGracePeriod}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-slate-300 transition-colors"
+                >
+                  Dismiss Grace Period
+                </button>
+              </div>
+            </div>
+          )}
+
+          <Field label="Email Mode">
+            <div className="flex gap-2">
+              {[
+                { value: 'shared', label: 'Shared central inbox', hint: 'Dispatches all opt-outs from one central organizational inbox' },
+                { value: 'per_user', label: 'Per-user mail authorization', hint: 'Family members authorize their individual mailboxes' }
+              ].map(m => (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, mode: m.value }))}
+                  className={`flex-1 text-left p-3 rounded-lg border text-xs transition-colors ${
+                    (form.mode || 'shared') === m.value
+                      ? 'border-shield-600 bg-shield-900/20 text-slate-200'
+                      : 'border-slate-700 bg-slate-900/60 text-slate-400 hover:border-slate-600'
+                  }`}
+                >
+                  <div className="font-medium text-slate-200">{m.label}</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">{m.hint}</div>
+                </button>
+              ))}
+            </div>
+          </Field>
 
           <ConnectedAccounts currentProvider={initial.provider} onChanged={() => { /* status badge refreshes on next page load; accounts list refreshes itself */ }} />
 

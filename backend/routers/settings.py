@@ -83,7 +83,18 @@ class AppearanceSettings(BaseModel):
     accent_color: Optional[str]   = "#6366f1"
 
 
+class EmailGracePeriodOut(BaseModel):
+    active: bool = False
+    days_remaining: int = 0
+    grace_period_days: int = 60
+    transition_started_at: Optional[str] = None
+    expires_at: Optional[str] = None
+    previous_inbox: Optional[str] = None
+    previous_mode: Optional[str] = None
+
+
 class EmailConfig(BaseModel):
+    mode:                 Optional[str] = None   # "shared" | "per_user"
     preset:               Optional[str] = None
     imap_host:            Optional[str] = None
     imap_port:            Optional[int] = 993
@@ -102,6 +113,7 @@ class EmailConfig(BaseModel):
 
 
 class EmailConfigOut(BaseModel):
+    mode:                 Optional[str] = "shared"
     preset:               Optional[str]
     provider:             Optional[str] = None    # '' | 'smtp' | 'gmail' | 'outlook' | ... (set via the wizard or an uploaded provider plugin)
     provider_connected:   bool = False             # an OAuth token actually exists for `provider` (account_ref 'default')
@@ -120,6 +132,7 @@ class EmailConfigOut(BaseModel):
     from_name:            Optional[str]
     from_email:           Optional[str]
     connected:            bool
+    grace_period:         Optional[EmailGracePeriodOut] = None
 
 
 class SchedulerConfig(BaseModel):
@@ -191,9 +204,22 @@ def get_settings(_: User = Depends(get_current_user)):
     # alone shouldn't block sending outgoing opt-outs from ever showing as configured.
     smtp_ready = bool(e.get("smtp_host") and smtp_user and smtp_pw_set)
 
+    from ..core.email_grace import get_email_grace_status
+    grace_stat = get_email_grace_status(s)
+    grace_out = EmailGracePeriodOut(
+        active=grace_stat.get("active", False),
+        days_remaining=grace_stat.get("days_remaining", 0),
+        grace_period_days=grace_stat.get("grace_period_days", 60),
+        transition_started_at=grace_stat.get("transition_started_at"),
+        expires_at=grace_stat.get("expires_at"),
+        previous_inbox=grace_stat.get("previous_inbox"),
+        previous_mode=grace_stat.get("previous_mode"),
+    )
+
     return AllSettings(
         appearance=AppearanceSettings(**s.get("appearance", {})),
         email=EmailConfigOut(
+            mode=e.get("mode", "shared"),
             preset=e.get("preset"),
             provider=provider or None,
             provider_connected=provider_connected,
@@ -207,6 +233,7 @@ def get_settings(_: User = Depends(get_current_user)):
             from_name=e.get("from_name", "PrivacyShield Removals"),
             from_email=from_email,
             connected=provider_connected or smtp_ready,
+            grace_period=grace_out,
         ),
         scheduler=SchedulerConfig(**{k: sch.get(k, v) for k, v in SchedulerConfig().model_dump().items()}),
         privacy=PrivacyDataSettings(**s.get("privacy", {})),
@@ -232,6 +259,14 @@ def get_presets(_: User = Depends(require_permission("email.manage"))):
 def save_email(data: EmailConfig, _: User = Depends(require_permission("email.manage"))):
     s = load_settings(); cur = s.get("email", {})
 
+    # Trigger mode-switching grace period snapshot if changing mode or mailbox
+    from ..core.email_grace import maybe_snapshot_grace_period
+    maybe_snapshot_grace_period(
+        current_settings=s,
+        new_email_config=data.model_dump(),
+        new_mode=data.mode or cur.get("mode", "shared"),
+    )
+
     # apply preset host/port defaults if preset selected (don't overwrite manual values)
     if data.preset and data.preset in PRESETS and data.preset != "custom":
         p = PRESETS[data.preset]
@@ -240,6 +275,7 @@ def save_email(data: EmailConfig, _: User = Depends(require_permission("email.ma
                 setattr(data, k, p[k])
 
     s["email"] = {
+        "mode":                 data.mode or cur.get("mode", "shared"),
         "preset":               data.preset or cur.get("preset"),
         "imap_host":            data.imap_host  or cur.get("imap_host"),
         "imap_port":            data.imap_port,
@@ -258,6 +294,42 @@ def save_email(data: EmailConfig, _: User = Depends(require_permission("email.ma
     }
     _save(s)
     return {"saved": True}
+
+
+@router.get("/email/grace-period", response_model=EmailGracePeriodOut)
+def get_grace_period(_: User = Depends(get_current_user)):
+    from ..core.email_grace import get_email_grace_status
+    s = load_settings()
+    stat = get_email_grace_status(s)
+    return EmailGracePeriodOut(
+        active=stat.get("active", False),
+        days_remaining=stat.get("days_remaining", 0),
+        grace_period_days=stat.get("grace_period_days", 60),
+        transition_started_at=stat.get("transition_started_at"),
+        expires_at=stat.get("expires_at"),
+        previous_inbox=stat.get("previous_inbox"),
+        previous_mode=stat.get("previous_mode"),
+    )
+
+
+@router.post("/email/grace-period/dismiss")
+def dismiss_grace_period(_: User = Depends(require_permission("email.manage"))):
+    from ..core.email_grace import dismiss_email_grace_period
+    s = load_settings()
+    ok = dismiss_email_grace_period(s)
+    if ok:
+        _save(s)
+    return {"dismissed": ok}
+
+
+@router.post("/email/grace-period/extend")
+def extend_grace_period(extra_days: int = 30, _: User = Depends(require_permission("email.manage"))):
+    from ..core.email_grace import extend_email_grace_period
+    s = load_settings()
+    new_days = extend_email_grace_period(s, extra_days=extra_days)
+    if new_days > 0:
+        _save(s)
+    return {"extended": True, "total_days": new_days}
 
 
 @router.post("/email/test")
