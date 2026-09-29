@@ -21,7 +21,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | # | Item | Status |
 |---|------|--------|
 | 1 | Broker-as-add-on model | Complete |
-| 2 | Declarative interpretation engine | Complete — operational in live path; legacy engine maintained as fallback |
+| 2 | Declarative interpretation engine | Complete |
 | 3 | Multi-form & complex page interpreter | Complete |
 | 4 | Pluggable CAPTCHA resolution | Complete |
 | 5 | Granular broker management | Complete |
