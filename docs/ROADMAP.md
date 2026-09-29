@@ -42,6 +42,8 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 20 | Multi-tier institutional hierarchy (Consortium) | Complete |
 | 21 | Plugin sandbox IPC & resource limits | Complete |
 | 22 | Independent security audit & penetration testing | Planned |
+| 23 | Unified interactive host & fleet installer (CLI/TUI) | Planned |
+
 
 ---
 
@@ -439,6 +441,32 @@ plugins/
 **Status:** Planned.
 
 ---
+
+### 23. Unified interactive host & fleet installer (CLI/TUI)
+**Goal:** Deliver a guided, zero-friction terminal installation experience (`curl -fsSL ... | sudo bash`) that interactively provisions host dependencies, database engines, web servers, and tailors node installations according to their cluster role.
+
+**Architecture & Capabilities:**
+- **Interactive TUI & Scriptable Flags:** Runs an interactive terminal wizard (`whiptail`/`dialog` or formatted stdin prompts) for human operators, while supporting non-interactive flags (`--role`, `--db`, `--domain`, `--queue`, `--unattended`) for automated CI/CD and Ansible playbooks.
+- **Cluster Role Specialization (Item 7 Synergy):**
+  - **Standalone / All-in-One:** Installs web UI, API, database, and local browser automation on a single machine.
+  - **Control Plane / UI Server:** Installs Web UI, API, Nginx, and Redis task dispatchers. *Excludes* Playwright, Firefox, Bubblewrap, and X11 graphics packages, reducing disk consumption by >1.5GB and memory overhead to sub-300MB.
+  - **Worker Fleet Node:** Installs *only* the worker daemon, Bubblewrap sandbox, and Playwright Firefox + browser OS libraries. *Excludes* Nginx, Node.js, npm, frontend static builds, and public web endpoints, creating hardened headless compute instances.
+- **Automated Database Provisioning:**
+  - *PostgreSQL:* Prompts for credentials or runs an automated local PostgreSQL package setup, initializing database and user with random secure secrets, and writing `DATABASE_URL` to `.env`.
+  - *SQLCipher:* Generates or prompts for master database encryption keys and configures Argon2/PBKDF2 key derivation.
+  - *SQLite:* Initializes locked-down storage directories with restricted filesystem permissions.
+- **Zero-Touch Nginx & Reverse Proxy Automation:**
+  - Detects existing web servers, generates `/etc/nginx/sites-available/privacyshield` with optimized reverse-proxy headers, WebSockets, SSE streaming, and client body limits.
+  - Automatically symlinks to `sites-enabled` and validates syntax (`nginx -t && systemctl reload nginx`).
+- **Automated TLS & Certbot Integration:**
+  - Automated Let's Encrypt certificate acquisition via `certbot --nginx -d <domain>`.
+  - Fallback mechanisms for internal consortium networks (custom certificate paste or internal CA configuration).
+- **Pre-Flight Health Handoff:** Executes local loopback health checks before completing, outputting direct URLs and instructions for initial super-admin registration.
+
+**Status:** Planned.
+
+---
+
 
 ## Explicitly Deferred / Open Questions
 
