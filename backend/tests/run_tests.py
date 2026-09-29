@@ -1792,6 +1792,128 @@ def t_fleet_monitoring_and_telemetry():
 
     asyncio.run(run_daemon_test())
 
+@test(1, "installer.role_specialization_and_configs",
+      "Unified installer verifies package matrices, role specialization, Nginx config, and systemd units (Roadmap Item 23).")
+def t_installer_role_specialization_and_configs():
+    installer_mod = _imp("core.installer_config")
+
+    # 1. Package isolation per role
+    standalone_pkgs = set(installer_mod.get_packages_for_role("standalone"))
+    cp_pkgs = set(installer_mod.get_packages_for_role("control-plane"))
+    worker_pkgs = set(installer_mod.get_packages_for_role("worker"))
+
+    # Control plane must NOT include playwright browser and graphics dependencies (>1.5GB savings)
+    assert "bubblewrap" in standalone_pkgs
+    assert "bubblewrap" in worker_pkgs
+    assert "bubblewrap" not in cp_pkgs, "control-plane must exclude bubblewrap"
+    assert "libx11-xcb1" not in cp_pkgs, "control-plane must exclude X11 packages"
+    assert "libatk1.0-0" not in cp_pkgs, "control-plane must exclude browser rendering libraries"
+
+    # Worker must NOT include nginx or web identity dev headers
+    assert "nginx" in standalone_pkgs
+    assert "nginx" in cp_pkgs
+    assert "nginx" not in worker_pkgs, "worker node must exclude nginx web server"
+    assert "xmlsec1" not in worker_pkgs, "worker node must exclude xmlsec1 web SSO library"
+
+    # Base dependencies present across all roles
+    for base in ("python3", "python3-venv", "curl", "rsync"):
+        assert base in standalone_pkgs
+        assert base in cp_pkgs
+        assert base in worker_pkgs
+
+    # Invalid role raises ValueError
+    try:
+        installer_mod.get_packages_for_role("invalid-role")
+        assert False, "should have raised ValueError on invalid role"
+    except ValueError:
+        pass
+
+    # 2. Role feature requirements
+    assert installer_mod.requires_frontend_build("standalone") is True
+    assert installer_mod.requires_frontend_build("control-plane") is True
+    assert installer_mod.requires_frontend_build("worker") is False
+
+    assert installer_mod.requires_nginx("standalone") is True
+    assert installer_mod.requires_nginx("control-plane") is True
+    assert installer_mod.requires_nginx("worker") is False
+
+    assert installer_mod.requires_playwright_browsers("standalone") is True
+    assert installer_mod.requires_playwright_browsers("control-plane") is False
+    assert installer_mod.requires_playwright_browsers("worker") is True
+
+    # 3. Nginx configuration generator
+    nginx_conf = installer_mod.generate_nginx_config(
+        domain="privacy.citylibrary.org",
+        frontend_root="/opt/privacyshield/frontend/dist",
+        api_host="127.0.0.1",
+        api_port=8000,
+        client_max_body_size="50M",
+    )
+    assert "server_name privacy.citylibrary.org;" in nginx_conf
+    assert "root /opt/privacyshield/frontend/dist;" in nginx_conf
+    assert "proxy_pass http://127.0.0.1:8000;" in nginx_conf
+    assert "proxy_set_header Upgrade $http_upgrade;" in nginx_conf
+    assert 'proxy_set_header Connection "upgrade";' in nginx_conf
+    assert "proxy_buffering off;" in nginx_conf
+    assert "client_max_body_size 50M;" in nginx_conf
+    assert "X-Content-Type-Options" in nginx_conf
+
+    # 4. Systemd unit generators
+    api_unit = installer_mod.generate_systemd_api_service(
+        install_dir="/opt/privacyshield",
+        user="privacyshield",
+        workers=3,
+        port=8000,
+    )
+    assert "Description=PrivacyShield API" in api_unit
+    assert "ExecStart=/opt/privacyshield/venv/bin/uvicorn app.main:app" in api_unit
+    assert "--workers 3" in api_unit
+    assert "NoNewPrivileges=true" in api_unit
+
+    worker_unit = installer_mod.generate_systemd_worker_service(
+        install_dir="/opt/privacyshield",
+        user="privacyshield",
+    )
+    assert "Description=PrivacyShield Stateless Worker Daemon" in worker_unit
+    assert "ExecStart=/opt/privacyshield/venv/bin/python -m app.worker" in worker_unit
+    assert "Restart=always" in worker_unit
+
+    # 5. Environment generation (.env) per role
+    env_standalone = installer_mod.generate_env_config(
+        role="standalone",
+        domain="privacy.lib.org",
+        database_url="sqlite:////opt/privacyshield/data/privacyshield.db",
+    )
+    assert env_standalone["ROLE"] == "standalone"
+    assert env_standalone["FRONTEND_URL"] == "https://privacy.lib.org"
+    assert "DATABASE_URL" in env_standalone
+    assert "WORKER_ID" not in env_standalone
+
+    env_cp = installer_mod.generate_env_config(
+        role="control-plane",
+        redis_url="redis://redis.internal:6379/0",
+    )
+    assert env_cp["ROLE"] == "control-plane"
+    assert env_cp["REDIS_URL"] == "redis://redis.internal:6379/0"
+
+    env_worker = installer_mod.generate_env_config(
+        role="worker",
+        worker_id="worker-node-42",
+        worker_concurrency=4,
+        redis_url="redis://control-plane:6379/0",
+    )
+    assert env_worker["ROLE"] == "worker"
+    assert env_worker["WORKER_ID"] == "worker-node-42"
+    assert env_worker["WORKER_CONCURRENCY"] == "4"
+    assert env_worker["HEADLESS"] == "true"
+    assert "DATABASE_URL" not in env_worker, "stateless worker should not require database connection"
+
+    # Format .env content
+    env_text = installer_mod.format_env_file(env_worker)
+    assert "ROLE=worker" in env_text
+    assert "WORKER_ID=worker-node-42" in env_text
+    assert "HEADLESS=true" in env_text
+
 
 @test(1, "broker_addon.manifest_and_spec_validation",
       "Broker add-on manifests and declarative specs parse, validate, and detect bad paths/steps.")

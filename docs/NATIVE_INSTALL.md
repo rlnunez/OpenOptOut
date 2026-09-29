@@ -23,44 +23,50 @@ If you *can* use Docker, it's the lower-maintenance path (one image, one `docker
 
 This mirrors the Docker image closely on purpose — same Python dependencies, same `app` package layout (main.py's relative imports need it), same Playwright/Firefox setup for the opt-out automation engine, same optional SQLCipher encryption.
 
-### Install
+### Install (Unified Interactive Host & Fleet Installer)
 
-Distro support: `deploy/native/install.sh` targets **Debian/Ubuntu** (it uses `apt-get`). On RHEL/Rocky/openSUSE/other distros, install the equivalent packages by hand (the script's apt list documents exactly what's needed) and run the venv/pip/npm steps yourself — the systemd unit and nginx config are distro-agnostic.
+PrivacyShield features a unified interactive terminal installer (TUI) with role specialization (Roadmap Item 23). It can be executed directly or via one-line curl:
 
-```
+```bash
+# Interactive terminal wizard (detects whiptail or ANSI terminal)
+curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sudo bash
+
+# Or run locally from a git clone
 git clone https://github.com/rlnunez/Privacy-Shield.git privacyshield
 cd privacyshield
-sudo ./deploy/native/install.sh
+sudo ./deploy/installer/setup.sh
 ```
 
-This creates a `privacyshield` system user, installs OS packages (Playwright's Firefox dependencies, `bubblewrap`+`libseccomp` for plugin sandboxing, `libldap`/`libsasl` headers, `xmlsec1`, `nginx`, `rsync`), builds a venv, installs Python dependencies, installs Playwright's Firefox, compiles the plugin gRPC stubs, builds the frontend, and installs the systemd unit. On first run it also creates `/opt/privacyshield/.env` from `.env.example` with a freshly generated `SECRET_KEY`.
+#### Cluster Role Specialization
 
-**If Playwright's Firefox download fails** (common behind a corporate firewall/proxy that blocks Microsoft's CDN, `*.azureedge.net`) — the script warns and keeps going rather than aborting; the app still works, but automated opt-out form submission won't until you retry it manually once network access allows it (the warning prints the exact command). Everything else — SSO/LDAP/SIP2 sign-in, manual opt-outs, the dashboard, reporting — is unaffected either way.
+The installer prompts for (or accepts via `--role`) three distinct deployment profiles:
 
-Then, following the script's own final printout:
+1. **Standalone / All-in-One (`--role standalone`):**
+   - Provisions Web UI, FastAPI, database, and local Playwright browser automation on a single host.
+2. **Control Plane / UI Server (`--role control-plane`):**
+   - Installs Web UI, API, Nginx, and Redis task dispatchers.
+   - **Excludes** Playwright, Firefox, Bubblewrap, and X11 graphics packages, saving over **1.5GB of disk** and reducing memory footprint.
+3. **Stateless Worker Fleet Node (`--role worker`):**
+   - Installs the worker daemon, Bubblewrap sandbox, and Playwright Firefox.
+   - **Excludes** Nginx, Node.js, npm, frontend builds, and public web endpoints, creating hardened headless compute instances.
 
+#### Scriptable Non-Interactive Installation
+
+For automated orchestration (Ansible, Cloud-Init, CI/CD), supply flags with `--unattended`:
+
+```bash
+# Standalone with automated PostgreSQL and Let's Encrypt TLS:
+sudo ./deploy/installer/setup.sh --role standalone --db postgres --domain privacy.example.org --email admin@example.org --tls letsencrypt --unattended
+
+# Control Plane backed by external PostgreSQL and Redis:
+sudo ./deploy/installer/setup.sh --role control-plane --db-url "postgresql://user:pass@db:5432/privacyshield" --queue "redis://redis:6379/0" --domain privacy.example.org --unattended
+
+# Stateless Worker Node connecting to Redis queue:
+sudo ./deploy/installer/setup.sh --role worker --queue "redis://control-plane.internal:6379/0" --worker-id "worker-01" --concurrency 4 --secret-key "SHARED_CLUSTER_KEY" --unattended
 ```
-# 1. Review the config
-sudo nano /opt/privacyshield/.env        # database, email, etc — see .env.example
 
-# 2. Start the API
-sudo systemctl enable --now privacyshield-api
-sudo systemctl status privacyshield-api   # should be "active (running)"
-curl http://127.0.0.1:8000/api/health     # {"status":"ok"}
+The installer handles user creation, storage permissions, OS packages, Python venv, database provisioning, automated Nginx configuration with WebSockets/SSE, TLS certification via Certbot, and systemd service startup with pre-flight health validation.
 
-# 3. Install the nginx site
-sudo cp deploy/native/nginx-privacyshield.conf.example /etc/nginx/sites-available/privacyshield
-sudo nano /etc/nginx/sites-available/privacyshield   # replace YOUR_DOMAIN
-sudo ln -s /etc/nginx/sites-available/privacyshield /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-
-# 4. Open http://your-server/ — the first user to register becomes the super admin
-
-# 5. Turn on HTTPS (see docs/HTTPS.md's Native section for the full explanation)
-sudo apt-get install certbot python3-certbot-nginx
-sudo ./scripts/enable-https-native.sh --domain privacy.yourlibrary.org --email it@yourlibrary.org
-sudo systemctl restart privacyshield-api
-```
 
 ### Updating
 

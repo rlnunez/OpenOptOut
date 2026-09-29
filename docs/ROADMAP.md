@@ -471,8 +471,9 @@ plugins/
   - Automated Let's Encrypt certificate acquisition via `certbot --nginx -d <domain>`.
   - Fallback mechanisms for internal consortium networks (custom certificate paste or internal CA configuration).
 - **Pre-Flight Health Handoff:** Executes local loopback health checks before completing, outputting direct URLs and instructions for initial super-admin registration.
+- **Verification:** Pure Python unit tests in `tests/run_tests.py` (`t_installer_role_specialization_and_configs`) validating role package specialization matrices, Nginx reverse proxy configuration generation, systemd unit definitions for API and worker services, and role-tailored environment configurations.
 
-**Status:** Planned.
+**Status:** Complete.
 
 ---
 

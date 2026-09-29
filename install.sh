@@ -1,35 +1,29 @@
 #!/bin/sh
 # ==============================================================================
-# PrivacyShield one-line installer.
+# PrivacyShield one-line installer (Roadmap Item 23).
 #
-#   curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sh
-#   curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sh -s -- --native
-#   curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sh -s -- --dir /srv/privacyshield
+#   curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sudo bash -s -- --role worker --queue redis://...
+#   curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sh -s -- --docker
 #
-# (Installing from a fork? Pass --repo with your fork's git URL, or change
-# REPO_URL below.)
+# What it does: clones or updates PrivacyShield, then picks a deployment path:
+#   - Docker requested (--docker) -> docker compose up -d
+#   - Native / Fleet installer requested (--native or --role or Linux root) ->
+#     launches the interactive TUI / CLI host & fleet installer
+#     (deploy/installer/setup.sh) supporting standalone, control-plane, and worker roles.
 #
-# What it does: clones PrivacyShield, then picks ONE path automatically and
-# hands off to it — it does not duplicate that path's own logic:
-#   - Docker available and running -> docker compose up -d (see docs/HTTPS.md
-#     afterward for enabling HTTPS)
-#   - No Docker, but this looks like a Debian/Ubuntu host running as root ->
-#     deploy/native/install.sh (systemd + nginx, no containers — see
-#     docs/NATIVE_INSTALL.md)
-#   - Neither applies -> prints what to do instead rather than guessing
-#
-# Flags:  --docker            force the Docker path
-#         --native            force the native (no-container) path
-#         --dir PATH          where to put the checkout (defaults differ by path)
-#         --ref BRANCH        git branch/tag to check out (default: main)
-#         --repo URL          git URL to clone (default: this project's repo)
-#         -h / --help         show this
-#
-# Written in POSIX sh on purpose (not bash) so it works under whatever /bin/sh
-# actually is (dash on Debian/Ubuntu, ash in BusyBox, etc.) — the same reason
-# well-known installers like get.docker.com are shipped this way. Safe to
-# re-run: an existing checkout is updated (git pull) rather than clobbered,
-# and an existing .env is never touched or overwritten.
+# Installer Flags:
+#   --role <ROLE>         standalone | control-plane | worker (default: interactive prompt)
+#   --db <ENGINE>         sqlite | postgres | sqlcipher (default: sqlite)
+#   --domain <DOMAIN>     public hostname/domain (default: localhost)
+#   --queue <REDIS_URL>   Redis transport URL for worker or control plane
+#   --unattended, -y      run non-interactively with defaults or passed flags
+#   --docker              force the Docker container path
+#   --native              force the native systemd path
+#   --dir PATH            where to put the checkout (default: auto)
+#   --ref BRANCH          git branch/tag to check out (default: main)
+#   --repo URL            git URL to clone (default: this project's repo)
+#   -h / --help           show this help
 # ==============================================================================
 set -e
 
@@ -43,24 +37,65 @@ info() { printf '%s\n' "$1"; }
 warn() { printf 'Warning: %s\n' "$1" >&2; }
 
 show_help() {
-  sed -n '2,26p' "$0" 2>/dev/null || true
-  # $0 is "sh"/"-" when piped (no real script file to read), so fall back to
-  # a plain restatement of the flags in that case.
+  sed -n '2,27p' "$0" 2>/dev/null || true
   if [ ! -f "$0" ]; then
-    printf '%s\n' "Flags: --docker | --native | --dir PATH | --ref BRANCH | --repo URL | -h"
+    printf '%s\n' "Flags: --role <ROLE> | --db <ENGINE> | --domain <DOMAIN> | --queue <REDIS_URL> | --unattended | --docker | --native | --dir PATH | -h"
   fi
 }
 
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --docker) MODE="docker"; shift ;;
-    --native) MODE="native"; shift ;;
-    --dir) DIR="$2"; shift 2 ;;
-    --ref) REF="$2"; shift 2 ;;
-    --repo) REPO_URL="$2"; shift 2 ;;
-    -h|--help) show_help; exit 0 ;;
-    *) die "Unknown option: $1 (see --help)" ;;
+# Scan arguments to detect mode and checkout directory
+for arg in "$@"; do
+  case "$arg" in
+    --docker) MODE="docker" ;;
+    --native|--role|--db|--domain|--queue|--worker-id|--concurrency|--unattended|-y|--yes|--skip-nginx|--skip-tls)
+      [ -n "$MODE" ] || MODE="native"
+      ;;
   esac
+done
+
+# Check for dir / ref / repo overrides
+skip_next=0
+for arg in "$@"; do
+  if [ "$skip_next" = 1 ]; then
+    skip_next=0
+    continue
+  fi
+  case "$arg" in
+    --dir) skip_next=1 ;;
+    --ref) skip_next=1 ;;
+    --repo) skip_next=1 ;;
+    -h|--help) show_help; exit 0 ;;
+  esac
+done
+
+# If --dir was passed, extract its value
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "--dir" ]; then
+    DIR="$arg"
+    break
+  fi
+  prev="$arg"
+done
+
+# If --ref was passed, extract its value
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "--ref" ]; then
+    REF="$arg"
+    break
+  fi
+  prev="$arg"
+done
+
+# If --repo was passed, extract its value
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "--repo" ]; then
+    REPO_URL="$arg"
+    break
+  fi
+  prev="$arg"
 done
 
 command -v git >/dev/null 2>&1 || {
@@ -72,8 +107,6 @@ command -v git >/dev/null 2>&1 || {
 command -v git >/dev/null 2>&1 || die "git not found. Install it first, then re-run this script."
 
 # ── clone or update a checkout at $1 ─────────────────────────────────────────
-# Never deletes or force-overwrites an existing directory: if it's already a
-# git checkout, pulls; if it exists and ISN'T one, stops rather than guessing.
 checkout() {
   target="$1"
   if [ -d "$target/.git" ]; then
@@ -90,8 +123,6 @@ checkout() {
   fi
 }
 
-# A generated SECRET_KEY, the same way deploy/native/install.sh makes one —
-# openssl if present (virtually always is), else Python as a fallback.
 gen_secret() {
   if command -v openssl >/dev/null 2>&1; then
     openssl rand -hex 32
@@ -102,7 +133,6 @@ gen_secret() {
   fi
 }
 
-# ── decide the path, if not forced by a flag ─────────────────────────────────
 docker_usable() {
   command -v docker >/dev/null 2>&1 || return 1
   docker info >/dev/null 2>&1 || return 1
@@ -117,9 +147,9 @@ if [ -z "$MODE" ]; then
     MODE="native"
   else
     if command -v docker >/dev/null 2>&1; then
-      die "Docker is installed but not usable right now (daemon not running, Compose v2 missing, or needs sudo). Fix that and re-run, or pass --native if this is meant to be a no-container install."
+      die "Docker is installed but not usable right now (daemon not running, Compose v2 missing, or needs sudo). Fix that and re-run, or pass --native if this is meant to be a native install."
     fi
-    die "Docker isn't installed, and this doesn't look like a Debian/Ubuntu host running as root (needed for the automated native path). Either install Docker (https://get.docker.com) and re-run, or see docs/NATIVE_INSTALL.md to install natively by hand on your OS."
+    die "Docker isn't installed, and this doesn't look like a Debian/Ubuntu host running as root (needed for the automated native path). Either install Docker (https://get.docker.com) and re-run, or see docs/NATIVE_INSTALL.md to install natively."
   fi
 fi
 
@@ -129,7 +159,7 @@ if [ "$MODE" = "docker" ]; then
 
   if [ -z "$DIR" ]; then
     if [ -f "./docker-compose.yml" ] && [ -f "./backend/main.py" ]; then
-      DIR="$PWD"    # already run from inside a checkout — use it in place
+      DIR="$PWD"
     else
       DIR="$PWD/privacyshield"
     fi
@@ -140,16 +170,10 @@ if [ "$MODE" = "docker" ]; then
   if [ ! -f ".env" ]; then
     cp .env.example .env
     secret="$(gen_secret)"
-    # Portable in-place edit: BSD sed (macOS) and GNU sed (Linux) disagree on
-    # `-i` — write to a temp file and move it instead of relying on either.
     sed "s/^SECRET_KEY=.*/SECRET_KEY=$secret/" .env > .env.tmp && mv .env.tmp .env
     info "Created .env with a generated SECRET_KEY."
   fi
 
-  # Record which commit is about to be built, so a rebuild bakes an accurate
-  # answer into the image for core/version.py to report (startup log +
-  # /api/health) — "unknown" if this isn't a real git checkout (e.g. a
-  # downloaded zip), which docker-compose.yml's default already handles.
   if [ -d ".git" ] && command -v git >/dev/null 2>&1; then
     commit="$(git rev-parse --short HEAD 2>/dev/null || true)"
     if [ -n "$commit" ]; then
@@ -174,17 +198,22 @@ if [ "$MODE" = "docker" ]; then
   exit 0
 fi
 
-# ── Native path ────────────────────────────────────────────────────────────────
+# ── Native / Fleet Installer Path ─────────────────────────────────────────────
 if [ "$MODE" = "native" ]; then
   [ "$(id -u)" = 0 ] || die "The native install needs root (it creates a system user and installs OS packages). Re-run with sudo."
-  command -v bash >/dev/null 2>&1 || die "deploy/native/install.sh needs bash, which wasn't found. Install it first (it ships by default on virtually every Linux distro)."
+  command -v bash >/dev/null 2>&1 || die "deploy/installer/setup.sh needs bash, which wasn't found. Install it first."
 
-  [ -n "$DIR" ] || DIR="/opt/privacyshield-src"
-  checkout "$DIR"
+  if [ -z "$DIR" ]; then
+    if [ -f "./backend/main.py" ] && [ -f "./deploy/installer/setup.sh" ]; then
+      DIR="$PWD"
+    else
+      DIR="/opt/privacyshield-src"
+    fi
+  fi
+  [ "$DIR" = "$PWD" ] || checkout "$DIR"
 
-  info "Handing off to the native (no-Docker) installer…"
-  bash "$DIR/deploy/native/install.sh"
-  exit $?
+  info "Launching PrivacyShield Unified Host & Fleet Installer…"
+  exec bash "$DIR/deploy/installer/setup.sh" "$@"
 fi
 
 die "Internal error: unknown mode '$MODE'."
