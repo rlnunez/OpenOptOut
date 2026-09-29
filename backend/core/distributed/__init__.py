@@ -2,6 +2,8 @@
 Distributed Execution Package (Roadmap Item 7).
 """
 
+from __future__ import annotations
+
 from .envelope import (
     JobEnvelope,
     JobResultEnvelope,
@@ -31,6 +33,13 @@ from .queue import (
     DEFAULT_CHANNELS,
 )
 
+from .worker import (
+    WorkerConfig,
+    WorkerDaemon,
+    WorkerBrowserPool,
+    execute_discovery_query,
+)
+
 __all__ = [
     # Envelope (Phase 7.1)
     "JobEnvelope",
@@ -57,4 +66,9 @@ __all__ = [
     "CHANNEL_DEAD_LETTER",
     "CHANNEL_RESULTS",
     "DEFAULT_CHANNELS",
+    # Worker (Phase 7.3)
+    "WorkerConfig",
+    "WorkerDaemon",
+    "WorkerBrowserPool",
+    "execute_discovery_query",
 ]

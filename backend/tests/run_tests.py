@@ -1312,6 +1312,184 @@ def t_unified_job_queue():
     assert isinstance(g_queue, queue_mod.InProcessJobQueue)
 
 
+@test(1, "distributed.worker_daemon_execution",
+      "Stateless worker daemon executes removal and discovery envelopes, handles retries/DLQ, and drains gracefully (Phase 7.3).")
+def t_worker_daemon_execution():
+    import asyncio
+    worker_mod = _imp("core.distributed.worker")
+    queue_mod = _imp("core.distributed.queue")
+    env_mod = _imp("core.distributed.envelope")
+    compiler_mod = _imp("core.interpreter.compiler")
+    Job = compiler_mod.Job
+    JobStep = compiler_mod.JobStep
+
+    secret_key = "test-worker-daemon-key-32-bytes!"
+
+    def make_test_job(name: str):
+        return Job(
+            broker_id=f"broker_{name.lower()}",
+            broker_name=f"Broker {name}",
+            member_id="mem_test_1",
+            method="form",
+            steps=[
+                JobStep(kind="navigate", url=f"https://{name.lower()}.example/optout"),
+                JobStep(kind="fill", selector="#name", value="Alice Tester"),
+                JobStep(kind="submit", selector="button.submit"),
+            ],
+            success_selector=".confirmed",
+        )
+
+    # ── 1. Removal Job Execution & Result Publishing ─────────────────────────
+    q = queue_mod.InProcessJobQueue(secret_key=secret_key)
+    config = worker_mod.WorkerConfig(
+        worker_id="worker-test-node-01",
+        concurrency=1,
+        dry_run=True,
+        secret_key=secret_key,
+    )
+    daemon = worker_mod.WorkerDaemon(config=config, queue=q)
+
+    removal_env = env_mod.create_removal_envelope(
+        job=make_test_job("Acme"),
+        member_fields={"email": "alice@test.example"},
+        secret_key=secret_key,
+        priority="high",
+    )
+    q.enqueue(removal_env)
+    assert q.queue_depth("removal_high") == 1
+
+    # Execute single item
+    processed = asyncio.run(daemon.process_one(timeout=0.1))
+    assert processed is True
+    assert q.in_flight_count() == 0
+    assert q.queue_depth("removal_high") == 0
+
+    res = q.get_result(timeout=0.1)
+    assert res is not None
+    assert res.envelope_id == removal_env.envelope_id
+    assert res.worker_id == "worker-test-node-01"
+    assert res.ok is True
+    assert res.status == "success"
+    assert res.action == "removal"
+    assert res.result["exec_result"]["steps_run"] == 3
+    assert res.verify(secret_key) is True
+
+    # ── 2. Discovery Job Execution & Result Publishing ───────────────────────
+    disc_env = env_mod.create_discovery_envelope(
+        query_criteria={
+            "name": "Alice Tester",
+            "city": "Austin",
+            "state": "TX",
+            "broker_domain": "fastpeople.example",
+        },
+        broker_id="fastpeople",
+        broker_name="FastPeopleSearch",
+        member_id="mem_test_1",
+        secret_key=secret_key,
+    )
+    q.enqueue(disc_env)
+
+    processed_disc = asyncio.run(daemon.process_one(timeout=0.1))
+    assert processed_disc is True
+
+    res_disc = q.get_result(timeout=0.1)
+    assert res_disc is not None
+    assert res_disc.envelope_id == disc_env.envelope_id
+    assert res_disc.action == "discovery"
+    assert res_disc.ok is True
+    assert res_disc.result["discovery"]["count"] >= 1
+    assert "fastpeople.example" in res_disc.result["discovery"]["listings"][0]["url"]
+
+    # ── 3. Tampered Envelope Rejection ───────────────────────────────────────
+    tampered_env = env_mod.create_removal_envelope(
+        job=make_test_job("Tampered"),
+        secret_key=secret_key,
+    )
+    # Modify payload without resigning
+    tampered_env.payload["job"]["broker_name"] = "Hacked Broker"
+    q.enqueue(tampered_env)
+
+    processed_tampered = asyncio.run(daemon.process_one(timeout=0.1))
+    assert processed_tampered is True
+    res_tampered = q.get_result(timeout=0.1)
+    assert res_tampered is not None
+    assert res_tampered.ok is False
+    assert res_tampered.status == "tampered"
+
+    # ── 4. Transient Error Requeue & DLQ Routing ─────────────────────────────
+    # Envelope that triggers simulated error
+    failing_env = env_mod.create_removal_envelope(
+        job=make_test_job("FailBroker"),
+        secret_key=secret_key,
+    )
+
+    async def fail_execute(env):
+        return env_mod.create_result_envelope(
+            request_envelope=env,
+            ok=False,
+            status="error",
+            error="Simulated network disconnect",
+            worker_id=daemon.config.worker_id,
+            secret_key=secret_key,
+        )
+
+    orig_exec = daemon.execute_envelope
+    daemon.execute_envelope = fail_execute
+    try:
+        # First attempt: should be requeued to retry queue
+        q.enqueue(failing_env)
+        asyncio.run(daemon.process_one(timeout=0.1))
+        assert q.queue_depth(queue_mod.CHANNEL_RETRY) == 1
+        assert daemon.stats["retried"] == 1
+
+        # Dequeue from retry channel, set retries to max_retries (3)
+        retry_env = q.dequeue(queue_names=[queue_mod.CHANNEL_RETRY])
+        retry_env.meta["retries"] = 3
+        q.enqueue(retry_env)
+
+        # Attempt with max retries exceeded: should be routed to DLQ
+        daemon.config.active_queues = [queue_mod.CHANNEL_RETRY]
+        asyncio.run(daemon.process_one(timeout=0.1))
+        assert q.queue_depth(queue_mod.CHANNEL_DEAD_LETTER) == 1
+        assert daemon.stats["dead_lettered"] >= 1
+    finally:
+        daemon.execute_envelope = orig_exec
+        daemon.config.active_queues = None
+
+    # ── 5. Multi-Slot Concurrency & Graceful Draining ────────────────────────
+    async def run_concurrency_test():
+        conc_config = worker_mod.WorkerConfig(
+            worker_id="worker-concurrent-node",
+            concurrency=2,
+            dry_run=True,
+            poll_interval=0.05,
+            secret_key=secret_key,
+        )
+        conc_daemon = worker_mod.WorkerDaemon(config=conc_config, queue=q)
+
+        # Enqueue 4 jobs
+        for i in range(4):
+            env = env_mod.create_removal_envelope(
+                job=make_test_job(f"Job{i}"),
+                secret_key=secret_key,
+            )
+            q.enqueue(env)
+
+        run_task = asyncio.create_task(conc_daemon.run())
+
+        # Wait until jobs are drained or up to 2 seconds
+        for _ in range(40):
+            if conc_daemon.stats["processed"] >= 4:
+                break
+            await asyncio.sleep(0.05)
+
+        conc_daemon.request_stop()
+        await run_task
+        assert conc_daemon.stats["processed"] == 4
+
+    asyncio.run(run_concurrency_test())
+
+
 @test(1, "broker_addon.manifest_and_spec_validation",
       "Broker add-on manifests and declarative specs parse, validate, and detect bad paths/steps.")
 def t_broker_addon_validation():

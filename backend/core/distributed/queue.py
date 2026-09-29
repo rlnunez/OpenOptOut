@@ -79,6 +79,7 @@ class JobQueue(ABC):
         self,
         queue_names: Optional[List[str]] = None,
         timeout: float = 0.0,
+        verify_signature: bool = False,
     ) -> Optional[JobEnvelope]:
         """
         Dequeue the next JobEnvelope from the specified channels (in priority order).
@@ -191,6 +192,7 @@ class InProcessJobQueue(JobQueue):
         self,
         queue_names: Optional[List[str]] = None,
         timeout: float = 0.0,
+        verify_signature: bool = False,
     ) -> Optional[JobEnvelope]:
         channels = queue_names or DEFAULT_CHANNELS
         deadline = time.time() + timeout if timeout > 0 else 0.0
@@ -205,7 +207,7 @@ class InProcessJobQueue(JobQueue):
                         envelope = JobEnvelope.from_json(
                             raw_json,
                             secret_key=self.secret_key,
-                            verify_signature=bool(self.secret_key),
+                            verify_signature=verify_signature,
                         )
                         self._in_flight[envelope.envelope_id] = {
                             "raw_json": raw_json,
@@ -362,6 +364,7 @@ class RedisJobQueue(JobQueue):
         self,
         queue_names: Optional[List[str]] = None,
         timeout: float = 0.0,
+        verify_signature: bool = False,
     ) -> Optional[JobEnvelope]:
         channels = queue_names or DEFAULT_CHANNELS
         keys = [self._channel_key(ch) for ch in channels]
@@ -376,7 +379,7 @@ class RedisJobQueue(JobQueue):
                     env = JobEnvelope.from_json(
                         raw_json,
                         secret_key=self.secret_key,
-                        verify_signature=bool(self.secret_key),
+                        verify_signature=verify_signature,
                     )
                     self.client.hset(self.KEY_INFLIGHT, env.envelope_id, raw_json)
                     return env
@@ -394,7 +397,7 @@ class RedisJobQueue(JobQueue):
         env = JobEnvelope.from_json(
             raw_json,
             secret_key=self.secret_key,
-            verify_signature=bool(self.secret_key),
+            verify_signature=verify_signature,
         )
         self.client.hset(self.KEY_INFLIGHT, env.envelope_id, raw_json)
         return env

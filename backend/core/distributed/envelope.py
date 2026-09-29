@@ -211,6 +211,11 @@ class JobEnvelope:
     hmac_signature: str = ""
     is_zeroized: bool = False
 
+    @property
+    def is_encrypted(self) -> bool:
+        """Return True if the envelope payload is encrypted."""
+        return bool(self.encrypted_payload)
+
     def __post_init__(self):
         if self.action not in ("removal", "discovery"):
             raise EnvelopeInvalidError(f"Unsupported action: '{self.action}'")
@@ -243,6 +248,10 @@ class JobEnvelope:
                 f"Envelope '{self.envelope_id}' expired at {self.expires_at} (current: {time.time()})"
             )
         return True
+
+    def is_expired(self) -> bool:
+        """Return True if envelope has an expiration timestamp and current time exceeds it."""
+        return bool(self.expires_at is not None and time.time() > self.expires_at)
 
     def encrypt_payload(self, secret_key: Union[str, bytes]) -> "JobEnvelope":
         """

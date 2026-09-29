@@ -26,7 +26,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 4 | Pluggable CAPTCHA resolution | Complete |
 | 5 | Granular broker management | Complete |
 | 6 | Automated broker health monitoring | Complete |
-| 7 | Distributed execution: control plane & worker fleet | In Progress (Phases 7.1 & 7.2 Complete) |
+| 7 | Distributed execution: control plane & worker fleet | In Progress (Phases 7.1, 7.2, 7.3 Complete) |
 | 8 | Add-on distribution: Git repo to marketplace | Planned |
 | 9 | Infrastructure capacity planner | Planned — pending empirical performance benchmarking |
 | 10 | Email-first opt-outs via parent companies | Complete |
@@ -180,11 +180,14 @@ To ensure operational stability and maintain continuous testability without disr
   - Extended `Job`, `JobStep`, `EmailJob`, and `ExecResult` with canonical `to_dict()` and `from_dict()` serialization.
   - *Verification:* Pure Python unit tests in `tests/run_tests.py` (`t_unified_job_queue`) verifying priority channel ordering, in-flight leases, ack/requeue/DLQ routing, results channel, mock Redis client operations, and global queue factory.
 
-* **Phase 7.3 — Stateless Worker Node Daemon (Execution Boundary):**
-  - Implement standalone worker daemon (`backend/worker.py`) that boots independently of the FastAPI web application.
-  - Unified browser runner: worker pulls envelopes from `JobQueue`, initializes sandboxed Playwright/Bubblewrap contexts, and dispatches to either `PlaywrightExecutor` (for opt-outs) or `DiscoveryBot` (for search engine and broker listing discovery) within the *same* anti-detection browser runtime.
-  - Process supervisor integration with concurrency slots (`WORKER_CONCURRENCY=N`) and graceful SIGTERM draining.
-  - *Verification:* Worker unit tests driving mock headless jobs (both discovery and removal) and verifying result publishing without touching the control plane.
+* **Phase 7.3 — Stateless Worker Node Daemon (Execution Boundary) — Complete:**
+  - Implemented standalone worker daemon (`backend/worker.py` and `backend/core/distributed/worker.py`) running independently of the FastAPI web application.
+  - Implemented `WorkerBrowserPool` providing Playwright browser lifecycle management, randomized user-agent rotation, proxy integration, and graceful dry-run / mock fallback.
+  - Unified browser runner handling both removal jobs (via `PlaywrightExecutor`/`DryRunExecutor`) and discovery queries (`execute_discovery_query`) within the same browser runtime.
+  - Implemented multi-slot concurrency (`WorkerConfig.concurrency` / `WORKER_CONCURRENCY=N`).
+  - Implemented graceful shutdown and task draining via `request_stop()`, SIGTERM, and SIGINT.
+  - Implemented retry counter tracking with automatic dead-letter queue (DLQ) routing for exhausted retries and tampered envelopes.
+  - *Verification:* Pure Python unit tests in `tests/run_tests.py` (`t_worker_daemon_execution`) verifying removal dispatch, discovery bot execution, tampering rejection, retry/DLQ routing, and multi-slot concurrent execution with graceful draining.
 
 * **Phase 7.4 — Control Plane Ingestion & Dynamic Scheduling (Orchestration Boundary):**
   - Transition `core/scheduler.py` from an in-process executor to an enqueuing producer (`enqueue_pending_optouts`, `enqueue_pending_discoveries`).
@@ -198,7 +201,7 @@ To ensure operational stability and maintain continuous testability without disr
   - Distributed Docker Compose topology (`docker-compose.distributed.yml`) featuring scaled worker services (`--scale worker=4`).
   - *Verification:* Smoke test running multi-container distributed discovery and opt-out runs under Docker Compose.
 
-**Status:** In Progress (Phases 7.1 & 7.2 Complete).
+**Status:** In Progress (Phases 7.1, 7.2 & 7.3 Complete).
 
 ---
 
