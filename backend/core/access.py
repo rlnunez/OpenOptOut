@@ -87,6 +87,14 @@ PERMISSIONS = {
         "group": "Operations", "label": "Certificate status",
         "description": "Certificate-expiry alerts for LDAP, SIP2, SAML and HTTPS, and the HTTPS check.",
     },
+    "logs.view": {
+        "group": "Operations", "label": "View diagnostic logs", "sensitive": True,
+        "description": "Inspect live filtered application logs, download diagnostic logs, and view service status.",
+    },
+    "logs.manage": {
+        "group": "Operations", "label": "Manage log verbosity", "sensitive": True,
+        "description": "Dynamically adjust runtime log verbosity (DEBUG, INFO, WARNING, ERROR).",
+    },
     "email.manage": {
         "group": "System configuration", "label": "Email settings", "sensitive": True,
         "description": "The removal inbox: SMTP/IMAP settings and connected OAuth accounts.",
@@ -147,7 +155,10 @@ DEFAULT_MANAGER_PERMISSIONS = [
 ]
 
 # Holding the key on the left also counts as holding the ones on the right.
-IMPLIES = {"members.edit_all": {"members.view_all"}}
+IMPLIES = {
+    "members.edit_all": {"members.view_all"},
+    "logs.manage": {"logs.view"},
+}
 
 
 def clean(keys: Iterable[str]) -> list[str]:

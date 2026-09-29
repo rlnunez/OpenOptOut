@@ -35,7 +35,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 13 | SAML 2.0 SSO & identity hardening | Complete |
 | 14 | Built-in HTTPS with automated certificates | Complete |
 | 15 | Process memory hygiene & credential lifecycle | Planned |
-| 16 | Operational visibility & diagnostic logging | Partial — Version/commit reporting complete; in-app log viewer planned |
+| 16 | Operational visibility & diagnostic logging | Complete |
 | 17 | Internationalization (i18n): language packs & RTL | Planned |
 | 18 | Typed plugin directories & runtime isolation | Complete |
 | 19 | Delegated managerial permissions | Complete |
@@ -278,12 +278,12 @@ workers_needed       = operations_per_cycle ÷ (worker_throughput × hours_in_co
 ### 16. Operational visibility & diagnostic logging
 **Goal:** Provide administrators with centralized visibility into running application versions and diagnostic logs directly from the administrative interface.
 
-**Architecture:**
-- **Part A — Version Reporting (Complete):** API startup logs canonical version and git commit hash (`backend/VERSION`, `GIT_COMMIT`), served from `GET /api/health`.
-- **Part B — In-App Log Viewer (Planned):** Unified administrative interface for inspecting filtered logs across system services (API server, background scheduler, plugin runner, reverse proxy) without direct host shell access.
-- **Part C — Dynamic Log Verbosity (Planned):** Runtime configurable log levels (security-critical vs. debug) manageable from administrative settings.
+**Technical Architecture:**
+- **Part A — Version & Commit Reporting:** Canonical version (`backend/VERSION`) and short git commit hash (`GIT_COMMIT`) logged at API startup and exposed via `GET /api/health` for automated probes and bug reporting.
+- **Part B — Persistent Rotating Logs & In-App Viewer:** Dual-layer logging architecture combining persistent disk rotation (`/data/logs/privacyshield.log`, 10MB rotations, 5 backups) with an in-memory ring buffer (2,000 records) for low-latency searching, filtering, and live UI streaming. Supported by automatic PII and credential sanitization (Bearer tokens, SIP2 credentials, query secrets, and JSON passwords) before emission. Full diagnostic log export available via `GET /api/logs/download`.
+- **Part C — Dynamic Log Verbosity & Permissions:** Runtime configurable log levels (DEBUG, INFO, WARNING, ERROR) managed via `POST /api/logs/level` without requiring container restarts. Delegated access control with dedicated sensitive permissions (`logs.view` and `logs.manage`) allowing super admins to securely grant staff access to diagnostic tools.
 
-**Status:** Part A complete; Parts B and C planned.
+**Status:** Complete. Documented in [`docs/ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ---
 

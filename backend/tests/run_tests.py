@@ -1007,6 +1007,114 @@ def t_consortium_scoping():
     assert set(auth.get_accessible_member_ids(db_cross, mgr_cross)) == {1, 2, 3}
 
 
+@test(1, "logs.sanitization_and_redaction",
+      "Diagnostic logs sanitize passwords, bearer tokens, SIP2 credentials, and auth headers.")
+def t_logs_sanitization():
+    lc = _imp("core.logging_config")
+    s = lc.sanitize_log_message
+
+    # 1. Bearer token
+    raw = "Request failed with token Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xyz123"
+    san = s(raw)
+    assert "Bearer [REDACTED]" in san
+    assert "eyJhbG" not in san
+
+    # 1b. Authorization header
+    raw1b = "Request header Authorization: Basic dXNlcjpwYXNz"
+    san1b = s(raw1b)
+    assert "Authorization: [REDACTED]" in san1b
+    assert "dXNlcj" not in san1b
+
+    # 2. Query param secrets
+    raw2 = "Connecting to ILS with host=10.0.0.1&pin=9876&password=supersecret&timeout=10"
+    san2 = s(raw2)
+    assert "pin=[REDACTED]" in san2
+    assert "password=[REDACTED]" in san2
+    assert "9876" not in san2
+    assert "supersecret" not in san2
+
+    # 3. JSON secrets
+    raw3 = '{"username": "admin", "password": "mypassword123", "client_secret": "sec456"}'
+    san3 = s(raw3)
+    assert '"password": "[REDACTED]"' in san3
+    assert '"client_secret": "[REDACTED]"' in san3
+    assert "mypassword123" not in san3
+
+    # 4. SIP2 credentials (|AD and |CO fields)
+    raw4 = "6300120260101    120000AOMAIN|AA21234|ADsecretpin|COsipuserpass|AY1"
+    san4 = s(raw4)
+    assert "|AD[REDACTED]" in san4
+    assert "|CO[REDACTED]" in san4
+    assert "secretpin" not in san4
+    assert "sipuserpass" not in san4
+
+
+@test(1, "logs.ring_buffer_and_filtering",
+      "MemoryRingBufferHandler buffers records up to capacity, provides structured entries, and filters by level/search/cursor.")
+def t_logs_ring_buffer():
+    import logging
+    lc = _imp("core.logging_config")
+    handler = lc.MemoryRingBufferHandler(capacity=5)
+
+    for i in range(8):
+        rec = logging.LogRecord(
+            name=f"test.logger.{i % 2}",
+            level=logging.INFO if i % 2 == 0 else logging.ERROR,
+            pathname=__file__,
+            lineno=10,
+            msg=f"Message {i} with token {i * 100}",
+            args=(),
+            exc_info=None,
+        )
+        handler.emit(rec)
+
+    # 1. Cap to capacity
+    entries = handler.query(limit=10)
+    assert len(entries) == 5, f"expected 5 entries, got {len(entries)}"
+    assert entries[0]["id"] == 4
+    assert entries[-1]["id"] == 8
+
+    # 2. Filter by minimum level (ERROR only)
+    errors = handler.query(level="ERROR")
+    for e in errors:
+        assert e["level"] == "ERROR"
+
+    # 3. Filter by logger
+    log0 = handler.query(logger_filter="logger.0")
+    for e in log0:
+        assert "logger.0" in e["logger"]
+
+    # 4. Filter by search keyword
+    searched = handler.query(search="token 700")
+    assert len(searched) == 1
+    assert searched[0]["message"] == "Message 7 with token 700"
+
+    # 5. Cursor filtering
+    newest = handler.query(cursor=6)
+    assert [e["id"] for e in newest] == [7, 8]
+
+
+@test(1, "logs.dynamic_verbosity",
+      "Log verbosity can be checked and changed dynamically at runtime.")
+def t_logs_verbosity():
+    lc = _imp("core.logging_config")
+    orig = lc.get_log_level()
+    try:
+        lc.set_log_level("DEBUG")
+        assert lc.get_log_level() == "DEBUG"
+        lc.set_log_level("WARNING")
+        assert lc.get_log_level() == "WARNING"
+
+        # Invalid level raises ValueError
+        try:
+            lc.set_log_level("INVALID_LEVEL")
+            assert False, "should have raised ValueError"
+        except ValueError:
+            pass
+    finally:
+        lc.set_log_level(orig)
+
+
 @test(1, "certs.reminder_milestones",
       "Certificate reminders fire once per milestone (30/14/7/3/1 days, expiry), never daily.")
 def t_reminder_keys():

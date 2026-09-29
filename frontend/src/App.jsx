@@ -22,6 +22,7 @@ import DatabaseAdmin from './pages/DatabaseAdmin'
 import Plugins from './pages/Plugins'
 import PluginUpload from './pages/PluginUpload'
 import PluginHelp from './pages/PluginHelp'
+import SystemLogs from './pages/SystemLogs'
 import BrokerHealth from './pages/BrokerHealth'
 import BrokerPriority from './pages/BrokerPriority'
 import ParentCompanies from './pages/ParentCompanies'
@@ -102,6 +103,7 @@ function Layout() {
             <Route path="/broker-health" element={<RequirePermission perms={['brokers.manage']}><BrokerHealth /></RequirePermission>} />
             <Route path="/broker-priority" element={<RequirePermission perms={['brokers.manage']}><BrokerPriority /></RequirePermission>} />
             <Route path="/parent-companies" element={<RequirePermission perms={['brokers.manage']}><ParentCompanies /></RequirePermission>} />
+            <Route path="/logs" element={<RequirePermission perms={['logs.view']}><SystemLogs /></RequirePermission>} />
           </Routes>
         </main>
       </div>

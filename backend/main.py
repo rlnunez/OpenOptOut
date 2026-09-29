@@ -20,8 +20,10 @@ from .routers.test_broker import router as test_broker_router
 from .routers.saml import router as saml_router
 from .routers.cert_monitor import router as cert_monitor_router
 from .routers.consortium import router as consortium_router
+from .routers.logs import router as logs_router
 from .core.scheduler import start_scheduler, stop_scheduler
 from .core.version import get_version, get_commit, version_string
+from .core.logging_config import init_logging
 
 app = FastAPI(
     title="PrivacyShield API",
@@ -45,13 +47,15 @@ for r in [
     branding_router, reporting_router,
     db_admin_router, plugins_router, parent_companies_router, wizard_router,
     email_oauth_router, test_broker_router, saml_router, cert_monitor_router,
-    consortium_router,
+    consortium_router, logs_router,
 ]:
     app.include_router(r)
 
 
 @app.on_event("startup")
 def startup():
+    # Initialize rotating file logger and in-memory ring buffer
+    init_logging()
     # First thing logged, before anything that could fail — so "what version
     # is this" is answerable from `docker compose logs api` even if startup
     # doesn't get any further than this.

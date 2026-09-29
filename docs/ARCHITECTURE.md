@@ -113,6 +113,7 @@ privacyshield/
 │   │   ├── cert_monitor.py        # Certificate expiry status + HTTPS check
 │   │   ├── plugins.py             # Plugin install/enable/disable/violations
 │   │   ├── consortium.py          # Consortium, library systems, branches, SIP2 routing
+│   │   ├── logs.py                # Diagnostic logs, download, verbosity API
 │   │   └── help.py                # Admin-editable documentation notes
 │   ├── core/
 │   │   ├── auth.py                # Password hashing, JWT, RBAC
@@ -139,6 +140,7 @@ privacyshield/
 │   │   ├── scheduler.py           # APScheduler jobs (opt-out, email, recheck, certs)
 │   │   ├── proxy.py               # Residential proxy presets + rotation
 │   │   ├── migrations.py          # Additive schema migrations
+│   │   ├── logging_config.py      # Rotating file handler, ring buffer, sanitization
 │   │   ├── version.py             # Version + commit reporting
 │   │   └── settings_store.py      # Settings file helpers
 │   └── plugins/                   # Process-isolated plugin system (see docs/PLUGINS.md)
