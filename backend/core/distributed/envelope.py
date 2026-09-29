@@ -19,6 +19,8 @@ Security & Integrity:
   - Expiration / replay protection via TTL and timestamp checks.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 import json
 import time
@@ -27,7 +29,7 @@ import hmac
 import hashlib
 import base64
 import secrets
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any, Dict, List, Union
 
 from ..memory_hygiene import SecureBuffer
 
@@ -73,7 +75,7 @@ def canonical_json(data: Dict[str, Any]) -> str:
     return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
-def compute_envelope_hmac(data: Dict[str, Any], secret_key: str | bytes) -> str:
+def compute_envelope_hmac(data: Dict[str, Any], secret_key: Union[str, bytes]) -> str:
     """
     Compute the HMAC-SHA256 hex digest for an envelope dictionary,
     strictly omitting any existing 'hmac_signature' field.
@@ -86,13 +88,13 @@ def compute_envelope_hmac(data: Dict[str, Any], secret_key: str | bytes) -> str:
     return hmac.new(key_bytes, canonical, hashlib.sha256).hexdigest()
 
 
-def _derive_symmetric_key(secret_key: str | bytes) -> bytes:
+def _derive_symmetric_key(secret_key: Union[str, bytes]) -> bytes:
     """Derive a 32-byte key using SHA-256 for authenticated payload encryption."""
     raw = secret_key.encode("utf-8") if isinstance(secret_key, str) else secret_key
     return hashlib.sha256(raw).digest()
 
 
-def encrypt_payload_bytes(plaintext: bytes, secret_key: str | bytes) -> str:
+def encrypt_payload_bytes(plaintext: bytes, secret_key: Union[str, bytes]) -> str:
     """
     Encrypt plaintext payload bytes. Uses Fernet if cryptography is installed,
     otherwise uses an authenticated pure-Python HMAC-CTR stream cipher.
@@ -120,7 +122,7 @@ def encrypt_payload_bytes(plaintext: bytes, secret_key: str | bytes) -> str:
     return base64.b64encode(blob).decode("ascii")
 
 
-def decrypt_payload_bytes(ciphertext_str: str, secret_key: str | bytes) -> bytes:
+def decrypt_payload_bytes(ciphertext_str: str, secret_key: Union[str, bytes]) -> bytes:
     """
     Decrypt payload ciphertext back to raw bytes.
     """
@@ -217,12 +219,12 @@ class JobEnvelope:
         if not self.member_id:
             raise EnvelopeInvalidError("member_id is required")
 
-    def sign(self, secret_key: str | bytes) -> "JobEnvelope":
+    def sign(self, secret_key: Union[str, bytes]) -> "JobEnvelope":
         """Compute and set HMAC signature on this envelope."""
         self.hmac_signature = compute_envelope_hmac(self.to_dict(), secret_key)
         return self
 
-    def verify(self, secret_key: str | bytes, allow_expired: bool = False) -> bool:
+    def verify(self, secret_key: Union[str, bytes], allow_expired: bool = False) -> bool:
         """
         Verify the envelope's HMAC signature and expiration timestamp.
         Raises EnvelopeTamperedError on signature mismatch or EnvelopeExpiredError on expiry.
@@ -242,7 +244,7 @@ class JobEnvelope:
             )
         return True
 
-    def encrypt_payload(self, secret_key: str | bytes) -> "JobEnvelope":
+    def encrypt_payload(self, secret_key: Union[str, bytes]) -> "JobEnvelope":
         """
         Encrypt the internal plaintext payload into encrypted_payload and
         zeroize the plaintext payload dictionary.
@@ -259,7 +261,7 @@ class JobEnvelope:
             self.sign(secret_key)
         return self
 
-    def decrypt_payload(self, secret_key: str | bytes) -> "JobEnvelope":
+    def decrypt_payload(self, secret_key: Union[str, bytes]) -> "JobEnvelope":
         """
         Decrypt encrypted_payload back into the plaintext payload dictionary.
         """
@@ -319,7 +321,7 @@ class JobEnvelope:
     def from_dict(
         cls,
         d: Dict[str, Any],
-        secret_key: Optional[str | bytes] = None,
+        secret_key: Optional[Union[str, bytes]] = None,
         verify_signature: bool = True,
         allow_expired: bool = False,
     ) -> "JobEnvelope":
@@ -348,7 +350,7 @@ class JobEnvelope:
     def from_json(
         cls,
         json_str: str,
-        secret_key: Optional[str | bytes] = None,
+        secret_key: Optional[Union[str, bytes]] = None,
         verify_signature: bool = True,
         allow_expired: bool = False,
     ) -> "JobEnvelope":
@@ -399,12 +401,12 @@ class JobResultEnvelope:
         if self.action not in ("removal", "discovery"):
             raise EnvelopeInvalidError(f"Unsupported action: '{self.action}'")
 
-    def sign(self, secret_key: str | bytes) -> "JobResultEnvelope":
+    def sign(self, secret_key: Union[str, bytes]) -> "JobResultEnvelope":
         """Compute and set HMAC signature on this result envelope."""
         self.hmac_signature = compute_envelope_hmac(self.to_dict(), secret_key)
         return self
 
-    def verify(self, secret_key: str | bytes) -> bool:
+    def verify(self, secret_key: Union[str, bytes]) -> bool:
         """Verify the result envelope's HMAC signature."""
         if not self.hmac_signature:
             raise EnvelopeTamperedError("Result envelope has no HMAC signature")
@@ -465,7 +467,7 @@ class JobResultEnvelope:
     def from_dict(
         cls,
         d: Dict[str, Any],
-        secret_key: Optional[str | bytes] = None,
+        secret_key: Optional[Union[str, bytes]] = None,
         verify_signature: bool = True,
     ) -> "JobResultEnvelope":
         """Reconstruct JobResultEnvelope from dictionary."""
@@ -496,7 +498,7 @@ class JobResultEnvelope:
     def from_json(
         cls,
         json_str: str,
-        secret_key: Optional[str | bytes] = None,
+        secret_key: Optional[Union[str, bytes]] = None,
         verify_signature: bool = True,
     ) -> "JobResultEnvelope":
         """Reconstruct JobResultEnvelope from JSON string."""
@@ -514,7 +516,7 @@ def create_removal_envelope(
     member_fields: Optional[Dict[str, Any]] = None,
     request_id: Optional[int] = None,
     request_key: Optional[str] = None,
-    secret_key: Optional[str | bytes] = None,
+    secret_key: Optional[Union[str, bytes]] = None,
     priority: str = "normal",
     meta: Optional[Dict[str, Any]] = None,
     ttl_seconds: Optional[int] = 86400,
@@ -563,7 +565,7 @@ def create_discovery_envelope(
     broker_name: str,
     member_id: str,
     request_id: Optional[int] = None,
-    secret_key: Optional[str | bytes] = None,
+    secret_key: Optional[Union[str, bytes]] = None,
     priority: str = "normal",
     meta: Optional[Dict[str, Any]] = None,
     ttl_seconds: Optional[int] = 86400,
@@ -608,7 +610,7 @@ def create_result_envelope(
     worker_id: str = "worker-default",
     screenshots: Optional[Dict[str, str]] = None,
     error: Optional[str] = None,
-    secret_key: Optional[str | bytes] = None,
+    secret_key: Optional[Union[str, bytes]] = None,
     duration_ms: Optional[int] = None,
 ) -> JobResultEnvelope:
     """

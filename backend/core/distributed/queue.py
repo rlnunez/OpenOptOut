@@ -10,6 +10,8 @@ Provides the transport boundary between the Control Plane and the Worker Fleet:
   - get_queue(): Factory function resolving queue backend based on configuration.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 import collections
 import json
@@ -157,7 +159,7 @@ class InProcessJobQueue(JobQueue):
     in-flight lease tracking, and zero external dependencies.
     """
 
-    def __init__(self, secret_key: Optional[str | bytes] = None):
+    def __init__(self, secret_key: Optional[Union[str, bytes]] = None):
         self.secret_key = secret_key
         self._lock = threading.RLock()
         self._cond = threading.Condition(self._lock)
@@ -330,7 +332,7 @@ class RedisJobQueue(JobQueue):
         self,
         redis_client: Optional[Any] = None,
         redis_url: Optional[str] = None,
-        secret_key: Optional[str | bytes] = None,
+        secret_key: Optional[Union[str, bytes]] = None,
     ):
         self.secret_key = secret_key
         if redis_client is not None:
@@ -484,7 +486,7 @@ _GLOBAL_LOCK = threading.Lock()
 
 def get_queue(
     url: Optional[str] = None,
-    secret_key: Optional[str | bytes] = None,
+    secret_key: Optional[Union[str, bytes]] = None,
     reset: bool = False,
 ) -> JobQueue:
     """

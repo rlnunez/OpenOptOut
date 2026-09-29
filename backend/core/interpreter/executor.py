@@ -35,6 +35,33 @@ class ExecResult:
     trace: list[str] = field(default_factory=list)   # human-readable per-step log
     challenge: Optional[dict] = None  # challenge metadata for human/solver path (type, site_key, page_url, etc.)
 
+    def to_dict(self) -> dict:
+        d = {
+            "ok": self.ok,
+            "steps_run": self.steps_run,
+            "steps_total": self.steps_total,
+            "detail": self.detail,
+            "needs_captcha": self.needs_captcha,
+            "needs_manual": self.needs_manual,
+            "trace": list(self.trace),
+        }
+        if self.challenge is not None:
+            d["challenge"] = dict(self.challenge)
+        return d
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "ExecResult":
+        return cls(
+            ok=bool(d.get("ok", False)),
+            steps_run=int(d.get("steps_run", 0)),
+            steps_total=int(d.get("steps_total", 0)),
+            detail=str(d.get("detail", "")),
+            needs_captcha=bool(d.get("needs_captcha", False)),
+            needs_manual=bool(d.get("needs_manual", False)),
+            trace=list(d.get("trace", [])),
+            challenge=dict(d["challenge"]) if d.get("challenge") is not None else None,
+        )
+
 
 class JobExecutor:
     """Interface. Subclasses implement run(job) -> ExecResult."""

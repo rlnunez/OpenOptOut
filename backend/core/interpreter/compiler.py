@@ -36,6 +36,29 @@ class JobStep:
     timeout_ms: int = 8000
     optional: bool = False
 
+    def to_dict(self) -> dict:
+        return {
+            "kind": self.kind,
+            "selector": self.selector,
+            "value": self.value,
+            "url": self.url,
+            "text": self.text,
+            "timeout_ms": self.timeout_ms,
+            "optional": self.optional,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "JobStep":
+        return cls(
+            kind=str(d.get("kind", "")),
+            selector=str(d.get("selector", "")),
+            value=str(d.get("value", "")),
+            url=str(d.get("url", "")),
+            text=str(d.get("text", "")),
+            timeout_ms=int(d.get("timeout_ms", 8000)),
+            optional=bool(d.get("optional", False)),
+        )
+
 
 @dataclass
 class EmailJob:
@@ -44,6 +67,23 @@ class EmailJob:
     subject: str
     body: str
     locale: str = "en"
+
+    def to_dict(self) -> dict:
+        return {
+            "to_address": self.to_address,
+            "subject": self.subject,
+            "body": self.body,
+            "locale": self.locale,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "EmailJob":
+        return cls(
+            to_address=str(d.get("to_address", "")),
+            subject=str(d.get("subject", "")),
+            body=str(d.get("body", "")),
+            locale=str(d.get("locale", "en")),
+        )
 
 
 @dataclass
@@ -67,11 +107,30 @@ class Job:
             "broker_id": self.broker_id, "broker_name": self.broker_name,
             "member_id": self.member_id, "method": self.method,
             "success_selector": self.success_selector, "success_text": self.success_text,
-            "steps": [vars(s) for s in self.steps],
+            "steps": [s.to_dict() if hasattr(s, "to_dict") else vars(s) for s in self.steps],
         }
         if self.email:
-            d["email"] = vars(self.email)
+            d["email"] = self.email.to_dict() if hasattr(self.email, "to_dict") else vars(self.email)
         return d
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Job":
+        steps = [
+            JobStep.from_dict(s) if isinstance(s, dict) else s
+            for s in d.get("steps", [])
+        ]
+        email_data = d.get("email")
+        email = EmailJob.from_dict(email_data) if isinstance(email_data, dict) else None
+        return cls(
+            broker_id=str(d.get("broker_id", "")),
+            broker_name=str(d.get("broker_name", "")),
+            member_id=str(d.get("member_id", "")),
+            method=str(d.get("method", "form")),
+            steps=steps,
+            email=email,
+            success_selector=str(d.get("success_selector", "")),
+            success_text=str(d.get("success_text", "")),
+        )
 
 
 def _render(template: str, fields: dict) -> str:

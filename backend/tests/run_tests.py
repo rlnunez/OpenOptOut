@@ -978,6 +978,340 @@ def t_complex_page_actions():
     assert any("stage 2" in t for t in pw_res.trace)
 
 
+@test(1, "distributed.job_envelope_serialization",
+      "JobEnvelope and JobResultEnvelope serialize canonically, verify HMAC signatures, reject tampering, and zeroize memory (Phase 7.1).")
+def t_job_envelope_serialization():
+    env_mod = _imp("core.distributed.envelope")
+    compiler_mod = _imp("core.interpreter.compiler")
+    executor_mod = _imp("core.interpreter.executor")
+    Job = compiler_mod.Job
+    JobStep = compiler_mod.JobStep
+    ExecResult = executor_mod.ExecResult
+
+    secret_key = "test-secret-key-32-bytes-long!!"
+
+    # 1. Job and ExecResult serialization round-trip
+    job = Job(
+        broker_id="acme",
+        broker_name="Acme Data",
+        member_id="mem_123",
+        method="form",
+        steps=[
+            JobStep(kind="navigate", url="https://acme.example/optout"),
+            JobStep(kind="fill", selector="#name", value="Alice Smith"),
+            JobStep(kind="submit", selector="button[type=submit]"),
+        ],
+        success_selector=".confirmed"
+    )
+    job_dict = job.to_dict()
+    job_restored = Job.from_dict(job_dict)
+    assert job_restored.broker_id == "acme"
+    assert len(job_restored.steps) == 3
+    assert job_restored.steps[1].value == "Alice Smith"
+
+    exec_res = ExecResult(
+        ok=True,
+        steps_run=3,
+        steps_total=3,
+        detail="Submitted successfully",
+        trace=["navigate", "fill", "submit"],
+        challenge={"type": "recaptcha_v2", "site_key": "xyz123"}
+    )
+    res_dict = exec_res.to_dict()
+    res_restored = ExecResult.from_dict(res_dict)
+    assert res_restored.ok is True
+    assert res_restored.challenge["site_key"] == "xyz123"
+
+    # 2. Removal envelope creation, signing, and canonical JSON serialization
+    env = env_mod.create_removal_envelope(
+        job=job,
+        member_fields={"full_name": "Alice Smith", "email": "alice@example.com"},
+        request_id=42,
+        request_key="req-uuid-42",
+        secret_key=secret_key,
+        priority="high",
+        ttl_seconds=3600
+    )
+    assert env.action == "removal"
+    assert env.hmac_signature != ""
+    assert env.verify(secret_key) is True
+
+    json_str = env.to_json()
+    assert isinstance(json_str, str)
+
+    # Deserialization from JSON with HMAC verification
+    deserialized = env_mod.JobEnvelope.from_json(json_str, secret_key=secret_key)
+    assert deserialized.envelope_id == env.envelope_id
+    assert deserialized.broker_id == "acme"
+    assert deserialized.payload["job"]["steps"][1]["value"] == "Alice Smith"
+
+    # 3. Discovery envelope creation and verification
+    disc_env = env_mod.create_discovery_envelope(
+        query_criteria={"name": "Alice Smith", "city": "Austin", "state": "TX"},
+        broker_id="fastpeople",
+        broker_name="FastPeopleLookup",
+        member_id="mem_123",
+        secret_key=secret_key
+    )
+    assert disc_env.action == "discovery"
+    assert disc_env.payload["query"]["city"] == "Austin"
+    assert disc_env.verify(secret_key) is True
+
+    # 4. Tampering rejection
+    tampered_dict = env.to_dict()
+    tampered_dict["broker_name"] = "Evil Broker Hijack"
+    tampered_json = env_mod.canonical_json(tampered_dict)
+    try:
+        env_mod.JobEnvelope.from_json(tampered_json, secret_key=secret_key)
+        assert False, "Tampered envelope should have raised EnvelopeTamperedError"
+    except env_mod.EnvelopeTamperedError:
+        pass
+
+    # Tampering with payload
+    tampered_payload_dict = env.to_dict()
+    tampered_payload_dict["payload"]["job"]["steps"][1]["value"] = "Mallory Hacker"
+    tampered_payload_json = env_mod.canonical_json(tampered_payload_dict)
+    try:
+        env_mod.JobEnvelope.from_json(tampered_payload_json, secret_key=secret_key)
+        assert False, "Tampered payload should have raised EnvelopeTamperedError"
+    except env_mod.EnvelopeTamperedError:
+        pass
+
+    # Wrong secret key rejection
+    try:
+        env.verify("wrong-secret-key!!")
+        assert False, "Verification with wrong secret key should fail"
+    except env_mod.EnvelopeTamperedError:
+        pass
+
+    # 5. Expiry rejection
+    expired_env = env_mod.create_removal_envelope(
+        job=job,
+        secret_key=secret_key,
+        ttl_seconds=-10
+    )
+    try:
+        expired_env.verify(secret_key)
+        assert False, "Expired envelope should have raised EnvelopeExpiredError"
+    except env_mod.EnvelopeExpiredError:
+        pass
+    assert expired_env.verify(secret_key, allow_expired=True) is True
+
+    # 6. Authenticated payload encryption / decryption round-trip
+    enc_env = env_mod.create_removal_envelope(
+        job=job,
+        member_fields={"email": "secret@example.com"},
+        secret_key=secret_key,
+        encrypt=True
+    )
+    assert enc_env.payload == {}
+    assert enc_env.encrypted_payload is not None
+    assert enc_env.verify(secret_key) is True
+
+    dec_env = env_mod.JobEnvelope.from_json(enc_env.to_json(), secret_key=secret_key)
+    dec_env.decrypt_payload(secret_key)
+    assert dec_env.payload["member_fields"]["email"] == "secret@example.com"
+    assert dec_env.encrypted_payload is None
+    assert dec_env.verify(secret_key) is True
+
+    # 7. JobResultEnvelope creation, signing, tamper rejection, round-trip
+    result_env = env_mod.create_result_envelope(
+        request_envelope=env,
+        ok=True,
+        status="success",
+        exec_result=exec_res,
+        worker_id="node-worker-01",
+        screenshots={"page": "base64encodedbytes..."},
+        secret_key=secret_key
+    )
+    assert result_env.envelope_id == env.envelope_id
+    assert result_env.worker_id == "node-worker-01"
+    assert result_env.ok is True
+    assert result_env.verify(secret_key) is True
+
+    res_json = result_env.to_json()
+    restored_res_env = env_mod.JobResultEnvelope.from_json(res_json, secret_key=secret_key)
+    assert restored_res_env.duration_ms >= 0
+    assert restored_res_env.result["exec_result"]["detail"] == "Submitted successfully"
+
+    tampered_res_dict = result_env.to_dict()
+    tampered_res_dict["ok"] = False
+    try:
+        env_mod.JobResultEnvelope.from_dict(tampered_res_dict, secret_key=secret_key)
+        assert False, "Tampered result envelope should have failed verification"
+    except env_mod.EnvelopeTamperedError:
+        pass
+
+    # 8. Cryptographic zeroization & memory hygiene
+    with env_mod.create_removal_envelope(job=job, secret_key=secret_key) as scoped_env:
+        assert len(scoped_env.payload["job"]["steps"]) == 3
+        scoped_env.zeroize()
+        assert scoped_env.is_zeroized is True
+        assert scoped_env.payload == {}
+
+    test_env2 = env_mod.create_removal_envelope(job=job, secret_key=secret_key)
+    with test_env2:
+        assert test_env2.is_zeroized is False
+    assert test_env2.is_zeroized is True
+    assert test_env2.payload == {}
+
+
+@test(1, "distributed.unified_job_queue",
+      "Unified queue abstraction provides priority dispatch, in-flight tracking, ack, requeue, and DLQ routing (Phase 7.2).")
+def t_unified_job_queue():
+    queue_mod = _imp("core.distributed.queue")
+    env_mod = _imp("core.distributed.envelope")
+    compiler_mod = _imp("core.interpreter.compiler")
+    executor_mod = _imp("core.interpreter.executor")
+    Job = compiler_mod.Job
+    JobStep = compiler_mod.JobStep
+    ExecResult = executor_mod.ExecResult
+
+    secret_key = "test-queue-secret-key-32-bytes!"
+
+    def make_job(name, priority="normal"):
+        return Job(
+            broker_id=f"broker_{name}",
+            broker_name=f"Broker {name}",
+            member_id="m1",
+            method="form",
+            steps=[JobStep(kind="fill", selector="#input", value=name)],
+        )
+
+    # ── 1. InProcessJobQueue Priority Ordering ────────────────────────────────
+    q = queue_mod.InProcessJobQueue(secret_key=secret_key)
+
+    # Create envelopes across channels
+    env_normal = env_mod.create_removal_envelope(make_job("Normal"), priority="normal", secret_key=secret_key)
+    env_high = env_mod.create_removal_envelope(make_job("High"), priority="high", secret_key=secret_key)
+    env_disc = env_mod.create_discovery_envelope({"name": "Bob"}, "broker_d", "Broker D", "m1", secret_key=secret_key)
+
+    # Enqueue in non-priority order: normal first, then discovery, then high
+    q.enqueue(env_normal)
+    q.enqueue(env_disc)
+    q.enqueue(env_high)
+
+    depths = q.queue_depth()
+    assert depths["removal_high"] == 1
+    assert depths["removal_normal"] == 1
+    assert depths["discovery"] == 1
+    assert depths["total"] == 3
+
+    # Dequeue must respect strict priority: high -> normal -> discovery
+    deq1 = q.dequeue()
+    assert deq1 is not None and deq1.envelope_id == env_high.envelope_id
+    assert q.in_flight_count() == 1
+
+    deq2 = q.dequeue()
+    assert deq2 is not None and deq2.envelope_id == env_normal.envelope_id
+    assert q.in_flight_count() == 2
+
+    deq3 = q.dequeue()
+    assert deq3 is not None and deq3.envelope_id == env_disc.envelope_id
+    assert q.in_flight_count() == 3
+
+    # Dequeue when empty returns None
+    assert q.dequeue(timeout=0.01) is None
+
+    # ── 2. Acknowledge, Requeue & Dead-Letter ──────────────────────────────────
+    # Acknowledge high priority job
+    assert q.acknowledge(deq1.envelope_id) is True
+    assert q.in_flight_count() == 2
+    # Second ack on same ID returns False
+    assert q.acknowledge(deq1.envelope_id) is False
+
+    # Requeue normal job to retry queue
+    q.requeue(deq2, queue_name=queue_mod.CHANNEL_RETRY)
+    assert q.in_flight_count() == 1
+    assert q.queue_depth(queue_mod.CHANNEL_RETRY) == 1
+    requeued_env = q.dequeue(queue_names=[queue_mod.CHANNEL_RETRY])
+    assert requeued_env.meta.get("retries") == 1
+    q.acknowledge(requeued_env.envelope_id)
+
+    # Dead-letter discovery job
+    q.dead_letter(deq3, reason="Search endpoint permanently blocked")
+    assert q.in_flight_count() == 0
+    assert q.queue_depth(queue_mod.CHANNEL_DEAD_LETTER) == 1
+
+    # ── 3. Results Channel ───────────────────────────────────────────────────
+    res_env = env_mod.create_result_envelope(
+        request_envelope=env_high,
+        ok=True,
+        status="success",
+        exec_result=ExecResult(ok=True, detail="Form submitted"),
+        worker_id="worker-node-42",
+        secret_key=secret_key,
+    )
+    q.publish_result(res_env)
+    received_res = q.get_result(timeout=1.0)
+    assert received_res is not None
+    assert received_res.envelope_id == env_high.envelope_id
+    assert received_res.worker_id == "worker-node-42"
+    assert q.get_result(timeout=0.01) is None
+
+    # ── 4. Mock Redis Client Verification ─────────────────────────────────────
+    import collections as col
+    class MockRedis:
+        def __init__(self):
+            self.lists = col.defaultdict(col.deque)
+            self.hashes = col.defaultdict(dict)
+
+        def rpush(self, key, val):
+            self.lists[key].append(val)
+            return len(self.lists[key])
+
+        def lpop(self, key):
+            q = self.lists.get(key)
+            return q.popleft() if q and len(q) > 0 else None
+
+        def blpop(self, keys, timeout=0):
+            for k in keys:
+                val = self.lpop(k)
+                if val is not None:
+                    return (k, val)
+            return None
+
+        def hset(self, key, field, val):
+            self.hashes[key][field] = val
+            return 1
+
+        def hdel(self, key, field):
+            return 1 if self.hashes[key].pop(field, None) is not None else 0
+
+        def hlen(self, key):
+            return len(self.hashes[key])
+
+        def llen(self, key):
+            return len(self.lists.get(key, []))
+
+        def delete(self, *keys):
+            for k in keys:
+                self.lists.pop(k, None)
+                self.hashes.pop(k, None)
+            return len(keys)
+
+    mock_client = MockRedis()
+    rq = queue_mod.RedisJobQueue(redis_client=mock_client, secret_key=secret_key)
+
+    rq.enqueue(env_high)
+    assert rq.queue_depth(queue_mod.CHANNEL_REMOVAL_HIGH) == 1
+
+    r_deq = rq.dequeue()
+    assert r_deq is not None and r_deq.envelope_id == env_high.envelope_id
+    assert rq.in_flight_count() == 1
+
+    assert rq.acknowledge(r_deq.envelope_id) is True
+    assert rq.in_flight_count() == 0
+
+    rq.publish_result(res_env)
+    r_res = rq.get_result()
+    assert r_res is not None and r_res.envelope_id == env_high.envelope_id
+
+    # ── 5. Global Factory Resolution ──────────────────────────────────────────
+    g_queue = queue_mod.get_queue(reset=True, secret_key=secret_key)
+    assert isinstance(g_queue, queue_mod.InProcessJobQueue)
+
+
 @test(1, "broker_addon.manifest_and_spec_validation",
       "Broker add-on manifests and declarative specs parse, validate, and detect bad paths/steps.")
 def t_broker_addon_validation():
