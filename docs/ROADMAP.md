@@ -36,7 +36,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 14 | Built-in HTTPS with automated certificates | Complete |
 | 15 | Process memory hygiene & credential lifecycle | Complete |
 | 16 | Operational visibility & diagnostic logging | Complete |
-| 17 | Internationalization (i18n): language packs & RTL | Planned |
+| 17 | Internationalization (i18n): language packs & RTL | Complete |
 | 18 | Typed plugin directories & runtime isolation | Complete |
 | 19 | Delegated managerial permissions | Complete |
 | 20 | Multi-tier institutional hierarchy (Consortium) | Complete |
@@ -297,15 +297,16 @@ workers_needed       = operations_per_cycle ÷ (worker_throughput × hours_in_co
 ---
 
 ### 17. Internationalization (i18n): language packs & RTL
-**Goal:** Provide comprehensive localization support across the user interface, supporting community language packs and correct right-to-left (RTL) layout rendering.
+**Goal:** Provide comprehensive localization support across the user interface, supporting community language packs, right-to-left (RTL) layout rendering, in-system translation management for administrators, and user onboarding guided tours.
 
 **Architecture:**
-- **Core Translation Architecture:** Key-based string externalization across all user-facing components, falling back to English defaults.
-- **Data-Only Language Packs:** Language packs are distributed as structured data catalogs (JSON manifests and dictionaries) that load directly in the frontend without running background processes.
-- **Right-to-Left (RTL) Support:** Dynamic layout mirroring via logical CSS properties (`start`/`end`), bi-directional text isolation (`<bdi>`), and mirrored navigation controls.
-- **Broker Communication Localization:** Decoupled from UI language packs; opt-out correspondence is governed by broker-specific legal requirements and statutory citations.
+- **Core Translation Architecture:** Master UI dictionary (`core/i18n.py`) with categorized translation keys, explicit screen locations ("where it appears"), and translator guidelines. Hierarchical resolution order: master English defaults → built-in translations (English, Spanish, Arabic, French) → installed language pack plugins (`<plugins_root>/languages/<id>/`) → administrator custom string replacements.
+- **In-System Translation & Replacement Interface:** Administrative UI (`pages/Translations.jsx` gated with `settings.manage`) enabling super admins and managers to search and filter strings by UI location, view English source text, customize wording or replace terminology, toggle active languages, and register new custom locales.
+- **Right-to-Left (RTL) Support:** Dynamic layout mirroring (`html[dir="rtl"]` in `index.css`) detecting RTL scripts (Arabic, Hebrew, Persian, Urdu), mirroring navigation sidebars, form layouts, and modals while preserving left-to-right (`ltr`) direction for email addresses, URLs, phone numbers, and code blocks.
+- **Onboarding Tutorial & User Preferences:** Guided 4-step welcome walkthrough (`components/UserWelcomeModal.jsx`) allowing users to choose their language with instant UI preview, populate their Identity Vault PII for automated opt-outs, review email communications, and complete an orientation tour. User language preference and tutorial completion persist in user profile settings (`preferred_language`, `tutorial_completed`).
+- **Data-Only Language Packs:** Scanned and loaded from `<plugins_root>/languages/` as data-only bundles (`manifest.json` + `messages.json`) requiring 0 permissions and zero subprocess overhead.
 
-**Status:** Planned.
+**Status:** Complete.
 
 ---
 

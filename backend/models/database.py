@@ -196,6 +196,10 @@ class User(Base):
     branch_override_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     branch_override_at = Column(DateTime, nullable=True)
 
+    # User interface localization & onboarding state (Roadmap Item 17)
+    preferred_language = Column(String(10), default="en", nullable=False)
+    tutorial_completed = Column(Boolean, default=False, nullable=False)
+
     created_at       = Column(DateTime, default=datetime.utcnow)
     created_by_id    = Column(Integer, ForeignKey("users.id"), nullable=True)  # who created this account
 

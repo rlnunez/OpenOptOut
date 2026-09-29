@@ -933,8 +933,70 @@ def t_broker_addon_packaging():
         with zipfile.ZipFile(packaged_path, "r") as z:
             names = z.namelist()
             assert "manifest.json" in names and "spec.json" in names, f"zip missing files: {names}"
-    # EXPECTED: existing broker scripts translate into interpreter specs; empty ones fall back.
-    # IF THIS FAILS: the migration to the interpreter engine can't reuse existing broker data.
+
+
+@test(1, "i18n.resolution_and_rtl",
+      "i18n engine resolves translations with fallbacks, handles RTL detection, and registers custom overrides.")
+def t_i18n_resolution_and_rtl():
+    import json
+    i18n = _imp("core.i18n")
+    settings_mod = _imp("core.settings_store")
+
+    # 1. RTL detection
+    assert i18n.is_rtl_language("ar") is True
+    assert i18n.is_rtl_language("he") is True
+    assert i18n.is_rtl_language("fa") is True
+    assert i18n.is_rtl_language("ur") is True
+    assert i18n.is_rtl_language("en") is False
+    assert i18n.is_rtl_language("es") is False
+    assert i18n.is_rtl_language("fr") is False
+
+    # 2. Master dictionary schema with locations
+    master = i18n.get_dictionary()
+    assert len(master) >= 20, f"master dictionary unexpectedly small: {len(master)}"
+    first = master[0]
+    assert "key" in first and "default_text" in first and "location" in first and "description" in first
+    assert any("tutorial." in item["key"] for item in master)
+    assert any("nav." in item["key"] for item in master)
+
+    # 3. Translation resolution & fallback
+    es_trans = i18n.get_translations_for_locale("es")
+    assert es_trans["nav.dashboard"] == "Panel de Control"
+    assert es_trans["common.save"] == "Guardar"
+
+    ar_trans = i18n.get_translations_for_locale("ar")
+    assert ar_trans["nav.dashboard"] == "لوحة التحكم"
+    assert ar_trans["common.save"] == "حفظ"
+
+    # 4. In-memory settings override test
+    orig_load = settings_mod.load_settings
+    fake_store = {
+        "i18n": {
+            "enabled_languages": ["en", "es", "ar", "fr"],
+            "default_language": "en",
+            "custom_languages": {},
+            "custom_translations": {
+                "es": {"nav.dashboard": "Mi Panel Personalizado"}
+            }
+        }
+    }
+    settings_mod.load_settings = lambda: json.loads(json.dumps(fake_store))
+    try:
+        # Override should take precedence over built-in Spanish
+        overridden = i18n.get_translations_for_locale("es")
+        assert overridden["nav.dashboard"] == "Mi Panel Personalizado", \
+            f"Custom override did not apply: {overridden['nav.dashboard']}"
+        # Built-in unchanged key remains
+        assert overridden["common.save"] == "Guardar"
+
+        # Languages list includes active status
+        langs = i18n.get_available_languages()
+        lang_codes = [l["code"] for l in langs]
+        assert "en" in lang_codes and "es" in lang_codes and "ar" in lang_codes
+        ar_entry = next(l for l in langs if l["code"] == "ar")
+        assert ar_entry["is_rtl"] is True
+    finally:
+        settings_mod.load_settings = orig_load
 
 
 @test(1, "priority.derived_default",
@@ -3725,7 +3787,7 @@ def t_routes():
     # generating it also fails loudly on a broken route/response model.
     paths = set(mainmod.app.openapi().get("paths", {}).keys())
     joined = " ".join(paths)
-    for needle in ("/api/brokers", "/api/plugins", "/api/auth"):
+    for needle in ("/api/brokers", "/api/plugins", "/api/auth", "/api/i18n"):
         assert needle in joined, f"expected route prefix {needle} not registered"
     # Broker-health endpoints from item 1
     assert any("health" in p for p in paths), "broker health routes not registered"

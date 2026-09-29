@@ -58,7 +58,10 @@ def plugins_root() -> str:
         return env
     # Imported at call time (not module load) so this module has no hard
     # dependency on the settings layer, and so tests can swap load_settings.
-    from ..core import settings_store
+    try:
+        from ..core import settings_store
+    except (ImportError, ValueError):
+        from core import settings_store
     return settings_store.load_settings().get("plugins", {}).get("plugins_dir") or DEFAULT_ROOT
 
 

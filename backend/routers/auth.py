@@ -53,6 +53,8 @@ class UserOut(BaseModel):
     system_id: Optional[int] = None
     system_name: Optional[str] = None
     permissions: List[str] = []   # manager/super admin permissions (core/access.py)
+    preferred_language: str = "en"
+    tutorial_completed: bool = False
 
     class Config:
         from_attributes = True

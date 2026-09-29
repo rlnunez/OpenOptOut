@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react'
 import { Menu } from 'lucide-react'
 import { AuthProvider, useAuth, can } from './hooks/useAuth'
 import { BrandingProvider, useBranding } from './hooks/useBranding'
+import { LanguageProvider } from './i18n/LanguageContext'
 import AnnouncementBanner from './components/AnnouncementBanner'
+import UserWelcomeModal from './components/UserWelcomeModal'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import Brokers from './pages/Brokers'
@@ -12,6 +14,7 @@ import Family from './pages/Family'
 import IdentityVault from './pages/IdentityVault'
 import AdminPanel from './pages/AdminPanel'
 import Settings from './pages/Settings'
+import Translations from './pages/Translations'
 import Scheduled from './pages/Scheduled'
 import Help from './pages/Help'
 import EmailMonitor from './pages/EmailMonitor'
@@ -82,6 +85,7 @@ function Layout() {
           <span className="text-white font-semibold text-sm truncate">{systemName}</span>
         </div>
         <AnnouncementBanner />
+        <UserWelcomeModal />
         <main className="flex-1 overflow-auto">
           <Routes>
             <Route path="/"            element={<Dashboard />} />
@@ -93,6 +97,7 @@ function Layout() {
             <Route path="/family"      element={<Family />} />
             <Route path="/identity"    element={<IdentityVault />} />
             <Route path="/settings"    element={<Settings />} />
+            <Route path="/translations" element={<RequirePermission perms={['settings.manage']}><Translations /></RequirePermission>} />
             <Route path="/help"        element={<Help />} />
             <Route path="/admin"       element={<RequirePermission perms={['users.manage']}><AdminPanel /></RequirePermission>} />
             <Route path="/branding"    element={<RequirePermission perms={['branding.manage', 'users.registration', 'auth.providers']}><Branding /></RequirePermission>} />
@@ -143,13 +148,15 @@ export default function App() {
   return (
     <BrandingProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login"                element={<Login />} />
-            <Route path="/auth/callback"        element={<OIDCCallback />} />
-            <Route path="/*"                    element={<RequireAuth><Layout /></RequireAuth>} />
-          </Routes>
-        </BrowserRouter>
+        <LanguageProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login"                element={<Login />} />
+              <Route path="/auth/callback"        element={<OIDCCallback />} />
+              <Route path="/*"                    element={<RequireAuth><Layout /></RequireAuth>} />
+            </Routes>
+          </BrowserRouter>
+        </LanguageProvider>
       </AuthProvider>
     </BrandingProvider>
   )

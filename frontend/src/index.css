@@ -10,3 +10,28 @@ body { margin: 0; font-family: 'Inter', system-ui, sans-serif; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Right-to-Left (RTL) Layout Adaptations */
+html[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}
+
+html[dir="rtl"] input,
+html[dir="rtl"] textarea,
+html[dir="rtl"] select {
+  text-align: right;
+}
+
+/* Maintain LTR for code, numbers, domains, and tokens in RTL mode */
+html[dir="rtl"] code,
+html[dir="rtl"] pre,
+html[dir="rtl"] .font-mono,
+html[dir="rtl"] input[type="email"],
+html[dir="rtl"] input[type="password"],
+html[dir="rtl"] input[type="url"],
+html[dir="rtl"] input[type="tel"] {
+  direction: ltr;
+  text-align: left;
+}
+

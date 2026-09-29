@@ -3,10 +3,12 @@ import {
   LayoutDashboard, Store, Mail, CalendarClock, Radar,
   Users, ShieldCheck, Settings, LogOut, ShieldAlert,
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
-  Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal
+  Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal,
+  Globe, Compass
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
+import { useLanguage } from '../i18n/LanguageContext'
 import api from '../api'
 import { useState } from 'react'
 
@@ -49,6 +51,7 @@ function NavItem({ to, icon: Icon, label, onNavigate }) {
 export default function Sidebar({ open = false, onClose = () => {} }) {
   const { user, logout, setUser } = useAuth()
   const { branding }              = useBranding()
+  const { language, setLanguage, availableLanguages, setShowWelcomeTour, t } = useLanguage()
   const [toggling, setToggling]   = useState(false)
 
   const toggleView = async () => {
@@ -69,6 +72,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
     { to: '/broker-priority',  icon: ListOrdered, label: 'Broker priority',  perms: ['brokers.manage'] },
     { to: '/parent-companies', icon: Building2,   label: 'Parent companies', perms: ['brokers.manage'] },
     { to: '/branding',         icon: Palette,     label: 'Branding',         perms: ['branding.manage', 'users.registration', 'auth.providers'] },
+    { to: '/translations',     icon: Globe,       label: 'Translations',     perms: ['settings.manage'] },
     { to: '/reporting',        icon: BarChart2,   label: 'Reporting',        perms: ['reporting.view'] },
     { to: '/database',         icon: HardDrive,   label: 'Database',         perms: ['database.view'] },
     { to: '/logs',             icon: Terminal,    label: 'System logs',      perms: ['logs.view'] },
@@ -137,15 +141,44 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
           </div>
         )}
 
-        <div className="px-4 pt-4 border-t border-slate-800 mt-2">
-          <p className={`text-xs mb-0.5 ${roleColor}`}>{user?.role}</p>
-          <p className="text-white text-sm font-medium truncate">{user?.full_name}</p>
-          <p className="text-slate-500 text-xs truncate">{user?.email}</p>
+        <div className="px-4 pt-4 border-t border-slate-800 mt-2 space-y-2.5">
+          {/* On-the-fly Language Switcher */}
+          <div className="flex items-center justify-between py-1 px-2 bg-slate-950/60 rounded-lg border border-slate-800">
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <Globe size={13} className="text-blue-400" />
+              <span className="text-xs">{t('nav.language', 'Language')}</span>
+            </div>
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="bg-transparent text-white text-xs border-0 focus:ring-0 cursor-pointer pr-1"
+            >
+              {availableLanguages.map(l => (
+                <option key={l.code} value={l.code} className="bg-slate-900 text-white">
+                  {l.native_name} {l.is_rtl ? '(RTL)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <p className={`text-xs mb-0.5 ${roleColor}`}>{user?.role}</p>
+            <p className="text-white text-sm font-medium truncate">{user?.full_name}</p>
+            <p className="text-slate-500 text-xs truncate">{user?.email}</p>
+          </div>
+
+          <button
+            onClick={() => { setShowWelcomeTour(true); onClose(); }}
+            className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors pt-0.5"
+          >
+            <Compass size={13} /> {t('nav.welcome_tour', 'Welcome Tour')}
+          </button>
+
           {branding?.show_powered_by && (
-            <p className="text-slate-700 text-xs mt-2">Powered by PrivacyShield</p>
+            <p className="text-slate-700 text-xs mt-1">Powered by PrivacyShield</p>
           )}
-          <button onClick={logout} className="mt-2 flex items-center gap-1.5 text-slate-500 hover:text-white text-xs transition-colors">
-            <LogOut size={13} /> Sign out
+          <button onClick={logout} className="mt-1 flex items-center gap-1.5 text-slate-500 hover:text-white text-xs transition-colors">
+            <LogOut size={13} /> {t('nav.logout', 'Sign out')}
           </button>
         </div>
       </aside>

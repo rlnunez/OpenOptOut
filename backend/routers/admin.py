@@ -35,6 +35,7 @@ class UserOut(BaseModel):
     permissions_revoked: List[str] = []
     managing_count: int = 0
     managed_by_count: int = 0
+    preferred_language: str = "en"
 
     class Config:
         from_attributes = True

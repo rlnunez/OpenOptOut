@@ -76,6 +76,14 @@ MIGRATIONS = [
         "Add plugin_id to brokers",
         "ALTER TABLE brokers ADD COLUMN plugin_id VARCHAR(100)"
     ),
+    (
+        "Add preferred_language to users",
+        "ALTER TABLE users ADD COLUMN preferred_language VARCHAR(10) DEFAULT 'en'"
+    ),
+    (
+        "Add tutorial_completed to users",
+        "ALTER TABLE users ADD COLUMN tutorial_completed BOOLEAN DEFAULT 0"
+    ),
 ]
 
 # Known property brokers — flagged on first startup
