@@ -2,7 +2,7 @@
 
 PrivacyShield supports **process-isolated, sandboxed plugins** so third parties can extend the app — custom form-filling strategies, email parsers, event reactions, and plugin-scoped storage — without being able to touch the host's memory, database, credentials, or (unless granted) the network.
 
-This guide covers the extension points, host capabilities, manifest format, and SDK a developer uses to write a plugin.
+This guide covers the extension points, host capabilities, manifest format, and SDK a developer uses to write a plugin. For the exhaustive technical specification covering all plugin types (`brokers`, `forms`, `captcha`, `discovery`, `themes`, `languages`, `email`, `general`), gRPC & REST API endpoints, and proposed enhancements, see the [Plugin API Reference Specification](PLUGIN_API_REFERENCE.md).
 
 ---
 

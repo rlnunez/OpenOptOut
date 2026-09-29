@@ -738,6 +738,7 @@ def plugin_violations(plugin_id: str, db: Session = Depends(get_db),
 _PLUGIN_DOC_FILES = {
     "using":   "USING_PLUGINS.md",
     "writing": "WRITING_PLUGINS.md",
+    "api":     "PLUGIN_API_REFERENCE.md",
 }
 
 
