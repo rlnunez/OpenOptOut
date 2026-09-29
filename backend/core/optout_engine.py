@@ -252,17 +252,19 @@ def _member_identifiers(member):
 
 
 def send_parent_optout_detailed(member, parent, cfg, db, discovered_urls=None,
-                                subject_prefix: str = "") -> dict:
+                                subject_prefix: str = "",
+                                request_key: str = "") -> dict:
     """
     Send ONE opt-out email to a parent company, covering all its child sites,
     using the strong template. Returns a detail dict:
-        {"ok", "via" ("provider"|"smtp"), "error", "to", "cc", "subject", "child_sites"}
+        {"ok", "via" ("provider"|"smtp"), "error", "to", "cc", "subject", "child_sites", "request_key"}
     so callers (e.g. the test-send button) can show exactly what happened.
 
     Transport is decided by core/email_send.send_email (provider plugin with
     OAuth auto-refresh, or SMTP fallback) — this function does NOT gate on SMTP
     settings, so OAuth-only deployments work. Records effectiveness on the parent.
     subject_prefix: e.g. "[PrivacyShield TEST] " for test sends.
+    request_key: optional UUID tracking key embedded in email subject & body.
     """
     from .optout_email_template import compose_optout_email
     from . import parent_company as pcmod
@@ -271,7 +273,7 @@ def send_parent_optout_detailed(member, parent, cfg, db, discovered_urls=None,
     ec = cfg.get("email", {})
     to_email = parent.optout_email
     detail = {"ok": False, "via": "", "error": "", "to": to_email or "",
-              "cc": [], "subject": "", "child_sites": 0}
+              "cc": [], "subject": "", "child_sites": 0, "request_key": request_key or ""}
 
     if not to_email:
         detail["error"] = f"Parent '{parent.name}' has no opt-out email set"
@@ -299,16 +301,13 @@ def send_parent_optout_detailed(member, parent, cfg, db, discovered_urls=None,
         child_sites=child_sites,
         cc=[e.strip() for e in (parent.cc_emails or "").split(",") if e.strip()],
         locale=parent.locale or "en", state="",
+        request_key=request_key,
     )
     subject = (subject_prefix or "") + composed.subject
     detail.update({"cc": list(composed.cc), "subject": subject,
                    "child_sites": len(child_sites)})
 
     # Transport-agnostic send (provider plugin w/ auto-refresh, or SMTP fallback).
-    # Recipients are host-controlled and enforced by the manager. account_ref
-    # is whichever connected account is currently active (Settings -> Email ->
-    # Connected accounts) — "default" unless an admin switched it, e.g. to test
-    # sending from a second connected account.
     from ..routers.email_oauth import active_account_ref
     result = send_email(
         cfg, to=[composed.to], cc=list(composed.cc),
@@ -319,21 +318,18 @@ def send_parent_optout_detailed(member, parent, cfg, db, discovered_urls=None,
     detail["via"] = result.get("via", "")
     if result.get("ok"):
         detail["ok"] = True
-        # The email already went out — bookkeeping must never turn a completed
-        # send into a reported failure. (Older SQLite DBs may still have
-        # email_logs.request_id NOT NULL; if so the log row is skipped.)
+        matched_key = request_key or f"parent:{parent.id}"
         try:
             db.add(EmailLog(request_id=None, direction="sent",
                             subject=subject, body_snippet=composed.body[:500],
-                            matched_key=f"parent:{parent.id}"))
+                            matched_key=matched_key))
             db.commit()
         except Exception as e:
             db.rollback()
-            log.warning("Parent send succeeded but email log write failed (%s); "
-                        "continuing", e)
+            log.warning("Parent send succeeded but email log write failed (%s); continuing", e)
         pcmod.record_send(db, parent.id, failed=False)
-        log.info("Parent opt-out sent via %s: %s / %s -> %s (%d child sites)",
-                 detail["via"], parent.name, member.full_name, to_email, len(child_sites))
+        log.info("Parent opt-out sent via %s: %s / %s -> %s (%d child sites, key=%s)",
+                 detail["via"], parent.name, member.full_name, to_email, len(child_sites), matched_key)
     else:
         detail["error"] = result.get("error") or "send failed"
         log.error("Parent opt-out send failed for %s: %s", parent.name, detail["error"])
@@ -347,6 +343,144 @@ def send_parent_optout_detailed(member, parent, cfg, db, discovered_urls=None,
 def send_parent_optout_email(member, parent, cfg, db, discovered_urls=None) -> bool:
     """Bool wrapper around send_parent_optout_detailed (kept for existing callers)."""
     return send_parent_optout_detailed(member, parent, cfg, db, discovered_urls)["ok"]
+
+
+def dispatch_parent_optout(
+    member,
+    parent,
+    pending_requests: list,
+    cfg: dict,
+    db,
+    discovered_urls: Optional[dict] = None,
+) -> dict:
+    """
+    Dispatch ONE parent opt-out email covering all `pending_requests` for this member
+    that belong to child brokers of `parent`. On success, transitions all requests to
+    RequestStatus.sent with a shared UUID tracking key and writes AutomationLog entries.
+    """
+    import uuid
+    from datetime import datetime, timedelta
+    from ..models.database import RequestStatus, AutomationLog
+
+    key = str(uuid.uuid4())
+    result = send_parent_optout_detailed(
+        member, parent, cfg, db, discovered_urls=discovered_urls, request_key=key
+    )
+
+    if result.get("ok"):
+        recheck_days = cfg.get("scheduler", {}).get("recheck_interval_days", 90)
+        recheck_dt = datetime.utcnow() + timedelta(days=recheck_days)
+        now = datetime.utcnow()
+
+        for req in pending_requests:
+            req.status = RequestStatus.sent
+            req.sent_at = now
+            req.request_key = key
+            req.recheck_after = recheck_dt
+            req.updated_at = now
+
+            db.add(AutomationLog(
+                request_id=req.id,
+                member_id=member.id,
+                broker_id=req.broker_id,
+                action="parent_email_send",
+                status="success",
+                detail=f"Sent via parent company '{parent.name}' ({parent.optout_email}) via {result.get('via')}",
+                duration_ms=0,
+            ))
+        db.commit()
+        result["covered_request_ids"] = [r.id for r in pending_requests]
+        result["key"] = key
+    return result
+
+
+def process_pending_parent_company_optouts(
+    db,
+    cfg: dict,
+    batch_request_ids: Optional[list] = None,
+    member_id: Optional[int] = None,
+    parent_id: Optional[int] = None,
+) -> dict:
+    """
+    Automated batch trigger for email-first parent company opt-outs (Roadmap Item 10).
+    Scans pending RemovalRequests:
+    - Finds requests whose broker belongs to a ParentCompany with a valid optout_email
+    - Excludes parents whose honor_status == 'bounces'
+    - Groups requests by (member_id, parent_company_id)
+    - Dispatches ONE email per (member, parent) group
+    - Transitions all child requests to 'sent'
+    Returns summary statistics:
+      {"sent_emails": int, "covered_requests": int, "covered_request_ids": list, "errors": list}
+    """
+    from collections import defaultdict
+    from ..models.database import RemovalRequest, RequestStatus, ParentCompany, Broker, EmailHonorStatus
+
+    q = (
+        db.query(RemovalRequest)
+        .join(RemovalRequest.broker)
+        .filter(
+            RemovalRequest.status == RequestStatus.pending,
+            RemovalRequest.broker.has(Broker.parent_company_id.isnot(None)),
+        )
+    )
+    if batch_request_ids is not None:
+        q = q.filter(RemovalRequest.id.in_(batch_request_ids))
+    if member_id:
+        q = q.filter(RemovalRequest.member_id == member_id)
+    if parent_id:
+        q = q.filter(Broker.parent_company_id == parent_id)
+
+    pending = q.all()
+    if not pending:
+        return {"sent_emails": 0, "covered_requests": 0, "covered_request_ids": [], "errors": []}
+
+    # Group by (member_id, parent_company_id)
+    groups = defaultdict(list)
+    parent_cache = {}
+    for req in pending:
+        pid = req.broker.parent_company_id
+        if not pid:
+            continue
+        if pid not in parent_cache:
+            parent_cache[pid] = db.query(ParentCompany).filter(ParentCompany.id == pid).first()
+        parent = parent_cache[pid]
+        if not parent or not parent.optout_email:
+            continue
+        # Skip bouncing email addresses
+        if parent.honor_status == EmailHonorStatus.bounces:
+            continue
+        # Skip disabled or test brokers
+        if not req.broker.enabled or getattr(req.broker, "is_test", False):
+            continue
+
+        groups[(req.member_id, pid)].append(req)
+
+    sent_emails = 0
+    covered_requests = 0
+    covered_ids = []
+    errors = []
+
+    for (m_id, p_id), req_list in groups.items():
+        parent = parent_cache[p_id]
+        member = req_list[0].member
+        try:
+            res = dispatch_parent_optout(member, parent, req_list, cfg, db)
+            if res.get("ok"):
+                sent_emails += 1
+                covered_requests += len(req_list)
+                covered_ids.extend([r.id for r in req_list])
+            else:
+                errors.append(f"Parent '{parent.name}' for {member.full_name}: {res.get('error')}")
+        except Exception as e:
+            errors.append(f"Parent '{parent.name}' for {member.full_name}: {e}")
+
+    return {
+        "sent_emails": sent_emails,
+        "covered_requests": covered_requests,
+        "covered_request_ids": covered_ids,
+        "errors": errors,
+    }
+
 
 
 # ── Form fill — one combo at a time ──────────────────────────────────────────

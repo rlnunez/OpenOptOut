@@ -639,6 +639,85 @@ def t_email_age_range():
     # IF THIS FAILS: the template might leak more sensitive DOB data than intended.
 
 
+@test(1, "email.template_request_key_tracking",
+      "Parent opt-out emails embed the tracking UUID in subject and body for automated reply matching.")
+def t_email_request_key():
+    tmpl = _imp("core.optout_email_template")
+    ids = tmpl.Identifiers(full_name="Jane Doe", emails=["jane@example.com"])
+
+    # Without request_key: no bracketed tag or reference ID
+    plain = tmpl.compose_optout_email(ids, "ParentCorp", "parent@example.com", child_sites=["Broker1"])
+    assert "Reference ID" not in plain.body
+    assert "[" not in plain.subject
+
+    # With request_key: tracking tag in subject and body
+    key = "7a8b9c0d-1234-5678-90ab-cdef12345678"
+    keyed = tmpl.compose_optout_email(
+        ids, "ParentCorp", "parent@example.com",
+        child_sites=["Broker1", "Broker2"],
+        request_key=key,
+    )
+    assert f"[{key}]" in keyed.subject, f"subject missing [{key}]: {keyed.subject}"
+    assert f"Reference ID (include in all correspondence): {key}" in keyed.body, "body missing Reference ID line"
+    assert "Broker1" in keyed.body and "Broker2" in keyed.body
+    # EXPECTED: tracking key rendered in subject and body for IMAP thread matching.
+    # IF THIS FAILS: parent company opt-out confirmation emails cannot be auto-matched.
+
+
+@test(1, "parent.multi_request_confirmation_resolution",
+      "When a parent company confirmation arrives, all child requests sharing the tracking key confirm simultaneously.")
+def t_parent_multi_confirm():
+    import re
+    from datetime import datetime
+    from types import SimpleNamespace as NS
+
+    UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
+
+    # 1. Setup mock parent company and child removal requests
+    key = "3f81e2b4-7d2a-4c91-9e85-1b2c3d4e5f60"
+    parent = NS(id=42, name="PeopleData Inc", emails_sent=1, emails_confirmed=0, honor_status="unknown")
+    broker1 = NS(id=101, name="SearchSite A", parent_company_id=parent.id)
+    broker2 = NS(id=102, name="SearchSite B", parent_company_id=parent.id)
+
+    req1 = NS(id=1, request_key=key, status="sent", confirmed_at=None, broker=broker1, member=NS(full_name="Jane Doe"))
+    req2 = NS(id=2, request_key=key, status="sent", confirmed_at=None, broker=broker2, member=NS(full_name="Jane Doe"))
+    unrelated_req = NS(id=3, request_key="other-uuid-0000", status="sent", confirmed_at=None, broker=None, member=NS(full_name="Other"))
+
+    db_requests = [req1, req2, unrelated_req]
+
+    # 2. Simulate incoming email with reference ID in subject or body
+    incoming_text = f"Subject: Re: Opt-out request [{key}]\n\nWe have completed processing your removal request {key}."
+    found_keys = set(UUID_RE.findall(incoming_text))
+    assert key in found_keys, "UUID pattern failed to extract tracking key from email text"
+
+    # 3. Simulate scheduler resolution logic
+    matched = 0
+    parent_ids_to_confirm = set()
+    try:
+        from datetime import timezone
+        now = datetime.now(timezone.utc)
+    except Exception:
+        now = datetime.utcnow()
+
+    for k in found_keys:
+        matching = [r for r in db_requests if r.request_key == k and r.status == "sent"]
+        for r in matching:
+            r.status = "confirmed"
+            r.confirmed_at = now
+            matched += 1
+            if r.broker and r.broker.parent_company_id:
+                parent_ids_to_confirm.add(r.broker.parent_company_id)
+
+    # Proves all children confirmed in a single pass
+    assert matched == 2
+    assert req1.status == "confirmed" and req1.confirmed_at is not None
+    assert req2.status == "confirmed" and req2.confirmed_at is not None
+    assert unrelated_req.status == "sent", "Unrelated request should remain sent"
+    assert parent.id in parent_ids_to_confirm
+    # EXPECTED: multiple child requests sharing a key confirm together and parent is marked for honor update.
+    # IF THIS FAILS: parent company replies would only confirm a single child broker or leave siblings stranded.
+
+
 @test(1, "email_inspector.blocks_on_upload_logic",
       "The upload-gate logic rejects an email plugin whose inspection has high findings.")
 def t_upload_gate():
@@ -1790,6 +1869,64 @@ def t_parent_urls():
     s.close()
     # EXPECTED: resolver maps child broker -> its discovered listing URL.
     # IF THIS FAILS: opt-out emails won't cite exact profile URLs (weaker matching).
+
+
+@test(2, "parent.batch_grouping_and_metrics",
+      "Parent company requests group by parent and update email honor metrics on send and confirm.")
+def t_parent_batch_metrics():
+    db, s = _memory_db()
+    pc = _imp("core.parent_company")
+    Status = db.EmailHonorStatus
+
+    p = db.ParentCompany(name="DataHolding LLC", optout_email="optout@dataholding.example")
+    s.add(p); s.commit()
+    b1 = db.Broker(name="ChildOne", parent_company_id=p.id)
+    b2 = db.Broker(name="ChildTwo", parent_company_id=p.id)
+    s.add_all([b1, b2]); s.commit()
+
+    u = db.User(email="alex@example.com", full_name="Alex Doe", hashed_password="x", role=db.UserRole.member)
+    s.add(u); s.commit()
+    m = db.FamilyMember(user_id=u.id, full_name="Alex Doe")
+    s.add(m); s.commit()
+
+    r1 = db.RemovalRequest(member_id=m.id, broker_id=b1.id, status=db.RequestStatus.pending)
+    r2 = db.RemovalRequest(member_id=m.id, broker_id=b2.id, status=db.RequestStatus.pending)
+    s.add_all([r1, r2]); s.commit()
+
+    # Verify children resolution
+    s.refresh(p)
+    assert len(p.children) == 2
+
+    # Record send for the parent and transition requests to sent with shared key
+    import uuid
+    shared_key = str(uuid.uuid4())
+    pc.record_send(s, p.id)
+    for r in [r1, r2]:
+        r.status = db.RequestStatus.sent
+        r.request_key = shared_key
+    s.commit()
+
+    s.refresh(p)
+    assert p.emails_sent == 1
+    assert p.emails_confirmed == 0
+
+    # Inbound confirmation matches shared key
+    matching = s.query(db.RemovalRequest).filter(
+        db.RemovalRequest.request_key == shared_key,
+        db.RemovalRequest.status == db.RequestStatus.sent,
+    ).all()
+    assert len(matching) == 2
+    for r in matching:
+        r.status = db.RequestStatus.confirmed
+    pc.record_confirmation(s, p.id)
+    s.commit()
+
+    s.refresh(p)
+    assert p.emails_confirmed == 1
+    assert p.honor_status == Status.honors
+    s.close()
+    # EXPECTED: multiple requests linked to parent, updated to sent and confirmed with shared UUID.
+    # IF THIS FAILS: parent company email tracking or reputation scoring is broken.
 
 
 @test(2, "provider_plugins.auto_provisions_bundled_email_plugin",

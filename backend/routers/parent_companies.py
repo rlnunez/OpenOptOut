@@ -180,3 +180,61 @@ def list_unassigned(search: Optional[str] = Query(None),
     return [ChildBroker(id=b.id, name=b.name,
                         method=b.method.value if b.method else None,
                         priority=b.priority) for b in rows]
+
+
+@router.post("/{parent_id}/dispatch")
+def dispatch_parent(
+    parent_id: int,
+    member_id: Optional[int] = Query(None, description="Optional member ID filter"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Trigger immediate email opt-outs to this parent company for all pending child requests.
+    """
+    _admin(user)
+    p = db.query(ParentCompany).filter(ParentCompany.id == parent_id).first()
+    if not p:
+        raise HTTPException(404, "Parent company not found")
+    if not p.optout_email:
+        raise HTTPException(400, f"Parent company '{p.name}' has no opt-out email configured")
+
+    from ..core.optout_engine import process_pending_parent_company_optouts
+    from ..core.settings_store import load_settings
+    cfg = load_settings()
+
+    res = process_pending_parent_company_optouts(
+        db, cfg, member_id=member_id, parent_id=parent_id
+    )
+    return {
+        "parent_id": parent_id,
+        "parent_name": p.name,
+        "sent_emails": res["sent_emails"],
+        "covered_requests": res["covered_requests"],
+        "covered_request_ids": res["covered_request_ids"],
+        "errors": res["errors"],
+    }
+
+
+@router.post("/dispatch-all")
+def dispatch_all_parents(
+    member_id: Optional[int] = Query(None, description="Optional member ID filter"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Trigger email-first opt-outs across all parent companies for any pending child requests.
+    """
+    _admin(user)
+    from ..core.optout_engine import process_pending_parent_company_optouts
+    from ..core.settings_store import load_settings
+    cfg = load_settings()
+
+    res = process_pending_parent_company_optouts(db, cfg, member_id=member_id)
+    return {
+        "sent_emails": res["sent_emails"],
+        "covered_requests": res["covered_requests"],
+        "covered_request_ids": res["covered_request_ids"],
+        "errors": res["errors"],
+    }
+

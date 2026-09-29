@@ -95,6 +95,7 @@ def compose_optout_email(
     cc: Optional[list] = None,
     locale: str = "en",
     state: str = "",
+    request_key: str = "",
 ) -> ComposedEmail:
     """
     Compose the opt-out email for one parent company.
@@ -105,10 +106,13 @@ def compose_optout_email(
         When a URL is present (found automatically by discovery), it is cited so
         the broker can locate the exact record — much stronger than name-matching.
     state: the requester's US state (2-letter), used to name the applicable law.
+    request_key: optional UUID tracking key. When provided, embedded in the
+        subject line and body so incoming replies can be matched automatically.
 
     locale is accepted for future localization; only 'en' is templated here.
     """
-    subject = f"Data removal request — {ids.full_name or 'record removal'}"
+    key_tag = f" [{request_key}]" if request_key else ""
+    subject = f"Data removal request — {ids.full_name or 'record removal'}{key_tag}"
 
     # Identifier block
     id_block = ""
@@ -123,6 +127,8 @@ def compose_optout_email(
         id_block += age + "\n"
     if ids.city_state:
         id_block += f"General location: {ids.city_state}\n"
+    if id_block:
+        id_block += "\n"
 
     # Child-site enumeration, with discovered profile URLs where available.
     sites = _normalize_sites(child_sites)
@@ -142,13 +148,13 @@ def compose_optout_email(
         sites_block = (
             f"This request applies to {parent_name} and to ALL of the following "
             f"websites, brands, and affiliated properties operated by or "
-            f"associated with {parent_name}.{url_note}\n{site_lines}\n"
+            f"associated with {parent_name}.{url_note}\n{site_lines}\n\n"
         )
     else:
         sites_block = (
             f"This request applies to {parent_name} and to all websites, brands, "
             f"and affiliated properties operated by or associated with "
-            f"{parent_name}.\n"
+            f"{parent_name}.\n\n"
         )
 
     # Law citation: CCPA named + general applicable-law catch-all. (CCPA governs
@@ -175,40 +181,32 @@ def compose_optout_email(
             "affiliated and successor properties under common ownership or operation."
         )
 
-    body = f"""To the Privacy / Data Protection team at {parent_name},
+    ref_line = (
+        f"Reference ID (include in all correspondence): {request_key}\n\n"
+        if request_key else ""
+    )
 
-I am writing to request the removal and deletion of my personal information from
-your records and services, and to opt out of any sale, licensing, or sharing of
-that information.
-
-{sites_block}
-Please remove all records matching the following identifiers:
-
-{id_block}
-I am requesting that you:
-  1. Delete and suppress all personal information associated with the
-     identifiers above from {parent_name} and every property listed above.
-  2. Do not sell, license, share, or otherwise disclose this information to any
-     third party.
-  3. Do not re-create, re-acquire, or re-list this information from other
-     sources following this request.
-  4. Confirm in writing, to the sending email address, once the removal has
-     been completed, and identify any records you were unable to remove and why.
-
-{law_line}
-
-Please treat this as a formal request and respond within the timeframe required
-by applicable law. If you require anything further from me to locate these
-records, reply to this email and I will provide what is reasonably necessary —
-though I ask that you not require the creation of an account or the submission of
-additional sensitive information (such as a full date of birth or government ID)
-beyond what is provided here, where that is not strictly necessary.
-
-Thank you for your prompt attention.
-
-Sincerely,
-{ids.full_name or "[Requester]"}
-"""
+    body = (
+        f"To the Privacy / Data Protection team at {parent_name},\n\n"
+        f"I am writing to request the removal and deletion of my personal information from "
+        f"your records and services, and to opt out of any sale, licensing, or sharing of that information.\n\n"
+        f"{sites_block}"
+        f"Please remove all records matching the following identifiers:\n\n"
+        f"{id_block}"
+        f"I am requesting that you:\n"
+        f"  1. Delete and suppress all personal information associated with the identifiers above from {parent_name} and every property listed above.\n"
+        f"  2. Do not sell, license, share, or otherwise disclose this information to any third party.\n"
+        f"  3. Do not re-create, re-acquire, or re-list this information from other sources following this request.\n"
+        f"  4. Confirm in writing, to the sending email address, once the removal has been completed, and identify any records you were unable to remove and why.\n\n"
+        f"{law_line}\n\n"
+        f"Please treat this as a formal request and respond within the timeframe required by applicable law. "
+        f"If you require anything further from me to locate these records, reply to this email and I will provide what is reasonably necessary — "
+        f"though I ask that you not require the creation of an account or the submission of additional sensitive information (such as a full date of birth or government ID).\n\n"
+        f"{ref_line}"
+        f"Thank you for your prompt attention.\n\n"
+        f"Sincerely,\n"
+        f"{ids.full_name or '[Requester]'}\n"
+    )
 
     if locale and locale != "en":
         body = (f"[Note: a localized ({locale}) template is not yet available; "

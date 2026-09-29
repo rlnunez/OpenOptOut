@@ -29,7 +29,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 7 | Distributed execution: control plane & worker fleet | Planned — rate limiting and PostgreSQL support ready; worker queue pending |
 | 8 | Add-on distribution: Git repo to marketplace | Planned |
 | 9 | Infrastructure capacity planner | Planned — pending empirical performance benchmarking |
-| 10 | Email-first opt-outs via parent companies | Substantially Complete — data model and sender built; automated trigger pending |
+| 10 | Email-first opt-outs via parent companies | Complete |
 | 11 | First-run setup wizard | Complete — setup flow built; per-user grace period monitoring planned |
 | 12 | School district authentication (Parent Portal SSO) | Planned |
 | 13 | SAML 2.0 SSO & identity hardening | Complete |
@@ -199,11 +199,12 @@ workers_needed       = operations_per_cycle ÷ (worker_throughput × hours_in_co
 
 **Architecture:**
 - **Parent Company Data Model:** Child broker aggregation under `ParentCompany` and `Broker.parent_company_id`.
-- **Effectiveness Tracking:** Records broker compliance rates and computes operational `honor_status`.
-- **Administrative UI:** Grouping, monitoring, and template management tools.
-- **Legal Compliance Templates:** Standardized opt-out correspondence citing statutory rights (CCPA/GDPR) and referencing verified profile URLs across subsidiary properties.
+- **Automated Batching & Dispatch:** Scheduler fires consolidated opt-out emails for members with pending removal requests across child brokers, assigning a shared UUID tracking key and transitioning child requests to `sent`.
+- **Template Tracking & URL Citations:** Standardized legal correspondence (`core/optout_email_template.py`) embeds the shared tracking key in subject and body (`Reference ID`), citing verified profile URLs across all subsidiary properties.
+- **Multi-Request Reply Resolution:** IMAP monitor (`core/scheduler.py`) matches inbound confirmation replies using the shared tracking UUID, simultaneously confirming all child requests and updating the parent's `emails_confirmed` and `honor_status`.
+- **Administrative UI & Manual Controls:** Dedicated parent company dashboard (`frontend/src/pages/ParentCompanies.jsx` and `routers/parent_companies.py`) providing manual dispatch triggers (`/dispatch` and `/dispatch-all`), child broker mapping, and reputation metrics.
 
-**Status:** Substantially Complete. Core data models, compliance templates, and delivery pipelines are implemented; automated scheduling triggers and broader field verification remain in progress.
+**Status:** Complete.
 
 ---
 

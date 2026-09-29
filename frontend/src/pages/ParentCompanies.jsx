@@ -20,6 +20,9 @@ export default function ParentCompanies() {
   const [managing, setManaging] = useState(null)  // parent whose children we manage
   const [msg, setMsg] = useState('')
 
+  const [dispatching, setDispatching] = useState(null)
+  const [dispatchingAll, setDispatchingAll] = useState(false)
+
   const load = useCallback(() => {
     setLoading(true)
     api.get('/parent-companies').then(r => setParents(r.data)).finally(() => setLoading(false))
@@ -30,6 +33,42 @@ export default function ParentCompanies() {
     if (!window.confirm(`Delete parent "${p.name}"? Its ${p.child_count} child broker(s) will be ungrouped, not deleted.`)) return
     try { await api.delete(`/parent-companies/${p.id}`); setMsg(`Deleted ${p.name}`); load() }
     catch { setMsg('Delete failed') }
+  }
+
+  const dispatchParent = async (p) => {
+    setDispatching(p.id)
+    try {
+      const res = await api.post(`/parent-companies/${p.id}/dispatch`)
+      const d = res.data
+      if (d.covered_requests > 0) {
+        setMsg(`Sent ${d.sent_emails} email(s) to ${p.name}, covering ${d.covered_requests} broker requests`)
+      } else {
+        setMsg(`No pending requests for ${p.name}'s child brokers`)
+      }
+      load()
+    } catch (e) {
+      setMsg(e.response?.data?.detail || 'Dispatch failed')
+    } finally {
+      setDispatching(null)
+    }
+  }
+
+  const dispatchAll = async () => {
+    setDispatchingAll(true)
+    try {
+      const res = await api.post('/parent-companies/dispatch-all')
+      const d = res.data
+      if (d.covered_requests > 0) {
+        setMsg(`Dispatched ${d.sent_emails} email(s) across parent companies, covering ${d.covered_requests} requests`)
+      } else {
+        setMsg('No pending requests under any parent company')
+      }
+      load()
+    } catch (e) {
+      setMsg(e.response?.data?.detail || 'Dispatch all failed')
+    } finally {
+      setDispatchingAll(false)
+    }
   }
 
   return (
@@ -44,7 +83,12 @@ export default function ParentCompanies() {
             parent covers all its child sites at once. Effectiveness shows which parents actually respond.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={dispatchAll} disabled={dispatchingAll}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-sky-600 hover:bg-sky-500 text-white rounded-lg transition-colors"
+            title="Dispatch email opt-outs across all parent companies">
+            <Send size={14} /> {dispatchingAll ? 'Dispatching…' : 'Send all parent opt-outs'}
+          </button>
           <button onClick={() => setEditing({})}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-shield-600 hover:bg-shield-700 text-white rounded-lg">
             <Plus size={14} /> New parent
@@ -99,7 +143,14 @@ export default function ParentCompanies() {
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex gap-2 shrink-0 items-center">
+                    {p.optout_email && p.child_count > 0 && (
+                      <button onClick={() => dispatchParent(p)} disabled={dispatching === p.id}
+                        className="flex items-center gap-1 px-2.5 py-1 text-xs text-sky-300 bg-sky-950/60 border border-sky-800/60 rounded-lg hover:bg-sky-900/60 transition-colors"
+                        title="Send opt-out email covering all child broker requests for this parent">
+                        <Send size={11} /> {dispatching === p.id ? 'Sending…' : 'Send opt-outs'}
+                      </button>
+                    )}
                     <button onClick={() => setManaging(p)}
                       className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
                       <Link2 size={12} /> Sites

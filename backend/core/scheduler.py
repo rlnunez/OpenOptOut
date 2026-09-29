@@ -231,13 +231,34 @@ def _run_optout_with_limit(run_type: str, max_this_run: int):
             return
 
         batch_ids = _select_pending_batch(db, cfg, max_this_run)
+
+        # ── Email-First Parent Company Optimization (Item 10) ──
+        # Check if any requests in the batch belong to parent companies with optout_emails.
+        # Send one bulk email per (member, parent) instead of launching headless browsers.
+        parent_covered_ids = set()
+        if batch_ids:
+            try:
+                from .optout_engine import process_pending_parent_company_optouts
+                p_res = process_pending_parent_company_optouts(db, cfg, batch_request_ids=batch_ids)
+                parent_covered_ids = set(p_res.get("covered_request_ids", []))
+                sent += len(parent_covered_ids)
+                if p_res.get("errors"):
+                    errors.extend(p_res["errors"])
+                if parent_covered_ids:
+                    log.info("Parent-company email batch covered %d requests (%d emails sent)",
+                             len(parent_covered_ids), p_res.get("sent_emails", 0))
+            except Exception as e:
+                log.error("Parent-company batch opt-out error: %s", e)
+                errors.append(f"Parent batch error: {e}")
+
+        remaining_batch_ids = [rid for rid in batch_ids if rid not in parent_covered_ids]
         db.close()
 
-        if batch_ids:
+        if remaining_batch_ids:
             from .optout_engine import run_optout_batch
-            result = asyncio.run(run_optout_batch(batch_ids))
-            sent   = result.get("sent", 0)
-            errors = result.get("errors", [])
+            result = asyncio.run(run_optout_batch(remaining_batch_ids))
+            sent   += result.get("sent", 0)
+            errors.extend(result.get("errors", []))
 
         db = SessionLocal()
         _finish_run(db, run_id, status="done", sent=sent, errors=errors)
@@ -404,25 +425,45 @@ def email_monitor_job():
 
                 if not plugin_handled:
                     for key in set(UUID_RE.findall(text)):
-                        req = db.query(RemovalRequest).filter(RemovalRequest.request_key == key).first()
-                        if req and req.status == RequestStatus.sent:
-                            req.status = RequestStatus.confirmed
-                            req.confirmed_at = datetime.utcnow()
+                        matching_reqs = db.query(RemovalRequest).filter(
+                            RemovalRequest.request_key == key,
+                            RemovalRequest.status == RequestStatus.sent,
+                        ).all()
+                        if matching_reqs:
                             recheck_days = cfg.get("scheduler", {}).get("recheck_interval_days", 90)
-                            req.recheck_after = datetime.utcnow() + timedelta(days=recheck_days)
-                            db.add(EmailLog(
-                                request_id=req.id, direction="received",
-                                subject=subj[:500], body_snippet=body[:500], matched_key=key,
-                            ))
+                            recheck_dt = datetime.utcnow() + timedelta(days=recheck_days)
+                            now = datetime.utcnow()
+                            parent_ids_to_confirm = set()
+
+                            for req in matching_reqs:
+                                req.status = RequestStatus.confirmed
+                                req.confirmed_at = now
+                                req.recheck_after = recheck_dt
+                                db.add(EmailLog(
+                                    request_id=req.id, direction="received",
+                                    subject=subj[:500], body_snippet=body[:500], matched_key=key,
+                                ))
+                                matched += 1
+                                log.info(f"Matched: {req.broker.name} / {req.member.full_name}")
+                                if req.broker and req.broker.parent_company_id:
+                                    parent_ids_to_confirm.add(req.broker.parent_company_id)
+                                try:
+                                    from ..plugins.hooks import fire_event
+                                    fire_event("confirmation_received", entity_id=str(req.id),
+                                               data={"broker": req.broker.name, "via": "uuid"})
+                                except Exception:
+                                    pass
+
                             db.commit()
-                            matched += 1
-                            log.info(f"Matched: {req.broker.name} / {req.member.full_name}")
-                            try:
-                                from ..plugins.hooks import fire_event
-                                fire_event("confirmation_received", entity_id=str(req.id),
-                                           data={"broker": req.broker.name, "via": "uuid"})
-                            except Exception:
-                                pass
+
+                            # Record confirmation for parent companies
+                            if parent_ids_to_confirm:
+                                try:
+                                    from . import parent_company as pcmod
+                                    for pid in parent_ids_to_confirm:
+                                        pcmod.record_confirmation(db, pid)
+                                except Exception as _pce:
+                                    log.debug("parent confirmation tracking error: %s", _pce)
 
                 conn.store(mid, "+FLAGS", "\\Seen")
             except Exception as e:
