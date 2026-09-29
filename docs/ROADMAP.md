@@ -26,7 +26,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 4 | Pluggable CAPTCHA resolution | Complete |
 | 5 | Granular broker management | Complete |
 | 6 | Automated broker health monitoring | Complete |
-| 7 | Distributed execution: control plane & worker fleet | Planned — rate limiting and PostgreSQL support ready; worker queue pending |
+| 7 | Distributed execution: control plane & worker fleet | Phased plan established (5 migration phases) |
 | 8 | Add-on distribution: Git repo to marketplace | Planned |
 | 9 | Infrastructure capacity planner | Planned — pending empirical performance benchmarking |
 | 10 | Email-first opt-outs via parent companies | Complete |
@@ -129,17 +129,17 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 ---
 
 ### 7. Distributed execution: control plane & worker fleet
-**Goal:** Horizontally scale automated browser operations by separating the administrative API/control plane from headless browser execution workers.
+**Goal:** Horizontally scale automated browser operations by separating the administrative API/control plane from stateless headless browser execution workers.
 
 **Target Architecture:**
-- **Control Plane:** Web interface, REST API, database orchestration, scheduling, and health monitoring.
+- **Control Plane:** Web interface, REST API, database orchestration, scheduling producer, and health monitoring.
 - **Worker Fleet:** Stateless worker nodes executing Playwright browser automations and SMTP transmissions from a centralized task queue.
-- **Task Queue:** Distributed job queue (e.g., Redis/RQ or Celery) replacing in-process background scheduling for large-scale deployments.
+- **Task Queue:** Distributed job queue (Redis-backed in production, zero-dependency in-process fallback for standalone installs) replacing in-process monolithic scheduling.
 - **Chunked Batching:** Workload chunking with per-broker rate limiting, concurrency caps, and fault isolation.
 
 **Architectural Implications:**
 - **Database:** Requires PostgreSQL for multi-node deployments (SQLite remains supported for single-node installations).
-- **Security & Sandboxing:** Worker nodes host the Bubblewrap execution sandbox; credentials and PII transfers across worker boundaries must be strictly scoped and encrypted.
+- **Security & Sandboxing:** Worker nodes host the Bubblewrap execution sandbox; credentials and PII transfers across worker boundaries must be strictly scoped, serialized into encrypted job envelopes, and never expose direct database ORM handles.
 - **Proxy Management:** Coordinated proxy pools across distributed workers to prevent rate-limit collisions.
 
 **Capacity Planning Model:**
@@ -150,7 +150,41 @@ worker_throughput    = concurrent_slots_per_worker × (3600 / avg_seconds_per_fo
 workers_needed       = operations_per_cycle ÷ (worker_throughput × hours_in_completion_window)
 ```
 
-**Status:** Planned. Rate limiting, scheduling chunking, and PostgreSQL database support are implemented; distributed worker queue integration is pending.
+**Multi-Phase Migration Strategy (Sequential Sessions):**
+
+To ensure operational stability and maintain continuous testability without disrupting standalone single-node installations, Item 7 is structured into five progressive, independently verifiable phases:
+
+* **Phase 7.1 — Job Envelope & Secure Payload Serialization (Data Boundary):**
+  - Define `JobEnvelope` schema encapsulating compiled `Job`, job ID, broker metadata, HMAC signature, and encrypted patron payload.
+  - Define `JobResultEnvelope` schema encapsulating `ExecResult`, execution trace, screenshots, challenge metadata, and timing.
+  - Decouple execution from ORM entities: workers operate exclusively on serialized envelopes without direct database connection requirements.
+  - *Verification:* Pure Python unit tests validating round-trip envelope serialization, tampering rejection, and cryptographic zeroization.
+
+* **Phase 7.2 — Unified Queue Abstraction & Pluggable Backends (Transport Boundary):**
+  - Implement abstract `JobQueue` interface (`enqueue`, `dequeue`, `acknowledge`, `requeue`, `publish_result`).
+  - Implement `InProcessJobQueue`: thread-safe in-memory queue preserving zero-dependency single-container operations (default).
+  - Implement `RedisJobQueue`: distributed queue backend supporting priority channels (`high`, `normal`, `retry`) and dead-letter queues.
+  - *Verification:* Test suite runs against `InProcessJobQueue` by default, with optional Redis integration tests when configured.
+
+* **Phase 7.3 — Stateless Worker Node Daemon (Execution Boundary):**
+  - Implement standalone worker daemon (`backend/worker.py`) that boots independently of the FastAPI web application.
+  - Worker lifecycle: pulls envelopes from `JobQueue`, initializes sandboxed Playwright/Bubblewrap contexts, executes via `PlaywrightExecutor`, and emits `JobResultEnvelope`.
+  - Process supervisor integration with concurrency slots (`WORKER_CONCURRENCY=N`) and graceful SIGTERM draining.
+  - *Verification:* Worker unit tests driving mock headless jobs and verifying result publishing without touching the control plane.
+
+* **Phase 7.4 — Control Plane Ingestion & Dynamic Scheduling (Orchestration Boundary):**
+  - Transition `core/scheduler.py` from an in-process executor to an enqueuing producer (`enqueue_pending_optouts`).
+  - Implement asynchronous result ingestion service on the control plane: updates `RemovalRequest` statuses, triggers parent company cascade confirmations, logs broker health metrics, and routes CAPTCHA challenges to the operator queue.
+  - Lease management & orphan reclamation: automated detection and requeuing of jobs from crashed or unresponsive workers.
+  - *Verification:* End-to-end integration test validating scheduler produce → queue → worker execute → control plane ingest.
+
+* **Phase 7.5 — Fleet Monitoring, Admin Telemetry & Orchestration (Operations Boundary):**
+  - Worker heartbeat registry (`worker_id`, host, active slots, vCPU/RAM telemetry, uptime).
+  - Administrative fleet management dashboard (`frontend/src/pages/WorkerFleet.jsx` and `routers/workers.py` gated by `settings.system`) displaying active nodes, queue depths, and throughput.
+  - Distributed Docker Compose topology (`docker-compose.distributed.yml`) featuring scaled worker services (`--scale worker=4`).
+  - *Verification:* Smoke test running multi-container distributed opt-out runs under Docker Compose.
+
+**Status:** In Progress (Phased Migration Plan Established).
 
 ---
 
@@ -195,8 +229,8 @@ workers_needed       = operations_per_cycle ÷ (worker_throughput × hours_in_co
 1. **Broker health reporting & auto-disable (Item 6):** Complete.
 2. **Sandbox runtime validation (Item 18, 21):** Complete.
 3. **Declarative engine & broker specifications (Items 1, 2):** Core engine live; complete transition of legacy scripts in progress.
-4. **Complex page interpreter & CAPTCHA framework (Items 3, 4):** Integration hooks wired; default human fallback and reference plugins in progress.
-5. **Distributed job execution boundary (Item 7):** Scheduling chunking ready; worker queue integration as scaling requires.
+4. **Complex page interpreter & CAPTCHA framework (Items 3, 4):** Complete. Multi-form wizard support and solver seams verified.
+5. **Distributed job execution boundary (Item 7):** Phased migration active (Phase 7.1 Data Boundary → Phase 7.2 Transport → Phase 7.3 Worker Daemon → Phase 7.4 Ingestion → Phase 7.5 Fleet Monitoring).
 6. **Add-on distribution & package management (Item 8):** Phased rollout starting with Git repositories and advancing to signed catalog distribution.
 
 ---
