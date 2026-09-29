@@ -832,7 +832,22 @@ def t_script_bridge():
         zip_selector = None; submit_selector = None; success_selector = None
         success_text = None; requires_captcha = False; extra_steps = None
     assert sb.spec_from_script(FakeBroker(), EmptyScript()) is None, \
-        "empty script should return None for legacy fallback"
+        "empty script should return None from spec_from_script"
+
+    # Heuristic fallback for unscripted brokers (retires legacy combo engine)
+    h_spec = sb.heuristic_spec_for_broker(FakeBroker())
+    assert h_spec is not None, "heuristic spec must be created"
+    assert not h_spec.validate(), f"heuristic spec must validate cleanly: {h_spec.validate()}"
+    h_kinds = [s.kind for s in h_spec.steps]
+    assert "fill" in h_kinds and "submit" in h_kinds, "heuristic spec must include fill and submit steps"
+
+    # get_or_build_broker_spec resolves script when present, falls back to heuristic when empty
+    resolved_with_script = sb.get_or_build_broker_spec(FakeBroker(), FakeScript())
+    assert resolved_with_script.name == "TestBroker"
+    resolved_empty = sb.get_or_build_broker_spec(FakeBroker(), EmptyScript())
+    assert resolved_empty is not None and not resolved_empty.validate()
+    assert any(s.field == "first_name" for s in resolved_empty.steps)
+
 
 
 @test(1, "interpreter.complex_page_actions",

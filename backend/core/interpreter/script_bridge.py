@@ -78,15 +78,19 @@ def spec_from_script(broker, script) -> "BrokerSpec | None":
         except Exception as e:
             log.warning("broker %s extra_steps parse failed: %s", broker.name, e)
 
-    # Not enough to act on -> let the caller fall back to the legacy engine.
+    # Not enough to act on -> caller should fall back to heuristic spec or None.
     has_actionable = any(s.kind in ("fill", "submit") for s in steps)
     if not has_actionable:
         return None
 
     opt_out_url = getattr(script, "search_url", None) or getattr(broker, "opt_out_url", "") or ""
 
+    import re
+    raw_slug = str(getattr(broker, "id", "") or getattr(broker, "name", "broker"))
+    broker_id = re.sub(r'[^a-zA-Z0-9_-]', '_', raw_slug).strip('_') or "broker"
+
     spec = BrokerSpec(
-        broker_id=str(getattr(broker, "id", "") or getattr(broker, "name", "broker")),
+        broker_id=broker_id,
         name=getattr(broker, "name", "broker"),
         method="form",
         opt_out_url=opt_out_url,
@@ -94,10 +98,68 @@ def spec_from_script(broker, script) -> "BrokerSpec | None":
         success_selector=getattr(script, "success_selector", "") or "",
         success_text=getattr(script, "success_text", "") or "",
     )
-    # Only return it if it validates; otherwise fall back rather than run a bad spec.
+    # Only return it if it validates; otherwise None so caller can use heuristic fallback.
     errs = spec.validate()
     if errs:
-        log.info("broker %s spec-from-script invalid, using legacy engine: %s",
-                 broker.name, errs)
+        log.info("broker %s spec-from-script invalid: %s", broker.name, errs)
         return None
     return spec
+
+
+def heuristic_spec_for_broker(broker) -> BrokerSpec:
+    """
+    Generate a declarative BrokerSpec with standard heuristic form steps for brokers
+    that do not yet have an authored add-on or BrokerScript. Replaces the legacy
+    combination engine's hardcoded selector heuristics with a clean, unified BrokerSpec.
+    """
+    import re
+    raw_slug = str(getattr(broker, "id", "") or getattr(broker, "name", "broker"))
+    broker_id = re.sub(r'[^a-zA-Z0-9_-]', '_', raw_slug).strip('_') or "broker"
+    opt_out_url = getattr(broker, "opt_out_url", "") or "https://example.com/optout"
+
+    steps = [
+        Step(kind="fill", selector="input[name='firstName'], input[id*='first' i]", field="first_name", optional=True),
+        Step(kind="fill", selector="input[name='lastName'], input[id*='last' i]", field="last_name", optional=True),
+        Step(kind="fill", selector="input[name='name'], input[id*='fullname' i], input[name*='name' i]", field="full_name", optional=True),
+        Step(kind="fill", selector="input[type='email'], input[name*='email' i]", field="email", optional=True),
+        Step(kind="fill", selector="input[name*='address' i], input[id*='address' i]", field="address", optional=True),
+        Step(kind="fill", selector="input[name*='city' i], input[id*='city' i]", field="city", optional=True),
+        Step(kind="fill", selector="input[name*='state' i], select[name*='state' i]", field="state", optional=True),
+        Step(kind="fill", selector="input[name*='zip' i], input[id*='zip' i]", field="zip", optional=True),
+        Step(kind="submit", selector="button[type='submit'], input[type='submit'], button:has-text('Opt Out'), button:has-text('Remove'), button:has-text('Submit'), button:has-text('Request Removal')", optional=True),
+    ]
+
+    return BrokerSpec(
+        broker_id=broker_id,
+        name=getattr(broker, "name", "broker"),
+        method="form",
+        opt_out_url=opt_out_url,
+        steps=steps,
+        notes="Heuristic fallback spec automatically generated for unscripted broker",
+    )
+
+
+def get_or_build_broker_spec(broker, script=None, db=None) -> BrokerSpec:
+    """
+    Resolve the single authoritative BrokerSpec for this broker.
+    1. Checks installed declarative Broker Add-on (Item 1).
+    2. Checks compiled BrokerScript selectors (Item 2).
+    3. Generates a heuristic BrokerSpec fallback if no explicit rules exist.
+    Guaranteed to return a valid BrokerSpec so execution never requires legacy engines.
+    """
+    if db is not None:
+        try:
+            from ...plugins.broker_addon import get_broker_spec_for_broker
+            spec = get_broker_spec_for_broker(db, broker)
+            if spec:
+                return spec
+        except Exception:
+            pass
+
+    if script is not None:
+        spec = spec_from_script(broker, script)
+        if spec:
+            return spec
+
+    return heuristic_spec_for_broker(broker)
+

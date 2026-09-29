@@ -66,10 +66,11 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 
 **Architecture:**
 - **Engine Capabilities:** Automated form submission via Playwright, templated email generation, and multi-step flow execution.
-- **Execution Pipeline:** `DryRunExecutor` for validation/simulation and `PlaywrightExecutor` for live interaction. `script_bridge` dynamically compiles existing `BrokerScript` definitions into executable `BrokerSpec` instances.
-- **Migration Strategy:** The declarative engine and the legacy combination-matrix engine (`_fill_one_combo`) coexist during the migration phase. The objective is full retirement of the legacy engine once all brokers are represented via declarative specs.
+- **Execution Pipeline:** `DryRunExecutor` for validation/simulation and `PlaywrightExecutor` for live interaction. `script_bridge` dynamically compiles existing `BrokerScript` definitions into executable `BrokerSpec` instances, with `heuristic_spec_for_broker` generating declarative fallback specs for unscripted brokers.
+- **Legacy Engine Retirement:** The legacy combination-matrix engine (`_fill_one_combo`) has been completely retired. All brokers—whether backed by a formal Broker Add-on, an existing `BrokerScript`, or an unscripted broker—are compiled into standardized `BrokerSpec` structures via `script_bridge.get_or_build_broker_spec()`. Automated form submissions are executed exclusively through `PlaywrightExecutor`, standardizing CAPTCHA interception, screenshot logging, bot evasion, and multi-stage plugin hooks across the entire platform.
 
-**Status:** Complete. Wired into the live execution path (`execute_optout`); legacy engine retained as migration fallback. See [`docs/INTERPRETER.md`](INTERPRETER.md).
+**Status:** Complete. Single declarative execution engine unified; legacy combo engine retired. See [`docs/INTERPRETER.md`](INTERPRETER.md).
+
 
 ---
 

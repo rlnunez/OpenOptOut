@@ -503,189 +503,74 @@ def process_pending_parent_company_optouts(
 
 
 
-# ── Form fill — one combo at a time ──────────────────────────────────────────
+# ── Declarative Interpreter Form Fill ──────────────────────────────────────────
 
-async def _fill_one_combo(
-    page: Page,
-    combo: IdentityCombo,
-    broker: Broker,
-    request_key: str,
-    script: Optional[BrokerScript],
-) -> tuple[bool, Optional[str]]:
-    """Fill and submit the opt-out form for a single identity combo."""
-    opt_url = broker.opt_out_url
-    if not opt_url:
-        return False, None
-
-    screenshot = None
-    try:
-        await page.goto(opt_url, timeout=20_000)
-        await page.wait_for_timeout(2000)
-
-        async def try_fill(selector: Optional[str], value: Optional[str], field: str):
-            if not selector or not value: return
-            try:
-                el = await page.query_selector(selector)
-                if el: await el.fill(value)
-            except Exception as e:
-                log.debug(f"Fill {field}: {e}")
-
-        if script:
-            # Try to fill name as first+last if separate selectors exist
-            first_sel = await page.query_selector("input[name='firstName'], input[id*='first' i]")
-            last_sel  = await page.query_selector("input[name='lastName'],  input[id*='last' i]")
-            parts = combo.name.split()
-            if first_sel and last_sel and len(parts) >= 2:
-                await first_sel.fill(parts[0])
-                await last_sel.fill(" ".join(parts[1:]))
-            else:
-                await try_fill(script.name_selector, combo.name, "name")
-
-            await try_fill(script.email_selector,   combo.email,   "email")
-            await try_fill(script.address_selector, combo.address, "address")
-            await try_fill(script.city_selector,    combo.city,    "city")
-            await try_fill(script.zip_selector,     combo.zip,     "zip")
-
-            if script.state_selector and combo.state:
-                el = await page.query_selector(script.state_selector)
-                if el:
-                    try:    await el.select_option(value=combo.state)
-                    except: await el.fill(combo.state)
-
-            # Extra steps
-            if script.extra_steps:
-                try:
-                    for step in json.loads(script.extra_steps):
-                        a, sel, val = step.get("action"), step.get("selector"), step.get("value","")
-                        el = await page.query_selector(sel) if sel else None
-                        if a == "click"  and el: await el.click()
-                        elif a == "fill" and el: await el.fill(val)
-                        elif a == "wait":        await page.wait_for_timeout(int(val) if val else 1000)
-                        elif a == "select" and el:
-                            try:    await el.select_option(value=val)
-                            except: await el.fill(val)
-                except Exception as e:
-                    log.warning(f"Extra steps error {broker.name}: {e}")
-
-            if script.submit_selector:
-                submit = await page.query_selector(script.submit_selector)
-                if submit:
-                    await submit.click()
-                    await page.wait_for_timeout(3000)
-        else:
-            # Generic fallback
-            parts = combo.name.split()
-            first = await page.query_selector("input[name='firstName'], input[id*='first' i]")
-            last  = await page.query_selector("input[name='lastName'],  input[id*='last' i]")
-            full  = await page.query_selector("input[name='name'],      input[id*='fullname' i]")
-
-            if first and last and len(parts) >= 2:
-                await first.fill(parts[0])
-                await last.fill(" ".join(parts[1:]))
-            elif full:
-                await full.fill(combo.name)
-
-            if combo.email:
-                el = await page.query_selector("input[type='email'], input[name='email']")
-                if el: await el.fill(combo.email)
-
-            submit = await page.query_selector(
-                "button[type='submit'], input[type='submit'], "
-                "button:has-text('Opt Out'), button:has-text('Remove'), "
-                "button:has-text('Submit'), button:has-text('Request Removal')"
-            )
-            if submit:
-                await submit.click()
-                await page.wait_for_timeout(3000)
-
-        # CAPTCHA check
-        captcha = await page.query_selector(
-            "iframe[src*='recaptcha'], iframe[src*='hcaptcha'], "
-            ".g-recaptcha, .h-captcha, [data-sitekey]"
-        )
-        if captcha:
-            screenshot = await _screenshot(page, f"captcha_{broker.name.replace('.','_')}")
-            return False, screenshot
-
-        # Success check
-        content = await page.content()
-        if script:
-            if script.success_selector:
-                el = await page.query_selector(script.success_selector)
-                if el: return True, None
-            if script.success_text and script.success_text.lower() in content.lower():
-                return True, None
-
-        success_phrases = [
-            "successfully submitted", "opt-out request received",
-            "removal request", "your request has been",
-            "will be removed", "opt out complete", "request confirmed",
-        ]
-        if any(p in content.lower() for p in success_phrases):
-            return True, None
-
-        screenshot = await _screenshot(page, f"uncertain_{broker.name.replace('.','_')}")
-        return True, screenshot   # optimistic — no clear error
-
-    except PWTimeout:
-        screenshot = await _screenshot(page, f"timeout_{broker.name.replace('.','_')}")
-        return False, screenshot
-    except Exception as e:
-        screenshot = await _screenshot(page, f"error_{broker.name.replace('.','_')}")
-        log.error(f"Form fill error {broker.name}: {e}")
-        return False, screenshot
-
-
-# ── Full opt-out for one request (all combos) ─────────────────────────────────
-
-async def _run_form_via_interpreter(request, context, cfg, db) -> "tuple[bool, str] | None":
+async def _run_form_via_interpreter(
+    request: RemovalRequest,
+    page_or_context,
+    cfg: dict,
+    db,
+    combo: Optional[IdentityCombo] = None,
+):
     """
-    Run a form opt-out through the NEW interpreter engine: build a BrokerSpec from
-    the broker's stored script, compile it for the member, and execute it through
-    PlaywrightExecutor with the plugin manager's CAPTCHA-solver and fill_form
-    dispatchers wired in. This is what makes the plugin hooks (items 3 & 4)
-    actually fire during real runs.
-
-    Returns (ok, detail) if the interpreter handled it, or None to signal the
-    caller should fall back to the legacy combo engine (no usable spec).
+    Run a form opt-out through the unified declarative interpreter engine:
+    resolve or generate the BrokerSpec, compile it for the member / combo,
+    and execute it through PlaywrightExecutor with CAPTCHA-solver and fill_form
+    dispatchers wired in.
     """
     from .interpreter import compile_job, PlaywrightExecutor
-    from .interpreter.script_bridge import spec_from_script
-    from .combinations import _get_values
+    from .interpreter.script_bridge import get_or_build_broker_spec
+    from .combinations import _get_values, _parse_address
 
     broker = request.broker
     member = request.member
-    script = db.query(BrokerScript).filter(BrokerScript.broker_id == broker.id).first()
+    script = db.query(BrokerScript).filter(BrokerScript.broker_id == broker.id).first() if db else None
 
-    # Roadmap Item 1: Check installed Broker Add-on declarative spec first
-    from ..plugins.broker_addon import get_broker_spec_for_broker
-    spec = get_broker_spec_for_broker(db, broker)
-    if spec is None:
-        spec = spec_from_script(broker, script)
-    if spec is None:
-        return None  # fall back to legacy engine
+    # Resolve authoritative spec (add-on -> script bridge -> heuristic fallback)
+    spec = get_or_build_broker_spec(broker, script=script, db=db)
 
-    # Resolve the member's field values for the compiler (first of each kind).
+    # Resolve member fields:
     def first(kind):
         vals = _get_values(member, kind, 1)
         return vals[0] if vals else ""
-    member_fields = {
-        "full_name": member.full_name or first("name"),
-        "first_name": (member.full_name or "").split(" ")[0] if member.full_name else "",
-        "last_name": (member.full_name or "").split(" ")[-1] if member.full_name else "",
-        "email": first("email"), "phone": first("phone"),
-        "address": first("address"), "city": "", "state": "", "zip": "",
-    }
 
-    try:
-        job = compile_job(spec, member_fields, member_id=str(member.id))
-    except Exception as e:
-        log.info("interpreter compile failed for %s (%s) — legacy fallback", broker.name, e)
-        return None
+    if combo:
+        parts = (combo.name or "").split()
+        first_name = parts[0] if parts else ""
+        last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+        member_fields = {
+            "full_name": combo.name or member.full_name or "",
+            "formal_name": getattr(member, "formal_name", "") or combo.name or member.full_name or "",
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": combo.email or first("email"),
+            "phone": combo.phone or first("phone"),
+            "address": combo.address or "",
+            "city": combo.city or "",
+            "state": combo.state or "",
+            "zip": combo.zip or "",
+        }
+    else:
+        raw_addr = first("address")
+        p = _parse_address(raw_addr) if raw_addr else {"address": "", "city": "", "state": "", "zip": ""}
+        parts = (member.full_name or "").split()
+        member_fields = {
+            "full_name": member.full_name or first("name"),
+            "formal_name": getattr(member, "formal_name", "") or member.full_name or "",
+            "first_name": parts[0] if parts else "",
+            "last_name": " ".join(parts[1:]) if len(parts) > 1 else "",
+            "email": first("email"),
+            "phone": first("phone"),
+            "address": p.get("address") or raw_addr,
+            "city": p.get("city", ""),
+            "state": p.get("state", ""),
+            "zip": p.get("zip", ""),
+        }
+
+    job = compile_job(spec, member_fields, member_id=str(member.id))
 
     # Wire the plugin manager's dispatchers into the executor so the CAPTCHA
-    # solver + fill_form takeover hooks fire. If no manager/plugins, these are
-    # None and the executor cleanly pauses/uses defaults.
+    # solver + fill_form takeover hooks fire.
     captcha_solver = None
     form_handler = None
     try:
@@ -695,10 +580,6 @@ async def _run_form_via_interpreter(request, context, cfg, db) -> "tuple[bool, s
             preferred_captcha = getattr(broker, "captcha_plugin_id", None)
             captcha_solver = lambda ch: mgr.dispatch_solve_captcha(ch, preferred_plugin_id=preferred_captcha)
             def form_handler(job_, page_context):
-                # Pass a provider, not the raw values: the manager materializes
-                # real member fields ONLY for a plugin that holds read_pii;
-                # unpermitted plugins get a redacted (keys-only) view and the
-                # raw PII never reaches them. Defense-in-depth at the boundary.
                 if isinstance(page_context, dict):
                     page_html = page_context.get("html", "")
                     meta = {
@@ -723,14 +604,23 @@ async def _run_form_via_interpreter(request, context, cfg, db) -> "tuple[bool, s
     except Exception as e:
         log.debug("plugin dispatchers unavailable: %s", e)
 
-    page = await context.new_page()
+    should_close = False
+    if hasattr(page_or_context, "goto"):
+        page = page_or_context
+    elif hasattr(page_or_context, "new_page"):
+        page = await page_or_context.new_page()
+        should_close = True
+    else:
+        page = None
+
     try:
         executor = PlaywrightExecutor(
             page=page, captcha_solver=captcha_solver, plugin_form_handler=form_handler)
         res = await executor.run(job)
         return res
     finally:
-        await page.close()
+        if should_close and page:
+            await page.close()
 
 
 async def execute_optout(
@@ -740,9 +630,9 @@ async def execute_optout(
     db,
 ) -> bool:
     """
-    Fire opt-out for ONE RemovalRequest using the full combination matrix.
+    Fire opt-out for ONE RemovalRequest using the unified engine:
     - email brokers: one exhaustive email covering all variants
-    - form brokers:  submit form for every name×address×phone×email combo
+    - form brokers:  declarative interpreter submission for every identity combo
     - manual:        queue and mark sent
     Returns True if at least one submission succeeded.
     """
@@ -759,7 +649,6 @@ async def execute_optout(
     try:
         if broker.method == OptOutMethod.email:
             # Single exhaustive email covering all variants
-            # For property brokers, _build_exhaustive_email will include formal name prominently
             ok = send_opt_out_email(member, broker, key, script, cfg, db)
             if ok: successes += 1
             else:  failures  += 1
@@ -773,140 +662,86 @@ async def execute_optout(
             ))
 
         elif broker.method == OptOutMethod.form:
-            # Try the NEW interpreter engine first (this is where the CAPTCHA
-            # solver + fill_form plugin hooks fire). Falls back to the legacy
-            # combination-matrix engine if the broker has no usable spec/script.
-            interp_res = await _run_form_via_interpreter(request, context, cfg, db)
-            if interp_res is not None:
-                ok = interp_res.ok
-                detail = interp_res.detail or ("ok" if ok else "form flow failed")
-                if ok: successes += 1
-                else:  failures  += 1
-
-                screenshot_path = None
-                if interp_res.needs_captcha:
-                    last_error = "captcha challenge encountered"
-                    ch = interp_res.challenge or {}
-                    # Save screenshot if available
-                    if ch.get("screenshot"):
-                        try:
-                            os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
-                            ts = int(time.time())
-                            bname = broker.name.replace(".", "_").replace(" ", "_")
-                            screenshot_path = f"{SCREENSHOTS_DIR}/captcha_{bname}_{ts}.png"
-                            with open(screenshot_path, "wb") as sf:
-                                sf.write(ch["screenshot"])
-                        except Exception as _se:
-                            log.warning("Could not write captcha screenshot: %s", _se)
-
-                    # Create or update CaptchaChallenge queue entry (Item 4)
-                    from ..models.database import CaptchaChallenge
-                    existing_ch = db.query(CaptchaChallenge).filter(
-                        CaptchaChallenge.request_id == request.id,
-                        CaptchaChallenge.status == "pending"
-                    ).first()
-                    if not existing_ch:
-                        c_entry = CaptchaChallenge(
-                            request_id=request.id,
-                            broker_id=broker.id,
-                            member_id=member.id,
-                            challenge_type=ch.get("type", "other") or "other",
-                            site_key=ch.get("site_key") or None,
-                            page_url=ch.get("page_url") or broker.opt_out_url or None,
-                            screenshot=screenshot_path,
-                            status="pending",
-                        )
-                        db.add(c_entry)
-                        db.commit()
-                        db.refresh(c_entry)
-                        try:
-                            from ..plugins.hooks import fire_event
-                            fire_event("captcha_challenge_detected", entity_id=str(c_entry.id), data={
-                                "broker": broker.name, "member": member.full_name,
-                                "challenge_type": c_entry.challenge_type, "page_url": c_entry.page_url
-                            })
-                        except Exception:
-                            pass
-
-                    request.notes = f"Paused for human CAPTCHA resolution ({ch.get('type', 'other')})"
-
-                db.add(AutomationLog(
-                    request_id=request.id, member_id=member.id, broker_id=broker.id,
-                    action="captcha_blocked" if interp_res.needs_captcha else "form_fill",
-                    status="captcha" if interp_res.needs_captcha else ("success" if ok else "failure"),
-                    detail=f"[interpreter] {detail}",
-                    screenshot=screenshot_path,
-                    duration_ms=int((time.monotonic() - start) * 1000),
-                ))
-                db.commit()
+            if broker.is_property_broker:
+                combos = build_property_optout_combos(member)
+                log.info(f"Property form opt-out {broker.name} / {member.full_name}: {len(combos)} combos (formal name: {member.formal_name or 'not set'})")
             else:
-                # Legacy combination-matrix engine (unchanged).
-                if broker.is_property_broker:
-                    combos = build_property_optout_combos(member)
-                    log.info(f"Property form opt-out {broker.name} / {member.full_name}: {len(combos)} combos (formal name: {member.formal_name or 'not set'})")
-                else:
-                    combos = build_optout_combos(member)
-                log.info(f"Form opt-out {broker.name} / {member.full_name}: {len(combos)} combos (legacy engine)")
+                combos = build_optout_combos(member)
+            log.info(f"Form opt-out {broker.name} / {member.full_name}: {len(combos)} combos (unified declarative interpreter)")
 
-                for combo in combos:
-                    page = await context.new_page()
-                    try:
-                        ok, shot = await _fill_one_combo(page, combo, broker, key, script)
-                        if ok: successes += 1
-                        else:  failures  += 1
+            # Run through unified declarative interpreter engine
+            for combo in combos:
+                page = await context.new_page()
+                try:
+                    interp_res = await _run_form_via_interpreter(request, page, cfg, db, combo=combo)
+                    ok = interp_res.ok
+                    detail = interp_res.detail or ("ok" if ok else "form flow failed")
+                    if ok: successes += 1
+                    else:  failures  += 1
 
-                        is_captcha = bool(shot and "captcha" in (shot or ""))
-                        if is_captcha:
-                            from ..models.database import CaptchaChallenge
-                            existing_ch = db.query(CaptchaChallenge).filter(
-                                CaptchaChallenge.request_id == request.id,
-                                CaptchaChallenge.status == "pending"
-                            ).first()
-                            if not existing_ch:
-                                c_entry = CaptchaChallenge(
-                                    request_id=request.id,
-                                    broker_id=broker.id,
-                                    member_id=member.id,
-                                    challenge_type="other",
-                                    page_url=getattr(page, "url", None) or broker.opt_out_url,
-                                    screenshot=shot,
-                                    status="pending",
-                                )
-                                db.add(c_entry)
-                                db.commit()
-                                db.refresh(c_entry)
-                                try:
-                                    from ..plugins.hooks import fire_event
-                                    fire_event("captcha_challenge_detected", entity_id=str(c_entry.id), data={
-                                        "broker": broker.name, "member": member.full_name,
-                                        "challenge_type": "other", "page_url": c_entry.page_url
-                                    })
-                                except Exception:
-                                    pass
+                    screenshot_path = None
+                    if interp_res.needs_captcha:
+                        last_error = "captcha challenge encountered"
+                        ch = interp_res.challenge or {}
+                        if ch.get("screenshot"):
+                            try:
+                                os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
+                                ts = int(time.time())
+                                bname = broker.name.replace(".", "_").replace(" ", "_")
+                                screenshot_path = f"{SCREENSHOTS_DIR}/captcha_{bname}_{ts}.png"
+                                with open(screenshot_path, "wb") as sf:
+                                    sf.write(ch["screenshot"])
+                            except Exception as _se:
+                                log.warning("Could not write captcha screenshot: %s", _se)
 
-                            request.notes = "Paused for human CAPTCHA resolution"
+                        from ..models.database import CaptchaChallenge
+                        existing_ch = db.query(CaptchaChallenge).filter(
+                            CaptchaChallenge.request_id == request.id,
+                            CaptchaChallenge.status == "pending"
+                        ).first()
+                        if not existing_ch:
+                            c_entry = CaptchaChallenge(
+                                request_id=request.id,
+                                broker_id=broker.id,
+                                member_id=member.id,
+                                challenge_type=ch.get("type", "other") or "other",
+                                site_key=ch.get("site_key") or None,
+                                page_url=ch.get("page_url") or broker.opt_out_url or None,
+                                screenshot=screenshot_path,
+                                status="pending",
+                            )
+                            db.add(c_entry)
+                            db.commit()
+                            db.refresh(c_entry)
+                            try:
+                                from ..plugins.hooks import fire_event
+                                fire_event("captcha_challenge_detected", entity_id=str(c_entry.id), data={
+                                    "broker": broker.name, "member": member.full_name,
+                                    "challenge_type": c_entry.challenge_type, "page_url": c_entry.page_url
+                                })
+                            except Exception:
+                                pass
 
-                        db.add(AutomationLog(
-                            request_id=request.id, member_id=member.id, broker_id=broker.id,
-                            action="captcha_blocked" if is_captcha else "form_fill",
-                            status="success" if ok else ("captcha" if is_captcha else "failure"),
-                            detail=combo.label(),
-                            screenshot=shot,
-                            duration_ms=int((time.monotonic() - start) * 1000),
-                        ))
-                        db.commit()
+                        request.notes = f"Paused for human CAPTCHA resolution ({ch.get('type', 'other')})"
 
-                        # Stop if CAPTCHA detected — no point continuing
-                        if is_captcha:
-                            log.warning(f"CAPTCHA on {broker.name} — stopping combo loop for human")
-                            last_error = "captcha challenge encountered"
-                            break
+                    db.add(AutomationLog(
+                        request_id=request.id, member_id=member.id, broker_id=broker.id,
+                        action="captcha_blocked" if interp_res.needs_captcha else "form_fill",
+                        status="captcha" if interp_res.needs_captcha else ("success" if ok else "failure"),
+                        detail=f"[interpreter] {combo.label()}: {detail}",
+                        screenshot=screenshot_path,
+                        duration_ms=int((time.monotonic() - start) * 1000),
+                    ))
+                    db.commit()
 
-                        # Configurable inter-submission delay (bot-evasion)
-                        delay = cfg.get("automation", {}).get("inter_submission_delay_seconds", 1.5)
-                        await asyncio.sleep(delay)
-                    finally:
-                        await page.close()
+                    if interp_res.needs_captcha:
+                        log.warning(f"CAPTCHA on {broker.name} — pausing execution for human")
+                        break
+
+                    delay = cfg.get("automation", {}).get("inter_submission_delay_seconds", 1.5)
+                    await asyncio.sleep(delay)
+                finally:
+                    await page.close()
 
         elif broker.method in (OptOutMethod.manual, OptOutMethod.phone):
             successes = 1
