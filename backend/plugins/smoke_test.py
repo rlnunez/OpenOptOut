@@ -88,7 +88,7 @@ def main():
         sys.path.insert(0, proto_dir)
     sys.path.insert(0, os.path.dirname(__file__))  # so `import proto` resolves too
 
-    from .sdk.privacyshield_sdk import Plugin, manifest
+    from .sdk.openoptout_sdk import Plugin, manifest
 
     events_seen = []
 
@@ -111,7 +111,7 @@ def main():
 
     # Serve the plugin on its own gRPC server (mirrors Plugin.run without stdout)
     plugin_server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
-    from .sdk.privacyshield_sdk import _PluginServicer
+    from .sdk.openoptout_sdk import _PluginServicer
     servicer = _PluginServicer(plugin)
     pbg.add_PluginServiceServicer_to_server(servicer, plugin_server)
     plugin_port = plugin_server.add_insecure_port("127.0.0.1:0")

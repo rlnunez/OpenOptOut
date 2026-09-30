@@ -115,7 +115,7 @@ export default function SystemLogs() {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `privacyshield-diagnostics-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.log`
+      a.download = `openoptout-diagnostics-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.log`
       document.body.appendChild(a)
       a.click()
       a.remove()
@@ -303,7 +303,7 @@ export default function SystemLogs() {
             <div className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
             <div className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
-            <span className="ml-2 text-slate-400 text-[11px]">privacyshield-diagnostics.log</span>
+            <span className="ml-2 text-slate-400 text-[11px]">openoptout-diagnostics.log</span>
           </div>
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
             <Shield size={12} />

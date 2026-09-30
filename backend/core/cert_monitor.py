@@ -146,7 +146,7 @@ def _checks() -> dict:
 
 def https_cert_status():
     """
-    PrivacyShield's own certificate (Caddy front door), or None if HTTPS isn't on.
+    OpenOptOut's own certificate (Caddy front door), or None if HTTPS isn't on.
     Let's Encrypt stopped emailing expiry warnings in 2025, so this is what
     catches a failed automatic renewal.
       letsencrypt          full verification (also catches a leftover staging cert)
@@ -172,7 +172,7 @@ def https_cert_status():
 
 
 LABELS = {"ldap": "LDAP directory", "sip2": "Library ILS (SIP2)", "saml": "SAML identity provider",
-          "https": "PrivacyShield HTTPS"}
+          "https": "OpenOptOut HTTPS"}
 
 
 def alerts(state: dict = None) -> list:
@@ -216,11 +216,11 @@ def run_cert_checks(send_email=True, db=None) -> dict:
     if send_email and due:
         from .admin_notify import send_admin_email
         for key, source, st in due:
-            subject = f"[PrivacyShield] {LABELS.get(source, source)} certificate: action needed"
+            subject = f"[OpenOptOut] {LABELS.get(source, source)} certificate: action needed"
             body = (f"{st.get('message', '')}\n\n"
                     f"Source: {LABELS.get(source, source)}\n"
                     f"Checked: {st.get('checked_at', '')}\n\n"
-                    "This reminder was sent to all PrivacyShield super administrators. "
+                    "This reminder was sent to all OpenOptOut super administrators. "
                     "You'll get one reminder per milestone (30, 14, 7, 3, and 1 day, and on "
                     "expiry), not a daily repeat.")
             result = send_admin_email(subject, body, db=db)

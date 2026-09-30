@@ -14,13 +14,13 @@ This example targets a fictional broker "dataclear.example" with a two-step
 form. Adapt the selectors and logic for real brokers.
 """
 
-from privacyshield_sdk import Plugin, manifest, FormResult
+from openoptout_sdk import Plugin, manifest, FormResult
 
 plugin = Plugin(manifest(
     id="example-broker-filler",
     name="Example Custom Broker Form Filler",
     version="1.0.0",
-    author="PrivacyShield",
+    author="OpenOptOut",
     description="Custom form strategy for dataclear.example.",
     permissions=["fill_forms", "read_pii", "storage"],
     hooks=["fill_form"],

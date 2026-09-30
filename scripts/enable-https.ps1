@@ -1,6 +1,6 @@
 <#
 ==============================================================================
-Turn on HTTPS for PrivacyShield (Caddy front door + automatic certificates).
+Turn on HTTPS for OpenOptOut (Caddy front door + automatic certificates).
 Windows PowerShell / PowerShell 7 port of enable-https.sh — same behavior,
 same .env keys, same docker compose commands afterward. Works whether Docker
 Desktop or Docker Engine is running on this Windows Server (the containers
@@ -130,7 +130,7 @@ if (-not (Test-Path $EnvFile)) {
 
 # ── mode ──
 if (-not $Mode) {
-    Write-Host "How should PrivacyShield get its certificate?"
+    Write-Host "How should OpenOptOut get its certificate?"
     Write-Host "  1) letsencrypt          public server (ports 80+443 reachable from the internet)"
     Write-Host "  2) letsencrypt-staging  same, but Let's Encrypt's TEST service (untrusted certs; use first)"
     Write-Host "  3) acme                 your own ACME CA (e.g. internal step-ca)"

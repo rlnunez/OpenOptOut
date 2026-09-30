@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Turn on HTTPS for a NATIVE (no Docker) PrivacyShield install, using certbot's
+# Turn on HTTPS for a NATIVE (no Docker) OpenOptOut install, using certbot's
 # nginx plugin. This is the native-Linux equivalent of scripts/enable-https.sh
 # (which is for the Docker/Caddy path) — same idea, different mechanism: here,
 # certbot edits your nginx site directly and sets up its own renewal timer,
 # rather than a Caddy container handling it.
 #
 # Prerequisites (see docs/NATIVE_INSTALL.md):
-#   - PrivacyShield is already installed and running natively (systemd unit +
+#   - OpenOptOut is already installed and running natively (systemd unit +
 #     nginx site from deploy/native/), reachable on plain HTTP.
 #   - certbot and python3-certbot-nginx are installed
 #       Debian/Ubuntu:  sudo apt-get install certbot python3-certbot-nginx
@@ -20,13 +20,13 @@
 #
 # Options: --domain D  --email E  --nginx-site PATH (default: auto-detected
 #          under /etc/nginx/sites-available, else /etc/nginx/conf.d)
-#          --env-file PATH (default /opt/privacyshield/.env)
+#          --env-file PATH (default /opt/openoptout/.env)
 #          --staging (Let's Encrypt's test environment — untrusted certs, no
 #            rate limits; run this first, then re-run without --staging)
 #          --yes (no confirmation prompt)  --disable
 #
 # What this does NOT do: install certbot, install/configure nginx or the
-# PrivacyShield service themselves, or restart the privacyshield-api service
+# OpenOptOut service themselves, or restart the openoptout-api service
 # (HTTPS termination happens entirely at nginx; the API doesn't need to know
 # or change). It also does not run docker anything — this script is Docker-free
 # on purpose, for hosts that plain can't run it. See docs/HTTPS.md for the
@@ -34,7 +34,7 @@
 # ==============================================================================
 set -euo pipefail
 
-DOMAIN=""; EMAIL=""; NGINX_SITE=""; ENV_FILE="/opt/privacyshield/.env"
+DOMAIN=""; EMAIL=""; NGINX_SITE=""; ENV_FILE="/opt/openoptout/.env"
 STAGING=0; YES=0; DISABLE=0
 
 while [ $# -gt 0 ]; do
@@ -84,9 +84,9 @@ backup_env() { [ -f "$ENV_FILE" ] && cp "$ENV_FILE" "${ENV_FILE}.bak.$(date +%Y%
 
 # ── --disable ──
 if [ "$DISABLE" = 1 ]; then
-  echo "Reverting nginx's PrivacyShield site to certbot's saved pre-HTTPS backup, if one exists."
+  echo "Reverting nginx's OpenOptOut site to certbot's saved pre-HTTPS backup, if one exists."
   found=""
-  for f in /etc/nginx/sites-available/privacyshield /etc/nginx/conf.d/privacyshield.conf; do
+  for f in /etc/nginx/sites-available/openoptout /etc/nginx/conf.d/openoptout.conf /etc/nginx/sites-available/privacyshield /etc/nginx/conf.d/privacyshield.conf; do
     [ -f "${f}.certbot.bak" ] && { cp "${f}.certbot.bak" "$f"; found="$f"; }
   done
   [ -n "$found" ] || warn "No certbot backup of the nginx site was found — nothing to revert automatically. Edit the nginx site by hand to remove the TLS block, then 'nginx -t && systemctl reload nginx'."
@@ -100,12 +100,12 @@ fi
 
 # ── locate the nginx site ──
 if [ -z "$NGINX_SITE" ]; then
-  for f in /etc/nginx/sites-available/privacyshield /etc/nginx/conf.d/privacyshield.conf; do
+  for f in /etc/nginx/sites-available/openoptout /etc/nginx/conf.d/openoptout.conf /etc/nginx/sites-available/privacyshield /etc/nginx/conf.d/privacyshield.conf; do
     [ -f "$f" ] && NGINX_SITE="$f" && break
   done
 fi
 [ -n "$NGINX_SITE" ] && [ -f "$NGINX_SITE" ] || die \
-  "Couldn't find the PrivacyShield nginx site. Install it first (deploy/native/nginx-privacyshield.conf.example), or pass --nginx-site PATH."
+  "Couldn't find the OpenOptOut nginx site. Install it first (deploy/native/nginx-openoptout.conf.example), or pass --nginx-site PATH."
 
 # ── domain / email ──
 [ -n "$DOMAIN" ] || DOMAIN="$(ask 'Domain name people will use (e.g. privacy.yourlibrary.org)')"
@@ -152,7 +152,7 @@ set_env HTTPS_CHECK_HOST "127.0.0.1"
 echo
 echo "HTTPS is on. certbot installed its own systemd timer for automatic renewal"
 echo "(check with:  systemctl list-timers | grep certbot)."
-echo "Restart the API service so it picks up the new .env values:  sudo systemctl restart privacyshield-api"
+echo "Restart the API service so it picks up the new .env values:  sudo systemctl restart openoptout-api"
 [ "$STAGING" = 1 ] && echo "This used Let's Encrypt's STAGING service — the certificate is intentionally untrusted. Re-run without --staging once you've confirmed everything works."
 echo "If you use Google/Microsoft sign-in or SAML, update their redirect URLs to https://$DOMAIN (docs/SSO.md)."
 exit 0

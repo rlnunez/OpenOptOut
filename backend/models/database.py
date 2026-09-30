@@ -1,5 +1,5 @@
 """
-Database models for PrivacyShield.
+Database models for OpenOptOut.
 Uses SQLite via SQLAlchemy — swap DATABASE_URL in .env for Postgres.
 
 Role model:
@@ -509,7 +509,7 @@ class MemberScheduleConfig(Base):
     member_id            = Column(Integer, ForeignKey("family_members.id"), nullable=False, unique=True)
     max_optouts_per_day  = Column(Integer, nullable=True)   # None = use system default
     enabled              = Column(Boolean, default=True)    # pause opt-outs for this member
-    from_display_name    = Column(String, nullable=True)    # e.g. "Sofia Nunez via PrivacyShield"
+    from_display_name    = Column(String, nullable=True)    # e.g. "Sofia Nunez via OpenOptOut"
     notes                = Column(Text, nullable=True)
     updated_at           = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     updated_by_id        = Column(Integer, ForeignKey("users.id"), nullable=True)

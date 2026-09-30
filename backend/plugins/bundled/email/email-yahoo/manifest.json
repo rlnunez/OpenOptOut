@@ -3,7 +3,7 @@
   "name": "Yahoo Mail Email Provider (dual-mode reference)",
   "version": "1.1.0",
   "type": "email",
-  "author": "PrivacyShield",
+  "author": "OpenOptOut",
   "description": "Reference email-provider plugin demonstrating BOTH transports in one plugin: OAuth 2.0 (preferred) and SMTP/IMAP with an app-password (fallback). The mode is chosen from the stored credentials. Use it as a template for hybrid providers or to see how SMTP/IMAP and OAuth each work. Trusted email-provider class; host inspects for hidden recipients and enforces the recipient at send time.",
   "api_version": "1.0",
   "permissions": ["email_provider", "read_pii", "network", "settings_read"],

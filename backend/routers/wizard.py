@@ -10,10 +10,10 @@ Steps:
   2. email     — deployment MODE (shared inbox | per-user), the provider/transport,
                  and an "advanced: separate admin SMTP" toggle. Skippable with a
                  loud warning (opt-outs silently do nothing without email).
-  3. deployment — how is HTTPS handled here: PrivacyShield's own Caddy container
+  3. deployment — how is HTTPS handled here: OpenOptOut's own Caddy container
                  (Docker, bare metal or a VM — doesn't matter which), a native
                  install's own certbot/win-acme setup (no containers), something
-                 that already terminates TLS in front of PrivacyShield either
+                 that already terminates TLS in front of OpenOptOut either
                  way, or not decided yet? Recorded so the app gives the right
                  guidance and never suggests something that would fight an
                  existing reverse proxy for ports 80/443.
@@ -291,7 +291,7 @@ def save_branding(body: BrandingStep, db: Session = Depends(get_db),
 #
 # Docker vs. native is the real technical fork here — NOT deployment "size".
 # Docker Engine running on a VM (the common enterprise pattern) or on bare
-# metal behaves identically from PrivacyShield's side; "native" means no
+# metal behaves identically from OpenOptOut's side; "native" means no
 # containers at all (systemd + nginx + certbot on Linux, or a Windows Service
 # + IIS + win-acme on Windows) — see docs/NATIVE_INSTALL.md.
 
@@ -306,11 +306,11 @@ def save_deployment(body: DeploymentStep, db: Session = Depends(get_db),
     """
     reverse_proxy:
       managed  — running via Docker (bare metal or a VM — Docker doesn't care
-                 which), nothing else already on ports 80/443. Let PrivacyShield's
+                 which), nothing else already on ports 80/443. Let OpenOptOut's
                  own Caddy container get and renew certificates. Guidance keeps
                  pointing at scripts/enable-https.sh (Linux/macOS) or .ps1
                  (Windows), run on the host, until HTTPS is live.
-      native   — no containers at all: PrivacyShield runs as a native process
+      native   — no containers at all: OpenOptOut runs as a native process
                  (systemd on Linux, a Windows Service on Windows). HTTPS is
                  handled directly on the host too — certbot + nginx on Linux,
                  win-acme + IIS on Windows. Guidance points at
@@ -318,8 +318,8 @@ def save_deployment(body: DeploymentStep, db: Session = Depends(get_db),
                  (Windows, since IIS/win-acme setup isn't reasonably a single
                  script) until HTTPS is live.
       external — something else (a load balancer, another team's reverse
-                 proxy) already terminates TLS in front of PrivacyShield,
-                 whether PrivacyShield itself runs in Docker or natively. The
+                 proxy) already terminates TLS in front of OpenOptOut,
+                 whether OpenOptOut itself runs in Docker or natively. The
                  plain-HTTP nag is suppressed for this choice: if that's true,
                  people are already reaching the site over https and the
                  browser-side check confirms it; if the admin is wrong, it's a
@@ -386,7 +386,7 @@ def complete(db: Session = Depends(get_db), user: User = Depends(get_current_use
     if reverse_proxy == "managed":
         warnings.append("Run scripts/enable-https.sh (Linux/macOS) or scripts\\enable-https.ps1 "
                         "(Windows) on the server, then restart the containers, to turn on "
-                        "PrivacyShield's own HTTPS front door.")
+                        "OpenOptOut's own HTTPS front door.")
     elif reverse_proxy == "native":
         warnings.append("Run scripts/enable-https-native.sh (Linux) or follow the Windows steps "
                         "in docs/NATIVE_INSTALL.md (IIS + win-acme) to turn on HTTPS for this "

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Turn on HTTPS for PrivacyShield (Caddy front door + automatic certificates).
+# Turn on HTTPS for OpenOptOut (Caddy front door + automatic certificates).
 #
 #   ./scripts/enable-https.sh                       # interactive
 #   ./scripts/enable-https.sh --mode letsencrypt --domain privacy.lib.org --email it@lib.org
@@ -73,7 +73,7 @@ fi
 [ -f "$ENV_FILE" ] || die "$ENV_FILE not found. Create it first (cp .env.example .env)."
 
 if [ -z "$MODE" ]; then
-  echo "How should PrivacyShield get its certificate?"
+  echo "How should OpenOptOut get its certificate?"
   echo "  1) letsencrypt          public server (ports 80+443 reachable from the internet)"
   echo "  2) letsencrypt-staging  same, but Let's Encrypt's TEST service (untrusted certs; use first)"
   echo "  3) acme                 your own ACME CA (e.g. internal step-ca)"

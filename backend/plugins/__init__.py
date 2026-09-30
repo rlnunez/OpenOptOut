@@ -1,5 +1,5 @@
 """
-PrivacyShield plugin system.
+OpenOptOut plugin system.
 
 Process-isolated, gRPC-based plugin architecture with OS-level sandboxing and
 capability-gated permissions. See docs/PLUGINS.md for the full design and

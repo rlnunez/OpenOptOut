@@ -1,7 +1,7 @@
 """
 Example Activity Tracker plugin.
 
-Demonstrates the PrivacyShield plugin SDK:
+Demonstrates the OpenOptOut plugin SDK:
   - declaring a manifest + permissions
   - the on_event hook (reacting to lifecycle events)
   - permission-gated storage (counting events)
@@ -14,13 +14,13 @@ redacted — it works purely on counts and metadata.
 Copy this directory as a starting point for your own plugin.
 """
 
-from privacyshield_sdk import Plugin, manifest
+from openoptout_sdk import Plugin, manifest
 
 plugin = Plugin(manifest(
     id="example-tracker",
     name="Example Activity Tracker",
     version="1.0.0",
-    author="PrivacyShield",
+    author="OpenOptOut",
     description="Counts opt-out and confirmation events per broker.",
     permissions=["receive_events", "storage"],
     hooks=["on_event"],

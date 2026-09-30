@@ -14,8 +14,8 @@ const STATIC_DOCS = {
   setup: [
     {
       id: 'how-it-works',
-      title: 'How PrivacyShield works',
-      content: `PrivacyShield automates the removal of your personal information from data brokers — companies that collect and sell your name, address, phone number, and other details without your direct consent.
+      title: 'How OpenOptOut works',
+      content: `OpenOptOut automates the removal of your personal information from data brokers — companies that collect and sell your name, address, phone number, and other details without your direct consent.
 
 **The pipeline has four stages:**
 
@@ -23,7 +23,7 @@ const STATIC_DOCS = {
 
 2. **Discovery** — The system searches data broker sites for listings matching your identity data and logs which sites have your information.
 
-3. **Opt-out** — For each confirmed listing, PrivacyShield submits a removal request using the broker's opt-out form or sends a formal email request. Every outgoing email includes a unique tracking ID in the subject line.
+3. **Opt-out** — For each confirmed listing, OpenOptOut submits a removal request using the broker's opt-out form or sends a formal email request. Every outgoing email includes a unique tracking ID in the subject line.
 
 4. **Monitoring** — The email monitor polls your configured inbox for confirmation emails, matches them to your requests using the tracking ID, and marks removals as confirmed. Re-check dates are set automatically so removals are re-verified before brokers can re-list you.`,
     },
@@ -39,14 +39,14 @@ const STATIC_DOCS = {
 
 **Recommended setup (OAuth 2.0 — Most Secure):**
 1. Create or use a dedicated mailbox (e.g. `yourname.removals@gmail.com` or Outlook).
-2. In PrivacyShield Settings → Email (or during the initial Setup Wizard), click **Connect with Google** or **Connect with Microsoft**.
+2. In OpenOptOut Settings → Email (or during the initial Setup Wizard), click **Connect with Google** or **Connect with Microsoft**.
 3. Authorize the requested mail permissions. OAuth uses temporary scoped tokens instead of storing long-lived passwords.
 
 **Alternative setup (App Passwords / SMTP):**
 If you use Yahoo, Fastmail, or prefer traditional IMAP/SMTP:
 1. Enable 2-Step Verification on the account
 2. Generate an App Password in your provider's security settings (e.g. `myaccount.google.com/apppasswords`)
-3. In PrivacyShield Settings → Email, select your provider preset
+3. In OpenOptOut Settings → Email, select your provider preset
 4. Enter your email and paste the App Password (not your primary password) into the password fields
 5. Click "Test connection" — both IMAP and SMTP should show green`,
     },
@@ -69,7 +69,7 @@ Go to Settings → Scheduler → Recheck interval. Resistant brokers (those that
     {
       id: 'database-scaling',
       title: 'Database scaling — SQLite vs PostgreSQL',
-      content: `PrivacyShield defaults to SQLite for simplicity, but PostgreSQL is strongly recommended for institutional deployments with more than ~100 concurrent users.
+      content: `OpenOptOut defaults to SQLite for simplicity, but PostgreSQL is strongly recommended for institutional deployments with more than ~100 concurrent users.
 
 **SQLite is fine for:**
 - Library staff deployments (10–200 users)
@@ -112,7 +112,7 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: privacyshield
+      POSTGRES_DB: openoptout
       POSTGRES_USER: ps_user
       POSTGRES_PASSWORD: your-strong-password
     volumes:
@@ -121,7 +121,7 @@ services:
 
   api:
     environment:
-      - DATABASE_URL=postgresql://ps_user:your-strong-password@db:5432/privacyshield
+      - DATABASE_URL=postgresql://ps_user:your-strong-password@db:5432/openoptout
 
 volumes:
   pg_data:
@@ -149,7 +149,7 @@ If starting fresh, just set the URL and restart — the schema is created automa
     {
       id: 'db-enterprise-auth',
       title: 'Enterprise database authentication',
-      content: `For deployments where a plain username/password connection string is not acceptable, PrivacyShield supports several PostgreSQL authentication methods configurable under Admin → Database → Connection.
+      content: `For deployments where a plain username/password connection string is not acceptable, OpenOptOut supports several PostgreSQL authentication methods configurable under Admin → Database → Connection.
 
 **Security principle:**
 Secrets (passwords, private keys, certificates) are never stored in the application database or settings. They live in environment variables or mounted files that your database administrator controls. The app only reads them — it never writes, displays, or logs them.
@@ -200,7 +200,7 @@ Client-certificate auth with sslmode=verify-full is recommended for the highest 
     {
       id: 'bot-evasion',
       title: 'Avoiding broker blocking',
-      content: `Data brokers increasingly detect and block automated form submissions. PrivacyShield includes several measures to reduce blocking, configurable under Settings → Automation.
+      content: `Data brokers increasingly detect and block automated form submissions. OpenOptOut includes several measures to reduce blocking, configurable under Settings → Automation.
 
 **User-agent rotation:**
 Each broker submission uses a randomized browser fingerprint from a pool of ~15 current, real user agents (Chrome, Firefox, Safari, Edge across Windows and macOS). The viewport is matched to the platform so the browser context is internally consistent. Admins can add custom user-agent strings to expand the pool.
@@ -228,7 +228,7 @@ Rather than sending all opt-outs in one nightly burst — which creates an obvio
 For a large deployment (e.g. a library serving thousands of patrons), distributed or rate-limited mode is strongly recommended. A nightly burst of thousands of submissions from one IP is both easy to detect and likely to overwhelm the container.
 
 **Daily caps per person (spreads a new signup over days):**
-A new member can have hundreds of pending opt-outs. Rather than firing all of them at once — a screaming automation signal — the scheduler caps how many brokers are submitted per member per day (Settings → Scheduler → *max opt-outs per day*, default 20), with a global system ceiling on top, whichever is reached first. A single member's 400+ brokers then clear gradually over weeks, which both looks far more human and protects your shared proxy pool. Individual members can be given a higher or lower cap for special cases (Scheduled → per-member config). Within each day's budget, brokers are dispatched **highest-priority-first** (a 1–5 priority per broker, 5 = highest). New brokers get a sensible auto-priority (property/resistant brokers rank highest), and a super admin can override it — per broker, in bulk, or with rules ("all property brokers = 5") — on the **Broker priority** admin page, and share those priorities between deployments via export/import. So a person's most sensitive exposures clear earliest.
+A new member can have hundreds of pending opt-outs. Rather than firing all of them at once — a screaming automation signal — the scheduler caps how many brokers are submitted per member per day (Settings → Scheduler → *max opt-outs per day*, default 20), with a global system ceiling on top, whichever is reached first. A single member's pending brokers then clear gradually over weeks, which both looks far more human and protects your shared proxy pool. Individual members can be given a higher or lower cap for special cases (Scheduled → per-member config). Within each day's budget, brokers are dispatched **highest-priority-first** (a 1–5 priority per broker, 5 = highest). New brokers get a sensible auto-priority (property/resistant brokers rank highest), and a super admin can override it — per broker, in bulk, or with rules ("all property brokers = 5") — on the **Broker priority** admin page, and share those priorities between deployments via export/import. So a person's most sensitive exposures clear earliest.
 
 **IP masking (the most effective measure):**
 Brokers track and block primarily by IP address. A datacenter IP (what your server likely has) is the biggest tell. Configure proxies under Settings → Proxy:
@@ -248,7 +248,7 @@ Rotating residential proxy pool + user-agent rotation + distributed job spreadin
       title: 'Proxy & VPN provider recommendations',
       content: `There are two distinct needs here, and they call for different tools. **Proxies** mask the IP of the automation engine so brokers don't block your opt-out submissions. **VPNs** protect the privacy of an individual person's everyday browsing. Don't confuse the two — a consumer VPN is a poor fit for the automation engine, and a datacenter proxy does nothing for personal privacy.
 
-These are informational recommendations to help you evaluate options, not endorsements. Pricing, ownership, and policies change — verify current details and read the provider's own terms before committing. Neither PrivacyShield nor its maintainers are affiliated with any provider below.
+These are informational recommendations to help you evaluate options, not endorsements. Pricing, ownership, and policies change — verify current details and read the provider's own terms before committing. Neither OpenOptOut nor its maintainers are affiliated with any provider below.
 
 *Last reviewed: July 2026. Provider pricing, ownership, and policies change frequently — re-verify before relying on any detail here.*
 

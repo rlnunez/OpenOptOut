@@ -3,7 +3,7 @@ SAML 2.0 service provider (SP) — general-purpose staff/employee sign-in.
 
 Works with any standards-compliant SAML identity provider: a home-lab Keycloak or
 Authentik, a university Shibboleth / InCommon IdP, Microsoft ADFS or Entra, Okta,
-etc. The administrator uploads (or points at) the IdP's metadata; PrivacyShield
+etc. The administrator uploads (or points at) the IdP's metadata; OpenOptOut
 publishes its own SP metadata for the IdP to register.
 
 Built on pysaml2 (maintained, uses the xmlsec1 tool for XML signatures) — no

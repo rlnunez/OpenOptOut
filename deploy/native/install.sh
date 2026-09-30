@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Native (no Docker) install/update for PrivacyShield, on Debian/Ubuntu Linux.
+# Native (no Docker) install/update for OpenOptOut, on Debian/Ubuntu Linux.
 #
 #   sudo ./deploy/native/install.sh                # first install (interactive wizard or flags)
 #   sudo ./deploy/native/install.sh --update        # pull code changes back in

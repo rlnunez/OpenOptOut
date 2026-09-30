@@ -109,7 +109,7 @@ def _ldap_ca_file(pem: str) -> str:
     try:
         os.makedirs(base, exist_ok=True)
     except OSError:
-        base = os.path.join(tempfile.gettempdir(), "privacyshield_ldap_ca")
+        base = os.path.join(tempfile.gettempdir(), "openoptout_ldap_ca")
         os.makedirs(base, exist_ok=True)
     path = os.path.join(base, hashlib.sha256(pem.encode()).hexdigest()[:16] + ".pem")
     if not os.path.exists(path):

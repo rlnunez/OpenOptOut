@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# PrivacyShield Unified Host & Fleet Installer (CLI/TUI) — Roadmap Item 23
+# OpenOptOut Unified Host & Fleet Installer (CLI/TUI) — Roadmap Item 23
 #
 # Interactive terminal wizard and scriptable installer for single-node
 # and distributed cluster environments (Debian/Ubuntu Linux).
 #
 # Usage:
 #   sudo ./deploy/installer/setup.sh [OPTIONS]
-#   curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/install.sh | sudo bash
 #
 # Non-Interactive / Scriptable Flags:
 #   --role <ROLE>         standalone | control-plane | worker (default: prompt or standalone)
@@ -20,7 +20,7 @@
 #   --worker-id <ID>      Custom worker node identifier (default: worker-<hostname>)
 #   --concurrency <N>     Number of parallel worker execution slots (default: 1)
 #   --secret-key <KEY>    Shared cluster secret key for envelope signing
-#   --install-dir <PATH>  Target directory (default: /opt/privacyshield)
+#   --install-dir <PATH>  Target directory (default: /opt/openoptout)
 #   --unattended, -y      Skip interactive prompts and use provided or default options
 #   --update              Pull code changes and rebuild without altering .env or data
 #   --skip-nginx          Skip Nginx reverse proxy configuration
@@ -34,8 +34,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-INSTALL_DIR="/opt/privacyshield"
-SVC_USER="privacyshield"
+INSTALL_DIR="/opt/openoptout"
+SVC_USER="openoptout"
 ROLE=""
 DB_ENGINE=""
 DB_URL=""
@@ -111,7 +111,7 @@ if [[ "$ROLE" == "ui" ]]; then ROLE="control-plane"; fi
 
 # Root privilege validation
 [ "$(id -u)" = 0 ] || die "This installer requires root privileges. Please re-run with sudo."
-[ -f "$REPO_ROOT/backend/main.py" ] || die "Cannot find backend/main.py in $REPO_ROOT. Run from within the PrivacyShield repo."
+[ -f "$REPO_ROOT/backend/main.py" ] || die "Cannot find backend/main.py in $REPO_ROOT. Run from within the OpenOptOut repo."
 
 # ── Interactive TUI Wizard ───────────────────────────────────────────────────
 # If standard input is a pipe (e.g. curl | bash), redirect input from /dev/tty if available
@@ -149,14 +149,14 @@ if [ "$IS_INTERACTIVE" = 1 ]; then
   # 1. Cluster Role Selection
   if [ -z "$ROLE" ]; then
     if [ "$USE_WHIPTAIL" = 1 ]; then
-      ROLE=$(whiptail --title "PrivacyShield Installer — Role Selection" \
+      ROLE=$(whiptail --title "OpenOptOut Installer — Role Selection" \
         --menu "Select the cluster deployment role for this node:" 16 75 3 \
         "standalone" "All-in-one: Web UI, API, DB & local browser automation" \
         "control-plane" "Web UI & API server (Excludes browser/X11, saves >1.5GB)" \
         "worker" "Stateless compute node (Playwright Firefox, no Web UI/Nginx)" \
         3>&1 1>&2 2>&3) || die "Installation cancelled."
     else
-      echo -e "\n${BOLD}${CYAN}=== PrivacyShield Cluster Role Selection ===${NC}"
+      echo -e "\n${BOLD}${CYAN}=== OpenOptOut Cluster Role Selection ===${NC}"
       echo "1) standalone    — All-in-one: Web UI, API, database & local browser automation"
       echo "2) control-plane — Web UI, API, Nginx & Redis dispatcher (No browser/X11; saves >1.5GB)"
       echo "3) worker        — Headless worker daemon & Playwright Firefox (No Web UI/Nginx)"
@@ -173,7 +173,7 @@ if [ "$IS_INTERACTIVE" = 1 ]; then
   # 2. Database Selection (For standalone & control-plane)
   if [[ "$ROLE" != "worker" ]] && [ -z "$DB_ENGINE" ]; then
     if [ "$USE_WHIPTAIL" = 1 ]; then
-      DB_ENGINE=$(whiptail --title "PrivacyShield Installer — Database Selection" \
+      DB_ENGINE=$(whiptail --title "OpenOptOut Installer — Database Selection" \
         --menu "Select the database engine for this deployment:" 15 70 3 \
         "sqlite" "SQLite: File-based local storage (Zero configuration)" \
         "postgres" "PostgreSQL: Production relational database" \
@@ -198,7 +198,7 @@ if [ "$IS_INTERACTIVE" = 1 ]; then
         if whiptail --title "PostgreSQL Setup" --yesno "Would you like this installer to automatically install and provision a local PostgreSQL server with secure credentials?" 10 70; then
           DB_AUTO_PG=1
         else
-          DB_URL=$(whiptail --title "PostgreSQL Connection String" --inputbox "Enter the PostgreSQL connection URL:" 10 70 "postgresql://privacyshield:password@localhost/privacyshield" 3>&1 1>&2 2>&3) || true
+          DB_URL=$(whiptail --title "PostgreSQL Connection String" --inputbox "Enter the PostgreSQL connection URL:" 10 70 "postgresql://openoptout:password@localhost/openoptout" 3>&1 1>&2 2>&3) || true
         fi
       else
         echo -e "\nProvision local PostgreSQL automatically?"
@@ -206,7 +206,7 @@ if [ "$IS_INTERACTIVE" = 1 ]; then
         if [[ "${pg_ans:-y}" =~ ^[Yy] ]]; then
           DB_AUTO_PG=1
         else
-          DB_URL=$(prompt_ansi "PostgreSQL Connection URL" "postgresql://privacyshield:password@localhost/privacyshield")
+          DB_URL=$(prompt_ansi "PostgreSQL Connection URL" "postgresql://openoptout:password@localhost/openoptout")
         fi
       fi
     fi
@@ -215,7 +215,7 @@ if [ "$IS_INTERACTIVE" = 1 ]; then
   # 3. Domain & Web Server (For standalone & control-plane)
   if [[ "$ROLE" != "worker" ]] && [ -z "$DOMAIN" ]; then
     if [ "$USE_WHIPTAIL" = 1 ]; then
-      DOMAIN=$(whiptail --title "Domain Configuration" --inputbox "Enter the domain or IP address for PrivacyShield:" 10 70 "localhost" 3>&1 1>&2 2>&3) || DOMAIN="localhost"
+      DOMAIN=$(whiptail --title "Domain Configuration" --inputbox "Enter the domain or IP address for OpenOptOut:" 10 70 "localhost" 3>&1 1>&2 2>&3) || DOMAIN="localhost"
     else
       DOMAIN=$(prompt_ansi "Domain or IP address" "localhost")
     fi
@@ -277,7 +277,7 @@ REDIS_URL="${REDIS_URL:-}"
 WORKER_ID="${WORKER_ID:-worker-$(hostname -s 2>/dev/null || echo "node")}"
 WORKER_CONCURRENCY="${WORKER_CONCURRENCY:-1}"
 
-head "Installing PrivacyShield Node"
+head "Installing OpenOptOut Node"
 info "Deployment Role:    $ROLE"
 info "Target Directory:   $INSTALL_DIR"
 if [[ "$ROLE" != "worker" ]]; then
@@ -305,7 +305,7 @@ mkdir -p "$INSTALL_DIR" \
          "$INSTALL_DIR/data/plugins" \
          "$INSTALL_DIR/data/plugin_storage" \
          "$INSTALL_DIR/data/logo" \
-         /var/log/privacyshield
+         /var/log/openoptout
 
 # Lock down data directory permissions (Roadmap Item 15/23)
 chmod 750 "$INSTALL_DIR"
@@ -370,25 +370,25 @@ if [[ "$ROLE" != "worker" ]]; then
         apt-get install -y postgresql postgresql-contrib
         systemctl enable --now postgresql
         PG_PASS="$(gen_secret)"
-        sudo -u postgres psql -c "CREATE USER privacyshield WITH ENCRYPTED PASSWORD '$PG_PASS';" >/dev/null 2>&1 || \
-          sudo -u postgres psql -c "ALTER USER privacyshield WITH ENCRYPTED PASSWORD '$PG_PASS';" >/dev/null 2>&1
-        sudo -u postgres psql -c "CREATE DATABASE privacyshield OWNER privacyshield;" >/dev/null 2>&1 || true
-        DB_URL="postgresql://privacyshield:$PG_PASS@localhost/privacyshield"
-        info "Local PostgreSQL database 'privacyshield' created."
+        sudo -u postgres psql -c "CREATE USER openoptout WITH ENCRYPTED PASSWORD '$PG_PASS';" >/dev/null 2>&1 || \
+          sudo -u postgres psql -c "ALTER USER openoptout WITH ENCRYPTED PASSWORD '$PG_PASS';" >/dev/null 2>&1
+        sudo -u postgres psql -c "CREATE DATABASE openoptout OWNER openoptout;" >/dev/null 2>&1 || true
+        DB_URL="postgresql://openoptout:$PG_PASS@localhost/openoptout"
+        info "Local PostgreSQL database 'openoptout' created."
       else
         warn "Cannot auto-install PostgreSQL without apt-get. Defaulting to SQLite."
-        DB_URL="sqlite:////$INSTALL_DIR/data/privacyshield.db"
+        DB_URL="sqlite:////$INSTALL_DIR/data/openoptout.db"
       fi
     elif [ -z "$DB_URL" ]; then
-      DB_URL="sqlite:////$INSTALL_DIR/data/privacyshield.db"
+      DB_URL="sqlite:////$INSTALL_DIR/data/openoptout.db"
     fi
   elif [[ "$DB_ENGINE" == "sqlcipher" ]]; then
     SQLCIPHER_KEY="$(gen_secret)"
-    DB_URL="sqlite:////$INSTALL_DIR/data/privacyshield.db"
+    DB_URL="sqlite:////$INSTALL_DIR/data/openoptout.db"
     info "Generated SQLCipher 256-bit database encryption key."
   else
-    DB_URL="sqlite:////$INSTALL_DIR/data/privacyshield.db"
-    info "Using local SQLite database: $INSTALL_DIR/data/privacyshield.db"
+    DB_URL="sqlite:////$INSTALL_DIR/data/openoptout.db"
+    info "Using local SQLite database: $INSTALL_DIR/data/openoptout.db"
   fi
 fi
 
@@ -396,7 +396,7 @@ fi
 head "Deploying Application Code to $INSTALL_DIR/app"
 rsync -a --delete \
   --exclude '__pycache__' --exclude '*.pyc' --exclude '*.db' \
-  --exclude 'privacyshield_settings.json' --exclude 'cert_monitor.json' \
+  --exclude 'openoptout_settings.json' --exclude 'privacyshield_settings.json' --exclude 'cert_monitor.json' \
   "$REPO_ROOT/backend/" "$INSTALL_DIR/app/"
 
 touch "$INSTALL_DIR/app/__init__.py"
@@ -462,11 +462,11 @@ if [ ! -f "$INSTALL_DIR/.env" ] || [ "$UPDATE" = 0 ]; then
   [ -n "$SECRET_KEY" ] || SECRET_KEY="$(gen_secret)"
 
   cat <<EOF > "$INSTALL_DIR/.env"
-# PrivacyShield Cluster Node Configuration
-# Generated by PrivacyShield Installer (Roadmap Item 23)
+# OpenOptOut Cluster Node Configuration
+# Generated by OpenOptOut Installer (Roadmap Item 23)
 ROLE=$ROLE
 SECRET_KEY=$SECRET_KEY
-SETTINGS_FILE=$INSTALL_DIR/data/privacyshield_settings.json
+SETTINGS_FILE=$INSTALL_DIR/data/openoptout_settings.json
 LOGO_PATH=$INSTALL_DIR/data/logo
 EOF
 
@@ -500,16 +500,16 @@ EOF
 fi
 
 # Set directory permissions
-chown -R "$SVC_USER:$SVC_USER" "$INSTALL_DIR" /var/log/privacyshield
+chown -R "$SVC_USER:$SVC_USER" "$INSTALL_DIR" /var/log/openoptout
 
 # ── 8. Zero-Touch Nginx & Reverse Proxy Automation ───────────────────────────
 if [[ "$ROLE" == "standalone" || "$ROLE" == "control-plane" ]] && [ "$SKIP_NGINX" = 0 ]; then
   head "Configuring Nginx Reverse Proxy"
   if command -v nginx >/dev/null 2>&1; then
-    NGINX_CONF="/etc/nginx/sites-available/privacyshield"
+    NGINX_CONF="/etc/nginx/sites-available/openoptout"
 
     cat <<EOF > "$NGINX_CONF"
-# PrivacyShield — Nginx Reverse Proxy Configuration (Roadmap Item 23)
+# OpenOptOut — Nginx Reverse Proxy Configuration (Roadmap Item 23)
 server {
     listen 80;
     listen [::]:80;
@@ -552,7 +552,7 @@ EOF
 
     # Symlink to sites-enabled
     mkdir -p /etc/nginx/sites-enabled
-    ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/privacyshield
+    ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/openoptout
 
     # Test and reload
     if nginx -t >/dev/null 2>&1; then
@@ -591,10 +591,10 @@ fi
 head "Configuring Systemd Services"
 
 if [[ "$ROLE" == "standalone" || "$ROLE" == "control-plane" ]]; then
-  cp "$REPO_ROOT/deploy/native/privacyshield-api.service" /etc/systemd/system/privacyshield-api.service
+  cp "$REPO_ROOT/deploy/native/openoptout-api.service" /etc/systemd/system/openoptout-api.service
   systemctl daemon-reload
-  systemctl enable --now privacyshield-api
-  info "Enabled and started privacyshield-api.service"
+  systemctl enable --now openoptout-api
+  info "Enabled and started openoptout-api.service"
 
   # Pre-flight health check
   info "Performing pre-flight health probe (http://127.0.0.1:8000/api/health)..."
@@ -609,38 +609,38 @@ if [[ "$ROLE" == "standalone" || "$ROLE" == "control-plane" ]]; then
 
   echo
   echo -e "${GREEN}========================================================================${NC}"
-  echo -e "${BOLD}${GREEN}  PrivacyShield ${ROLE^^} Node Deployed Successfully!${NC}"
+  echo -e "${BOLD}${GREEN}  OpenOptOut ${ROLE^^} Node Deployed Successfully!${NC}"
   echo -e "${GREEN}========================================================================${NC}"
   if [ "$HEALTH_OK" = 1 ]; then
     echo -e "  Status:         ${GREEN}HEALTHY (API online)${NC}"
   else
-    echo -e "  Status:         ${YELLOW}INITIALIZING (Check: sudo journalctl -u privacyshield-api -f)${NC}"
+    echo -e "  Status:         ${YELLOW}INITIALIZING (Check: sudo journalctl -u openoptout-api -f)${NC}"
   fi
   ACCESS_PROTO="http"
   [[ "$TLS_MODE" == "letsencrypt" ]] && ACCESS_PROTO="https"
   echo -e "  Web Access:     ${BOLD}${CYAN}$ACCESS_PROTO://$DOMAIN${NC}"
   echo -e "  Initial Setup:  The first person to register becomes the Super Admin."
-  echo -e "  Service Status: sudo systemctl status privacyshield-api"
-  echo -e "  Live Logs:      sudo journalctl -u privacyshield-api -f"
+  echo -e "  Service Status: sudo systemctl status openoptout-api"
+  echo -e "  Live Logs:      sudo journalctl -u openoptout-api -f"
   echo -e "${GREEN}========================================================================${NC}"
 fi
 
 if [[ "$ROLE" == "worker" ]]; then
-  cp "$REPO_ROOT/deploy/native/privacyshield-worker.service" /etc/systemd/system/privacyshield-worker.service
+  cp "$REPO_ROOT/deploy/native/openoptout-worker.service" /etc/systemd/system/openoptout-worker.service
   systemctl daemon-reload
-  systemctl enable --now privacyshield-worker
-  info "Enabled and started privacyshield-worker.service"
+  systemctl enable --now openoptout-worker
+  info "Enabled and started openoptout-worker.service"
 
   sleep 2
   echo
   echo -e "${GREEN}========================================================================${NC}"
-  echo -e "${BOLD}${GREEN}  PrivacyShield Worker Fleet Node Online!${NC}"
+  echo -e "${BOLD}${GREEN}  OpenOptOut Worker Fleet Node Online!${NC}"
   echo -e "${GREEN}========================================================================${NC}"
   echo -e "  Worker ID:      ${BOLD}${CYAN}$WORKER_ID${NC}"
   echo -e "  Concurrency:    $WORKER_CONCURRENCY concurrent slot(s)"
   echo -e "  Queue Target:   ${REDIS_URL:-InProcess}"
-  echo -e "  Status:         sudo systemctl status privacyshield-worker"
-  echo -e "  Live Logs:      sudo journalctl -u privacyshield-worker -f"
+  echo -e "  Status:         sudo systemctl status openoptout-worker"
+  echo -e "  Live Logs:      sudo journalctl -u openoptout-worker -f"
   echo -e "${GREEN}========================================================================${NC}"
 fi
 

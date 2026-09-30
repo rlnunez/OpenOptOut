@@ -32,11 +32,11 @@ import email as email_mod
 from email.mime.text import MIMEText
 from email.utils import parsedate_to_datetime
 
-from privacyshield_sdk import Plugin, manifest
+from openoptout_sdk import Plugin, manifest
 
 plugin = Plugin(manifest(
     id="email-yahoo", name="Yahoo Mail Email Provider (dual-mode reference)",
-    version="1.1.0", author="PrivacyShield",
+    version="1.1.0", author="OpenOptOut",
     permissions=["email_provider", "read_pii", "network", "settings_read"],
     hooks=["email_provider"],
     methods=["settings.get", "log"],

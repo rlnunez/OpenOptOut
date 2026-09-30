@@ -1,15 +1,15 @@
-# PrivacyShield API — systemd unit (native install, no Docker).
+# OpenOptOut API — systemd unit (native install, no Docker).
 #
 # Install:
-#   sudo cp deploy/native/privacyshield-api.service /etc/systemd/system/
+#   sudo cp deploy/native/openoptout-api.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
-#   sudo systemctl enable --now privacyshield-api
+#   sudo systemctl enable --now openoptout-api
 #
 # This assumes deploy/native/install.sh (or the equivalent manual steps in
-# docs/NATIVE_INSTALL.md) has already: created /opt/privacyshield/app (the
+# docs/NATIVE_INSTALL.md) has already: created /opt/openoptout/app (the
 # backend code, laid out as an importable "app" package — main.py's relative
 # imports require this, exactly like the Docker image does), a venv at
-# /opt/privacyshield/venv, and an EnvironmentFile at /opt/privacyshield/.env
+# /opt/openoptout/venv, and an EnvironmentFile at /opt/openoptout/.env
 # (the same keys as .env.example — SECRET_KEY, FRONTEND_URL, HTTPS_MODE/DOMAIN
 # if using scripts/enable-https-native.sh, etc). Adjust the paths below if you
 # installed somewhere else.
@@ -19,7 +19,7 @@
 # starting point — watch memory, since each worker is a separate process.
 
 [Unit]
-Description=PrivacyShield API
+Description=OpenOptOut API
 After=network.target
 # Uncomment if using a local PostgreSQL managed by systemd too:
 # After=network.target postgresql.service
@@ -27,11 +27,11 @@ After=network.target
 
 [Service]
 Type=simple
-User=privacyshield
-Group=privacyshield
-WorkingDirectory=/opt/privacyshield
-EnvironmentFile=/opt/privacyshield/.env
-ExecStart=/opt/privacyshield/venv/bin/uvicorn app.main:app \
+User=openoptout
+Group=openoptout
+WorkingDirectory=/opt/openoptout
+EnvironmentFile=/opt/openoptout/.env
+ExecStart=/opt/openoptout/venv/bin/uvicorn app.main:app \
     --host 127.0.0.1 --port 8000 --workers 2
 Restart=on-failure
 RestartSec=5
@@ -42,7 +42,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/privacyshield/data /var/log/privacyshield
+ReadWritePaths=/opt/openoptout/data /var/log/openoptout
 # Plugin system sandboxing uses Linux namespaces (bubblewrap) the same way the
 # Docker image does. If you enable the plugin system on a native install,
 # these hardening options can conflict with what bubblewrap itself needs to

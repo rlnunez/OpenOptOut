@@ -12,13 +12,13 @@ It receives rich page context from the host and yields structured BrowserActions
 which the host executes in its secure sandboxed Playwright container.
 """
 
-from privacyshield_sdk import Plugin, manifest, FormResult
+from openoptout_sdk import Plugin, manifest, FormResult
 
 plugin = Plugin(manifest(
     id="example-multistep-filler",
     name="Example Multi-Step Wizard Broker Filler",
     version="1.0.0",
-    author="PrivacyShield",
+    author="OpenOptOut",
     description="Multi-page broker wizard handler.",
     permissions=["fill_forms", "read_pii", "storage"],
     hooks=["fill_form"],

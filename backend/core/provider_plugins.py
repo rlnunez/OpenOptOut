@@ -1,5 +1,5 @@
 """
-Auto-provisioning for the email-provider plugins PrivacyShield ships with
+Auto-provisioning for the email-provider plugins OpenOptOut ships with
 (Gmail, Outlook, Yahoo — source under backend/plugins/bundled/email/, installed
 into <plugins root>/email/<id>/ like any other email plugin).
 

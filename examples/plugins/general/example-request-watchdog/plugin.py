@@ -19,13 +19,13 @@ logic for identifying which requests are actually stuck before marking them
 failed in a real deployment.
 """
 
-from privacyshield_sdk import Plugin, manifest
+from openoptout_sdk import Plugin, manifest
 
 plugin = Plugin(manifest(
     id="example-request-watchdog",
     name="Example Request Watchdog",
     version="1.0.0",
-    author="PrivacyShield",
+    author="OpenOptOut",
     description="Checks broker stats and can mark stuck requests failed.",
     permissions=["receive_events", "broker_read", "request_read", "request_write", "storage"],
     hooks=["on_event"],

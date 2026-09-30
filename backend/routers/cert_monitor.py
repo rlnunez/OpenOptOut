@@ -26,7 +26,7 @@ def get_status(_: User = Depends(require_permission("certificates.view"))):
 @router.get("/https-status")
 def get_https_status(_: User = Depends(require_permission("certificates.view"))):
     """
-    A live, on-demand read of PrivacyShield's own HTTPS certificate — separate
+    A live, on-demand read of OpenOptOut's own HTTPS certificate — separate
     from /run so it stays fast and side-effect-free (no email, no touching the
     other checks' state) for a "did this actually work?" button right after
     running scripts/enable-https.ps1 or .sh and restarting the containers.

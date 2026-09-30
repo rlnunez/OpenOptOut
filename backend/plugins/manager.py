@@ -419,7 +419,7 @@ class PluginManager:
         env = {
             "PATH": "/usr/bin:/bin",
             "PYTHONPATH": os.pathsep.join([
-                os.path.join(os.path.dirname(__file__), "sdk"),   # privacyshield_sdk
+                os.path.join(os.path.dirname(__file__), "sdk"),   # openoptout_sdk (+ privacyshield_sdk alias)
                 os.path.dirname(__file__),                        # plugins/ -> `proto` pkg
             ]),
             "PYTHONDONTWRITEBYTECODE": "1",

@@ -14,11 +14,11 @@ absent, reports an error rather than crashing.
 
 import json
 
-from privacyshield_sdk import Plugin, manifest
+from openoptout_sdk import Plugin, manifest
 
 plugin = Plugin(manifest(
     id="email-outlook", name="Outlook / Microsoft 365 Email Provider", version="1.0.0",
-    author="PrivacyShield",
+    author="OpenOptOut",
     permissions=["email_provider", "read_pii", "network", "settings_read"],
     hooks=["email_provider"],
     methods=["settings.get", "log"],

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PrivacyShield test runner
+OpenOptOut test runner
 =========================
 
 A self-contained diagnostic suite you can run on your own system to find and
@@ -1844,13 +1844,13 @@ def t_installer_role_specialization_and_configs():
     # 3. Nginx configuration generator
     nginx_conf = installer_mod.generate_nginx_config(
         domain="privacy.citylibrary.org",
-        frontend_root="/opt/privacyshield/frontend/dist",
+        frontend_root="/opt/openoptout/frontend/dist",
         api_host="127.0.0.1",
         api_port=8000,
         client_max_body_size="50M",
     )
     assert "server_name privacy.citylibrary.org;" in nginx_conf
-    assert "root /opt/privacyshield/frontend/dist;" in nginx_conf
+    assert "root /opt/openoptout/frontend/dist;" in nginx_conf
     assert "proxy_pass http://127.0.0.1:8000;" in nginx_conf
     assert "proxy_set_header Upgrade $http_upgrade;" in nginx_conf
     assert 'proxy_set_header Connection "upgrade";' in nginx_conf
@@ -1860,29 +1860,29 @@ def t_installer_role_specialization_and_configs():
 
     # 4. Systemd unit generators
     api_unit = installer_mod.generate_systemd_api_service(
-        install_dir="/opt/privacyshield",
-        user="privacyshield",
+        install_dir="/opt/openoptout",
+        user="openoptout",
         workers=3,
         port=8000,
     )
-    assert "Description=PrivacyShield API" in api_unit
-    assert "ExecStart=/opt/privacyshield/venv/bin/uvicorn app.main:app" in api_unit
+    assert "Description=OpenOptOut API" in api_unit
+    assert "ExecStart=/opt/openoptout/venv/bin/uvicorn app.main:app" in api_unit
     assert "--workers 3" in api_unit
     assert "NoNewPrivileges=true" in api_unit
 
     worker_unit = installer_mod.generate_systemd_worker_service(
-        install_dir="/opt/privacyshield",
-        user="privacyshield",
+        install_dir="/opt/openoptout",
+        user="openoptout",
     )
-    assert "Description=PrivacyShield Stateless Worker Daemon" in worker_unit
-    assert "ExecStart=/opt/privacyshield/venv/bin/python -m app.worker" in worker_unit
+    assert "Description=OpenOptOut Stateless Worker Daemon" in worker_unit
+    assert "ExecStart=/opt/openoptout/venv/bin/python -m app.worker" in worker_unit
     assert "Restart=always" in worker_unit
 
     # 5. Environment generation (.env) per role
     env_standalone = installer_mod.generate_env_config(
         role="standalone",
         domain="privacy.lib.org",
-        database_url="sqlite:////opt/privacyshield/data/privacyshield.db",
+        database_url="sqlite:////opt/openoptout/data/openoptout.db",
     )
     assert env_standalone["ROLE"] == "standalone"
     assert env_standalone["FRONTEND_URL"] == "https://privacy.lib.org"
@@ -1985,7 +1985,7 @@ def t_broker_addon_packaging():
             "id": "broker-testsite",
             "name": "TestSite Opt-Out",
             "version": "1.2.0",
-            "author": "PrivacyShield Team",
+            "author": "OpenOptOut Team",
             "type": "brokers",
             "spec_file": "spec.json"
         }
@@ -3045,7 +3045,7 @@ def t_plugin_sandbox_uds_mounts():
       "threading stack size is reduced to prevent memory starvation.")
 def t_plugin_uds_handshake():
     mgr_mod = _imp("plugins.manager")
-    sdk_mod = _imp("plugins.sdk.privacyshield_sdk")
+    sdk_mod = _imp("plugins.sdk.openoptout_sdk")
     import threading
 
     # Test _read_ready parsing TCP and UDS
@@ -3621,7 +3621,7 @@ def t_broker_preferred_solver():
 
 
 @test(2, "provider_plugins.auto_provisions_bundled_email_plugin",
-      "Connecting OAuth for a provider PrivacyShield ships a plugin for (Gmail/Outlook/"
+      "Connecting OAuth for a provider OpenOptOut ships a plugin for (Gmail/Outlook/"
       "Yahoo) auto-installs + enables that plugin and turns the plugin system on, without "
       "an admin needing to separately find Settings -> Plugins and do it by hand.")
 def t_provider_plugin_provisioning():
@@ -3691,9 +3691,9 @@ def t_provider_plugin_provisioning():
             assert row.install_path == expected, f"installed at {row.install_path}, not {expected}"
             assert launched[0][1] == expected
             assert os.path.isfile(os.path.join(expected, "manifest.json"))
-            assert os.path.isfile(os.path.join(expected, ".privacyshield-bundled"))
+            assert os.path.isfile(os.path.join(expected, ".openoptout-bundled")) or os.path.isfile(os.path.join(expected, ".privacyshield-bundled"))
 
-            # A provider PrivacyShield has no bundled plugin for (a custom
+            # A provider OpenOptOut has no bundled plugin for (a custom
             # uploaded one, say) must return False, not error or fabricate one.
             assert pp.ensure_provider_plugin("some-custom-uploaded-provider",
                                              db_session_factory=lambda: session) is False
@@ -4284,7 +4284,7 @@ def t_test_broker():
         es.send_email, tb.load_settings = orig_send, orig_load
     assert r["ok"], f"test send failed: {r}"
     assert captured.get("to") == ["new@example.org"], f"wrong recipient: {captured}"
-    assert captured["subject"].startswith("[PrivacyShield TEST]"), "missing test prefix"
+    assert captured["subject"].startswith("[OpenOptOut TEST]"), "missing test prefix"
 
     # 3) The success-path bookkeeping COMMITTED against a real DB (this is the
     #    NOT NULL request_id bug check) and effectiveness was recorded.
@@ -4879,7 +4879,7 @@ def t_routes():
 # ── runner ────────────────────────────────────────────────────────────────────
 
 def main():
-    ap = argparse.ArgumentParser(description="PrivacyShield test runner")
+    ap = argparse.ArgumentParser(description="OpenOptOut test runner")
     ap.add_argument("--tier", type=int, default=4, help="run tiers up to N (1-4)")
     ap.add_argument("--only", type=str, default="", help="substring filter on test name")
     ap.add_argument("--verbose", action="store_true", help="show full tracebacks")
@@ -4888,7 +4888,7 @@ def main():
     tests = sorted(_REGISTRY, key=lambda t: (t[0], t[1]))
     results = []
     print("=" * 70)
-    print("  PrivacyShield test runner")
+    print("  OpenOptOut test runner")
     print("=" * 70)
 
     current_tier = None

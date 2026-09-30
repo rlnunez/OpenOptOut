@@ -136,7 +136,7 @@ function MigrationTool() {
             <div>
               <label className="text-slate-400 text-xs mb-1 block">Target PostgreSQL connection string</label>
               <input value={targetUrl} onChange={e => setTargetUrl(e.target.value)}
-                placeholder="postgresql://user:password@host:5432/privacyshield"
+                placeholder="postgresql://user:password@host:5432/openoptout"
                 className={inp} disabled={running} />
               <p className="text-slate-600 text-xs mt-1">
                 The target database must exist and be empty. The schema will be created automatically.
@@ -281,8 +281,8 @@ function ConnectionConfig({ readOnly = false }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Host"><input value={config.host || ''} onChange={e => setConfig(c => ({...c, host: e.target.value}))} placeholder="db.internal.example.org" className={inp} /></Field>
             <Field label="Port"><input type="number" value={config.port || 5432} onChange={e => setConfig(c => ({...c, port: parseInt(e.target.value)}))} className={inp} /></Field>
-            <Field label="Database name"><input value={config.dbname || ''} onChange={e => setConfig(c => ({...c, dbname: e.target.value}))} placeholder="privacyshield" className={inp} /></Field>
-            <Field label="Username"><input value={config.user || ''} onChange={e => setConfig(c => ({...c, user: e.target.value}))} placeholder="privacyshield_svc" className={inp} /></Field>
+            <Field label="Database name"><input value={config.dbname || ''} onChange={e => setConfig(c => ({...c, dbname: e.target.value}))} placeholder="openoptout" className={inp} /></Field>
+            <Field label="Username"><input value={config.user || ''} onChange={e => setConfig(c => ({...c, user: e.target.value}))} placeholder="openoptout_svc" className={inp} /></Field>
           </div>
 
           {/* SSL mode */}

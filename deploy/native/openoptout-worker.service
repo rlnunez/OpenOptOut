@@ -1,0 +1,34 @@
+# OpenOptOut Stateless Worker Daemon — systemd unit (native install, no Docker).
+#
+# Install:
+#   sudo cp deploy/native/openoptout-worker.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now openoptout-worker
+#
+# Runs the OpenOptOut stateless worker daemon in a distributed fleet (Roadmap Item 7.3 & 23).
+# Consumes jobs from REDIS_URL using Playwright browser automation in a hardened Bubblewrap sandbox.
+
+[Unit]
+Description=OpenOptOut Stateless Worker Daemon
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=openoptout
+Group=openoptout
+WorkingDirectory=/opt/openoptout
+EnvironmentFile=/opt/openoptout/.env
+ExecStart=/opt/openoptout/venv/bin/python -m app.worker
+Restart=always
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/openoptout/data /var/log/openoptout
+
+[Install]
+WantedBy=multi-user.target

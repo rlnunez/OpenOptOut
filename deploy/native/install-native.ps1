@@ -1,6 +1,6 @@
 <#
 ==============================================================================
-Native (no Docker) install/update helper for PrivacyShield on Windows.
+Native (no Docker) install/update helper for OpenOptOut on Windows.
 
   .\deploy\native\install-native.ps1                # first install
   .\deploy\native\install-native.ps1 -Update         # pull code changes back in
@@ -8,7 +8,7 @@ Native (no Docker) install/update helper for PrivacyShield on Windows.
                                                        # (retry it later yourself —
                                                        # see docs/NATIVE_INSTALL.md)
 
-Run this from the root of a PrivacyShield git checkout (same folder this
+Run this from the root of an OpenOptOut git checkout (same folder this
 script's path implies — it uses $PSScriptRoot to find the repo root, the same
 way scripts/enable-https.ps1 does).
 
@@ -50,7 +50,7 @@ function Warn($msg) { Write-Host "Warning: $msg" -ForegroundColor Yellow }
 function Step($msg) { Write-Host "==> $msg" -ForegroundColor Cyan }
 
 if (-not (Test-Path (Join-Path $RepoRoot "backend\main.py"))) {
-    Fail "Couldn't find backend\main.py under $RepoRoot — run this from inside a PrivacyShield repo checkout."
+    Fail "Couldn't find backend\main.py under $RepoRoot — run this from inside an OpenOptOut repo checkout."
 }
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) { Fail "python not found on PATH. Install Python 3.12 first." }
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) { Fail "npm not found on PATH. Install Node.js LTS first." }
@@ -89,7 +89,7 @@ if ($SkipPlaywright) {
     if ($LASTEXITCODE -ne 0) {
         Warn "Playwright's Firefox download failed — common behind a corporate proxy"
         Warn "that blocks Microsoft's CDN (playwright*.azureedge.net). The rest of"
-        Warn "PrivacyShield will still work; automated opt-out form-filling won't,"
+        Warn "OpenOptOut will still work; automated opt-out form-filling won't,"
         Warn "until you retry this manually once network access allows it:"
         Warn "    $Playwright install firefox"
     }
@@ -104,7 +104,7 @@ Step "Laying out the backend as the 'app' package at $AppDir"
 # already exists under backend\ by this point (step 1) and can be large.
 # Robocopy's "success" exit codes are 0-7, not just 0 (see its docs); only
 # 8+ means a real failure.
-robocopy $BackendDir $AppDir /E /XD venv __pycache__ /XF privacyshield_settings.json cert_monitor.json /NFL /NDL /NJH | Out-Null
+robocopy $BackendDir $AppDir /E /XD venv __pycache__ /XF openoptout_settings.json privacyshield_settings.json cert_monitor.json /NFL /NDL /NJH | Out-Null
 if ($LASTEXITCODE -ge 8) { Fail "Copying backend -> app failed (robocopy exit code $LASTEXITCODE)." }
 
 New-Item -ItemType File -Force -Path (Join-Path $AppDir "__init__.py") | Out-Null
@@ -152,7 +152,7 @@ if (-not $Update) {
         Copy-Item (Join-Path $RepoRoot ".env.example") $EnvFile
         $Secret = -join ((1..64) | ForEach-Object { "{0:x}" -f (Get-Random -Maximum 16) })
         (Get-Content $EnvFile) -replace '^SECRET_KEY=.*', "SECRET_KEY=$Secret" | Set-Content $EnvFile
-        Add-Content $EnvFile "SETTINGS_FILE=$RepoRoot\data\privacyshield_settings.json"
+        Add-Content $EnvFile "SETTINGS_FILE=$RepoRoot\data\openoptout_settings.json"
         Add-Content $EnvFile "LOGO_PATH=$RepoRoot\data\logo"
         Write-Host "Created $EnvFile with a generated SECRET_KEY."
     }
@@ -162,18 +162,18 @@ if (-not $Update) {
     Write-Host " First install steps still needed (docs/NATIVE_INSTALL.md has the full version):"
     Write-Host "   1. Review $EnvFile (database, email, etc — see .env.example)"
     Write-Host "   2. Register the Windows Service with NSSM (https://nssm.cc/):"
-    Write-Host "      nssm install PrivacyShieldAPI `"$VenvDir\Scripts\uvicorn.exe`" `"app.main:app --host 127.0.0.1 --port 8000 --workers 2`""
-    Write-Host "      nssm set PrivacyShieldAPI AppDirectory `"$RepoRoot`""
-    Write-Host "      nssm start PrivacyShieldAPI"
+    Write-Host "      nssm install OpenOptOutAPI `"$VenvDir\Scripts\uvicorn.exe`" `"app.main:app --host 127.0.0.1 --port 8000 --workers 2`""
+    Write-Host "      nssm set OpenOptOutAPI AppDirectory `"$RepoRoot`""
+    Write-Host "      nssm start OpenOptOutAPI"
     Write-Host "      Invoke-WebRequest http://127.0.0.1:8000/api/health   # should say {`"status`":`"ok`"}"
     Write-Host "   3. Set up IIS (ARR + URL Rewrite) to serve frontend\dist and proxy /api/"
     Write-Host "      to 127.0.0.1:8000 — see docs/NATIVE_INSTALL.md for the exact rule."
     Write-Host "   4. Turn on HTTPS with win-acme (https://www.win-acme.com/), then set"
     Write-Host "      FRONTEND_URL=https://your-domain in .env and restart the service:"
-    Write-Host "      nssm restart PrivacyShieldAPI"
+    Write-Host "      nssm restart OpenOptOutAPI"
     Write-Host "============================================================"
 } else {
     Write-Host "==> Update complete. Restart the service to pick up code changes:"
-    Write-Host "    nssm restart PrivacyShieldAPI"
+    Write-Host "    nssm restart OpenOptOutAPI"
 }
 exit 0

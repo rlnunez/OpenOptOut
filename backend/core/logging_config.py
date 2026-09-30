@@ -2,7 +2,7 @@
 Operational visibility & diagnostic logging infrastructure.
 
 Provides:
-- Persistent rotating log file (default /data/logs/privacyshield.log, configurable via LOGS_DIR)
+- Persistent rotating log file (default /data/logs/openoptout.log, configurable via LOGS_DIR)
 - In-memory ring buffer (default 2,000 entries) for fast in-app filtering and live streaming
 - Automatic PII and credential sanitization (Bearer tokens, SIP2 credentials, passwords, secrets)
 - Dynamic runtime log verbosity management (DEBUG, INFO, WARNING, ERROR)

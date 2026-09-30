@@ -56,7 +56,7 @@ PRESETS = {
     "yahoo": {
         "imap_host": "imap.mail.yahoo.com",  "imap_port": 993, "imap_ssl": True,
         "smtp_host": "smtp.mail.yahoo.com",  "smtp_port": 587, "smtp_tls": True,
-        "note": "Yahoo requires an App Password. Go to myaccount.yahoo.com → Security → Generate app password. Select 'Other app' and name it PrivacyShield.",
+        "note": "Yahoo requires an App Password. Go to myaccount.yahoo.com → Security → Generate app password. Select 'Other app' and name it OpenOptOut.",
     },
     "fastmail": {
         "imap_host": "imap.fastmail.com",    "imap_port": 993, "imap_ssl": True,
@@ -77,7 +77,7 @@ PRESETS = {
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
 class AppearanceSettings(BaseModel):
-    app_name:     Optional[str]   = "PrivacyShield"
+    app_name:     Optional[str]   = "OpenOptOut"
     app_icon_url: Optional[str]   = None
     theme:        Optional[str]   = "dark"
     accent_color: Optional[str]   = "#6366f1"
@@ -108,7 +108,7 @@ class EmailConfig(BaseModel):
     smtp_user:            Optional[str] = None
     smtp_password:        Optional[str] = None   # write-only
     smtp_tls:             Optional[bool]= True
-    from_name:            Optional[str] = "PrivacyShield Removals"
+    from_name:            Optional[str] = "OpenOptOut Removals"
     from_email:           Optional[str] = None
 
 
@@ -230,7 +230,7 @@ def get_settings(_: User = Depends(get_current_user)):
             smtp_host=e.get("smtp_host"),             smtp_port=e.get("smtp_port", 587),
             smtp_user=smtp_user,                      smtp_password_set=smtp_pw_set,
             smtp_tls=e.get("smtp_tls", True),
-            from_name=e.get("from_name", "PrivacyShield Removals"),
+            from_name=e.get("from_name", "OpenOptOut Removals"),
             from_email=from_email,
             connected=provider_connected or smtp_ready,
             grace_period=grace_out,
@@ -405,7 +405,7 @@ def export_data(current_user: User = Depends(get_current_user), db: Session = De
     } for m in members]
     return JSONResponse(
         content={"exported_at": datetime.utcnow().isoformat(), "members": out},
-        headers={"Content-Disposition": "attachment; filename=privacyshield_export.json"},
+        headers={"Content-Disposition": "attachment; filename=openoptout_export.json"},
     )
 
 
@@ -492,7 +492,7 @@ def encryption_status(_: User = Depends(require_permission("database.view"))):
         "secret_key_set":         os.getenv("SECRET_KEY","change-me") != "change-me-in-production-use-a-long-random-string",
         "db_type":                "sqlite" if db_url.startswith("sqlite") else "postgres",
         "notes": {
-            "db_migration":   "Run: docker exec privacyshield-api python -m backend.core.encryption migrate",
+            "db_migration":   "Run: docker exec openoptout-api python -m backend.core.encryption migrate",
             "key_setup":      "Set DB_ENCRYPTION_KEY and FIELD_ENCRYPTION_KEY in your .env file",
             "postgres":       "For Postgres, use pgcrypto extension or provider-level TDE (RDS, Azure, Cloud SQL)",
         }

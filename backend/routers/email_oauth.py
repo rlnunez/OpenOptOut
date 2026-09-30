@@ -215,7 +215,7 @@ def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(Non
     return HTMLResponse(
         "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;"
         "padding:2rem'><h2>✓ Email account connected</h2>"
-        "<p>You can close this window and return to PrivacyShield.</p></body></html>")
+        "<p>You can close this window and return to OpenOptOut.</p></body></html>")
 
 
 # ── Status ────────────────────────────────────────────────────────────────────

@@ -47,9 +47,10 @@ BUNDLED_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bundled
 # Written into each copy of a bundled plugin. Holds the hash of the source it
 # was copied from, and marks the directory as ours to refresh: a directory
 # without it (say, an admin's own upload using the same id) is never overwritten.
-BUNDLED_MARKER = ".privacyshield-bundled"
+BUNDLED_MARKER = ".openoptout-bundled"
+LEGACY_BUNDLED_MARKER = ".privacyshield-bundled"
 
-_COPY_IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", BUNDLED_MARKER)
+_COPY_IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", BUNDLED_MARKER, LEGACY_BUNDLED_MARKER)
 
 
 def plugins_root() -> str:
@@ -176,7 +177,7 @@ def dir_hash(path: str) -> str:
     for base, dirs, files in os.walk(path):
         dirs[:] = sorted(d for d in dirs if d != "__pycache__")
         for name in sorted(files):
-            if name == BUNDLED_MARKER or name.endswith(".pyc"):
+            if name in (BUNDLED_MARKER, LEGACY_BUNDLED_MARKER) or name.endswith(".pyc"):
                 continue
             full = os.path.join(base, name)
             h.update(os.path.relpath(full, path).encode() + b"\0")
@@ -187,7 +188,8 @@ def dir_hash(path: str) -> str:
 
 
 def is_bundled_copy(path: str) -> bool:
-    return os.path.isfile(os.path.join(path or "", BUNDLED_MARKER))
+    p = path or ""
+    return os.path.isfile(os.path.join(p, BUNDLED_MARKER)) or os.path.isfile(os.path.join(p, LEGACY_BUNDLED_MARKER))
 
 
 def bundled_plugins() -> dict:
@@ -203,17 +205,24 @@ def sync_bundled(src: str, root: str, manifest: PluginManifest) -> str:
     dest = install_dir(root, manifest)
     want = dir_hash(src)
     marker = os.path.join(dest, BUNDLED_MARKER)
+    legacy_marker = os.path.join(dest, LEGACY_BUNDLED_MARKER)
     if os.path.isdir(dest):
-        if not os.path.isfile(marker):
+        active_marker = marker if os.path.isfile(marker) else (legacy_marker if os.path.isfile(legacy_marker) else None)
+        if not active_marker:
             raise RuntimeError(f"{dest} exists and isn't a copy of the built-in plugin; "
                                f"not overwriting it")
-        with open(marker) as f:
+        with open(active_marker) as f:
             if f.read().strip() == want:
                 return dest
     ensure_layout(root)
     place_directory(src, dest, move=False)
     with open(marker, "w") as f:
         f.write(want + "\n")
+    if os.path.isfile(legacy_marker) and legacy_marker != marker:
+        try:
+            os.remove(legacy_marker)
+        except OSError:
+            pass
     log.info("Copied built-in plugin %s into %s", manifest.id, dest)
     return dest
 

@@ -289,7 +289,7 @@ To ensure operational stability and maintain continuous testability without disr
 
 **Scope & Governance:**
 - **On-Demand Prioritization:** School district and parent portal integrations (ClassLink, Clever, PowerSchool, Infinite Campus) are maintained as an on-demand institutional feature, implemented only when formally requested by a district or school system. It is decoupled from the 1.0.0 core milestone.
-- **Student Privacy & Regulatory Boundaries:** While K-12 students are protected by CIPA (Children's Internet Protection Act), COPPA, and FERPA against school data disclosure, older high school students (ages 16–18) frequently appear on commercial consumer data brokers once they obtain driver's licenses, register to vote, or register for standardized tests. Privacy Shield's standard individual/family member profiles protect these students immediately through regular opt-out flows without requiring deep SIS synchronization.
+- **Student Privacy & Regulatory Boundaries:** While K-12 students are protected by CIPA (Children's Internet Protection Act), COPPA, and FERPA against school data disclosure, older high school students (ages 16–18) frequently appear on commercial consumer data brokers once they obtain driver's licenses, register to vote, or register for standardized tests. OpenOptOut's standard individual/family member profiles protect these students immediately through regular opt-out flows without requiring deep SIS synchronization.
 
 **Architecture (When Activated):**
 - **Federated Protocols:** Leverages existing SAML 2.0 (`core/saml_sp.py`) and OIDC integrations (ClassLink, Clever, PowerSchool, Infinite Campus, Microsoft Entra, Google Workspace).

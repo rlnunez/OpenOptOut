@@ -72,7 +72,7 @@ export default function Reporting() {
     const blob = new Blob([csv], { type: 'text/csv' })
     const a    = document.createElement('a')
     a.href     = URL.createObjectURL(blob)
-    a.download = `privacyshield-report-${new Date().toISOString().slice(0, 10)}.csv`
+    a.download = `openoptout-report-${new Date().toISOString().slice(0, 10)}.csv`
     a.click()
   }
 

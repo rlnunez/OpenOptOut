@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PrivacyShield Worker Daemon CLI (Roadmap Phase 7.3).
+OpenOptOut Worker Daemon CLI (Roadmap Phase 7.3).
 
 Standalone executable entrypoint to run a stateless worker node in a
 distributed fleet. Operates independently of the FastAPI web application.
@@ -39,12 +39,12 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] (%(name)s) %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-log = logging.getLogger("privacyshield.worker")
+log = logging.getLogger("openoptout.worker")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="PrivacyShield Stateless Worker Daemon (Phase 7.3)"
+        description="OpenOptOut Stateless Worker Daemon (Phase 7.3)"
     )
     parser.add_argument(
         "--worker-id",

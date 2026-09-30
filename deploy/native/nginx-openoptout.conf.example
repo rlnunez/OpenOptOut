@@ -1,8 +1,8 @@
-# PrivacyShield — nginx site config (native install, no Docker).
+# OpenOptOut — nginx site config (native install, no Docker).
 #
 # Install (Debian/Ubuntu path shown; adjust for other distros):
-#   sudo cp deploy/native/nginx-privacyshield.conf.example /etc/nginx/sites-available/privacyshield
-#   sudo ln -s /etc/nginx/sites-available/privacyshield /etc/nginx/sites-enabled/
+#   sudo cp deploy/native/nginx-openoptout.conf.example /etc/nginx/sites-available/openoptout
+#   sudo ln -s /etc/nginx/sites-available/openoptout /etc/nginx/sites-enabled/
 #   sudo nginx -t && sudo systemctl reload nginx
 #
 # Before that: edit YOUR_DOMAIN below, and confirm the `root` path matches
@@ -18,11 +18,11 @@ server {
     listen [::]:80;
     server_name YOUR_DOMAIN;
 
-    root /opt/privacyshield/frontend/dist;
+    root /opt/openoptout/frontend/dist;
     index index.html;
 
     # Proxy API calls to the systemd-run uvicorn process (127.0.0.1:8000 per
-    # deploy/native/privacyshield-api.service — change both together if you
+    # deploy/native/openoptout-api.service — change both together if you
     # picked a different port).
     location /api/ {
         proxy_pass http://127.0.0.1:8000;
@@ -31,7 +31,7 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         # Plain HTTP for now; certbot's nginx plugin rewrites this whole server
         # block (adding the 443 block and the HTTP->HTTPS redirect) when you
-        # run scripts/enable-https-native.sh, so PrivacyShield still gets an
+        # run scripts/enable-https-native.sh, so OpenOptOut still gets an
         # accurate X-Forwarded-Proto once that's done.
         proxy_set_header X-Forwarded-Proto $scheme;
     }

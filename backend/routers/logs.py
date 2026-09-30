@@ -106,7 +106,7 @@ def download_logs(
                 f.write(f"{item['timestamp']} [{item['level']}] [{item['logger']}] {item['message']}\n")
 
     timestamp_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    filename = f"privacyshield_diagnostics_{timestamp_str}.log"
+    filename = f"openoptout_diagnostics_{timestamp_str}.log"
 
     return FileResponse(
         path=path,

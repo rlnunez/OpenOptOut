@@ -1,6 +1,6 @@
 #!/bin/sh
 # ==============================================================================
-# PrivacyShield HTTPS front door — generates the Caddy config from environment
+# OpenOptOut HTTPS front door — generates the Caddy config from environment
 # variables, then runs Caddy. Caddy obtains certificates, renews them
 # automatically, and redirects HTTP to HTTPS.
 #
@@ -30,7 +30,7 @@ DOMAIN="${DOMAIN:-}"
 EMAIL="${ACME_EMAIL:-}"
 UPSTREAM="${UPSTREAM:-web:80}"
 
-die() { echo "PrivacyShield HTTPS: $*" >&2; exit 1; }
+die() { echo "OpenOptOut HTTPS: $*" >&2; exit 1; }
 # Allowed character sets (no whitespace except the ", " list separator, no braces,
 # quotes, or line breaks). grep matches line by line, so a value with a valid FIRST
 # line and a malicious second line would pass — reject line breaks/tabs outright.
@@ -132,6 +132,6 @@ $HSTS_LINE
 }
 EOF
 
-echo "PrivacyShield HTTPS: mode=$MODE domain=$DOMAIN upstream=$UPSTREAM"
+echo "OpenOptOut HTTPS: mode=$MODE domain=$DOMAIN upstream=$UPSTREAM"
 [ "${GENERATE_ONLY:-}" = "1" ] && { cat "$CADDYFILE"; exit 0; }
 exec caddy run --config "$CADDYFILE" --adapter caddyfile

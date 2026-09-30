@@ -129,7 +129,7 @@ export default function Dashboard() {
       )}
 
       {/* HTTPS setup status — for the "managed" (built-in Caddy) or "native" (certbot/
-          win-acme) path chosen in the wizard. A live check, not a guess: PrivacyShield
+          win-acme) path chosen in the wizard. A live check, not a guess: OpenOptOut
           can't run docker/certbot/win-acme itself (the api process deliberately has no
           access to the host's Docker daemon, .env file, or OS-level service control —
           see docs/HTTPS.md), so this is the honest substitute: confirm whether the

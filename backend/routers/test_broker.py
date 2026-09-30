@@ -6,7 +6,7 @@ one the operator chooses (their own inbox), then sends a real opt-out through th
 exact production path: template composition -> unified send (provider plugin with
 OAuth auto-refresh, or SMTP fallback) -> recipient enforcement -> effectiveness
 tracking. The only differences from a real send are the destination (the
-operator's address) and a "[PrivacyShield TEST]" subject prefix.
+operator's address) and a "[OpenOptOut TEST]" subject prefix.
 
 Fencing — the test pair can never leak into real work:
   - is_test=True on both the parent and the broker;
@@ -125,7 +125,7 @@ def setup_test_broker(body: SetupIn, db: Session = Depends(get_db),
             enabled=False,          # fence: batch runners skip disabled brokers
             is_test=True,           # fence: discovery + runners skip test brokers
             parent_company_id=parent.id,
-            notes="Test site under the PrivacyShield test broker. Not a real broker.",
+            notes="Test site under the OpenOptOut test broker. Not a real broker.",
         )
         db.add(broker)
     db.commit()

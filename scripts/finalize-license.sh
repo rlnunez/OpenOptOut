@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Assembles the complete AGPL-3.0 LICENSE file by fetching the canonical
-# license text from gnu.org and prepending the PrivacyShield copyright block.
+# license text from gnu.org and prepending the OpenOptOut copyright block.
 #
 # Run this ONCE locally (where you have internet) before publishing:
 #   bash scripts/finalize-license.sh
@@ -30,7 +30,7 @@ fi
 
 echo "Writing LICENSE with copyright block + full canonical text..."
 cat > "$LICENSE_FILE" <<'HEADER'
-    PrivacyShield — an open-source personal data removal pipeline
+    OpenOptOut — an open-source personal data removal pipeline
     Copyright (C) 2026 Robert Nunez
 
     This program is free software: you can redistribute it and/or modify

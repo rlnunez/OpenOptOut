@@ -3,7 +3,7 @@ syntax = "proto3";
 package privacyshield.plugin;
 
 // ============================================================================
-// PrivacyShield Plugin Protocol
+// OpenOptOut Plugin Protocol
 //
 // Two services define the bidirectional contract:
 //

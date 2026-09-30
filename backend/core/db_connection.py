@@ -109,8 +109,8 @@ def get_db_config() -> dict:
         "auth_method": env_or_setting("DB_AUTH_METHOD", "auth_method", "password"),
         "host":        env_or_setting("DB_HOST",        "host",        "localhost"),
         "port":        int(env_or_setting("DB_PORT",    "port",        5432)),
-        "dbname":      env_or_setting("DB_NAME",        "dbname",      "privacyshield"),
-        "user":        env_or_setting("DB_USER",        "user",        "privacyshield"),
+        "dbname":      env_or_setting("DB_NAME",        "dbname",      "openoptout"),
+        "user":        env_or_setting("DB_USER",        "user",        "openoptout"),
         "sslmode":     env_or_setting("DB_SSLMODE",     "sslmode",     "prefer"),
         # Cert/key file paths (paths are non-secret; the files they point to are secret)
         "sslrootcert": env_or_setting("DB_SSLROOTCERT", "sslrootcert", None),

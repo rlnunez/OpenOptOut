@@ -283,7 +283,7 @@ def send_parent_optout_detailed(member, parent, cfg, db, discovered_urls=None,
     Transport is decided by core/email_send.send_email (provider plugin with
     OAuth auto-refresh, or SMTP fallback) — this function does NOT gate on SMTP
     settings, so OAuth-only deployments work. Records effectiveness on the parent.
-    subject_prefix: e.g. "[PrivacyShield TEST] " for test sends.
+    subject_prefix: e.g. "[OpenOptOut TEST] " for test sends.
     request_key: optional UUID tracking key embedded in email subject & body.
     """
     from .optout_email_template import compose_optout_email

@@ -1,4 +1,4 @@
-# PrivacyShield — Testing & Diagnostics Guide
+# OpenOptOut — Testing & Diagnostics Guide
 
 This guide covers the test suite you can run on your own system to find problems and report them back. The goal is simple: **run one command, read the summary, and either see all-green or get a precise pointer to what's broken.**
 

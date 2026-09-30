@@ -204,7 +204,7 @@ def start_migration(
     Runs in the background — poll /migration-status for progress.
 
     target_url: full Postgres connection string,
-    e.g. postgresql://user:password@host:5432/privacyshield
+    e.g. postgresql://user:password@host:5432/openoptout
     """
     global _migration_status
 

@@ -1205,7 +1205,7 @@ function EncryptionSection({ userRole }) {
               <ol className="text-slate-500 space-y-1 ml-3">
                 <li>1. Generate a key: <code className="bg-slate-800 px-1.5 rounded text-slate-300">openssl rand -hex 32</code></li>
                 <li>2. Add to .env: <code className="bg-slate-800 px-1.5 rounded text-slate-300">DB_ENCRYPTION_KEY=your-key-here</code></li>
-                <li>3. Migrate existing data: <code className="bg-slate-800 px-1.5 rounded text-slate-300">docker exec privacyshield-api python -m backend.core.encryption migrate</code></li>
+                <li>3. Migrate existing data: <code className="bg-slate-800 px-1.5 rounded text-slate-300">docker exec openoptout-api python -m backend.core.encryption migrate</code></li>
                 <li>4. Back up the original .db file, replace with the _encrypted.db file</li>
                 <li>5. Restart the container</li>
               </ol>

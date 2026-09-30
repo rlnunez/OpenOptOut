@@ -54,7 +54,7 @@ def check_rlimits_actually_work() -> tuple[bool, str]:
 
 def main():
     print("=" * 60)
-    print("  PrivacyShield plugin sandbox — preflight report")
+    print("  OpenOptOut plugin sandbox — preflight report")
     print("=" * 60)
 
     # Use the real detection the manager uses, so this report matches runtime.

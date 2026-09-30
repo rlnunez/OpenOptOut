@@ -152,7 +152,7 @@ def maybe_snapshot_grace_period(
         "imap_ssl": old_email.get("imap_ssl", True),
         "imap_folder": old_email.get("imap_folder", "INBOX"),
         "from_email": old_email.get("from_email") or old_email.get("from_address", ""),
-        "from_name": old_email.get("from_name", "PrivacyShield Removals"),
+        "from_name": old_email.get("from_name", "OpenOptOut Removals"),
     }
 
     now_iso = datetime.now(timezone.utc).isoformat()

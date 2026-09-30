@@ -4,6 +4,7 @@
 *.sqlite3
 
 # Settings file — contains encrypted credentials
+openoptout_settings.json
 privacyshield_settings.json
 
 # Environment variables

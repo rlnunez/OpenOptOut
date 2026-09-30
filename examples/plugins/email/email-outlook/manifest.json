@@ -3,7 +3,7 @@
   "name": "Outlook / Microsoft 365 Email Provider",
   "version": "1.0.0",
   "type": "email",
-  "author": "PrivacyShield",
+  "author": "OpenOptOut",
   "description": "Sends opt-out emails and reads confirmations via Microsoft Graph using OAuth 2.0. Trusted email-provider class; host inspects for hidden recipients and enforces the recipient at send time.",
   "api_version": "1.0",
   "permissions": ["email_provider", "read_pii", "network", "settings_read"],

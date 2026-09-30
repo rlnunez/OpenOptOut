@@ -28,11 +28,11 @@ so the host can surface "install these to use Gmail."
 import base64
 from email.mime.text import MIMEText
 
-from privacyshield_sdk import Plugin, manifest
+from openoptout_sdk import Plugin, manifest
 
 plugin = Plugin(manifest(
     id="email-gmail", name="Gmail Email Provider", version="1.0.0",
-    author="PrivacyShield",
+    author="OpenOptOut",
     permissions=["email_provider", "read_pii", "network", "settings_read"],
     hooks=["email_provider"],
     methods=["settings.get", "log"],
