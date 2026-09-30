@@ -18,7 +18,10 @@ ENV GIT_COMMIT=${GIT_COMMIT}
 # Install system deps for Playwright Firefox + plugin sandboxing (bubblewrap)
 # and the build toolchain + headers required to compile python-ldap
 # (libldap2-dev, libsasl2-dev) which ships no prebuilt wheels.
-RUN apt-get update && apt-get install -y \
+# Pull all security updates from Debian security repos (resolves perl-base, zlib1g, etc.)
+RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends && \
+    apt-get install -y --no-install-recommends \
     wget curl ca-certificates fonts-liberation \
     libatk-bridge2.0-0 libatk1.0-0 libcups2 libdbus-1-3 \
     libdrm2 libgbm1 libgtk-3-0 libnspr4 libnss3 \
@@ -27,7 +30,7 @@ RUN apt-get update && apt-get install -y \
     bubblewrap libseccomp2 python3-seccomp \
     xmlsec1 \
     gcc build-essential libldap2-dev libsasl2-dev \
-    --no-install-recommends && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY requirements.txt .
