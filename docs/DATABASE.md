@@ -1,6 +1,6 @@
 # Database & Storage Configuration
 
-PrivacyShield supports SQLite for personal/family deployments and PostgreSQL for enterprise and institutional scale. Both backends support optional encryption at rest.
+OpenOptOut supports SQLite for personal/family deployments and PostgreSQL for enterprise and institutional scale. Both backends support optional encryption at rest.
 
 ---
 
@@ -16,14 +16,14 @@ PostgreSQL is recommended for patron-facing deployments, school districts, unive
 
 To switch to PostgreSQL, set `DATABASE_URL` in your `.env` file:
 ```env
-DATABASE_URL=postgresql://user:password@db.example.org:5432/privacyshield
+DATABASE_URL=postgresql://user:password@db.example.org:5432/openoptout
 ```
 
 ---
 
 ## Enterprise PostgreSQL Authentication
 
-For hardened institutional environments, PrivacyShield provides a structured connection manager (**Admin → Database → Connection**) that supports enterprise authentication methods without storing credentials in the database:
+For hardened institutional environments, OpenOptOut provides a structured connection manager (**Admin → Database → Connection**) that supports enterprise authentication methods without storing credentials in the database:
 
 - **SSL/TLS Modes:** Configurable SSL validation (`disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full`).
 - **Mutual TLS (mTLS):** Client certificate and private key authentication alongside root CA validation.
@@ -42,8 +42,8 @@ For hardened institutional environments, PrivacyShield provides a structured con
 
 To migrate an existing SQLite installation to PostgreSQL without losing data:
 
-1. Deploy your PostgreSQL database instance and create an empty database (`privacyshield`).
-2. Log into PrivacyShield as a Super Administrator.
+1. Deploy your PostgreSQL database instance and create an empty database (`openoptout`).
+2. Log into OpenOptOut as a Super Administrator.
 3. Navigate to **Admin → Database → Migrate to Postgres**.
 4. Enter the target PostgreSQL connection string and test connectivity.
 5. Click **Migrate**. The migration utility will:
@@ -57,14 +57,14 @@ To migrate an existing SQLite installation to PostgreSQL without losing data:
 
 ## Encryption at Rest
 
-PrivacyShield provides two independent layers of encryption at rest, which can be used individually or together:
+OpenOptOut provides two independent layers of encryption at rest, which can be used individually or together:
 
 ### Layer 1: Full Database Encryption (SQLCipher)
 For SQLite deployments, the entire database file can be encrypted on disk using 256-bit AES via SQLCipher.
 - Configured by setting `DB_ENCRYPTION_KEY` in `.env`.
 - To migrate an existing unencrypted SQLite database to SQLCipher:
   ```bash
-  docker exec privacyshield-api python -m app.core.encryption migrate
+  docker exec openoptout-api python -m app.core.encryption migrate
   ```
 
 ### Layer 2: Field-Level Encryption (Fernet)
@@ -73,7 +73,7 @@ Sensitive Personally Identifiable Information (PII) — including member name va
 - Protects patron PII even if database read replicas, query logs, or unencrypted database dumps are exposed.
 
 ### Managed PostgreSQL Encryption
-When using PostgreSQL on managed cloud infrastructure (e.g. AWS RDS, Google Cloud SQL, Azure Database for PostgreSQL), combine PrivacyShield field-level encryption with cloud provider volume encryption:
+When using PostgreSQL on managed cloud infrastructure (e.g. AWS RDS, Google Cloud SQL, Azure Database for PostgreSQL), combine OpenOptOut field-level encryption with cloud provider volume encryption:
 - AWS RDS storage encryption (KMS)
 - Google Cloud SQL Customer-Managed Encryption Keys (CMEK)
 - Azure Transparent Data Encryption (TDE)

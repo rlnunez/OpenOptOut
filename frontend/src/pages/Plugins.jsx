@@ -607,7 +607,7 @@ export default function Plugins() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-white text-xl font-semibold">Plugins</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Extend PrivacyShield with sandboxed, permission-gated plugins</p>
+          <p className="text-slate-400 text-sm mt-0.5">Extend OpenOptOut with sandboxed, permission-gated plugins</p>
         </div>
         <div className="flex gap-2">
           <Link to="/plugin-help"

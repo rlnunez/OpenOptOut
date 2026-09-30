@@ -1,16 +1,16 @@
-# PrivacyShield Plugin API & Developer Reference Specification
+# OpenOptOut Plugin API & Developer Reference Specification
 
-This specification provides the comprehensive technical manual for developing, packaging, and deploying extensions for the PrivacyShield platform. It details all supported plugin categories, protocol interfaces (gRPC and REST), SDK methods, security controls, manifest schemas, and proposed endpoint enhancements.
+This specification provides the comprehensive technical manual for developing, packaging, and deploying extensions for the OpenOptOut platform. It details all supported plugin categories, protocol interfaces (gRPC and REST), SDK methods, security controls, manifest schemas, and proposed endpoint enhancements.
 
 ---
 
 ## 1. Architecture & Execution Model
 
-PrivacyShield employs a **zero-trust, process-isolated plugin architecture**. Third-party code never runs inside the main FastAPI process or the core distributed worker process:
+OpenOptOut employs a **zero-trust, process-isolated plugin architecture**. Third-party code never runs inside the main FastAPI process or the core distributed worker process:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                        PrivacyShield Host Core                         │
+│                         OpenOptOut Host Core                           │
 │  FastAPI Web Service / Worker Fleet Node (Python 3.10+)                │
 │                                                                        │
 │  ┌─────────────────────────┐           ┌─────────────────────────────┐ │
@@ -34,7 +34,7 @@ PrivacyShield employs a **zero-trust, process-isolated plugin architecture**. Th
 │                                                                        │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
 │  │                   Plugin Child Process (Python)                  │  │
-│  │  privacyshield_sdk -> PluginService (gRPC Server on plugin.sock) │  │
+│  │  openoptout_sdk -> PluginService (gRPC Server on plugin.sock)    │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────────────────────┘
 ```
@@ -49,7 +49,7 @@ PrivacyShield employs a **zero-trust, process-isolated plugin architecture**. Th
 
 ## 2. Typed Directory Structure
 
-Plugins are organized into specialized subdirectories under `<plugins_root>/` (default: `/opt/privacyshield/data/plugins/`):
+Plugins are organized into specialized subdirectories under `<plugins_root>/` (default: `/opt/openoptout/data/plugins/`):
 
 ```
 <plugins_root>/
@@ -187,7 +187,7 @@ Every plugin bundle must contain a `manifest.json` at its root.
 
 ### 4.1. Removal Plugins
 
-PrivacyShield supports two distinct approaches for broker opt-out automation:
+OpenOptOut supports two distinct approaches for broker opt-out automation:
 
 #### Approach A: Declarative Broker Add-ons (`plugins/brokers/<id>/`) — Recommended
 Declarative add-ons require **zero Python code** and execute directly within the core platform's compiled interpreter.
@@ -279,7 +279,7 @@ When a broker utilizes dynamic state machines, anti-bot obfuscation, or multi-st
   "id": "complex-broker-handler",
   "name": "Complex Broker Form Handler",
   "version": "1.0.0",
-  "author": "PrivacyShield Team",
+  "author": "OpenOptOut Team",
   "type": "forms",
   "entrypoint": "plugin.py",
   "permissions": ["fill_forms", "read_pii", "broker_read", "storage"],
@@ -290,13 +290,13 @@ When a broker utilizes dynamic state machines, anti-bot obfuscation, or multi-st
 
 **`plugin.py`:**
 ```python
-from privacyshield_sdk import Plugin, manifest, FormResult, Action
+from openoptout_sdk import Plugin, manifest, FormResult, Action
 
 plugin = Plugin(manifest(
     id="complex-broker-handler",
     name="Complex Broker Form Handler",
     version="1.0.0",
-    author="PrivacyShield Team",
+    author="OpenOptOut Team",
     type="forms",
     permissions=["fill_forms", "read_pii", "broker_read", "storage"],
     hooks=["fill_form"],
@@ -362,7 +362,7 @@ Pluggable solvers handle automated challenges without embedding proprietary solv
 **`plugin.py`:**
 ```python
 import json
-from privacyshield_sdk import Plugin, manifest, SolveCaptchaResponse
+from openoptout_sdk import Plugin, manifest, SolveCaptchaResponse
 
 plugin = Plugin(manifest(
     id="enterprise-captcha-solver",
@@ -430,7 +430,7 @@ Discovery bots crawl search endpoints and data broker listing queries to locate 
   "id": "broker-discovery-crawler",
   "name": "Broker Directory Discovery Crawler",
   "version": "1.0.0",
-  "author": "PrivacyShield Research",
+  "author": "OpenOptOut Research",
   "type": "discovery",
   "entrypoint": "plugin.py",
   "permissions": ["read_pii", "http_fetch", "broker_read", "emit_events", "storage"],
@@ -444,13 +444,13 @@ Discovery bots crawl search endpoints and data broker listing queries to locate 
 **`plugin.py`:**
 ```python
 import urllib.parse
-from privacyshield_sdk import Plugin, manifest
+from openoptout_sdk import Plugin, manifest
 
 plugin = Plugin(manifest(
     id="broker-discovery-crawler",
     name="Broker Directory Discovery Crawler",
     version="1.0.0",
-    author="PrivacyShield Research",
+    author="OpenOptOut Research",
     type="discovery",
     permissions=["read_pii", "http_fetch", "broker_read", "emit_events", "storage"],
     hooks=["on_event"],
@@ -624,7 +624,7 @@ plugins/languages/lang-ar/
 
 ### 4.6. Email Provider Plugins (`plugins/email/<id>/`)
 
-Email provider plugins adapt corporate and institutional mail systems (Google Workspace, Microsoft 365, generic IMAP/SMTP) to the standard PrivacyShield email transport.
+Email provider plugins adapt corporate and institutional mail systems (Google Workspace, Microsoft 365, generic IMAP/SMTP) to the standard OpenOptOut email transport.
 
 **`manifest.json`:**
 ```json
@@ -656,7 +656,7 @@ General plugins subscribe to platform lifecycle events to integrate with enterpr
 **`plugin.py`:**
 ```python
 import json
-from privacyshield_sdk import Plugin, manifest
+from openoptout_sdk import Plugin, manifest
 
 plugin = Plugin(manifest(
     id="slack-audit-notifier",
@@ -677,7 +677,7 @@ def handle_event(event):
     if not webhook_url:
         return {"ok": False, "error": "Webhook URL not configured"}
 
-    text = f"🚨 *PrivacyShield Alert*: `{event.event_type}` occurred for entity `{event.entity_id}`."
+    text = f"🚨 *OpenOptOut Alert*: `{event.event_type}` occurred for entity `{event.entity_id}`."
     plugin.http.post(
         webhook_url,
         body=json.dumps({"text": text}),
@@ -761,7 +761,7 @@ Based on an exhaustive review of the plugin subsystem, the following endpoint an
 - **Benefit:** Enables instant server-side theming and external portal embedding for consortium member libraries.
 
 ### 4. Real-Time Plugin Diagnostic Stream (`GET /api/plugins/{id}/logs/stream` via SSE)
-- **Current State:** Logs are aggregated into the central rotating ring buffer (`/data/logs/privacyshield.log`).
+- **Current State:** Logs are aggregated into the central rotating ring buffer (`/data/logs/openoptout.log`).
 - **Proposed Enhancement:** Provide a Server-Sent Events (SSE) streaming endpoint filtering logs, stderr output, and gRPC execution traces specifically for a single plugin.
 - **Benefit:** Drastically improves the debugging workflow for plugin authors developing custom integrations.
 

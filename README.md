@@ -1,4 +1,4 @@
-# PrivacyShield
+# OpenOptOut
 
 **Open-source personal data removal pipeline.** A modular, plugin-driven privacy automation platform to opt out of data brokers, track removal status, monitor confirmation emails, and automatically schedule re-checks so brokers can't quietly re-list you.
 
@@ -13,15 +13,15 @@ Built for two audiences from the same codebase:
 
 ## Why this exists — and why it shouldn't have to
 
-PrivacyShield is a **stopgap.** It should not need to exist.
+OpenOptOut is a **stopgap.** It should not need to exist.
 
 Having to hunt down data brokers and repeatedly beg, form by form, to remove your own personal records is proof of a broken system. You should own your data by default, and no one should have to pay a commercial subscription to reclaim what was always theirs.
 
-The real fix is not software — it is enforceable legislation that outlaws the non-consensual collection and sale of personal information. Until that right is guaranteed by law, PrivacyShield exists as a free, open-source defense for families and communities today, with a singular ultimate goal: **to become obsolete the day comprehensive privacy laws take effect.**
+The real fix is not software — it is enforceable legislation that outlaws the non-consensual collection and sale of personal information. Until that right is guaranteed by law, OpenOptOut exists as a free, open-source defense for families and communities today, with a singular ultimate goal: **to become obsolete the day comprehensive privacy laws take effect.**
 
 ### A note to libraries
 
-Article VII of the ALA *Library Bill of Rights* calls on libraries to protect and advocate for patron privacy. Having served on the Intellectual Freedom Committee's Privacy Sub-Committee (2018–2022) and helped draft Article VII, I built PrivacyShield with that exact mission in mind. Data brokers traffic in the very personal information libraries are dedicated to safeguarding.
+Article VII of the ALA *Library Bill of Rights* calls on libraries to protect and advocate for patron privacy. Having served on the Intellectual Freedom Committee's Privacy Sub-Committee (2018–2022) and helped draft Article VII, I built OpenOptOut with that exact mission in mind. Data brokers traffic in the very personal information libraries are dedicated to safeguarding.
 
 This is an open invitation to participate at whatever scale fits your institution:
 
@@ -33,7 +33,7 @@ This is an open invitation to participate at whatever scale fits your institutio
 
 ## What it does
 
-PrivacyShield automates the end-to-end data removal lifecycle:
+OpenOptOut automates the end-to-end data removal lifecycle:
 
 1. **Secure Identity Vault** — Store all name variants, aliases, emails, phone numbers, and deed/mortgage addresses in an encrypted, zero-knowledge vault.
 2. **Automated Discovery** — Scan broker databases to pinpoint where your personal listings appear before filing removals.
@@ -62,7 +62,7 @@ PrivacyShield automates the end-to-end data removal lifecycle:
 ### One-line install (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/install.sh | sh
 ```
 
 Detects your situation and does the right thing: uses Docker if it's installed and running, or — on a Debian/Ubuntu host run as root with no Docker — installs natively (systemd + nginx, no containers) instead. Safe to re-run (updates an existing checkout rather than duplicating it; never touches an existing `.env`). Force one path explicitly with `| sh -s -- --docker` or `| sh -s -- --native`; see `install.sh --help` for every flag (custom install directory, git ref, fork URL, etc). Piping a script straight into a shell is a judgment call — if you'd rather read it first, that's exactly what the sections below walk through by hand.
@@ -71,8 +71,8 @@ Detects your situation and does the right thing: uses Docker if it's installed a
 
 ```bash
 # 1. Clone
-git clone https://github.com/rlnunez/Privacy-Shield.git privacyshield
-cd privacyshield
+git clone https://github.com/rlnunez/OpenOptOut.git openoptout
+cd openoptout
 
 # 2. Create environment file
 cp .env.example .env
@@ -110,7 +110,7 @@ On a fresh install the app shows a create-administrator screen instead of a logi
 
 ## User roles
 
-PrivacyShield uses role-based access control. The first registered user is automatically a **Super Admin**.
+OpenOptOut uses role-based access control. The first registered user is automatically a **Super Admin**.
 
 | Role | What they can do | Best for |
 |---|---|---|
@@ -124,7 +124,7 @@ PrivacyShield uses role-based access control. The first registered user is autom
 
 ## Institutional deployments
 
-PrivacyShield is designed from the ground up for libraries, schools, credit unions, and non-profits:
+OpenOptOut is designed from the ground up for libraries, schools, credit unions, and non-profits:
 
 - **Patron self-service:** Users register with their email or library card and manage only their own (and their dependents') data.
 - **Single sign-on:** Integrate with your existing identity provider using OIDC, SAML 2.0, LDAP, or SIP2 (see [docs/SSO.md](docs/SSO.md)).
@@ -135,7 +135,7 @@ PrivacyShield is designed from the ground up for libraries, schools, credit unio
 
 ## Email setup
 
-PrivacyShield needs an email account to send removal requests and receive confirmations.
+OpenOptOut needs an email account to send removal requests and receive confirmations.
 
 > ⚠️ **Use a dedicated address.** Brokers sometimes add opt-out requesters to new marketing lists — containing that in a separate inbox keeps your personal email clean.
 
@@ -212,11 +212,11 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`docs/DEVELOPMENT.md`](docs/DEVELO
 
 ## Development disclosure & security review
 
-PrivacyShield handles sensitive personal information, which demands rigorous security. As the original developer, my personal background in advanced security architecture very is limited. To implement complex subsystems like the Bubblewrap sandbox, gRPC capability broker, SQLCipher database encryption, and SSO integrations, I utilized AI assistants (specifically Claude and Gemini) to help design and write these components. In addition, I also used them to bounce ideas off of for the projects direction, help keep track of the roadmap, and aid in testing. I am one person that has limited time in the day. 
+OpenOptOut handles sensitive personal information, which demands rigorous security. As the original developer, my personal background in advanced security architecture very is limited. To implement complex subsystems like the Bubblewrap sandbox, gRPC capability broker, SQLCipher database encryption, and SSO integrations, I utilized AI assistants (specifically Claude and Gemini) to help design and write these components. In addition, I also used them to bounce ideas off of for the projects direction, help keep track of the roadmap, and aid in testing. I am one person that has limited time in the day. 
 
 While I have actively reviewed, tested, and worked to understand the code introduced, I am human and know that AI-generated code can carry subtle edge cases. If you have expertise in application security, Linux sandboxing, or cryptography, **community code reviews and security feedback are deeply appreciated.**
 
-Ideally, PrivacyShield will undergo a formal, independent security audit prior to wide-scale institutional deployment. In the meantime, please review the architecture, challenge our assumptions, and report any potential vulnerabilities responsibly via GitHub issues or private disclosure.
+Ideally, OpenOptOut will undergo a formal, independent security audit prior to wide-scale institutional deployment. In the meantime, please review the architecture, challenge our assumptions, and report any potential vulnerabilities responsibly via GitHub issues or private disclosure.
 
 ---
 
@@ -245,4 +245,4 @@ See the [`LICENSE`](LICENSE) file for the full text. If you contribute improveme
 
 ## Disclaimer
 
-This tool submits opt-out requests on your behalf but cannot guarantee compliance from data brokers. Some brokers are legally required to honor removal requests under CCPA (California) or GDPR (EU); others are not. Re-check your listings periodically — brokers frequently re-list individuals from new data sources. PrivacyShield is not a legal service and does not provide legal advice.
+This tool submits opt-out requests on your behalf but cannot guarantee compliance from data brokers. Some brokers are legally required to honor removal requests under CCPA (California) or GDPR (EU); others are not. Re-check your listings periodically — brokers frequently re-list individuals from new data sources. OpenOptOut is not a legal service and does not provide legal advice.

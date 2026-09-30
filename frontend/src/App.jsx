@@ -68,7 +68,7 @@ function Layout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const location = useLocation()
   const { branding } = useBranding()
-  const systemName = branding?.system_name || 'PrivacyShield'
+  const systemName = branding?.system_name || 'OpenOptOut'
 
   // Close the drawer whenever the route changes (belt-and-suspenders alongside
   // the per-NavItem onClose, e.g. for programmatic navigation).

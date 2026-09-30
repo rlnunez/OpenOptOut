@@ -52,7 +52,7 @@ def _save(data: dict):
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
 class BrandingConfig(BaseModel):
-    system_name:            str   = "PrivacyShield"
+    system_name:            str   = "OpenOptOut"
     tagline:                Optional[str] = "Your personal data removal service"
     primary_color:          str   = "#6366f1"
     accent_color:           str   = "#4f46e5"
@@ -184,7 +184,7 @@ def get_branding(
     # Check if a logo file exists, in whichever format was last uploaded
     logo_url = "/api/branding/logo" if _logo_exists() else None
     return BrandingConfig(
-        system_name=b.get("system_name", "PrivacyShield"),
+        system_name=b.get("system_name", "OpenOptOut"),
         tagline=b.get("tagline"),
         primary_color=b.get("primary_color", "#6366f1"),
         accent_color=b.get("accent_color", "#4f46e5"),

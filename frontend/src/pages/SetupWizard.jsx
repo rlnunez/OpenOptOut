@@ -112,7 +112,7 @@ function DatabaseStep({ onNext, onSkip, busy, setError }) {
 
   return (
     <div>
-      <StepHeader icon={Database} title="Database" subtitle="Where PrivacyShield stores its data." />
+      <StepHeader icon={Database} title="Database" subtitle="Where OpenOptOut stores its data." />
       <div className="space-y-3">
         <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer ${kind === 'sqlite' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700'}`}>
           <input type="radio" checked={kind === 'sqlite'} onChange={() => setKind('sqlite')} className="mt-1 accent-shield-500" />
@@ -281,12 +281,12 @@ function EmailStep({ onNext, onSkip, onBack, busy, setError }) {
             Proton Mail has no standard API. You must install and run <strong>Proton Bridge</strong> on
             this server (or a reachable host) and log into it with your Proton account — the wizard
             can't do this for you, since it's OS-level software with an interactive login. Once Bridge
-            is running, it exposes a local SMTP/IMAP endpoint that PrivacyShield connects to. The fields
+            is running, it exposes a local SMTP/IMAP endpoint that OpenOptOut connects to. The fields
             below are pre-filled with Bridge's defaults — adjust if your Bridge uses different ports.
             {' '}<a href="https://proton.me/mail/bridge" target="_blank" rel="noopener noreferrer" className="underline">Proton Bridge docs →</a>
           </p>
           <p className="text-amber-300/70 text-xs mt-1">
-            Note: if PrivacyShield runs in Docker, <code>127.0.0.1</code> refers to the container — you may
+            Note: if OpenOptOut runs in Docker, <code>127.0.0.1</code> refers to the container — you may
             need to point at the host (e.g. <code>host.docker.internal</code>) and allow Bridge to accept it.
           </p>
         </div>
@@ -403,7 +403,7 @@ function ConnectOAuth({ provider, setError }) {
           </button>
         </div>
         <p className="text-slate-500 text-[11px] mt-1.5">
-          This is computed from the address you're using to reach PrivacyShield right now — if you
+          This is computed from the address you're using to reach OpenOptOut right now — if you
           later move to a different domain or turn on HTTPS, add that URI here too and register it
           the same way; each address needs its own entry.
         </p>
@@ -441,13 +441,13 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
 
   return (
     <div>
-      <StepHeader icon={Globe} title="How is HTTPS handled here?" subtitle="Decides whether PrivacyShield should manage HTTPS itself, or stay out of the way of something that already does." />
+      <StepHeader icon={Globe} title="How is HTTPS handled here?" subtitle="Decides whether OpenOptOut should manage HTTPS itself, or stay out of the way of something that already does." />
       <div className="space-y-3">
         <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer ${mode === 'managed' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700'}`}>
           <input type="radio" checked={mode === 'managed'} onChange={() => setMode('managed')} className="mt-1 accent-shield-500" />
           <div className="flex-1">
             <div className="text-slate-200 text-sm font-medium flex items-center gap-1"><Home size={13} /> Running via Docker — set up HTTPS for me</div>
-            <div className="text-slate-400 text-xs">Docker (bare metal or a VM — it doesn't matter which), nothing else already on ports 80 or 443. PrivacyShield's built-in Caddy container gets and renews certificates automatically.</div>
+            <div className="text-slate-400 text-xs">Docker (bare metal or a VM — it doesn't matter which), nothing else already on ports 80 or 443. OpenOptOut's built-in Caddy container gets and renews certificates automatically.</div>
             {mode === 'managed' && (
               <input className={`${inp} mt-2`} placeholder="Domain, if you know it yet (e.g. privacy.yourlibrary.org) — optional"
                 value={domain} onChange={e => setDomain(e.target.value)} />
@@ -458,7 +458,7 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
           <input type="radio" checked={mode === 'native'} onChange={() => setMode('native')} className="mt-1 accent-shield-500" />
           <div className="flex-1">
             <div className="text-slate-200 text-sm font-medium flex items-center gap-1"><Server size={13} /> Native install, no containers — set up HTTPS for me</div>
-            <div className="text-slate-400 text-xs">PrivacyShield runs directly on this VM or bare-metal host (systemd on Linux, a Windows Service on Windows) — no Docker. HTTPS is handled the same way: certbot + nginx on Linux, or win-acme + IIS on Windows. See docs/NATIVE_INSTALL.md.</div>
+            <div className="text-slate-400 text-xs">OpenOptOut runs directly on this VM or bare-metal host (systemd on Linux, a Windows Service on Windows) — no Docker. HTTPS is handled the same way: certbot + nginx on Linux, or win-acme + IIS on Windows. See docs/NATIVE_INSTALL.md.</div>
             {mode === 'native' && (
               <input className={`${inp} mt-2`} placeholder="Domain, if you know it yet (e.g. privacy.yourlibrary.org) — optional"
                 value={domain} onChange={e => setDomain(e.target.value)} />
@@ -469,7 +469,7 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
           <input type="radio" checked={mode === 'external'} onChange={() => setMode('external')} className="mt-1 accent-shield-500" />
           <div className="flex-1">
             <div className="text-slate-200 text-sm font-medium flex items-center gap-1"><Server size={13} /> Something else already terminates HTTPS</div>
-            <div className="text-slate-400 text-xs">A load balancer, IIS, nginx, or another team's reverse proxy already handles TLS in front of PrivacyShield — whether PrivacyShield itself runs in Docker or natively. We won't suggest anything that would fight it for ports 80/443, or nag about plain HTTP once you're reaching it over https.</div>
+            <div className="text-slate-400 text-xs">A load balancer, IIS, nginx, or another team's reverse proxy already handles TLS in front of OpenOptOut — whether OpenOptOut itself runs in Docker or natively. We won't suggest anything that would fight it for ports 80/443, or nag about plain HTTP once you're reaching it over https.</div>
           </div>
         </label>
         <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer ${mode === 'none' ? 'border-amber-700 bg-amber-950/10' : 'border-slate-700'}`}>

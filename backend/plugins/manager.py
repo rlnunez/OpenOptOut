@@ -26,7 +26,7 @@ import threading
 import subprocess
 from concurrent import futures
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Union, List, Dict, Any, Tuple
 
 from .permissions import PluginManifest, Permission
 from .sandbox import detect_capabilities, build_sandboxed_command, log_sandbox_posture

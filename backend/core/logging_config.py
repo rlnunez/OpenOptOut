@@ -31,7 +31,7 @@ else:
         os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs"),
     )
 
-LOG_FILE_PATH = os.getenv("LOG_FILE_PATH", os.path.join(LOGS_DIR, "privacyshield.log"))
+LOG_FILE_PATH = os.getenv("LOG_FILE_PATH", os.path.join(LOGS_DIR, "openoptout.log"))
 
 # Standard log format
 LOG_FORMAT = "%(asctime)s [%(levelname)s] [%(name)s] %(message)s"

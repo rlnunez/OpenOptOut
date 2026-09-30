@@ -93,7 +93,7 @@ export default function Login() {
     } finally { setLoading(false) }
   }
 
-  const name         = branding?.system_name   || 'PrivacyShield'
+  const name         = branding?.system_name   || 'OpenOptOut'
   const tagline      = branding?.tagline        || 'Your personal data removal service'
   const staffLabel   = branding?.staff_tab_label  || 'Staff'
   const patronLabel  = branding?.patron_tab_label || 'Library Card'
@@ -265,7 +265,7 @@ export default function Login() {
         </div>
 
         {branding?.show_powered_by && (
-          <p className="text-center text-slate-700 text-xs mt-4">Powered by PrivacyShield</p>
+          <p className="text-center text-slate-700 text-xs mt-4">Powered by OpenOptOut</p>
         )}
       </div>
     </div>

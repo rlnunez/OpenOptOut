@@ -127,7 +127,7 @@ function BrandingSection() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="System / service name">
           <input value={form.system_name || ''} onChange={e => setForm(f => ({...f, system_name: e.target.value}))}
-            placeholder="PrivacyShield" className={inp} />
+            placeholder="OpenOptOut" className={inp} />
         </Field>
         <Field label="Tagline">
           <input value={form.tagline || ''} onChange={e => setForm(f => ({...f, tagline: e.target.value}))}
@@ -201,7 +201,7 @@ function BrandingSection() {
             <input type="checkbox" checked={form.show_powered_by ?? true}
               onChange={e => setForm(f => ({...f, show_powered_by: e.target.checked}))}
               className="w-3.5 h-3.5 rounded accent-shield-500" />
-            <span className="text-slate-300 text-sm">Show "Powered by PrivacyShield" footer</span>
+            <span className="text-slate-300 text-sm">Show "Powered by OpenOptOut" footer</span>
           </label>
         </Field>
       </div>
@@ -992,7 +992,7 @@ function SamlPanel() {
           </p>
 
           <div className="space-y-2">
-            <p className="text-slate-300 text-xs font-medium">1. Register PrivacyShield at your identity provider</p>
+            <p className="text-slate-300 text-xs font-medium">1. Register OpenOptOut at your identity provider</p>
             <Copy label="SP metadata URL (easiest — many IdPs import this directly)" value={cfg.sp.metadata_url} />
             <Copy label="Entity ID" value={cfg.sp.entity_id} />
             <Copy label="Assertion Consumer Service (ACS) URL — HTTP-POST" value={cfg.sp.acs_url} />

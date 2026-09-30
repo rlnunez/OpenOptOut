@@ -4,7 +4,7 @@ import api from '../api'
 const BrandingContext = createContext(null)
 
 const DEFAULTS = {
-  system_name:     'PrivacyShield',
+  system_name:     'OpenOptOut',
   tagline:         'Your personal data removal service',
   primary_color:   '#6366f1',
   accent_color:    '#4f46e5',
@@ -40,7 +40,7 @@ export function BrandingProvider({ children }) {
     root.style.setProperty('--color-primary',       b.primary_color || '#6366f1')
     root.style.setProperty('--color-accent',        b.accent_color  || '#4f46e5')
     // Update document title
-    document.title = b.system_name || 'PrivacyShield'
+    document.title = b.system_name || 'OpenOptOut'
   }
 
   const refresh = () => {

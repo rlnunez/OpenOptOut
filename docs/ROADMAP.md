@@ -1,6 +1,6 @@
-# PrivacyShield — Architectural Roadmap
+# OpenOptOut — Architectural Roadmap
 
-Status: **Active development.** This document outlines the architectural roadmap for PrivacyShield. The platform centers on a modular **interpretation engine that executes broker add-ons**, decoupling the core orchestration from individual broker opt-out implementations.
+Status: **Active development.** This document outlines the architectural roadmap for OpenOptOut. The platform centers on a modular **interpretation engine that executes broker add-ons**, decoupling the core orchestration from individual broker opt-out implementations.
 
 The guiding architectural principle: **the core does not contain broker-specific logic.** The core engine interprets declarative specifications detailing how a broker's opt-out functions (web forms, emails, required language/templates, multi-step flows) and executes them. Brokers are packaged as declarative specifications and optional isolated code extensions maintained independently.
 
@@ -345,7 +345,7 @@ To ensure operational stability and maintain continuous testability without disr
 
 **Technical Architecture:**
 - **Part A — Version & Commit Reporting:** Canonical version (`backend/VERSION`) and short git commit hash (`GIT_COMMIT`) logged at API startup and exposed via `GET /api/health` for automated probes and bug reporting.
-- **Part B — Persistent Rotating Logs & In-App Viewer:** Dual-layer logging architecture combining persistent disk rotation (`/data/logs/privacyshield.log`, 10MB rotations, 5 backups) with an in-memory ring buffer (2,000 records) for low-latency searching, filtering, and live UI streaming. Supported by automatic PII and credential sanitization (Bearer tokens, SIP2 credentials, query secrets, and JSON passwords) before emission. Full diagnostic log export available via `GET /api/logs/download`.
+- **Part B — Persistent Rotating Logs & In-App Viewer:** Dual-layer logging architecture combining persistent disk rotation (`/data/logs/openoptout.log`, 10MB rotations, 5 backups) with an in-memory ring buffer (2,000 records) for low-latency searching, filtering, and live UI streaming. Supported by automatic PII and credential sanitization (Bearer tokens, SIP2 credentials, query secrets, and JSON passwords) before emission. Full diagnostic log export available via `GET /api/logs/download`.
 - **Part C — Dynamic Log Verbosity & Permissions:** Runtime configurable log levels (DEBUG, INFO, WARNING, ERROR) managed via `POST /api/logs/level` without requiring container restarts. Delegated access control with dedicated sensitive permissions (`logs.view` and `logs.manage`) allowing super admins to securely grant staff access to diagnostic tools.
 
 **Status:** Complete. Documented in [`docs/ARCHITECTURE.md`](ARCHITECTURE.md).
@@ -433,7 +433,7 @@ plugins/
 ---
 
 ### 22. Independent security audit & penetration testing
-**Goal:** Engage a third-party security firm or independent security researchers to perform a comprehensive code audit and penetration test across PrivacyShield's security-critical subsystems.
+**Goal:** Engage a third-party security firm or independent security researchers to perform a comprehensive code audit and penetration test across OpenOptOut's security-critical subsystems.
 
 **Audit Scope:**
 - **OS-Level Sandboxing:** Bubblewrap containerization, seccomp-bpf syscall filters, private network namespaces, Unix domain socket bind-mounts, and capability dropping in `backend/plugins/sandbox.py`.
@@ -465,7 +465,7 @@ plugins/
   - *SQLCipher:* Generates or prompts for master database encryption keys and configures Argon2/PBKDF2 key derivation.
   - *SQLite:* Initializes locked-down storage directories with restricted filesystem permissions.
 - **Zero-Touch Nginx & Reverse Proxy Automation:**
-  - Detects existing web servers, generates `/etc/nginx/sites-available/privacyshield` with optimized reverse-proxy headers, WebSockets, SSE streaming, and client body limits.
+  - Detects existing web servers, generates `/etc/nginx/sites-available/openoptout` with optimized reverse-proxy headers, WebSockets, SSE streaming, and client body limits.
   - Automatically symlinks to `sites-enabled` and validates syntax (`nginx -t && systemctl reload nginx`).
 - **Automated TLS & Certbot Integration:**
   - Automated Let's Encrypt certificate acquisition via `certbot --nginx -d <domain>`.

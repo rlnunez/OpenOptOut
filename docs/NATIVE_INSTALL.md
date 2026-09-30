@@ -1,6 +1,6 @@
 # Native install (no Docker)
 
-Docker running on a VM or bare metal is a fully supported, common way to run PrivacyShield in an institutional setting (see the main [README](../README.md) and [docs/HTTPS.md](HTTPS.md)). This doc is for the other real case: **no container runtime at all** — often by policy, not by choice, at institutions whose IT department doesn't run Docker. PrivacyShield runs as an ordinary native process either way: systemd on Linux, a Windows Service on Windows.
+Docker running on a VM or bare metal is a fully supported, common way to run OpenOptOut in an institutional setting (see the main [README](../README.md) and [docs/HTTPS.md](HTTPS.md)). This doc is for the other real case: **no container runtime at all** — often by policy, not by choice, at institutions whose IT department doesn't run Docker. OpenOptOut runs as an ordinary native process either way: systemd on Linux, a Windows Service on Windows.
 
 If you *can* use Docker, it's the lower-maintenance path (one image, one `docker compose up -d`, automatic HTTPS via one script) — this doc is for when that's genuinely not an option.
 
@@ -9,7 +9,7 @@ If you *can* use Docker, it's the lower-maintenance path (one image, one `docker
 ### What you end up with
 
 ```
-/opt/privacyshield/
+/opt/openoptout/
 ├── app/            the backend, laid out as an importable Python package
 ├── venv/           Python virtual environment
 ├── frontend/dist/  the built React frontend (static files)
@@ -17,23 +17,23 @@ If you *can* use Docker, it's the lower-maintenance path (one image, one `docker
 └── .env            configuration (same keys as .env.example)
 ```
 
-- **systemd** runs the API (`uvicorn app.main:app`) as the `privacyshield` system user, on `127.0.0.1:8000` only — nothing external talks to it directly.
-- **nginx** serves the built frontend and reverse-proxies `/api/` to that local port — this is PrivacyShield's actual public-facing surface.
+- **systemd** runs the API (`uvicorn app.main:app`) as the `openoptout` system user, on `127.0.0.1:8000` only — nothing external talks to it directly.
+- **nginx** serves the built frontend and reverse-proxies `/api/` to that local port — this is OpenOptOut's actual public-facing surface.
 - **certbot** (optional, for HTTPS) edits the nginx site directly and renews itself via its own systemd timer.
 
 This mirrors the Docker image closely on purpose — same Python dependencies, same `app` package layout (main.py's relative imports need it), same Playwright/Firefox setup for the opt-out automation engine, same optional SQLCipher encryption.
 
 ### Install (Unified Interactive Host & Fleet Installer)
 
-PrivacyShield features a unified interactive terminal installer (TUI) with role specialization (Roadmap Item 23). It can be executed directly or via one-line curl:
+OpenOptOut features a unified interactive terminal installer (TUI) with role specialization (Roadmap Item 23). It can be executed directly or via one-line curl:
 
 ```bash
 # Interactive terminal wizard (detects whiptail or ANSI terminal)
-curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/install.sh | sudo bash
 
 # Or run locally from a git clone
-git clone https://github.com/rlnunez/Privacy-Shield.git privacyshield
-cd privacyshield
+git clone https://github.com/rlnunez/OpenOptOut.git openoptout
+cd openoptout
 sudo ./deploy/installer/setup.sh
 ```
 
@@ -59,7 +59,7 @@ For automated orchestration (Ansible, Cloud-Init, CI/CD), supply flags with `--u
 sudo ./deploy/installer/setup.sh --role standalone --db postgres --domain privacy.example.org --email admin@example.org --tls letsencrypt --unattended
 
 # Control Plane backed by external PostgreSQL and Redis:
-sudo ./deploy/installer/setup.sh --role control-plane --db-url "postgresql://user:pass@db:5432/privacyshield" --queue "redis://redis:6379/0" --domain privacy.example.org --unattended
+sudo ./deploy/installer/setup.sh --role control-plane --db-url "postgresql://user:pass@db:5432/openoptout" --queue "redis://redis:6379/0" --domain privacy.example.org --unattended
 
 # Stateless Worker Node connecting to Redis queue:
 sudo ./deploy/installer/setup.sh --role worker --queue "redis://control-plane.internal:6379/0" --worker-id "worker-01" --concurrency 4 --secret-key "SHARED_CLUSTER_KEY" --unattended
@@ -71,23 +71,23 @@ The installer handles user creation, storage permissions, OS packages, Python ve
 ### Updating
 
 ```
-cd privacyshield && git pull
+cd openoptout && git pull
 sudo ./deploy/native/install.sh --update
-sudo systemctl restart privacyshield-api
+sudo systemctl restart openoptout-api
 sudo systemctl reload nginx
 ```
 
-`--update` re-runs the build steps (venv/pip, proto compile, frontend build) without touching `.env` or `/opt/privacyshield/data`.
+`--update` re-runs the build steps (venv/pip, proto compile, frontend build) without touching `.env` or `/opt/openoptout/data`.
 
 ### Database migrations, backups, logs
 
-- Migrations run automatically at API startup (same as the Docker image) — `sudo systemctl restart privacyshield-api` applies them.
-- SQLite lives at whatever `SETTINGS_FILE`'s directory implies unless you set `DATABASE_URL` to Postgres — back up `/opt/privacyshield/data/` the same way you'd back up the Docker `app_data` volume.
-- Logs: `sudo journalctl -u privacyshield-api -f` (the API), `sudo journalctl -u nginx` / `/var/log/nginx/error.log` (nginx), `sudo journalctl -u certbot` (renewal, once HTTPS is on).
+- Migrations run automatically at API startup (same as the Docker image) — `sudo systemctl restart openoptout-api` applies them.
+- SQLite lives at whatever `SETTINGS_FILE`'s directory implies unless you set `DATABASE_URL` to Postgres — back up `/opt/openoptout/data/` the same way you'd back up the Docker `app_data` volume.
+- Logs: `sudo journalctl -u openoptout-api -f` (the API), `sudo journalctl -u nginx` / `/var/log/nginx/error.log` (nginx), `sudo journalctl -u certbot` (renewal, once HTTPS is on).
 
 ### Plugin sandboxing
 
-The plugin system's OS-level sandboxing uses Linux namespaces via `bubblewrap` — this works the same on a native install as it does in the Docker image, since it's a kernel feature, not a container-runtime one. If you enable the plugin system and plugins fail to start, the first thing to try is loosening `deploy/native/privacyshield-api.service`'s hardening (`ProtectSystem`/`ProtectHome`) — see the comments in that file — before troubleshooting further. See [docs/PLUGINS.md](PLUGINS.md).
+The plugin system's OS-level sandboxing uses Linux namespaces via `bubblewrap` — this works the same on a native install as it does in the Docker image, since it's a kernel feature, not a container-runtime one. If you enable the plugin system and plugins fail to start, the first thing to try is loosening `deploy/native/openoptout-api.service`'s hardening (`ProtectSystem`/`ProtectHome`) — see the comments in that file — before troubleshooting further. See [docs/PLUGINS.md](PLUGINS.md).
 
 ## Windows Server
 
@@ -103,8 +103,8 @@ Windows has no direct systemd equivalent, so the pieces map slightly differently
 
 **Option 1 — automated (steps 2-6 below):**
 ```powershell
-git clone https://github.com/rlnunez/Privacy-Shield.git C:\PrivacyShield
-cd C:\PrivacyShield
+git clone https://github.com/rlnunez/OpenOptOut.git C:\OpenOptOut
+cd C:\OpenOptOut
 .\deploy\native\install-native.ps1
 ```
 This does the venv, `pip install`, Playwright's Firefox (best-effort — see `-SkipPlaywright` if that download is blocked by a corporate proxy, same as the Linux note above), the `app`-package layout, proto stub compilation, and the frontend build for you, then prints the exact commands for steps 7-9 below (NSSM, IIS, win-acme) — those aren't reliably automatable across Windows Server versions the way a single script can handle Linux's systemd + certbot, so they stay manual. Skip ahead to step 7.
@@ -114,60 +114,60 @@ This does the venv, `pip install`, Playwright's Firefox (best-effort — see `-S
 1. **Install Python 3.12** and **Node.js LTS** (for building the frontend).
 2. **Clone the repo** and set up the backend:
    ```powershell
-   git clone https://github.com/rlnunez/Privacy-Shield.git C:\PrivacyShield
-   cd C:\PrivacyShield\backend
+   git clone https://github.com/rlnunez/OpenOptOut.git C:\OpenOptOut
+   cd C:\OpenOptOut\backend
    python -m venv venv
    .\venv\Scripts\pip install -r requirements.txt
    .\venv\Scripts\playwright install firefox
    ```
    (If the Playwright download fails behind a corporate proxy, the same note as the Linux section applies — the app still works; automated opt-outs won't until you can retry that command.)
-3. **Lay the backend out as the `app` package**, same reason as Linux (the code uses relative imports): copy `backend\` to `C:\PrivacyShield\app\`, and create empty `__init__.py` files in `app\`, `app\models\`, `app\routers\`, and `app\core\`.
+3. **Lay the backend out as the `app` package**, same reason as Linux (the code uses relative imports): copy `backend\` to `C:\OpenOptOut\app\`, and create empty `__init__.py` files in `app\`, `app\models\`, `app\routers\`, and `app\core\`.
 4. **Compile the plugin protocol stubs** (best-effort — the plugin system just stays inactive if this fails):
    ```powershell
-   cd C:\PrivacyShield
+   cd C:\OpenOptOut
    .\backend\venv\Scripts\python -m grpc_tools.protoc -Iapp\plugins\proto --python_out=app\plugins\proto --grpc_python_out=app\plugins\proto app\plugins\proto\plugin.proto
    ```
    Then edit `app\plugins\proto\plugin_pb2_grpc.py`, changing `import plugin_pb2 as` to `from . import plugin_pb2 as`, and add an empty `app\plugins\proto\__init__.py`.
 5. **Build the frontend:**
    ```powershell
-   cd C:\PrivacyShield\frontend
+   cd C:\OpenOptOut\frontend
    npm install
    npm run build
    ```
    (`frontend\dist\` is what IIS will serve.)
 6. **Create `.env`:**
    ```powershell
-   cd C:\PrivacyShield
+   cd C:\OpenOptOut
    Copy-Item .env.example .env
    ```
-   Edit it: set `SECRET_KEY` to a random value, add `SETTINGS_FILE=C:\PrivacyShield\data\privacyshield_settings.json` and `LOGO_PATH=C:\PrivacyShield\data\logo`, and create that `data` folder.
+   Edit it: set `SECRET_KEY` to a random value, add `SETTINGS_FILE=C:\OpenOptOut\data\openoptout_settings.json` and `LOGO_PATH=C:\OpenOptOut\data\logo`, and create that `data` folder.
 7. **Register the Windows Service with NSSM:**
    ```powershell
-   nssm install PrivacyShieldAPI "C:\PrivacyShield\backend\venv\Scripts\uvicorn.exe" "app.main:app --host 127.0.0.1 --port 8000 --workers 2"
-   nssm set PrivacyShieldAPI AppDirectory "C:\PrivacyShield"
-   nssm set PrivacyShieldAPI AppEnvironmentExtra (Get-Content .env | Where-Object { $_ -match '=' })
-   nssm start PrivacyShieldAPI
+   nssm install OpenOptOutAPI "C:\OpenOptOut\backend\venv\Scripts\uvicorn.exe" "app.main:app --host 127.0.0.1 --port 8000 --workers 2"
+   nssm set OpenOptOutAPI AppDirectory "C:\OpenOptOut"
+   nssm set OpenOptOutAPI AppEnvironmentExtra (Get-Content .env | Where-Object { $_ -match '=' })
+   nssm start OpenOptOutAPI
    ```
    Confirm it's up: `Invoke-WebRequest http://127.0.0.1:8000/api/health` should return `{"status":"ok"}`.
 8. **Set up IIS:**
    - Install the **Application Request Routing (ARR)** and **URL Rewrite** modules (free, from Microsoft's IIS download page).
    - In IIS Manager, enable ARR's proxy feature (Server node → Application Request Routing Cache → Server Proxy Settings → **Enable proxy**).
-   - Create a site with its physical path pointed at `C:\PrivacyShield\frontend\dist`.
+   - Create a site with its physical path pointed at `C:\OpenOptOut\frontend\dist`.
    - Add a URL Rewrite rule: requests to `/api/*` reverse-proxy to `http://127.0.0.1:8000/{R:0}`; everything else falls through to `index.html` (a standard SPA rewrite rule — IIS's URL Rewrite has a built-in template for this).
-   - In that rule's **Server Variables**, add/set `HTTP_X_FORWARDED_PROTO` to `https` once HTTPS is on (step 9) so PrivacyShield knows the original request scheme.
+   - In that rule's **Server Variables**, add/set `HTTP_X_FORWARDED_PROTO` to `https` once HTTPS is on (step 9) so OpenOptOut knows the original request scheme.
 9. **Turn on HTTPS with win-acme:**
    - Download [win-acme](https://www.win-acme.com/) and run `wacs.exe`.
    - Point it at your IIS site; it obtains a Let's Encrypt certificate, installs it into the site's HTTPS binding, and registers a scheduled task for renewal — no further action needed.
-   - Set `FRONTEND_URL=https://your-domain` in `.env`, update the NSSM service's environment (`nssm set PrivacyShieldAPI AppEnvironmentExtra ...` again, or `nssm edit PrivacyShieldAPI`), and restart it: `nssm restart PrivacyShieldAPI`.
+   - Set `FRONTEND_URL=https://your-domain` in `.env`, update the NSSM service's environment (`nssm set OpenOptOutAPI AppEnvironmentExtra ...` again, or `nssm edit OpenOptOutAPI`), and restart it: `nssm restart OpenOptOutAPI`.
 10. Open `https://your-domain/` — the first user to register becomes the super admin.
 
 ### Updating
 
 ```powershell
-cd C:\PrivacyShield
+cd C:\OpenOptOut
 git pull
 .\deploy\native\install-native.ps1 -Update    # or re-run steps 2-5 manually
-nssm restart PrivacyShieldAPI
+nssm restart OpenOptOutAPI
 ```
 
 ### Confirming HTTPS actually worked (either OS)

@@ -84,7 +84,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
   ].filter(n => can(user, ...n.perms)).map(({ perms, ...n }) => n)
 
   const roleColor = { super_admin: 'text-purple-400', manager: 'text-sky-400', parent: 'text-teal-400', member: 'text-slate-400' }[user?.role] ?? 'text-slate-400'
-  const systemName = branding?.system_name || 'PrivacyShield'
+  const systemName = branding?.system_name || 'OpenOptOut'
 
   const handleNavigate = () => onClose()
 
@@ -176,7 +176,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
           </button>
 
           {branding?.show_powered_by && (
-            <p className="text-slate-700 text-xs mt-1">Powered by PrivacyShield</p>
+            <p className="text-slate-700 text-xs mt-1">Powered by OpenOptOut</p>
           )}
           <button onClick={logout} className="mt-1 flex items-center gap-1.5 text-slate-500 hover:text-white text-xs transition-colors">
             <LogOut size={13} /> {t('nav.logout', 'Sign out')}

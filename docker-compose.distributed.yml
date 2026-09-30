@@ -1,5 +1,5 @@
 # ==============================================================================
-# PrivacyShield — Distributed Cluster Topology (Roadmap Phase 7.5)
+# OpenOptOut — Distributed Cluster Topology (Roadmap Phase 7.5)
 #
 # Production / High-Throughput Scaled Architecture:
 #   - api: FastAPI Control Plane + Result Ingestion Service + APScheduler Producer
@@ -15,7 +15,7 @@
 services:
   redis:
     image: redis:7-alpine
-    container_name: privacyshield-redis
+    container_name: openoptout-redis
     restart: unless-stopped
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy noeviction
     ports:
@@ -30,16 +30,16 @@ services:
 
   db:
     image: postgres:16
-    container_name: privacyshield-db
+    container_name: openoptout-db
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-privacyshield}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-privacyshield-secret-pw}
-      - POSTGRES_DB=${POSTGRES_DB:-privacyshield}
+      - POSTGRES_USER=${POSTGRES_USER:-openoptout}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-openoptout-secret-pw}
+      - POSTGRES_DB=${POSTGRES_DB:-openoptout}
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-privacyshield}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openoptout}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,13 +49,13 @@ services:
       context: ./backend
       args:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
-    container_name: privacyshield-api
+    container_name: openoptout-api
     restart: unless-stopped
     environment:
       - SECRET_KEY=${SECRET_KEY:-change-me-please-32-chars-minimum}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
-      - SETTINGS_FILE=/data/privacyshield_settings.json
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-privacyshield}:${POSTGRES_PASSWORD:-privacyshield-secret-pw}@db:5432/${POSTGRES_DB:-privacyshield}
+      - SETTINGS_FILE=/data/openoptout_settings.json
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-openoptout}:${POSTGRES_PASSWORD:-openoptout-secret-pw}@db:5432/${POSTGRES_DB:-openoptout}
       - REDIS_URL=redis://redis:6379/0
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
     volumes:
@@ -95,7 +95,7 @@ services:
 
   web:
     build: ./frontend
-    container_name: privacyshield-web
+    container_name: openoptout-web
     restart: unless-stopped
     ports:
       - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-80}:80"

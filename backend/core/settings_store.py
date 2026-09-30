@@ -9,7 +9,11 @@ try:
 except ImportError:
     Fernet = None
 
-SETTINGS_FILE = os.getenv("SETTINGS_FILE", "./privacyshield_settings.json")
+_DEFAULT_SETTINGS_FILE = "./openoptout_settings.json"
+_LEGACY_SETTINGS_FILE = "./privacyshield_settings.json"
+SETTINGS_FILE = os.getenv("SETTINGS_FILE") or (
+    _LEGACY_SETTINGS_FILE if os.path.exists(_LEGACY_SETTINGS_FILE) and not os.path.exists(_DEFAULT_SETTINGS_FILE) else _DEFAULT_SETTINGS_FILE
+)
 
 
 def load_settings() -> dict:

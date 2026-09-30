@@ -1,5 +1,5 @@
 # ==============================================================================
-# PrivacyShield — Docker Compose
+# OpenOptOut — Docker Compose
 #
 # Quickstart (SQLite, single node — good for families and small deployments):
 #   1. cp .env.example .env   and set SECRET_KEY (openssl rand -hex 32)
@@ -22,7 +22,7 @@ services:
         # just gets "unknown", which core/version.py handles fine. See
         # backend/Dockerfile for where this actually gets used.
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
-    container_name: privacyshield-api
+    container_name: openoptout-api
     restart: unless-stopped
     environment:
       # ── Core (required) ─────────────────────────────────────────────────────
@@ -30,14 +30,14 @@ services:
       #   openssl rand -hex 32
       - SECRET_KEY=${SECRET_KEY:-change-me-please}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
-      - SETTINGS_FILE=/data/privacyshield_settings.json
+      - SETTINGS_FILE=/data/openoptout_settings.json
 
       # ── Database ────────────────────────────────────────────────────────────
       # SQLite by default (fine for families / small staff deployments).
       - DATABASE_URL=${DATABASE_URL:-sqlite:////data/privacy_pipeline.db}
       #
       # For PostgreSQL (patron-scale), set DATABASE_URL instead, e.g.:
-      #   DATABASE_URL=postgresql://user:password@db:5432/privacyshield
+      #   DATABASE_URL=postgresql://user:password@db:5432/openoptout
       # and uncomment the `db` service at the bottom of this file.
       #
       # For hardened enterprise DB auth (SSL, client certs, cloud IAM, Kerberos),
@@ -118,7 +118,7 @@ services:
 
   web:
     build: ./frontend
-    container_name: privacyshield-web
+    container_name: openoptout-web
     restart: unless-stopped
     ports:
       # Host port for the web UI (nginx). Change WEB_PORT in .env if 80 is taken.
@@ -135,7 +135,7 @@ services:
   # See docs/HTTPS.md.
   caddy:
     image: caddy:2.8.4-alpine
-    container_name: privacyshield-caddy
+    container_name: openoptout-caddy
     profiles: ["https"]
     restart: unless-stopped
     entrypoint: ["/bin/sh", "/deploy/entrypoint.sh"]
@@ -167,16 +167,16 @@ services:
   # Also set DATABASE_URL on the api service to point here.
   #db:
   #  image: postgres:16
-  #  container_name: privacyshield-db
+  #  container_name: openoptout-db
   #  restart: unless-stopped
   #  environment:
-  #    - POSTGRES_USER=${POSTGRES_USER:-privacyshield}
+  #    - POSTGRES_USER=${POSTGRES_USER:-openoptout}
   #    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-  #    - POSTGRES_DB=${POSTGRES_DB:-privacyshield}
+  #    - POSTGRES_DB=${POSTGRES_DB:-openoptout}
   #  volumes:
   #    - pg_data:/var/lib/postgresql/data
   #  healthcheck:
-  #    test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-privacyshield}"]
+  #    test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openoptout}"]
   #    interval: 10s
   #    timeout: 5s
   #    retries: 5

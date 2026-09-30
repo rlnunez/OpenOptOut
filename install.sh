@@ -1,12 +1,12 @@
 #!/bin/sh
 # ==============================================================================
-# PrivacyShield one-line installer (Roadmap Item 23).
+# OpenOptOut one-line installer (Roadmap Item 23).
 #
-#   curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sudo bash
-#   curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sudo bash -s -- --role worker --queue redis://...
-#   curl -fsSL https://raw.githubusercontent.com/rlnunez/Privacy-Shield/main/install.sh | sh -s -- --docker
+#   curl -fsSL https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/install.sh | sudo bash -s -- --role worker --queue redis://...
+#   curl -fsSL https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/install.sh | sh -s -- --docker
 #
-# What it does: clones or updates PrivacyShield, then picks a deployment path:
+# What it does: clones or updates OpenOptOut, then picks a deployment path:
 #   - Docker requested (--docker) -> docker compose up -d
 #   - Native / Fleet installer requested (--native or --role or Linux root) ->
 #     launches the interactive TUI / CLI host & fleet installer
@@ -27,7 +27,7 @@
 # ==============================================================================
 set -e
 
-REPO_URL="https://github.com/rlnunez/Privacy-Shield.git"
+REPO_URL="https://github.com/rlnunez/OpenOptOut.git"
 REF="main"
 MODE=""
 DIR=""
@@ -161,7 +161,7 @@ if [ "$MODE" = "docker" ]; then
     if [ -f "./docker-compose.yml" ] && [ -f "./backend/main.py" ]; then
       DIR="$PWD"
     else
-      DIR="$PWD/privacyshield"
+      DIR="$PWD/openoptout"
     fi
   fi
   [ "$DIR" = "$PWD" ] || checkout "$DIR"
@@ -185,11 +185,11 @@ if [ "$MODE" = "docker" ]; then
     fi
   fi
 
-  info "Starting PrivacyShield (docker compose up -d)…"
+  info "Starting OpenOptOut (docker compose up -d)…"
   docker compose up -d
 
   info ""
-  info "PrivacyShield is starting. Open http://localhost (or this server's"
+  info "OpenOptOut is starting. Open http://localhost (or this server's"
   info "address) in a browser — the first person to register becomes the"
   info "super admin. It's running in: $DIR"
   info ""
@@ -207,12 +207,12 @@ if [ "$MODE" = "native" ]; then
     if [ -f "./backend/main.py" ] && [ -f "./deploy/installer/setup.sh" ]; then
       DIR="$PWD"
     else
-      DIR="/opt/privacyshield-src"
+      DIR="/opt/openoptout-src"
     fi
   fi
   [ "$DIR" = "$PWD" ] || checkout "$DIR"
 
-  info "Launching PrivacyShield Unified Host & Fleet Installer…"
+  info "Launching OpenOptOut Unified Host & Fleet Installer…"
   exec bash "$DIR/deploy/installer/setup.sh" "$@"
 fi
 

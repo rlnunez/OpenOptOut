@@ -54,5 +54,5 @@ def get_commit() -> str:
 
 
 def version_string() -> str:
-    """e.g. 'PrivacyShield 0.1.0 (commit a1b2c3d)' or '... (commit unknown)'."""
-    return f"PrivacyShield {get_version()} (commit {get_commit()})"
+    """e.g. 'OpenOptOut 0.1.0 (commit a1b2c3d)' or '... (commit unknown)'."""
+    return f"OpenOptOut {get_version()} (commit {get_commit()})"

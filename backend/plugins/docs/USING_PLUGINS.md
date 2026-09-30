@@ -1,6 +1,6 @@
 # Using Plugins (Administrator Guide)
 
-PrivacyShield supports **process-isolated, sandboxed plugins** so third parties can extend the app — custom form-filling strategies, email parsers, event reactions, and plugin-scoped storage — without being able to touch the host's memory, database, credentials, or (unless granted) the network.
+OpenOptOut supports **process-isolated, sandboxed plugins** so third parties can extend the app — custom form-filling strategies, email parsers, event reactions, and plugin-scoped storage — without being able to touch the host's memory, database, credentials, or (unless granted) the network.
 
 This guide covers the security model, the permissions plugins can request, and how to install, enable, and safely operate plugins as an administrator.
 
@@ -10,7 +10,7 @@ This guide covers the security model, the permissions plugins can request, and h
 
 The app holds sensitive personal data, sometimes for minors and library patrons. Plugins are untrusted third-party code. A naive "drop a .py file in a folder and import it" approach gives that code full access to everything the host process can see — PII, IMAP/SMTP passwords, database, filesystem, network. There is no reliable way to sandbox in-process Python (`import os` defeats it).
 
-So PrivacyShield never executes plugin code in its own interpreter. Each plugin runs as a **separate OS process**, and the host and plugin communicate over **gRPC**. Everything a plugin can do goes through a small, **capability-gated** API that the host enforces. On Linux with bubblewrap, plugins additionally run inside namespace/resource sandboxes.
+So OpenOptOut never executes plugin code in its own interpreter. Each plugin runs as a **separate OS process**, and the host and plugin communicate over **gRPC**. Everything a plugin can do goes through a small, **capability-gated** API that the host enforces. On Linux with bubblewrap, plugins additionally run inside namespace/resource sandboxes.
 
 ---
 
@@ -66,7 +66,7 @@ A hook requires its matching permission (`fill_form`→`fill_forms`, `parse_emai
 
 ## Method-level allowlisting (least privilege)
 
-Permissions are coarse — holding `storage` could, in principle, unlock reading, writing, *and* deleting. PrivacyShield tightens this to the individual method. Every plugin must declare in its manifest the **exact host methods** it will call, and the broker refuses any method not on that list — even when the plugin holds the broader permission.
+Permissions are coarse — holding `storage` could, in principle, unlock reading, writing, *and* deleting. OpenOptOut tightens this to the individual method. Every plugin must declare in its manifest the **exact host methods** it will call, and the broker refuses any method not on that list — even when the plugin holds the broader permission.
 
 The callable host methods are:
 
@@ -190,7 +190,7 @@ Every plugin is stored at `<plugins directory>/<type>/<id>/`, where the type com
 
 The type is enforced, not just a folder name. A plugin sitting in the wrong folder is flagged as invalid, the `email_provider`, `solve_captcha` and `fill_form` hooks are only accepted in their own type, and a `themes` or `languages` plugin may not contain code, permissions or network access.
 
-**Built-in plugins** ship inside the app (`backend/plugins/bundled/email/`) and are copied into `email/` when they're first needed. The copy carries a `.privacyshield-bundled` marker and is refreshed automatically when you upgrade PrivacyShield. A plugin of your own with the same ID (no marker) is never overwritten.
+**Built-in plugins** ship inside the app (`backend/plugins/bundled/email/`) and are copied into `email/` when they're first needed. The copy carries a `.openoptout-bundled` marker and is refreshed automatically when you upgrade OpenOptOut. A plugin of your own with the same ID (no marker) is never overwritten.
 
 **Upgrading from the old flat layout** (`<plugins directory>/<id>/`): on startup, each installed plugin is moved into its type folder and its recorded location is updated. Plugins installed from outside the plugins directory are left where they are.
 

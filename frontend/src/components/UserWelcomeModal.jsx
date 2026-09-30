@@ -61,7 +61,7 @@ export default function UserWelcomeModal() {
             </div>
             <div>
               <h2 className="text-lg font-semibold text-white">
-                {t('tutorial.welcome_title', 'Welcome to PrivacyShield')}
+                {t('tutorial.welcome_title', 'Welcome to OpenOptOut')}
               </h2>
               <p className="text-xs text-slate-400">
                 {t('tutorial.welcome_desc', "Let's take a moment to customize your experience and configure your privacy protections.")}
@@ -240,7 +240,7 @@ export default function UserWelcomeModal() {
                 </h3>
               </div>
               <p className="text-sm text-slate-300">
-                {t('tutorial.email_step_desc', 'PrivacyShield dispatches removal requests using dedicated inboxes and monitors broker responses.')}
+                {t('tutorial.email_step_desc', 'OpenOptOut dispatches removal requests using dedicated inboxes and monitors broker responses.')}
               </p>
 
               <div className="space-y-3">

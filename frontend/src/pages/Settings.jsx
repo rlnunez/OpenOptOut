@@ -114,7 +114,7 @@ function AppearanceSection({ initial, onSaved, userRole }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="App name">
           <input value={form.app_name ?? ''} onChange={e => setForm(f => ({...f, app_name: e.target.value}))}
-            placeholder="PrivacyShield" className={inp} />
+            placeholder="OpenOptOut" className={inp} />
         </Field>
         <Field label="App icon" hint="PNG or SVG shown in sidebar">
           <div className="flex items-center gap-2">
@@ -343,7 +343,7 @@ function EmailSection({ initial, userRole }) {
       poll_interval_minutes: initial.poll_interval_minutes ?? 15,
       smtp_host: initial.smtp_host ?? '', smtp_port: initial.smtp_port ?? 587,
       smtp_user: initial.smtp_user ?? '', smtp_tls: initial.smtp_tls ?? true,
-      from_name: initial.from_name ?? 'PrivacyShield Removals', from_email: initial.from_email ?? '',
+      from_name: initial.from_name ?? 'OpenOptOut Removals', from_email: initial.from_email ?? '',
     })
   }, [isAdmin, initial])
 
@@ -516,7 +516,7 @@ function EmailSection({ initial, userRole }) {
               <PasswordField label="Password / App Password" value={smtpPw} onChange={setSmtpPw} isSet={initial.smtp_password_set}/>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-              <Field label='"From" name'><input value={form.from_name ?? ''} onChange={e => setForm(f=>({...f,from_name:e.target.value}))} placeholder="PrivacyShield Removals" className={inp}/></Field>
+              <Field label='"From" name'><input value={form.from_name ?? ''} onChange={e => setForm(f=>({...f,from_name:e.target.value}))} placeholder="OpenOptOut Removals" className={inp}/></Field>
               <Field label='"From" email'><input type="email" value={form.from_email ?? ''} onChange={e => setForm(f=>({...f,from_email:e.target.value}))} placeholder="removals@example.com" className={inp}/></Field>
             </div>
             <label className="flex items-center gap-2 mt-2 cursor-pointer">
@@ -1560,7 +1560,7 @@ export default function Settings() {
     <div className="p-4 md:p-6 max-w-3xl">
       <div className="mb-6">
         <h1 className="text-white text-xl font-semibold">Settings</h1>
-        <p className="text-slate-400 text-sm mt-0.5">Configure how PrivacyShield looks and behaves</p>
+        <p className="text-slate-400 text-sm mt-0.5">Configure how OpenOptOut looks and behaves</p>
       </div>
       <AppearanceSection initial={settings?.appearance ?? {}} onSaved={a => setSettings(s=>({...s,appearance:a}))} userRole={sectionRole('branding.manage')}/>
       <EmailSection initial={settings?.email ?? {}} userRole={sectionRole('email.manage')}/>

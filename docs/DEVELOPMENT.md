@@ -3,7 +3,7 @@
 This guide walks through setting up a fast local development loop (hot-reload API and frontend) without Docker.
 
 > [!NOTE]
-> If you are looking to run PrivacyShield in **production** natively on a server without containers (systemd + nginx on Linux, or Windows Service + IIS on Windows), see [`docs/NATIVE_INSTALL.md`](NATIVE_INSTALL.md) instead.
+> If you are looking to run OpenOptOut in **production** natively on a server without containers (systemd + nginx on Linux, or Windows Service + IIS on Windows), see [`docs/NATIVE_INSTALL.md`](NATIVE_INSTALL.md) instead.
 
 ---
 
@@ -81,7 +81,7 @@ npm run dev
 
 ## 4. Running Tests
 
-PrivacyShield includes a self-contained tier-based test suite that runs without external services:
+OpenOptOut includes a self-contained tier-based test suite that runs without external services:
 
 ```bash
 cd backend

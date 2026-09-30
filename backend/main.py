@@ -29,7 +29,7 @@ from .core.version import get_version, get_commit, version_string
 from .core.logging_config import init_logging
 
 app = FastAPI(
-    title="PrivacyShield API",
+    title="OpenOptOut API",
     description="Open-source personal data removal pipeline",
     version=get_version(),
 )

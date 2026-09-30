@@ -1,6 +1,6 @@
 # Writing Plugins (Developer Guide)
 
-PrivacyShield supports **process-isolated, sandboxed plugins** so third parties can extend the app — custom form-filling strategies, email parsers, event reactions, and plugin-scoped storage — without being able to touch the host's memory, database, credentials, or (unless granted) the network.
+OpenOptOut supports **process-isolated, sandboxed plugins** so third parties can extend the app — custom form-filling strategies, email parsers, event reactions, and plugin-scoped storage — without being able to touch the host's memory, database, credentials, or (unless granted) the network.
 
 This guide covers the extension points, host capabilities, manifest format, and SDK a developer uses to write a plugin. For the exhaustive technical specification covering all plugin types (`brokers`, `forms`, `captcha`, `discovery`, `themes`, `languages`, `email`, `general`), gRPC & REST API endpoints, and proposed enhancements, see the [Plugin API Reference Specification](PLUGIN_API_REFERENCE.md).
 
@@ -83,7 +83,7 @@ Overrides the default recheck interval for one confirmed request. Diff-logged li
 
 ## Method-level allowlisting (least privilege)
 
-Permissions are coarse — holding `storage` could, in principle, unlock reading, writing, *and* deleting. PrivacyShield tightens this to the individual method. Every plugin must declare in its manifest the **exact host methods** it will call, and the broker refuses any method not on that list — even when the plugin holds the broader permission.
+Permissions are coarse — holding `storage` could, in principle, unlock reading, writing, *and* deleting. OpenOptOut tightens this to the individual method. Every plugin must declare in its manifest the **exact host methods** it will call, and the broker refuses any method not on that list — even when the plugin holds the broader permission.
 
 The callable host methods are:
 
@@ -167,7 +167,7 @@ The `email_provider`, `solve_captcha` and `fill_form` hooks are only allowed in 
 
 ### plugin.py
 ```python
-from privacyshield_sdk import Plugin, manifest, FormResult
+from openoptout_sdk import Plugin, manifest, FormResult
 
 plugin = Plugin(manifest(
     id="my-plugin", name="My Plugin", version="1.0.0", author="you", type="general",

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-PrivacyShield Demo Database Seeder
-==================================
+OpenOptOut Demo Database Seeder
+===============================
 
 Generates a standalone, fully-populated SQLite database containing realistic,
 synthetic (100% fake) data for rendering clean screenshots for documentation,
@@ -27,10 +27,10 @@ Usage:
   python3 scripts/seed_demo_data.py
 
   # Reset and recreate custom database:
-  python3 scripts/seed_demo_data.py --reset --db-path ./demo_privacyshield.db
+  python3 scripts/seed_demo_data.py --reset --db-path ./demo_openoptout.db
 
   # Run the backend with demo data and mock worker fleet telemetry:
-  DATABASE_URL=sqlite:///./demo_privacyshield.db DEMO_MODE=true uvicorn backend.main:app --port 8000 --reload
+  DATABASE_URL=sqlite:///./demo_openoptout.db DEMO_MODE=true uvicorn backend.main:app --port 8000 --reload
 """
 
 from __future__ import annotations
@@ -106,7 +106,7 @@ def seed_demo_database(db_path: str, reset: bool = False, admin_password: str = 
         now = datetime.datetime.utcnow()
 
         # Check if already seeded
-        existing_admin = db.query(User).filter(User.email == "admin@privacyshield.demo").first()
+        existing_admin = db.query(User).filter(User.email == "admin@openoptout.demo").first()
         if existing_admin:
             print("[!] Demo admin user already exists. Use --reset to re-seed from scratch.")
             return
@@ -143,7 +143,7 @@ def seed_demo_database(db_path: str, reset: bool = False, admin_password: str = 
         admin_hash = get_bcrypt_hash(admin_password)
 
         admin_user = User(
-            email="admin@privacyshield.demo",
+            email="admin@openoptout.demo",
             full_name="Jordan Avery (System Admin)",
             hashed_password=admin_hash,
             role=UserRole.super_admin,
@@ -599,7 +599,7 @@ def seed_demo_database(db_path: str, reset: bool = False, admin_password: str = 
         print(f" Database Location: {normalized_path}")
         print("=" * 70)
         print("\nCredentials:")
-        print("  Super Admin:  admin@privacyshield.demo  /  DemoAdmin123!")
+        print("  Super Admin:  admin@openoptout.demo  /  DemoAdmin123!")
         print("  Parent User:  sarah.connor@example.com   /  DemoAdmin123!")
         print("  Manager User: marcus.wright@library.demo /  DemoAdmin123!")
         print("\nTo start the application with demo data and live mock worker telemetry:")
@@ -617,11 +617,11 @@ def seed_demo_database(db_path: str, reset: bool = False, admin_password: str = 
 
 
 def main():
-    parser = argparse.ArgumentParser(description="PrivacyShield Demo Database Seeder")
+    parser = argparse.ArgumentParser(description="OpenOptOut Demo Database Seeder")
     parser.add_argument(
         "--db-path",
-        default="./demo_privacyshield.db",
-        help="Path to target SQLite database file (default: ./demo_privacyshield.db)",
+        default="./demo_openoptout.db",
+        help="Path to target SQLite database file (default: ./demo_openoptout.db)",
     )
     parser.add_argument(
         "--reset",

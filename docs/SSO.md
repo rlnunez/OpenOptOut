@@ -1,6 +1,6 @@
 # Single sign-on (SSO) setup
 
-PrivacyShield supports several ways for staff to sign in with accounts they already have. All of them go through one shared set of access rules, so an administrator's restrictions apply no matter which method a person uses.
+OpenOptOut supports several ways for staff to sign in with accounts they already have. All of them go through one shared set of access rules, so an administrator's restrictions apply no matter which method a person uses.
 
 | Method | Good for |
 |---|---|
@@ -23,7 +23,7 @@ All are configured on the **Branding** page, under sign-in providers.
 
 ## Google Workspace
 
-Set **Allowed email domains** to your Workspace domain. This matters: anyone can create a personal Google account using an address like `name@yourlibrary.org`, and Google marks it "verified". PrivacyShield checks Google's hosted-domain (`hd`) claim, which only genuine Workspace accounts carry. Without an allowed domain, any Google account can sign in, and the settings page warns you.
+Set **Allowed email domains** to your Workspace domain. This matters: anyone can create a personal Google account using an address like `name@yourlibrary.org`, and Google marks it "verified". OpenOptOut checks Google's hosted-domain (`hd`) claim, which only genuine Workspace accounts carry. Without an allowed domain, any Google account can sign in, and the settings page warns you.
 
 ## Microsoft 365 / Entra ID
 
@@ -32,9 +32,9 @@ Use your own **tenant ID**. The values `common`, `organizations`, and `consumers
 ## SAML 2.0
 
 1. On the Branding page, open **SAML 2.0 single sign-on**.
-2. Set **Public base URL** to the address people use to reach PrivacyShield (for example `https://privacy.example.edu`). Do this first, because the URLs below are built from it and must match what your IdP registers.
-3. Register PrivacyShield at your identity provider. Most IdPs can import the **SP metadata URL** directly. Otherwise enter the **Entity ID** and the **ACS URL** (HTTP-POST binding).
-4. Give PrivacyShield your IdP's metadata, by URL (easiest) or by pasting XML.
+2. Set **Public base URL** to the address people use to reach OpenOptOut (for example `https://privacy.example.edu`). Do this first, because the URLs below are built from it and must match what your IdP registers.
+3. Register OpenOptOut at your identity provider. Most IdPs can import the **SP metadata URL** directly. Otherwise enter the **Entity ID** and the **ACS URL** (HTTP-POST binding).
+4. Give OpenOptOut your IdP's metadata, by URL (easiest) or by pasting XML.
 5. Make sure your IdP releases an email attribute (`mail`), and a display name and groups/affiliation if you use group rules. Common attribute names are recognized automatically; override them under "Attribute names" if needed.
 6. Set who may sign in, enable SAML, and save. A sign-in button appears on the login page.
 
@@ -43,7 +43,7 @@ Use your own **tenant ID**. The values `common`, `organizations`, and `consumers
 ### Home lab examples
 
 - **Keycloak:** Clients → Import client → paste the SP metadata URL. Add a mapper that sends the user's email as `mail`. The IdP metadata URL is `https://<keycloak>/realms/<realm>/protocol/saml/descriptor`.
-- **Authentik:** create a SAML provider using the Entity ID and ACS URL, then use the provider's metadata download URL in PrivacyShield.
+- **Authentik:** create a SAML provider using the Entity ID and ACS URL, then use the provider's metadata download URL in OpenOptOut.
 
 ### Universities (Shibboleth / InCommon)
 
@@ -67,7 +67,7 @@ Choose a **connection security** mode:
 
 ### Auto-renewing certificates (Let's Encrypt, internal ACME)
 
-Short-lived certificates work without any maintenance, because PrivacyShield trusts the **issuing CA**, not the server's own certificate. Every connection re-checks the chain, host name, and dates, so each renewed certificate is accepted automatically. (Let's Encrypt certificates last 90 days and renew around day 60; the industry maximum falls to 47 days by 2029.)
+Short-lived certificates work without any maintenance, because OpenOptOut trusts the **issuing CA**, not the server's own certificate. Every connection re-checks the chain, host name, and dates, so each renewed certificate is accepted automatically. (Let's Encrypt certificates last 90 days and renew around day 60; the industry maximum falls to 47 days by 2029.)
 
 - **Public CA (e.g. Let's Encrypt):** paste nothing. The container's built-in root certificates cover it. Rebuild the image occasionally so those roots stay current.
 - **Internal CA (AD, step-ca, other internal ACME):** paste the **CA** certificate once.
@@ -96,9 +96,9 @@ A daily check covers every certificate sign-in depends on:
 | LDAP / Active Directory server | When it's close to expiry (auto-renewal has likely failed) |
 | Library ILS (SIP2 over TLS) | Same |
 | SAML identity provider signing certificate | From **30 days** before it expires |
-| PrivacyShield's own HTTPS certificate (if using the built-in Caddy front door — see [docs/HTTPS.md](HTTPS.md)) | Same, once `HTTPS_MODE`/`DOMAIN` are set |
+| OpenOptOut's own HTTPS certificate (if using the built-in Caddy front door — see [docs/HTTPS.md](HTTPS.md)) | Same, once `HTTPS_MODE`/`DOMAIN` are set |
 
-SAML signing certificates don't update themselves in PrivacyShield. When your identity provider switches to a new one, SAML sign-in stops until you upload the IdP's new metadata (or re-save, if you set it from a URL). If the metadata already includes the next certificate (a planned rollover), no warning is shown.
+SAML signing certificates don't update themselves in OpenOptOut. When your identity provider switches to a new one, SAML sign-in stops until you upload the IdP's new metadata (or re-save, if you set it from a URL). If the metadata already includes the next certificate (a planned rollover), no warning is shown.
 
 Warnings appear on the **dashboard** for super admins, and every super admin is **emailed** once at each milestone: 30, 14, 7, 3, and 1 day before expiry, and on expiry. Emails use the separate admin email account if one was set up in the setup wizard, otherwise the regular email settings. Email must be configured for reminders to be sent; the dashboard alerts work regardless.
 
@@ -106,4 +106,4 @@ Warnings appear on the **dashboard** for super admins, and every super admin is 
 
 SSO redirects are built from the public URL. Set `FRONTEND_URL` (and for SAML, the Public base URL) to the exact external address, including `https://`.
 
-This applies whether HTTPS is terminated by PrivacyShield's own built-in Caddy front door, or by a reverse proxy you already run in front of it — the setup wizard's **deployment** step asks which situation you're in so the app gives the right guidance either way, but `FRONTEND_URL` must be set correctly for SSO to work regardless of which one it is. See [docs/HTTPS.md](HTTPS.md) for turning on the built-in option, or pointing an existing proxy at PrivacyShield.
+This applies whether HTTPS is terminated by OpenOptOut's own built-in Caddy front door, or by a reverse proxy you already run in front of it — the setup wizard's **deployment** step asks which situation you're in so the app gives the right guidance either way, but `FRONTEND_URL` must be set correctly for SSO to work regardless of which one it is. See [docs/HTTPS.md](HTTPS.md) for turning on the built-in option, or pointing an existing proxy at OpenOptOut.

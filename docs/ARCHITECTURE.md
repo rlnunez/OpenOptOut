@@ -1,6 +1,6 @@
 # Architecture & Project Structure
 
-PrivacyShield is structured as a decoupled web application consisting of a React single-page frontend, a FastAPI REST API with an embedded APScheduler worker, and a pluggable database backend (SQLite by default, PostgreSQL for institutional scale).
+OpenOptOut is structured as a decoupled web application consisting of a React single-page frontend, a FastAPI REST API with an embedded APScheduler worker, and a pluggable database backend (SQLite by default, PostgreSQL for institutional scale).
 
 ---
 
@@ -33,7 +33,7 @@ Background tasks run inside the API process via APScheduler:
 | **Opt-out sender** | Daily at configured time (burst), or spread out by window / rate-limited / distributed modes | Sends opt-out emails/forms up to the per-member and global daily limits |
 | **Email monitor** | Every N minutes (default: 15) | Polls the inbox via IMAP, matches UUID tracking keys, marks confirmations |
 | **Recheck scanner** | Daily (30 min after opt-out job) | Re-queues expired confirmed removals for verification |
-| **Certificate monitor** | Every 24 hours (runs even when opt-out scheduling is off) | Checks LDAP, SIP2, SAML IdP, and PrivacyShield own HTTPS certificates; alerts admins before expiry |
+| **Certificate monitor** | Every 24 hours (runs even when opt-out scheduling is off) | Checks LDAP, SIP2, SAML IdP, and OpenOptOut own HTTPS certificates; alerts admins before expiry |
 
 ---
 
@@ -76,7 +76,7 @@ Common filename prefixes:
 
 To view screenshots from a Docker deployment, copy them out of the container:
 ```bash
-docker cp privacyshield-api:/data/screenshots ./screenshots
+docker cp openoptout-api:/data/screenshots ./screenshots
 ```
 
 ---
@@ -84,7 +84,7 @@ docker cp privacyshield-api:/data/screenshots ./screenshots
 ## Project Structure
 
 ```
-privacyshield/
+openoptout/
 ├── backend/
 │   ├── main.py                    # FastAPI app entry point
 │   ├── requirements.txt
@@ -178,7 +178,7 @@ privacyshield/
 │   ├── ROADMAP.md                 # Architectural roadmap (broker-addon engine)
 │   ├── SSO.md                     # LDAP/SIP2/OIDC/SAML setup, certs, reverse proxies
 │   ├── HTTPS.md                   # Docker (managed) vs. native vs. external reverse-proxy HTTPS
-│   ├── NATIVE_INSTALL.md          # Running PrivacyShield with no Docker (systemd / Windows Service)
+│   ├── NATIVE_INSTALL.md          # Running OpenOptOut with no Docker (systemd / Windows Service)
 │   └── LEGISLATION.md             # Advocacy guide for privacy legislation
 ├── deploy/
 │   ├── caddy/entrypoint.sh        # Generates Caddy config from env vars (Docker path — docs/HTTPS.md)

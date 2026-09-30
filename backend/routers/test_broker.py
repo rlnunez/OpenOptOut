@@ -36,9 +36,9 @@ from ..core.settings_store import load_settings
 
 router = APIRouter(prefix="/api/test-broker", tags=["test-broker"])
 
-TEST_PARENT_NAME = "PrivacyShield Test Broker"
-TEST_BROKER_NAME = "PrivacyShield Test Site"
-TEST_SUBJECT_PREFIX = "[PrivacyShield TEST] "
+TEST_PARENT_NAME = "OpenOptOut Test Broker"
+TEST_BROKER_NAME = "OpenOptOut Test Site"
+TEST_SUBJECT_PREFIX = "[OpenOptOut TEST] "
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 

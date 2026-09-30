@@ -3249,7 +3249,7 @@ def t_version_reporting():
         # native install's systemd EnvironmentFile actually sets.
         os.environ["GIT_COMMIT"] = "abc1234"
         assert ver.get_commit() == "abc1234"
-        assert ver.version_string() == f"PrivacyShield {ver.get_version()} (commit abc1234)"
+        assert ver.version_string() == f"OpenOptOut {ver.get_version()} (commit abc1234)"
 
         # 2) No env var: falls back to asking git directly, for a native/dev
         # run inside a real checkout — build a throwaway one to prove it.
