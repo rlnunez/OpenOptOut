@@ -38,7 +38,7 @@ const STATIC_DOCS = {
 - You can see at a glance whether a broker replied.
 
 **Recommended setup (OAuth 2.0 — Most Secure):**
-1. Create or use a dedicated mailbox (e.g. `yourname.removals@gmail.com` or Outlook).
+1. Create or use a dedicated mailbox (e.g. 'yourname.removals@gmail.com' or Outlook).
 2. In OpenOptOut Settings → Email (or during the initial Setup Wizard), click **Connect with Google** or **Connect with Microsoft**.
 3. Authorize the requested mail permissions. OAuth uses temporary scoped tokens instead of storing long-lived passwords.
 
