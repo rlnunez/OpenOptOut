@@ -45,7 +45,7 @@ const STATIC_DOCS = {
 **Alternative setup (App Passwords / SMTP):**
 If you use Yahoo, Fastmail, or prefer traditional IMAP/SMTP:
 1. Enable 2-Step Verification on the account
-2. Generate an App Password in your provider's security settings (e.g. `myaccount.google.com/apppasswords`)
+2. Generate an App Password in your provider's security settings (e.g. 'myaccount.google.com/apppasswords')
 3. In OpenOptOut Settings → Email, select your provider preset
 4. Enter your email and paste the App Password (not your primary password) into the password fields
 5. Click "Test connection" — both IMAP and SMTP should show green`,
