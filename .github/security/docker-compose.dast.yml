@@ -1,0 +1,23 @@
+# CI-only override for the dynamic scan (DAST) job in .github/workflows/security.yml.
+#
+# Used as:  docker compose -f docker-compose.yml -f .github/security/docker-compose.dast.yml up -d api
+#
+# The fuzzers send thousands of random requests with an admin token — including
+# to endpoints that start opt-outs, send email, fetch URLs, or talk to SSO
+# servers. So the API is put on an INTERNAL-ONLY Docker network: it has no route
+# to the internet and cannot contact real data brokers, mail servers or anything
+# else, no matter what the fuzzers ask it to do. The scanners join this same
+# network to reach it. Nothing is published on the runner's host ports.
+
+services:
+  api:
+    environment:
+      # Throwaway values for a disposable CI instance — not secrets.
+      - SECRET_KEY=dast-ci-only-not-a-real-secret-0123456789abcdef
+      - LOGS_DIR=/data/logs
+    ports: !reset []
+    networks: [dast]
+
+networks:
+  dast:
+    internal: true

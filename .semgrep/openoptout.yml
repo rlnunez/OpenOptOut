@@ -1,0 +1,220 @@
+# OpenOptOut project-specific Semgrep rules.
+#
+# These run alongside Semgrep's public rulesets (see .github/workflows/security.yml)
+# and encode rules that are specific to this project — most importantly the
+# "no personal data in logs" rule from the project's security principles.
+#
+# Run locally:   semgrep scan --config .semgrep/ backend/
+# Silence one finding (with a reason!):   # nosemgrep: <rule-id>  -- why it's safe
+
+rules:
+
+  # ── PII must never reach log files ──────────────────────────────────────────
+  # Log files are written to disk unencrypted (RotatingFileHandler in
+  # core/logging_config.py) and end up in `docker logs`, support bundles and
+  # bug reports. Log IDs (member.id, request.id) instead of names/contacts.
+  - id: pii-in-log-call
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Personal data ('$ATTR') is written to a log. Log files are stored
+      unencrypted and are often shared in bug reports. Log an ID instead
+      (e.g. member.id) — or redact the value.
+    metadata:
+      category: security
+      cwe: "CWE-532: Insertion of Sensitive Information into Log File"
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: $LOG.$METHOD(..., <... $OBJ.$ATTR ...>, ...)
+          - pattern: print(..., <... $OBJ.$ATTR ...>, ...)
+      - metavariable-regex:
+          metavariable: $ATTR
+          regex: ^(full_name|formal_name|first_name|last_name|middle_name|maiden_name|email|to_email|from_email|phone|phone_number|address|street|dob|date_of_birth|birth_date|ssn)$
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(debug|info|warning|warn|error|exception|critical|log)$
+
+  - id: pii-variable-in-log-call
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Variable '$VAR' looks like personal data and is written to a log.
+      Log an ID instead, or redact the value.
+    metadata:
+      category: security
+      cwe: "CWE-532: Insertion of Sensitive Information into Log File"
+      confidence: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: $LOG.$METHOD(..., <... $VAR ...>, ...)
+          - pattern: print(..., <... $VAR ...>, ...)
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: ^(full_name|formal_name|first_name|last_name|email|to_email|recipient|phone|phone_number|address|dob|ssn|identity_value|pii)$
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(debug|info|warning|warn|error|exception|critical|log)$
+
+  - id: identity-vault-value-in-log
+    languages: [python]
+    severity: ERROR
+    message: >-
+      An Identity Vault value ('$OBJ.value') is written to a log. Vault values
+      are names, emails, phone numbers and addresses and are encrypted at rest —
+      logging them defeats that encryption.
+    metadata:
+      category: security
+      cwe: "CWE-532: Insertion of Sensitive Information into Log File"
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: $LOG.$METHOD(..., <... $OBJ.value ...>, ...)
+          - pattern: print(..., <... $OBJ.value ...>, ...)
+      - metavariable-regex:
+          metavariable: $OBJ
+          regex: (?i)^(ident|identity|identities|iden|variant|v|i|alias|pii)$
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(debug|info|warning|warn|error|exception|critical|log)$
+
+  # ── Web / API hardening ─────────────────────────────────────────────────────
+  - id: cors-wildcard-with-credentials
+    languages: [python]
+    severity: WARNING
+    message: >-
+      CORSMiddleware allows every origin ("*") together with credentials.
+      Starlette then echoes back any requesting origin for credentialed
+      requests, so any website can make authenticated cross-origin calls
+      if the browser holds a cookie for this API. Restrict allow_origins to
+      the configured FRONTEND_URL / PUBLIC_BASE_URL.
+    metadata:
+      category: security
+      cwe: "CWE-942: Permissive Cross-domain Policy with Untrusted Domains"
+      confidence: HIGH
+    pattern: $APP.add_middleware(CORSMiddleware, ..., allow_origins=["*"], ..., allow_credentials=True, ...)
+
+  - id: exception-text-returned-to-client
+    languages: [python]
+    severity: INFO
+    message: >-
+      The raw exception text is returned to the API client. Exception messages
+      can contain file paths, SQL, internal hostnames or personal data. Log the
+      exception server-side and return a fixed, friendly message.
+    metadata:
+      category: security
+      cwe: "CWE-209: Generation of Error Message Containing Sensitive Information"
+      confidence: MEDIUM
+    patterns:
+      - pattern-inside: |
+          try:
+            ...
+          except $EXC as $E:
+            ...
+      - pattern-either:
+          - pattern: raise HTTPException($CODE, str($E))
+          - pattern: raise HTTPException(..., detail=str($E), ...)
+          - pattern: raise HTTPException($CODE, f"...{$E}...")
+          - pattern: raise HTTPException(..., detail=f"...{$E}...", ...)
+
+  # ── TLS / crypto ────────────────────────────────────────────────────────────
+  - id: httpx-tls-verification-disabled
+    languages: [python]
+    severity: WARNING
+    message: >-
+      TLS certificate verification is disabled for an httpx call. Anyone on the
+      network path could read or alter this traffic (OAuth tokens, PII). If this
+      is intentional (e.g. only reading a certificate's dates), add
+      `# nosemgrep: httpx-tls-verification-disabled` with a comment explaining why.
+    metadata:
+      category: security
+      cwe: "CWE-295: Improper Certificate Validation"
+      confidence: HIGH
+    pattern-either:
+      - pattern: httpx.$FUNC(..., verify=False, ...)
+      - pattern: httpx.Client(..., verify=False, ...)
+      - pattern: httpx.AsyncClient(..., verify=False, ...)
+
+  - id: jwt-unverified-claims
+    languages: [python]
+    severity: WARNING
+    message: >-
+      JWT claims are read without verifying the signature (or without pinning
+      the algorithm). Never make an authentication or authorization decision
+      based on these claims.
+    metadata:
+      category: security
+      cwe: "CWE-347: Improper Verification of Cryptographic Signature"
+      confidence: MEDIUM
+    pattern-either:
+      # PyJWT
+      - pattern: |
+          jwt.decode(..., options={..., "verify_signature": False, ...}, ...)
+      - pattern: jwt.get_unverified_header(...)
+      # python-jose (still used as a fallback in core/auth.py)
+      - pattern: jwt.get_unverified_claims(...)
+
+  - id: non-constant-time-secret-compare
+    languages: [python]
+    severity: INFO
+    message: >-
+      A secret-looking value ('$S') is compared with == / !=, which can leak
+      its contents through response timing. Use hmac.compare_digest().
+    metadata:
+      category: security
+      cwe: "CWE-208: Observable Timing Discrepancy"
+      confidence: LOW
+    patterns:
+      - pattern-either:
+          - pattern: $S == $OTHER
+          - pattern: $S != $OTHER
+          - pattern: $OTHER == $S
+          - pattern: $OTHER != $S
+      - metavariable-regex:
+          metavariable: $S
+          regex: (?i)^[\w.]*(invite_code|api_key|secret|hmac|signature|mac|csrf|state_token|reset_token|worker_token)$
+      - pattern-not: $S == None
+      - pattern-not: $S != None
+      - pattern-not: $S == ""
+      - pattern-not: $S != ""
+
+  - id: hardcoded-fallback-secret
+    languages: [python]
+    severity: WARNING
+    message: >-
+      '$KEY' silently falls back to a hard-coded value when the environment
+      variable is missing. Anyone who reads this public source code knows that
+      value (for SECRET_KEY, they could forge login tokens). Refuse to start, or
+      generate and persist a random value, instead of falling back.
+    metadata:
+      category: security
+      cwe: "CWE-1188: Initialization of a Resource with an Insecure Default"
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: os.getenv("$KEY", "$DEFAULT")
+          - pattern: os.environ.get("$KEY", "$DEFAULT")
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: (?i)(secret|_key$|token|password|passwd)
+      - metavariable-regex:
+          metavariable: $DEFAULT
+          regex: .+
+
+  # ── Distributed workers ─────────────────────────────────────────────────────
+  - id: queue-message-signature-not-verified
+    languages: [python]
+    severity: WARNING
+    message: >-
+      A queue message is loaded with verify_signature=False. Anyone who can
+      write to Redis could then inject jobs (e.g. opt-out tasks carrying PII,
+      or scripts for workers to run). Verify the HMAC whenever a secret is set.
+    metadata:
+      category: security
+      cwe: "CWE-345: Insufficient Verification of Data Authenticity"
+      confidence: MEDIUM
+    pattern-either:
+      - pattern: $X(..., verify_signature=False, ...)
+      - pattern: |
+          def $F(..., verify_signature: bool = False, ...):
+            ...

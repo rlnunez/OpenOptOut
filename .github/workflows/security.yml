@@ -1,0 +1,455 @@
+# ==============================================================================
+# OpenOptOut — automated security scanning
+#
+# CodeQL runs separately through GitHub's CodeQL "default setup"
+# (Settings → Advanced Security), so it is not repeated here.
+#
+# Runs free, open-source security scanners and sends their results to the
+# repository's Security → Code scanning tab. Setup and how to read the results:
+# docs/SECURITY_SCANNING.md
+#
+#   On every push to main and every pull request (fast, ~5 min):
+#     Semgrep (+ project rules in .semgrep/) · Bandit · Gitleaks ·
+#     TruffleHog · OSV-Scanner · Trivy config · Hadolint · ShellCheck ·
+#     zizmor · actionlint
+#   On push to main, weekly, and on demand (slower, ~15–25 min):
+#     Trivy image scans · Schemathesis API fuzzing · OWASP ZAP API scan,
+#     against a throwaway copy of the app with NO internet access
+#
+# Policy: report-only. Findings show up in the Security tab and as pull-request
+# annotations but do not fail the run. The one exception: a VERIFIED, LIVE
+# credential found by TruffleHog fails the run, because that needs action now.
+#
+# Every third-party action is pinned to a full commit SHA (a moving tag can be
+# hijacked — this happened to trivy-action in March 2026). Downloaded tool
+# binaries are checksum-verified. Dependabot (.github/dependabot.yml) keeps the
+# pins up to date.
+# ==============================================================================
+
+name: Security scans
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * 1"   # Mondays 06:17 UTC (Sunday night / early Monday in the US)
+  workflow_dispatch:
+    inputs:
+      run_dynamic:
+        description: "Also run the slow dynamic scans (image scan + API fuzzing + ZAP)"
+        type: boolean
+        default: true
+      fuzz_examples:
+        description: "Schemathesis examples per API operation (higher = slower, more thorough)"
+        type: number
+        default: 50
+
+permissions: {}
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Tool versions — bump these together with their checksums below.
+  SEMGREP_VERSION: "1.178.0"
+  BANDIT_VERSION: "1.9.4"
+  ZIZMOR_VERSION: "1.30.1"
+  GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+  OSV_SCANNER_VERSION: "2.6.0"
+  OSV_SCANNER_SHA256: "ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108"
+  ACTIONLINT_VERSION: "1.7.12"
+  ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+  TRUFFLEHOG_IMAGE: "ghcr.io/trufflesecurity/trufflehog:3.97.9"
+  TRIVY_VERSION: "v0.70.0"   # never v0.69.4–v0.69.6 (compromised, GHSA-69fq-xp46-6x23)
+  SCHEMATHESIS_VERSION: "4.28.0"
+  ZAP_IMAGE: "ghcr.io/zaproxy/zaproxy:stable"
+  # Only upload SARIF when the token can write security events (not on PRs from forks).
+  CAN_UPLOAD: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+
+jobs:
+
+  # ── 1. Semgrep + Bandit: pattern-based static analysis ──────────────────────
+  sast:
+    name: Semgrep + Bandit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install scanners
+        run: pip install "semgrep==${SEMGREP_VERSION}" "bandit[sarif]==${BANDIT_VERSION}"
+
+      - name: Semgrep (public rulesets + OpenOptOut rules in .semgrep/)
+        run: |
+          semgrep scan --metrics=off --disable-version-check \
+            --config p/python --config p/javascript --config p/typescript \
+            --config p/react --config p/owasp-top-ten --config p/dockerfile \
+            --config .semgrep/ \
+            --exclude backend/tests \
+            --sarif --output semgrep.sarif
+          python3 .github/security/sarif_summary.py "Semgrep" semgrep.sarif >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Bandit (Python)
+        # Skipped: B101 assert, B110/B112 try-except-pass/continue (very common, low value)
+        run: |
+          bandit -r backend -x backend/tests -s B101,B110,B112 \
+            -f sarif -o bandit.sarif --exit-zero -q
+          python3 .github/security/sarif_summary.py "Bandit" bandit.sarif >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Semgrep results
+        if: always() && env.CAN_UPLOAD == 'true' && hashFiles('semgrep.sarif') != ''
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+      - name: Upload Bandit results
+        if: always() && env.CAN_UPLOAD == 'true' && hashFiles('bandit.sarif') != ''
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: bandit.sarif
+          category: bandit
+
+  # ── 2. Secrets in code and in the full git history ──────────────────────────
+  secrets:
+    name: Secrets (Gitleaks + TruffleHog)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0          # full history: a secret deleted later is still leaked
+          persist-credentials: false
+
+      - name: Install Gitleaks (checksum-verified)
+        run: |
+          curl -sSfL -o gitleaks.tgz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tgz" | sha256sum -c -
+          tar -xzf gitleaks.tgz gitleaks && rm gitleaks.tgz
+
+      - name: Gitleaks (every commit; reviewed false positives live in .gitleaksignore)
+        run: |
+          ./gitleaks git . --redact --no-banner --exit-code 0 \
+            --report-format sarif --report-path gitleaks.sarif
+          python3 .github/security/sarif_summary.py "Gitleaks" gitleaks.sarif >> "$GITHUB_STEP_SUMMARY"
+
+      - name: TruffleHog (fails the run only for VERIFIED, LIVE credentials)
+        run: |
+          docker run --rm -v "$PWD:/tmp" -w /tmp "${TRUFFLEHOG_IMAGE}" \
+            git file:///tmp/ --results=verified --fail --no-update --github-actions
+
+      - name: Upload Gitleaks results
+        if: always() && env.CAN_UPLOAD == 'true' && hashFiles('gitleaks.sarif') != ''
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: gitleaks.sarif
+          category: gitleaks
+
+  # ── 3. Known-vulnerable dependencies (Python + npm, incl. transitive) ───────
+  dependencies:
+    name: Dependencies (OSV-Scanner)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install OSV-Scanner (checksum-verified)
+        run: |
+          curl -sSfL -o osv-scanner \
+            "https://github.com/google/osv-scanner/releases/download/v${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64"
+          echo "${OSV_SCANNER_SHA256}  osv-scanner" | sha256sum -c -
+          chmod +x osv-scanner
+      - name: OSV-Scanner
+        run: |
+          # Exit code 1 just means "vulnerabilities found" — that's reported, not fatal.
+          ./osv-scanner scan source -r --format sarif --output-file osv.sarif . || [ $? -eq 1 ]
+          python3 .github/security/sarif_summary.py "OSV-Scanner (dependencies)" osv.sarif >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload OSV-Scanner results
+        if: always() && env.CAN_UPLOAD == 'true' && hashFiles('osv.sarif') != ''
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: osv.sarif
+          category: osv-scanner
+
+  # ── 4. Dockerfiles, deployment configs and shell scripts ────────────────────
+  config:
+    name: Config (Trivy + Hadolint + ShellCheck)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Trivy misconfiguration scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          scan-type: config
+          scan-ref: .
+          format: sarif
+          output: trivy-config.sarif
+          exit-code: "0"
+
+      - name: Hadolint (backend Dockerfile)
+        uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
+        with:
+          dockerfile: backend/Dockerfile
+          format: sarif
+          output-file: hadolint-backend.sarif
+          no-fail: true
+      - name: Hadolint (frontend Dockerfile)
+        uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
+        with:
+          dockerfile: frontend/Dockerfile
+          format: sarif
+          output-file: hadolint-frontend.sarif
+          no-fail: true
+
+      - name: ShellCheck (install.sh, scripts/, deploy/)
+        run: |
+          git ls-files -z '*.sh' | xargs -0 shellcheck -f json1 > shellcheck.json || true
+          python3 .github/security/shellcheck_to_sarif.py < shellcheck.json > shellcheck.sarif
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            python3 .github/security/sarif_summary.py "Trivy (config)" trivy-config.sarif
+            python3 .github/security/sarif_summary.py "Hadolint" hadolint-backend.sarif hadolint-frontend.sarif
+            python3 .github/security/sarif_summary.py "ShellCheck" shellcheck.sarif
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Trivy results
+        if: always() && env.CAN_UPLOAD == 'true' && hashFiles('trivy-config.sarif') != ''
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: trivy-config.sarif
+          category: trivy-config
+      - name: Upload Hadolint results (backend)
+        if: always() && env.CAN_UPLOAD == 'true' && hashFiles('hadolint-backend.sarif') != ''
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: hadolint-backend.sarif
+          category: hadolint-backend
+      - name: Upload Hadolint results (frontend)
+        if: always() && env.CAN_UPLOAD == 'true' && hashFiles('hadolint-frontend.sarif') != ''
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: hadolint-frontend.sarif
+          category: hadolint-frontend
+      - name: Upload ShellCheck results
+        if: always() && env.CAN_UPLOAD == 'true' && hashFiles('shellcheck.sarif') != ''
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: shellcheck.sarif
+          category: shellcheck
+
+  # ── 5. Security of the CI workflows themselves ──────────────────────────────
+  workflows:
+    name: Workflows (zizmor + actionlint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: zizmor
+        run: |
+          pip install "zizmor==${ZIZMOR_VERSION}"
+          # zizmor exits non-zero when it finds something; that's reported, not fatal.
+          zizmor --offline --format sarif .github/workflows/ > zizmor.sarif || true
+          python3 .github/security/sarif_summary.py "zizmor (workflow security)" zizmor.sarif >> "$GITHUB_STEP_SUMMARY"
+      - name: actionlint (checksum-verified)
+        run: |
+          curl -sSfL -o actionlint.tgz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  actionlint.tgz" | sha256sum -c -
+          tar -xzf actionlint.tgz actionlint && rm actionlint.tgz
+          # A real actionlint error means a workflow is broken, so this one may fail.
+          ./actionlint -color
+      - name: Upload zizmor results
+        if: always() && env.CAN_UPLOAD == 'true' && hashFiles('zizmor.sarif') != ''
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: zizmor.sarif
+          category: zizmor
+
+  # ── 6. Dynamic: scan the built images, then attack the running API ──────────
+  dynamic:
+    name: Dynamic (images + API fuzzing + ZAP)
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_dynamic)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      COMPOSE: docker compose -p oodast -f docker-compose.yml -f .github/security/docker-compose.dast.yml
+      DAST_NET: oodast_dast
+      FUZZ_EXAMPLES: ${{ inputs.fuzz_examples || 50 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build images
+        run: $COMPOSE build api web
+
+      - name: Trivy image scan (backend)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          scan-type: image
+          image-ref: oodast-api:latest
+          format: sarif
+          output: trivy-image-api.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+      - name: Trivy image scan (frontend)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          skip-setup-trivy: true
+          scan-type: image
+          image-ref: oodast-web:latest
+          format: sarif
+          output: trivy-image-web.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+
+      - name: Start the API on an internet-isolated network
+        run: $COMPOSE up -d api
+
+      - name: Start the scanner toolbox (joins the isolated network)
+        run: |
+          mkdir -p dast-reports dast-private && chmod 777 dast-reports
+          docker run -d --name dast-tools -v "$PWD:/work" -w /work python:3.12-slim sleep infinity
+          docker exec dast-tools pip install --quiet "schemathesis==${SCHEMATHESIS_VERSION}"
+          docker network connect "$DAST_NET" dast-tools
+
+      - name: Create a throwaway admin and fetch the API schema
+        run: |
+          docker exec dast-tools python .github/security/dast_bootstrap.py http://api:8000 \
+            --token-file dast-private/token --schema-file dast-reports/openapi.json
+          echo "::add-mask::$(cat dast-private/token)"
+
+      - name: Schemathesis — fuzz every API operation
+        id: schemathesis
+        continue-on-error: true
+        # Checks: server crashes (500s), endpoints that ignore authentication,
+        # deleted resources that are still reachable, and resources that vanish.
+        # Endpoints that would lock the scanner out (DB switching, danger zone,
+        # editing its own account) are excluded.
+        run: |
+          docker exec dast-tools sh -c 'schemathesis run http://api:8000/openapi.json \
+            --url http://api:8000 \
+            -H "Authorization: Bearer $(cat dast-private/token)" \
+            --checks not_a_server_error,ignored_auth,use_after_free,ensure_resource_availability \
+            --max-examples "$1" --request-timeout 30 --no-color \
+            --exclude-path-regex "^/api/(database/|wizard/database|settings/danger|admin/users/\{user_id\}$)" \
+            --report junit --report-dir dast-reports' _ "$FUZZ_EXAMPLES" \
+            | tee dast-reports/schemathesis.txt
+
+      - name: OWASP ZAP — API scan
+        id: zap
+        continue-on-error: true
+        run: |
+          docker run --rm --network "$DAST_NET" -v "$PWD/dast-reports:/zap/wrk:rw" \
+            -e ZAP_AUTH_HEADER=Authorization \
+            -e ZAP_AUTH_HEADER_VALUE="Bearer $(cat dast-private/token)" \
+            "${ZAP_IMAGE}" zap-api-scan.py \
+              -t http://api:8000/openapi.json -f openapi \
+              -r zap-report.html -w zap-report.md -J zap-report.json -I
+
+      - name: API container logs (for debugging crashes)
+        if: always()
+        run: $COMPOSE logs --no-color api > dast-reports/api-container.log 2>&1 || true
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            python3 .github/security/sarif_summary.py "Trivy (backend image)" trivy-image-api.sarif
+            python3 .github/security/sarif_summary.py "Trivy (frontend image)" trivy-image-web.sarif
+            echo "### Schemathesis (API fuzzing)"
+            echo
+            if [ -f dast-reports/schemathesis.txt ]; then
+              echo '```'
+              sed -n '/SUMMARY/,$p' dast-reports/schemathesis.txt | tail -40
+              echo '```'
+            else
+              echo "⚠️ Did not run — check the bootstrap step (did the API start?)."
+            fi
+            echo
+            echo "### OWASP ZAP"
+            echo
+            if [ -f dast-reports/zap-report.md ]; then
+              grep -E '^\| (High|Medium|Low|Informational)' dast-reports/zap-report.md || true
+              echo
+              echo "Full report: download the **dast-reports** artifact → zap-report.html"
+            else
+              echo "⚠️ Did not run — check the ZAP step log."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dast-reports
+          path: dast-reports/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Upload Trivy image results (backend)
+        if: always() && env.CAN_UPLOAD == 'true' && hashFiles('trivy-image-api.sarif') != ''
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: trivy-image-api.sarif
+          category: trivy-image-api
+      - name: Upload Trivy image results (frontend)
+        if: always() && env.CAN_UPLOAD == 'true' && hashFiles('trivy-image-web.sarif') != ''
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: trivy-image-web.sarif
+          category: trivy-image-web
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker rm -f dast-tools || true
+          $COMPOSE down -v || true
+          rm -rf dast-private

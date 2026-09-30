@@ -1,0 +1,38 @@
+# Dependabot version updates: weekly pull requests that keep dependencies and
+# the SHA-pinned GitHub Actions current. (Security-fix PRs for known
+# vulnerabilities are a separate switch — see docs/SECURITY_SCANNING.md.)
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /backend
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      python-minor-and-patch:
+        update-types: [minor, patch]
+    # Deliberate pins documented in backend/requirements.txt / backend/Dockerfile.
+    # Remove an entry once the reason for its pin is gone.
+    ignore:
+      - dependency-name: bcrypt        # >=4.1 breaks passlib 1.7.4's self-test
+        versions: [">=4.1"]
+      - dependency-name: playwright    # Dockerfile's bookworm base matches 1.44's deps
+        versions: [">=1.45"]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directories: [/backend, /frontend]
+    schedule: { interval: weekly, day: monday }
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    groups:
+      github-actions:
+        patterns: ["*"]
