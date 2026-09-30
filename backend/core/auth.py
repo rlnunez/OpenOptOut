@@ -103,10 +103,23 @@ def validate_password_length(password: Optional[str]) -> Optional[str]:
     return password
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    if pwd_context is not None:
+        return pwd_context.hash(password)
+    try:
+        import bcrypt
+        salt = bcrypt.gensalt(rounds=12)
+        return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+    except Exception as e:
+        raise RuntimeError("Neither passlib nor bcrypt is available to hash passwords") from e
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    if pwd_context is not None:
+        return pwd_context.verify(plain, hashed)
+    try:
+        import bcrypt
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     payload = {**data, "exp": datetime.utcnow() + (expires_delta or timedelta(minutes=TOKEN_EXPIRE_MINUTES))}

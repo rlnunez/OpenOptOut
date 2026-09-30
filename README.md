@@ -1,6 +1,6 @@
 # PrivacyShield
 
-**Open-source personal data removal pipeline.** Remove yourself, your family, or an entire community from 400+ data brokers, track opt-out status, monitor confirmation emails, and automatically schedule re-checks so brokers can't quietly re-list you.
+**Open-source personal data removal pipeline.** A modular, plugin-driven privacy automation platform to opt out of data brokers, track removal status, monitor confirmation emails, and automatically schedule re-checks so brokers can't quietly re-list you.
 
 Built for two audiences from the same codebase:
 
@@ -15,60 +15,36 @@ Built for two audiences from the same codebase:
 
 PrivacyShield is a **stopgap.** It should not need to exist.
 
-That ordinary people must repeatedly hunt down hundreds of data brokers and beg, form by form, to remove their own information — only to be re-listed weeks later — is evidence of a broken system. Opting out, over and over, is a symptom, not a solution. People should own their own data by default, and no one should have to **pay a third party** to reclaim what was always theirs. This project is free and open-source precisely because the right to your own information should never sit behind a paywall.
+Having to hunt down data brokers and repeatedly beg, form by form, to remove your own personal records is proof of a broken system. You should own your data by default, and no one should have to pay a commercial subscription to reclaim what was always theirs.
 
-The real fix is not software — it is law. It is the responsibility of **state and federal governments** to guarantee a genuine right to digital privacy: to not have your information collected, sold, and traded from broker to broker without meaningful consent, and to have it deleted permanently rather than temporarily. Until that right is guaranteed and enforced, tools like this are necessary — but necessity is not endorsement of the status quo. Use this to protect yourself and the people you care about today, and push for the day it isn't needed.
+The real fix is not software — it is enforceable legislation that outlaws the non-consensual collection and sale of personal information. Until that right is guaranteed by law, PrivacyShield exists as a free, open-source defense for families and communities today, with a singular ultimate goal: **to become obsolete the day comprehensive privacy laws take effect.**
 
 ### A note to libraries
 
-Article VII of the American Library Association's *Library Bill of Rights* states:
+Article VII of the ALA *Library Bill of Rights* calls on libraries to protect and advocate for patron privacy. Having served on the Intellectual Freedom Committee's Privacy Sub-Committee (2018–2022) and helped draft Article VII, I built PrivacyShield with that exact mission in mind. Data brokers traffic in the very personal information libraries are dedicated to safeguarding.
 
-> All people, regardless of origin, age, background, or views, possess a right to privacy and confidentiality in their library use. Libraries should advocate for, educate about, and protect people's privacy, safeguarding all library use data, including personally identifiable information.
+This is an open invitation to participate at whatever scale fits your institution:
 
-As one of the authors of this project — and someone who served on the Intellectual Freedom Committee's Privacy Sub-Committee (Jul 2018 – Jun 2022) and helped draft Article VII — I want to put a direct challenge to the libraries that hold these values as core to their mission. Data brokers traffic in exactly the personally identifiable information Article VII asks libraries to safeguard, which gives every library that takes the principle seriously both an opening and an obligation to help.
-
-This is an invitation, not a demand. I know budgets are tight and that libraries are already stretched into work none of us were trained for in our graduate programs. But there is a place in this for whatever you can give:
-
-- **Deploy it** for your staff and/or patrons as a service, the way you offer reference help or internet access — it was built for institutional use (patron self-service, SSO/LDAP/SIP2, white-label branding). 
-- **Contribute** as manpower allows, however you can. Advocate, champion, provide code, report a bug, suggest an improvement, help write suggested wording for legislation (if you have the legal understanding). 
-- **Teach your community**, which may matter most of all and needs no deployment at all: weave **digital privacy, social-media literacy, and cyber-safety** into the computer courses you already run, or offer them as workshops.
-
-Finally, **state library associations, the ALA, and other library organizations across the political spectrum** should push for **non-partisan privacy legislation** with real teeth — laws written *without* the loopholes that let data brokers collect, sell, and re-sell information with impunity. Libraries are not, and should not be, political entities; but advocating for a value we hold — privacy — is not the same as taking a political side. For a plain-language starting point — what strong data-broker legislation should accomplish, the loopholes to avoid, and where law librarians and legal professionals can contribute — see [docs/LEGISLATION.md](docs/LEGISLATION.md) (an advocacy guide, not legal advice).
-
----
-
-More than anything, I look forward to the day I can ship a final release of this project — an announcement, a deprecation notice, and guidance for anyone still running it — built around a single message:
-
-> **This project is no longer needed. [House Resolution / Senate Bill XYZ] became law on [date], guaranteeing all within the United States the digital privacy and the right to own their own information that this tool was built to protect in its absence.**
-
-That is the goal. Everything here is meant to make that day arrive sooner — and to protect people until it does.
+- **Deploy as a public service** — Offer patron self-service removals alongside public internet access, pre-configured with SIP2 library card authentication and institutional branding.
+- **Educate your community** — Weave digital privacy, data broker literacy, and cyber-safety into existing computer classes and patron workshops.
+- **Advocate for reform** — Champion non-partisan, loophole-free privacy legislation that makes tools like this obsolete. See our advocacy guide in [`docs/LEGISLATION.md`](docs/LEGISLATION.md).
 
 ---
 
 ## What it does
 
-Data brokers collect your name, address, phone number, relatives, and more — then sell it to anyone who pays. PrivacyShield automates the removal process:
+PrivacyShield automates the end-to-end data removal lifecycle:
 
-1. **Identity vault** — store all name variants, emails, phones, and addresses for each member (encrypted at rest with cryptographic zeroization)
-2. **Pre-loaded broker database** — 400+ built-in brokers with opt-out URLs and execution methods (declarative form spec, email, manual), including property-record brokers, ready out of the box without requiring external plugins
-3. **Parent company cascades** — consolidates email opt-outs to corporate conglomerates (LexisNexis, PeopleConnect, etc.) to confirm multiple subsidiary broker storefronts in a single transaction
-4. **Discovery bot** — searches broker sites for a member's listings before opting out, so you only act where there's actually a record
-5. **Declarative opt-out engine** — single declarative interpreter driving Playwright browser automation and SMTP email opt-outs with per-member rate limits, user-agent rotation, and proxy/IP masking
-6. **Distributed worker fleet** — scale headless browser automation across independent worker nodes via Redis priority queues, with real-time fleet telemetry, CPU/RAM monitoring, and node draining controls
-7. **Email monitor** — polls your removal inbox via IMAP, matches confirmations to requests using UUID tracking keys, with 60-day dual-inbox grace periods for credential transitions
-8. **Re-check scheduler** — automatically re-queues confirmed removals before brokers can re-list you, with four job-spreading modes
-9. **Unified host & fleet installer** — interactive terminal wizard (TUI via `whiptail`/ANSI) and scriptable CLI (`curl -fsSL ... | sudo bash`) supporting specialized roles (`standalone`, `control-plane`, `worker`), automated PostgreSQL provisioning, and zero-touch Nginx with Let's Encrypt TLS
-10. **Plugin architecture & SDK** — secure, Bubblewrap-sandboxed extension runtime for custom broker specs (`brokers/`), CAPTCHA solvers (`captcha/`), discovery bots (`discovery/`), institutional themes (`themes/`), and language packs (`languages/`). Bundled with native OAuth email provider plugins (Gmail, Outlook, Yahoo)
+1. **Secure Identity Vault** — Store all name variants, aliases, emails, phone numbers, and deed/mortgage addresses in an encrypted, zero-knowledge vault.
+2. **Automated Discovery** — Scan broker databases to pinpoint where your personal listings appear before filing removals.
+3. **Modular Removal Engine** — Execute opt-outs via pluggable broker modules and declarative Playwright browser automation, with corporate parent-company batching.
+4. **Email Confirmation Tracking** — Monitor a dedicated inbox via OAuth 2.0 to match and verify incoming broker removal confirmations automatically.
+5. **Continuous Re-Check Defense** — Automatically re-verify and re-submit requests on a scheduled cadence so brokers cannot quietly re-list you.
 
-**Institutional capabilities:**
-- **Consortium hierarchy** — multi-tier partitioning: Consortium → Library Systems → Branch Locations with dynamic SIP2 ILS routing and per-system branding
-- **White-label branding & i18n** — custom app name, logos, accent colors, and full multilingual localization with Right-to-Left (RTL) mirroring (Arabic, Hebrew)
-- **Patron self-service** — patrons manage their own removals without seeing other users' data, supported by a 4-step guided onboarding walkthrough
-- **Delegated managerial permissions** — 17 granular permission scopes allowing staff to manage users, brokers, or logs without granting super-admin credentials
-- **Single sign-on (SSO)** — OIDC (Google Workspace, Microsoft 365, Okta), SAML 2.0 (Shibboleth, Keycloak, Authentik), LDAP / Active Directory, and SIP2 / SIP2S (library cards)
-- **PostgreSQL scaling** — seamless scaling for thousands of concurrent users with mTLS and cloud IAM auth
-- **Comprehensive security** — SQLCipher full-database encryption, Fernet column-level encryption, memory zeroization, and audit logging with an in-app viewer
-- **Usage reporting** — exportable metrics (total opted-out records, active requests, broker response rates)
+### Built for Scale & Institutions
+- **Distributed Execution** — Scale headless browser automation across independent worker nodes via Redis priority queues.
+- **Consortium & Enterprise Ready** — Multi-branch partitioning with SIP2/ILS library card login, OIDC/SAML 2.0 SSO, and delegated staff permissions.
+- **Security & Compliance** — Full database encryption (SQLCipher), field-level encryption, ephemeral memory zeroization, and audit logging.
 
 ---
 
@@ -123,7 +99,7 @@ For a local development environment with hot reload (FastAPI backend + Vite Reac
 On a fresh install the app shows a create-administrator screen instead of a login page; that account becomes the super admin. A guided **setup wizard** then walks through database, email, branding, and HTTPS deployment. Every step is skippable, and everything it sets can be changed later in Settings. The checklist below covers the same ground plus what comes after:
 
 - [ ] **Email** (wizard or Settings → Email) — connect your dedicated removal inbox via OAuth 2.0 (recommended) or App Password (see [Email setup](#email-setup))
-- [ ] **Brokers** (Brokers page) — verify the pre-loaded catalog of 400+ data brokers (or use **Import CSV / JSON** if your organization maintains custom broker lists)
+- [ ] **Brokers & Plugins** (Brokers / Plugins page) — configure your target broker catalog and enable broker plugins or import custom specs (CSV/JSON)
 - [ ] **Family members** — add yourself and family members (Settings → Family Members)
 - [ ] **Identity Vault** — fill in name variants, former addresses, and phone numbers for each member (the more identifiers, the better the removal match)
 - [ ] **Discovery scan** (optional) — run Discovery to identify which brokers actually list your family before submitting removals
@@ -245,41 +221,6 @@ Ideally, PrivacyShield will undergo a formal, independent security audit prior t
 ---
 
 ## Roadmap
-
-**Shipped:**
-- [x] Opt-out engine — Playwright form-fill and SMTP email sending
-- [x] Declarative broker-spec interpreter — unified declarative execution engine with action sequences (`navigate`, `fill`, `click`, `select`, `wait_for`, `solve_captcha`, `frame`) — see [`docs/INTERPRETER.md`](docs/INTERPRETER.md)
-- [x] Distributed execution fleet — decoupled control plane and stateless worker nodes backed by Redis priority queues (`removal_high`, `removal_normal`, `discovery`, `retry`, `dead_letter`), signed tamper-proof job envelopes, memory zeroization, dynamic result ingestion, automated lease reclamation sweeps, and administrative fleet monitoring dashboard with node draining controls — see [`docs/ROADMAP.md`](docs/ROADMAP.md#7-distributed-execution-control-plane--worker-fleet)
-- [x] Unified host & fleet installer — interactive terminal wizard (TUI via `whiptail`/ANSI) and non-interactive CLI (`curl -fsSL ... | sudo bash`) supporting specialized roles (`standalone`, `control-plane`, `worker`), automated PostgreSQL provisioning, zero-touch Nginx reverse proxy with WebSockets/SSE, and automated Let's Encrypt TLS — see [`docs/NATIVE_INSTALL.md`](docs/NATIVE_INSTALL.md)
-- [x] Multi-tier institutional hierarchy (Consortium) — global Consortium → Library Systems → Branch Locations partitioning with dynamic barcode-prefixed SIP2 ILS routing, manager scope isolation, and per-system branding
-- [x] Internationalization (i18n) & RTL — dynamic master UI translation dictionary, Right-to-Left (RTL) mirroring (Arabic, Hebrew), admin translation replacement manager, and 4-step user onboarding walkthrough
-- [x] Delegated managerial permissions — tiered `manager` role with 17 granular capability flags and least-privilege scoping
-- [x] Process memory hygiene — ephemeral decrypted buffers with cryptographic zeroization on context exit
-- [x] Operational visibility & diagnostic logging — persistent disk rotation with in-memory ring buffer (2,000 records), dynamic runtime log levels, and automatic PII/credential sanitization
-- [x] Parent-company email opt-outs — consolidated email dispatch to corporate parents (e.g. LexisNexis, PeopleConnect) confirming multiple child broker sites in a single transaction
-- [x] First-run setup wizard — guided onboarding for database, email transports, institutional branding, and HTTPS
-- [x] Email monitor UI — live inbox view with matched confirmations and 60-day dual-inbox transition grace period
-- [x] Discovery bot — searches broker sites for listings before opting out
-- [x] SQLite → Postgres one-click migration tool
-- [x] Database encryption (SQLCipher + field-level)
-- [x] Enterprise database auth (SSL, client certs, cloud IAM, Kerberos)
-- [x] White-label branding + institutional auth (LDAP, SIP2/SIP2S, OIDC SSO)
-- [x] Dual-auth login (staff + patron tabs)
-- [x] Usage reporting with charts and CSV export
-- [x] User-agent rotation + proxy/IP masking + job-spreading modes
-- [x] Property-record broker support (deeds, mortgages, formal names)
-- [x] Plugin system & developer SDK — process-isolated, Bubblewrap-sandboxed, gRPC capability broker across typed directories (`brokers/`, `forms/`, `captcha/`, `discovery/`, `themes/`, `languages/`, `email/`, `general/`) with bundled OAuth email plugins (Gmail, Outlook, Yahoo) — see [`docs/PLUGINS.md`](docs/PLUGINS.md)
-- [x] SAML 2.0 SSO for staff (Shibboleth, Keycloak, Authentik), LDAPS/StartTLS hardening, SIP2-over-TLS with mandatory verification, and certificate lifecycle monitoring — see [`docs/SSO.md`](docs/SSO.md)
-- [x] Built-in HTTPS — Docker (managed Caddy proxy), native host installs (Certbot / win-acme), or external reverse proxy — see [`docs/HTTPS.md`](docs/HTTPS.md)
-- [x] Version + git commit logged at startup and served from `GET /api/health`
-- [x] Broker health tracking with automatic disable of repeatedly failing brokers, plus per-broker priority rankings
-
-**Planned:**
-- [ ] Infrastructure capacity planner — administrative sizing calculator for worker nodes and Redis queue throughput (Roadmap Item 9)
-- [ ] Add-on distribution & community marketplace — modular Git-backed catalog and web directory for community broker specs and solver plugins (Roadmap Item 8)
-- [ ] Independent security audit & penetration testing — third-party code audit and threat model verification (Roadmap Item 22)
-- [ ] School district authentication — Parent Portal SSO federation with SIS platforms (Roadmap Item 12, on-demand)
-
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the complete item-by-item architectural roadmap and implementation status.
 
 ---
