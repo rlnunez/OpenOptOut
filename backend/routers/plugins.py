@@ -316,10 +316,21 @@ def install_plugin(path: str, db: Session = Depends(get_db),
     old flat layout) is moved into <root>/<type>/<id>/ first.
     """
     root_real = os.path.realpath(_plugins_dir())
+    root_prefix = root_real if root_real.endswith(os.sep) else root_real + os.sep
+
     path_real = os.path.realpath(path)
+    if not path_real.startswith(root_prefix):
+        raise HTTPException(400, "Only plugins inside the plugins directory can be installed "
+                                 "from disk; upload anything else as a .zip")
+
     manifest_path = os.path.realpath(os.path.join(path_real, "manifest.json"))
+    if not manifest_path.startswith(root_prefix):
+        raise HTTPException(400, "Only plugins inside the plugins directory can be installed "
+                                 "from disk; upload anything else as a .zip")
+
     try:
-        is_manifest_inside = os.path.commonpath([root_real, manifest_path]) == root_real
+        is_manifest_inside = (os.path.commonpath([root_real, manifest_path]) == root_real and
+                              os.path.commonpath([root_real, path_real]) == root_real)
     except (ValueError, Exception):
         is_manifest_inside = False
 
@@ -328,7 +339,7 @@ def install_plugin(path: str, db: Session = Depends(get_db),
                                  "from disk; upload anything else as a .zip")
 
     plugin_dir_real = os.path.dirname(manifest_path)
-    if plugin_dir_real == root_real:
+    if plugin_dir_real == root_real or not plugin_dir_real.startswith(root_prefix):
         raise HTTPException(400, "Only plugins inside the plugins directory can be installed "
                                  "from disk; upload anything else as a .zip")
 
