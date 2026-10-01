@@ -3179,8 +3179,18 @@ def t_https_entrypoint():
             assert r.returncode == 0, f"valid config was refused: {env}\nstderr={r.stderr}"
             assert os.path.isfile(cf), f"no Caddyfile written for {env}"
             content = open(cf).read()
-            hosts = set(re.findall(r"(?<![A-Za-z0-9-])(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?![A-Za-z0-9-])", content))
-            parsed_hostnames = {urlparse(f"https://{h}").hostname for h in hosts}
+            parsed_hostnames = set()
+            for line in content.splitlines():
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#") or line[:1].isspace():
+                    continue
+                token = stripped.split()[0].strip("{}(),")
+                if "://" in token:
+                    host = urlparse(token).hostname
+                else:
+                    host = token.split(":", 1)[0].strip("[]")
+                if host:
+                    parsed_hostnames.add(host.lower())
             assert "privacy.lib.org" in parsed_hostnames
             os.remove(cf)
     # EXPECTED: the generator accepts every documented mode and rejects malformed
