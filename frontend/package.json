@@ -3,7 +3,7 @@
   "version": "0.7.18",
   "private": true,
   "dependencies": {
-    "react": "^19.3.0",
+    "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.18.4",
     "axios": "^1.7.2",
@@ -13,7 +13,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
     "vite": "^8.3.1",
-    "tailwindcss": "^4.3.3",
+    "tailwindcss": "^3.4.4",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38"
   },
