@@ -3191,7 +3191,8 @@ def t_https_entrypoint():
                     host = token.split(":", 1)[0].strip("[]")
                 if host:
                     parsed_hostnames.add(host.lower())
-            assert "privacy.lib.org" in parsed_hostnames
+            expected_domain = env["DOMAIN"]
+            assert any(h == expected_domain for h in parsed_hostnames)
             os.remove(cf)
     # EXPECTED: the generator accepts every documented mode and rejects malformed
     #   or injected input, including values that only look valid on their first line.
