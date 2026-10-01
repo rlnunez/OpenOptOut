@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
-import json, os, base64
+import json, os, base64, logging
 from cryptography.fernet import Fernet
 
 from ..models.database import get_db, User
@@ -16,6 +16,7 @@ from ..core.auth import get_current_user, require_super_admin
 from ..core.access import require_permission
 from ..core.settings_store import load_settings, SETTINGS_FILE
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
@@ -349,8 +350,9 @@ def test_connection(_: User = Depends(require_permission("email.manage"))):
             c.login(e["imap_user"], pw)
         c.logout()
         res["imap"] = True
-    except Exception as ex:
-        res["errors"].append(f"IMAP: {ex}")
+    except Exception:
+        logger.exception("IMAP connection test failed")
+        res["errors"].append("IMAP connection test failed")
 
     try:
         if not e.get("smtp_password_enc"): raise ValueError("No SMTP password saved")
@@ -361,8 +363,9 @@ def test_connection(_: User = Depends(require_permission("email.manage"))):
             with ephemeral_secret(e.get("smtp_password_enc")) as pw:
                 sc.login(e["smtp_user"], pw)
         res["smtp"] = True
-    except Exception as ex:
-        res["errors"].append(f"SMTP: {ex}")
+    except Exception:
+        logger.exception("SMTP connection test failed")
+        res["errors"].append("SMTP connection test failed")
 
     res["connected"] = res["imap"] and res["smtp"]
     return res
