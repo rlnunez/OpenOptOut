@@ -2,7 +2,7 @@ fastapi==0.111.0
 uvicorn[standard]==0.29.0
 sqlalchemy==2.0.30
 pydantic[email]==2.7.1
-PyJWT[crypto]>=2.8.0
+PyJWT>=2.15.0
 passlib[bcrypt]==1.7.4
 # passlib 1.7.4 (its last release, 2020) does a one-time internal self-test on
 # first use (detect_wrap_bug) that calls into the underlying `bcrypt` package
