@@ -37,7 +37,7 @@ setuptools>=70.0.0
 protobuf>=5.29.6
 # SAML 2.0 sign-in.
 pysaml2>=7.5.5
-pyopenssl>=26.0.0
+pyopenssl>=26.4.0
 
 # ── Bundled email-provider plugin dependencies ──────────────────────────────
 # Only Gmail's provider plugin (backend/plugins/bundled/email-gmail/) needs
