@@ -22,14 +22,21 @@ export function escapeHtml(s) {
     .replace(/'/g, '&#39;')
 }
 
+const HTML_DECODE_MAP = {
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
+}
+
 // Link URLs: allow http(s), mailto, and relative/anchor links; anything else
 // (javascript:, data:, vbscript:, ...) is rejected. Takes already-escaped text,
-// so entities are decoded before checking, and whitespace/control characters
+// so entities are decoded in a single pass before checking, and whitespace/control characters
 // are stripped because browsers ignore them inside a scheme ("java\tscript:").
 export function isSafeHref(escapedUrl) {
   const url = escapedUrl
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&(?:amp|lt|gt|quot|#39);/g, m => HTML_DECODE_MAP[m] || m)
     .replace(/[\u0000- \u007f]/g, '')
     .toLowerCase()
   const scheme = url.match(/^([a-z][a-z0-9+.-]*):/)

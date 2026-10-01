@@ -17,6 +17,7 @@ this router asks the running plugin for that description, then the host executes
 it with the operator's client credentials. See core/oauth_engine.py.
 """
 
+import html
 import json
 import os
 import time
@@ -185,7 +186,8 @@ def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(Non
     initiates the redirect — the `state` parameter is the CSRF guard.
     """
     if error:
-        return HTMLResponse(f"<p>Authorization failed: {error}</p>", status_code=400)
+        safe_error = html.escape(error, quote=True)
+        return HTMLResponse(f"<p>Authorization failed: {safe_error}</p>", status_code=400)
     if not code or not state or state not in _PENDING:
         return HTMLResponse("<p>Invalid or expired authorization state.</p>", status_code=400)
 
@@ -196,7 +198,8 @@ def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(Non
     try:
         tokens = oe.exchange_code(flow, client, pending, code)
     except Exception as e:
-        return HTMLResponse(f"<p>Token exchange failed: {e}</p>", status_code=400)
+        safe_err = html.escape(str(e), quote=True)
+        return HTMLResponse(f"<p>Token exchange failed: {safe_err}</p>", status_code=400)
 
     oe.store_tokens(s, pending.account_ref, tokens)
     # Keep settings["email"]["provider"] in sync with whichever account is

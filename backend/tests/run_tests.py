@@ -44,6 +44,7 @@ import argparse
 import importlib
 import importlib.util
 import os
+import re
 import sys
 import time
 import traceback
@@ -3177,7 +3178,8 @@ def t_https_entrypoint():
             assert r.returncode == 0, f"valid config was refused: {env}\nstderr={r.stderr}"
             assert os.path.isfile(cf), f"no Caddyfile written for {env}"
             content = open(cf).read()
-            assert "privacy.lib.org" in content
+            hosts = set(re.findall(r"(?<![A-Za-z0-9-])(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?![A-Za-z0-9-])", content))
+            assert "privacy.lib.org" in hosts
             os.remove(cf)
     # EXPECTED: the generator accepts every documented mode and rejects malformed
     #   or injected input, including values that only look valid on their first line.
@@ -4578,7 +4580,7 @@ def t_sip2_live():
             conn.close()
     srv_sock = socket.socket(); srv_sock.bind(("127.0.0.1", 0)); srv_sock.listen(8)
     port = srv_sock.getsockname()[1]
-    sctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); sctx.load_cert_chain(f"{d}/srv.crt", f"{d}/srv.key")
+    sctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); sctx.minimum_version = ssl.TLSVersion.TLSv1_2; sctx.load_cert_chain(f"{d}/srv.crt", f"{d}/srv.key")
     def loop():
         while True:
             try:

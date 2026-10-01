@@ -8,10 +8,14 @@ from typing import Optional, List
 import os
 
 try:
-    from jose import JWTError, jwt
+    import jwt
+    from jwt.exceptions import PyJWTError as JWTError
 except ImportError:
-    class JWTError(Exception): pass
-    jwt = None
+    try:
+        from jose import JWTError, jwt
+    except ImportError:
+        class JWTError(Exception): pass
+        jwt = None
 
 try:
     from passlib.context import CryptContext

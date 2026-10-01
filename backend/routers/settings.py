@@ -355,6 +355,7 @@ def test_connection(_: User = Depends(require_permission("email.manage"))):
     try:
         if not e.get("smtp_password_enc"): raise ValueError("No SMTP password saved")
         ctx = ssl_module.create_default_context()
+        ctx.minimum_version = ssl_module.TLSVersion.TLSv1_2
         with smtplib.SMTP(e["smtp_host"], e.get("smtp_port", 587)) as sc:
             if e.get("smtp_tls", True): sc.starttls(context=ctx)
             with ephemeral_secret(e.get("smtp_password_enc")) as pw:

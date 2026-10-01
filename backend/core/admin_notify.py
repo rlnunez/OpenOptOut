@@ -44,13 +44,15 @@ def _send_via_admin_smtp(admin: dict, frm: str, to: str, subject: str, body: str
     msg = MIMEText(body, "plain")
     msg["Subject"], msg["From"], msg["To"] = subject, frm or user, to
     try:
+        ctx = ssl.create_default_context()
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         if port == 465:
-            with smtplib.SMTP_SSL(host, port, timeout=25, context=ssl.create_default_context()) as s:
+            with smtplib.SMTP_SSL(host, port, timeout=25, context=ctx) as s:
                 if pw: s.login(user, pw)
                 s.sendmail(frm or user, [to], msg.as_string())
         else:
             with smtplib.SMTP(host, port, timeout=25) as s:
-                s.starttls(context=ssl.create_default_context())
+                s.starttls(context=ctx)
                 if pw: s.login(user, pw)
                 s.sendmail(frm or user, [to], msg.as_string())
         return {"ok": True}

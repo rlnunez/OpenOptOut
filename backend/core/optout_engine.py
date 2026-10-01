@@ -220,6 +220,7 @@ def send_opt_out_email(
     from .memory_hygiene import ephemeral_secret
     try:
         ctx = ssl.create_default_context()
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         with smtplib.SMTP(smtp_host, smtp_port) as s:
             if ec.get("smtp_tls", True):
                 s.starttls(context=ctx)

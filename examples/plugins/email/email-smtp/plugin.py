@@ -100,8 +100,9 @@ def send(req):
     recipients = to + cc           # explicit list = host-supplied only
 
     try:
+        ctx = ssl.create_default_context()
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         if tls == "ssl":
-            ctx = ssl.create_default_context()
             with smtplib.SMTP_SSL(host, port, timeout=25, context=ctx) as s:
                 if pw:
                     s.login(user, pw)
@@ -109,7 +110,7 @@ def send(req):
         else:
             with smtplib.SMTP(host, port, timeout=25) as s:
                 if tls == "starttls":
-                    s.starttls(context=ssl.create_default_context())
+                    s.starttls(context=ctx)
                 if pw:
                     s.login(user, pw)
                 s.sendmail(msg["From"], recipients, msg.as_string())

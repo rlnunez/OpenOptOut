@@ -169,16 +169,18 @@ def _smtp_send(cfg: dict, to: list, cc: list, subject: str, body: str,
     recipients = list(to) + list(cc)
 
     try:
+        ctx = ssl.create_default_context()
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         if tls == "ssl":
             with smtplib.SMTP_SSL(host, port, timeout=25,
-                                  context=ssl.create_default_context()) as s:
+                                  context=ctx) as s:
                 if pw:
                     s.login(user, pw)
                 s.sendmail(frm, recipients, msg.as_string())
         else:
             with smtplib.SMTP(host, port, timeout=25) as s:
                 if tls == "starttls":
-                    s.starttls(context=ssl.create_default_context())
+                    s.starttls(context=ctx)
                 if pw:
                     s.login(user, pw)
                 s.sendmail(frm, recipients, msg.as_string())

@@ -38,8 +38,11 @@ router = APIRouter(prefix="/api/test-broker", tags=["test-broker"])
 
 TEST_PARENT_NAME = "OpenOptOut Test Broker"
 TEST_BROKER_NAME = "OpenOptOut Test Site"
-TEST_SUBJECT_PREFIX = "[OpenOptOut TEST] "
-_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+# Non-backtracking email regex: local and domain labels cannot match delimiters (@, .),
+# eliminating polynomial/exponential backtracking (ReDoS) on arbitrary user input.
+_EMAIL_RE = re.compile(
+    r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$"
+)
 
 
 def _admin(user: User):
@@ -101,7 +104,7 @@ def setup_test_broker(body: SetupIn, db: Session = Depends(get_db),
     """Create (or update the address of) the fenced-off test parent + broker."""
     _admin(user)
     addr = body.optout_email.strip()
-    if not _EMAIL_RE.match(addr):
+    if len(addr) > 254 or not _EMAIL_RE.match(addr):
         raise HTTPException(400, "Enter a valid email address you control")
 
     parent = _get_test_parent(db)

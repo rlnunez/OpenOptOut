@@ -513,6 +513,7 @@ def tls_peer_cert_status(host: str, port: int, ca_pem: str = "", ca_path: str = 
             ctx = tls_context(ca_pem, ca_path)
         else:
             ctx = ssl.create_default_context()
+            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
         with ctx.wrap_socket(raw, server_hostname=sni) as tls:
