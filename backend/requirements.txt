@@ -15,7 +15,7 @@ passlib[bcrypt]==1.7.4
 # not anything about what the user typed). Pin a version from before that
 # break; bcrypt 4.0.1 is confirmed compatible with passlib 1.7.4.
 bcrypt==4.0.1
-python-multipart==0.0.30
+python-multipart==0.0.31
 aiofiles==23.2.1
 cryptography>=48.0.1
 APScheduler==3.10.4
