@@ -415,8 +415,8 @@ def save_ldap(data: dict, _: User = Depends(require_permission("auth.providers")
             from ..core.auth_providers import classify_ca_pem
             try:
                 verdict = classify_ca_pem(pem)
-            except Exception as e:
-                raise HTTPException(400, f"CA certificate is not a valid PEM certificate: {e}")
+            except Exception:
+                raise HTTPException(400, "CA certificate is not a valid PEM certificate.")
             if not verdict["certs"]:
                 raise HTTPException(400, "No certificate found in the pasted text.")
             if verdict["errors"]:
@@ -442,8 +442,8 @@ def save_sip2(data: dict, _: User = Depends(require_permission("auth.providers")
             from ..core.auth_providers import classify_ca_pem
             try:
                 verdict = classify_ca_pem(pem)
-            except Exception as e:
-                raise HTTPException(400, f"CA certificate is not a valid PEM certificate: {e}")
+            except Exception:
+                raise HTTPException(400, "CA certificate is not a valid PEM certificate.")
             if not verdict["certs"]:
                 raise HTTPException(400, "No certificate found in the pasted text.")
             if verdict["errors"]:
@@ -571,57 +571,6 @@ def test_sip2(_: User = Depends(require_permission("auth.providers"))):
         _socket.create_connection((host, port), timeout=timeout).close()
         return {"connected": True, **info,
                 "warning": "Unencrypted: card numbers and PINs cross the network in clear text."}
-    except OSError as e:
+    except OSError:
         return {"connected": False, **info,
-                "error": f"Cannot reach {host}:{port} ({e}). Check the host, port, and firewall."}
-
-
-@router.get("/auth-providers/sip2/presets")
-def sip2_presets(_: User = Depends(require_permission("auth.providers"))):
-    from ..core.auth_providers import SIP2_ILS_PRESETS
-    return SIP2_ILS_PRESETS
-
-
-@router.post("/auth-providers/sip2/test")
-def test_sip2(_: User = Depends(require_permission("auth.providers"))):
-    """
-    Test SIP2 / SIP2S connectivity.
-    For TLS connections, also validates the certificate chain.
-    """
-    from ..core.auth_providers import get_provider_config, _sip2_connect
-    import ssl as ssl_module
-    cfg      = get_provider_config("sip2")
-    use_tls  = cfg.get("use_tls", False)
-    default_port = 6443 if use_tls else 6001
-    host     = cfg.get("host", "localhost")
-    port     = int(cfg.get("port", default_port))
-    verify   = cfg.get("verify_cert", True)
-    ca_path  = cfg.get("ca_cert_path") or None
-    timeout  = int(cfg.get("timeout_seconds", 10))
-
-    try:
-        sock = _sip2_connect(host, port, timeout, use_tls, verify, ca_path)
-        # Read any initial banner the ILS sends
-        sock.settimeout(2)
-        banner = ""
-        try:
-            banner = sock.recv(256).decode("ascii", errors="replace").strip()
-        except Exception:
-            pass
-        sock.close()
-        return {
-            "connected": True,
-            "tls": use_tls,
-            "host": host,
-            "port": port,
-            "banner": banner or None,
-        }
-    except ssl_module.SSLCertVerificationError as e:
-        return {
-            "connected": False,
-            "tls": use_tls,
-            "error": f"TLS certificate error: {e}",
-            "hint": "Set verify_cert=false for self-signed certs, or provide a CA certificate bundle path.",
-        }
-    except Exception as e:
-        return {"connected": False, "tls": use_tls, "error": str(e)}
+                "error": f"Cannot reach {host}:{port}. Check the host, port, and firewall."}

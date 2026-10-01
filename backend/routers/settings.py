@@ -603,8 +603,8 @@ def test_proxy_endpoint(_: User = Depends(require_permission("settings.system"))
 
     try:
         return asyncio.run(_run())
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
+    except Exception:
+        return {"ok": False, "error": "Proxy connection test failed. Check proxy configuration."}
 
 
 # ── Plugin system settings ────────────────────────────────────────────────────

@@ -292,9 +292,8 @@ def ldap_tls_hint(err) -> str:
     low = (info or str(err)).lower()
     if "certificate" in low or "verify" in low or "ssl" in low or "tls" in low:
         return ("TLS certificate could not be verified. If your directory uses an "
-                "internal or self-signed CA, paste that CA certificate in the LDAP "
-                f"settings. ({info or err})")
-    return f"Could not connect to the directory server. ({info or err})"
+                "internal or self-signed CA, paste that CA certificate in the LDAP settings.")
+    return "Could not connect to the directory server. Check the host, port, and network settings."
 
 
 def try_ldap_auth(username: str, password: str) -> AuthResult:
@@ -469,8 +468,8 @@ def tls_diagnose(host: str, port: int, ca_pem: str = "", ca_path: str = "",
     import ssl
     try:
         raw = socket.create_connection((host, port), timeout=timeout)
-    except OSError as e:
-        return f"Cannot reach {host}:{port} ({e}). Check the host, port, and firewall."
+    except OSError:
+        return f"Cannot reach {host}:{port}. Check the host, port, and firewall."
     try:
         with tls_context(ca_pem, ca_path).wrap_socket(raw, server_hostname=host):
             return ""
@@ -484,14 +483,14 @@ def tls_diagnose(host: str, port: int, ca_pem: str = "", ca_path: str = "",
             return (f"The {service}'s certificate is not valid yet. Check the clock on this "
                     f"server and on the {service}.")
         if "hostname" in low or "match" in low:
-            return (f"The certificate does not match the host name '{host}' ({reason}). "
+            return (f"The certificate does not match the host name '{host}'. "
                     "Use the exact name on the certificate.")
-        return (f"The {service}'s certificate is not trusted ({reason}). If it comes from an "
+        return (f"The {service}'s certificate is not trusted. If it comes from an "
                 "internal CA or is self-signed, paste that CA certificate in the settings.")
-    except ssl.SSLError as e:
-        return f"TLS handshake failed ({e}). Is TLS really enabled on this port?"
-    except OSError as e:
-        return f"Connection failed during TLS ({e})."
+    except ssl.SSLError:
+        return "TLS handshake failed. Is TLS really enabled on this port?"
+    except OSError:
+        return "Connection failed during TLS handshake."
 
 
 def tls_peer_cert_status(host: str, port: int, ca_pem: str = "", ca_path: str = "",
@@ -518,9 +517,9 @@ def tls_peer_cert_status(host: str, port: int, ca_pem: str = "", ca_path: str = 
             ctx.verify_mode = ssl.CERT_NONE
         with ctx.wrap_socket(raw, server_hostname=sni) as tls:
             der = tls.getpeercert(binary_form=True)
-    except Exception as e:
+    except Exception:
         msg = (tls_diagnose(host, port, ca_pem, ca_path, timeout, service) if verify and sni == host
-               else f"Could not read the {service}'s certificate ({e}).")
+               else f"Could not read the {service}'s certificate.")
         return {"level": "error", "checked_at": now,
                 "message": msg or f"Could not connect to the {service}."}
     i = _cert_info(x509.load_der_x509_certificate(der))

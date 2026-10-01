@@ -397,8 +397,8 @@ def import_json_brokers(
                     status=status_val, notes=row.get("notes"),
                 ))
                 added += 1
-        except Exception as e:
-            errors.append(f"{name}: {e}")
+        except Exception:
+            errors.append(f"{name}: invalid record format")
 
     db.commit()
     return {"added": added, "updated": updated, "skipped": skipped, "errors": errors}

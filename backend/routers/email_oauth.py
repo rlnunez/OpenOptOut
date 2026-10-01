@@ -197,9 +197,8 @@ def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(Non
     client = _client(s, pending.provider_key)
     try:
         tokens = oe.exchange_code(flow, client, pending, code)
-    except Exception as e:
-        safe_err = html.escape(str(e), quote=True)
-        return HTMLResponse(f"<p>Token exchange failed: {safe_err}</p>", status_code=400)
+    except Exception:
+        return HTMLResponse("<p>Token exchange failed. Please verify provider settings and try again.</p>", status_code=400)
 
     oe.store_tokens(s, pending.account_ref, tokens)
     # Keep settings["email"]["provider"] in sync with whichever account is

@@ -136,8 +136,8 @@ def _extracted_bundle(file: UploadFile):
             raise HTTPException(400, "No manifest.json found in bundle")
         try:
             manifest = layout.read_manifest(manifest_dir)
-        except Exception as e:
-            raise HTTPException(400, f"manifest.json could not be read: {e}")
+        except Exception:
+            raise HTTPException(400, "manifest.json could not be read or is invalid JSON")
         yield manifest_dir, manifest, manifest.validate()
 
 
@@ -627,8 +627,8 @@ def enable_plugin(plugin_id: str, req: EnableRequest, db: Session = Depends(get_
     if mgr:
         try:
             mgr.launch_plugin(manifest, row.install_path, granting)
-        except Exception as e:
-            raise HTTPException(500, f"Enabled but failed to launch: {e}")
+        except Exception:
+            raise HTTPException(500, "Enabled but failed to launch. Check server logs.")
     else:
         raise HTTPException(503, "Plugin manager not running — enable the plugin system and restart")
 
@@ -772,6 +772,6 @@ def plugin_doc(doc: str, _: User = Depends(require_permission("plugins.view"))):
     try:
         with open(path, encoding="utf-8") as f:
             content = f.read()
-    except Exception as e:
-        raise HTTPException(500, f"Could not read plugin doc: {e}")
+    except Exception:
+        raise HTTPException(500, "Could not read plugin doc.")
     return {"doc": doc, "filename": fname, "markdown": content}

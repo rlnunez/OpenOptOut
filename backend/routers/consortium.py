@@ -601,8 +601,8 @@ def test_sip2_connection(
                              c.ca_cert_pem or "", c.ca_cert_path or "")
         sock.close()
         return {"connected": True, "host": c.host, "port": c.port, "use_tls": c.use_tls, "certificate": cert_info}
-    except Exception as e:
-        return {"connected": False, "error": str(e), "certificate": cert_info}
+    except Exception:
+        return {"connected": False, "error": "Connection failed. Check host, port, and TLS settings.", "certificate": cert_info}
 
 
 # ── Manager Scopes Endpoints ──────────────────────────────────────────────────

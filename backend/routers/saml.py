@@ -68,8 +68,8 @@ def login(request: Request):
         return _error_page("SAML sign-in is not enabled.")
     try:
         return RedirectResponse(saml_sp.begin_login(cfg, _base(cfg, request)))
-    except saml_sp.SamlError as e:
-        return _error_page(str(e))
+    except saml_sp.SamlError:
+        return _error_page("SAML sign-in could not be initiated. Please check the identity provider configuration.")
 
 
 @router.post("/acs")
@@ -80,8 +80,8 @@ def acs(request: Request, SAMLResponse: str = Form(""), db: Session = Depends(ge
     try:
         result = saml_sp.consume_response(cfg, _base(cfg, request), SAMLResponse)
         token = _resolve_external_user(result, db)["access_token"]
-    except saml_sp.SamlError as e:
-        return _error_page(str(e))
+    except saml_sp.SamlError:
+        return _error_page("SAML sign-in failed. Please contact your administrator.")
     except HTTPException as e:              # denied by the shared sign-in policy
         return _error_page(str(e.detail), status=e.status_code)
     return _sso_redirect(token)
@@ -119,8 +119,8 @@ def _public_view(cfg: dict, request: Request) -> dict:
         view["signing_cert"] = saml_cert_status(cfg)
         try:
             view["idp_entity_ids"] = saml_sp.idp_entity_ids(cfg, base)
-        except Exception as e:
-            view["metadata_error"] = str(e)
+        except Exception:
+            view["metadata_error"] = "Invalid or unparseable metadata."
     return view
 
 
@@ -153,8 +153,8 @@ def save_config(body: SamlConfigIn, request: Request,
             xml = r.text
         except HTTPException:
             raise
-        except Exception as e:
-            raise HTTPException(400, f"Could not fetch IdP metadata: {e}")
+        except Exception:
+            raise HTTPException(400, "Could not fetch IdP metadata from the provided URL.")
     if xml:
         cfg["idp_metadata_xml"] = xml
 
@@ -162,8 +162,8 @@ def save_config(body: SamlConfigIn, request: Request,
     if cfg.get("idp_metadata_xml"):
         try:
             ids = saml_sp.idp_entity_ids(cfg, _base(cfg, request))
-        except Exception as e:
-            raise HTTPException(400, f"IdP metadata is not valid: {e}")
+        except Exception:
+            raise HTTPException(400, "IdP metadata is not valid or contains errors.")
         if not ids:
             raise HTTPException(400, "The metadata does not describe an identity provider.")
     if cfg.get("enabled") and not cfg.get("idp_metadata_xml"):

@@ -240,8 +240,8 @@ def _run_migration(target_url: str):
         try:
             tgt_engine = _ce(target_url, pool_pre_ping=True)
             tgt_engine.connect().close()
-        except Exception as e:
-            raise RuntimeError(f"Cannot connect to Postgres: {e}")
+        except Exception:
+            raise RuntimeError("Cannot connect to Postgres. Check database credentials and network connectivity.")
 
         _log_progress("Creating schema on Postgres...")
         from ..models.database import Base
@@ -319,10 +319,10 @@ def _run_migration(target_url: str):
         _migration_status["total_rows"] = total_rows
 
     except Exception as e:
-        _log_progress(f"ERROR: {e}")
-        _migration_status["error"]   = str(e)
-        _migration_status["running"] = False
         log.error(f"DB migration failed: {e}")
+        _log_progress("ERROR: Database migration failed. Check server logs.")
+        _migration_status["error"]   = "Database migration failed. Check server logs for details."
+        _migration_status["running"] = False
 
 
 # ── Structured connection configuration ───────────────────────────────────────
