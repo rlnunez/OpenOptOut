@@ -48,6 +48,7 @@ import re
 import sys
 import time
 import traceback
+from urllib.parse import urlparse
 
 # ── import bootstrap ──────────────────────────────────────────────────────────
 # The tests use bare imports like `from core import ...`. Those resolve when run
@@ -3179,7 +3180,8 @@ def t_https_entrypoint():
             assert os.path.isfile(cf), f"no Caddyfile written for {env}"
             content = open(cf).read()
             hosts = set(re.findall(r"(?<![A-Za-z0-9-])(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?![A-Za-z0-9-])", content))
-            assert "privacy.lib.org" in hosts
+            parsed_hostnames = {urlparse(f"https://{h}").hostname for h in hosts}
+            assert "privacy.lib.org" in parsed_hostnames
             os.remove(cf)
     # EXPECTED: the generator accepts every documented mode and rejects malformed
     #   or injected input, including values that only look valid on their first line.
