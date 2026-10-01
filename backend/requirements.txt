@@ -17,7 +17,7 @@ passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 python-multipart==0.0.31
 aiofiles==23.2.1
-cryptography>=48.0.1
+cryptography>=50.0.1
 APScheduler==3.10.4
 zipp>=3.19.1
 pytz==2024.1
