@@ -317,21 +317,25 @@ def install_plugin(path: str, db: Session = Depends(get_db),
     """
     root_real = os.path.realpath(_plugins_dir())
     path_real = os.path.realpath(path)
+    manifest_path = os.path.realpath(os.path.join(path_real, "manifest.json"))
     try:
-        is_inside = (path_real != root_real and
-                     os.path.commonpath([root_real, path_real]) == root_real)
+        is_manifest_inside = os.path.commonpath([root_real, manifest_path]) == root_real
     except (ValueError, Exception):
-        is_inside = False
+        is_manifest_inside = False
 
-    if not is_inside:
+    if not is_manifest_inside:
         raise HTTPException(400, "Only plugins inside the plugins directory can be installed "
                                  "from disk; upload anything else as a .zip")
 
-    manifest_path = os.path.join(path_real, "manifest.json")
+    plugin_dir_real = os.path.dirname(manifest_path)
+    if plugin_dir_real == root_real:
+        raise HTTPException(400, "Only plugins inside the plugins directory can be installed "
+                                 "from disk; upload anything else as a .zip")
+
     if not os.path.isfile(manifest_path):
         raise HTTPException(404, "manifest.json not found at that path")
 
-    m = layout.read_manifest(path_real)
+    m = layout.read_manifest(plugin_dir_real)
     errors = m.validate()
     if errors:
         raise HTTPException(400, f"Invalid manifest: {'; '.join(errors)}")
@@ -339,22 +343,22 @@ def install_plugin(path: str, db: Session = Depends(get_db),
     if db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == m.id).first():
         raise HTTPException(400, f"Plugin '{m.id}' is already installed")
 
-    inspection = _email_inspection(m, path_real)
+    inspection = _email_inspection(m, plugin_dir_real)
     if inspection and inspection["high"]:
         raise HTTPException(400,
             "Email-provider plugin rejected: it appears to send to a hardcoded/hidden "
             f"recipient (possible data exfiltration). Findings: {inspection['high']}")
-    code = _code_inspection(m, path_real)
+    code = _code_inspection(m, plugin_dir_real)
     if code["blocked"]:
         raise HTTPException(400, "Plugin rejected by code inspection: " + "; ".join(code["high"]))
 
     dest = layout.install_dir(root_real, m)
-    if path_real != os.path.realpath(dest):
+    if plugin_dir_real != os.path.realpath(dest):
         if os.path.exists(dest):
             raise HTTPException(409, f"Can't move this plugin into {layout.relative_install_dir(m)}: "
                                      "something is already there")
         layout.ensure_layout(root_real)
-        layout.place_directory(path_real, dest, move=True)
+        layout.place_directory(plugin_dir_real, dest, move=True)
 
     _register(db, m, dest)
     if m.effective_type == "brokers":
