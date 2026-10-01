@@ -1,0 +1,10 @@
+# Gitleaks findings reviewed and confirmed NOT to be real secrets.
+# Format: <commit>:<file>:<rule>:<line>   (copy the Fingerprint from the gitleaks report)
+# Add an entry only after checking the value by hand, and say why.
+
+# Fake UUID-style keys used as test fixtures in the test suite
+1b62135c131ffc06aee7c0a5603f6c4da8d287ac:backend/tests/run_tests.py:generic-api-key:654
+1b62135c131ffc06aee7c0a5603f6c4da8d287ac:backend/tests/run_tests.py:generic-api-key:677
+
+# Translation-string key name ("i18n.save..."), not a credential
+6f38328dbc639389a61e444c13292b2f7236d7f0:backend/core/i18n.py:generic-api-key:119
