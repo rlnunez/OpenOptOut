@@ -132,7 +132,7 @@ def complete_tutorial(
 
 @router.get("/dictionary")
 def get_dictionary(
-    current_user: User = Depends(require_permission("settings.view", "settings.manage")),
+    current_user: User = Depends(require_permission("settings.system")),
 ):
     """Returns the master schema of all translatable keys with screen locations."""
     return i18n.get_dictionary()
@@ -141,7 +141,7 @@ def get_dictionary(
 @router.post("/languages", response_model=LanguageOut)
 def create_language(
     req: CreateLanguageRequest,
-    current_user: User = Depends(require_permission("settings.manage")),
+    current_user: User = Depends(require_permission("settings.system")),
 ):
     """Register a new language code in the system."""
     try:
@@ -160,7 +160,7 @@ def create_language(
 def toggle_language(
     code: str,
     req: ToggleLanguageRequest,
-    current_user: User = Depends(require_permission("settings.manage")),
+    current_user: User = Depends(require_permission("settings.system")),
 ):
     """Enable or disable a language for the platform."""
     try:
@@ -174,7 +174,7 @@ def toggle_language(
 def update_translations(
     locale: str,
     req: TranslationsUpdateRequest,
-    current_user: User = Depends(require_permission("settings.manage")),
+    current_user: User = Depends(require_permission("settings.system")),
 ):
     """
     Save custom translation string replacements for a language.

@@ -169,7 +169,7 @@ class MemoryRingBufferHandler(logging.Handler):
 
 _ring_buffer_handler: Optional[MemoryRingBufferHandler] = None
 _file_handler: Optional[RotatingFileHandler] = None
-_init_lock = threading.Lock()
+_init_lock = threading.RLock()  # re-entrant: init_logging() holds it while calling get_ring_buffer()
 
 
 def get_ring_buffer() -> MemoryRingBufferHandler:
