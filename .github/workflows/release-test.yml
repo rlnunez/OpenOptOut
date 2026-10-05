@@ -327,7 +327,8 @@ jobs:
           set -o pipefail
           {
             git fetch --tags --force origin
-            git checkout --quiet "$TAG"
+            git reset --hard
+            git checkout --force --quiet "$TAG"
             docker compose down
             GIT_COMMIT="$(git rev-parse --short HEAD)" docker compose build
             docker compose up -d
