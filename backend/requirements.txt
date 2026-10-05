@@ -38,6 +38,7 @@ grpcio-tools==1.84.0
 setuptools>=78.1.1
 pip>=26.1.2
 protobuf>=5.29.6
+msgpack>=1.2.1
 # SAML 2.0 sign-in.
 pysaml2>=7.5.5
 pyopenssl>=26.4.0
