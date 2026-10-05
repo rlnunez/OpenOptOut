@@ -444,7 +444,7 @@ fi
 if [[ "$ROLE" == "standalone" || "$ROLE" == "control-plane" ]]; then
   head "Building React Web UI"
   if command -v npm >/dev/null 2>&1; then
-    ( cd "$REPO_ROOT/frontend" && npm install --silent && npm run build )
+    ( cd "$REPO_ROOT/frontend" && npm ci --silent --legacy-peer-deps && npm run build )
     mkdir -p "$INSTALL_DIR/frontend"
     rsync -a --delete "$REPO_ROOT/frontend/dist/" "$INSTALL_DIR/frontend/dist/"
     info "Web UI built successfully to $INSTALL_DIR/frontend/dist"

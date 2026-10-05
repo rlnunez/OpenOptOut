@@ -133,8 +133,8 @@ if (Test-Path $ProtoFile) {
 Step "Building frontend"
 Push-Location (Join-Path $RepoRoot "frontend")
 try {
-    npm install
-    if ($LASTEXITCODE -ne 0) { Fail "npm install failed (see output above)." }
+    npm ci --legacy-peer-deps
+    if ($LASTEXITCODE -ne 0) { Fail "npm ci failed (see output above)." }
     npm run build
     if ($LASTEXITCODE -ne 0) { Fail "Frontend build failed (see npm output above)." }
 } finally {
