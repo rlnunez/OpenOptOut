@@ -433,10 +433,11 @@ fi
 # Compile plugin gRPC stubs if proto is available
 PROTO_DIR="$INSTALL_DIR/app/plugins/proto"
 if [[ "$ROLE" != "worker" ]] && [ -f "$PROTO_DIR/plugin.proto" ]; then
-  "$INSTALL_DIR/venv/bin/python" -m grpc_tools.protoc -I"$PROTO_DIR" \
-    --python_out="$PROTO_DIR" --grpc_python_out="$PROTO_DIR" "$PROTO_DIR/plugin.proto" >/dev/null 2>&1 \
-    && sed -i 's/^import plugin_pb2 as/from . import plugin_pb2 as/' "$PROTO_DIR/plugin_pb2_grpc.py" 2>/dev/null \
-    && touch "$PROTO_DIR/__init__.py" || true
+  if "$INSTALL_DIR/venv/bin/python" -m grpc_tools.protoc -I"$PROTO_DIR" \
+    --python_out="$PROTO_DIR" --grpc_python_out="$PROTO_DIR" "$PROTO_DIR/plugin.proto" >/dev/null 2>&1; then
+    sed -i 's/^import plugin_pb2 as/from . import plugin_pb2 as/' "$PROTO_DIR/plugin_pb2_grpc.py" 2>/dev/null || true
+    touch "$PROTO_DIR/__init__.py" 2>/dev/null || true
+  fi
 fi
 
 # ── 6. Frontend Build (Standalone & Control Plane) ─────────────────────────────
@@ -473,9 +474,13 @@ EOF
   if [[ "$ROLE" != "worker" ]]; then
     PROTO="http"
     if [[ "$TLS_MODE" == "letsencrypt" ]]; then PROTO="https"; fi
-    echo "FRONTEND_URL=$PROTO://$DOMAIN" >> "$INSTALL_DIR/.env"
-    echo "DATABASE_URL=$DB_URL" >> "$INSTALL_DIR/.env"
-    [ -z "${SQLCIPHER_KEY:-}" ] || echo "SQLCIPHER_KEY=$SQLCIPHER_KEY" >> "$INSTALL_DIR/.env"
+    {
+      echo "FRONTEND_URL=$PROTO://$DOMAIN"
+      echo "DATABASE_URL=$DB_URL"
+      if [ -n "${SQLCIPHER_KEY:-}" ]; then
+        echo "SQLCIPHER_KEY=$SQLCIPHER_KEY"
+      fi
+    } >> "$INSTALL_DIR/.env"
   fi
 
   if [ -n "$REDIS_URL" ]; then
@@ -483,9 +488,11 @@ EOF
   fi
 
   if [[ "$ROLE" == "worker" ]]; then
-    echo "WORKER_ID=$WORKER_ID" >> "$INSTALL_DIR/.env"
-    echo "WORKER_CONCURRENCY=$WORKER_CONCURRENCY" >> "$INSTALL_DIR/.env"
-    echo "HEADLESS=true" >> "$INSTALL_DIR/.env"
+    {
+      echo "WORKER_ID=$WORKER_ID"
+      echo "WORKER_CONCURRENCY=$WORKER_CONCURRENCY"
+      echo "HEADLESS=true"
+    } >> "$INSTALL_DIR/.env"
   fi
 
   # Record git commit hash if available
@@ -575,8 +582,14 @@ if [[ "$ROLE" != "worker" ]] && [[ "$TLS_MODE" == "letsencrypt" ]] && [ "$SKIP_T
 
   if command -v certbot >/dev/null 2>&1; then
     CERTBOT_ARGS=(--nginx -d "$DOMAIN" --agree-tos --non-interactive --redirect)
-    [ -z "$ADMIN_EMAIL" ] && CERTBOT_ARGS+=(--register-unsafely-without-email) || CERTBOT_ARGS+=(-m "$ADMIN_EMAIL")
-    [ "$STAGING" = 0 ] || CERTBOT_ARGS+=(--staging)
+    if [ -z "$ADMIN_EMAIL" ]; then
+      CERTBOT_ARGS+=(--register-unsafely-without-email)
+    else
+      CERTBOT_ARGS+=(-m "$ADMIN_EMAIL")
+    fi
+    if [ "$STAGING" != 0 ]; then
+      CERTBOT_ARGS+=(--staging)
+    fi
 
     if certbot "${CERTBOT_ARGS[@]}"; then
       info "TLS certificate successfully acquired for $DOMAIN!"

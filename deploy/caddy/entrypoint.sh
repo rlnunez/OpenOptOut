@@ -44,7 +44,9 @@ matches() {
 
 [ -n "$DOMAIN" ] || die "DOMAIN is not set (e.g. DOMAIN=privacy.example.org in .env)."
 matches "$DOMAIN" '^[A-Za-z0-9*.-]+(, *[A-Za-z0-9*.-]+)*$' || die "DOMAIN has invalid characters: $DOMAIN"
-[ -z "$EMAIL" ] || matches "$EMAIL" '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$' || die "ACME_EMAIL is not a valid email: $EMAIL"
+if [ -n "$EMAIL" ]; then
+  matches "$EMAIL" '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$' || die "ACME_EMAIL is not a valid email: $EMAIL"
+fi
 matches "$UPSTREAM" '^[A-Za-z0-9.-]+:[0-9]+$' || die "UPSTREAM must look like host:port: $UPSTREAM"
 url_ok() { matches "$1" '^https://[A-Za-z0-9.:/_~%-]+$'; }
 path_ok() { matches "$1" '^/[A-Za-z0-9._/-]+$'; }
@@ -78,7 +80,9 @@ elif [ "$MODE" = "internal" ]; then
 else
   CERT="${TLS_CERT_FILE:-/certs/fullchain.pem}"
   KEY="${TLS_KEY_FILE:-/certs/privkey.pem}"
-  path_ok "$CERT" && path_ok "$KEY" || die "TLS_CERT_FILE / TLS_KEY_FILE must be absolute paths."
+  if ! path_ok "$CERT" || ! path_ok "$KEY"; then
+    die "TLS_CERT_FILE / TLS_KEY_FILE must be absolute paths."
+  fi
   [ -f "$CERT" ] || die "Certificate file not found: $CERT (put it in ./deploy/certs)"
   [ -f "$KEY" ]  || die "Key file not found: $KEY (put it in ./deploy/certs)"
   TLS="	tls $CERT $KEY"
@@ -133,5 +137,8 @@ $HSTS_LINE
 EOF
 
 echo "OpenOptOut HTTPS: mode=$MODE domain=$DOMAIN upstream=$UPSTREAM"
-[ "${GENERATE_ONLY:-}" = "1" ] && { cat "$CADDYFILE"; exit 0; }
+if [ "${GENERATE_ONLY:-}" = "1" ]; then
+  cat "$CADDYFILE"
+  exit 0
+fi
 exec caddy run --config "$CADDYFILE" --adapter caddyfile

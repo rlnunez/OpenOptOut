@@ -1,7 +1,7 @@
 FROM node:26-alpine AS builder
 WORKDIR /app
 RUN chown -R node:node /app
-USER node
+USER 1000:1000
 COPY --chown=node:node package.json package-lock.json* .npmrc* ./
 RUN npm install --legacy-peer-deps
 COPY --chown=node:node . .
@@ -22,7 +22,7 @@ RUN apk update && apk upgrade --no-cache && \
 COPY --from=builder --chown=nginx:nginx /app/dist /usr/share/nginx/html
 COPY --chown=nginx:nginx nginx.conf /etc/nginx/conf.d/default.conf
 
-USER nginx
+USER 101:101
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \

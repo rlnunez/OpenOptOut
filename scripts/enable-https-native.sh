@@ -80,17 +80,31 @@ set_env() {
   fi
   mv "$tmp" "$ENV_FILE"
 }
-backup_env() { [ -f "$ENV_FILE" ] && cp "$ENV_FILE" "${ENV_FILE}.bak.$(date +%Y%m%d%H%M%S)" && echo "Backed up $ENV_FILE"; return 0; }
+backup_env() {
+  if [ -f "$ENV_FILE" ]; then
+    cp "$ENV_FILE" "${ENV_FILE}.bak.$(date +%Y%m%d%H%M%S)"
+    echo "Backed up $ENV_FILE"
+  fi
+  return 0
+}
 
 # ── --disable ──
 if [ "$DISABLE" = 1 ]; then
   echo "Reverting nginx's OpenOptOut site to certbot's saved pre-HTTPS backup, if one exists."
   found=""
   for f in /etc/nginx/sites-available/openoptout /etc/nginx/conf.d/openoptout.conf /etc/nginx/sites-available/privacyshield /etc/nginx/conf.d/privacyshield.conf; do
-    [ -f "${f}.certbot.bak" ] && { cp "${f}.certbot.bak" "$f"; found="$f"; }
+    if [ -f "${f}.certbot.bak" ]; then
+      cp "${f}.certbot.bak" "$f"
+      found="$f"
+    fi
   done
-  [ -n "$found" ] || warn "No certbot backup of the nginx site was found — nothing to revert automatically. Edit the nginx site by hand to remove the TLS block, then 'nginx -t && systemctl reload nginx'."
-  command -v nginx >/dev/null && nginx -t && systemctl reload nginx
+  if [ -z "$found" ]; then
+    warn "No certbot backup of the nginx site was found — nothing to revert automatically. Edit the nginx site by hand to remove the TLS block, then 'nginx -t && systemctl reload nginx'."
+  fi
+  if command -v nginx >/dev/null; then
+    nginx -t
+    systemctl reload nginx
+  fi
   backup_env
   set_env FRONTEND_URL "http://localhost"
   echo "certbot's own certificate files and renewal timer are left in place (harmless if unused)."
@@ -104,14 +118,19 @@ if [ -z "$NGINX_SITE" ]; then
     [ -f "$f" ] && NGINX_SITE="$f" && break
   done
 fi
-[ -n "$NGINX_SITE" ] && [ -f "$NGINX_SITE" ] || die \
-  "Couldn't find the OpenOptOut nginx site. Install it first (deploy/native/nginx-openoptout.conf.example), or pass --nginx-site PATH."
+if [ -z "$NGINX_SITE" ] || [ ! -f "$NGINX_SITE" ]; then
+  die "Couldn't find the OpenOptOut nginx site. Install it first (deploy/native/nginx-openoptout.conf.example), or pass --nginx-site PATH."
+fi
 
 # ── domain / email ──
 [ -n "$DOMAIN" ] || DOMAIN="$(ask 'Domain name people will use (e.g. privacy.yourlibrary.org)')"
 valid_domain "$DOMAIN" || die "Invalid domain: $DOMAIN"
-[ -z "$EMAIL" ] && EMAIL="$(ask 'Contact email for Let'"'"'s Encrypt (recommended)' '')"
-[ -z "$EMAIL" ] || valid_email "$EMAIL" || die "Invalid email: $EMAIL"
+if [ -z "$EMAIL" ]; then
+  EMAIL="$(ask 'Contact email for Let'"'"'s Encrypt (recommended)' '')"
+fi
+if [ -n "$EMAIL" ] && ! valid_email "$EMAIL"; then
+  die "Invalid email: $EMAIL"
+fi
 
 # ── preflight ──
 ip=""
@@ -127,7 +146,11 @@ echo "Let's Encrypt must reach this server on ports 80 and 443 from the internet
 
 echo
 echo "About to run certbot for: domain=$DOMAIN${EMAIL:+ email=$EMAIL}${STAGING:+ (staging)}"
-if [ "$YES" = 0 ]; then [ "$(ask 'Continue? (y/n)' y)" = y ] || die "Cancelled."; fi
+if [ "$YES" = 0 ]; then
+  if [ "$(ask 'Continue? (y/n)' y)" != y ]; then
+    die "Cancelled."
+  fi
+fi
 
 # certbot's --nginx plugin edits the site file in place (it makes its own
 # backup with a similar naming convention; we also keep an explicit one below
@@ -135,8 +158,14 @@ if [ "$YES" = 0 ]; then [ "$(ask 'Continue? (y/n)' y)" = y ] || die "Cancelled."
 cp "$NGINX_SITE" "${NGINX_SITE}.certbot.bak"
 
 CERTBOT_ARGS=(--nginx -d "$DOMAIN" --redirect --agree-tos --no-eff-email -n)
-[ -n "$EMAIL" ] && CERTBOT_ARGS+=(--email "$EMAIL") || CERTBOT_ARGS+=(--register-unsafely-without-email)
-[ "$STAGING" = 1 ] && CERTBOT_ARGS+=(--staging)
+if [ -n "$EMAIL" ]; then
+  CERTBOT_ARGS+=(--email "$EMAIL")
+else
+  CERTBOT_ARGS+=(--register-unsafely-without-email)
+fi
+if [ "$STAGING" = 1 ]; then
+  CERTBOT_ARGS+=(--staging)
+fi
 
 certbot "${CERTBOT_ARGS[@]}"
 
@@ -145,7 +174,12 @@ systemctl reload nginx
 
 backup_env
 set_env FRONTEND_URL "https://$DOMAIN"
-set_env HTTPS_MODE "$([ "$STAGING" = 1 ] && echo letsencrypt-staging || echo letsencrypt)"
+if [ "$STAGING" = 1 ]; then
+  MODE_VAL="letsencrypt-staging"
+else
+  MODE_VAL="letsencrypt"
+fi
+set_env HTTPS_MODE "$MODE_VAL"
 set_env DOMAIN "$DOMAIN"
 set_env HTTPS_CHECK_HOST "127.0.0.1"
 

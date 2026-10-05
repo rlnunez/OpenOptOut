@@ -152,8 +152,11 @@ def create_language(
             is_rtl=req.is_rtl,
         )
         return lang
-    except ValueError as e:
-        raise HTTPException(400, str(e))
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to add language. Please check that language code and name are valid.",
+        )
 
 
 @router.put("/languages/{code}/toggle")
@@ -166,8 +169,11 @@ def toggle_language(
     try:
         updated = i18n.toggle_language_enabled(code, req.enabled)
         return {"ok": True, "languages": updated}
-    except ValueError as e:
-        raise HTTPException(400, str(e))
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Language not found or could not be toggled.",
+        )
 
 
 @router.put("/translations/{locale}")

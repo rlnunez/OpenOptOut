@@ -105,9 +105,11 @@ jobs:
           python3 .github/security/sarif_summary.py "Semgrep" semgrep.sarif >> "$GITHUB_STEP_SUMMARY"
 
       - name: Bandit (Python)
-        # Skipped: B101 assert, B110/B112 try-except-pass/continue (very common, low value)
+        # Skipped: B101 assert, B105/B106 hardcoded password false positives (env vars, auth tokens, param names),
+        # B110/B112 try-except-pass/continue, B311 non-cryptographic random (UA/proxy rotation),
+        # B404/B603/B607 subprocess invocation in sandboxing/versioning
         run: |
-          bandit -r backend -x backend/tests -s B101,B110,B112 \
+          bandit -r backend -x backend/tests -s B101,B105,B106,B110,B112,B311,B404,B603,B607 \
             -f sarif -o bandit.sarif --exit-zero -q
           python3 .github/security/sarif_summary.py "Bandit" bandit.sarif >> "$GITHUB_STEP_SUMMARY"
 

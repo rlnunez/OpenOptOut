@@ -16,13 +16,22 @@ PEBBLE_VERSION=v2.6.0
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ENTRY="$HERE/../caddy/entrypoint.sh"
 WORK="$(mktemp -d)"; PIDS=()
-cleanup() { for p in "${PIDS[@]:-}"; do [ -n "$p" ] && kill "$p" 2>/dev/null || true; done; rm -rf "$WORK"; }
+# shellcheck disable=SC2317
+cleanup() {
+  for p in "${PIDS[@]:-}"; do
+    if [ -n "$p" ]; then
+      kill "$p" 2>/dev/null || true
+    fi
+  done
+  rm -rf "$WORK"
+}
 trap cleanup EXIT
 fail() { echo "FAIL: $*" >&2; exit 1; }
 cd "$WORK"
 
-grep -q "openoptout.test" /etc/hosts || echo "127.0.0.1 openoptout.test" >> /etc/hosts \
-  || fail "add '127.0.0.1 openoptout.test' to /etc/hosts (or run with sudo)"
+if ! grep -q "openoptout.test" /etc/hosts; then
+  echo "127.0.0.1 openoptout.test" >> /etc/hosts || fail "add '127.0.0.1 openoptout.test' to /etc/hosts (or run with sudo)"
+fi
 
 echo "Downloading Caddy $CADDY_VERSION and Pebble $PEBBLE_VERSION…"
 curl -sfL "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz" | tar xz caddy
@@ -47,8 +56,16 @@ PATH="$WORK:$PATH" XDG_DATA_HOME="$WORK/cd" XDG_CONFIG_HOME="$WORK/cc" \
   DOMAIN=openoptout.test UPSTREAM=127.0.0.1:8080 HTTP_PORT=5002 HTTPS_PORT=5001 RENEW_INTERVAL=10s \
   CADDYFILE="$WORK/Caddyfile" sh "$ENTRY" > caddy.log 2>&1 & PIDS+=($!)
 
-for _ in $(seq 1 30); do grep -q "certificate obtained successfully" caddy.log && break; sleep 1; done
-grep -q "certificate obtained successfully" caddy.log || { tail -20 caddy.log; fail "certificate was not issued"; }
+for _ in $(seq 1 30); do
+  if grep -q "certificate obtained successfully" caddy.log; then
+    break
+  fi
+  sleep 1
+done
+if ! grep -q "certificate obtained successfully" caddy.log; then
+  tail -20 caddy.log
+  fail "certificate was not issued"
+fi
 curl -sk https://127.0.0.1:15000/roots/0 > root.pem
 body="$(curl -s --max-time 5 --cacert root.pem https://openoptout.test:5001/)"
 [ "$body" = "OpenOptOut OK" ] || fail "verified HTTPS request failed (got: $body)"
@@ -67,7 +84,9 @@ for i in $(seq 1 15); do
     body="$(curl -s --max-time 5 --cacert root.pem https://openoptout.test:5001/)"
     [ "$body" = "OpenOptOut OK" ] || fail "site broken after renewal"
     echo "PASS  renewed automatically after ~$((i*10))s ($now) and still serving"
-    grep -q '"level":"error"' caddy.log && fail "Caddy logged errors" || true
+    if grep -q '"level":"error"' caddy.log; then
+      fail "Caddy logged errors"
+    fi
     echo "ALL PASS"; exit 0
   fi
 done
