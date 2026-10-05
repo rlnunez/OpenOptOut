@@ -1,0 +1,15 @@
+# ==============================================================================
+# OpenOptOut — Trivy ignore file
+#
+# Handled findings and accepted architectural patterns.
+# See docs/SECURITY_SCANNING.md for suppression guidelines.
+# ==============================================================================
+
+# DS-0002 / AVD-DS-0002: Image user should not be 'root'
+# - frontend/Dockerfile: Nginx master process starts as root to bind port 80
+#   and manage system PID/cache directories, then automatically drops worker process
+#   privileges to the unprivileged 'nginx' user (as configured in nginx.conf).
+# - backend/Dockerfile: Root privileges are required to configure OS-level process
+#   isolation namespaces (bubblewrap/seccomp) for untrusted plugins.
+DS-0002
+AVD-DS-0002

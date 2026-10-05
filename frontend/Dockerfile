@@ -1,8 +1,10 @@
 FROM node:26-alpine AS builder
 WORKDIR /app
-COPY package.json package-lock.json* .npmrc* ./
+RUN chown -R node:node /app
+USER node
+COPY --chown=node:node package.json package-lock.json* .npmrc* ./
 RUN npm install --legacy-peer-deps
-COPY . .
+COPY --chown=node:node . .
 RUN npm run build
 
 FROM nginx:alpine
