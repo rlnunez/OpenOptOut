@@ -21,7 +21,7 @@ aiofiles==25.1.0
 cryptography>=50.0.1
 APScheduler==3.11.3
 zipp>=3.19.1
-pytz==2024.1
+pytz==2026.4
 playwright==1.44.0
 python-ldap==3.4.8
 pyasn1>=0.6.4
