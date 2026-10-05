@@ -33,7 +33,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY requirements.txt requirements-encryption.txt install_deps.sh ./
+COPY requirements.txt requirements-encryption.txt install_deps.py ./
 
 # Optional: file-level SQLCipher encryption. Off by default so the image builds
 # on every platform (the app falls back to unencrypted SQLite and reports the
@@ -42,7 +42,7 @@ COPY requirements.txt requirements-encryption.txt install_deps.sh ./
 # skipped rather than failing the whole image.
 ARG WITH_ENCRYPTION=false
 ENV WITH_ENCRYPTION=${WITH_ENCRYPTION}
-RUN ./install_deps.sh
+RUN python3 install_deps.py
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN playwright install firefox && \

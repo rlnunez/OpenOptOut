@@ -87,7 +87,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install scanners
-        run: bash .github/security/install_scanners.sh
+        run: python3 .github/security/install_scanners.py
 
       - name: Semgrep (public rulesets + OpenOptOut rules in .semgrep/)
         # Excluded: request-host-used (standard NGINX proxy header), insecure-file-permissions (intentional UDS 0o666), react-dangerouslysetinnerhtml (Markdown escaped)
@@ -288,7 +288,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install workflow analysis tools
-        run: bash .github/security/install_workflow_tools.sh
+        run: python3 .github/security/install_workflow_tools.py
       - name: zizmor
         run: |
           # zizmor exits non-zero when it finds something; that's reported, not fatal.
@@ -359,7 +359,7 @@ jobs:
         run: $COMPOSE up -d api
 
       - name: Start the scanner toolbox (joins the isolated network)
-        run: bash .github/security/setup_dast_tools.sh
+        run: python3 .github/security/setup_dast_tools.py
 
       - name: Create a throwaway admin and fetch the API schema
         run: |

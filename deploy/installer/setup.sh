@@ -409,18 +409,9 @@ head "Setting Up Python Virtual Environment"
 if [ ! -d "$INSTALL_DIR/venv" ]; then
   python3 -m venv "$INSTALL_DIR/venv"
 fi
-"$INSTALL_DIR/venv/bin/pip" install --upgrade pip -q
-
-info "Installing Python dependencies (requirements.txt)..."
-"$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/app/requirements.txt" -q
-
-if [[ "$DB_ENGINE" == "sqlcipher" ]]; then
-  if [ -f "$INSTALL_DIR/app/requirements-encryption.txt" ]; then
-    info "Installing SQLCipher encryption drivers..."
-    "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/app/requirements-encryption.txt" -q || \
-      warn "sqlcipher3 compilation failed. Ensure libsqlcipher-dev is installed."
-  fi
-fi
+info "Installing Python dependencies..."
+WITH_ENCRYPTION="$([ "$DB_ENGINE" = "sqlcipher" ] && echo "true" || echo "false")" \
+  "$INSTALL_DIR/venv/bin/python3" "$INSTALL_DIR/app/install_deps.py"
 
 # Install Playwright browser ONLY for Standalone and Worker roles
 if [[ "$ROLE" == "standalone" || "$ROLE" == "worker" ]]; then

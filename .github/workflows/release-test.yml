@@ -149,7 +149,7 @@ jobs:
 
       - name: Install the browser for the walk-through
         if: steps.health.outcome == 'success'
-        run: bash .github/release-test/install_playwright.sh
+        run: python3 .github/release-test/install_playwright.py
 
       - name: Browser — first-run setup and every page
         id: ui
