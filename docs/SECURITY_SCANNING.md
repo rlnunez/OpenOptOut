@@ -31,6 +31,7 @@ This guide covers:
 | **Trivy (images)** | Known vulnerabilities in the built Docker images | Push to `main`, weekly, on demand |
 | **Schemathesis** | Sends thousands of generated requests to every API endpoint. Finds crashes, **endpoints that skip the login check**, and data that's still reachable after it was deleted. | Push to `main`, weekly, on demand |
 | **OWASP ZAP** | Attacks the running API like a web pentester: missing security headers, injection, information leaks | Push to `main`, weekly, on demand |
+| **ClusterFuzzLite + Atheris** (fuzzing) | Feeds millions of random and malformed inputs into the code that handles untrusted data: broker specs, plugin manifests, the plugin code inspectors, signed job envelopes, the log sanitizer, and the Identity Vault combination builder. Finds crashes, hangs and broken security checks. | Pull requests touching `backend/` (5 min), weekly (30 min), on demand |
 | **OpenSSF Scorecard** | Grades the project's security habits (branch protection, pinned dependencies, code review) | Push to `main`, weekly |
 | **Dependabot** | Opens pull requests to update outdated or vulnerable dependencies | Weekly, plus immediately for security fixes |
 
@@ -219,6 +220,41 @@ To stop secrets from ever being committed, you can add a
 [pre-commit hook for Gitleaks](https://github.com/gitleaks/gitleaks#pre-commit).
 
 ---
+
+## Fuzzing
+
+The fuzz targets live in `fuzz/`, one file per area:
+
+| Target | Untrusted input | What counts as a bug |
+|---|---|---|
+| `fuzz_broker_spec.py` | `spec.json` in broker add-ons and imports | Any exception escaping `validate_broker_spec_file()`; anything but `CompileError` from `compile_job()` |
+| `fuzz_plugin_manifest.py` | `manifest.json` in uploaded plugins | Any exception escaping plugin scanning (`layout._inspect`) |
+| `fuzz_plugin_code_inspector.py` | Every file in an uploaded plugin | Either inspector crashing instead of reporting a finding |
+| `fuzz_job_envelope.py` | Job/result messages in Redis | A **changed or forged envelope being accepted**, or garbage raising anything but `EnvelopeError` |
+| `fuzz_log_sanitizer.py` | Every log line | A crash, a hang (regex backtracking), or a **bearer token surviving** sanitizing |
+| `fuzz_identity_combos.py` | Identity Vault values typed by users | Any exception while building search/opt-out combinations |
+
+**When it finds something:** the PR check fails, and the crash appears in
+**Security → Code scanning** (tool: ClusterFuzzLite). The run's artifacts
+include the exact input that triggered it.
+
+**Reproduce a crash or fuzz locally:**
+
+```bash
+pip install atheris
+bash fuzz/build_pkgroot.sh                      # makes the backend importable as `app`
+cd fuzz
+python fuzz_broker_spec.py -max_total_time=120  # fuzz for 2 minutes
+python fuzz_broker_spec.py crash-<id>           # re-run one saved crashing input
+```
+
+**Adding a target:** copy an existing `fuzz/fuzz_*.py`. Import the code under
+test inside `with atheris.instrument_imports():`, and decide which exceptions
+are acceptable "rejections". Anything else is a bug. The workflow picks up new
+`fuzz_*.py` files automatically.
+
+**Corpus:** the interesting inputs found so far are saved as workflow
+artifacts and reused by the next run, so fuzzing goes deeper over time.
 
 ## Maintenance
 

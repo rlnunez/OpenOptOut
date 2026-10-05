@@ -17,7 +17,7 @@ Versioned via `spec_version` so the format can evolve without breaking old
 add-ons.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Optional, Any
 
 SPEC_VERSION = "1.0"
@@ -53,6 +53,27 @@ STEP_KINDS = {
     "solve_captcha",  # hand off to the CAPTCHA layer (roadmap item 4)
 }
 
+
+
+def _require_types(obj, where: str) -> None:
+    """Raise ValueError if a field loaded from an untrusted spec has the wrong JSON type.
+
+    Specs arrive inside uploaded add-ons and imported catalogues. Without this,
+    e.g. `"broker_id": 5` made validate() crash with AttributeError (a 500 on
+    upload) instead of returning a readable error. from_dict()'s callers turn
+    the ValueError into a validation message.
+    """
+    for f in fields(obj):
+        v = getattr(obj, f.name)
+        t = f.type
+        if t is str and not isinstance(v, str):
+            raise ValueError(f"{where}.{f.name} must be a string, not {type(v).__name__}")
+        if t is int and (isinstance(v, bool) or not isinstance(v, int)):
+            raise ValueError(f"{where}.{f.name} must be a whole number, not {type(v).__name__}")
+        if t is bool and not isinstance(v, bool):
+            raise ValueError(f"{where}.{f.name} must be true or false, not {type(v).__name__}")
+        if t == list[str] and not (isinstance(v, list) and all(isinstance(x, str) for x in v)):
+            raise ValueError(f"{where}.{f.name} must be a list of strings")
 
 @dataclass
 class Step:
@@ -169,13 +190,21 @@ class BrokerSpec:
 
     @classmethod
     def from_dict(cls, d: dict) -> "BrokerSpec":
+        raw_steps = d.get("steps", [])
+        if not isinstance(raw_steps, list) or not all(isinstance(s, dict) for s in raw_steps):
+            raise ValueError("steps must be a list of objects")
         steps = [Step(**{k: v for k, v in s.items() if k in Step.__dataclass_fields__})
-                 for s in d.get("steps", [])]
+                 for s in raw_steps]
+        for i, s in enumerate(steps):
+            _require_types(s, f"steps[{i}]")
         email = None
         if d.get("email"):
             ed = d["email"]
+            if not isinstance(ed, dict):
+                raise ValueError("email must be an object")
             email = EmailSpec(**{k: v for k, v in ed.items() if k in EmailSpec.__dataclass_fields__})
-        return cls(
+            _require_types(email, "email")
+        spec = cls(
             broker_id=d.get("broker_id", ""),
             name=d.get("name", ""),
             method=d.get("method", ""),
@@ -187,6 +216,8 @@ class BrokerSpec:
             success_text=d.get("success_text", ""),
             notes=d.get("notes", ""),
         )
+        _require_types(spec, "spec")
+        return spec
 
     def to_dict(self) -> dict:
         out: dict[str, Any] = {
