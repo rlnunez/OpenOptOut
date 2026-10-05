@@ -6,6 +6,12 @@
 # See docs/SECURITY_SCANNING.md for suppression guidelines.
 # ==============================================================================
 
+# DS-0001 / AVD-DS-0001: Specify a tag in the 'FROM' statement
+# .clusterfuzzlite/Dockerfile pins base-builder-python directly by sha256 digest
+# for cryptographic reproducibility and Scorecard pinned-dependency verification.
+DS-0001
+AVD-DS-0001
+
 # DS-0002 / AVD-DS-0002: Image user should not be 'root'
 # Both production Dockerfiles (backend/Dockerfile, frontend/Dockerfile) specify
 # unprivileged non-root users (appuser / nginx). This rule is only ignored for
