@@ -495,7 +495,7 @@ class Plugin:
                     pass
             server.add_insecure_port(f"unix:{uds_path}")
             try:
-                os.chmod(uds_path, 0o666)  # nosec: B103 -- UDS socket requires read/write access across sandbox namespaces
+                os.chmod(uds_path, 0o666)  # nosec: B103 # nosemgrep: python.lang.security.audit.insecure-file-permissions.insecure-file-permissions -- UDS socket requires read/write access across sandbox namespaces
             except OSError:
                 pass
             server.start()

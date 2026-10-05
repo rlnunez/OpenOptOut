@@ -150,8 +150,7 @@ server {{
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
-        # nosemgrep: generic.nginx.security.request-host-used.request-host-used -- standard reverse proxy header
-        proxy_set_header Host $host;
+        proxy_set_header Host $host;  # nosemgrep: generic.nginx.security.request-host-used.request-host-used
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
