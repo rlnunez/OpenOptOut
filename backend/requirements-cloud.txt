@@ -12,3 +12,4 @@ pyasn1==0.6.4
 # Azure AD authentication
 azure-identity==1.26.0
 PyJWT>=2.15.0
+idna>=3.20
