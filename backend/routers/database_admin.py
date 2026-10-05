@@ -8,7 +8,7 @@ import os, json, logging, time
 from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from sqlalchemy import text, inspect
+from sqlalchemy import text, inspect, select, func, table as sql_table, column as sql_column
 from sqlalchemy.orm import Session
 
 from ..models.database import get_db, engine, User, FamilyMember, Broker, RemovalRequest
@@ -45,7 +45,7 @@ def db_health(db: Session = Depends(get_db), _=Depends(require_permission("datab
         inspector = inspect(engine)
         for table in inspector.get_table_names():
             try:
-                result = db.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar()
+                result = db.execute(select(func.count()).select_from(sql_table(table))).scalar()
                 counts[table] = result
             except Exception:
                 counts[table] = None
@@ -162,7 +162,7 @@ def table_stats(db: Session = Depends(get_db), _=Depends(require_permission("dat
 
     for table_name in sorted(inspector.get_table_names()):
         try:
-            count = db.execute(text(f"SELECT COUNT(*) FROM {table_name}")).scalar()
+            count = db.execute(select(func.count()).select_from(sql_table(table_name))).scalar()
         except Exception:
             count = None
 
@@ -170,7 +170,7 @@ def table_stats(db: Session = Depends(get_db), _=Depends(require_permission("dat
         if db_type == "postgres":
             try:
                 size_bytes = db.execute(
-                    text(f"SELECT pg_total_relation_size('{table_name}')")
+                    select(func.pg_total_relation_size(table_name))
                 ).scalar()
             except Exception:
                 pass
@@ -296,10 +296,14 @@ def _run_migration(target_url: str):
         _log_progress("Resetting Postgres sequences...")
         for table_name in ordered_tables:
             try:
-                tgt_session.execute(text(
-                    f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), "
-                    f"COALESCE(MAX(id), 1)) FROM {table_name}"
-                ))
+                tgt_session.execute(
+                    select(
+                        func.setval(
+                            func.pg_get_serial_sequence(table_name, "id"),
+                            func.coalesce(func.max(sql_column("id")), 1),
+                        )
+                    ).select_from(sql_table(table_name))
+                )
             except Exception:
                 pass
         tgt_session.commit()
