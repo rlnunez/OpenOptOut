@@ -200,7 +200,7 @@ class PluginManager:
         try:
             self._host_server.add_insecure_port(f"unix:{uds_file}")
             try:
-                os.chmod(uds_file, 0o666)  # nosec B103 -- UDS socket requires read/write access across sandbox namespace
+                os.chmod(uds_file, 0o666)  # nosec: B103 -- UDS socket requires read/write access across sandbox namespaces
             except OSError:
                 pass
             self._host_uds_path = uds_file
