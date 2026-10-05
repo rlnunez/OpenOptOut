@@ -1,0 +1,8 @@
+# ==============================================================================
+# OpenOptOut — Trivy configuration
+# ==============================================================================
+scan:
+  skip-dirs:
+    - .clusterfuzzlite
+  skip-files:
+    - .clusterfuzzlite/Dockerfile
