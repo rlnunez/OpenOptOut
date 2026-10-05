@@ -78,8 +78,6 @@ jobs:
           mode: ${{ env.MODE }}
           sanitizer: address
           output-sarif: true
-          report-timeouts: true
-          report-ooms: true
 
       - name: Upload crash reports to the Security tab
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('cifuzz-sarif/results.sarif') != ''
