@@ -300,6 +300,14 @@ jobs:
           curl -fsSL "https://raw.githubusercontent.com/$REPO/$PREV/install.sh" -o install.sh
           sh install.sh --docker --ref "$PREV" --dir "$APP_DIR" --repo "https://github.com/$REPO.git" \
             2>&1 | tee "$OUT/logs/install-previous.log"
+          # Compatibility shim: releases prior to 0.8.0 had an unprivileged nginx pid path
+          # mismatch when built against newer Alpine images. Patch and rebuild web if needed.
+          if [ -f "$APP_DIR/frontend/Dockerfile" ] && grep -q 's|/var/run/nginx.pid|/tmp/nginx.pid|g' "$APP_DIR/frontend/Dockerfile" && ! grep -q 'mkdir -p /run' "$APP_DIR/frontend/Dockerfile"; then
+            sed -i -E 's|/(var/)?run/nginx.pid|/tmp/nginx.pid|g' "$APP_DIR/frontend/Dockerfile"
+            sed -i 's|touch /tmp/nginx.pid|touch /tmp/nginx.pid \&\& mkdir -p /run|g' "$APP_DIR/frontend/Dockerfile"
+            sed -i 's|chown -R nginx:nginx /tmp/nginx.pid|chown -R nginx:nginx /tmp/nginx.pid /run|g' "$APP_DIR/frontend/Dockerfile"
+            (cd "$APP_DIR" && docker compose build web && docker compose up -d)
+          fi
 
       - name: Set up the previous release and save some data
         id: before

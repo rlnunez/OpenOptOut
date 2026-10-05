@@ -15,9 +15,11 @@ RUN apk update && apk upgrade --no-cache && \
     apk add --no-cache libcap curl && \
     setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx && \
     sed -i '/user  nginx;/d' /etc/nginx/nginx.conf && \
-    sed -i 's|/var/run/nginx.pid|/tmp/nginx.pid|g' /etc/nginx/nginx.conf && \
+    sed -i -E 's|/(var/)?run/nginx.pid|/tmp/nginx.pid|g' /etc/nginx/nginx.conf && \
+    grep -q 'pid /tmp/nginx.pid;' /etc/nginx/nginx.conf || sed -i '1s|^|pid /tmp/nginx.pid;\n|' /etc/nginx/nginx.conf && \
     touch /tmp/nginx.pid && \
-    chown -R nginx:nginx /tmp/nginx.pid /var/cache/nginx /var/log/nginx /etc/nginx
+    mkdir -p /run /var/cache/nginx /var/log/nginx /etc/nginx && \
+    chown -R nginx:nginx /tmp/nginx.pid /run /var/cache/nginx /var/log/nginx /etc/nginx
 
 COPY --from=builder --chown=nginx:nginx /app/dist /usr/share/nginx/html
 COPY --chown=nginx:nginx nginx.conf /etc/nginx/conf.d/default.conf
