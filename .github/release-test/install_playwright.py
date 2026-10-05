@@ -2,15 +2,14 @@
 """Install Playwright and browser binaries for test run."""
 import os
 import re
-import shlex
 import subprocess
 import sys
 
 
 def main() -> None:
     raw = os.environ.get("PLAYWRIGHT_VERSION", "").strip()
-    ver = raw if re.match(r"^[0-9A-Za-z_.\-]+$", raw) else ""
-    pkg = shlex.quote(f"playwright=={ver}") if ver else "playwright"
+    ver = raw if re.match(r"^[0-9]+(\.[0-9]+)*$", raw) else ""
+    pkg = f"playwright=={ver}" if ver else "playwright"
 
     # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args
     subprocess.run(
