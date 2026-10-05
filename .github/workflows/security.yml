@@ -219,6 +219,7 @@ jobs:
           output: trivy-config.sarif
           ignorefile: .trivyignore
           exit-code: "0"
+          args: --skip-dirs .clusterfuzzlite
 
       - name: Hadolint (backend Dockerfile)
         uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0

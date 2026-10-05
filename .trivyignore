@@ -5,25 +5,3 @@
 # to be an accepted risk or false positive, with a comment explaining why.
 # See docs/SECURITY_SCANNING.md for suppression guidelines.
 # ==============================================================================
-
-# DS-0001 / AVD-DS-0001: Specify a tag in the 'FROM' statement
-# .clusterfuzzlite/Dockerfile pins base-builder-python directly by sha256 digest
-# for cryptographic reproducibility and Scorecard pinned-dependency verification.
-DS-0001
-AVD-DS-0001
-
-# DS-0002 / AVD-DS-0002: Image user should not be 'root'
-# Both production Dockerfiles (backend/Dockerfile, frontend/Dockerfile) specify
-# unprivileged non-root users (appuser / nginx). This rule is only ignored for
-# .clusterfuzzlite/Dockerfile, which is a build-only CI container based on
-# gcr.io/oss-fuzz-base/base-builder-python where root is required by OSS-Fuzz's
-# compile_python_fuzzer build toolchain to write into /out ($OUT).
-DS-0002
-AVD-DS-0002
-
-# DS-0026 / AVD-DS-0026: Add HEALTHCHECK instruction in your Dockerfile
-# Production services (backend/Dockerfile, frontend/Dockerfile) specify active
-# HEALTHCHECK instructions. .clusterfuzzlite/Dockerfile is a short-lived,
-# build-only CI image used solely to compile fuzz targets and exits immediately.
-DS-0026
-AVD-DS-0026
