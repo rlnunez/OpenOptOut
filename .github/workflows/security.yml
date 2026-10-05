@@ -61,8 +61,7 @@ env:
   GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
   OSV_SCANNER_VERSION: "2.6.0"
   OSV_SCANNER_SHA256: "ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108"
-  ACTIONLINT_VERSION: "1.7.12"
-  ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+  ACTIONLINT_PY_VERSION: "1.7.12.25"
   TRUFFLEHOG_IMAGE: "ghcr.io/trufflesecurity/trufflehog:3.97.9"
   TRIVY_VERSION: "v0.70.0"   # never v0.69.4–v0.69.6 (compromised, GHSA-69fq-xp46-6x23)
   SCHEMATHESIS_VERSION: "4.28.0"
@@ -142,7 +141,7 @@ jobs:
 
       - name: Install Gitleaks (checksum-verified)
         run: |
-          curl -sSfL -o gitleaks.tgz \
+          curl --retry 3 --retry-all-errors -sSfL -o gitleaks.tgz \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           echo "${GITLEAKS_SHA256}  gitleaks.tgz" | sha256sum -c -
           tar -xzf gitleaks.tgz gitleaks && rm gitleaks.tgz
@@ -179,7 +178,7 @@ jobs:
           persist-credentials: false
       - name: Install OSV-Scanner (checksum-verified)
         run: |
-          curl -sSfL -o osv-scanner \
+          curl --retry 3 --retry-all-errors -sSfL -o osv-scanner \
             "https://github.com/google/osv-scanner/releases/download/v${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64"
           echo "${OSV_SCANNER_SHA256}  osv-scanner" | sha256sum -c -
           chmod +x osv-scanner
@@ -294,14 +293,11 @@ jobs:
           # zizmor exits non-zero when it finds something; that's reported, not fatal.
           zizmor --offline --format sarif .github/workflows/ > zizmor.sarif || true
           python3 .github/security/sarif_summary.py "zizmor (workflow security)" zizmor.sarif >> "$GITHUB_STEP_SUMMARY"
-      - name: actionlint (checksum-verified)
+      - name: actionlint
         run: |
-          curl -sSfL -o actionlint.tgz \
-            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-          echo "${ACTIONLINT_SHA256}  actionlint.tgz" | sha256sum -c -
-          tar -xzf actionlint.tgz actionlint && rm actionlint.tgz
+          pip install "actionlint-py==${ACTIONLINT_PY_VERSION}"
           # A real actionlint error means a workflow is broken, so this one may fail.
-          ./actionlint -color
+          actionlint -color
       - name: Upload zizmor results
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('zizmor.sarif') != ''
         uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
