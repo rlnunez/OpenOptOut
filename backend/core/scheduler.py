@@ -434,7 +434,7 @@ def _poll_imap_mailbox(ec: dict, db: Session, cfg: dict, is_grace_period: bool =
                             via_label = "grace_plugin" if is_grace_period else "plugin"
                             fire_event("confirmation_received", entity_id=str(req.id),
                                        data={"broker": req.broker.name, "via": via_label})
-                            log.info(f"Matched ({via_label}): {req.broker.name} / {req.member.full_name}")
+                            log.info(f"Matched ({via_label}): {req.broker.name} (member_id={req.member_id})")
                 except Exception as _pe:
                     log.debug("plugin email parse skipped: %s", _pe)
 
@@ -460,7 +460,7 @@ def _poll_imap_mailbox(ec: dict, db: Session, cfg: dict, is_grace_period: bool =
                                 ))
                                 matched += 1
                                 via_label = "grace_uuid" if is_grace_period else "uuid"
-                                log.info(f"Matched ({via_label}): {req.broker.name} / {req.member.full_name}")
+                                log.info(f"Matched ({via_label}): {req.broker.name} (member_id={req.member_id})")
                                 if req.broker and req.broker.parent_company_id:
                                     parent_ids_to_confirm.add(req.broker.parent_company_id)
                                 try:

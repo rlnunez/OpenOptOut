@@ -237,7 +237,7 @@ def send_opt_out_email(
             matched_key=request_key,
         ))
         db.commit()
-        log.info(f"Email opt-out sent: {broker.name} / {member.full_name} → {to_email}")
+        log.info(f"Email opt-out sent: {broker.name} (member_id={member.id})")
         return True
 
     except Exception as e:
@@ -349,8 +349,8 @@ def send_parent_optout_detailed(member, parent, cfg, db, discovered_urls=None,
             db.rollback()
             log.warning("Parent send succeeded but email log write failed (%s); continuing", e)
         pcmod.record_send(db, parent.id, failed=False)
-        log.info("Parent opt-out sent via %s: %s / %s -> %s (%d child sites, key=%s)",
-                 detail["via"], parent.name, member.full_name, to_email, len(child_sites), matched_key)
+        log.info("Parent opt-out sent via %s: %s (member_id=%s, %d child sites, key=%s)",
+                 detail["via"], parent.name, member.id, len(child_sites), matched_key)
     else:
         detail["error"] = result.get("error") or "send failed"
         log.error("Parent opt-out send failed for %s: %s", parent.name, detail["error"])
@@ -665,10 +665,10 @@ async def execute_optout(
         elif broker.method == OptOutMethod.form:
             if broker.is_property_broker:
                 combos = build_property_optout_combos(member)
-                log.info(f"Property form opt-out {broker.name} / {member.full_name}: {len(combos)} combos (formal name: {member.formal_name or 'not set'})")
+                log.info(f"Property form opt-out {broker.name} (member_id={member.id}): {len(combos)} combos")
             else:
                 combos = build_optout_combos(member)
-            log.info(f"Form opt-out {broker.name} / {member.full_name}: {len(combos)} combos (unified declarative interpreter)")
+            log.info(f"Form opt-out {broker.name} (member_id={member.id}): {len(combos)} combos (unified declarative interpreter)")
 
             # Run through unified declarative interpreter engine
             for combo in combos:
@@ -798,7 +798,7 @@ async def execute_optout(
     except Exception:
         pass
 
-    log.info(f"Opt-out {broker.name} / {member.full_name}: {successes} ok, {failures} failed")
+    log.info(f"Opt-out {broker.name} (member_id={member.id}): {successes} ok, {failures} failed")
     return successes > 0
 
 

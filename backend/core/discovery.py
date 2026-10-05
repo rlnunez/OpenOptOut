@@ -263,7 +263,7 @@ async def run_discovery_for_member(member_id: int) -> dict:
         brokers = db.query(Broker).filter(Broker.is_test.isnot(True)).all()
         scripts = {s.broker_id: s for s in db.query(BrokerScript).all()}
 
-        log.info(f"Discovery for {member.full_name}: {len(combos)} combos × {len(brokers)} brokers")
+        log.info(f"Discovery for member_id={member.id}: {len(combos)} combos × {len(brokers)} brokers")
 
         async with async_playwright() as p:
             browser, context = await _launch_browser(p)

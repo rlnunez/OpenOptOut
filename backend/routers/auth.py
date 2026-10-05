@@ -293,7 +293,8 @@ def _resolve_external_user(result, db: Session) -> dict:
                                   user_exists=existing is not None,
                                   user_count=db.query(User).count())
     if not decision.allowed:
-        _log.warning("SSO sign-in denied (%s, %s): %s", result.provider, email, decision.reason)
+        account_id = f"user_id={existing.id}" if existing else "unregistered_account"
+        _log.warning("SSO sign-in denied (%s, %s): %s", result.provider, account_id, decision.reason)
         raise HTTPException(403, decision.reason)
 
     source = _auth_source_for(result.provider)
@@ -311,9 +312,9 @@ def _resolve_external_user(result, db: Session) -> dict:
         return {"access_token": token, "token_type": "bearer"}
 
     if decision.downgraded:
-        _log.warning("SSO provider %s has default_role=super_admin; new user %s created "
+        _log.warning("SSO provider %s has default_role=super_admin; new user created "
                      "as 'parent' instead (super admin is never auto-granted)",
-                     result.provider, email)
+                     result.provider)
     user = _create_user_and_member(db, email, result.full_name or email,
                                    UserRole(decision.role))
     user.auth_source = source
