@@ -91,11 +91,15 @@ jobs:
         run: pip install "semgrep==${SEMGREP_VERSION}" "bandit[sarif]==${BANDIT_VERSION}"
 
       - name: Semgrep (public rulesets + OpenOptOut rules in .semgrep/)
+        # Excluded: request-host-used (standard NGINX proxy header), insecure-file-permissions (intentional UDS 0o666), react-dangerouslysetinnerhtml (Markdown escaped)
         run: |
           semgrep scan --metrics=off --disable-version-check \
             --config p/python --config p/javascript --config p/typescript \
             --config p/react --config p/owasp-top-ten --config p/dockerfile \
             --config .semgrep/ \
+            --exclude-rule generic.nginx.security.request-host-used.request-host-used \
+            --exclude-rule python.lang.security.audit.insecure-file-permissions.insecure-file-permissions \
+            --exclude-rule typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml \
             --exclude backend/tests \
             --sarif --output semgrep.sarif
           python3 .github/security/sarif_summary.py "Semgrep" semgrep.sarif >> "$GITHUB_STEP_SUMMARY"
