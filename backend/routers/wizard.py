@@ -35,7 +35,7 @@ from cryptography.fernet import Fernet
 
 from ..models.database import get_db, User
 from ..core.auth import get_current_user
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, SETTINGS_FILE, get_secret_key
 
 router = APIRouter(prefix="/api/wizard", tags=["wizard"])
 
@@ -46,7 +46,7 @@ def _admin(user: User):
 
 
 def _fernet() -> Fernet:
-    raw = os.getenv("SECRET_KEY", "change-me-in-production-use-a-long-random-string")
+    raw = get_secret_key()
     padded = (raw * 4)[:32].encode()
     return Fernet(base64.urlsafe_b64encode(padded))
 

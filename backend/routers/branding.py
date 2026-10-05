@@ -35,7 +35,8 @@ def _logo_exists() -> bool:
 # ── Encryption (reuse from settings) ─────────────────────────────────────────
 
 def _fernet() -> Fernet:
-    raw    = os.getenv("SECRET_KEY", "change-me")
+    from ..core.settings_store import get_secret_key
+    raw    = get_secret_key()
     padded = (raw * 4)[:32].encode()
     return Fernet(b64lib.urlsafe_b64encode(padded))
 

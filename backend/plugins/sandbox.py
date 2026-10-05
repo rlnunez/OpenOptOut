@@ -138,12 +138,12 @@ _READONLY_MOUNT_SCRIPT = ('d="$1"; t="$2"; shift 2; '
 def _private_tmp_ok(*paths) -> str:
     """ "1" if a private /tmp can be mounted without hiding any of these paths
     (the plugin directory, runtime sockets, and the Python runtime), else "0"."""
-    tmp_real = os.path.realpath("/tmp")
+    tmp_real = os.path.realpath("/tmp")  # nosec: B108 -- validating host mount paths against system /tmp
     def under_tmp(p):
         if not p:
             return False
         p_real = os.path.realpath(p)
-        return (p == "/tmp" or p.startswith("/tmp/") or
+        return (p == "/tmp" or p.startswith("/tmp/") or  # nosec: B108 -- checking /tmp path prefix
                 p_real == tmp_real or p_real.startswith(tmp_real + "/"))
     return "0" if any(under_tmp(p) for p in paths if p) else "1"
 
@@ -249,7 +249,7 @@ def build_sandboxed_command(
             "--new-session",                 # detach from controlling terminal
             "--proc", "/proc",
             "--dev", "/dev",
-            "--tmpfs", "/tmp",
+            "--tmpfs", "/tmp",  # nosec: B108 -- mounting isolated tmpfs inside container sandbox
             # Read-only view of the Python runtime + stdlib
             "--ro-bind", sys.prefix, sys.prefix,
             # The plugin's own code, READ-ONLY: it can't modify itself or add

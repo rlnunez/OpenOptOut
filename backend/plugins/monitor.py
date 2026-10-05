@@ -301,7 +301,7 @@ class ViolationMonitor:
                         real = os.path.realpath(target)
                         # Allow the work dir, private tmp, and the python runtime
                         if (not real.startswith(work_dir)
-                                and not real.startswith("/tmp")
+                                and not real.startswith("/tmp")  # nosec: B108 -- checking /tmp prefix for file descriptor audit
                                 and not real.startswith(("/usr", "/lib", "/opt"))):
                             bad.append(real)
                 except Exception:

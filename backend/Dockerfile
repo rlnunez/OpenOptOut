@@ -18,7 +18,7 @@ ENV GIT_COMMIT=${GIT_COMMIT}
 # Install system deps for Playwright Firefox + plugin sandboxing (bubblewrap)
 # and the build toolchain + headers required to compile python-ldap
 # (libldap2-dev, libsasl2-dev) which ships no prebuilt wheels.
-# Pull all security updates from Debian security repos (resolves perl-base, zlib1g, etc.)
+# hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get upgrade -y --no-install-recommends && \
     apt-get install -y --no-install-recommends \
@@ -93,7 +93,7 @@ RUN touch /app/__init__.py && \
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:8000/api/health || exit 1
+  CMD ["curl", "-f", "http://localhost:8000/api/health"]
 # Run from / so that `app` is importable as a package; main.py's relative
 # imports (from .models, from .routers, from .core) then resolve correctly.
 WORKDIR /

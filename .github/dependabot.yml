@@ -6,6 +6,7 @@ updates:
   - package-ecosystem: pip
     directory: /backend
     schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 7 }
     open-pull-requests-limit: 5
     groups:
       python-minor-and-patch:
@@ -21,6 +22,7 @@ updates:
   - package-ecosystem: npm
     directory: /frontend
     schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 7 }
     open-pull-requests-limit: 5
     groups:
       npm-minor-and-patch:
@@ -29,6 +31,7 @@ updates:
   - package-ecosystem: docker
     directories: [/backend, /frontend]
     schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 7 }
     ignore:
       - dependency-name: python
         versions: [">=3.13"]
@@ -36,6 +39,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 7 }
     groups:
       github-actions:
         patterns: ["*"]

@@ -599,7 +599,7 @@ if [[ "$ROLE" == "standalone" || "$ROLE" == "control-plane" ]]; then
   # Pre-flight health check
   info "Performing pre-flight health probe (http://127.0.0.1:8000/api/health)..."
   HEALTH_OK=0
-  for i in $(seq 1 15); do
+  for _ in $(seq 1 15); do
     if curl -fs "http://127.0.0.1:8000/api/health" >/dev/null 2>&1; then
       HEALTH_OK=1
       break

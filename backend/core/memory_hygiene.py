@@ -90,7 +90,8 @@ def ephemeral_secret(secret_or_enc: Optional[str], decrypt: bool = True) -> Gene
             from .settings_store import decrypt_password
             plain = decrypt_password(secret_or_enc)
         except Exception as e:
-            log.debug("Could not decrypt secret: %s", e)
+            # nosemgrep: python-logger-credential-disclosure -- logs exception class name, not secret content
+            log.debug("Could not decrypt secret: %s", type(e).__name__)
             plain = secret_or_enc
     else:
         plain = secret_or_enc

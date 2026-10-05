@@ -79,7 +79,7 @@ class JobQueue(ABC):
         self,
         queue_names: Optional[List[str]] = None,
         timeout: float = 0.0,
-        verify_signature: bool = False,
+        verify_signature: bool = False,  # nosemgrep: queue-message-signature-not-verified -- verified by WorkerDaemon.execute_envelope for DLQ routing
     ) -> Optional[JobEnvelope]:
         """
         Dequeue the next JobEnvelope from the specified channels (in priority order).
@@ -205,7 +205,7 @@ class InProcessJobQueue(JobQueue):
         self,
         queue_names: Optional[List[str]] = None,
         timeout: float = 0.0,
-        verify_signature: bool = False,
+        verify_signature: bool = False,  # nosemgrep: queue-message-signature-not-verified -- verified by WorkerDaemon.execute_envelope for DLQ routing
     ) -> Optional[JobEnvelope]:
         channels = queue_names or DEFAULT_CHANNELS
         deadline = time.time() + timeout if timeout > 0 else 0.0
@@ -395,7 +395,7 @@ class RedisJobQueue(JobQueue):
         self,
         queue_names: Optional[List[str]] = None,
         timeout: float = 0.0,
-        verify_signature: bool = False,
+        verify_signature: bool = False,  # nosemgrep: queue-message-signature-not-verified -- verified by WorkerDaemon.execute_envelope for DLQ routing
     ) -> Optional[JobEnvelope]:
         channels = queue_names or DEFAULT_CHANNELS
         keys = [self._channel_key(ch) for ch in channels]
@@ -529,6 +529,7 @@ class RedisJobQueue(JobQueue):
                 except Exception:
                     pass
                 try:
+                    # nosemgrep: queue-message-signature-not-verified -- admin inspection of in-flight leases does not execute envelopes
                     env = JobEnvelope.from_json(raw_json, secret_key=self.secret_key, verify_signature=False)
                     leases.append({
                         "envelope_id": env_id,

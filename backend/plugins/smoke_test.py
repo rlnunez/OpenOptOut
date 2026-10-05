@@ -69,7 +69,7 @@ def main():
     sessions = SessionRegistry()
     sessions.register(session_token, plugin_id, granted, methods=methods)
 
-    storage = make_storage_backend("file", storage_root="/tmp/smoke_plugin_storage")
+    storage = make_storage_backend("file", storage_root="/tmp/smoke_plugin_storage")  # nosec: B108 -- smoke test storage directory
     settings = PluginSettingsAccessor(lambda: {}, lambda cfg: None)
 
     broker = CapabilityBroker(sessions, storage, settings)

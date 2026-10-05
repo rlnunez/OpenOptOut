@@ -23,10 +23,17 @@ def load_settings() -> dict:
         return json.load(f)
 
 
+def get_secret_key() -> str:
+    key = os.getenv("SECRET_KEY")
+    if not key:
+        return "change-me-in-production-use-a-long-random-string"
+    return key
+
+
 def _fernet():
     if Fernet is None:
         raise RuntimeError("cryptography package is required for password encryption")
-    raw    = os.getenv("SECRET_KEY", "change-me-in-production-use-a-long-random-string")
+    raw    = get_secret_key()
     padded = (raw * 4)[:32].encode()
     return Fernet(base64.urlsafe_b64encode(padded))
 

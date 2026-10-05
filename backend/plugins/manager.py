@@ -107,7 +107,7 @@ class PluginManager:
         self._stop = threading.Event()
 
         # Filesystem base for per-plugin runtime directories and Unix domain sockets
-        self.runtime_base = "/tmp/ps-plugins"
+        self.runtime_base = "/tmp/ps-plugins"  # nosec: B108 -- runtime base directory for plugin domain sockets
         try:
             os.makedirs(self.runtime_base, exist_ok=True, mode=0o777)
         except Exception:
@@ -257,9 +257,13 @@ class PluginManager:
         can't use this to exfiltrate large amounts of data or hang the host.
         """
         import urllib.request
+        import urllib.parse
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme.lower() not in ("http", "https"):
+            raise ValueError(f"Disallowed URL scheme: {parsed.scheme}")
         req = urllib.request.Request(url, data=(body.encode() if body else None),
                                      method=method, headers=headers or {})
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:  # nosec: B310 -- scheme is validated to http/https
             raw = resp.read(1_048_576)  # 1MB cap
             return resp.status, raw.decode(errors="replace")
 

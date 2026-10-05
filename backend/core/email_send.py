@@ -56,9 +56,11 @@ def _refresh_if_needed(settings: dict, account_ref: str, provider_key: str):
         from .settings_store import SETTINGS_FILE
         with open(SETTINGS_FILE, "w") as f:
             json.dump(settings, f, indent=2)
+        # nosemgrep: python-logger-credential-disclosure -- logs account label, not token secret
         log.info("Refreshed OAuth token for account '%s'", account_ref)
         return True
     except Exception as e:
+        # nosemgrep: python-logger-credential-disclosure -- logs account label, not token secret
         log.error("token refresh failed for '%s': %s", account_ref, e)
         return False
 

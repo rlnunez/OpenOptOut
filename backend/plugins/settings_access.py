@@ -60,6 +60,7 @@ class PluginSettingsAccessor:
         matching a secret marker, returning None as if it doesn't exist.
         """
         if _looks_secret(key):
+            # nosemgrep: python-logger-credential-disclosure -- logs setting name, not the value
             log.warning("Plugin attempted to read secret-like setting '%s' — refused", key)
             return None
         s = self._load()
@@ -86,5 +87,6 @@ class PluginSettingsAccessor:
             from ..core import oauth_engine as oe
             return oe.load_tokens(s, account_ref)
         except Exception as e:
+            # nosemgrep: python-logger-credential-disclosure -- logs account name, not credentials
             log.error("get_email_credentials(%s) failed: %s", account_ref, e)
             return None

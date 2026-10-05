@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .models.database import init_db
@@ -34,9 +35,24 @@ app = FastAPI(
     version=get_version(),
 )
 
+_cors_origins_env = os.getenv("ALLOWED_ORIGINS") or os.getenv("CORS_ORIGINS")
+if _cors_origins_env:
+    cors_origins = [orig.strip() for orig in _cors_origins_env.split(",") if orig.strip()]
+else:
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost").rstrip("/")
+    cors_origins = sorted(list({
+        frontend_url,
+        "http://localhost",
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    }))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

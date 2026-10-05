@@ -35,7 +35,8 @@ from typing import Optional
 
 def _fernet():
     from cryptography.fernet import Fernet
-    raw = os.getenv("SECRET_KEY", "change-me-in-production-use-a-long-random-string")
+    from .settings_store import get_secret_key
+    raw = get_secret_key()
     padded = (raw * 4)[:32].encode()
     return Fernet(base64.urlsafe_b64encode(padded))
 

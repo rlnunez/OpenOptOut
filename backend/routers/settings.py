@@ -14,7 +14,7 @@ from cryptography.fernet import Fernet
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, require_super_admin
 from ..core.access import require_permission
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, SETTINGS_FILE, get_secret_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 # ── Encryption ────────────────────────────────────────────────────────────────
 
 def _fernet() -> Fernet:
-    raw    = os.getenv("SECRET_KEY", "change-me-in-production-use-a-long-random-string")
+    raw    = get_secret_key()
     padded = (raw * 4)[:32].encode()
     return Fernet(base64.urlsafe_b64encode(padded))
 
@@ -493,7 +493,7 @@ def encryption_status(_: User = Depends(require_permission("database.view"))):
         "field_encryption_enabled": field_key_set,
         "db_key_env_set":         bool(os.getenv("DB_ENCRYPTION_KEY")),
         "field_key_env_set":      bool(os.getenv("FIELD_ENCRYPTION_KEY")),
-        "secret_key_set":         os.getenv("SECRET_KEY","change-me") != "change-me-in-production-use-a-long-random-string",
+        "secret_key_set":         bool(os.getenv("SECRET_KEY")) and os.getenv("SECRET_KEY") != "change-me-in-production-use-a-long-random-string",
         "db_type":                "sqlite" if db_url.startswith("sqlite") else "postgres",
         "notes": {
             "db_migration":   "Run: docker exec openoptout-api python -m backend.core.encryption migrate",

@@ -10,6 +10,7 @@ RUN npm run build
 FROM nginx:alpine
 # Upgrade all Alpine base packages to resolve security vulnerabilities (libexpat, libuuid, etc.)
 # Install libcap to allow nginx to bind port 80 as unprivileged 'nginx' user
+# hadolint ignore=DL3018
 RUN apk update && apk upgrade --no-cache && \
     apk add --no-cache libcap curl && \
     setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx && \
@@ -25,4 +26,4 @@ USER nginx
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl -f http://127.0.0.1/ || exit 1
+  CMD ["curl", "-f", "http://127.0.0.1/"]

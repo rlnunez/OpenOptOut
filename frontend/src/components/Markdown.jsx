@@ -196,5 +196,6 @@ function mdToHtml(md) {
 
 export default function Markdown({ source }) {
   const html = useMemo(() => mdToHtml(source || ''), [source])
+  // nosemgrep: react-dangerouslysetinnerhtml -- mdToHtml explicitly escapes all untrusted text
   return <div className="markdown-body" dangerouslySetInnerHTML={{ __html: html }} />
 }

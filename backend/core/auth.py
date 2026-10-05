@@ -75,7 +75,11 @@ except (ImportError, ValueError):
         ManagerScope = _ModelPlaceholder("ManagerScope")
         Branch = _ModelPlaceholder("Branch")
 
-SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
+import secrets
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    SECRET_KEY = secrets.token_hex(32)
 ALGORITHM  = "HS256"
 TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
 
