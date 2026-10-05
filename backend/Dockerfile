@@ -34,7 +34,7 @@ RUN apt-get update && \
 
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade "pip>=26.1.2" "setuptools>=78.1.1"
+RUN pip install --no-cache-dir --upgrade "pip>=26.1.2" "setuptools>=83.0.0"
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Optional: file-level SQLCipher encryption. Off by default so the image builds
