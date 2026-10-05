@@ -87,7 +87,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install scanners
-        run: pip install "semgrep==${SEMGREP_VERSION}" "bandit[sarif]==${BANDIT_VERSION}"
+        run: bash .github/security/install_scanners.sh
 
       - name: Semgrep (public rulesets + OpenOptOut rules in .semgrep/)
         # Excluded: request-host-used (standard NGINX proxy header), insecure-file-permissions (intentional UDS 0o666), react-dangerouslysetinnerhtml (Markdown escaped)
@@ -287,15 +287,15 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+      - name: Install workflow analysis tools
+        run: bash .github/security/install_workflow_tools.sh
       - name: zizmor
         run: |
-          pip install "zizmor==${ZIZMOR_VERSION}"
           # zizmor exits non-zero when it finds something; that's reported, not fatal.
           zizmor --offline --format sarif .github/workflows/ > zizmor.sarif || true
           python3 .github/security/sarif_summary.py "zizmor (workflow security)" zizmor.sarif >> "$GITHUB_STEP_SUMMARY"
       - name: actionlint
         run: |
-          pip install "actionlint-py==${ACTIONLINT_PY_VERSION}"
           # A real actionlint error means a workflow is broken, so this one may fail.
           actionlint -color
       - name: Upload zizmor results

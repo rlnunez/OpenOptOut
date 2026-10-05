@@ -149,9 +149,7 @@ jobs:
 
       - name: Install the browser for the walk-through
         if: steps.health.outcome == 'success'
-        run: |
-          pip install --quiet "playwright==${PLAYWRIGHT_VERSION}"
-          python -m playwright install --with-deps chromium > /dev/null
+        run: bash .github/release-test/install_playwright.sh
 
       - name: Browser — first-run setup and every page
         id: ui
