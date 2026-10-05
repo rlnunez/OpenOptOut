@@ -3,7 +3,7 @@
 # expects were renamed/removed (libgdk-pixbuf2.0-0, ttf-unifont,
 # ttf-ubuntu-font-family), breaking the browser dependency install. Bookworm
 # matches Playwright 1.44's dependency list and has arm64 images for Mac Silicon.
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-bookworm@sha256:54c85f3c47607a77f32adec749d3c81d1348bf25833671f512b26a9b6d778cb3
 
 # Which git commit this image was built from, if known (docker-compose.yml
 # passes it as a build arg; scripts/install.sh and deploy/native/install.sh
