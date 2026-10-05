@@ -1,0 +1,89 @@
+# ==============================================================================
+# OpenOptOut — fuzzing (ClusterFuzzLite + Atheris)
+#
+# Feeds millions of random and malformed inputs into the code that handles
+# untrusted data: broker specs, plugin manifests, the plugin code inspectors,
+# signed job envelopes, the log sanitizer and the Identity Vault combination
+# builder. The fuzz targets live in fuzz/; see docs/SECURITY_SCANNING.md.
+#
+#   Pull requests that touch the backend or fuzz/ : 5 minutes, fails the PR
+#                                                    if it finds a crash
+#   Weekly + on demand                            : 30 minutes of deeper fuzzing
+#
+# Crashes are reported in Security → Code scanning (tool: ClusterFuzzLite) and
+# the crashing input is attached to the run as an artifact.
+# ==============================================================================
+
+name: Fuzzing
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "fuzz/**"
+      - ".clusterfuzzlite/**"
+      - ".github/workflows/fuzzing.yml"
+  schedule:
+    - cron: "29 7 * * 3"   # Wednesdays 07:29 UTC
+  workflow_dispatch:
+    inputs:
+      fuzz_minutes:
+        description: "Minutes of fuzzing (shared across all targets)"
+        type: number
+        default: 30
+
+permissions: {}
+
+concurrency:
+  group: fuzzing-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  fuzz:
+    name: ClusterFuzzLite (${{ github.event_name == 'pull_request' && 'PR' || 'batch' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      contents: read
+      actions: read            # fetch the corpus saved by earlier runs (stored as artifacts)
+      security-events: write   # upload crash reports to the Security tab
+    env:
+      MODE: ${{ github.event_name == 'pull_request' && 'code-change' || 'batch' }}
+      FUZZ_MINUTES: ${{ inputs.fuzz_minutes || 30 }}
+      CAN_UPLOAD: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    steps:
+      - name: How long to fuzz
+        id: cfg
+        run: |
+          if [ "$MODE" = "code-change" ]; then seconds=300
+          else seconds=$(( ${FUZZ_MINUTES%.*} * 60 )); fi
+          echo "seconds=$seconds" >> "$GITHUB_OUTPUT"
+          echo "Fuzzing for $seconds seconds ($MODE mode)"
+
+      - name: Build fuzz targets
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          language: python
+          github-token: ${{ github.token }}
+          sanitizer: address
+
+      - name: Run fuzzers
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          github-token: ${{ github.token }}
+          fuzz-seconds: ${{ steps.cfg.outputs.seconds }}
+          mode: ${{ env.MODE }}
+          sanitizer: address
+          output-sarif: true
+          report-timeouts: true
+          report-ooms: true
+
+      - name: Upload crash reports to the Security tab
+        if: always() && env.CAN_UPLOAD == 'true' && hashFiles('cifuzz-sarif/results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: cifuzz-sarif/results.sarif
+          category: clusterfuzzlite

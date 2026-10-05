@@ -67,3 +67,10 @@ plugins_installed/
 # Compiled gRPC stubs (generated at build time)
 backend/plugins/proto/plugin_pb2.py
 backend/plugins/proto/plugin_pb2_grpc.py
+
+# Fuzzing: generated copy of the backend (fuzz/build_pkgroot.sh) and local run output
+fuzz/.pkgroot/
+fuzz/corpus/
+fuzz/crash-*
+fuzz/timeout-*
+fuzz/oom-*
