@@ -33,8 +33,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements-encryption.txt install_deps.sh ./
 
 # Optional: file-level SQLCipher encryption. Off by default so the image builds
 # on every platform (the app falls back to unencrypted SQLite and reports the
@@ -42,13 +41,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # The install is best-effort: if no wheel exists for the build platform it is
 # skipped rather than failing the whole image.
 ARG WITH_ENCRYPTION=false
-COPY requirements-encryption.txt .
-RUN if [ "$WITH_ENCRYPTION" = "true" ]; then \
-      pip install --no-cache-dir -r requirements-encryption.txt \
-        || echo "WARN: sqlcipher3 install failed for this platform — continuing without file-level encryption"; \
-    else \
-      echo "SQLCipher not requested (WITH_ENCRYPTION=false) — file-level encryption disabled"; \
-    fi
+ENV WITH_ENCRYPTION=${WITH_ENCRYPTION}
+RUN ./install_deps.sh
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN playwright install firefox && \
