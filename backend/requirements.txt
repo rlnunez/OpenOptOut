@@ -35,7 +35,7 @@ authlib==1.8.0
 psycopg2-binary==2.9.13
 grpcio==1.84.0
 grpcio-tools==1.84.0
-setuptools>=70.0.0
+setuptools>=78.1.1
 pip>=26.1.2
 protobuf>=5.29.6
 # SAML 2.0 sign-in.
