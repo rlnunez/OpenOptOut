@@ -29,6 +29,7 @@ httpx==0.27.0
 urllib3>=2.8.0
 requests>=2.32.3
 idna>=3.20
+anyio>=4.14.2
 authlib==1.6.12
 psycopg2-binary==2.9.9
 grpcio==1.71.2
