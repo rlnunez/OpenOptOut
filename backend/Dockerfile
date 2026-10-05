@@ -51,8 +51,8 @@ RUN if [ "$WITH_ENCRYPTION" = "true" ]; then \
     fi
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-RUN playwright install firefox
-RUN playwright install-deps firefox
+RUN playwright install firefox && \
+    playwright install-deps firefox
 
 COPY . .
 
@@ -70,16 +70,8 @@ RUN python -m grpc_tools.protoc -Iplugins/proto \
 RUN groupadd -g 1000 appuser && \
     useradd -u 1000 -g appuser -m -s /bin/bash appuser && \
     mkdir -p /data/screenshots /data/plugins /data/plugin_storage && \
-    chown -R appuser:appuser /data /app /ms-playwright
-
-# The application source uses package-relative imports throughout
-# (e.g. `from .models.database import ...` in main.py, `from ..core import ...`
-# in routers). For those to resolve, the code must be imported AS a package,
-# not as top-level modules. We make /app an importable package named `app` by
-# adding __init__.py to the root and each sub-package that lacks one, then
-# launch uvicorn as `app.main:app` from / (the parent of /app), which is on
-# sys.path by default. (plugins/ already ships its own __init__.py.)
-RUN touch /app/__init__.py && \
+    chown -R appuser:appuser /data /app /ms-playwright && \
+    touch /app/__init__.py && \
     for d in models routers core; do \
       [ -d "/app/$d" ] && touch "/app/$d/__init__.py"; \
     done
@@ -97,5 +89,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 # Run from / so that `app` is importable as a package; main.py's relative
 # imports (from .models, from .routers, from .core) then resolve correctly.
 WORKDIR /
-USER appuser
+USER 1000:1000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

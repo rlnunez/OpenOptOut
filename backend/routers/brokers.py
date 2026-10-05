@@ -711,8 +711,11 @@ def import_priorities(data: dict,
     _require_admin(user)
     try:
         parsed = _bp.parse_import(data)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to parse priority export. Verify the import file structure and values.",
+        )
     applied = 0
     if parsed["rankings"]:
         by_name = {b.name.lower(): b for b in db.query(Broker).all()}

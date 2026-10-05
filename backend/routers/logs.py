@@ -143,8 +143,11 @@ def update_level(
             "level": new_level,
             "available_levels": VALID_LEVELS,
         }
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid log level provided. Choose from: {', '.join(VALID_LEVELS)}",
+        )
 
 
 @router.post("/clear-buffer")
