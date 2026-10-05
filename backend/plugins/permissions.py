@@ -12,7 +12,7 @@ advisory: the plugin has no in-process access to the host at all.
 """
 
 from enum import Enum
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Optional
 
 
@@ -309,6 +309,18 @@ def methods_for_permission(permission: str) -> list[str]:
     return [m for m, info in HOST_METHODS.items() if info["permission"] == permission]
 
 
+
+def _as_text(v, name: str) -> str:
+    """Manifest text field: keep strings, turn plain numbers/booleans into text,
+    treat null as empty, and reject lists/objects."""
+    if isinstance(v, str):
+        return v
+    if v is None:
+        return ""
+    if isinstance(v, (bool, int, float)):
+        return str(v).lower() if isinstance(v, bool) else str(v)
+    raise ValueError(f"manifest field '{name}' must be text, not {type(v).__name__}")
+
 @dataclass
 class PluginManifest:
     """Parsed and validated plugin manifest."""
@@ -495,11 +507,13 @@ class PluginManifest:
 
     @classmethod
     def from_dict(cls, d: dict) -> "PluginManifest":
+        if not isinstance(d, dict):
+            raise ValueError("manifest must be a JSON object")
         ptype = d.get("type", "") or ""
         # Data-only types and declarative broker add-ons have no code, so no default entrypoint.
         is_declarative_broker = (ptype == "brokers" and "entrypoint" not in d)
         default_entry = "" if (PLUGIN_TYPES.get(ptype, {}).get("data_only") or is_declarative_broker) else "plugin.py"
-        return cls(
+        m = cls(
             id=d.get("id", ""),
             name=d.get("name", ""),
             version=d.get("version", ""),
@@ -524,6 +538,20 @@ class PluginManifest:
             is_property_broker=bool(d.get("is_property_broker", False)),
             difficulty=d.get("difficulty", "medium"),
         )
+        # Manifests come from uploaded plugins. A number where text is expected
+        # (e.g. "version": 1.0) used to crash validate() with AttributeError,
+        # breaking plugin scanning and the Plugins page. Plain numbers/booleans are
+        # turned into text (so manifests stored by older versions still load);
+        # anything else is rejected with a ValueError, which callers report.
+        for f in fields(m):
+            v = getattr(m, f.name)
+            if f.type is str:
+                setattr(m, f.name, _as_text(v, f.name))
+            elif f.type == list[str]:
+                if not isinstance(v, list):
+                    raise ValueError(f"manifest field '{f.name}' must be a list")
+                setattr(m, f.name, [_as_text(x, f.name) for x in v])
+        return m
 
     def to_dict(self) -> dict:
         return {

@@ -238,7 +238,9 @@ class JobEnvelope:
             raise EnvelopeTamperedError("Envelope has no HMAC signature")
 
         expected = compute_envelope_hmac(self.to_dict(), secret_key)
-        if not hmac.compare_digest(self.hmac_signature, expected):
+        # Compare as bytes: compare_digest() raises TypeError on non-ASCII str,
+        # which let a crafted signature crash verification instead of failing it.
+        if not hmac.compare_digest(self.hmac_signature.encode("utf-8"), expected.encode("utf-8")):
             raise EnvelopeTamperedError(
                 f"HMAC signature mismatch on envelope '{self.envelope_id}' — payload was tampered"
             )
@@ -335,22 +337,31 @@ class JobEnvelope:
         allow_expired: bool = False,
     ) -> "JobEnvelope":
         """Reconstruct JobEnvelope from dictionary, optionally verifying signature."""
-        env = cls(
-            envelope_id=d.get("envelope_id", str(uuid.uuid4())),
-            action=d.get("action", "removal"),
-            priority=d.get("priority", "normal"),
-            created_at=float(d.get("created_at", time.time())),
-            expires_at=float(d["expires_at"]) if d.get("expires_at") is not None else None,
-            broker_id=str(d.get("broker_id", "")),
-            broker_name=str(d.get("broker_name", "")),
-            member_id=str(d.get("member_id", "")),
-            request_id=d.get("request_id"),
-            request_key=d.get("request_key"),
-            payload=dict(d.get("payload", {})),
-            encrypted_payload=d.get("encrypted_payload"),
-            meta=dict(d.get("meta", {})),
-            hmac_signature=str(d.get("hmac_signature", "")),
-        )
+        if not isinstance(d, dict):
+            raise EnvelopeInvalidError("envelope must be a JSON object")
+        try:
+            env = cls(
+                envelope_id=d.get("envelope_id", str(uuid.uuid4())),
+                action=d.get("action", "removal"),
+                priority=d.get("priority", "normal"),
+                created_at=float(d.get("created_at", time.time())),
+                expires_at=float(d["expires_at"]) if d.get("expires_at") is not None else None,
+                broker_id=str(d.get("broker_id", "")),
+                broker_name=str(d.get("broker_name", "")),
+                member_id=str(d.get("member_id", "")),
+                request_id=d.get("request_id"),
+                request_key=d.get("request_key"),
+                payload=dict(d.get("payload", {})),
+                encrypted_payload=d.get("encrypted_payload"),
+                meta=dict(d.get("meta", {})),
+                hmac_signature=str(d.get("hmac_signature", "")),
+            )
+        except EnvelopeError:
+            raise
+        except (TypeError, ValueError, AttributeError, OverflowError) as e:
+            # Queue contents are untrusted (anyone who can write to Redis):
+            # report malformed fields as an invalid envelope, never a crash.
+            raise EnvelopeInvalidError(f"Malformed envelope field: {e}") from None
         if verify_signature and secret_key:
             env.verify(secret_key, allow_expired=allow_expired)
         return env
@@ -421,7 +432,9 @@ class JobResultEnvelope:
             raise EnvelopeTamperedError("Result envelope has no HMAC signature")
 
         expected = compute_envelope_hmac(self.to_dict(), secret_key)
-        if not hmac.compare_digest(self.hmac_signature, expected):
+        # Compare as bytes: compare_digest() raises TypeError on non-ASCII str,
+        # which let a crafted signature crash verification instead of failing it.
+        if not hmac.compare_digest(self.hmac_signature.encode("utf-8"), expected.encode("utf-8")):
             raise EnvelopeTamperedError(
                 f"HMAC signature mismatch on result envelope '{self.envelope_id}' — payload was tampered"
             )
@@ -480,25 +493,32 @@ class JobResultEnvelope:
         verify_signature: bool = True,
     ) -> "JobResultEnvelope":
         """Reconstruct JobResultEnvelope from dictionary."""
-        res = cls(
-            envelope_id=str(d.get("envelope_id", "")),
-            action=str(d.get("action", "removal")),
-            broker_id=str(d.get("broker_id", "")),
-            member_id=str(d.get("member_id", "")),
-            ok=bool(d.get("ok", False)),
-            status=str(d.get("status", "success")),
-            created_at=float(d.get("created_at", time.time())),
-            completed_at=float(d.get("completed_at", time.time())),
-            duration_ms=int(d.get("duration_ms", 0)),
-            worker_id=str(d.get("worker_id", "worker-default")),
-            request_id=d.get("request_id"),
-            request_key=d.get("request_key"),
-            result=dict(d.get("result", {})),
-            screenshots=dict(d.get("screenshots", {})),
-            error=d.get("error"),
-            meta=dict(d.get("meta", {})),
-            hmac_signature=str(d.get("hmac_signature", "")),
-        )
+        if not isinstance(d, dict):
+            raise EnvelopeInvalidError("result envelope must be a JSON object")
+        try:
+            res = cls(
+                envelope_id=str(d.get("envelope_id", "")),
+                action=str(d.get("action", "removal")),
+                broker_id=str(d.get("broker_id", "")),
+                member_id=str(d.get("member_id", "")),
+                ok=bool(d.get("ok", False)),
+                status=str(d.get("status", "success")),
+                created_at=float(d.get("created_at", time.time())),
+                completed_at=float(d.get("completed_at", time.time())),
+                duration_ms=int(d.get("duration_ms", 0)),
+                worker_id=str(d.get("worker_id", "worker-default")),
+                request_id=d.get("request_id"),
+                request_key=d.get("request_key"),
+                result=dict(d.get("result", {})),
+                screenshots=dict(d.get("screenshots", {})),
+                error=d.get("error"),
+                meta=dict(d.get("meta", {})),
+                hmac_signature=str(d.get("hmac_signature", "")),
+            )
+        except EnvelopeError:
+            raise
+        except (TypeError, ValueError, AttributeError, OverflowError) as e:
+            raise EnvelopeInvalidError(f"Malformed result envelope field: {e}") from None
         if verify_signature and secret_key:
             res.verify(secret_key)
         return res

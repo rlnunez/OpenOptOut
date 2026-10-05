@@ -245,7 +245,15 @@ def inspect_plugin_code(plugin_dir: str, manifest) -> list[dict]:
             except (SyntaxError, UnicodeDecodeError, ValueError) as e:
                 add("high", 0, "unparseable", f"is Python that can't be parsed, so it can't be inspected ({e})")
                 continue
-            _Visitor(rel, ptype, has_network, lambda sev, line, rule, msg, add=add: add(sev, line, rule, msg)).visit(tree)
+            except (RecursionError, MemoryError):
+                # e.g. "x+x+x+…" thousands of terms long. Found by fuzzing: this used
+                # to escape as an exception and fail the upload with a server error.
+                add("high", 0, "unparseable", "is Python nested too deeply to inspect")
+                continue
+            try:
+                _Visitor(rel, ptype, has_network, lambda sev, line, rule, msg, add=add: add(sev, line, rule, msg)).visit(tree)
+            except RecursionError:
+                add("high", 0, "unparseable", "is Python nested too deeply to inspect")
     return [asdict(f) for f in findings]
 
 
