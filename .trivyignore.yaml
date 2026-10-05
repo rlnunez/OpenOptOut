@@ -1,0 +1,11 @@
+misconfigurations:
+  - id: AVD-DS-0002
+    paths:
+      - "frontend/Dockerfile"
+      - "backend/Dockerfile"
+    statement: "Frontend Nginx master process binds port 80 and drops privileges to nginx user; backend requires root for mounted volume initialization and bubblewrap/seccomp namespace sandbox."
+  - id: DS-0002
+    paths:
+      - "frontend/Dockerfile"
+      - "backend/Dockerfile"
+    statement: "Frontend Nginx master process binds port 80 and drops privileges to nginx user; backend requires root for mounted volume initialization and bubblewrap/seccomp namespace sandbox."

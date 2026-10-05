@@ -210,6 +210,7 @@ jobs:
           scan-ref: .
           format: sarif
           output: trivy-config.sarif
+          ignorefile: .trivyignore
           exit-code: "0"
 
       - name: Hadolint (backend Dockerfile)
@@ -336,6 +337,7 @@ jobs:
           output: trivy-image-api.sarif
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          ignorefile: .trivyignore
           exit-code: "0"
       - name: Trivy image scan (frontend)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -348,6 +350,7 @@ jobs:
           output: trivy-image-web.sarif
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          ignorefile: .trivyignore
           exit-code: "0"
 
       - name: Start the API on an internet-isolated network
