@@ -2,8 +2,8 @@ FROM node:26-alpine@sha256:0b36e8c136b94cd4fcf02188228e76c31ad5872eef3fec8cbd2ee
 WORKDIR /app
 RUN chown -R node:node /app
 USER 1000:1000
-COPY --chown=node:node package.json package-lock.json* .npmrc* ./
-RUN npm install --legacy-peer-deps
+COPY --chown=node:node package.json package-lock.json .npmrc* ./
+RUN npm ci --legacy-peer-deps
 COPY --chown=node:node . .
 RUN npm run build
 
