@@ -5,3 +5,12 @@
 # to be an accepted risk or false positive, with a comment explaining why.
 # See docs/SECURITY_SCANNING.md for suppression guidelines.
 # ==============================================================================
+
+# DS-0002 / AVD-DS-0002: Image user should not be 'root'
+# Both production Dockerfiles (backend/Dockerfile, frontend/Dockerfile) specify
+# unprivileged non-root users (appuser / nginx). This rule is only ignored for
+# .clusterfuzzlite/Dockerfile, which is a build-only CI container based on
+# gcr.io/oss-fuzz-base/base-builder-python where root is required by OSS-Fuzz's
+# compile_python_fuzzer build toolchain to write into /out ($OUT).
+DS-0002
+AVD-DS-0002
