@@ -16,7 +16,15 @@ PEBBLE_VERSION=v2.6.0
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ENTRY="$HERE/../caddy/entrypoint.sh"
 WORK="$(mktemp -d)"; PIDS=()
-cleanup() { for p in "${PIDS[@]:-}"; do [ -n "$p" ] && kill "$p" 2>/dev/null || true; done; rm -rf "$WORK"; }
+# shellcheck disable=SC2317
+cleanup() {
+  for p in "${PIDS[@]:-}"; do
+    if [ -n "$p" ]; then
+      kill "$p" 2>/dev/null || true
+    fi
+  done
+  rm -rf "$WORK"
+}
 trap cleanup EXIT
 fail() { echo "FAIL: $*" >&2; exit 1; }
 cd "$WORK"
