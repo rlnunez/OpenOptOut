@@ -50,6 +50,7 @@ RUN if [ "$WITH_ENCRYPTION" = "true" ]; then \
       echo "SQLCipher not requested (WITH_ENCRYPTION=false) — file-level encryption disabled"; \
     fi
 
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN playwright install firefox
 RUN playwright install-deps firefox
 
@@ -65,8 +66,11 @@ RUN python -m grpc_tools.protoc -Iplugins/proto \
     touch plugins/proto/__init__.py \
     || echo "WARN: proto compile skipped — plugin system will be inactive"
 
-# Data directories (screenshots, plugins, plugin storage)
-RUN mkdir -p /data/screenshots /data/plugins /data/plugin_storage
+# Data directories (screenshots, plugins, plugin storage) and unprivileged user
+RUN groupadd -g 1000 appuser && \
+    useradd -u 1000 -g appuser -m -s /bin/bash appuser && \
+    mkdir -p /data/screenshots /data/plugins /data/plugin_storage && \
+    chown -R appuser:appuser /data /app /ms-playwright
 
 # The application source uses package-relative imports throughout
 # (e.g. `from .models.database import ...` in main.py, `from ..core import ...`
@@ -91,4 +95,5 @@ EXPOSE 8000
 # Run from / so that `app` is importable as a package; main.py's relative
 # imports (from .models, from .routers, from .core) then resolve correctly.
 WORKDIR /
+USER appuser
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
