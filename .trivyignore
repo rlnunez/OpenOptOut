@@ -20,3 +20,10 @@ AVD-DS-0001
 # compile_python_fuzzer build toolchain to write into /out ($OUT).
 DS-0002
 AVD-DS-0002
+
+# DS-0026 / AVD-DS-0026: Add HEALTHCHECK instruction in your Dockerfile
+# Production services (backend/Dockerfile, frontend/Dockerfile) specify active
+# HEALTHCHECK instructions. .clusterfuzzlite/Dockerfile is a short-lived,
+# build-only CI image used solely to compile fuzz targets and exits immediately.
+DS-0026
+AVD-DS-0026
