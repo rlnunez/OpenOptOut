@@ -1,0 +1,478 @@
+# ==============================================================================
+# OpenOptOut — release test
+#
+# Every time a release or pre-release is published, this installs it on a clean
+# machine exactly the way a user would, goes through first-run setup, and reports
+# every error it finds:
+#
+#   Fresh install   one-line installer (install.sh --docker --ref <tag>) → wait
+#                   for the containers → browser walk-through of first-run setup
+#                   and every page (screenshots) → API checks (version, setup
+#                   wizard, Identity Vault save/read-back, every GET endpoint) →
+#                   the built-in test suite, sandbox preflight and plugin smoke
+#                   test inside the container → scan container logs for errors
+#   Upgrade         install the previous release, set it up and save data, then
+#                   upgrade to the new release the way the README says and check
+#                   the data, login and setup survived
+#   Report          one summary for the whole run; if anything failed, a GitHub
+#                   issue "Release test failed: <tag>" with the details (closed
+#                   automatically when a re-run passes)
+#
+# Run it by hand: Actions → Release test → Run workflow (optionally pick a tag).
+# Guide: docs/RELEASE_TESTING.md
+# ==============================================================================
+
+name: Release test
+
+on:
+  release:
+    types: [published]       # fires for releases and pre-releases (not drafts)
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to test (blank = newest release, including pre-releases)"
+        required: false
+        default: ""
+      upgrade_from:
+        description: "Upgrade test: start from this tag (blank = the previous full release, 'none' = skip)"
+        required: false
+        default: ""
+
+permissions: {}
+
+concurrency:
+  group: release-test-${{ github.event.release.tag_name || inputs.tag || 'latest' }}
+  cancel-in-progress: false
+
+env:
+  PLAYWRIGHT_VERSION: "1.63.0"
+
+jobs:
+
+  # ── Which release are we testing, and which one do we upgrade from? ────────
+  resolve:
+    name: Pick release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.pick.outputs.tag }}
+      previous: ${{ steps.pick.outputs.previous }}
+      prerelease: ${{ steps.pick.outputs.prerelease }}
+    steps:
+      - name: Resolve tags
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_FROM: ${{ inputs.upgrade_from }}
+        run: |
+          gh api "repos/$REPO/releases?per_page=100" > releases.json
+          python3 - <<'EOF'
+          import json, os, re, sys
+          rels = [r for r in json.load(open("releases.json")) if not r["draft"]]
+          rels.sort(key=lambda r: r["published_at"] or "", reverse=True)
+          tag = os.environ.get("EVENT_TAG") or os.environ.get("INPUT_TAG") or (rels[0]["tag_name"] if rels else "")
+          if not tag:
+              sys.exit("::error::No release found to test.")
+          me = next((r for r in rels if r["tag_name"] == tag), None)
+          if me is None:
+              sys.exit(f"::error::'{tag}' is not a published release.")
+          frm = os.environ.get("INPUT_FROM", "").strip()
+          if frm.lower() == "none":
+              prev = ""
+          elif frm:
+              prev = frm
+          else:
+              older = [r for r in rels if not r["prerelease"] and (r["published_at"] or "") < (me["published_at"] or "")
+                       and r["tag_name"] != tag]
+              prev = older[0]["tag_name"] if older else ""
+          safe = re.compile(r"^[A-Za-z0-9._-]+$")
+          for t in (tag, prev):
+              if t and not safe.match(t):
+                  sys.exit(f"::error::Unexpected characters in tag {t!r}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"tag={tag}\nprevious={prev}\nprerelease={str(me['prerelease']).lower()}\n")
+          print(f"Testing {tag} (pre-release: {me['prerelease']}); upgrade from: {prev or '(none)'}")
+          EOF
+
+  # ── Fresh install, the way a new user does it ──────────────────────────────
+  fresh-install:
+    name: Fresh install (${{ needs.resolve.outputs.tag }})
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      TAG: ${{ needs.resolve.outputs.tag }}
+      REPO: ${{ github.repository }}
+      HARNESS: ${{ github.workspace }}/harness/.github/release-test
+      APP_DIR: ${{ github.workspace }}/openoptout
+      OUT: ${{ github.workspace }}/report
+      CREDS: ${{ github.workspace }}/private/admin-creds.json   # throwaway; never uploaded
+    steps:
+      # The test scripts come from the default branch, so any release (even an
+      # older one) is tested with the current harness.
+      - name: Get the test harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: harness
+          sparse-checkout: .github/release-test
+          persist-credentials: false
+
+      - name: Install the release with the one-line installer
+        id: install
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          mkdir -p "$OUT/logs" "$OUT/screenshots" "$(dirname "$CREDS")"
+          curl -fsSL "https://raw.githubusercontent.com/$REPO/$TAG/install.sh" -o install.sh
+          # The same command users run, pinned to this release
+          sh install.sh --docker --ref "$TAG" --dir "$APP_DIR" --repo "https://github.com/$REPO.git" \
+            2>&1 | tee "$OUT/logs/install.log"
+
+      - name: Wait for the containers to become healthy
+        id: health
+        if: steps.install.outcome == 'success'
+        working-directory: openoptout
+        run: bash "$HARNESS/wait_for_api.sh" 420 "$OUT/logs/containers.txt"
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        if: always()
+        with:
+          python-version: "3.12"
+
+      - name: Install the browser for the walk-through
+        if: steps.health.outcome == 'success'
+        run: |
+          pip install --quiet "playwright==${PLAYWRIGHT_VERSION}"
+          python -m playwright install --with-deps chromium > /dev/null
+
+      - name: Browser — first-run setup and every page
+        id: ui
+        if: steps.health.outcome == 'success'
+        continue-on-error: true
+        run: python3 "$HARNESS/ui_check.py" --base-url http://localhost --out-dir "$OUT" --creds-file "$CREDS"
+
+      - name: API — version, setup wizard, Identity Vault, all GET endpoints
+        id: api
+        if: steps.health.outcome == 'success'
+        continue-on-error: true
+        run: |
+          python3 "$HARNESS/setup_check.py" --base-url http://localhost --phase fresh \
+            --expect-version "$TAG" --creds-file "$CREDS" --out-dir "$OUT"
+
+      - name: Built-in test suite, sandbox preflight, plugin smoke test
+        id: suite
+        if: steps.health.outcome == 'success'
+        continue-on-error: true
+        working-directory: openoptout
+        run: |
+          rc=0
+          run() {  # name, command...
+            name="$1"; shift
+            if docker compose exec -T api "$@" > "$OUT/logs/$name.txt" 2>&1; then
+              echo "- ✅ \`$name\`" >> "$OUT/suite.md"
+            else
+              echo "- ❌ \`$name\` (exit $?) — see \`logs/$name.txt\`" >> "$OUT/suite.md"; rc=1
+            fi
+          }
+          echo "### Built-in diagnostics (inside the api container)" > "$OUT/suite.md"; echo >> "$OUT/suite.md"
+          run run_tests          python -m app.tests.run_tests --verbose
+          run preflight_sandbox  python -m app.plugins.preflight_sandbox
+          run smoke_test         python -m app.plugins.smoke_test
+          if [ -f "$OUT/logs/run_tests.txt" ]; then
+            { echo; echo '<details><summary>Test suite summary</summary>'; echo; echo '```'
+              sed -n '/TEST SUMMARY/,$p' "$OUT/logs/run_tests.txt" | head -80
+              echo '```'; echo; echo '</details>'; echo; } >> "$OUT/suite.md"
+          fi
+          exit $rc
+
+      - name: Collect and scan container logs
+        id: logs
+        if: always() && hashFiles('openoptout/docker-compose.yml') != ''
+        continue-on-error: true
+        working-directory: openoptout
+        run: |
+          docker compose logs --no-color > "$OUT/logs/containers.log" 2>&1 || true
+          python3 "$HARNESS/scan_logs.py" "fresh install" "$OUT/logs/containers.log" "$OUT/logs.md"
+
+      - name: Summary
+        if: always()
+        env:
+          S_INSTALL: ${{ steps.install.outcome }}
+          S_HEALTH: ${{ steps.health.outcome }}
+          S_UI: ${{ steps.ui.outcome }}
+          S_API: ${{ steps.api.outcome }}
+          S_SUITE: ${{ steps.suite.outcome }}
+          S_LOGS: ${{ steps.logs.outcome }}
+        run: |
+          mkdir -p "$OUT"
+          icon() { case "$1" in success) echo "✅";; failure) echo "❌";; skipped) echo "⏭️ not run";; *) echo "⚠️ $1";; esac; }
+          {
+            echo "## Fresh install of \`$TAG\`"
+            echo
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Install with \`install.sh --docker\` | $(icon "$S_INSTALL") |"
+            echo "| Containers start and API is healthy | $(icon "$S_HEALTH") |"
+            echo "| Browser: first-run setup + every page | $(icon "$S_UI") |"
+            echo "| API: version, wizard, Identity Vault, GET endpoints | $(icon "$S_API") |"
+            echo "| Built-in test suite / sandbox / plugin smoke test | $(icon "$S_SUITE") |"
+            echo "| No errors in container logs | $(icon "$S_LOGS") |"
+            echo
+            if [ "$S_INSTALL" = "failure" ]; then
+              echo "### Installer output (last 40 lines)"; echo '```'; tail -40 "$OUT/logs/install.log" 2>/dev/null; echo '```'
+            fi
+            if [ "$S_HEALTH" = "failure" ]; then
+              echo "### Containers"; echo '```'; cat "$OUT/logs/containers.txt" 2>/dev/null; echo '```'
+            fi
+            for f in ui-report.md setup-report-fresh.md suite.md logs.md; do
+              [ -f "$OUT/$f" ] && { cat "$OUT/$f"; echo; }
+            done
+          } > "$OUT/summary.md"
+          cat "$OUT/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          ok=true
+          for s in "$S_INSTALL" "$S_HEALTH" "$S_UI" "$S_API" "$S_SUITE" "$S_LOGS"; do
+            [ "$s" = "success" ] || ok=false
+          done
+          echo "$ok" > "$OUT/passed"
+
+      - name: Upload report, screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-test-fresh-${{ needs.resolve.outputs.tag }}
+          path: report/
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Pass or fail
+        if: always()
+        run: |
+          [ "$(cat "$OUT/passed" 2>/dev/null)" = "true" ] || { echo "::error::Fresh install of $TAG has problems — see the summary."; exit 1; }
+
+      - name: Clean up
+        if: always() && hashFiles('openoptout/docker-compose.yml') != ''
+        working-directory: openoptout
+        run: docker compose down -v || true
+
+  # ── Upgrade from the previous release ──────────────────────────────────────
+  upgrade:
+    name: Upgrade ${{ needs.resolve.outputs.previous }} → ${{ needs.resolve.outputs.tag }}
+    needs: resolve
+    if: needs.resolve.outputs.previous != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      contents: read
+    env:
+      TAG: ${{ needs.resolve.outputs.tag }}
+      PREV: ${{ needs.resolve.outputs.previous }}
+      REPO: ${{ github.repository }}
+      HARNESS: ${{ github.workspace }}/harness/.github/release-test
+      APP_DIR: ${{ github.workspace }}/openoptout
+      OUT: ${{ github.workspace }}/report
+      CREDS: ${{ github.workspace }}/private/admin-creds.json   # throwaway; never uploaded
+      STATE: ${{ github.workspace }}/private/before-upgrade.json
+    steps:
+      - name: Get the test harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: harness
+          sparse-checkout: .github/release-test
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install the previous release (${{ env.PREV }})
+        id: install_prev
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          mkdir -p "$OUT/logs" "$(dirname "$CREDS")"
+          curl -fsSL "https://raw.githubusercontent.com/$REPO/$PREV/install.sh" -o install.sh
+          sh install.sh --docker --ref "$PREV" --dir "$APP_DIR" --repo "https://github.com/$REPO.git" \
+            2>&1 | tee "$OUT/logs/install-previous.log"
+
+      - name: Set up the previous release and save some data
+        id: before
+        run: |
+          (cd "$APP_DIR" && bash "$HARNESS/wait_for_api.sh" 420 "$OUT/logs/containers-previous.txt")
+          python3 "$HARNESS/setup_check.py" --base-url http://localhost --phase before-upgrade \
+            --expect-version "$PREV" --creds-file "$CREDS" --state-file "$STATE" --out-dir "$OUT" \
+            || echo "::warning::The previous release ($PREV) already had problems — see the summary."
+          test -f "$STATE"   # we need saved data to compare after the upgrade
+          docker compose -f "$APP_DIR/docker-compose.yml" logs --no-color > "$OUT/logs/containers-previous.log" 2>&1 || true
+
+      - name: Upgrade to ${{ env.TAG }} (the README's upgrade steps)
+        id: upgrade
+        timeout-minutes: 30
+        working-directory: openoptout
+        run: |
+          set -o pipefail
+          {
+            git fetch --tags --force origin
+            git checkout --quiet "$TAG"
+            docker compose down
+            GIT_COMMIT="$(git rev-parse --short HEAD)" docker compose build
+            docker compose up -d
+          } 2>&1 | tee "$OUT/logs/upgrade.log"
+
+      - name: Check login, setup and saved data survived the upgrade
+        id: after
+        continue-on-error: true
+        run: |
+          (cd "$APP_DIR" && bash "$HARNESS/wait_for_api.sh" 420 "$OUT/logs/containers.txt")
+          python3 "$HARNESS/setup_check.py" --base-url http://localhost --phase after-upgrade \
+            --expect-version "$TAG" --creds-file "$CREDS" --state-file "$STATE" --out-dir "$OUT"
+
+      - name: Collect and scan container logs (after upgrade)
+        id: logs
+        if: always() && hashFiles('openoptout/docker-compose.yml') != ''
+        continue-on-error: true
+        working-directory: openoptout
+        run: |
+          docker compose logs --no-color > "$OUT/logs/containers.log" 2>&1 || true
+          python3 "$HARNESS/scan_logs.py" "after upgrade" "$OUT/logs/containers.log" "$OUT/logs.md"
+
+      - name: Summary
+        if: always()
+        env:
+          S_PREV: ${{ steps.install_prev.outcome }}
+          S_BEFORE: ${{ steps.before.outcome }}
+          S_UPGRADE: ${{ steps.upgrade.outcome }}
+          S_AFTER: ${{ steps.after.outcome }}
+          S_LOGS: ${{ steps.logs.outcome }}
+        run: |
+          mkdir -p "$OUT"
+          icon() { case "$1" in success) echo "✅";; failure) echo "❌";; skipped) echo "⏭️ not run";; *) echo "⚠️ $1";; esac; }
+          {
+            echo "## Upgrade \`$PREV\` → \`$TAG\`"
+            echo
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Install previous release \`$PREV\` | $(icon "$S_PREV") |"
+            echo "| Set it up and save Identity Vault data | $(icon "$S_BEFORE") |"
+            echo "| Upgrade (git checkout, compose down / build / up) | $(icon "$S_UPGRADE") |"
+            echo "| Login, setup and saved data still work | $(icon "$S_AFTER") |"
+            echo "| No errors in container logs after upgrade | $(icon "$S_LOGS") |"
+            echo
+            if [ "$S_UPGRADE" = "failure" ]; then
+              echo "### Upgrade output (last 40 lines)"; echo '```'; tail -40 "$OUT/logs/upgrade.log" 2>/dev/null; echo '```'
+            fi
+            for f in setup-report-before-upgrade.md setup-report-after-upgrade.md logs.md; do
+              [ -f "$OUT/$f" ] && { cat "$OUT/$f"; echo; }
+            done
+          } > "$OUT/summary.md"
+          cat "$OUT/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          ok=true
+          for s in "$S_PREV" "$S_BEFORE" "$S_UPGRADE" "$S_AFTER" "$S_LOGS"; do
+            [ "$s" = "success" ] || ok=false
+          done
+          echo "$ok" > "$OUT/passed"
+
+      - name: Upload report and logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-test-upgrade-${{ needs.resolve.outputs.tag }}
+          path: report/
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Pass or fail
+        if: always()
+        run: |
+          [ "$(cat "$OUT/passed" 2>/dev/null)" = "true" ] || { echo "::error::Upgrade $PREV → $TAG has problems — see the summary."; exit 1; }
+
+      - name: Clean up
+        if: always() && hashFiles('openoptout/docker-compose.yml') != ''
+        working-directory: openoptout
+        run: docker compose down -v || true
+
+  # ── One report for the whole run; open an issue if anything failed ─────────
+  report:
+    name: Report
+    needs: [resolve, fresh-install, upgrade]
+    if: always() && needs.resolve.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      TAG: ${{ needs.resolve.outputs.tag }}
+      PREV: ${{ needs.resolve.outputs.previous }}
+      PRERELEASE: ${{ needs.resolve.outputs.prerelease }}
+      R_FRESH: ${{ needs.fresh-install.result }}
+      R_UPGRADE: ${{ needs.upgrade.result }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Download reports
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with:
+          pattern: release-test-*
+          path: reports
+
+      - name: Write the overall result
+        id: result
+        run: |
+          icon() { case "$1" in success) echo "✅ passed";; failure) echo "❌ failed";; skipped) echo "⏭️ skipped";; cancelled) echo "⚪ cancelled";; *) echo "⚠️ $1";; esac; }
+          kind="release"; [ "$PRERELEASE" = "true" ] && kind="pre-release"
+          {
+            echo "# Release test: \`$TAG\` ($kind)"
+            echo
+            echo "| Test | Result |"
+            echo "|---|---|"
+            echo "| Fresh install | $(icon "$R_FRESH") |"
+            if [ -n "$PREV" ]; then echo "| Upgrade from \`$PREV\` | $(icon "$R_UPGRADE") |"
+            else echo "| Upgrade | ⏭️ no earlier release to upgrade from |"; fi
+            echo
+            echo "**Run, screenshots and full logs:** $RUN_URL"
+            echo
+            for f in reports/release-test-fresh-*/summary.md reports/release-test-upgrade-*/summary.md; do
+              [ -f "$f" ] && { echo "---"; echo; cat "$f"; echo; }
+            done
+          } > body.md
+          cat body.md >> "$GITHUB_STEP_SUMMARY"
+          failed=false
+          [ "$R_FRESH" = "success" ] || failed=true
+          if [ -n "$PREV" ] && [ "$R_UPGRADE" != "success" ]; then failed=true; fi
+          echo "failed=$failed" >> "$GITHUB_OUTPUT"
+          # GitHub issue bodies are limited to 65,536 characters
+          python3 -c "import sys; b=open('body.md').read(); open('body.md','w').write(b if len(b) < 60000 else b[:60000] + '\n\n…(truncated — see the run for everything)')"
+
+      - name: Open or update the failure issue
+        if: steps.result.outputs.failed == 'true'
+        run: |
+          title="Release test failed: $TAG"
+          gh label create release-test --repo "$REPO" --color B60205 \
+            --description "Automated release test found problems" 2>/dev/null || true
+          existing=$(gh issue list --repo "$REPO" --state open --label release-test --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$REPO" --body-file body.md
+            echo "Updated issue #$existing"
+          else
+            gh issue create --repo "$REPO" --title "$title" --label release-test --body-file body.md
+          fi
+
+      - name: Close the failure issue if a re-run passed
+        if: steps.result.outputs.failed == 'false'
+        run: |
+          title="Release test failed: $TAG"
+          existing=$(gh issue list --repo "$REPO" --state open --label release-test --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue close "$existing" --repo "$REPO" --comment "✅ The release test for \`$TAG\` passed on re-run: $RUN_URL"
+          fi

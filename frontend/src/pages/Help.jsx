@@ -65,7 +65,6 @@ Go to Settings → Scheduler → Recheck interval. Resistant brokers (those that
 
 **The Scheduled page** shows your upcoming and overdue re-checks. You can snooze individual ones (if you've manually verified the listing is still gone) or re-queue them immediately.`,
     },
-,
     {
       id: 'database-scaling',
       title: 'Database scaling — SQLite vs PostgreSQL',
@@ -145,7 +144,6 @@ volumes:
 If migrating from SQLite, use the migration tool in Admin → Database first.
 If starting fresh, just set the URL and restart — the schema is created automatically.`,
     },
-,
     {
       id: 'db-enterprise-auth',
       title: 'Enterprise database authentication',
@@ -196,7 +194,6 @@ pip install -r requirements-cloud.txt
 
 Client-certificate auth with sslmode=verify-full is recommended for the highest security — no password is ever transmitted or stored, and both the client and server verify each other's identity.`,
     },
-,
     {
       id: 'bot-evasion',
       title: 'Avoiding broker blocking',
