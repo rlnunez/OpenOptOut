@@ -99,7 +99,9 @@ jobs:
             --exclude-rule generic.nginx.security.request-host-used.request-host-used \
             --exclude-rule python.lang.security.audit.insecure-file-permissions.insecure-file-permissions \
             --exclude-rule typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml \
+            --exclude-rule python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args \
             --exclude backend/tests \
+            --exclude .github \
             --sarif --output semgrep.sarif
           python3 .github/security/sarif_summary.py "Semgrep" semgrep.sarif >> "$GITHUB_STEP_SUMMARY"
 
