@@ -7,7 +7,7 @@ RUN npm ci --legacy-peer-deps
 COPY --chown=node:node . .
 RUN npm run build
 
-FROM nginx:alpine
+FROM nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
 # Upgrade all Alpine base packages to resolve security vulnerabilities (libexpat, libuuid, etc.)
 # Install libcap to allow nginx to bind port 80 as unprivileged 'nginx' user
 # hadolint ignore=DL3018
