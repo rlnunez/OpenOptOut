@@ -11,7 +11,7 @@ FROM nginx:alpine
 # Upgrade all Alpine base packages to resolve security vulnerabilities (libexpat, libuuid, etc.)
 # Install libcap to allow nginx to bind port 80 as unprivileged 'nginx' user
 RUN apk update && apk upgrade --no-cache && \
-    apk add --no-cache libcap && \
+    apk add --no-cache libcap curl && \
     setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx && \
     sed -i '/user  nginx;/d' /etc/nginx/nginx.conf && \
     sed -i 's|/var/run/nginx.pid|/tmp/nginx.pid|g' /etc/nginx/nginx.conf && \
@@ -23,3 +23,6 @@ COPY --chown=nginx:nginx nginx.conf /etc/nginx/conf.d/default.conf
 
 USER nginx
 EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD curl -f http://127.0.0.1/ || exit 1

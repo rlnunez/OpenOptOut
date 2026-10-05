@@ -92,6 +92,8 @@ RUN touch /app/__init__.py && \
 # interpreter (e.g. build libseccomp bindings) — see docs/PLUGINS.md.
 
 EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:8000/api/health || exit 1
 # Run from / so that `app` is importable as a package; main.py's relative
 # imports (from .models, from .routers, from .core) then resolve correctly.
 WORKDIR /
