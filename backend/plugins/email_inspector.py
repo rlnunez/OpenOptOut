@@ -65,7 +65,8 @@ def _scan_source(path: str, findings: list):
     # 2) AST scan for obfuscation idioms and direct bcc/cc assignment to literals.
     try:
         tree = ast.parse(src)
-    except SyntaxError:
+    except (SyntaxError, ValueError, RecursionError, MemoryError):
+        # RecursionError/MemoryError: absurdly deep nesting (found by fuzzing).
         findings.append(("parse_error", os.path.basename(path), "could not parse"))
         return
 
