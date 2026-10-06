@@ -24,7 +24,11 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 def _fernet() -> Fernet:
     raw    = get_secret_key()
-    padded = (raw * 4)[:32].encode()
+    # Repeat the key until it fills 32 bytes. Identical to the old
+    # `(raw * 4)[:32]` for keys of 8+ chars (existing data still decrypts),
+    # but no longer crashes on a shorter SECRET_KEY.
+    _kb = raw.encode() or b"\0"
+    padded = (_kb * (32 // len(_kb) + 1))[:32]
     return Fernet(base64.urlsafe_b64encode(padded))
 
 def _encrypt(v: str) -> str:

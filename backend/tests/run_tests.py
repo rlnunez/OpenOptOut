@@ -1598,11 +1598,17 @@ def t_control_plane_ingestion_and_reclamation():
         def add(self, item):
             self.added.append(item)
 
+        def flush(self):
+            pass
+
         def commit(self):
             self.committed = True
 
         def rollback(self):
             self.rolled_back = True
+
+        def added_types(self):
+            return [type(x).__name__ for x in self.added]
 
         def close(self):
             pass
@@ -1630,7 +1636,10 @@ def t_control_plane_ingestion_and_reclamation():
     assert processed_succ["updated_request"] is True
     assert test_req.status == "submitted"
     assert test_req.sent_at is not None
-    assert len(mock_db.added) == 1  # AutomationLog added
+    # The run is logged once. (A BrokerHealth row may also be written: the
+    # first success for a broker creates its health record.)
+    assert mock_db.added_types().count("AutomationLog") == 1, mock_db.added_types()
+    assert set(mock_db.added_types()) <= {"AutomationLog", "BrokerHealth"}, mock_db.added_types()
     assert mock_db.committed is True
 
     # ── 4. Ingestion of CAPTCHA Result ────────────────────────────────────────
@@ -1652,8 +1661,12 @@ def t_control_plane_ingestion_and_reclamation():
     assert processed_captcha is not None
     assert captcha_req.status == "needs_manual"
     assert "CAPTCHA" in (captcha_req.notes or "")
-    # Should have added CaptchaChallenge and AutomationLog
-    assert len(mock_captcha_db.added) == 2
+    # Should have added CaptchaChallenge and AutomationLog (plus, possibly,
+    # the broker's BrokerHealth row recording the failure).
+    _types = mock_captcha_db.added_types()
+    assert _types.count("CaptchaChallenge") == 1, _types
+    assert _types.count("AutomationLog") == 1, _types
+    assert set(_types) <= {"CaptchaChallenge", "AutomationLog", "BrokerHealth"}, _types
 
     # ── 5. Ingestion of Discovery Result & Auto-Chaining ──────────────────────
     chaining_req = MockRemovalRequest(id=103, member_id=1, broker_id=5, status="pending", listing_url=None)
@@ -4835,6 +4848,14 @@ def t_access_route_gates():
         for r in routes:
             if isinstance(r, APIRoute):
                 res.append(r)
+            elif hasattr(r, "effective_route_contexts"):
+                # FastAPI >= 0.140 keeps include_router() lazily as an
+                # _IncludedRouter. Each effective route context carries the
+                # FULL path (with prefix), methods, and the merged dependant
+                # (router-level + route-level dependencies), so gates are
+                # read exactly as they're enforced at request time.
+                res.extend(c for c in r.effective_route_contexts()
+                           if getattr(c, "dependant", None) is not None)
             elif hasattr(r, "routes"):
                 res.extend(collect_routes(r.routes))
             elif hasattr(r, "app") and hasattr(r.app, "routes"):
@@ -4843,8 +4864,11 @@ def t_access_route_gates():
 
     table = {}
     for r in collect_routes(main.app.routes):
-        for m in r.methods:
+        for m in (r.methods or ()):
             table[(m, r.path)] = gates(r)
+    # Guard against this check silently going blind again (e.g. a future
+    # FastAPI changing how included routers are stored): it must see the app.
+    assert len(table) > 100, f"route walker only found {len(table)} routes — it can't see included routers"
 
     expect = {
         # Never delegated

@@ -15,8 +15,13 @@ RUN apk update && apk upgrade --no-cache && \
     apk add --no-cache libcap curl && \
     setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx && \
     sed -i '/user  nginx;/d' /etc/nginx/nginx.conf && \
-    sed -i -E 's|^[# ]*pid[[:space:]]+.*|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf && \
-    grep -q '^pid[[:space:]]' /etc/nginx/nginx.conf || sed -i '1s|^|pid /tmp/nginx.pid;\n|' /etc/nginx/nginx.conf && \
+    # Exactly one pid directive, pointing somewhere the unprivileged user can
+    # write. Drop every existing pid line (active or commented) and add ours,
+    # then fail the BUILD if the count isn't 1 — a duplicate pid makes nginx
+    # crash-loop at start ("pid" directive is duplicate) and the site is down.
+    sed -i -E '/^[[:space:]#]*pid[[:space:]]/d' /etc/nginx/nginx.conf && \
+    sed -i '1i pid /tmp/nginx.pid;' /etc/nginx/nginx.conf && \
+    test "$(grep -cE '^[[:space:]]*pid[[:space:]]' /etc/nginx/nginx.conf)" = "1" && \
     touch /tmp/nginx.pid && \
     mkdir -p /run /var/cache/nginx /var/log/nginx /etc/nginx && \
     chown -R nginx:nginx /tmp/nginx.pid /run /var/cache/nginx /var/log/nginx /etc/nginx
