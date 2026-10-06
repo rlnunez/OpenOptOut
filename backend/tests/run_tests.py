@@ -691,6 +691,7 @@ def t_email_grace_scheduler_dual_inbox():
 
     settings_mod = _imp("core.settings_store")
     orig_load = settings_mod.load_settings
+    orig_sched_load = getattr(sched_mod, "load_settings", None)
     settings_mod.load_settings = lambda: {
         "email": {
             "imap_host": "imap.new.org",
@@ -708,6 +709,7 @@ def t_email_grace_scheduler_dual_inbox():
             }
         }
     }
+    sched_mod.load_settings = settings_mod.load_settings
 
     try:
         class FakeDB:
@@ -726,6 +728,8 @@ def t_email_grace_scheduler_dual_inbox():
     finally:
         sched_mod._poll_imap_mailbox = orig_poll
         settings_mod.load_settings = orig_load
+        if orig_sched_load is not None:
+            sched_mod.load_settings = orig_sched_load
         sched_mod.SessionLocal = orig_session
 
 
@@ -3269,13 +3273,17 @@ def t_version_reporting():
         # 2) No env var: falls back to asking git directly, for a native/dev
         # run inside a real checkout — build a throwaway one to prove it.
         os.environ.pop("GIT_COMMIT", None)
-        with tempfile.TemporaryDirectory() as tmp:
-            subprocess.run(["git", "init", "-q", "-b", "main", tmp], check=True)
-            subprocess.run(["git", "-C", tmp, "-c", "user.email=t@t.com", "-c", "user.name=t",
-                            "commit", "-q", "--allow-empty", "-m", "test"], check=True)
-            ver._VERSION_FILE = os.path.join(tmp, "VERSION")   # cwd for the git fallback
-            commit = ver.get_commit()
-            assert commit != "unknown" and len(commit) >= 7, f"git fallback didn't work: {commit!r}"
+        import shutil
+        if shutil.which("git"):
+            with tempfile.TemporaryDirectory() as tmp:
+                subprocess.run(["git", "init", "-q", "-b", "main", tmp], check=True)
+                subprocess.run(["git", "-C", tmp, "-c", "user.email=t@t.com", "-c", "user.name=t",
+                                "commit", "-q", "--allow-empty", "-m", "test"], check=True)
+                ver._VERSION_FILE = os.path.join(tmp, "VERSION")   # cwd for the git fallback
+                commit = ver.get_commit()
+                assert commit != "unknown" and len(commit) >= 7, f"git fallback didn't work: {commit!r}"
+        else:
+            assert ver.get_commit() == "unknown"
 
         # 3) Neither an env var nor a real git checkout: "unknown", not a crash.
         with tempfile.TemporaryDirectory() as tmp:
@@ -4232,7 +4240,7 @@ def t_logo_extension_mapping():
             # GET /config must detect a jpeg-only logo too (was: only checked
             # for logo.png / logo.svg on disk, so this would have reported
             # logo_url=None even though a real logo file existed).
-            cfg = branding.get_branding(_=None)
+            cfg = branding.get_branding()
             assert cfg.logo_url == "/api/branding/logo", "a jpeg logo was not detected by /config"
 
             # Uploading a new format must clean up the old one — otherwise
@@ -4822,11 +4830,21 @@ def t_access_route_gates():
         walk(route.dependant)
         return found
 
+    def collect_routes(routes):
+        res = []
+        for r in routes:
+            if isinstance(r, APIRoute):
+                res.append(r)
+            elif hasattr(r, "routes"):
+                res.extend(collect_routes(r.routes))
+            elif hasattr(r, "app") and hasattr(r.app, "routes"):
+                res.extend(collect_routes(r.app.routes))
+        return res
+
     table = {}
-    for r in main.app.routes:
-        if isinstance(r, APIRoute):
-            for m in r.methods:
-                table[(m, r.path)] = gates(r)
+    for r in collect_routes(main.app.routes):
+        for m in r.methods:
+            table[(m, r.path)] = gates(r)
 
     expect = {
         # Never delegated

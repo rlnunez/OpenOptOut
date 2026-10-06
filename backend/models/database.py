@@ -48,12 +48,14 @@ class BrokerStatus(str, enum.Enum):
     undetermined = "undetermined"
 
 class RequestStatus(str, enum.Enum):
-    pending     = "pending"
-    sent        = "sent"
-    confirmed   = "confirmed"
-    rejected    = "rejected"
-    recheck_due = "recheck_due"
-    failed      = "failed"
+    pending      = "pending"
+    sent         = "sent"
+    confirmed    = "confirmed"
+    rejected     = "rejected"
+    recheck_due  = "recheck_due"
+    failed       = "failed"
+    submitted    = "submitted"
+    needs_manual = "needs_manual"
 
 class OptOutMethod(str, enum.Enum):
     form   = "form"
@@ -430,7 +432,7 @@ class RemovalRequest(Base):
     id            = Column(Integer, primary_key=True, index=True)
     member_id     = Column(Integer, ForeignKey("family_members.id"), nullable=False)
     broker_id     = Column(Integer, ForeignKey("brokers.id"), nullable=False)
-    request_key   = Column(String, unique=True, index=True)
+    request_key   = Column(String, index=True)
     status        = Column(SAEnum(RequestStatus), default=RequestStatus.pending)
     method_used   = Column(SAEnum(OptOutMethod))
     sent_at       = Column(DateTime)

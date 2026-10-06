@@ -23,7 +23,7 @@ class BrokerOut(BaseModel):
     difficulty: Optional[str]
     status: Optional[str]
     notes: Optional[str]
-    date_added: datetime
+    date_added: Optional[datetime] = None
     request_count: int = 0
     latest_status: Optional[str] = None
     recheck_after: Optional[datetime] = None

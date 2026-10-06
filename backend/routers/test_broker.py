@@ -38,6 +38,7 @@ router = APIRouter(prefix="/api/test-broker", tags=["test-broker"])
 
 TEST_PARENT_NAME = "OpenOptOut Test Broker"
 TEST_BROKER_NAME = "OpenOptOut Test Site"
+TEST_SUBJECT_PREFIX = "[OpenOptOut TEST] "
 # Non-backtracking email regex: local and domain labels cannot match delimiters (@, .),
 # eliminating polynomial/exponential backtracking (ReDoS) on arbitrary user input.
 _EMAIL_RE = re.compile(

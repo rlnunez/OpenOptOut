@@ -220,7 +220,7 @@ def get_accessible_member_ids(db: Session, user: User) -> List[int]:
     # Manager with members.view_all: evaluate assigned scopes
     if _has(user, "members.view_all"):
         scopes = db.query(ManagerScope).filter(ManagerScope.user_id == user.id).all()
-        if any(s.scope_type == "consortium" for s in scopes):
+        if not scopes or any(s.scope_type == "consortium" for s in scopes):
             return [m.id for m in db.query(FamilyMember).all()]
 
         allowed_branch_ids = set()
