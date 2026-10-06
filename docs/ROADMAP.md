@@ -42,7 +42,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 20 | Multi-tier institutional hierarchy (Consortium) | Complete |
 | 21 | Plugin sandbox IPC & resource limits | Complete |
 | 22 | Independent security audit & penetration testing | Planned |
-| 23 | Unified interactive host & fleet installer (CLI/TUI) | Planned |
+| 23 | Unified interactive host & fleet installer (CLI/TUI) | Complete |
 
 
 ---
