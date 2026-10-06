@@ -30,6 +30,8 @@ updates:
     ignore:
       - dependency-name: tailwindcss   # v4 is a breaking architecture rewrite; stay on v3
         versions: [">=4.0"]
+      - dependency-name: postcss-selector-parser # v7 breaks CJS export in Tailwind 3; build-time only
+        versions: [">=7.0"]
 
   - package-ecosystem: docker
     directories: [/backend, /frontend, /.clusterfuzzlite]
