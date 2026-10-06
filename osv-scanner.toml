@@ -1,0 +1,9 @@
+# OSV-Scanner configuration
+
+[[IgnoredVulns]]
+id = "GHSA-rj75-hqrm-r3gf"
+reason = "Build-time only dependency in Tailwind CSS 3.4 toolchain; never exposed to untrusted CSS input at runtime."
+
+[[IgnoredVulns]]
+id = "CVE-2026-104844"
+reason = "Build-time only dependency in Tailwind CSS 3.4 toolchain; never exposed to untrusted CSS input at runtime."

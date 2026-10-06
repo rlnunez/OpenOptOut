@@ -19,9 +19,6 @@
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38"
   },
-  "overrides": {
-    "postcss-selector-parser": "^7.1.6"
-  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
