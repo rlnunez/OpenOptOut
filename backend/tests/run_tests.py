@@ -822,6 +822,95 @@ def t_memory_hygiene_scoped_creds_and_streaming():
     assert fq.yield_per_called_with == 10
 
 
+@test(1, "encryption.db_key_derivation_and_optout",
+      "get_db_encryption_key derives key from env and honors DISABLE_DB_ENCRYPTION opt-out.")
+def t_encryption_key_derivation():
+    enc = _imp("core.encryption")
+    import os
+    orig_db_key = os.environ.get("DB_ENCRYPTION_KEY")
+    orig_sec_key = os.environ.get("SECRET_KEY")
+    orig_disable = os.environ.get("DISABLE_DB_ENCRYPTION")
+    try:
+        # Case 1: DB_ENCRYPTION_KEY takes precedence
+        os.environ["DB_ENCRYPTION_KEY"] = "custom-db-passphrase-123"
+        os.environ["SECRET_KEY"] = "secret-key-fallback-456"
+        os.environ.pop("DISABLE_DB_ENCRYPTION", None)
+        assert enc.get_db_encryption_key() == "custom-db-passphrase-123"
+
+        # Case 2: Fallback to SECRET_KEY
+        os.environ.pop("DB_ENCRYPTION_KEY", None)
+        assert enc.get_db_encryption_key() == "secret-key-fallback-456"
+
+        # Case 3: Explicit opt-out via DISABLE_DB_ENCRYPTION
+        os.environ["DISABLE_DB_ENCRYPTION"] = "true"
+        assert enc.get_db_encryption_key() is None
+    finally:
+        for k, v in [("DB_ENCRYPTION_KEY", orig_db_key), ("SECRET_KEY", orig_sec_key), ("DISABLE_DB_ENCRYPTION", orig_disable)]:
+            if v is not None:
+                os.environ[k] = v
+            else:
+                os.environ.pop(k, None)
+
+
+@test(1, "encryption.sqlite_plaintext_detection",
+      "is_sqlite_plaintext correctly distinguishes unencrypted SQLite from non-sqlite files.")
+def t_encryption_sqlite_plaintext_detection():
+    enc = _imp("core.encryption")
+    import tempfile, sqlite3, os
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_file = os.path.join(tmpdir, "test_plain.db")
+        # Create standard SQLite database
+        conn = sqlite3.connect(db_file)
+        conn.execute("CREATE TABLE test_table (id INTEGER PRIMARY KEY, val TEXT);")
+        conn.execute("INSERT INTO test_table VALUES (1, 'hello');")
+        conn.commit()
+        conn.close()
+
+        # Should be identified as plaintext SQLite
+        assert enc.is_sqlite_plaintext(db_file) is True
+
+        # Non-sqlite / encrypted dummy file
+        fake_file = os.path.join(tmpdir, "test_fake.db")
+        with open(fake_file, "wb") as f:
+            f.write(b"\x00" * 32)
+        assert enc.is_sqlite_plaintext(fake_file) is False
+        assert enc.is_sqlite_plaintext(os.path.join(tmpdir, "nonexistent.db")) is False
+
+
+@test(1, "encryption.url_extraction_and_status",
+      "extract_sqlite_path parses local paths and check_db_encryption_status reports accurate posture.")
+def t_encryption_url_and_status():
+    enc = _imp("core.encryption")
+    import tempfile, sqlite3, os
+
+    # URL extraction
+    assert enc.extract_sqlite_path("sqlite:////data/privacy_pipeline.db") == "/data/privacy_pipeline.db"
+    assert enc.extract_sqlite_path("sqlite:///./relative.db") == "./relative.db"
+    assert enc.extract_sqlite_path("sqlite:///relative.db") == "relative.db"
+    assert enc.extract_sqlite_path("postgresql://user:pass@localhost:5432/db") is None
+
+    # Status check
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # 1. Missing
+        missing = os.path.join(tmpdir, "missing.db")
+        assert enc.check_db_encryption_status(missing)["status"] == "missing"
+
+        # 2. Empty
+        empty = os.path.join(tmpdir, "empty.db")
+        open(empty, "a").close()
+        assert enc.check_db_encryption_status(empty)["status"] == "empty"
+
+        # 3. Plaintext
+        plain = os.path.join(tmpdir, "plain.db")
+        conn = sqlite3.connect(plain)
+        conn.execute("CREATE TABLE foo (x INTEGER);")
+        conn.commit()
+        conn.close()
+        status_info = enc.check_db_encryption_status(plain)
+        assert status_info["status"] == "plaintext"
+        assert status_info["is_encrypted"] is False
+
+
 @test(1, "interpreter.script_bridge",
       "A BrokerScript's selectors compile into a valid BrokerSpec (legacy→interpreter migration).")
 def t_script_bridge():

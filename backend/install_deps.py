@@ -17,14 +17,16 @@ def main() -> None:
     # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args
     subprocess.run(pip_cmd + ["-r", str(req_file)], check=True)
 
-    with_encryption = os.getenv("WITH_ENCRYPTION", "false").lower()
-    if with_encryption == "true" and enc_file.exists():
+    with_encryption = os.getenv("WITH_ENCRYPTION", "true").lower()
+    if with_encryption != "false" and enc_file.exists():
         # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args
         res = subprocess.run(pip_cmd + ["-r", str(enc_file)])
         if res.returncode != 0:
             print("WARN: sqlcipher3 install failed for this platform — continuing without file-level encryption")
+        else:
+            print("SQLCipher installed successfully — whole-database encryption enabled by default")
     else:
-        print("SQLCipher not requested (WITH_ENCRYPTION=false) — file-level encryption disabled")
+        print("SQLCipher disabled (WITH_ENCRYPTION=false) — file-level encryption disabled")
 
 
 if __name__ == "__main__":

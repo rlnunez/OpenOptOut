@@ -29,18 +29,16 @@ RUN apt-get update && \
     libxrandr2 libxss1 libxtst6 xdg-utils \
     bubblewrap libseccomp2 python3-seccomp \
     xmlsec1 \
-    gcc build-essential libldap2-dev libsasl2-dev \
+    gcc build-essential libldap2-dev libsasl2-dev libsqlcipher-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY requirements.txt requirements-encryption.txt install_deps.py ./
 
-# Optional: file-level SQLCipher encryption. Off by default so the image builds
-# on every platform (the app falls back to unencrypted SQLite and reports the
-# reduced posture). Enable with:  docker build --build-arg WITH_ENCRYPTION=true
+# Whole-database SQLCipher encryption enabled by default.
 # The install is best-effort: if no wheel exists for the build platform it is
-# skipped rather than failing the whole image.
-ARG WITH_ENCRYPTION=false
+# compiled or skipped rather than failing the whole image.
+ARG WITH_ENCRYPTION=true
 ENV WITH_ENCRYPTION=${WITH_ENCRYPTION}
 RUN python3 install_deps.py
 

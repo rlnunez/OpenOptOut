@@ -367,7 +367,7 @@ if command -v apt-get >/dev/null 2>&1; then
   # Base packages common to all nodes
   BASE_PKGS=(
     python3 python3-venv python3-dev
-    wget curl ca-certificates rsync gcc build-essential
+    wget curl ca-certificates rsync gcc build-essential libsqlcipher-dev
   )
 
   # Web and identity packages (Only for standalone and control-plane)
@@ -458,7 +458,7 @@ if [ ! -d "$INSTALL_DIR/venv" ]; then
   python3 -m venv "$INSTALL_DIR/venv"
 fi
 info "Installing Python dependencies..."
-WITH_ENCRYPTION="$([ "$DB_ENGINE" = "sqlcipher" ] && echo "true" || echo "false")" \
+WITH_ENCRYPTION="${WITH_ENCRYPTION:-true}" \
   "$INSTALL_DIR/venv/bin/python3" "$INSTALL_DIR/app/install_deps.py"
 
 # Install Playwright browser ONLY for Standalone and Worker roles

@@ -60,12 +60,34 @@ To migrate an existing SQLite installation to PostgreSQL without losing data:
 OpenOptOut provides two independent layers of encryption at rest, which can be used individually or together:
 
 ### Layer 1: Full Database Encryption (SQLCipher)
-For SQLite deployments, the entire database file can be encrypted on disk using 256-bit AES via SQLCipher.
-- Configured by setting `DB_ENCRYPTION_KEY` in `.env`.
-- To migrate an existing unencrypted SQLite database to SQLCipher:
-  ```bash
-  docker exec openoptout-api python -m app.core.encryption migrate
-  ```
+For SQLite deployments, the entire database file is encrypted on disk using 256-bit AES via SQLCipher **by default**:
+- **Zero-touch activation**: SQLCipher automatically derives its encryption key from `SECRET_KEY` (or `DB_ENCRYPTION_KEY` if set in `.env`).
+- **Auto-migration**: If an existing plaintext SQLite database is detected on startup, OpenOptOut automatically creates a `.plaintext_backup` safety copy and transparently migrates the active database to encrypted SQLCipher in place.
+- **Opt-Out**: To run in unencrypted SQLite mode, set `DISABLE_DB_ENCRYPTION=true` in `.env`.
+
+#### Management & Decryption Scripts
+Operators and superadmins can inspect, decrypt, encrypt, or change the passphrase of a database using the provided management script:
+
+```bash
+# Check database encryption status and key validity
+./scripts/manage-db-encryption.sh status
+
+# Decrypt an encrypted database back to plain SQLite in place
+./scripts/manage-db-encryption.sh decrypt --inplace
+
+# Encrypt a plaintext SQLite database to SQLCipher in place
+./scripts/manage-db-encryption.sh encrypt --inplace
+
+# Change the encryption passphrase (re-key)
+./scripts/manage-db-encryption.sh rekey --old-key <OLD> --new-key <NEW>
+```
+
+Or execute directly inside Docker:
+```bash
+docker compose exec api python -m core.encryption status
+docker compose exec api python -m core.encryption decrypt --inplace
+docker compose exec api python -m core.encryption encrypt --inplace
+```
 
 ### Layer 2: Field-Level Encryption (Fernet)
 Sensitive Personally Identifiable Information (PII) — including member name variants, email addresses, phone numbers, and physical addresses — can be encrypted with authenticated symmetric encryption (Fernet) before insertion into database columns.
