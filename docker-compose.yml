@@ -110,6 +110,8 @@ services:
     # Leave these OFF unless you actually run untrusted plugins — they widen the
     # container's own privileges. The app degrades gracefully and reports its
     # real sandbox posture on the Plugins page. See docs/PLUGINS.md.
+    ulimits:
+      core: 0
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
@@ -122,6 +124,8 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    ulimits:
+      core: 0
     ports:
       # Host port for the web UI (nginx). Change WEB_PORT in .env if 80 is taken.
       # With HTTPS on, scripts/enable-https.sh sets WEB_BIND=127.0.0.1 and
@@ -142,6 +146,8 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    ulimits:
+      core: 0
     entrypoint: ["/bin/sh", "/deploy/entrypoint.sh"]
     environment:
       - HTTPS_MODE=${HTTPS_MODE:-}

@@ -92,6 +92,10 @@ def parse_args():
 
 
 async def main():
+    # Enforce zero-core-dump memory hygiene policy (prevents PII disk dumps on crash)
+    from core.memory_hygiene import disable_core_dumps
+    disable_core_dumps()
+
     args = parse_args()
 
     config = WorkerConfig(

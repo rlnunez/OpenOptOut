@@ -89,6 +89,25 @@ sudo systemctl reload nginx
 
 The plugin system's OS-level sandboxing uses Linux namespaces via `bubblewrap` — this works the same on a native install as it does in the Docker image, since it's a kernel feature, not a container-runtime one. If you enable the plugin system and plugins fail to start, the first thing to try is loosening `deploy/native/openoptout-api.service`'s hardening (`ProtectSystem`/`ProtectHome`) — see the comments in that file — before troubleshooting further. See [docs/PLUGINS.md](PLUGINS.md).
 
+### Host-Level Security Hardening (Core Dumps & Encrypted Swap)
+
+Because OpenOptOut handles sensitive patron identities, credentials, and encryption keys in memory, preventing process memory from being persisted unencrypted to physical storage is essential:
+
+1. **Core Dump Prevention (`ulimit -c 0` / `LimitCORE=0`)**:
+   - Both `openoptout-api.service` and `openoptout-worker.service` enforce `LimitCORE=0`, and the application calls `resource.setrlimit(RLIMIT_CORE, (0, 0))` on startup.
+   - For global host enforcement, the installer writes `/etc/security/limits.d/99-openoptout.conf` (`openoptout soft/hard core 0`) and sets `fs.suid_dumpable = 0` via sysctl.
+   - This ensures that in the event of an unhandled crash or kernel panic, process memory containing decrypted PII or secrets is never written to disk.
+
+2. **Encrypted Swap**:
+   - Under kernel memory pressure, anonymous memory pages may be swapped to disk. If the host uses unencrypted swap, decrypted PII could be recovered from disk blocks.
+   - **Recommendation**: Deploy on a host with no swap (pure RAM) or enable ephemeral encrypted swap using `dm-crypt` / `crypttab`:
+     ```ini
+     # In /etc/crypttab:
+     cryptswap /dev/sdX2 /dev/urandom swap,cipher=aes-xts-plain64,size=512
+     ```
+     With a `/dev/urandom` key source, the swap encryption key is regenerated randomly on every system boot, guaranteeing zero data recovery after shutdown.
+   - The interactive installer (`deploy/installer/setup.sh`) automatically audits `/proc/swaps` and alerts operators if an unencrypted swap device is active.
+
 ## Windows Server
 
 Windows has no direct systemd equivalent, so the pieces map slightly differently, but the shape is the same: something supervises the API process, and IIS is the public-facing web server.

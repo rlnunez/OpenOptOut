@@ -74,6 +74,9 @@ for r in [
 
 @app.on_event("startup")
 def startup():
+    # Enforce zero-core-dump memory hygiene policy (prevents PII disk dumps on crash)
+    from .core.memory_hygiene import disable_core_dumps
+    disable_core_dumps()
     # Initialize rotating file logger and in-memory ring buffer
     init_logging()
     # First thing logged, before anything that could fail — so "what version

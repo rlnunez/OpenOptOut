@@ -24,6 +24,7 @@ Restart=always
 RestartSec=5
 
 # Hardening
+LimitCORE=0
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict

@@ -157,3 +157,21 @@ def stream_records(query_or_list: Any, batch_size: int = 50) -> Iterator[Any]:
             yield item
     else:
         yield query_or_list
+
+
+def disable_core_dumps() -> bool:
+    """
+    Disable core dumps for the current process and its children to prevent
+    process memory containing sensitive credentials or patron PII from being
+    written to disk on crash or SIGSEGV (RLIMIT_CORE = 0).
+
+    Returns True if successfully set, False otherwise.
+    """
+    try:
+        import resource
+        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+        return True
+    except Exception as e:
+        log.debug("Could not set RLIMIT_CORE to 0: %s", e)
+        return False
+

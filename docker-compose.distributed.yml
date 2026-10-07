@@ -17,6 +17,8 @@ services:
     image: redis:7-alpine
     container_name: openoptout-redis
     restart: unless-stopped
+    ulimits:
+      core: 0
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy noeviction
     ports:
       - "${REDIS_BIND:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
@@ -32,6 +34,8 @@ services:
     image: postgres:16
     container_name: openoptout-db
     restart: unless-stopped
+    ulimits:
+      core: 0
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-openoptout}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-openoptout-secret-pw}
@@ -51,6 +55,8 @@ services:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
     container_name: openoptout-api
     restart: unless-stopped
+    ulimits:
+      core: 0
     environment:
       - SECRET_KEY=${SECRET_KEY:-change-me-please-32-chars-minimum}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
@@ -79,6 +85,8 @@ services:
       args:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
     restart: unless-stopped
+    ulimits:
+      core: 0
     command: python -m worker
     environment:
       - SECRET_KEY=${SECRET_KEY:-change-me-please-32-chars-minimum}
@@ -97,6 +105,10 @@ services:
     build: ./frontend
     container_name: openoptout-web
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ulimits:
+      core: 0
     ports:
       - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-80}:80"
     depends_on:

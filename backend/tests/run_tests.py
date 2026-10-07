@@ -757,6 +757,20 @@ def t_memory_hygiene_secure_buffer():
     assert captured_buf.as_str() == ""
 
 
+@test(1, "memory_hygiene.disable_core_dumps",
+      "disable_core_dumps sets RLIMIT_CORE to (0, 0) to prevent process crash memory dumps.")
+def t_memory_hygiene_disable_core_dumps():
+    mh = _imp("core.memory_hygiene")
+    result = mh.disable_core_dumps()
+    assert isinstance(result, bool)
+    try:
+        import resource
+        soft, hard = resource.getrlimit(resource.RLIMIT_CORE)
+        assert soft == 0
+    except (ImportError, AttributeError):
+        pass
+
+
 @test(1, "memory_hygiene.ephemeral_secret_lifecycle",
       "ephemeral_secret yields secret during block execution and wipes buffer upon exit and on exceptions.")
 def t_memory_hygiene_ephemeral_secret():

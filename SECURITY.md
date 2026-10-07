@@ -30,7 +30,15 @@ Out of scope: data brokers' own websites, and problems that need an already
 compromised server or administrator account (unless they let someone escape the
 plugin sandbox or cross from one family or library branch into another).
 
+## Memory Hygiene & Host Hardening
+
+OpenOptOut implements strict defense-in-depth against data leakage from process memory:
+- **Core Dump Suppression**: Core dumps are disabled at the process level (`RLIMIT_CORE = 0`), container level (`ulimits: core: 0`), and systemd service level (`LimitCORE=0`) so patron PII is never dumped to disk on crash.
+- **In-Memory Zeroization**: Decrypted secrets and patron records are wrapped in ephemeral scoped buffers (`core.memory_hygiene.SecureBuffer`) and wiped with zeros immediately upon block completion.
+- **Encrypted Swap**: Host operators are strongly advised to run on pure RAM or configure ephemeral encrypted swap via `/etc/crypttab` (`/dev/urandom` key) to prevent cleartext memory paging.
+
 ## Automated scanning
 
 Every change is checked by free automated scanners. See
 [docs/SECURITY_SCANNING.md](docs/SECURITY_SCANNING.md).
+

@@ -38,6 +38,7 @@ RestartSec=5
 
 # Hardening (safe defaults for a service that writes only to its own data dir
 # and reads/writes its own settings file; loosen if your setup needs more).
+LimitCORE=0
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict

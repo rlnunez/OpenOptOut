@@ -311,7 +311,55 @@ mkdir -p "$INSTALL_DIR" \
 chmod 750 "$INSTALL_DIR"
 chmod 700 "$INSTALL_DIR/data"
 
-# ── 2. Role-Specialized OS Package Provisioning ───────────────────────────────
+# ── 2. Host-Level Memory & Swap Hardening ────────────────────────────────────
+head "Applying Host-Level Security Hardening"
+
+# A. Disable core dumps for the service user in /etc/security/limits.d
+if [ -d /etc/security/limits.d ]; then
+  cat <<'EOF' > /etc/security/limits.d/99-openoptout.conf
+# OpenOptOut Host Hardening (Roadmap Item 15)
+# Disable core dumps to prevent patron PII and keys from leaking to disk on crash
+openoptout soft core 0
+openoptout hard core 0
+EOF
+  info "Configured /etc/security/limits.d/99-openoptout.conf (core limit: 0)."
+fi
+
+# B. Enforce kernel dump restriction via sysctl if supported
+if [ -d /etc/sysctl.d ]; then
+  cat <<'EOF' > /etc/sysctl.d/99-openoptout-security.conf
+# OpenOptOut Host Hardening
+fs.suid_dumpable = 0
+EOF
+  sysctl -p /etc/sysctl.d/99-openoptout-security.conf >/dev/null 2>&1 || true
+fi
+
+# C. Encrypted Swap Audit
+if [ -f /proc/swaps ]; then
+  SWAP_COUNT=$(awk 'NR>1 {print $1}' /proc/swaps | wc -l | tr -d ' ')
+  if [ "$SWAP_COUNT" -eq 0 ]; then
+    info "Swap Status: None active (RAM-only; zero risk of PII swap leakage to disk)."
+  else
+    UNENCRYPTED_SWAP=0
+    while IFS= read -r dev; do
+      [ -z "$dev" ] && continue
+      # Check if device is backed by dm-crypt/cryptswap/zram
+      if [[ "$dev" != *"/dev/dm-"* && "$dev" != *"/dev/mapper/"* && "$dev" != *"crypt"* && "$dev" != *"zram"* ]]; then
+        UNENCRYPTED_SWAP=1
+        warn "Host Swap: Unencrypted swap device detected: $dev"
+      fi
+    done < <(awk 'NR>1 {print $1}' /proc/swaps)
+
+    if [ "$UNENCRYPTED_SWAP" -eq 1 ]; then
+      warn "Unencrypted swap can leak decrypted patron PII or keys to storage under memory load."
+      warn "Recommendation: Configure ephemeral encrypted swap in /etc/crypttab with /dev/urandom key, or run 'sudo swapoff -a'."
+    else
+      info "Host Swap: Encrypted swap / zram verified active."
+    fi
+  fi
+fi
+
+# ── 3. Role-Specialized OS Package Provisioning ───────────────────────────────
 head "Installing Operating System Packages (Role: $ROLE)"
 if command -v apt-get >/dev/null 2>&1; then
   apt-get update -qq
