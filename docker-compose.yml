@@ -120,6 +120,8 @@ services:
     build: ./frontend
     container_name: openoptout-web
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     ports:
       # Host port for the web UI (nginx). Change WEB_PORT in .env if 80 is taken.
       # With HTTPS on, scripts/enable-https.sh sets WEB_BIND=127.0.0.1 and
@@ -138,6 +140,8 @@ services:
     container_name: openoptout-caddy
     profiles: ["https"]
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     entrypoint: ["/bin/sh", "/deploy/entrypoint.sh"]
     environment:
       - HTTPS_MODE=${HTTPS_MODE:-}
