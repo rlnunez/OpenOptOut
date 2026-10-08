@@ -9,8 +9,8 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
-from ..models.database import get_db, EmailLog, SchedulerRun, User
-from ..core.auth import get_current_user, require_super_admin
+from ..models.database import get_db, EmailLog, SchedulerRun, User, RemovalRequest
+from ..core.auth import get_current_user, require_super_admin, get_accessible_member_ids, _has
 from ..core.access import require_permission
 from ..core.settings_store import load_settings
 
@@ -46,7 +46,7 @@ class MonitorStatus(BaseModel):
 @router.get("/status", response_model=MonitorStatus)
 def monitor_status(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     cfg = load_settings(); ec = cfg.get("email", {})
     last_run = (
@@ -55,8 +55,29 @@ def monitor_status(
         .order_by(SchedulerRun.started_at.desc())
         .first()
     )
-    total_matched   = db.query(EmailLog).filter(EmailLog.matched_key.isnot(None), EmailLog.direction == "received").count()
-    total_unmatched = db.query(EmailLog).filter(EmailLog.matched_key.is_(None),   EmailLog.direction == "received").count()
+    can_view_all = (
+        current_user.is_super_admin
+        or _has(current_user, "consortium.cross_system")
+        or _has(current_user, "members.view_all")
+        or _has(current_user, "email.manage")
+        or _has(current_user, "scheduler.manage")
+    )
+    if can_view_all:
+        total_matched   = db.query(EmailLog).filter(EmailLog.matched_key.isnot(None), EmailLog.direction == "received").count()
+        total_unmatched = db.query(EmailLog).filter(EmailLog.matched_key.is_(None),   EmailLog.direction == "received").count()
+    else:
+        accessible_ids = get_accessible_member_ids(db, current_user)
+        total_matched = (
+            db.query(EmailLog)
+            .join(EmailLog.request)
+            .filter(
+                RemovalRequest.member_id.in_(accessible_ids),
+                EmailLog.matched_key.isnot(None),
+                EmailLog.direction == "received",
+            )
+            .count()
+        )
+        total_unmatched = 0
 
     return MonitorStatus(
         configured=bool(ec.get("imap_host") and ec.get("imap_password_enc")),
@@ -76,9 +97,20 @@ def list_email_logs(
     matched: Optional[bool]  = Query(None),
     limit: int = 50,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     q = db.query(EmailLog)
+    can_view_all = (
+        current_user.is_super_admin
+        or _has(current_user, "consortium.cross_system")
+        or _has(current_user, "members.view_all")
+        or _has(current_user, "email.manage")
+        or _has(current_user, "scheduler.manage")
+    )
+    if not can_view_all:
+        accessible_ids = get_accessible_member_ids(db, current_user)
+        q = q.join(EmailLog.request).filter(RemovalRequest.member_id.in_(accessible_ids))
+
     if direction: q = q.filter(EmailLog.direction == direction)
     if matched is True:  q = q.filter(EmailLog.matched_key.isnot(None))
     if matched is False: q = q.filter(EmailLog.matched_key.is_(None))
@@ -105,8 +137,18 @@ def manual_poll(_: User = Depends(require_permission("scheduler.manage"))):
 def poll_history(
     limit: int = 20,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    can_view = (
+        current_user.is_super_admin
+        or _has(current_user, "consortium.cross_system")
+        or _has(current_user, "scheduler.manage")
+        or _has(current_user, "email.manage")
+        or _has(current_user, "logs.view")
+    )
+    if not can_view:
+        return []
+
     runs = (
         db.query(SchedulerRun)
         .filter(SchedulerRun.run_type == "email_poll")

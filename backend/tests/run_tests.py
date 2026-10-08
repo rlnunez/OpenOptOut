@@ -4183,6 +4183,97 @@ def t_access_member_data_and_brokers():
         session.close()
 
 
+@test(2, "access.email_monitor_cross_tenant_isolation",
+      "Email monitor logs, status, and poll history isolate patron data so users "
+      "never see opt-out correspondence or member details of other accounts.")
+def t_access_email_monitor_isolation():
+    try:
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        auth = _imp("core.auth")
+        email_router = _imp("routers.email_monitor")
+        settings_store = _imp("core.settings_store")
+        db = _imp("models.database")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False},
+                           poolclass=StaticPool)
+    db.Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+    orig_load = settings_store.load_settings
+    settings_store.load_settings = lambda: {"email": {"imap_host": "imap.example.com", "imap_user": "optout@example.com", "imap_password_enc": "enc"}}
+    try:
+        R = db.UserRole
+        u1 = db.User(email="patron1@example.org", full_name="Patron One", role=R.parent, hashed_password="x")
+        u2 = db.User(email="patron2@example.org", full_name="Patron Two", role=R.parent, hashed_password="x")
+        admin = db.User(email="admin@example.org", full_name="Admin", role=R.super_admin, hashed_password="x")
+        session.add_all([u1, u2, admin]); session.flush()
+
+        m1 = db.FamilyMember(user_id=u1.id, full_name="Member One")
+        m2 = db.FamilyMember(user_id=u2.id, full_name="Member Two")
+        b = db.Broker(name="BrokerCorp", opt_out_url="https://example.com")
+        session.add_all([m1, m2, b]); session.flush()
+
+        req1 = db.RemovalRequest(member_id=m1.id, broker_id=b.id, status=db.RequestStatus.submitted)
+        req2 = db.RemovalRequest(member_id=m2.id, broker_id=b.id, status=db.RequestStatus.submitted)
+        session.add_all([req1, req2]); session.flush()
+
+        log1 = db.EmailLog(request_id=req1.id, direction="received", subject="Conf 1", body_snippet="Token1", matched_key="key1")
+        log2 = db.EmailLog(request_id=req2.id, direction="received", subject="Conf 2", body_snippet="Token2", matched_key="key2")
+        unmatched = db.EmailLog(request_id=None, direction="received", subject="Spam", body_snippet="Unmatched", matched_key=None)
+        run = db.SchedulerRun(run_type="email_poll", status="done", emails_matched=2, errors=None)
+        session.add_all([log1, log2, unmatched, run]); session.commit()
+
+        app = FastAPI(); app.include_router(email_router.router)
+        app.dependency_overrides[db.get_db] = lambda: session
+        client = TestClient(app)
+        who = {"user": u1}
+        app.dependency_overrides[auth.get_current_user] = lambda: who["user"]
+
+        # Patron 1 sees ONLY log1
+        r1 = client.get("/api/email-monitor/logs")
+        assert r1.status_code == 200
+        logs1 = r1.json()
+        assert len(logs1) == 1
+        assert logs1[0]["subject"] == "Conf 1"
+        assert logs1[0]["member_name"] == "Member One"
+
+        # Patron 1 status totals only count Member One's matched emails and hides unmatched
+        st1 = client.get("/api/email-monitor/status").json()
+        assert st1["total_matched"] == 1
+        assert st1["total_unmatched"] == 0
+
+        # Patron 1 poll history is empty
+        assert client.get("/api/email-monitor/poll-history").json() == []
+
+        # Patron 2 sees ONLY log2
+        who["user"] = u2
+        r2 = client.get("/api/email-monitor/logs")
+        assert r2.status_code == 200
+        logs2 = r2.json()
+        assert len(logs2) == 1
+        assert logs2[0]["subject"] == "Conf 2"
+        assert logs2[0]["member_name"] == "Member Two"
+
+        # Admin sees all logs (log1, log2, unmatched) and poll history
+        who["user"] = admin
+        ra = client.get("/api/email-monitor/logs")
+        assert ra.status_code == 200
+        assert len(ra.json()) == 3
+        sta = client.get("/api/email-monitor/status").json()
+        assert sta["total_matched"] == 2
+        assert sta["total_unmatched"] == 1
+        assert len(client.get("/api/email-monitor/poll-history").json()) == 1
+    finally:
+        settings_store.load_settings = orig_load
+        session.close()
+
+
+
 @test(2, "access.migrates_plugin_upload_grants",
       "Users given the earlier per-user 'can upload plugins' switch become managers holding "
       "only plugins.upload, so nobody gains or loses access; the old switch is cleared.")
