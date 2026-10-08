@@ -868,6 +868,7 @@ function AuthProvidersSection() {
         institution_id: config.sip2_institution_id, ils_login: config.sip2_ils_login,
         email_domain: config.sip2_email_domain, default_role: config.sip2_default_role,
         eligibility_rules: config.sip2_eligibility_rules || null,
+        date_format: config.sip2_date_format || 'auto',
         ...(config._sip2_pw ? { ils_password: config._sip2_pw } : {}),
       })
       setSip2Msg({ ok: true, warnings: r.data.warnings || [] })
@@ -1082,6 +1083,19 @@ function AuthProvidersSection() {
                 <input type="number" min="3" max="30" value={config.sip2_timeout || 10}
                   onChange={e => setConfig(c => ({...c, sip2_timeout: parseInt(e.target.value)}))}
                   className={inp} />
+              </Field>
+              <Field label="ILS date format" hint="Format used by ILS for dates and birthdates (PA/PB)">
+                <select
+                  value={config.sip2_date_format || 'auto'}
+                  onChange={e => setConfig(c => ({...c, sip2_date_format: e.target.value}))}
+                  className={inp}
+                >
+                  <option value="auto">Auto-detect (3M SIP2 standard / ISO / US)</option>
+                  <option value="MM/DD/YYYY">Month / Day / Year (US — MM/DD/YYYY)</option>
+                  <option value="DD/MM/YYYY">Day / Month / Year (International — DD/MM/YYYY)</option>
+                  <option value="YYYYMMDD">Standard 3M SIP2 (YYYYMMDD)</option>
+                  <option value="YYYY-MM-DD">ISO 8601 (YYYY-MM-DD)</option>
+                </select>
               </Field>
             </div>
 

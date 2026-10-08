@@ -121,7 +121,9 @@ def evaluate_sso_login(result, provider_cfg: dict, registration_cfg: dict,
         raw_profile = getattr(result, "raw_profile", None)
         if elig_cfg and raw_profile is not None:
             from .sip2_rules import evaluate_sip2_eligibility
-            eligible, reason = evaluate_sip2_eligibility(elig_cfg, raw_profile)
+            eligible, reason = evaluate_sip2_eligibility(
+                elig_cfg, raw_profile, date_format=cfg.get("date_format", "auto")
+            )
             if not eligible:
                 return _deny(f"Your library account is not eligible to sign in: {reason}")
 

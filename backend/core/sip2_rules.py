@@ -17,30 +17,31 @@ from datetime import datetime, date
 from typing import Optional, List, Dict, Tuple, Any, Union
 
 
-def parse_patron_birthdate(raw_dob: str) -> Optional[date]:
+def parse_patron_birthdate(raw_dob: str, date_format: Optional[str] = "auto") -> Optional[date]:
     """
     Parse a birthdate string from SIP2 response field PA or PB.
-    Handles standard ILS formats:
-    - YYYYMMDD (e.g. 19950824)
-    - YYYY-MM-DD (e.g. 1995-08-24)
-    - MM/DD/YYYY (e.g. 08/24/1995)
-    - YYYY/MM/DD (e.g. 1995/08/24)
-    - DD/MM/YYYY (e.g. 24/08/1995)
-    - MM-DD-YYYY (e.g. 08-24-1995)
+    Handles standard and configured ILS date formats:
+    - 'auto' (default: checks YYYYMMDD, ISO, then falls back to MM/DD/YYYY unless day > 12)
+    - 'MM/DD/YYYY' (US: Month first)
+    - 'DD/MM/YYYY' (International / UK / EU: Day first)
+    - 'YYYYMMDD' (3M SIP2 standard 8-digit numeric)
+    - 'YYYY-MM-DD' (ISO 8601)
+    - 'YYYY/MM/DD'
     """
     if not raw_dob or not str(raw_dob).strip():
         return None
 
     clean = str(raw_dob).strip()
+    fmt = str(date_format or "auto").strip().upper()
 
-    # 1. YYYYMMDD (8 digits)
+    # 1. Standard 3M SIP2: YYYYMMDD (8 digits)
     if re.fullmatch(r"\d{8}", clean):
         try:
             return datetime.strptime(clean, "%Y%m%d").date()
         except ValueError:
             pass
 
-    # 2. YYYY-MM-DD or YYYY/MM/DD
+    # 2. ISO: YYYY-MM-DD or YYYY/MM/DD
     m_iso = re.fullmatch(r"(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})", clean)
     if m_iso:
         y, m, d = int(m_iso.group(1)), int(m_iso.group(2)), int(m_iso.group(3))
@@ -49,24 +50,58 @@ def parse_patron_birthdate(raw_dob: str) -> Optional[date]:
         except ValueError:
             pass
 
-    # 3. MM/DD/YYYY or DD/MM/YYYY
-    m_us = re.fullmatch(r"(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})", clean)
-    if m_us:
-        p1, p2, y = int(m_us.group(1)), int(m_us.group(2)), int(m_us.group(3))
-        # Try MM/DD/YYYY first
-        try:
-            return date(y, p1, p2)
-        except ValueError:
-            # Try DD/MM/YYYY
+    # 3. Delimited day & month: p1/p2/YYYY or p1-p2-YYYY
+    m_delim = re.fullmatch(r"(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})", clean)
+    if m_delim:
+        p1, p2, y = int(m_delim.group(1)), int(m_delim.group(2)), int(m_delim.group(3))
+
+        # Check if format specifies Day first (DD/MM/YYYY)
+        prefers_dd = fmt in ("DD/MM/YYYY", "DD-MM-YYYY", "DD.MM.YYYY", "INTERNATIONAL", "EU", "UK") or fmt.startswith("DD")
+        # Check if format specifies Month first (MM/DD/YYYY)
+        prefers_mm = fmt in ("MM/DD/YYYY", "MM-DD-YYYY", "MM.DD.YYYY", "US") or fmt.startswith("MM")
+
+        if prefers_dd:
+            # Day first: p1=day, p2=month
             try:
                 return date(y, p2, p1)
             except ValueError:
-                pass
+                try:
+                    return date(y, p1, p2)
+                except ValueError:
+                    pass
+        elif prefers_mm:
+            # Month first: p1=month, p2=day
+            try:
+                return date(y, p1, p2)
+            except ValueError:
+                try:
+                    return date(y, p2, p1)
+                except ValueError:
+                    pass
+        else:
+            # 'auto': If p1 > 12, it must be day -> DD/MM/YYYY
+            if p1 > 12:
+                try:
+                    return date(y, p2, p1)
+                except ValueError:
+                    pass
+            # Default to MM/DD/YYYY
+            try:
+                return date(y, p1, p2)
+            except ValueError:
+                try:
+                    return date(y, p2, p1)
+                except ValueError:
+                    pass
 
     return None
 
 
-def calculate_patron_age(raw_dob: Any, reference_date: Optional[date] = None) -> Optional[int]:
+def calculate_patron_age(
+    raw_dob: Any,
+    reference_date: Optional[date] = None,
+    date_format: Optional[str] = "auto"
+) -> Optional[int]:
     """
     Calculate real-time age in full years from a birthdate string or integer.
     If raw_dob is already a numeric age (e.g. "25" or 25), returns it directly.
@@ -81,7 +116,7 @@ def calculate_patron_age(raw_dob: Any, reference_date: Optional[date] = None) ->
     if re.fullmatch(r"\d{1,3}", clean) and int(clean) <= 130:
         return int(clean)
 
-    dob = parse_patron_birthdate(clean)
+    dob = parse_patron_birthdate(clean, date_format=date_format)
     if not dob:
         return None
 
@@ -153,7 +188,8 @@ def _resolve_profile_field(field_name: str, raw_profile: Dict[str, Any]) -> Tupl
 def evaluate_condition(
     condition: Dict[str, Any],
     raw_profile: Dict[str, Any],
-    reference_date: Optional[date] = None
+    reference_date: Optional[date] = None,
+    date_format: Optional[str] = "auto"
 ) -> Tuple[bool, str]:
     """
     Evaluate a single condition against a patron's SIP2 profile fields.
@@ -170,7 +206,8 @@ def evaluate_condition(
 
     # ── Age-specific evaluations ──
     if field_name.lower() in ("age", "birthdate", "dob"):
-        patron_age = calculate_patron_age(raw_val, reference_date=reference_date)
+        eff_fmt = condition.get("date_format") or date_format or "auto"
+        patron_age = calculate_patron_age(raw_val, reference_date=reference_date, date_format=eff_fmt)
         if patron_age is None:
             return False, f"Patron birthdate/age is missing or invalid in SIP2 field '{code}'"
 
@@ -254,7 +291,8 @@ def evaluate_condition(
 def evaluate_sip2_eligibility(
     rules_cfg: Optional[Union[Dict[str, Any], str]],
     raw_profile: Dict[str, Any],
-    reference_date: Optional[date] = None
+    reference_date: Optional[date] = None,
+    date_format: Optional[str] = None
 ) -> Tuple[bool, str]:
     """
     Recursively evaluate full SIP2 eligibility rule tree.
@@ -278,6 +316,7 @@ def evaluate_sip2_eligibility(
     if cfg.get("enabled") is False:
         return True, "SIP2 eligibility rules are disabled"
 
+    eff_date_format = date_format or cfg.get("date_format") or "auto"
     mode = str(cfg.get("mode", "all")).lower().strip()
     rule_items = cfg.get("rules", [])
     if not rule_items:
@@ -290,10 +329,14 @@ def evaluate_sip2_eligibility(
 
         # Nested rule group (contains its own 'rules' array)
         if "rules" in item:
-            sub_passed, sub_msg = evaluate_sip2_eligibility(item, raw_profile, reference_date=reference_date)
+            sub_passed, sub_msg = evaluate_sip2_eligibility(
+                item, raw_profile, reference_date=reference_date, date_format=eff_date_format
+            )
             results.append((sub_passed, f"Group [{item.get('mode', 'all')}]: {sub_msg}"))
         else:
-            passed, msg = evaluate_condition(item, raw_profile, reference_date=reference_date)
+            passed, msg = evaluate_condition(
+                item, raw_profile, reference_date=reference_date, date_format=eff_date_format
+            )
             results.append((passed, msg))
 
     if not results:

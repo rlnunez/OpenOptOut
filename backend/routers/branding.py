@@ -129,6 +129,7 @@ class AuthProviderConfig(BaseModel):
     sip2_password_set:  bool  = False
     sip2_timeout:       int   = 10
     sip2_eligibility_rules: Optional[Any] = None
+    sip2_date_format:   str   = "auto"
 
     # OIDC providers (google, microsoft, custom + any named)
     oidc_providers:     List[dict] = []
@@ -395,6 +396,7 @@ def get_auth_providers(user: Optional[User] = Depends(get_current_user_optional)
         sip2_password_set=bool(sip2.get("ils_password_enc")),
         sip2_timeout=sip2.get("timeout_seconds", 10),
         sip2_eligibility_rules=sip2.get("eligibility_rules"),
+        sip2_date_format=sip2.get("date_format", "auto"),
         oidc_providers=oidc_providers,
     )
 

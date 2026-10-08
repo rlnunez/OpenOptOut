@@ -146,6 +146,7 @@ class SIP2Connection(Base):
     enabled           = Column(Boolean, default=True, nullable=False)
     priority          = Column(Integer, default=10, nullable=False)
     eligibility_rules = Column(Text, default="", nullable=True)  # JSON-encoded rule tree
+    date_format       = Column(String(30), default="auto", nullable=True)  # 'auto', 'MM/DD/YYYY', 'DD/MM/YYYY', 'YYYYMMDD', 'YYYY-MM-DD'
     created_at        = Column(DateTime, default=datetime.utcnow)
 
     system = relationship("LibrarySystem", back_populates="sip2_connections")

@@ -2814,6 +2814,22 @@ def t_sip2_dob_and_age():
     # Birthday was yesterday: Oct 7, 2000 is 26 on Oct 8, 2026
     assert rules_mod.calculate_patron_age("2000-10-07", reference_date=ref) == 26
 
+    # Ambiguous date resolution: 10/07/2000 (Oct 7 vs July 10)
+    # MM/DD/YYYY -> October 7, 2000
+    d_us = rules_mod.parse_patron_birthdate("10/07/2000", date_format="MM/DD/YYYY")
+    assert d_us == date(2000, 10, 7), f"expected Oct 7, got {d_us}"
+
+    # DD/MM/YYYY -> July 10, 2000
+    d_intl = rules_mod.parse_patron_birthdate("10/07/2000", date_format="DD/MM/YYYY")
+    assert d_intl == date(2000, 7, 10), f"expected July 10, got {d_intl}"
+
+    # Verify age differences for intermediate reference dates (e.g. Aug 1, 2026):
+    ref_aug = date(2026, 8, 1)
+    # With US format (born Oct 7), hasn't had 26th birthday yet in Aug 2026 -> age 25
+    assert rules_mod.calculate_patron_age("10/07/2000", reference_date=ref_aug, date_format="MM/DD/YYYY") == 25
+    # With International format (born July 10), already had 26th birthday in July 2026 -> age 26
+    assert rules_mod.calculate_patron_age("10/07/2000", reference_date=ref_aug, date_format="DD/MM/YYYY") == 26
+
     # Numeric age fallback
     assert rules_mod.calculate_patron_age("42") == 42
     assert rules_mod.calculate_patron_age(19) == 19

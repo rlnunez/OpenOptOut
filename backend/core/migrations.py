@@ -108,6 +108,10 @@ MIGRATIONS = [
         "Add eligibility_rules to sip2_connections",
         "ALTER TABLE sip2_connections ADD COLUMN eligibility_rules TEXT DEFAULT ''"
     ),
+    (
+        "Add date_format to sip2_connections",
+        "ALTER TABLE sip2_connections ADD COLUMN date_format VARCHAR(30) DEFAULT 'auto'"
+    ),
 ]
 
 # Known property brokers — flagged on first startup

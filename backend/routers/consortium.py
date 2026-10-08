@@ -98,6 +98,7 @@ class SIP2ConnectionCreate(BaseModel):
     enabled: bool = True
     priority: int = 10
     eligibility_rules: Optional[Any] = None
+    date_format: str = "auto"
 
 
 class SIP2ConnectionUpdate(BaseModel):
@@ -119,6 +120,7 @@ class SIP2ConnectionUpdate(BaseModel):
     enabled: Optional[bool] = None
     priority: Optional[int] = None
     eligibility_rules: Optional[Any] = None
+    date_format: Optional[str] = None
 
 
 class SIP2ConnectionOut(BaseModel):
@@ -142,6 +144,7 @@ class SIP2ConnectionOut(BaseModel):
     enabled: bool
     priority: int
     eligibility_rules: Optional[Any] = None
+    date_format: str = "auto"
     created_at: datetime
 
     class Config:
@@ -465,6 +468,7 @@ def list_sip2_connections(
             timeout_seconds=c.timeout_seconds, enabled=c.enabled,
             priority=c.priority,
             eligibility_rules=_parse_eligibility_rules(c.eligibility_rules),
+            date_format=c.date_format or "auto",
             created_at=c.created_at,
         )
         for c in conns
@@ -510,6 +514,7 @@ def create_sip2_connection(
         enabled=data.enabled,
         priority=data.priority,
         eligibility_rules=elig_str,
+        date_format=(data.date_format or "auto").strip(),
     )
     db.add(c)
     db.commit()
@@ -526,6 +531,7 @@ def create_sip2_connection(
         timeout_seconds=c.timeout_seconds, enabled=c.enabled,
         priority=c.priority,
         eligibility_rules=data.eligibility_rules,
+        date_format=c.date_format or "auto",
         created_at=c.created_at,
     )
 
@@ -579,6 +585,8 @@ def update_sip2_connection(
         if not valid:
             raise HTTPException(400, f"Invalid eligibility rules: {err}")
         c.eligibility_rules = json.dumps(data.eligibility_rules) if isinstance(data.eligibility_rules, (dict, list)) else str(data.eligibility_rules)
+    if data.date_format is not None:
+        c.date_format = data.date_format.strip()
 
     db.commit()
     db.refresh(c)
@@ -594,6 +602,7 @@ def update_sip2_connection(
         timeout_seconds=c.timeout_seconds, enabled=c.enabled,
         priority=c.priority,
         eligibility_rules=_parse_eligibility_rules(c.eligibility_rules),
+        date_format=c.date_format or "auto",
         created_at=c.created_at,
     )
 
