@@ -9,7 +9,8 @@ User administration:
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, field_validator
-from typing import Optional, List
+import json
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 from ..models.database import get_db, User, FamilyMember, ProfileAccess, UserRole
@@ -36,6 +37,8 @@ class UserOut(BaseModel):
     managing_count: int = 0
     managed_by_count: int = 0
     preferred_language: str = "en"
+    mfa_options_override: Optional[Dict[str, bool]] = None
+    allowed_mfa_methods: Dict[str, bool] = {}
 
     class Config:
         from_attributes = True
@@ -55,6 +58,7 @@ class UpdateUserRequest(BaseModel):
     role: Optional[str] = None
     password: Optional[str] = None   # set to grant/change login
     unified_view: Optional[bool] = None
+    mfa_options_override: Optional[Dict[str, bool]] = None
 
     _validate_password = field_validator("password")(validate_password_length)
 
@@ -97,7 +101,14 @@ _PRIVILEGED = (UserRole.super_admin, UserRole.manager)
 
 
 def _user_out(u: User) -> UserOut:
+    from ..core import mfa
     granted, revoked = access.user_overrides(u)
+    override = None
+    if u.mfa_options_override:
+        try:
+            override = json.loads(u.mfa_options_override)
+        except Exception:
+            override = None
     return UserOut(
         id=u.id, full_name=u.full_name, email=u.email, role=u.role,
         can_login=u.can_login, unified_view=u.unified_view, created_at=u.created_at,
@@ -105,6 +116,8 @@ def _user_out(u: User) -> UserOut:
         permissions=access.effective_permissions(u),
         permissions_granted=granted if u.is_manager else [],
         permissions_revoked=revoked if u.is_manager else [],
+        mfa_options_override=override,
+        allowed_mfa_methods=mfa.get_user_allowed_mfa_methods(u),
     )
 
 
@@ -193,6 +206,20 @@ def update_user(
 
     if req.unified_view is not None:
         user.unified_view = req.unified_view
+
+    if req.mfa_options_override is not None:
+        if not current_user.is_super_admin:
+            raise HTTPException(403, "Only a super admin can configure per-user MFA method overrides.")
+        if not req.mfa_options_override:
+            user.mfa_options_override = None
+        else:
+            user_role_str = getattr(user.role, "value", str(user.role))
+            if user_role_str in ("super_admin", "manager"):
+                totp_on = req.mfa_options_override.get("totp", False)
+                webauthn_on = req.mfa_options_override.get("webauthn", False)
+                if not totp_on and not webauthn_on:
+                    raise HTTPException(400, f"Cannot disable all MFA methods for administrative role '{user_role_str}'.")
+            user.mfa_options_override = json.dumps(req.mfa_options_override)
 
     db.commit()
     db.refresh(user)

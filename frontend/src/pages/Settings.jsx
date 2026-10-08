@@ -3,10 +3,12 @@ import {
   Palette, Mail, CalendarClock, Database, AlertTriangle, Shield, Bot, Info, Globe, Lock,
   Check, X, RefreshCw, TestTube, Eye, EyeOff, ChevronDown,
   Download, Trash2, Upload, Sun, Moon, Monitor, Play, Pause,
-  Clock, Zap, RotateCcw, Users, Puzzle, Ban, ShieldCheck, Star, Plus
+  Clock, Zap, RotateCcw, Users, Puzzle, Ban, ShieldCheck, Star, Plus,
+  Key, Smartphone, Fingerprint, ShieldAlert, Copy
 } from 'lucide-react'
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
+import { performWebAuthnRegister } from '../utils/webauthn'
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500"
@@ -1529,6 +1531,856 @@ function ProxySection({ userRole }) {
   )
 }
 
+// ── Multi-Factor Authentication (MFA) Section ──────────────────────────────
+
+function MfaAccountSection({ user }) {
+  const [status, setStatus] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  // TOTP setup
+  const [showTotpSetup, setShowTotpSetup] = useState(false)
+  const [totpData, setTotpData] = useState(null)
+  const [totpCode, setTotpCode] = useState('')
+  const [totpSubmitting, setTotpSubmitting] = useState(false)
+  const [copiedSecret, setCopiedSecret] = useState(false)
+
+  // TOTP disable
+  const [showTotpDisable, setShowTotpDisable] = useState(false)
+  const [disablePassword, setDisablePassword] = useState('')
+  const [disableSubmitting, setDisableSubmitting] = useState(false)
+
+  // WebAuthn register
+  const [showAddKey, setShowAddKey] = useState(false)
+  const [keyName, setKeyName] = useState('Primary Security Key')
+  const [keySubmitting, setKeySubmitting] = useState(false)
+
+  // Backup codes modal
+  const [showBackupCodes, setShowBackupCodes] = useState(false)
+  const [backupCodesList, setBackupCodesList] = useState([])
+  const [copiedCodes, setCopiedCodes] = useState(false)
+
+  const loadStatus = async () => {
+    try {
+      const { data } = await api.get('/auth/mfa/status')
+      setStatus(data)
+    } catch {
+      // User might be unauthenticated or non-local
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { loadStatus() }, [])
+
+  const startTotpSetup = async () => {
+    setError(''); setSuccess(''); setTotpSubmitting(true)
+    try {
+      const { data } = await api.post('/auth/mfa/totp/setup')
+      setTotpData(data)
+      setShowTotpSetup(true)
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to start authenticator setup')
+    } finally {
+      setTotpSubmitting(false)
+    }
+  }
+
+  const activateTotp = async e => {
+    e?.preventDefault()
+    if (!totpCode.trim()) return
+    setError(''); setSuccess(''); setTotpSubmitting(true)
+    try {
+      const { data } = await api.post('/auth/mfa/totp/activate', {
+        secret: totpData?.secret,
+        code: totpCode.trim(),
+        backup_codes: totpData?.backup_codes || [],
+      })
+      setShowTotpSetup(false)
+      setTotpCode('')
+      setSuccess('Authenticator app enabled successfully!')
+      if (data.backup_codes?.length) {
+        setBackupCodesList(data.backup_codes)
+        setShowBackupCodes(true)
+      }
+      loadStatus()
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Invalid verification code')
+    } finally {
+      setTotpSubmitting(false)
+    }
+  }
+
+  const disableTotp = async e => {
+    e?.preventDefault()
+    if (!disablePassword) return
+    setError(''); setSuccess(''); setDisableSubmitting(true)
+    try {
+      await api.post('/auth/mfa/totp/disable', { password: disablePassword })
+      setShowTotpDisable(false)
+      setDisablePassword('')
+      setSuccess('Authenticator app removed.')
+      loadStatus()
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to disable authenticator. Check your password.')
+    } finally {
+      setDisableSubmitting(false)
+    }
+  }
+
+  const registerSecurityKey = async () => {
+    setError(''); setSuccess(''); setKeySubmitting(true)
+    try {
+      const { data: optData } = await api.post('/auth/mfa/webauthn/register-options')
+      const credential = await performWebAuthnRegister(optData.options)
+      const { data: regData } = await api.post('/auth/mfa/webauthn/register', {
+        credential,
+        key_name: keyName.trim() || 'Primary Security Key',
+      })
+      setShowAddKey(false)
+      setKeyName('Primary Security Key')
+      setSuccess('Security key registered successfully!')
+      if (regData.backup_codes?.length) {
+        setBackupCodesList(regData.backup_codes)
+        setShowBackupCodes(true)
+      }
+      loadStatus()
+    } catch (err) {
+      if (err.name === 'NotAllowedError') {
+        setError('Security key interaction was cancelled or timed out.')
+      } else {
+        setError(err.response?.data?.detail || err.message || 'Failed to register security key.')
+      }
+    } finally {
+      setKeySubmitting(false)
+    }
+  }
+
+  const deleteKey = async (keyId, keyLabel) => {
+    if (!confirm(`Remove security key "${keyLabel}"?`)) return
+    setError(''); setSuccess('')
+    try {
+      await api.delete(`/auth/mfa/webauthn/${keyId}`)
+      setSuccess(`Removed security key "${keyLabel}".`)
+      loadStatus()
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to remove security key.')
+    }
+  }
+
+  const copyCodes = () => {
+    navigator.clipboard.writeText(backupCodesList.join('\n'))
+    setCopiedCodes(true)
+    setTimeout(() => setCopiedCodes(false), 2000)
+  }
+
+  const copySecret = (text) => {
+    navigator.clipboard.writeText(text)
+    setCopiedSecret(true)
+    setTimeout(() => setCopiedSecret(false), 2000)
+  }
+
+  if (loading) return null
+
+  const isMandatedRole = ['super_admin', 'manager'].includes(user?.role)
+  const hasMfa = status?.totp_enabled || (status?.webauthn_keys?.length || 0) > 0
+
+  return (
+    <Section
+      icon={ShieldCheck}
+      title="Two-Factor Authentication (MFA)"
+      description="Protect your account with TOTP authenticator apps or FIDO2 security keys (YubiKey / Mac Touch ID / iPhone Face ID / Android)"
+      userRole={user?.role}
+    >
+      {/* Notifications */}
+      {error && (
+        <div className="px-3 py-2 bg-red-900/30 border border-red-800 rounded-lg text-red-400 text-xs">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="px-3 py-2 bg-emerald-900/30 border border-emerald-800 rounded-lg text-emerald-400 text-xs flex items-center gap-1.5">
+          <Check size={13} /> {success}
+        </div>
+      )}
+
+      {/* Mandate Policy Status Badge */}
+      {isMandatedRole && (
+        <div className={`p-3 rounded-lg border flex items-start gap-2.5 text-xs ${
+          status?.mfa_mandated
+            ? (hasMfa ? 'bg-emerald-950/20 border-emerald-800/60 text-emerald-300' : 'bg-amber-950/30 border-amber-800 text-amber-300')
+            : 'bg-slate-900 border-slate-700/60 text-slate-400'
+        }`}>
+          {status?.mfa_mandated ? (
+            hasMfa ? <ShieldCheck size={15} className="text-emerald-400 shrink-0 mt-0.5" /> : <ShieldAlert size={15} className="text-amber-400 shrink-0 mt-0.5" />
+          ) : (
+            <Clock size={15} className="text-slate-400 shrink-0 mt-0.5" />
+          )}
+          <div>
+            <p className="font-medium">
+              {status?.mfa_mandated
+                ? (hasMfa ? 'Administrative Mandate: Compliant' : 'Administrative Mandate: Action Required')
+                : `Administrative Grace Period Active (${status?.days_until_mandate ?? 3} days remaining)`}
+            </p>
+            <p className="text-[11px] mt-0.5 opacity-80">
+              {status?.mfa_mandated
+                ? 'Multi-Factor Authentication is mandated for local Super Admin and Admin accounts 3 days after system install.'
+                : 'MFA will become mandatory for local administrative accounts 3 days after install. Configure at least one factor to prevent login restrictions.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── 1. TOTP Authenticator Card ── */}
+      <div className="p-3.5 bg-slate-900/70 border border-slate-700/60 rounded-xl space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-slate-800 text-shield-400 rounded-lg">
+              <Smartphone size={16} />
+            </div>
+            <div>
+              <p className="text-slate-200 text-sm font-medium">Authenticator App (TOTP)</p>
+              <p className="text-slate-500 text-xs">Google Authenticator, Yubico Authenticator, 1Password, Bitwarden</p>
+            </div>
+          </div>
+          <span className={`text-xs px-2 py-0.5 rounded border ${
+            status?.totp_enabled
+              ? 'text-emerald-400 border-emerald-800 bg-emerald-900/20'
+              : 'text-slate-500 border-slate-700 bg-slate-800/50'
+          }`}>
+            {status?.totp_enabled ? 'Enabled' : 'Not configured'}
+          </span>
+        </div>
+
+        {/* Action Buttons */}
+        {!showTotpSetup && !showTotpDisable && (
+          <div className="flex gap-2 justify-end pt-1">
+            {status?.totp_enabled ? (
+              <>
+                <button
+                  type="button"
+                  onClick={startTotpSetup}
+                  disabled={totpSubmitting}
+                  className="px-3 py-1.5 text-xs text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
+                  Reconfigure
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowTotpDisable(true)}
+                  className="px-3 py-1.5 text-xs text-red-400 border border-red-900/50 rounded-lg hover:bg-red-950/30 transition-colors">
+                  Disable
+                </button>
+              </>
+            ) : status?.allowed_methods?.totp === false ? (
+              <span className="text-xs text-amber-400 bg-amber-950/40 border border-amber-800/60 px-2.5 py-1 rounded-md">
+                Disabled by institutional policy
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={startTotpSetup}
+                disabled={totpSubmitting}
+                className="px-3 py-1.5 text-xs text-white bg-shield-600 hover:bg-shield-700 rounded-lg transition-colors flex items-center gap-1.5">
+                {totpSubmitting ? <RefreshCw size={12} className="animate-spin" /> : <Plus size={12} />}
+                Set up Authenticator
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* TOTP Setup Form */}
+        {showTotpSetup && totpData && (
+          <div className="p-3 bg-slate-800/90 border border-slate-700 rounded-lg space-y-3 mt-2">
+            <div>
+              <label className={labelCls}>Secret Key (Base32)</label>
+              <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg p-2 font-mono text-xs text-shield-300">
+                <span className="truncate flex-1 tracking-wider">{totpData.secret}</span>
+                <button
+                  type="button"
+                  onClick={() => copySecret(totpData.secret)}
+                  className="text-slate-400 hover:text-white shrink-0">
+                  {copiedSecret ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                </button>
+              </div>
+              <p className="text-slate-500 text-[11px] mt-1">
+                Enter this key manually in your authenticator app, or import the otpauth URI.
+              </p>
+            </div>
+
+            <form onSubmit={activateTotp} className="space-y-3">
+              <div>
+                <label className={labelCls}>Enter 6-digit verification code</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={totpCode}
+                  onChange={e => setTotpCode(e.target.value)}
+                  className={`${inp} text-center font-mono tracking-widest text-base w-40`}
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => { setShowTotpSetup(false); setTotpCode('') }}
+                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={totpSubmitting || totpCode.trim().length < 6}
+                  className="px-3.5 py-1.5 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-colors">
+                  {totpSubmitting ? 'Verifying…' : 'Verify & Enable'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* TOTP Disable Form */}
+        {showTotpDisable && (
+          <form onSubmit={disableTotp} className="p-3 bg-slate-800/90 border border-slate-700 rounded-lg space-y-3 mt-2">
+            <p className="text-slate-300 text-xs">Enter your account password to disable the authenticator app:</p>
+            <input
+              type="password"
+              placeholder="Your password"
+              value={disablePassword}
+              onChange={e => setDisablePassword(e.target.value)}
+              className={inp}
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => { setShowTotpDisable(false); setDisablePassword('') }}
+                className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={disableSubmitting || !disablePassword}
+                className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-colors">
+                {disableSubmitting ? 'Removing…' : 'Confirm Disable'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+
+      {/* ── 2. Hardware Security Keys & WebAuthn Card ── */}
+      <div className="p-3.5 bg-slate-900/70 border border-slate-700/60 rounded-xl space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-slate-800 text-emerald-400 rounded-lg">
+              <Fingerprint size={16} />
+            </div>
+            <div>
+              <p className="text-slate-200 text-sm font-medium">Security Keys & Platform Biometrics</p>
+              <p className="text-slate-500 text-xs">FIDO2 / WebAuthn: YubiKey, Google Titan, Mac Touch ID, and iPhone / Android (Face ID via QR code)</p>
+            </div>
+          </div>
+          <span className={`text-xs px-2 py-0.5 rounded border ${
+            (status?.webauthn_keys?.length || 0) > 0
+              ? 'text-emerald-400 border-emerald-800 bg-emerald-900/20'
+              : 'text-slate-500 border-slate-700 bg-slate-800/50'
+          }`}>
+            {status?.webauthn_keys?.length || 0} registered
+          </span>
+        </div>
+
+        {/* Enrolled Keys List */}
+        {status?.webauthn_keys?.length > 0 && (
+          <div className="space-y-2 pt-1">
+            {status.webauthn_keys.map(k => (
+              <div key={k.id} className="flex items-center justify-between p-2.5 bg-slate-800/80 border border-slate-700/70 rounded-lg text-xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Key size={13} className="text-slate-400 shrink-0" />
+                  <span className="text-slate-200 font-medium truncate">{k.name}</span>
+                  {k.fips_certified && (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-900/40 border border-purple-700 text-purple-300 shrink-0">
+                      FIPS 140-2 / 140-3
+                    </span>
+                  )}
+                  <span className="text-slate-500 text-[11px] shrink-0">
+                    Added {k.created_at ? new Date(k.created_at).toLocaleDateString() : 'recently'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => deleteKey(k.id, k.name)}
+                  className="text-slate-500 hover:text-red-400 transition-colors p-1"
+                  title="Remove security key">
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Add Key Form / Trigger */}
+        {!showAddKey ? (
+          <div className="flex justify-end pt-1">
+            {status?.allowed_methods?.webauthn === false ? (
+              <span className="text-xs text-amber-400 bg-amber-950/40 border border-amber-800/60 px-2.5 py-1 rounded-md">
+                Disabled by institutional policy
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAddKey(true)}
+                className="px-3 py-1.5 text-xs text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center gap-1.5">
+                <Plus size={12} /> Add Key / Touch ID / Phone
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="p-3 bg-slate-800/90 border border-slate-700 rounded-lg space-y-3 mt-2">
+            <div>
+              <label className={labelCls}>Key or Device Name</label>
+              <input
+                type="text"
+                placeholder="e.g. Work YubiKey 5C, MacBook Touch ID, or Personal iPhone"
+                value={keyName}
+                onChange={e => setKeyName(e.target.value)}
+                className={inp}
+                autoFocus
+              />
+            </div>
+            <p className="text-slate-400 text-xs">
+              When you click Register, your browser will ask you to touch your YubiKey, use Mac Touch ID, or scan the on-screen QR code with your iPhone (Face ID) or Android device.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => { setShowAddKey(false); setKeyName('Primary Security Key') }}
+                className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={registerSecurityKey}
+                disabled={keySubmitting}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5">
+                {keySubmitting ? <RefreshCw size={12} className="animate-spin" /> : <Fingerprint size={12} />}
+                {keySubmitting ? 'Waiting for touch or phone scan…' : 'Register Key / Touch ID / Phone'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── 3. Backup Recovery Codes Info ── */}
+      {hasMfa && (
+        <div className="p-3 bg-slate-900/40 border border-slate-800 rounded-xl flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <Key size={14} className="text-slate-400" />
+            <span className="text-slate-300">Backup Recovery Codes</span>
+            <span className="text-slate-500">— {status?.backup_codes_remaining ?? 0} codes remaining</span>
+          </div>
+          <span className="text-slate-500 text-[11px]">
+            Single-use offline emergency access
+          </span>
+        </div>
+      )}
+
+      {/* Backup Codes Display Modal */}
+      {showBackupCodes && (
+        <div className="p-4 bg-slate-950 border border-emerald-800/80 rounded-xl space-y-3 mt-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-semibold">
+              <Check size={14} /> New Backup Recovery Codes Generated
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowBackupCodes(false)}
+              className="text-slate-500 hover:text-slate-300">
+              <X size={14} />
+            </button>
+          </div>
+          <p className="text-slate-400 text-xs">
+            Save these codes in a secure location (such as a password manager). If you lose access to your primary authenticator, each code can be used once to access your account.
+          </p>
+          <div className="grid grid-cols-2 gap-1.5 bg-slate-900 p-3 rounded-lg font-mono text-xs text-slate-200 text-center border border-slate-800">
+            {backupCodesList.map((code, idx) => (
+              <span key={idx} className="py-0.5">{code}</span>
+            ))}
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={copyCodes}
+              className="px-3 py-1.5 border border-slate-700 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors">
+              {copiedCodes ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+              {copiedCodes ? 'Copied to Clipboard' : 'Copy All Codes'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowBackupCodes(false)}
+              className="px-3.5 py-1.5 bg-shield-600 hover:bg-shield-700 text-white rounded-lg text-xs font-medium transition-colors">
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+    </Section>
+  )
+}
+
+
+// ── Institutional WebAuthn & MFA Policy Section (Super Admin) ─────────────
+
+function WebAuthnPolicySection({ userRole }) {
+  const isAdmin = userRole === 'super_admin'
+  const [config, setConfig] = useState({
+    authenticator_attachment: 'any',
+    user_verification: 'preferred',
+    fips_only: false,
+    rp_name: 'OpenOptOut',
+    rp_id: null,
+  })
+  const [mfaRoles, setMfaRoles] = useState({
+    super_admin: { totp: true, webauthn: true, backup_codes: true },
+    manager:     { totp: true, webauthn: true, backup_codes: true },
+    parent:      { totp: true, webauthn: true, backup_codes: true },
+    member:      { totp: true, webauthn: true, backup_codes: true },
+  })
+  const [mfaCompliance, setMfaCompliance] = useState({
+    super_admin: { enabled: true, value: 3, unit: 'days' },
+    manager:     { enabled: true, value: 3, unit: 'days' },
+    parent:      { enabled: false, value: 7, unit: 'days' },
+    member:      { enabled: false, value: 7, unit: 'days' },
+  })
+  const [descriptions, setDescriptions] = useState({})
+  const [policyError, setPolicyError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const load = () => {
+    api.get('/settings/security/webauthn').then(r => {
+      if (r.data.config) setConfig(r.data.config)
+      if (r.data.descriptions) setDescriptions(r.data.descriptions)
+    }).catch(() => {})
+
+    api.get('/settings/security/mfa-policy').then(r => {
+      if (r.data.roles) setMfaRoles(r.data.roles)
+      if (r.data.compliance) setMfaCompliance(r.data.compliance)
+    }).catch(() => {})
+  }
+
+  useEffect(() => { if (isAdmin) load() }, [isAdmin])
+
+  if (!isAdmin) return null
+
+  const save = async () => {
+    // Invariant: administrative accounts must keep at least one method enabled
+    if (!mfaRoles.super_admin?.totp && !mfaRoles.super_admin?.webauthn) {
+      setPolicyError("Super Admin role must retain at least one active MFA method (TOTP or Security Key) to prevent lockout.")
+      return
+    }
+    if (!mfaRoles.manager?.totp && !mfaRoles.manager?.webauthn) {
+      setPolicyError("Manager role must retain at least one active MFA method (TOTP or Security Key) to prevent lockout.")
+      return
+    }
+
+    setSaving(true); setPolicyError('')
+    try {
+      await Promise.all([
+        api.patch('/settings/security/webauthn', config),
+        api.patch('/settings/security/mfa-policy', { roles: mfaRoles, compliance: mfaCompliance }),
+      ])
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setPolicyError(err.response?.data?.detail || 'Failed to save security policy.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Section
+      icon={Key}
+      title="Institutional MFA & Hardware Security Key Policy"
+      description="Configure allowed MFA methods, post-creation compliance timers per permissions group, and FIPS compliance"
+      adminOnly
+      userRole={userRole}
+    >
+      {/* ── 1. Role-Based MFA Methods & Compliance Policy ── */}
+      <div className="space-y-2 pb-2">
+        <label className={labelCls}>Permissions Group MFA Methods & Compliance Timers</label>
+        <p className="text-slate-400 text-xs">
+          Enable or restrict specific MFA options and set compliance timers for local accounts based on time elapsed since account creation. If a user does not complete setup in time, they will be required to enroll upon login.
+        </p>
+
+        {policyError && (
+          <div className="p-3 bg-red-950/30 border border-red-800/80 rounded-lg text-xs text-red-300">
+            {policyError}
+          </div>
+        )}
+
+        <div className="overflow-x-auto rounded-lg border border-slate-700/80 bg-slate-900/60 mt-2">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-slate-700/80 text-slate-400 bg-slate-800/50">
+                <th className="py-2.5 px-3 font-medium">Permissions Group</th>
+                <th className="py-2.5 px-2 font-medium text-center">TOTP</th>
+                <th className="py-2.5 px-2 font-medium text-center">FIDO2 / Keys</th>
+                <th className="py-2.5 px-2 font-medium text-center">Backup Codes</th>
+                <th className="py-2.5 px-3 font-medium">Compliance Timer (Post-Creation)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/80 text-slate-300">
+              {[
+                { key: 'super_admin', label: 'Super Admin', desc: 'Full institutional administrator' },
+                { key: 'manager',     label: 'Manager / Admin', desc: 'Staff managers & unit administrators' },
+                { key: 'parent',      label: 'Parent', desc: 'Account holder managing family members' },
+                { key: 'member',      label: 'Member', desc: 'Standard managed member account' },
+              ].map(r => {
+                const roleCfg = mfaRoles[r.key] || { totp: true, webauthn: true, backup_codes: true }
+                const comp = mfaCompliance[r.key] || { enabled: false, value: 3, unit: 'days' }
+                return (
+                  <tr key={r.key} className="hover:bg-slate-800/30 transition-colors">
+                    <td className="py-2.5 px-3">
+                      <p className="font-medium text-white">{r.label}</p>
+                      <p className="text-slate-500 text-[11px]">{r.desc}</p>
+                    </td>
+                    <td className="py-2.5 px-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={!!roleCfg.totp}
+                        onChange={e => {
+                          setPolicyError('')
+                          setMfaRoles(prev => ({
+                            ...prev,
+                            [r.key]: { ...(prev[r.key] || {}), totp: e.target.checked }
+                          }))
+                        }}
+                        className="rounded border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-4 h-4 cursor-pointer"
+                        title="Allow TOTP"
+                      />
+                    </td>
+                    <td className="py-2.5 px-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={!!roleCfg.webauthn}
+                        onChange={e => {
+                          setPolicyError('')
+                          setMfaRoles(prev => ({
+                            ...prev,
+                            [r.key]: { ...(prev[r.key] || {}), webauthn: e.target.checked }
+                          }))
+                        }}
+                        className="rounded border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-4 h-4 cursor-pointer"
+                        title="Allow FIDO2 / WebAuthn"
+                      />
+                    </td>
+                    <td className="py-2.5 px-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={!!roleCfg.backup_codes}
+                        onChange={e => {
+                          setPolicyError('')
+                          setMfaRoles(prev => ({
+                            ...prev,
+                            [r.key]: { ...(prev[r.key] || {}), backup_codes: e.target.checked }
+                          }))
+                        }}
+                        className="rounded border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-4 h-4 cursor-pointer"
+                        title="Allow Backup Codes"
+                      />
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={!!comp.enabled}
+                            onChange={e => {
+                              setPolicyError('')
+                              setMfaCompliance(prev => ({
+                                ...prev,
+                                [r.key]: { ...(prev[r.key] || {}), enabled: e.target.checked }
+                              }))
+                            }}
+                            className="rounded border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-3.5 h-3.5 cursor-pointer"
+                          />
+                          <span className="text-[11px] text-slate-400">Mandate</span>
+                        </label>
+                        {comp.enabled && (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="1"
+                              max="99"
+                              value={comp.value ?? 3}
+                              onChange={e => {
+                                setPolicyError('')
+                                const raw = parseInt(e.target.value, 10)
+                                const clamped = isNaN(raw) ? 1 : Math.max(1, Math.min(99, raw))
+                                setMfaCompliance(prev => ({
+                                  ...prev,
+                                  [r.key]: { ...(prev[r.key] || {}), value: clamped }
+                                }))
+                              }}
+                              className="w-12 px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-100 font-mono text-xs text-center focus:outline-none focus:border-shield-500"
+                            />
+                            <select
+                              value={comp.unit || 'days'}
+                              onChange={e => {
+                                setPolicyError('')
+                                setMfaCompliance(prev => ({
+                                  ...prev,
+                                  [r.key]: { ...(prev[r.key] || {}), unit: e.target.value }
+                                }))
+                              }}
+                              className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs focus:outline-none focus:border-shield-500">
+                              <option value="hours">Hours</option>
+                              <option value="days">Days</option>
+                              <option value="weeks">Weeks</option>
+                            </select>
+                          </div>
+                        )}
+                        {!comp.enabled && (
+                          <span className="text-[11px] text-slate-500">Optional</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-slate-500 text-[11px] pt-1">
+          💡 Timer applies to local accounts from their creation timestamp. Once the timer elapses, users must enroll before accessing their dashboard.
+        </p>
+      </div>
+
+      {/* 2. Authenticator Attachment */}
+      <Field
+        label="Allowed Authenticator Types"
+        hint="Choose whether administrators can enroll external security keys, platform biometrics, or both."
+      >
+        <div className="relative">
+          <select
+            value={config.authenticator_attachment || 'any'}
+            onChange={e => setConfig(c => ({ ...c, authenticator_attachment: e.target.value }))}
+            className={inp + ' appearance-none pr-7'}
+          >
+            <option value="any">Any Authenticator (External Keys + Mac Touch ID + iPhone/Android QR scan) — Recommended</option>
+            <option value="cross-platform">External Hardware Keys Only (YubiKey / Titan)</option>
+            <option value="platform">Built-in Platform Biometrics Only (Mac Touch ID / Windows Hello)</option>
+          </select>
+          <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+        </div>
+      </Field>
+
+      {/* Contextual support warning/explanation for Authenticator Attachment */}
+      <div className={`p-3 rounded-lg border text-xs ${
+        config.authenticator_attachment === 'any'
+          ? 'bg-blue-900/10 border-blue-800/60 text-blue-300'
+          : 'bg-amber-900/15 border-amber-800/80 text-amber-300'
+      }`}>
+        <p className="font-semibold mb-0.5">
+          {config.authenticator_attachment === 'any' ? 'Broad Compatibility (Recommended)' : 'Service Support & Restriction Notice'}
+        </p>
+        <p className="opacity-90">
+          {config.authenticator_attachment === 'any' && (
+            descriptions?.authenticator_attachment?.any ||
+            "Allows both roaming USB/NFC hardware security keys (YubiKey, Titan) and built-in platform authenticators (Apple Touch ID, Windows Hello). Staff on any device can enroll their preferred hardware factor."
+          )}
+          {config.authenticator_attachment === 'cross-platform' && (
+            descriptions?.authenticator_attachment?.cross-platform ||
+            "Requires external roaming hardware keys. Restricts built-in platform authenticators like Mac Touch ID. If selected, staff on laptops without a physical USB/NFC key cannot enroll biometrics."
+          )}
+          {config.authenticator_attachment === 'platform' && (
+            descriptions?.authenticator_attachment?.platform ||
+            "Requires built-in device biometrics (Apple Touch ID, Windows Hello). Restricts external USB/NFC security keys. If selected, staff using desktop workstations or external keyboards without built-in sensors cannot enroll."
+          )}
+        </p>
+      </div>
+
+      {/* 2. User Verification */}
+      <Field
+        label="User Verification Requirement"
+        hint="Specifies whether PIN or biometric verification is required when authenticating with a security key."
+      >
+        <div className="relative">
+          <select
+            value={config.user_verification || 'preferred'}
+            onChange={e => setConfig(c => ({ ...c, user_verification: e.target.value }))}
+            className={inp + ' appearance-none pr-7'}
+          >
+            <option value="preferred">Preferred (PIN / Biometric asked if supported) — Recommended</option>
+            <option value="required">Strictly Required (Mandatory PIN or Fingerprint / Touch ID)</option>
+            <option value="discouraged">Discouraged (Capacitive presence touch only, no PIN)</option>
+          </select>
+          <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+        </div>
+      </Field>
+
+      {/* Contextual support warning/explanation for User Verification */}
+      <div className={`p-3 rounded-lg border text-xs ${
+        config.user_verification === 'preferred'
+          ? 'bg-blue-900/10 border-blue-800/60 text-blue-300'
+          : 'bg-amber-900/15 border-amber-800/80 text-amber-300'
+      }`}>
+        <p className="font-semibold mb-0.5">
+          {config.user_verification === 'preferred' ? 'Usability & Security Balance' : 'Verification Impact'}
+        </p>
+        <p className="opacity-90">
+          {config.user_verification === 'preferred' && (
+            descriptions?.user_verification?.preferred ||
+            "Prompts for PIN or biometric verification (e.g. YubiKey Bio fingerprint, Touch ID, or security key PIN) if the key supports it, but does not block keys without PINs."
+          )}
+          {config.user_verification === 'required' && (
+            descriptions?.user_verification?.required ||
+            "Strictly mandates PIN or biometric verification. Basic U2F keys or hardware keys without a configured PIN will fail authentication and cannot sign in."
+          )}
+          {config.user_verification === 'discouraged' && (
+            descriptions?.user_verification?.discouraged ||
+            "Only checks physical presence (a basic capacitive touch). Does not require biometric or PIN verification."
+          )}
+        </p>
+      </div>
+
+      {/* 3. NIST FIPS 140-2 / FIPS 140-3 Validation */}
+      <div className="space-y-2 pt-1">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <div
+            onClick={() => setConfig(c => ({ ...c, fips_only: !c.fips_only }))}
+            className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.fips_only ? 'bg-purple-600' : 'bg-slate-700'}`}>
+            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.fips_only ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </div>
+          <span className="text-slate-300 text-sm font-medium">Enforce NIST FIPS 140-2 / FIPS 140-3 Validated Keys</span>
+        </label>
+
+        {config.fips_only && (
+          <div className="p-3 bg-purple-950/30 border border-purple-800/80 rounded-lg text-xs text-purple-300 space-y-1">
+            <p className="font-semibold flex items-center gap-1.5">
+              <ShieldAlert size={14} className="text-purple-400" /> High-Security Institutional Compliance Active
+            </p>
+            <p className="opacity-90">
+              When enabled, OpenOptOut verifies cryptographic Authenticator Attestation GUIDs (AAGUIDs) against certified YubiKey FIPS hardware (YubiKey 5 NFC FIPS, 5C FIPS, 5Ci FIPS, 5 Series FIPS 140-3).
+            </p>
+            <p className="text-amber-300 font-medium pt-1">
+              ⚠ Service Support Restriction: Consumer YubiKeys, Google Titan keys, and Apple Mac Touch ID will be REJECTED during registration. Only enroll this if your organization issues certified FIPS 140 tokens.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end pt-2">
+        <SaveButton saving={saving} saved={saved} onClick={save} />
+      </div>
+    </Section>
+  )
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function Settings() {
   const { user } = useAuth()
@@ -1563,6 +2415,8 @@ export default function Settings() {
         <p className="text-slate-400 text-sm mt-0.5">Configure how OpenOptOut looks and behaves</p>
       </div>
       <AppearanceSection initial={settings?.appearance ?? {}} onSaved={a => setSettings(s=>({...s,appearance:a}))} userRole={sectionRole('branding.manage')}/>
+      <MfaAccountSection user={user} />
+      <WebAuthnPolicySection userRole={user?.role} />
       <EmailSection initial={settings?.email ?? {}} userRole={sectionRole('email.manage')}/>
       <SchedulerSection
         initial={settings?.scheduler ?? {}}

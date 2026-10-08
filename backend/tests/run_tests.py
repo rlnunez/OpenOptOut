@@ -3504,6 +3504,13 @@ def t_password_hashing():
     h = auth.hash_password("a perfectly normal short password")
     assert auth.verify_password("a perfectly normal short password", h)
     assert not auth.verify_password("wrong password", h)
+
+    # Backward compatibility: verify unpeppered legacy hash
+    h_legacy = auth.hash_password("legacy password 123", use_pepper=False)
+    assert auth.verify_password("legacy password 123", h_legacy), "legacy unpeppered hash failed to verify"
+    assert auth.is_legacy_unpeppered_hash("legacy password 123", h_legacy), "failed to identify legacy hash for upgrade"
+    assert not auth.is_legacy_unpeppered_hash("a perfectly normal short password", h), "modern hash misidentified as legacy"
+
     # EXPECTED: hashing a short, ordinary password just works.
     # IF THIS FAILS: bcrypt drifted incompatible with passlib again (or the pin
     #   in requirements.txt was removed/changed) — registration is broken for
@@ -3527,12 +3534,306 @@ def t_password_hashing():
     assert auth.validate_password_length(ok_72) == ok_72   # at the limit: allowed
     assert auth.validate_password_length(None) is None     # no password (SSO-only user): allowed
     assert auth.validate_password_length("") == ""          # empty: allowed (caller decides if that's valid)
-    # EXPECTED: over the limit -> clear ValueError (a 422 once it reaches a
-    #   Pydantic field_validator); at or under the limit, and no password at
-    #   all, both pass through untouched.
-    # IF THIS FAILS: a user could set a long password only part of which
-    #   actually matters (a silent truncation), or the validator could wrongly
-    #   block short passwords / SSO-only accounts with no password at all.
+
+
+@test(1, "auth.password_peppering_hmac_sha256",
+      "HMAC-SHA256 password peppering produces deterministic 44-character Base64 digests and preserves key separation.")
+def t_password_peppering():
+    auth = _imp("core.auth")
+    # 1. Digest format (44 Base64 characters representing 32-byte SHA-256 binary digest)
+    p1 = auth._pepper_password("MySecretPass123!")
+    assert len(p1) == 44, f"unexpected peppered digest length: {len(p1)}"
+    assert auth._pepper_password("MySecretPass123!") == p1, "pepper output must be deterministic"
+
+    # 2. Collision avoidance: different passwords produce completely different pepper outputs
+    p2 = auth._pepper_password("MySecretPass123?")
+    assert p1 != p2, "different passwords produced identical pepper digests"
+
+    # 3. Pepper key isolation: different pepper keys produce different outputs for the same password
+    import hmac, hashlib, base64
+    custom_key = b"test-custom-pepper-key"
+    digest_custom = base64.b64encode(hmac.new(custom_key, b"MySecretPass123!", hashlib.sha256).digest()).decode("ascii")
+    assert digest_custom != p1, "pepper key change failed to alter digest"
+
+
+# ── MFA / FIDO2 / WebAuthn / TOTP Tests ────────────────────────────────────────
+
+@test(1, "mfa.totp_generation_and_verification",
+      "RFC 6238 TOTP generates valid secrets, produces accurate 6-digit codes, verifies with clock tolerance, and formats otpauth URIs.")
+def t_mfa_totp():
+    mfa = _imp("core.mfa")
+    # 1. Secret generation
+    secret = mfa.generate_totp_secret()
+    assert isinstance(secret, str) and len(secret) >= 26, f"invalid secret length: {len(secret)}"
+
+    # 2. Code generation at fixed timestamp
+    fixed_ts = 1700000000.0
+    code = mfa.get_totp(secret, timestamp=fixed_ts)
+    assert len(code) == 6 and code.isdigit(), f"bad totp code: {code}"
+
+    # 3. Verification at exact time
+    assert mfa.verify_totp(code, secret, timestamp=fixed_ts), "failed to verify code at exact time"
+
+    # 4. Clock drift window (+/- 30s)
+    assert mfa.verify_totp(code, secret, timestamp=fixed_ts + 25), "failed to verify code within +25s drift"
+    assert mfa.verify_totp(code, secret, timestamp=fixed_ts - 25), "failed to verify code within -25s drift"
+
+    # 5. Invalid code or distant timestamp rejected
+    assert not mfa.verify_totp("999999", secret, timestamp=fixed_ts) or code == "999999", "accepted arbitrary code"
+    assert not mfa.verify_totp(code, secret, timestamp=fixed_ts + 120), "accepted code outside window (+120s)"
+
+    # 6. otpauth URI construction
+    uri = mfa.build_totp_uri(secret, "admin@example.org", issuer="OpenOptOut")
+    assert uri.startswith("otpauth://totp/OpenOptOut:admin"), f"bad uri format: {uri}"
+    assert f"secret={secret}" in uri and "issuer=OpenOptOut" in uri
+
+
+@test(1, "mfa.backup_recovery_codes",
+      "Single-use backup recovery codes generate properly, verify securely, and consume accurately.")
+def t_mfa_backup_codes():
+    mfa = _imp("core.mfa")
+    plain_codes, hashed_codes = mfa.generate_backup_codes(count=10)
+    assert len(plain_codes) == 10 and len(hashed_codes) == 10, "incorrect code counts"
+    assert len(set(plain_codes)) == 10, "backup codes must be distinct"
+
+    # Verify each code format (XXXX-XXXX format with uppercase hex)
+    for c in plain_codes:
+        assert len(c) == 9 and c[4] == "-", f"bad code format: {c}"
+        raw = c.replace("-", "")
+        assert len(raw) == 8 and all(ch in "0123456789ABCDEF" for ch in raw), f"bad hex chars: {c}"
+
+    # Verify and consume the first code
+    current_hashes = list(hashed_codes)
+    target_code = plain_codes[0]
+    matched, remaining = mfa.verify_backup_code(target_code, current_hashes)
+    assert matched is True, "valid backup code failed verification"
+    assert len(remaining) == 9, f"expected 9 remaining codes, got {len(remaining)}"
+
+    # Second attempt with the SAME code must fail (single-use property)
+    matched2, remaining2 = mfa.verify_backup_code(target_code, remaining)
+    assert matched2 is False, "already-consumed backup code was accepted twice"
+    assert len(remaining2) == 9, "remaining count changed on failed verification"
+
+    # Invalid code rejected
+    matched_bad, _ = mfa.verify_backup_code("00000000", remaining)
+    assert matched_bad is False, "invalid backup code accepted"
+
+
+@test(1, "mfa.fips_yubikey_detection_and_aaguids",
+      "NIST FIPS 140-2 / FIPS 140-3 YubiKey AAGUID registry accurately classifies certified hardware authenticators.")
+def t_mfa_fips_detection():
+    mfa = _imp("core.mfa")
+    # Verify published Yubico FIPS AAGUIDs are registered
+    assert "b927c8986a4049fc84a4413e648c41ec" in mfa.YUBICO_FIPS_AAGUIDS, "FIPS 140-3 YubiKey 5 missing"
+    assert "c599494da9d146f7b9c97b1a03e99e55" in mfa.YUBICO_FIPS_AAGUIDS, "FIPS 140-2 YubiKey 5 NFC missing"
+
+    fips_name = mfa.YUBICO_FIPS_AAGUIDS["b927c8986a4049fc84a4413e648c41ec"]
+    assert "FIPS 140-3" in fips_name, f"unexpected description: {fips_name}"
+
+    # Non-FIPS or consumer AAGUID
+    consumer_aaguid = "00000000000000000000000000000000"
+    assert consumer_aaguid not in mfa.YUBICO_FIPS_AAGUIDS, "all-zero AAGUID marked as FIPS"
+
+
+@test(1, "mfa.mandate_policy_and_tickets",
+      "Admin MFA 3-day post-install mandate logic and ephemeral encrypted login tickets behave correctly.")
+def t_mfa_mandate_policy():
+    mfa = _imp("core.mfa")
+    from datetime import datetime, timedelta
+
+    class MockUser:
+        def __init__(self, role, totp=False, creds=None):
+            self.role = role
+            self.totp_enabled = totp
+            self.webauthn_credentials = creds
+
+    # 1. Non-admin users are never mandated
+    patron = MockUser("patron")
+    assert not mfa.is_mfa_mandated(patron, days_since_install=10)[0], "patron account was wrongly mandated"
+
+    # 2. Admin / Super Admin under 3 days are not yet mandated
+    admin_new = MockUser("super_admin")
+    mandated, days_left = mfa.is_mfa_mandated(admin_new, days_since_install=1)
+    assert not mandated and days_left > 0, "admin under 3 days was prematurely mandated"
+    mandated2, days_left2 = mfa.is_mfa_mandated(admin_new, days_since_install=2)
+    assert not mandated2 and days_left2 > 0, "admin at 2 days was prematurely mandated"
+
+    # 3. Admin / Super Admin at or over 3 days WITHOUT MFA ARE mandated
+    assert mfa.is_mfa_mandated(admin_new, days_since_install=3)[0], "admin at 3 days was not mandated"
+    assert mfa.is_mfa_mandated(admin_new, days_since_install=30)[0], "admin at 30 days was not mandated"
+
+    # 4. Admin WITH MFA configured is NOT mandated
+    admin_with_totp = MockUser("super_admin", totp=True)
+    assert not mfa.is_mfa_mandated(admin_with_totp, days_since_install=30)[0], "admin with totp was flagged as mandated"
+
+    admin_with_key = MockUser("manager", creds='[{"id": "abc"}]')
+    assert not mfa.is_mfa_mandated(admin_with_key, days_since_install=30)[0], "admin with key was flagged as mandated"
+
+    # 5. Ephemeral MFA challenge ticket lifecycle
+    ticket = mfa.create_mfa_ticket(42, "admin@domain.com")
+    assert isinstance(ticket, str) and len(ticket) > 10, "ticket creation failed"
+
+    verified = mfa.verify_mfa_ticket(ticket)
+    assert verified is not None, "valid ticket verification failed"
+    assert verified.get("uid") == 42 and verified.get("sub") == "admin@domain.com"
+
+    # Tampered ticket must fail
+    assert mfa.verify_mfa_ticket(ticket + "tamper") is None, "tampered ticket accepted"
+
+
+@test(1, "mfa.webauthn_cbor_and_options",
+      "WebAuthn CBOR parsing and PublicKeyCredential options generators format standards-compliant structures.")
+def t_mfa_webauthn_options():
+    mfa = _imp("core.mfa")
+
+    # 1. Registration options
+    reg_opts = mfa.create_webauthn_registration_options(user_id=1, user_email="admin@test.org", user_name="Admin")
+    assert "challenge" in reg_opts and len(reg_opts["challenge"]) > 20, "missing challenge"
+    assert reg_opts["rp"]["name"] == "OpenOptOut", "unexpected rp name"
+    assert any(p["alg"] == -7 for p in reg_opts["pubKeyCredParams"]), "missing ES256 (-7) in pubKeyCredParams"
+    assert reg_opts["timeout"] == 60000, "expected 60s timeout"
+
+    # 2. Authentication options
+    fake_keys = [{"id": "key-id-123", "transports": ["usb", "nfc"]}]
+    auth_opts = mfa.create_webauthn_authentication_options(fake_keys)
+    assert "challenge" in auth_opts, "missing auth challenge"
+    assert len(auth_opts["allowCredentials"]) == 1, "missing allowCredentials entry"
+    assert auth_opts["allowCredentials"][0]["id"] == "key-id-123"
+
+    # 3. Canonical CBOR decode check
+    # Map with 1 key (0xa1), text key "k" (0x61, 0x6b), integer value 42 (0x18, 0x2a)
+    cbor_sample = bytes([0xa1, 0x61, 0x6b, 0x18, 0x2a])
+    decoded, offset = mfa._decode_cbor(cbor_sample)
+    assert decoded == {"k": 42} and offset == len(cbor_sample), f"unexpected cbor decode: {decoded}"
+
+
+@test(1, "mfa.role_permissions_and_user_overrides",
+      "Role-based MFA permissions matrix and per-user overrides enforce factor gating and safety constraints.")
+def t_mfa_role_permissions():
+    mfa = _imp("core.mfa")
+
+    # 1. Defaults verification
+    defaults = mfa.DEFAULT_MFA_ROLE_PERMISSIONS
+    assert "super_admin" in defaults and "manager" in defaults and "parent" in defaults and "member" in defaults
+    for role, perms in defaults.items():
+        assert perms["totp"] is True and perms["webauthn"] is True and perms["backup_codes"] is True
+
+    # 2. Safety invariant validation: cannot disable both factors for mandated roles
+    valid_policy = {
+        "super_admin": {"totp": False, "webauthn": True, "backup_codes": False},
+        "manager":     {"totp": True, "webauthn": False, "backup_codes": True},
+        "parent":      {"totp": True, "webauthn": False, "backup_codes": True},
+        "member":      {"totp": False, "webauthn": False, "backup_codes": False},
+    }
+    is_valid, err = mfa.validate_mfa_role_permissions(valid_policy)
+    assert is_valid is True and err is None, f"valid policy rejected: {err}"
+
+    invalid_admin_policy = {
+        "super_admin": {"totp": False, "webauthn": False, "backup_codes": True},
+        "manager":     {"totp": True, "webauthn": True, "backup_codes": True},
+    }
+    is_valid, err = mfa.validate_mfa_role_permissions(invalid_admin_policy)
+    assert is_valid is False and "super_admin" in err, "policy disabling all factors for super_admin was accepted"
+
+    invalid_manager_policy = {
+        "super_admin": {"totp": True, "webauthn": False, "backup_codes": True},
+        "manager":     {"totp": False, "webauthn": False, "backup_codes": True},
+    }
+    is_valid, err = mfa.validate_mfa_role_permissions(invalid_manager_policy)
+    assert is_valid is False and "manager" in err, "policy disabling all factors for manager was accepted"
+
+    # 3. User allowed methods resolution (role fallback vs override)
+    class DummyUser:
+        def __init__(self, role, override=None, is_super_admin=False, is_manager=False):
+            self.role = role
+            self.mfa_options_override = override
+            self.is_super_admin = is_super_admin
+            self.is_manager = is_manager
+
+    u_admin = DummyUser("super_admin", is_super_admin=True)
+    methods = mfa.get_user_allowed_mfa_methods(u_admin)
+    assert isinstance(methods, dict) and "totp" in methods and "webauthn" in methods and "backup_codes" in methods
+
+    # Per-user override as dict
+    u_custom = DummyUser("parent", override={"totp": False, "webauthn": True, "backup_codes": False})
+    custom_methods = mfa.get_user_allowed_mfa_methods(u_custom)
+    assert custom_methods["totp"] is False and custom_methods["webauthn"] is True and custom_methods["backup_codes"] is False
+
+    # Per-user override as JSON string
+    import json
+    u_custom_json = DummyUser("parent", override=json.dumps({"totp": True, "webauthn": False, "backup_codes": True}))
+    json_methods = mfa.get_user_allowed_mfa_methods(u_custom_json)
+    assert json_methods["totp"] is True and json_methods["webauthn"] is False and json_methods["backup_codes"] is True
+
+
+@test(1, "mfa.compliance_timer_and_creation_mandate",
+      "Role-based MFA compliance timers calculate hours/days/weeks thresholds from account creation date and enforce max value 99.")
+def t_mfa_compliance_timers():
+    mfa = _imp("core.mfa")
+    from datetime import datetime, timedelta, timezone
+
+    # 1. Threshold conversions for hours, days, weeks
+    assert mfa.get_compliance_threshold_seconds(12, "hours") == 12 * 3600
+    assert mfa.get_compliance_threshold_seconds(3, "days") == 3 * 86400
+    assert mfa.get_compliance_threshold_seconds(2, "weeks") == 2 * 7 * 86400
+
+    # Max clamp at 99
+    assert mfa.get_compliance_threshold_seconds(150, "days") == 99 * 86400
+    assert mfa.get_compliance_threshold_seconds(0, "days") == 1 * 86400
+
+    # 2. Validation
+    valid_comp = {
+        "super_admin": {"enabled": True, "value": 72, "unit": "hours"},
+        "manager":     {"enabled": True, "value": 14, "unit": "days"},
+        "parent":      {"enabled": True, "value": 4,  "unit": "weeks"},
+        "member":      {"enabled": False, "value": 99, "unit": "days"},
+    }
+    is_valid, err = mfa.validate_mfa_compliance(valid_comp)
+    assert is_valid is True and err is None
+
+    # Exceeding 99 rejected
+    bad_val = {"super_admin": {"enabled": True, "value": 100, "unit": "days"}}
+    is_valid, err = mfa.validate_mfa_compliance(bad_val)
+    assert is_valid is False and "between 1 and 99" in err
+
+    # Zero rejected
+    bad_zero = {"super_admin": {"enabled": True, "value": 0, "unit": "days"}}
+    is_valid, err = mfa.validate_mfa_compliance(bad_zero)
+    assert is_valid is False and "between 1 and 99" in err
+
+    # Bad unit rejected
+    bad_unit = {"super_admin": {"enabled": True, "value": 10, "unit": "months"}}
+    is_valid, err = mfa.validate_mfa_compliance(bad_unit)
+    assert is_valid is False and "'hours', 'days', or 'weeks'" in err
+
+    # 3. Calculation against user.created_at
+    class MockUser:
+        def __init__(self, role, created_at, totp=False, creds=None):
+            self.role = role
+            self.created_at = created_at
+            self.totp_enabled = totp
+            self.webauthn_credentials = creds
+
+    now = datetime.now(timezone.utc)
+
+    # User created 2 days ago with 3-day mandate -> not mandated
+    u_fresh = MockUser("super_admin", created_at=now - timedelta(days=2))
+    mandated, days_left = mfa.is_mfa_mandated(u_fresh)
+    assert not mandated and days_left > 0, "fresh admin account was prematurely mandated"
+
+    # User created 4 days ago with 3-day mandate -> mandated
+    u_expired = MockUser("super_admin", created_at=now - timedelta(days=4))
+    mandated, days_left = mfa.is_mfa_mandated(u_expired)
+    assert mandated and days_left == 0, "expired admin account was not mandated"
+
+    # User who already configured MFA -> never mandated
+    u_enrolled = MockUser("super_admin", created_at=now - timedelta(days=40), totp=True)
+    assert not mfa.is_mfa_mandated(u_enrolled)[0], "enrolled user was flagged as mandated"
+
+    # Role with compliance disabled (parent by default) -> never mandated
+    u_parent = MockUser("parent", created_at=now - timedelta(days=60))
+    assert not mfa.is_mfa_mandated(u_parent)[0], "parent with disabled compliance was wrongly mandated"
+
 
 
 

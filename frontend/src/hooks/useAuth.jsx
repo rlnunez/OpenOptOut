@@ -22,7 +22,17 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const form = new URLSearchParams({ username: email, password })
     const { data } = await api.post('/auth/token', form)
+    if (data.mfa_required || data.mfa_mandated) {
+      return data
+    }
     localStorage.setItem('token', data.access_token)
+    const me = await api.get('/auth/me')
+    setUser(me.data)
+    return me.data
+  }
+
+  const completeMfaLogin = async (token) => {
+    localStorage.setItem('token', token)
     const me = await api.get('/auth/me')
     setUser(me.data)
     return me.data
@@ -34,7 +44,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, setUser, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, setUser, login, completeMfaLogin, logout, loading }}>
       {children}
     </AuthContext.Provider>
   )
