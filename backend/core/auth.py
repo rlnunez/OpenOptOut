@@ -126,13 +126,15 @@ def get_password_pepper() -> bytes:
 
 def _pepper_password(password: str) -> str:
     """
-    Apply HMAC-SHA256 peppering to plaintext password before bcrypt.
+    Apply PBKDF2-HMAC-SHA256 peppering to plaintext password before bcrypt.
     Produces a 44-character Base64 string (32-byte binary digest) which safely
     fits inside bcrypt's 72-byte ceiling while making offline dictionary/GPU
     cracking impossible without the server pepper key.
+    Uses PBKDF2-HMAC with 100,000 iterations as recommended by NIST and CodeQL
+    (CWE-327: py/weak-sensitive-data-hashing) for sensitive password inputs.
     """
     key = get_password_pepper()
-    digest = hmac.new(key, password.encode("utf-8"), hashlib.sha256).digest()
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), key, 100_000)
     return base64.b64encode(digest).decode("ascii")
 
 

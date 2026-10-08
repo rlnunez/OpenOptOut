@@ -3536,11 +3536,11 @@ def t_password_hashing():
     assert auth.validate_password_length("") == ""          # empty: allowed (caller decides if that's valid)
 
 
-@test(1, "auth.password_peppering_hmac_sha256",
-      "HMAC-SHA256 password peppering produces deterministic 44-character Base64 digests and preserves key separation.")
+@test(1, "auth.password_peppering_pbkdf2_hmac_sha256",
+      "PBKDF2-HMAC-SHA256 password peppering produces deterministic 44-character Base64 digests and preserves key separation.")
 def t_password_peppering():
     auth = _imp("core.auth")
-    # 1. Digest format (44 Base64 characters representing 32-byte SHA-256 binary digest)
+    # 1. Digest format (44 Base64 characters representing 32-byte binary digest)
     p1 = auth._pepper_password("MySecretPass123!")
     assert len(p1) == 44, f"unexpected peppered digest length: {len(p1)}"
     assert auth._pepper_password("MySecretPass123!") == p1, "pepper output must be deterministic"
@@ -3550,9 +3550,9 @@ def t_password_peppering():
     assert p1 != p2, "different passwords produced identical pepper digests"
 
     # 3. Pepper key isolation: different pepper keys produce different outputs for the same password
-    import hmac, hashlib, base64
+    import hashlib, base64
     custom_key = b"test-custom-pepper-key"
-    digest_custom = base64.b64encode(hmac.new(custom_key, b"MySecretPass123!", hashlib.sha256).digest()).decode("ascii")
+    digest_custom = base64.b64encode(hashlib.pbkdf2_hmac("sha256", b"MySecretPass123!", custom_key, 100_000)).decode("ascii")
     assert digest_custom != p1, "pepper key change failed to alter digest"
 
 

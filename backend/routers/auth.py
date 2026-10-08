@@ -3,8 +3,10 @@ Auth router — local login, OIDC redirect/callback, SIP2/LDAP login,
 registration with domain/invite controls, token refresh, me endpoint.
 """
 
-import secrets, json, hashlib
+import secrets, json, hashlib, logging
 from datetime import datetime, timedelta, timezone
+
+logger = logging.getLogger(__name__)
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.responses import RedirectResponse
@@ -814,8 +816,22 @@ def register_webauthn_key(
             expected_challenge=challenge or data.credential.get("challenge", ""),
             fips_only=cfg.get("fips_only", False),
         )
+    except ValueError as ve:
+        logger.warning("Security key registration validation error: %s", ve)
+        err_msg = str(ve)
+        if "NIST FIPS 140" in err_msg:
+            detail = "Security key is not a certified NIST FIPS 140-2 / FIPS 140-3 device."
+        elif "challenge" in err_msg.lower():
+            detail = "Security key challenge verification failed. Please try again."
+        else:
+            detail = "Invalid security key attestation data. Please verify your authenticator."
+        raise HTTPException(status_code=400, detail=detail)
     except Exception as e:
-        raise HTTPException(400, f"Security key registration failed: {e}")
+        logger.error("Security key registration failed unexpectedly: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=400,
+            detail="Security key registration failed. Please ensure the key is supported and try again.",
+        )
 
     keys = []
     if user.webauthn_credentials:
