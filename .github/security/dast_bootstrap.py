@@ -36,16 +36,28 @@ def main():
     base = args.base_url.rstrip("/")
 
     # 1. Wait for the API to come up
+    candidates = [base]
+    if "://api:" in base:
+        candidates.append(base.replace("://api:", "://openoptout-api:"))
+    elif "://openoptout-api:" in base:
+        candidates.append(base.replace("://openoptout-api:", "://api:"))
+
     deadline = time.time() + args.wait_seconds
     last_err = None
+    connected = False
     while time.time() < deadline:
-        try:
-            status, body = call("GET", f"{base}/api/health", timeout=5)
-            if status == 200:
-                print(f"API is up: {body.decode()[:200]}")
-                break
-        except Exception as e:  # noqa: BLE001 — any failure just means "not up yet"
-            last_err = e
+        for cand in candidates:
+            try:
+                status, body = call("GET", f"{cand}/api/health", timeout=5)
+                if status == 200:
+                    base = cand
+                    print(f"API is up on {base}: {body.decode()[:200]}")
+                    connected = True
+                    break
+            except Exception as e:  # noqa: BLE001 — any failure just means "not up yet"
+                last_err = e
+        if connected:
+            break
         time.sleep(3)
     else:
         print(f"::error::API did not become healthy within {args.wait_seconds}s "

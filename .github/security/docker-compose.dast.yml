@@ -16,7 +16,11 @@ services:
       - SECRET_KEY=dast-ci-only-not-a-real-secret-0123456789abcdef
       - LOGS_DIR=/data/logs
     ports: !reset []
-    networks: [dast]
+    networks:
+      dast:
+        aliases:
+          - api
+          - openoptout-api
 
 networks:
   dast:
