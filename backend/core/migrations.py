@@ -84,6 +84,26 @@ MIGRATIONS = [
         "Add tutorial_completed to users",
         "ALTER TABLE users ADD COLUMN tutorial_completed BOOLEAN DEFAULT 0"
     ),
+    (
+        "Add totp_secret_enc to users",
+        "ALTER TABLE users ADD COLUMN totp_secret_enc TEXT"
+    ),
+    (
+        "Add totp_enabled to users",
+        "ALTER TABLE users ADD COLUMN totp_enabled BOOLEAN NOT NULL DEFAULT FALSE"
+    ),
+    (
+        "Add backup_codes to users",
+        "ALTER TABLE users ADD COLUMN backup_codes TEXT"
+    ),
+    (
+        "Add webauthn_credentials to users",
+        "ALTER TABLE users ADD COLUMN webauthn_credentials TEXT"
+    ),
+    (
+        "Add mfa_options_override to users",
+        "ALTER TABLE users ADD COLUMN mfa_options_override TEXT"
+    ),
 ]
 
 # Known property brokers — flagged on first startup

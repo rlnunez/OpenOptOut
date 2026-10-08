@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   Database, Mail, Palette, CheckCircle2, AlertTriangle, ChevronRight,
   ChevronLeft, SkipForward, Server, Shield, Globe, Home, Copy, Check,
@@ -608,6 +608,14 @@ function BrandingStep({ onNext, onSkip, onBack, busy, setError }) {
 function SummaryStep({ summary, onDone }) {
   const steps = summary?.steps || {}
   const reverseProxy = summary?.reverse_proxy
+  const [mfaStatus, setMfaStatus] = useState(null)
+
+  useEffect(() => {
+    api.get('/auth/mfa/status')
+      .then(r => setMfaStatus(r.data))
+      .catch(() => {})
+  }, [])
+
   return (
     <div>
       <StepHeader icon={CheckCircle2} title="You're ready" subtitle="Here's what's set up." />
@@ -620,6 +628,12 @@ function SummaryStep({ summary, onDone }) {
             </span>
           </div>
         ))}
+        <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50">
+          <span className="text-slate-300 text-sm">Super Admin MFA</span>
+          <span className={`text-xs ${mfaStatus?.mfa_enabled ? 'text-emerald-400' : 'text-amber-400'}`}>
+            {mfaStatus?.mfa_enabled ? '✓ configured' : '3-day grace period active'}
+          </span>
+        </div>
       </div>
       {summary?.warnings?.length > 0 && (
         <div className="space-y-2 mb-4">

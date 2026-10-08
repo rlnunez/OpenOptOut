@@ -202,6 +202,14 @@ class User(Base):
     preferred_language = Column(String(10), default="en", nullable=False)
     tutorial_completed = Column(Boolean, default=False, nullable=False)
 
+    # Multi-Factor Authentication (TOTP + FIDO2/WebAuthn/YubiKey)
+    totp_secret_enc      = Column(Text, nullable=True)
+    totp_enabled         = Column(Boolean, default=False, nullable=False)
+    backup_codes         = Column(Text, nullable=True)       # JSON list of SHA-256 hashed recovery codes
+    webauthn_credentials = Column(Text, nullable=True)       # JSON list of registered security keys/biometrics
+    mfa_options_override = Column(Text, nullable=True)       # JSON dict: {"totp": bool, "webauthn": bool, "backup_codes": bool}
+
+
     created_at       = Column(DateTime, default=datetime.utcnow)
     created_by_id    = Column(Integer, ForeignKey("users.id"), nullable=True)  # who created this account
 

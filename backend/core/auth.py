@@ -5,7 +5,7 @@ and the central access-control check used by every data endpoint.
 
 from datetime import datetime, timedelta
 from typing import Optional, List
-import os
+import os, hmac, hashlib, base64
 
 try:
     import jwt
@@ -110,24 +110,95 @@ def validate_password_length(password: Optional[str]) -> Optional[str]:
         )
     return password
 
-def hash_password(password: str) -> str:
+def get_password_pepper() -> bytes:
+    """
+    Return the HMAC pepper key used to harden password hashes against offline brute-force attacks.
+    Priority:
+    1. PASSWORD_PEPPER environment variable
+    2. Derived from SECRET_KEY (via HMAC-SHA256 key separation)
+    """
+    pepper = os.getenv("PASSWORD_PEPPER")
+    if pepper:
+        return pepper.encode("utf-8")
+    sec = os.getenv("SECRET_KEY") or SECRET_KEY or "openoptout-default-pepper-key"
+    return hmac.new(b"openoptout-password-pepper-derivation", sec.encode("utf-8"), hashlib.sha256).digest()
+
+
+def _pepper_password(password: str) -> str:
+    """
+    Apply HMAC-SHA256 peppering to plaintext password before bcrypt.
+    Produces a 44-character Base64 string (32-byte binary digest) which safely
+    fits inside bcrypt's 72-byte ceiling while making offline dictionary/GPU
+    cracking impossible without the server pepper key.
+    """
+    key = get_password_pepper()
+    digest = hmac.new(key, password.encode("utf-8"), hashlib.sha256).digest()
+    return base64.b64encode(digest).decode("ascii")
+
+
+def _verify_raw(candidate: str, hashed: str) -> bool:
+    """Check a candidate string directly against stored bcrypt hash."""
+    if not candidate or not hashed:
+        return False
     if pwd_context is not None:
-        return pwd_context.hash(password)
+        try:
+            return pwd_context.verify(candidate, hashed)
+        except Exception:
+            return False
+    try:
+        import bcrypt
+        return bcrypt.checkpw(candidate.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
+
+
+def hash_password(password: str, use_pepper: bool = True) -> str:
+    """
+    Hash a password using bcrypt (cost 12) with HMAC-SHA256 pepper pre-hashing.
+    """
+    raw = _pepper_password(password) if use_pepper else password
+    if pwd_context is not None:
+        return pwd_context.hash(raw)
     try:
         import bcrypt
         salt = bcrypt.gensalt(rounds=12)
-        return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+        return bcrypt.hashpw(raw.encode("utf-8"), salt).decode("utf-8")
     except Exception as e:
         raise RuntimeError("Neither passlib nor bcrypt is available to hash passwords") from e
 
+
 def verify_password(plain: str, hashed: str) -> bool:
-    if pwd_context is not None:
-        return pwd_context.verify(plain, hashed)
-    try:
-        import bcrypt
-        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
-    except Exception:
+    """
+    Verify password with backward compatibility:
+    1. First tries modern HMAC-SHA256 peppered verification.
+    2. If that fails, falls back to legacy unpeppered verification.
+    """
+    if not plain or not hashed:
         return False
+
+    # 1. Modern verification (with server pepper)
+    peppered = _pepper_password(plain)
+    if _verify_raw(peppered, hashed):
+        return True
+
+    # 2. Backward compatibility fallback (unpeppered legacy bcrypt hash)
+    if _verify_raw(plain, hashed):
+        return True
+
+    return False
+
+
+def is_legacy_unpeppered_hash(plain: str, hashed: str) -> bool:
+    """
+    Check if a password matches only via legacy unpeppered verification,
+    signaling that the stored hash should be upgraded to the peppered format.
+    """
+    if not plain or not hashed:
+        return False
+    peppered = _pepper_password(plain)
+    if _verify_raw(peppered, hashed):
+        return False
+    return _verify_raw(plain, hashed)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     payload = {**data, "exp": datetime.utcnow() + (expires_delta or timedelta(minutes=TOKEN_EXPIRE_MINUTES))}

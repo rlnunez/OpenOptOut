@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any, List
 import json, os, base64, logging
 from cryptography.fernet import Fernet
 
@@ -505,6 +505,130 @@ def encryption_status(_: User = Depends(require_permission("database.view"))):
             "postgres":       "For Postgres, use pgcrypto extension or provider-level TDE (RDS, Azure, Cloud SQL)",
         }
     }
+
+
+# ── WebAuthn / FIDO2 Security Settings ───────────────────────────────────────
+
+class WebAuthnSettings(BaseModel):
+    authenticator_attachment: Optional[str] = "any"     # "any" | "cross-platform" | "platform"
+    user_verification:        Optional[str] = "preferred" # "preferred" | "required" | "discouraged"
+    fips_only:                Optional[bool] = False
+    rp_name:                  Optional[str] = "OpenOptOut"
+    rp_id:                    Optional[str] = None
+
+
+@router.get("/security/webauthn")
+def get_webauthn_settings(_: User = Depends(require_super_admin)):
+    """Return institutional WebAuthn configuration and metadata."""
+    from ..core.mfa import get_webauthn_config
+    cfg = get_webauthn_config()
+    return {
+        "config": cfg,
+        "descriptions": {
+            "authenticator_attachment": {
+                "any": "Allows roaming USB/NFC hardware security keys (YubiKey, Google Titan), built-in platform authenticators (Apple Touch ID / Face ID, Windows Hello), and cross-device phone authentication (scanning a QR code with an iPhone using Face ID or an Android phone using biometrics). Recommended for broad compatibility.",
+                "cross-platform": "Requires external/roaming hardware keys (YubiKey, Titan). Restricts built-in platform authenticators like Touch ID. If selected, staff on laptops without a physical USB/NFC key cannot enroll biometrics.",
+                "platform": "Requires built-in device biometrics (Apple Touch ID, Windows Hello). Restricts external USB/NFC security keys. If selected, staff using desktop machines or external keyboards without built-in sensors cannot enroll."
+            },
+            "user_verification": {
+                "preferred": "Prompts for PIN or biometric verification (e.g. YubiKey Bio fingerprint, Touch ID, or security key PIN) if the key supports it, but does not block keys without PINs. Best balance of usability and security.",
+                "required": "Strictly mandates PIN or biometric verification. Basic U2F keys or hardware keys without a configured PIN will fail authentication.",
+                "discouraged": "Only checks physical presence (a basic capacitive touch). Does not require biometric or PIN verification."
+            },
+            "fips_only": {
+                "description": "Enforce NIST FIPS 140-2 / FIPS 140-3 validated authenticators. Checks the cryptographic AAGUID against certified YubiKey FIPS models during enrollment. If enabled, non-FIPS consumer YubiKeys, Titan keys, and platform biometrics (Touch ID) will be rejected during enrollment."
+            }
+        }
+    }
+
+
+@router.patch("/security/webauthn")
+def update_webauthn_settings(data: WebAuthnSettings, _: User = Depends(require_super_admin)):
+    """Update institutional WebAuthn configuration."""
+    if data.authenticator_attachment not in ("any", "cross-platform", "platform"):
+        raise HTTPException(400, "authenticator_attachment must be 'any', 'cross-platform', or 'platform'")
+    if data.user_verification not in ("preferred", "required", "discouraged"):
+        raise HTTPException(400, "user_verification must be 'preferred', 'required', or 'discouraged'")
+
+    s = load_settings()
+    sec = s.setdefault("security", {})
+    sec["webauthn"] = data.model_dump()
+    _save(s)
+    return {"saved": True, "config": sec["webauthn"]}
+
+
+# ── Role-Based MFA Policy & Compliance Settings ───────────────────────────────
+
+class MfaRolePermissions(BaseModel):
+    totp: bool = True
+    webauthn: bool = True
+    backup_codes: bool = True
+
+class MfaComplianceTimer(BaseModel):
+    enabled: bool = True
+    value: int = 3
+    unit: str = "days"
+
+class MfaRolePolicySettings(BaseModel):
+    roles: Dict[str, MfaRolePermissions]
+    compliance: Optional[Dict[str, MfaComplianceTimer]] = None
+
+
+@router.get("/security/mfa-policy")
+def get_mfa_policy_settings(_: User = Depends(require_super_admin)):
+    """Return configured and default MFA options and compliance timers per permissions group/role."""
+    from ..core.mfa import (
+        get_mfa_role_permissions, DEFAULT_MFA_ROLE_PERMISSIONS,
+        get_mfa_role_compliance, DEFAULT_MFA_COMPLIANCE
+    )
+    return {
+        "roles": get_mfa_role_permissions(),
+        "defaults": DEFAULT_MFA_ROLE_PERMISSIONS,
+        "compliance": get_mfa_role_compliance(),
+        "compliance_defaults": DEFAULT_MFA_COMPLIANCE,
+        "role_descriptions": {
+            "super_admin": "Full system administrators with unrestricted access to settings, databases, and logs.",
+            "manager": "Staff managers administering members, queue dispatches, and organizational units.",
+            "parent": "Account owners managing their own household profiles and opt-out requests.",
+            "member": "Standard patrons/members with view and managed access.",
+        },
+    }
+
+
+@router.patch("/security/mfa-policy")
+def update_mfa_policy_settings(data: MfaRolePolicySettings, _: User = Depends(require_super_admin)):
+    """
+    Update allowed MFA options and compliance timers per permissions group.
+    Ensures mandated administrative roles retain at least one factor and validates timer ranges.
+    """
+    from ..core.mfa import (
+        validate_mfa_role_permissions, get_mfa_role_permissions,
+        validate_mfa_compliance, get_mfa_role_compliance
+    )
+    policy_dict = {r: p.model_dump() for r, p in data.roles.items()}
+    valid, err_msg = validate_mfa_role_permissions(policy_dict)
+    if not valid:
+        raise HTTPException(400, err_msg)
+
+    compliance_dict = None
+    if data.compliance is not None:
+        compliance_dict = {r: c.model_dump() for r, c in data.compliance.items()}
+        valid_comp, err_comp = validate_mfa_compliance(compliance_dict)
+        if not valid_comp:
+            raise HTTPException(400, err_comp)
+
+    s = load_settings()
+    sec = s.setdefault("security", {})
+    sec["mfa_roles"] = policy_dict
+    if compliance_dict is not None:
+        sec["mfa_compliance"] = compliance_dict
+    _save(s)
+    return {
+        "saved": True,
+        "roles": get_mfa_role_permissions(),
+        "compliance": get_mfa_role_compliance(),
+    }
+
 
 
 # ── Automation (user-agent rotation, bot evasion) ─────────────────────────────
