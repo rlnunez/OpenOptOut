@@ -449,6 +449,9 @@ function ILSPresetPicker({ config, setConfig }) {
         </div>
       )}
     </div>
+  )
+}
+
 function formatSingleConditionSummary(cond) {
   if (!cond) return ''
   const fieldName = cond.field === 'library' ? 'Library / Branch'
