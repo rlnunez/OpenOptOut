@@ -146,6 +146,21 @@ def recheck_upcoming(
     return [_to_out(r) for r in reqs]
 
 
+# ── Get ───────────────────────────────────────────────────────────────────────
+
+@router.get("/{req_id}", response_model=RequestOut)
+def get_request(
+    req_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    req = db.query(RemovalRequest).filter(RemovalRequest.id == req_id).first()
+    if not req:
+        raise HTTPException(404, "Request not found")
+    assert_can_view(db, current_user, req.member_id)
+    return _to_out(req)
+
+
 # ── Create ────────────────────────────────────────────────────────────────────
 
 @router.post("", response_model=RequestOut, status_code=201)
