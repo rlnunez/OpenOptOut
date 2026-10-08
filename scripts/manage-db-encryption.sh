@@ -94,7 +94,7 @@ done
 # Run execution helper
 exec_py() {
   local py_args=("$@")
-  if [ "$RUN_MODE" = "docker" ] || ([ "$RUN_MODE" = "auto" ] && [ "$USE_DOCKER" -eq 1 ]); then
+  if [ "$RUN_MODE" = "docker" ] || { [ "$RUN_MODE" = "auto" ] && [ "$USE_DOCKER" -eq 1 ]; }; then
     info "Executing via Docker Compose (api container)..."
     docker compose -f "$REPO_ROOT/docker-compose.yml" exec api python3 -m core.encryption "${py_args[@]}"
   else
