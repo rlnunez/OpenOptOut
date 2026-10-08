@@ -128,6 +128,7 @@ class AuthProviderConfig(BaseModel):
     sip2_default_role:  str   = "parent"
     sip2_password_set:  bool  = False
     sip2_timeout:       int   = 10
+    sip2_eligibility_rules: Optional[Any] = None
 
     # OIDC providers (google, microsoft, custom + any named)
     oidc_providers:     List[dict] = []
@@ -393,6 +394,7 @@ def get_auth_providers(user: Optional[User] = Depends(get_current_user_optional)
         sip2_default_role=sip2.get("default_role","parent"),
         sip2_password_set=bool(sip2.get("ils_password_enc")),
         sip2_timeout=sip2.get("timeout_seconds", 10),
+        sip2_eligibility_rules=sip2.get("eligibility_rules"),
         oidc_providers=oidc_providers,
     )
 
@@ -441,6 +443,13 @@ def save_sip2(data: dict, _: User = Depends(require_permission("auth.providers")
     pw = data.pop("ils_password", None)
     data.pop("verify_cert", None)          # verification is always on now
     warnings = []
+    if "eligibility_rules" in data:
+        elig = data.get("eligibility_rules")
+        if elig is not None:
+            from ..core.sip2_rules import validate_sip2_rules
+            valid, err = validate_sip2_rules(elig)
+            if not valid:
+                raise HTTPException(400, f"Invalid eligibility rules: {err}")
     if "ca_cert_pem" in data:
         pem = (data.get("ca_cert_pem") or "").strip()
         if pem:

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import {
   Palette, Upload, X, Check, RefreshCw, Shield, Users,
   Building, Bell, Key, TestTube, Plus, Trash2, Eye, EyeOff,
-  ChevronDown, Globe, Server, CreditCard, AlertTriangle
+  ChevronDown, Globe, Server, CreditCard, AlertTriangle, Filter
 } from 'lucide-react'
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
@@ -449,6 +449,372 @@ function ILSPresetPicker({ config, setConfig }) {
         </div>
       )}
     </div>
+function formatSingleConditionSummary(cond) {
+  if (!cond) return ''
+  const fieldName = cond.field === 'library' ? 'Library / Branch'
+    : cond.field === 'age' ? 'Age'
+    : cond.field === 'profile_type' ? 'Patron Profile'
+    : (cond.field ? `SIP2 [${cond.field}]` : 'Field')
+
+  const op = cond.operator || 'contains'
+  const val = Array.isArray(cond.value) ? cond.value.join(' and ') : String(cond.value || '')
+
+  if (cond.field === 'age') {
+    if (op === 'between') return `Age between ${Array.isArray(cond.value) ? cond.value.join(' and ') : val}`
+    if (op === 'greater_than') return `Age > ${val}`
+    if (op === 'greater_than_or_equal') return `Age ≥ ${val}`
+    if (op === 'less_than') return `Age < ${val}`
+    if (op === 'less_than_or_equal') return `Age ≤ ${val}`
+    if (op === 'equals') return `Age = ${val}`
+    return `Age ${op} ${val}`
+  }
+
+  if (op === 'contains' || op === 'in') return `${fieldName} contains [${val}]`
+  if (op === 'not_in' || op === 'none_of') return `${fieldName} is not in [${val}]`
+  if (op === 'equals') return `${fieldName} = "${val}"`
+  if (op === 'not_equals') return `${fieldName} ≠ "${val}"`
+  return `${fieldName} ${op} "${val}"`
+}
+
+function formatGroupSummary(group) {
+  if (!group || !Array.isArray(group.rules) || group.rules.length === 0) return 'No conditions configured'
+  const joiner = group.mode === 'any' ? ' OR ' : ' AND '
+  const parts = group.rules.map(item => {
+    if (item.rules) {
+      return `(${formatGroupSummary(item)})`
+    }
+    return formatSingleConditionSummary(item)
+  }).filter(Boolean)
+
+  if (parts.length === 0) return 'No conditions configured'
+  return parts.join(joiner)
+}
+
+function RuleConditionRow({ rule, onChange, onRemove }) {
+  const isAge = rule.field === 'age'
+  const isCustom = !['library', 'age', 'profile_type'].includes(rule.field)
+
+  const handleFieldChange = (newField) => {
+    if (newField === 'age') {
+      onChange({ ...rule, field: 'age', operator: 'between', value: [18, 99] })
+    } else if (newField === 'custom') {
+      onChange({ ...rule, field: 'AQ', operator: 'contains', value: '' })
+    } else {
+      onChange({ ...rule, field: newField, operator: 'contains', value: '' })
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 p-2.5 bg-slate-900/60 border border-slate-700/60 rounded-lg text-xs">
+      <select
+        value={isCustom ? 'custom' : rule.field}
+        onChange={e => handleFieldChange(e.target.value)}
+        className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200 focus:outline-none focus:border-shield-500 font-medium"
+      >
+        <option value="library">Library / Branch (AQ, AF, AO)</option>
+        <option value="age">Age (from birthdate PA, PB)</option>
+        <option value="profile_type">Patron Profile Type (PC)</option>
+        <option value="custom">Custom SIP2 Field Code</option>
+      </select>
+
+      {isCustom && (
+        <input
+          type="text"
+          maxLength={2}
+          value={rule.field || ''}
+          onChange={e => onChange({ ...rule, field: e.target.value.toUpperCase() })}
+          placeholder="Code (e.g. AO)"
+          className="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200 uppercase font-mono"
+        />
+      )}
+
+      <select
+        value={rule.operator}
+        onChange={e => {
+          const newOp = e.target.value
+          let newVal = rule.value
+          if (isAge && newOp === 'between' && !Array.isArray(newVal)) {
+            newVal = [18, 99]
+          } else if (isAge && newOp !== 'between' && Array.isArray(newVal)) {
+            newVal = newVal[0] || 18
+          }
+          onChange({ ...rule, operator: newOp, value: newVal })
+        }}
+        className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200 focus:outline-none focus:border-shield-500"
+      >
+        {isAge ? (
+          <>
+            <option value="between">between (min & max)</option>
+            <option value="greater_than_or_equal">greater than or equal (≥)</option>
+            <option value="less_than_or_equal">less than or equal (≤)</option>
+            <option value="greater_than">greater than (&gt;)</option>
+            <option value="less_than">less than (&lt;)</option>
+            <option value="equals">equals (==)</option>
+          </>
+        ) : (
+          <>
+            <option value="contains">contains any of (comma-separated)</option>
+            <option value="not_in">is not any of (comma-separated)</option>
+            <option value="equals">exactly equals</option>
+            <option value="not_equals">does not equal</option>
+          </>
+        )}
+      </select>
+
+      {isAge && rule.operator === 'between' ? (
+        <div className="flex items-center gap-1.5">
+          <input
+            type="number"
+            min={0}
+            max={130}
+            value={Array.isArray(rule.value) ? rule.value[0] : 18}
+            onChange={e => {
+              const minVal = parseInt(e.target.value) || 0
+              const maxVal = Array.isArray(rule.value) ? rule.value[1] : 99
+              onChange({ ...rule, value: [minVal, maxVal] })
+            }}
+            placeholder="Min"
+            className="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200 text-center"
+          />
+          <span className="text-slate-500 font-medium">and</span>
+          <input
+            type="number"
+            min={0}
+            max={130}
+            value={Array.isArray(rule.value) ? rule.value[1] : 99}
+            onChange={e => {
+              const minVal = Array.isArray(rule.value) ? rule.value[0] : 18
+              const maxVal = parseInt(e.target.value) || 99
+              onChange({ ...rule, value: [minVal, maxVal] })
+            }}
+            placeholder="Max"
+            className="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200 text-center"
+          />
+        </div>
+      ) : isAge ? (
+        <input
+          type="number"
+          min={0}
+          max={130}
+          value={typeof rule.value === 'number' ? rule.value : (Array.isArray(rule.value) ? rule.value[0] : (rule.value || 18))}
+          onChange={e => onChange({ ...rule, value: parseInt(e.target.value) || 0 })}
+          className="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200 text-center"
+        />
+      ) : (
+        <input
+          type="text"
+          value={typeof rule.value === 'string' ? rule.value : (Array.isArray(rule.value) ? rule.value.join(', ') : '')}
+          onChange={e => onChange({ ...rule, value: e.target.value })}
+          placeholder="e.g. lib1, lib2, lib3"
+          className="flex-1 min-w-[160px] bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200 placeholder-slate-600"
+        />
+      )}
+
+      <button
+        type="button"
+        onClick={onRemove}
+        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded transition-colors ml-auto"
+        title="Remove condition"
+      >
+        <Trash2 size={13} />
+      </button>
+    </div>
+  )
+}
+
+function RuleGroupComponent({ group, onChange, onRemove, isRoot = false }) {
+  const mode = group.mode || 'all'
+  const rules = group.rules || []
+
+  const updateMode = (newMode) => {
+    onChange({ ...group, mode: newMode })
+  }
+
+  const addCondition = () => {
+    const newCond = { field: 'library', operator: 'contains', value: '' }
+    onChange({ ...group, rules: [...rules, newCond] })
+  }
+
+  const addSubGroup = () => {
+    const newGroup = {
+      mode: mode === 'all' ? 'any' : 'all',
+      rules: [{ field: 'age', operator: 'between', value: [18, 99] }]
+    }
+    onChange({ ...group, rules: [...rules, newGroup] })
+  }
+
+  const updateRuleAt = (idx, updatedItem) => {
+    const nextRules = [...rules]
+    nextRules[idx] = updatedItem
+    onChange({ ...group, rules: nextRules })
+  }
+
+  const removeRuleAt = (idx) => {
+    const nextRules = rules.filter((_, i) => i !== idx)
+    onChange({ ...group, rules: nextRules })
+  }
+
+  return (
+    <div className={`rounded-xl border ${isRoot ? 'border-slate-700/80 bg-slate-900/40 p-3.5' : 'border-indigo-500/30 bg-indigo-950/20 p-3 my-2'} space-y-2.5`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            {isRoot ? 'Match Logic:' : 'Nested Group Logic:'}
+          </span>
+          <div className="inline-flex rounded-lg border border-slate-700 p-0.5 bg-slate-800 text-xs">
+            <button
+              type="button"
+              onClick={() => updateMode('all')}
+              className={`px-2.5 py-1 rounded font-medium transition-colors ${
+                mode === 'all' ? 'bg-shield-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              All must be true (AND)
+            </button>
+            <button
+              type="button"
+              onClick={() => updateMode('any')}
+              className={`px-2.5 py-1 rounded font-medium transition-colors ${
+                mode === 'any' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              One must be true (OR)
+            </button>
+          </div>
+        </div>
+
+        {!isRoot && onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-900/20 transition-colors"
+          >
+            <Trash2 size={12} /> Remove Group
+          </button>
+        )}
+      </div>
+
+      <div className="space-y-2 pl-1">
+        {rules.length === 0 ? (
+          <p className="text-slate-500 text-xs italic py-1">No conditions configured in this group yet.</p>
+        ) : (
+          rules.map((item, idx) => {
+            if (item.rules) {
+              return (
+                <RuleGroupComponent
+                  key={idx}
+                  group={item}
+                  onChange={upd => updateRuleAt(idx, upd)}
+                  onRemove={() => removeRuleAt(idx)}
+                  isRoot={false}
+                />
+              )
+            }
+            return (
+              <RuleConditionRow
+                key={idx}
+                rule={item}
+                onChange={upd => updateRuleAt(idx, upd)}
+                onRemove={() => removeRuleAt(idx)}
+              />
+            )
+          })
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-800/80">
+        <button
+          type="button"
+          onClick={addCondition}
+          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-shield-300 bg-shield-900/30 border border-shield-700/50 rounded-lg hover:bg-shield-900/50 transition-colors"
+        >
+          <Plus size={12} /> Add Condition
+        </button>
+        {isRoot && (
+          <button
+            type="button"
+            onClick={addSubGroup}
+            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-indigo-300 bg-indigo-900/20 border border-indigo-700/50 rounded-lg hover:bg-indigo-900/40 transition-colors"
+          >
+            <Plus size={12} /> Add Nested Group (AND / OR)
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SIP2EligibilityRuleBuilder({ value, onChange }) {
+  const current = value || { enabled: false, mode: 'all', rules: [] }
+  const isEnabled = Boolean(current.enabled)
+
+  const toggleEnabled = () => {
+    onChange({
+      ...current,
+      enabled: !isEnabled,
+      mode: current.mode || 'all',
+      rules: current.rules && current.rules.length > 0
+        ? current.rules
+        : [
+            { field: 'library', operator: 'contains', value: '' }
+          ]
+    })
+  }
+
+  const handleGroupChange = (upd) => {
+    onChange({
+      ...upd,
+      enabled: isEnabled,
+    })
+  }
+
+  const summary = formatGroupSummary(current)
+
+  return (
+    <div className="border border-slate-700/60 rounded-xl overflow-hidden bg-slate-900/30">
+      <div className="flex items-center justify-between px-4 py-3 bg-slate-900/70 border-b border-slate-700/60">
+        <div className="flex items-center gap-2">
+          <Filter size={13} className="text-shield-400" />
+          <div>
+            <span className="text-slate-200 text-xs font-medium uppercase tracking-wide">Patron Eligibility Rules</span>
+            <p className="text-slate-500 text-xs">Limit ILS authentication by library branch, patron age, or profile type.</p>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <span className="text-slate-400 text-xs">{isEnabled ? 'Enforced' : 'Off'}</span>
+          <div
+            onClick={toggleEnabled}
+            className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${isEnabled ? 'bg-shield-600' : 'bg-slate-700'}`}
+          >
+            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${isEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </div>
+        </label>
+      </div>
+
+      {isEnabled && (
+        <div className="p-4 space-y-3">
+          <p className="text-slate-400 text-xs">
+            Configure conditions patrons must satisfy to sign in. Supports multi-values (e.g. <code className="text-slate-300">lib1, lib2, lib3</code>),
+            calculated ages from patron birthdates (e.g. between 18 and 99), and boolean combinators.
+          </p>
+
+          <RuleGroupComponent
+            group={current}
+            onChange={handleGroupChange}
+            isRoot={true}
+          />
+
+          <div className="rounded-lg bg-slate-950 border border-slate-800 p-3">
+            <span className="text-[11px] font-semibold uppercase text-slate-500 tracking-wider block mb-1">
+              Active Evaluation Rule:
+            </span>
+            <p className="text-xs font-mono text-emerald-400 break-words leading-relaxed">
+              {summary}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -501,6 +867,7 @@ function AuthProvidersSection() {
         timeout_seconds: config.sip2_timeout || 10,
         institution_id: config.sip2_institution_id, ils_login: config.sip2_ils_login,
         email_domain: config.sip2_email_domain, default_role: config.sip2_default_role,
+        eligibility_rules: config.sip2_eligibility_rules || null,
         ...(config._sip2_pw ? { ils_password: config._sip2_pw } : {}),
       })
       setSip2Msg({ ok: true, warnings: r.data.warnings || [] })
@@ -737,6 +1104,13 @@ function AuthProvidersSection() {
                 )}
               </div>
             )}
+
+            {/* Patron Eligibility Rule Engine */}
+            <SIP2EligibilityRuleBuilder
+              value={config.sip2_eligibility_rules}
+              onChange={rules => setConfig(c => ({...c, sip2_eligibility_rules: rules}))}
+            />
+
             {testResults.sip2 && (
               <div className="text-xs space-y-0.5">
                 <p className={testResults.sip2.connected ? 'text-emerald-400' : 'text-red-400'}>

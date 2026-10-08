@@ -145,6 +145,7 @@ class SIP2Connection(Base):
     timeout_seconds   = Column(Integer, default=10, nullable=False)
     enabled           = Column(Boolean, default=True, nullable=False)
     priority          = Column(Integer, default=10, nullable=False)
+    eligibility_rules = Column(Text, default="", nullable=True)  # JSON-encoded rule tree
     created_at        = Column(DateTime, default=datetime.utcnow)
 
     system = relationship("LibrarySystem", back_populates="sip2_connections")

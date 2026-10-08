@@ -104,6 +104,10 @@ MIGRATIONS = [
         "Add mfa_options_override to users",
         "ALTER TABLE users ADD COLUMN mfa_options_override TEXT"
     ),
+    (
+        "Add eligibility_rules to sip2_connections",
+        "ALTER TABLE sip2_connections ADD COLUMN eligibility_rules TEXT DEFAULT ''"
+    ),
 ]
 
 # Known property brokers — flagged on first startup

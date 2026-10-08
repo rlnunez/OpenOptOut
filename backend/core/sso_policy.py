@@ -115,6 +115,16 @@ def evaluate_sso_login(result, provider_cfg: dict, registration_cfg: dict,
         if not groups.intersection(required):
             return _deny("Your account is not in a group permitted to use this system.")
 
+    # 5.5 SIP2 patron eligibility rules
+    if provider == "sip2":
+        elig_cfg = cfg.get("eligibility_rules")
+        raw_profile = getattr(result, "raw_profile", None)
+        if elig_cfg and raw_profile is not None:
+            from .sip2_rules import evaluate_sip2_eligibility
+            eligible, reason = evaluate_sip2_eligibility(elig_cfg, raw_profile)
+            if not eligible:
+                return _deny(f"Your library account is not eligible to sign in: {reason}")
+
     # 6. existing user — linked login
     if user_exists:
         return Decision(True, "existing account")

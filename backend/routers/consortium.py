@@ -97,6 +97,7 @@ class SIP2ConnectionCreate(BaseModel):
     timeout_seconds: int = 10
     enabled: bool = True
     priority: int = 10
+    eligibility_rules: Optional[Any] = None
 
 
 class SIP2ConnectionUpdate(BaseModel):
@@ -117,6 +118,7 @@ class SIP2ConnectionUpdate(BaseModel):
     timeout_seconds: Optional[int] = None
     enabled: Optional[bool] = None
     priority: Optional[int] = None
+    eligibility_rules: Optional[Any] = None
 
 
 class SIP2ConnectionOut(BaseModel):
@@ -139,6 +141,7 @@ class SIP2ConnectionOut(BaseModel):
     timeout_seconds: int
     enabled: bool
     priority: int
+    eligibility_rules: Optional[Any] = None
     created_at: datetime
 
     class Config:
@@ -434,6 +437,15 @@ def delete_branch(
 
 # ── SIP2 Connections Endpoints ────────────────────────────────────────────────
 
+def _parse_eligibility_rules(raw: Optional[str]) -> Optional[Any]:
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except Exception:
+        return raw
+
+
 @router.get("/sip2-connections", response_model=List[SIP2ConnectionOut])
 def list_sip2_connections(
     db: Session = Depends(get_db),
@@ -451,7 +463,9 @@ def list_sip2_connections(
             barcode_prefix=c.barcode_prefix, branch_field_code=c.branch_field_code,
             email_domain=c.email_domain, default_role=c.default_role,
             timeout_seconds=c.timeout_seconds, enabled=c.enabled,
-            priority=c.priority, created_at=c.created_at,
+            priority=c.priority,
+            eligibility_rules=_parse_eligibility_rules(c.eligibility_rules),
+            created_at=c.created_at,
         )
         for c in conns
     ]
@@ -469,6 +483,14 @@ def create_sip2_connection(
             raise HTTPException(404, "Associated library system not found")
 
     enc_pw = encrypt_password(data.ils_password) if data.ils_password else ""
+    elig_str = ""
+    if data.eligibility_rules is not None:
+        from ..core.sip2_rules import validate_sip2_rules
+        valid, err = validate_sip2_rules(data.eligibility_rules)
+        if not valid:
+            raise HTTPException(400, f"Invalid eligibility rules: {err}")
+        elig_str = json.dumps(data.eligibility_rules) if isinstance(data.eligibility_rules, (dict, list)) else str(data.eligibility_rules)
+
     c = SIP2Connection(
         system_id=data.system_id,
         name=data.name.strip(),
@@ -487,6 +509,7 @@ def create_sip2_connection(
         timeout_seconds=data.timeout_seconds,
         enabled=data.enabled,
         priority=data.priority,
+        eligibility_rules=elig_str,
     )
     db.add(c)
     db.commit()
@@ -501,7 +524,9 @@ def create_sip2_connection(
         barcode_prefix=c.barcode_prefix, branch_field_code=c.branch_field_code,
         email_domain=c.email_domain, default_role=c.default_role,
         timeout_seconds=c.timeout_seconds, enabled=c.enabled,
-        priority=c.priority, created_at=c.created_at,
+        priority=c.priority,
+        eligibility_rules=data.eligibility_rules,
+        created_at=c.created_at,
     )
 
 
@@ -548,6 +573,12 @@ def update_sip2_connection(
         c.enabled = data.enabled
     if data.priority is not None:
         c.priority = data.priority
+    if data.eligibility_rules is not None:
+        from ..core.sip2_rules import validate_sip2_rules
+        valid, err = validate_sip2_rules(data.eligibility_rules)
+        if not valid:
+            raise HTTPException(400, f"Invalid eligibility rules: {err}")
+        c.eligibility_rules = json.dumps(data.eligibility_rules) if isinstance(data.eligibility_rules, (dict, list)) else str(data.eligibility_rules)
 
     db.commit()
     db.refresh(c)
@@ -561,7 +592,9 @@ def update_sip2_connection(
         barcode_prefix=c.barcode_prefix, branch_field_code=c.branch_field_code,
         email_domain=c.email_domain, default_role=c.default_role,
         timeout_seconds=c.timeout_seconds, enabled=c.enabled,
-        priority=c.priority, created_at=c.created_at,
+        priority=c.priority,
+        eligibility_rules=_parse_eligibility_rules(c.eligibility_rules),
+        created_at=c.created_at,
     )
 
 

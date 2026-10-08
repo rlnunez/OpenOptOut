@@ -697,6 +697,26 @@ def try_sip2_auth(barcode: str, pin: str, db=None) -> AuthResult:
             # Same message whether the card or the PIN was wrong (no card enumeration).
             return AuthResult(success=False, provider="sip2", error=generic)
 
+        # Evaluate patron eligibility rules (Library, Age, Profile Type, etc.)
+        elig_cfg = None
+        if conn_obj and conn_obj.eligibility_rules:
+            elig_cfg = conn_obj.eligibility_rules
+        else:
+            global_cfg = get_provider_config("sip2")
+            elig_cfg = global_cfg.get("eligibility_rules")
+
+        if elig_cfg:
+            from .sip2_rules import evaluate_sip2_eligibility
+            is_eligible, reason = evaluate_sip2_eligibility(elig_cfg, fields)
+            if not is_eligible:
+                log.info("SIP2 patron %s failed eligibility rules: %s", barcode, reason)
+                return AuthResult(
+                    success=False,
+                    provider="sip2",
+                    error=f"Library card not eligible: {reason}",
+                    raw_profile=fields,
+                )
+
         name = fields.get("AE", "").strip()
         email = f"{barcode}@{email_domain}"
         log.info("SIP2%s auth OK: host=%s:%s", "S" if use_tls else "", host, port)

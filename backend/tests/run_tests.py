@@ -2796,6 +2796,151 @@ def t_sip2_parse():
     #   fields/messages into the ILS conversation.
 
 
+@test(1, "sip2.eligibility_birthdate_and_age_calculation",
+      "SIP2 birthdate formats (YYYYMMDD, YYYY-MM-DD, MM/DD/YYYY, etc.) parse correctly and compute exact age.")
+def t_sip2_dob_and_age():
+    from datetime import date
+    rules_mod = _imp("core.sip2_rules")
+    ref = date(2026, 10, 8)
+
+    # Various date formats for a person born Oct 8, 2000 (turns 26 on ref date)
+    for dob_str in ("20001008", "2000-10-08", "10/08/2000", "2000/10/08", "10-08-2000"):
+        d = rules_mod.parse_patron_birthdate(dob_str)
+        assert d == date(2000, 10, 8), f"failed to parse {dob_str}: {d}"
+        assert rules_mod.calculate_patron_age(dob_str, reference_date=ref) == 26
+
+    # Birthday hasn't happened yet this year: Oct 9, 2000 is still 25 on Oct 8, 2026
+    assert rules_mod.calculate_patron_age("2000-10-09", reference_date=ref) == 25
+    # Birthday was yesterday: Oct 7, 2000 is 26 on Oct 8, 2026
+    assert rules_mod.calculate_patron_age("2000-10-07", reference_date=ref) == 26
+
+    # Numeric age fallback
+    assert rules_mod.calculate_patron_age("42") == 42
+    assert rules_mod.calculate_patron_age(19) == 19
+
+    # Invalid / empty
+    assert rules_mod.parse_patron_birthdate("") is None
+    assert rules_mod.parse_patron_birthdate("invalid-dob") is None
+    assert rules_mod.calculate_patron_age("invalid") is None
+
+
+@test(1, "sip2.eligibility_rules_engine_complex_and_nested",
+      "SIP2 eligibility rules evaluate multi-value library/profile matching, age ranges, and nested AND/OR combinators.")
+def t_sip2_eligibility_engine():
+    from datetime import date
+    rules_mod = _imp("core.sip2_rules")
+    ref = date(2026, 10, 8)
+
+    # Specification:
+    # Library contains lib1, lib2, lib3 AND
+    # (age between 18 and 99 OR User profile is not user1, user2, user3)
+    complex_spec = {
+        "enabled": True,
+        "mode": "all",
+        "rules": [
+            {"field": "library", "operator": "contains", "value": "lib1, lib2, lib3"},
+            {
+                "mode": "any",
+                "rules": [
+                    {"field": "age", "operator": "between", "value": [18, 99]},
+                    {"field": "profile_type", "operator": "not_in", "value": "user1, user2, user3"}
+                ]
+            }
+        ]
+    }
+
+    # Case 1: Matching library (lib2), age 26 (DOB 2000-10-08), profile 'user1'
+    # Age between 18 and 99 is TRUE -> inner OR passes -> whole rule PASSES
+    p1 = {"AQ": "lib2", "PA": "2000-10-08", "PC": "user1"}
+    ok, reason = rules_mod.evaluate_sip2_eligibility(complex_spec, p1, reference_date=ref)
+    assert ok is True, f"p1 should be eligible: {reason}"
+
+    # Case 2: Matching library (lib3), age 12 (DOB 2014-10-08), profile 'student'
+    # Age between 18 and 99 is FALSE, but profile 'student' not in [user1, user2, user3] is TRUE
+    # Inner OR passes -> whole rule PASSES
+    p2 = {"AQ": "lib3", "PA": "2014-10-08", "PC": "student"}
+    ok, reason = rules_mod.evaluate_sip2_eligibility(complex_spec, p2, reference_date=ref)
+    assert ok is True, f"p2 should be eligible: {reason}"
+
+    # Case 3: Matching library (lib1), age 12, profile 'user2'
+    # Both inner conditions fail -> inner OR fails -> whole rule FAILS
+    p3 = {"AQ": "lib1", "PA": "2014-10-08", "PC": "user2"}
+    ok, reason = rules_mod.evaluate_sip2_eligibility(complex_spec, p3, reference_date=ref)
+    assert ok is False, f"p3 should fail: {reason}"
+    assert "Patron does not meet any of the required criteria" in reason
+
+    # Case 4: Mismatched library (other_branch), age 30, profile 'admin'
+    # Library condition fails immediately -> whole rule FAILS
+    p4 = {"AQ": "other_branch", "PA": "1996-10-08", "PC": "admin"}
+    ok, reason = rules_mod.evaluate_sip2_eligibility(complex_spec, p4, reference_date=ref)
+    assert ok is False, f"p4 should fail due to library: {reason}"
+    assert "failed eligibility requirement" in reason
+
+    # Case 5: Disabled rule config passes everyone
+    disabled_spec = dict(complex_spec, enabled=False)
+    ok, reason = rules_mod.evaluate_sip2_eligibility(disabled_spec, p4, reference_date=ref)
+    assert ok is True
+
+    # Case 6: Structural validation checks
+    valid, err = rules_mod.validate_sip2_rules(complex_spec)
+    assert valid is True and err is None
+
+    bad_op_spec = {
+        "mode": "all",
+        "rules": [{"field": "age", "operator": "bad_operator", "value": 18}]
+    }
+    valid, err = rules_mod.validate_sip2_rules(bad_op_spec)
+    assert valid is False and "Unsupported operator" in err
+
+
+@test(1, "sip2.eligibility_sso_policy_and_auth_gate",
+      "Ineligible SIP2 patrons are denied during SSO policy evaluation and direct authentication.")
+def t_sip2_eligibility_policy():
+    from types import SimpleNamespace as NS
+    sso_policy = _imp("core.sso_policy")
+
+    spec = {
+        "enabled": True,
+        "mode": "all",
+        "rules": [
+            {"field": "library", "operator": "contains", "value": "main_lib, west_branch"}
+        ]
+    }
+
+    # Ineligible patron (wrong branch)
+    res_ineligible = NS(
+        provider="sip2",
+        email="21234000123@library.local",
+        email_verified=True,
+        raw_profile={"AQ": "east_branch"}
+    )
+    decision = sso_policy.evaluate_sso_login(
+        res_ineligible,
+        provider_cfg={"eligibility_rules": spec},
+        registration_cfg={"mode": "open"},
+        user_exists=False,
+        user_count=5
+    )
+    assert decision.allowed is False, f"ineligible patron was allowed: {decision}"
+    assert "not eligible to sign in" in decision.reason
+
+    # Eligible patron (correct branch)
+    res_eligible = NS(
+        provider="sip2",
+        email="21234000123@library.local",
+        email_verified=True,
+        raw_profile={"AQ": "main_lib"}
+    )
+    decision_ok = sso_policy.evaluate_sso_login(
+        res_eligible,
+        provider_cfg={"eligibility_rules": spec},
+        registration_cfg={"mode": "open"},
+        user_exists=False,
+        user_count=5
+    )
+    assert decision_ok.allowed is True, f"eligible patron was rejected: {decision_ok}"
+
+
 @test(1, "consortium.sip2_location_code_parsing",
       "SIP2 location field (AQ, AF, etc.) is parsed from patron response and matched against branch codes.")
 def t_consortium_sip2_location():
