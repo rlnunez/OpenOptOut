@@ -831,17 +831,14 @@ def t_encryption_key_derivation():
     orig_sec_key = os.environ.get("SECRET_KEY")
     orig_disable = os.environ.get("DISABLE_DB_ENCRYPTION")
     try:
-        # Case 1: DB_ENCRYPTION_KEY takes precedence
         os.environ["DB_ENCRYPTION_KEY"] = "custom-db-passphrase-123"
         os.environ["SECRET_KEY"] = "secret-key-fallback-456"
         os.environ.pop("DISABLE_DB_ENCRYPTION", None)
         assert enc.get_db_encryption_key() == "custom-db-passphrase-123"
 
-        # Case 2: Fallback to SECRET_KEY
         os.environ.pop("DB_ENCRYPTION_KEY", None)
         assert enc.get_db_encryption_key() == "secret-key-fallback-456"
 
-        # Case 3: Explicit opt-out via DISABLE_DB_ENCRYPTION
         os.environ["DISABLE_DB_ENCRYPTION"] = "true"
         assert enc.get_db_encryption_key() is None
     finally:
@@ -859,17 +856,14 @@ def t_encryption_sqlite_plaintext_detection():
     import tempfile, sqlite3, os
     with tempfile.TemporaryDirectory() as tmpdir:
         db_file = os.path.join(tmpdir, "test_plain.db")
-        # Create standard SQLite database
         conn = sqlite3.connect(db_file)
         conn.execute("CREATE TABLE test_table (id INTEGER PRIMARY KEY, val TEXT);")
         conn.execute("INSERT INTO test_table VALUES (1, 'hello');")
         conn.commit()
         conn.close()
 
-        # Should be identified as plaintext SQLite
         assert enc.is_sqlite_plaintext(db_file) is True
 
-        # Non-sqlite / encrypted dummy file
         fake_file = os.path.join(tmpdir, "test_fake.db")
         with open(fake_file, "wb") as f:
             f.write(b"\x00" * 32)
@@ -883,24 +877,19 @@ def t_encryption_url_and_status():
     enc = _imp("core.encryption")
     import tempfile, sqlite3, os
 
-    # URL extraction
     assert enc.extract_sqlite_path("sqlite:////data/privacy_pipeline.db") == "/data/privacy_pipeline.db"
     assert enc.extract_sqlite_path("sqlite:///./relative.db") == "./relative.db"
     assert enc.extract_sqlite_path("sqlite:///relative.db") == "relative.db"
     assert enc.extract_sqlite_path("postgresql://user:pass@localhost:5432/db") is None
 
-    # Status check
     with tempfile.TemporaryDirectory() as tmpdir:
-        # 1. Missing
         missing = os.path.join(tmpdir, "missing.db")
         assert enc.check_db_encryption_status(missing)["status"] == "missing"
 
-        # 2. Empty
         empty = os.path.join(tmpdir, "empty.db")
         open(empty, "a").close()
         assert enc.check_db_encryption_status(empty)["status"] == "empty"
 
-        # 3. Plaintext
         plain = os.path.join(tmpdir, "plain.db")
         conn = sqlite3.connect(plain)
         conn.execute("CREATE TABLE foo (x INTEGER);")
@@ -909,6 +898,44 @@ def t_encryption_url_and_status():
         status_info = enc.check_db_encryption_status(plain)
         assert status_info["status"] == "plaintext"
         assert status_info["is_encrypted"] is False
+
+
+@test(1, "hardening.tmpfs_sizing_simulation",
+      "Simulate ephemeral /tmp tmpfs worker allocations, measuring peak memory and verifying zero leakage.")
+def t_hardening_tmpfs_sizing():
+    import sys, os
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    sys.path.insert(0, root_dir)
+    from deploy.tests.test_tmpfs_sizing import run_tmpfs_stress_test, get_tmp_stats
+
+    stats = get_tmp_stats()
+    assert "total_mb" in stats and stats["total_mb"] > 0
+    assert "free_mb" in stats
+
+    res = run_tmpfs_stress_test(concurrency=2, payload_mb=2, duration_sec=0.05)
+    assert res["all_succeeded"] is True
+    assert res["all_cleaned"] is True
+    assert res["total_simulated_mb"] >= 4.0
+    assert res["recommended_min_tmpfs_mb"] >= 256
+
+
+@test(1, "hardening.no_new_privs_probe",
+      "Validate container no-new-privileges and sandbox capability probing logic.")
+def t_hardening_no_new_privs():
+    import sys, os
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    sys.path.insert(0, root_dir)
+    from deploy.tests.test_no_new_privs import run_probe, check_no_new_privs_flag
+
+    flag_active, detail = check_no_new_privs_flag()
+    assert isinstance(flag_active, bool)
+    assert isinstance(detail, str)
+
+    probe = run_probe()
+    assert "platform" in probe
+    assert "is_linux" in probe
+    assert "no_new_privs_active" in probe
+    assert "compatible" in probe
 
 
 @test(1, "interpreter.script_bridge",

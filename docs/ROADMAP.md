@@ -34,13 +34,13 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 12 | School district authentication (Parent Portal SSO) | On-Demand (District Request Only) |
 | 13 | SAML 2.0 SSO & identity hardening | Complete |
 | 14 | Built-in HTTPS with automated certificates | Complete |
-| 15 | Process memory hygiene & credential lifecycle | Complete |
+| 15 | Process memory hygiene & ephemeral storage | In Testing (15.1 Complete, 15.2 In Testing) |
 | 16 | Operational visibility & diagnostic logging | Complete |
 | 17 | Internationalization (i18n): language packs & RTL | Complete |
 | 18 | Typed plugin directories & runtime isolation | Complete |
 | 19 | Delegated managerial permissions | Complete |
 | 20 | Multi-tier institutional hierarchy (Consortium) | Complete |
-| 21 | Plugin sandbox IPC & resource limits | Complete |
+| 21 | Plugin sandbox IPC & container privilege boundaries | In Testing (21.1 Complete, 21.2 In Testing) |
 | 22 | Independent security audit & penetration testing | Planned |
 | 23 | Unified interactive host & fleet installer (CLI/TUI) | Complete |
 
@@ -327,16 +327,21 @@ To ensure operational stability and maintain continuous testability without disr
 
 ---
 
-### 15. Process memory hygiene & credential lifecycle
-**Goal:** Ensure decrypted credentials (database keys, OAuth tokens, passwords) and sensitive patron PII are retained in process memory for the minimum duration necessary.
+### 15. Process memory hygiene & ephemeral storage
+**Goal:** Ensure decrypted credentials (database keys, OAuth tokens, passwords) and sensitive patron PII are retained in process memory for the minimum duration necessary, and prevent memory remnants from being persisted unencrypted to physical storage.
 
-**Technical Strategy:**
-- **Language Scope:** Acknowledging Python string immutability and memory allocation behavior, memory hygiene represents disciplined risk reduction (limiting scope, minimizing retention windows, clearing references promptly) rather than a hardware-level zeroization guarantee.
-- **Credential Scoping & Memory Zeroization:** `core/memory_hygiene.py` provides `SecureBuffer`, `ephemeral_secret`, and `scoped_credentials` context managers. Secrets are decrypted directly into mutable byte buffers, yielded strictly for the execution of connection blocks (SMTP, IMAP, tests), and overwritten with zeros on block exit or exception.
-- **Log Sanitization:** Enforces strict review checklists and automated masking ensuring credentials and PII are never interpolated into log statements or exception tracebacks (Item 16).
-- **Batch Processing Streaming:** Streams patron records (`stream_records` with `yield_per`) during bulk processing to ensure sensitive data goes out of scope promptly rather than accumulating in full-table in-memory collections.
+**Phased Execution:**
 
-**Status:** Complete.
+- **Phase 15.1 — Ephemeral Credential Lifecycle & Process Zeroization (Complete):**
+  - **Memory Zeroization:** `core/memory_hygiene.py` provides `SecureBuffer`, `ephemeral_secret`, and `scoped_credentials` context managers. Secrets are decrypted directly into mutable byte buffers, yielded strictly for the execution of connection blocks (SMTP, IMAP, tests), and overwritten with zeros on block exit or exception.
+  - **Core Dump Suppression:** Process-level core dumps are disabled (`RLIMIT_CORE = 0` via `disable_core_dumps()`), container ulimits (`ulimits: core: 0`), and systemd units enforce `LimitCORE=0` to guarantee memory contents are never dumped to disk on crash.
+  - **Log Sanitization:** Automated masking and strict review ensuring credentials and PII are never interpolated into log statements or exception tracebacks (Item 16).
+  - **Batch Query Streaming:** Streams patron records (`stream_records` with `yield_per`) during bulk processing so sensitive records go out of scope promptly.
+
+- **Phase 15.2 — Ephemeral RAM tmpfs (`/tmp`) Container Isolation (In Testing):**
+  - **Problem Statement:** Playwright (Chromium/Firefox) headless browser automation and plugin sandboxes create temporary profile directories, caches, and screenshots under `/tmp`. Backing `/tmp` with an in-memory RAM `tmpfs` guarantees decrypted browser artifacts vanish upon reboot and never touch persistent disk blocks.
+  - **Testing & Sizing Benchmarks:** Sizing benchmark suite (`deploy/tests/test_tmpfs_sizing.py`) monitors peak consumption across concurrent worker sessions to prevent `ENOSPC` (out of disk space) crashes during large multi-broker batches.
+  - **Status:** In Testing. Benchmarks indicate minimum 512MB for small instances and 1GB for production worker fleets (`tmpfs: [ "/tmp:size=1G" ]`).
 
 ---
 
@@ -420,15 +425,20 @@ plugins/
 
 ---
 
-### 21. Plugin sandbox IPC & resource limits
-**Goal:** Guarantee resilient, isolated inter-process communication between the host application and sandboxed plugins without resource starvation.
+### 21. Plugin sandbox IPC & container privilege boundaries
+**Goal:** Guarantee resilient, isolated inter-process communication between the host application and sandboxed plugins without resource starvation, and establish safe container privilege boundaries.
 
-**Technical Architecture:**
-- **Network Namespace IPC:** HostService and plugins communicate over dedicated Unix domain sockets (`host.sock` and `plugin.sock`) bind-mounted into isolated runtime directories, enabling reliable IPC even when network namespaces are disabled for the plugin.
-- **Thread Stack Size Reduction:** Runner and SDK configure `threading.stack_size(512 * 1024)`, shrinking per-thread memory reservations to 512KB and preventing address space exhaustion under strict `RLIMIT_AS` memory ceilings.
-- **Filesystem Containment:** Plugin working directories are pinned to their dedicated runtime directories, preventing arbitrary writes to the host filesystem.
+**Phased Execution:**
 
-**Status:** Complete.
+- **Phase 21.1 — Plugin Sandbox IPC & Resource Ceilings (Complete):**
+  - **Network Namespace IPC:** HostService and plugins communicate over dedicated Unix domain sockets (`host.sock` and `plugin.sock`) bind-mounted into isolated runtime directories, enabling reliable IPC even when network namespaces are disabled for the plugin.
+  - **Thread Stack Size Reduction:** Runner and SDK configure `threading.stack_size(512 * 1024)`, shrinking per-thread memory reservations to 512KB and preventing address space exhaustion under strict `RLIMIT_AS` memory ceilings.
+  - **Filesystem Containment:** Plugin working directories are pinned to their dedicated runtime directories, preventing arbitrary writes to the host filesystem.
+
+- **Phase 21.2 — Container `no-new-privileges` Sandbox Compatibility (In Testing):**
+  - **Problem Statement:** Setting `no-new-privileges:true` (kernel flag `PR_SET_NO_NEW_PRIVS`) protects containers against setuid privilege escalation. On `api`, however, Bubblewrap (`bwrap`) relies on unprivileged user namespaces (`CLONE_NEWUSER`) or setuid root to construct mount and network namespaces.
+  - **Testing Probe & Compatibility Matrix:** Compatibility probe (`deploy/tests/test_no_new_privs.py`) audits host kernel posture, verifies unprivileged namespace creation, and checks nested seccomp transitions under `no-new-privileges:true`.
+  - **Status:** In Testing. Confirmed safe on modern Linux kernels with unprivileged user namespaces enabled; guarded against distributions requiring setuid `bwrap` binary fallbacks.
 
 ---
 
