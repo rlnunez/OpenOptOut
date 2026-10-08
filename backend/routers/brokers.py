@@ -7,7 +7,7 @@ from datetime import datetime
 import csv, io, json
 
 from ..models.database import get_db, Broker, RemovalRequest, RequestStatus, BrokerStatus, OptOutMethod, Difficulty
-from ..core.auth import get_current_user, User
+from ..core.auth import get_current_user, User, get_accessible_member_ids, _has
 from ..core.access import require_permission, has_permission
 
 router = APIRouter(prefix="/api/brokers", tags=["brokers"])
@@ -65,17 +65,42 @@ class DashboardStats(BaseModel):
 @router.get("/stats", response_model=DashboardStats)
 def dashboard_stats(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
+    can_view_all = (
+        current_user.is_super_admin
+        or _has(current_user, "consortium.cross_system")
+        or _has(current_user, "members.view_all")
+    )
     total = db.query(Broker).count()
-    confirmed = db.query(RemovalRequest).filter(RemovalRequest.status == RequestStatus.confirmed).count()
-    pending   = db.query(RemovalRequest).filter(RemovalRequest.status.in_([RequestStatus.sent, RequestStatus.pending])).count()
     resistant = db.query(Broker).filter(Broker.status == BrokerStatus.resistant).count()
-    recheck   = db.query(RemovalRequest).filter(
-        RemovalRequest.status == RequestStatus.recheck_due,
-        RemovalRequest.recheck_after <= datetime.utcnow()
-    ).count()
-    actioned  = db.query(RemovalRequest.broker_id).distinct().count()
+
+    if can_view_all:
+        confirmed = db.query(RemovalRequest).filter(RemovalRequest.status == RequestStatus.confirmed).count()
+        pending   = db.query(RemovalRequest).filter(RemovalRequest.status.in_([RequestStatus.sent, RequestStatus.pending])).count()
+        recheck   = db.query(RemovalRequest).filter(
+            RemovalRequest.status == RequestStatus.recheck_due,
+            RemovalRequest.recheck_after <= datetime.utcnow()
+        ).count()
+        actioned  = db.query(RemovalRequest.broker_id).distinct().count()
+    else:
+        accessible = get_accessible_member_ids(db, current_user)
+        confirmed = db.query(RemovalRequest).filter(
+            RemovalRequest.member_id.in_(accessible),
+            RemovalRequest.status == RequestStatus.confirmed,
+        ).count()
+        pending   = db.query(RemovalRequest).filter(
+            RemovalRequest.member_id.in_(accessible),
+            RemovalRequest.status.in_([RequestStatus.sent, RequestStatus.pending]),
+        ).count()
+        recheck   = db.query(RemovalRequest).filter(
+            RemovalRequest.member_id.in_(accessible),
+            RemovalRequest.status == RequestStatus.recheck_due,
+            RemovalRequest.recheck_after <= datetime.utcnow(),
+        ).count()
+        actioned  = db.query(RemovalRequest.broker_id).filter(
+            RemovalRequest.member_id.in_(accessible),
+        ).distinct().count()
 
     return DashboardStats(
         total_brokers=total,
@@ -96,7 +121,7 @@ def list_brokers(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     q = db.query(Broker)
     if search:
@@ -110,14 +135,22 @@ def list_brokers(
 
     brokers = q.order_by(Broker.name).offset(skip).limit(limit).all()
 
+    can_view_all = (
+        current_user.is_super_admin
+        or _has(current_user, "consortium.cross_system")
+        or _has(current_user, "members.view_all")
+    )
+    accessible = None if can_view_all else get_accessible_member_ids(db, current_user)
+
     result = []
     for b in brokers:
-        latest_req = (
-            db.query(RemovalRequest)
-            .filter(RemovalRequest.broker_id == b.id)
-            .order_by(RemovalRequest.updated_at.desc())
-            .first()
-        )
+        req_q = db.query(RemovalRequest).filter(RemovalRequest.broker_id == b.id)
+        if accessible is not None:
+            req_q = req_q.filter(RemovalRequest.member_id.in_(accessible))
+        latest_req = req_q.order_by(RemovalRequest.updated_at.desc()).first()
+
+        count_reqs = len(b.requests) if accessible is None else sum(1 for r in b.requests if r.member_id in accessible)
+
         result.append(BrokerOut(
             id=b.id,
             name=b.name,
@@ -127,7 +160,7 @@ def list_brokers(
             status=b.status,
             notes=b.notes,
             date_added=b.date_added,
-            request_count=len(b.requests),
+            request_count=count_reqs,
             latest_status=latest_req.status if latest_req else None,
             recheck_after=latest_req.recheck_after if latest_req else None,
             is_property_broker=bool(b.is_property_broker),

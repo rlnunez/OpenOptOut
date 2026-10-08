@@ -11,7 +11,7 @@ from ..models.database import (
 )
 from ..core.auth import (
     get_current_user, get_accessible_member_ids,
-    assert_can_view, User
+    assert_can_view, assert_can_edit, User
 )
 
 router = APIRouter(prefix="/api/requests", tags=["requests"])
@@ -188,7 +188,7 @@ def update_request(
 ):
     req = db.query(RemovalRequest).filter(RemovalRequest.id == req_id).first()
     if not req: raise HTTPException(404, "Request not found")
-    assert_can_view(db, current_user, req.member_id)
+    assert_can_edit(db, current_user, req.member_id)
 
     if data.status:
         req.status = data.status
@@ -215,7 +215,7 @@ def requeue_request(
     """Reset a confirmed (or overdue) request back to pending so it gets re-sent."""
     req = db.query(RemovalRequest).filter(RemovalRequest.id == req_id).first()
     if not req: raise HTTPException(404, "Request not found")
-    assert_can_view(db, current_user, req.member_id)
+    assert_can_edit(db, current_user, req.member_id)
 
     req.status       = RequestStatus.pending
     req.sent_at      = None
@@ -237,7 +237,7 @@ def snooze_request(
     """Push the recheck_after date forward by N days without changing status."""
     req = db.query(RemovalRequest).filter(RemovalRequest.id == req_id).first()
     if not req: raise HTTPException(404, "Request not found")
-    assert_can_view(db, current_user, req.member_id)
+    assert_can_edit(db, current_user, req.member_id)
 
     base = max(req.recheck_after or datetime.utcnow(), datetime.utcnow())
     req.recheck_after = base + timedelta(days=body.days)

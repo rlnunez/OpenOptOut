@@ -4273,6 +4273,153 @@ def t_access_email_monitor_isolation():
         session.close()
 
 
+@test(2, "access.broker_and_stats_cross_tenant_isolation",
+      "Dashboard stats and broker list latest_status isolate patron removal data "
+      "so users never see progress metrics or broker statuses of other accounts.")
+def t_access_broker_stats_isolation():
+    try:
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        auth = _imp("core.auth")
+        brokers_router = _imp("routers.brokers")
+        settings_store = _imp("core.settings_store")
+        db = _imp("models.database")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False},
+                           poolclass=StaticPool)
+    db.Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+    orig_load = settings_store.load_settings
+    settings_store.load_settings = lambda: {}
+    try:
+        R = db.UserRole
+        u1 = db.User(email="p1@example.org", full_name="Patron One", role=R.parent, hashed_password="x")
+        u2 = db.User(email="p2@example.org", full_name="Patron Two", role=R.parent, hashed_password="x")
+        admin = db.User(email="adm@example.org", full_name="Admin", role=R.super_admin, hashed_password="x")
+        session.add_all([u1, u2, admin]); session.flush()
+
+        m1 = db.FamilyMember(user_id=u1.id, full_name="Member One")
+        m2 = db.FamilyMember(user_id=u2.id, full_name="Member Two")
+        b1 = db.Broker(name="Broker One", opt_out_url="https://example.com/1")
+        b2 = db.Broker(name="Broker Two", opt_out_url="https://example.com/2")
+        session.add_all([m1, m2, b1, b2]); session.flush()
+
+        # Patron 1 confirmed b1; Patron 2 pending b2
+        req1 = db.RemovalRequest(member_id=m1.id, broker_id=b1.id, status=db.RequestStatus.confirmed)
+        req2 = db.RemovalRequest(member_id=m2.id, broker_id=b2.id, status=db.RequestStatus.pending)
+        session.add_all([req1, req2]); session.commit()
+
+        app = FastAPI(); app.include_router(brokers_router.router)
+        app.dependency_overrides[db.get_db] = lambda: session
+        client = TestClient(app)
+        who = {"user": u1}
+        app.dependency_overrides[auth.get_current_user] = lambda: who["user"]
+
+        # Patron 1 sees confirmed=1, pending=0 on dashboard stats
+        st1 = client.get("/api/brokers/stats").json()
+        assert st1["confirmed"] == 1
+        assert st1["pending"] == 0
+        assert st1["actioned"] == 1
+
+        # Patron 1 sees b1 as confirmed, and b2 as None (not touched by Patron 1)
+        br1 = client.get("/api/brokers").json()
+        b_map1 = {b["name"]: b for b in br1}
+        assert b_map1["Broker One"]["latest_status"] == "confirmed"
+        assert b_map1["Broker One"]["request_count"] == 1
+        assert b_map1["Broker Two"]["latest_status"] is None
+        assert b_map1["Broker Two"]["request_count"] == 0
+
+        # Patron 2 sees confirmed=0, pending=1 on dashboard stats
+        who["user"] = u2
+        st2 = client.get("/api/brokers/stats").json()
+        assert st2["confirmed"] == 0
+        assert st2["pending"] == 1
+        assert st2["actioned"] == 1
+
+        br2 = client.get("/api/brokers").json()
+        b_map2 = {b["name"]: b for b in br2}
+        assert b_map2["Broker One"]["latest_status"] is None
+        assert b_map2["Broker One"]["request_count"] == 0
+        assert b_map2["Broker Two"]["latest_status"] == "pending"
+        assert b_map2["Broker Two"]["request_count"] == 1
+
+        # Admin sees overall totals (confirmed=1, pending=1, actioned=2)
+        who["user"] = admin
+        sta = client.get("/api/brokers/stats").json()
+        assert sta["confirmed"] == 1
+        assert sta["pending"] == 1
+        assert sta["actioned"] == 2
+    finally:
+        settings_store.load_settings = orig_load
+        session.close()
+
+
+@test(2, "access.requests_mutation_requires_edit_permission",
+      "Mutating removal requests (patch, requeue, snooze) requires edit permission; "
+      "view-only managers are rejected with 403.")
+def t_access_requests_mutation_permission():
+    try:
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        auth = _imp("core.auth")
+        requests_router = _imp("routers.requests")
+        settings_store = _imp("core.settings_store")
+        db = _imp("models.database")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False},
+                           poolclass=StaticPool)
+    db.Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+    orig_load = settings_store.load_settings
+    settings_store.load_settings = lambda: {}
+    try:
+        R = db.UserRole
+        viewer = db.User(email="v@example.org", full_name="Viewer", role=R.manager,
+                         hashed_password="x", permissions_granted='["members.view_all"]')
+        editor = db.User(email="e@example.org", full_name="Editor", role=R.manager,
+                         hashed_password="x", permissions_granted='["members.edit_all"]')
+        fam = db.User(email="f@example.org", full_name="Fam", role=R.parent, hashed_password="x")
+        session.add_all([viewer, editor, fam]); session.flush()
+
+        m = db.FamilyMember(user_id=fam.id, full_name="Patron")
+        b = db.Broker(name="Broker", opt_out_url="https://example.com")
+        session.add_all([m, b]); session.flush()
+
+        req = db.RemovalRequest(member_id=m.id, broker_id=b.id, status=db.RequestStatus.confirmed)
+        session.add(req); session.commit()
+
+        app = FastAPI(); app.include_router(requests_router.router)
+        app.dependency_overrides[db.get_db] = lambda: session
+        client = TestClient(app)
+        who = {"user": viewer}
+        app.dependency_overrides[auth.get_current_user] = lambda: who["user"]
+
+        # Viewer can read but CANNOT patch, requeue, or snooze
+        assert client.get(f"/api/requests/{req.id}").status_code == 200
+        assert client.patch(f"/api/requests/{req.id}", json={"notes": "hacked"}).status_code == 403
+        assert client.post(f"/api/requests/{req.id}/requeue").status_code == 403
+        assert client.post(f"/api/requests/{req.id}/snooze", json={"days": 30}).status_code == 403
+
+        # Editor can patch, requeue, and snooze
+        who["user"] = editor
+        assert client.patch(f"/api/requests/{req.id}", json={"notes": "reviewed"}).status_code == 200
+        assert client.post(f"/api/requests/{req.id}/requeue").status_code == 200
+        assert client.post(f"/api/requests/{req.id}/snooze", json={"days": 30}).status_code == 200
+    finally:
+        settings_store.load_settings = orig_load
+        session.close()
+
+
 
 @test(2, "access.migrates_plugin_upload_grants",
       "Users given the earlier per-user 'can upload plugins' switch become managers holding "

@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from ..models.database import (get_db, User, Broker, ParentCompany, FamilyMember,
                                OptOutMethod)
-from ..core.auth import get_current_user
+from ..core.auth import get_current_user, assert_can_view
 from ..core.settings_store import load_settings
 
 router = APIRouter(prefix="/api/test-broker", tags=["test-broker"])
@@ -155,6 +155,7 @@ def send_test_optout(body: SendIn, db: Session = Depends(get_db),
         raise HTTPException(400, "Set up the test broker first (choose an address)")
 
     if body.member_id:
+        assert_can_view(db, user, body.member_id)
         member = db.query(FamilyMember).filter(FamilyMember.id == body.member_id).first()
         if not member:
             raise HTTPException(404, "Family member not found")
