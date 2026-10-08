@@ -1,0 +1,139 @@
+# ==============================================================================
+# OpenOptOut — Security Hardening & Posture Audit Workflow
+#
+# Runs testing probes for:
+#   1. Ephemeral RAM tmpfs (/tmp) sizing & leak tests (Roadmap Phase 15.2)
+#   2. Container no-new-privileges bubblewrap sandbox compatibility (Roadmap Phase 21.2)
+#
+# Can be run manually on-demand via workflow_dispatch ("Run workflow" in Actions),
+# or automatically on pushes touching security hardening scripts and compose files.
+# ==============================================================================
+
+name: Security Posture Audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/test-hardening-posture.sh"
+      - "deploy/tests/**"
+      - "backend/tests/test_tmpfs_sizing.py"
+      - "backend/tests/test_no_new_privs.py"
+      - "docker-compose.yml"
+      - ".github/workflows/posture-audit.yml"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Environment to audit: 'all' (native + docker), 'docker', or 'native'"
+        type: choice
+        options:
+          - all
+          - docker
+          - native
+        default: all
+      concurrency:
+        description: "Concurrent workers for tmpfs allocation stress"
+        type: number
+        default: 4
+      payload_mb:
+        description: "Payload size per worker in MB"
+        type: number
+        default: 25
+
+permissions:
+  contents: read
+
+concurrency:
+  group: posture-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Posture Audit (${{ inputs.mode || 'all' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Bubblewrap on runner host
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends bubblewrap libseccomp2
+
+      - name: Start Docker API container
+        if: ${{ (inputs.mode || 'all') != 'native' }}
+        run: |
+          docker compose build api
+          docker compose up -d api
+          # Wait up to 30s for the container to become ready
+          for i in $(seq 1 30); do
+            if docker compose exec -T api python3 -c "import sys; sys.exit(0)" >/dev/null 2>&1; then
+              echo "API container ready."
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Execute Security Posture Audit
+        id: run_audit
+        run: |
+          set -o pipefail
+          mkdir -p reports
+          mode="${{ inputs.mode || 'all' }}"
+          
+          if [ "$mode" = "all" ]; then
+            echo "Running Native Host Audit..."
+            bash scripts/test-hardening-posture.sh --native | tee reports/host-audit.txt
+            echo
+            echo "Running Docker Container Audit..."
+            bash scripts/test-hardening-posture.sh --docker | tee reports/docker-audit.txt
+          elif [ "$mode" = "docker" ]; then
+            bash scripts/test-hardening-posture.sh --docker | tee reports/docker-audit.txt
+          else
+            bash scripts/test-hardening-posture.sh --native | tee reports/host-audit.txt
+          fi
+
+      - name: Generate Summary Report
+        if: always()
+        run: |
+          {
+            echo "## 🛡️ Security Posture Audit Summary"
+            echo
+            if [ -f reports/host-audit.txt ]; then
+              echo "### 🖥️ Native Host Runner Posture"
+              echo '```text'
+              cat reports/host-audit.txt
+              echo '```'
+              echo
+            fi
+            if [ -f reports/docker-audit.txt ]; then
+              echo "### 🐳 Docker API Container Posture"
+              echo '```text'
+              cat reports/docker-audit.txt
+              echo '```'
+              echo
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Audit Reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: posture-audit-reports
+          path: reports/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Teardown
+        if: always()
+        run: |
+          docker compose down -v || true

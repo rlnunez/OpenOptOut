@@ -76,8 +76,12 @@ run_test() {
   local script_rel="$1"
   shift
   if [ "$USE_DOCKER" -eq 1 ]; then
-    info "Running $script_rel inside Docker 'api' container..."
-    docker compose -f "$REPO_ROOT/docker-compose.yml" exec api python3 "$script_rel" "$@"
+    local target="$script_rel"
+    if ! docker compose -f "$REPO_ROOT/docker-compose.yml" exec api test -f "$target" 2>/dev/null; then
+      target="tests/$(basename "$script_rel")"
+    fi
+    info "Running $target inside Docker 'api' container..."
+    docker compose -f "$REPO_ROOT/docker-compose.yml" exec api python3 "$target" "$@"
   else
     local py_bin="python3"
     if [ -x "/opt/openoptout/venv/bin/python3" ]; then
