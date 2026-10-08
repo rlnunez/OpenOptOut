@@ -75,20 +75,24 @@ jobs:
           docker compose build api
           docker compose up -d api
           # Wait up to 30s for the container to become ready
-          for i in $(seq 1 30); do
+          attempt=1
+          while [ "$attempt" -le 30 ]; do
             if docker compose exec -T api python3 -c "import sys; sys.exit(0)" >/dev/null 2>&1; then
-              echo "API container ready."
+              echo "API container ready after ${attempt}s."
               break
             fi
             sleep 1
+            attempt=$((attempt + 1))
           done
 
       - name: Execute Security Posture Audit
         id: run_audit
+        env:
+          AUDIT_MODE: ${{ inputs.mode || 'all' }}
         run: |
           set -o pipefail
           mkdir -p reports
-          mode="${{ inputs.mode || 'all' }}"
+          mode="$AUDIT_MODE"
           
           if [ "$mode" = "all" ]; then
             echo "Running Native Host Audit..."
