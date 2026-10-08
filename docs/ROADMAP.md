@@ -27,16 +27,16 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 5 | Granular broker management | Complete |
 | 6 | Automated broker health monitoring | Complete |
 | 7 | Distributed execution: control plane & worker fleet | Complete |
-| 8 | Add-on distribution: Git repo to marketplace | Planned |
+| 8 | Add-on distribution: Git repo to marketplace | In Design / Active (Phase 8.1 In Design) |
 | 9 | Infrastructure capacity planner | Planned — pending empirical performance benchmarking |
 | 10 | Email-first opt-outs via parent companies | Complete |
-| 11 | First-run setup wizard | Complete |
+| 11 | First-run setup wizard | Complete (Enhanced 7-step flow & bundle planned) |
 | 12 | School district authentication (Parent Portal SSO) | On-Demand (District Request Only) |
 | 13 | SAML 2.0 SSO & identity hardening | Complete |
 | 14 | Built-in HTTPS with automated certificates | Complete |
 | 15 | Process memory hygiene & ephemeral storage | In Testing (15.1 Complete, 15.2 In Testing) |
 | 16 | Operational visibility & diagnostic logging | Complete |
-| 17 | Internationalization (i18n): language packs & RTL | Complete |
+| 17 | Internationalization (i18n): language packs & RTL | Complete (Plugin localization standard in design) |
 | 18 | Typed plugin directories & runtime isolation | Complete |
 | 19 | Delegated managerial permissions | Complete |
 | 20 | Multi-tier institutional hierarchy (Consortium) | Complete |
@@ -208,17 +208,25 @@ To ensure operational stability and maintain continuous testability without disr
 ---
 
 ### 8. Add-on distribution: Git repository to curated marketplace
-**Goal:** Establish a modular distribution channel for community broker specs, solver plugins, and language packs.
+**Goal:** Establish a modular distribution channel for community broker specs, solver plugins, and language packs through an integrated core catalog client and curated marketplace.
 
-**Phases:**
-- **Phase 1 (Git-Backed Catalog):** Structured Git repository allowing automated installation and dependency resolution.
-- **Phase 2 (Curated Marketplace):** Web directory providing discovery, ratings, version tracking, and cryptographic signature verification.
+**Detailed Design:** See [`docs/CATALOG_AND_LOCALIZATION_DESIGN.md`](CATALOG_AND_LOCALIZATION_DESIGN.md).
 
-**Security Architecture:**
-- Cryptographic code signing and manifest provenance checks.
-- Sandboxed execution, permission gating, and static code inspection before plugin activation.
+**Phased Execution:**
+- **Phase 8.1 — Core Catalog Client & Declarative Index (`index.json`) (In Design):**
+  - **Catalog Client Daemon:** Implement `backend/plugins/catalog.py` on the control plane to fetch official `index.json`, maintain a local TTL-backed cache (`data/catalog_cache.json`, 4h refresh), and support conditional HTTP (`If-None-Match` / ETag).
+  - **Catalog Schema & Tiering:** Declarative `index.json` defining metadata (`tier`: 1=recommended, 2=available, 3=experimental; `rank`: ordering integer within category; `recommended_bundle`: bool), checksums (SHA-256), and dependencies.
+  - **Unified Install Pipeline:** Catalog installation downloads archives to ephemeral storage, verifies SHA-256 digests, and routes through the existing security boundary (`_extracted_bundle`, path traversal checks, static code inspection via `code_inspector.py`, and administrative permission grants).
+  - **Air-Gapped & Resilient Fallback:** Provides graceful offline operation using cached indices or bundled fallback definitions if egress network is unavailable.
+- **Phase 8.2 — Administrative Console "Browse" Tab & Update Detection (Planned):**
+  - **Admin Catalog Browser:** Dedicated "Browse Catalog" tab in `frontend/src/pages/Plugins.jsx` filterable by category (`brokers`, `captcha`, `email`, `languages`, `themes`) with Tier 1 recommended items pinned to top.
+  - **Update Notification Badges:** Automatic version comparison between installed plugins and catalog releases, displaying non-intrusive update badges.
+  - **Admin Approval Gate:** Plugin updates require explicit super-admin review and approval before activation.
+- **Phase 8.3 — Cryptographic Code Signing & Marketplace Registry (Planned):**
+  - **Cryptographic Provenance:** Author signing keys, catalog root of trust, and signature validation before extraction.
+  - **Public Web Directory:** Searchable registry with ratings, usage telemetry, and security audit badges.
 
-**Status:** Planned.
+**Status:** In Design / Active (Phase 8.1 In Design).
 
 ---
 
@@ -269,18 +277,23 @@ To ensure operational stability and maintain continuous testability without disr
 ---
 
 ### 11. First-run setup wizard
-**Goal:** Provide a guided onboarding workflow for initial deployment configuration (database selection, email transports, institutional branding, and HTTPS provisioning).
+**Goal:** Provide a guided onboarding workflow for initial deployment configuration (database selection, email transports, institutional branding, HTTPS provisioning, localized experience, and recommended protections bundle).
 
-**Architecture:**
-- **Guided Setup Flow:** Implemented in `routers/wizard.py` covering database, email, branding, and deployment verification.
+**Detailed Design:** See [`docs/CATALOG_AND_LOCALIZATION_DESIGN.md`](CATALOG_AND_LOCALIZATION_DESIGN.md#section-5-setup-wizard-flow-enhancement).
+
+**Architecture & Implementation:**
+- **Current Guided Setup Flow (Complete):** Implemented in `routers/wizard.py` and `frontend/src/pages/SetupWizard.jsx` covering database, email, deployment/reverse-proxy, branding, and summary.
 - **Transport Flexibility:**
   - **OAuth 2.0:** Recommended for Google Workspace and Microsoft 365. Utilizes scoped, expiring access tokens without storing mailbox passwords.
   - **IMAP / SMTP:** Supported for self-hosted mail servers, legacy providers, and app-specific password configurations (e.g., Apple iCloud Mail).
   - **Local Relays & Bridges:** Generic SMTP interface compatible with Proton Mail Bridge, Postfix, or enterprise outbound relays.
 - **Email Mode Architecture:** Supports shared administrative inboxes and per-user mail authorization.
 - **Mode Switching Grace Period:** Background monitoring (`core/email_grace.py`, `core/scheduler.py`, `routers/settings.py`) snapshots previous mailbox credentials during mode or account switches, maintaining automatic 60-day dual-inbox polling to capture delayed broker confirmations, with admin controls to extend or dismiss.
+- **Planned 7-Step Enhanced Onboarding (Item 8 & 17 Synergy):**
+  - **Step 1: Language Detection & RTL Preview:** Placed as the first step; detects browser language (`navigator.language`) and allows 1-click selection across Tier 1 languages (English, Spanish, French, Arabic), dynamically applying RTL layout before setup proceeds.
+  - **Step 4: Recommended Protections Bundle:** Positioned immediately after email setup; queries catalog client for `tier 1` foundational brokers (StateRecords, CourtRecords, top email-first brokers), allowing the administrator to enable comprehensive protection with a single click.
 
-**Status:** Complete.
+**Status:** Complete (Enhanced 7-step flow & bundle planned).
 
 ---
 
@@ -358,16 +371,25 @@ To ensure operational stability and maintain continuous testability without disr
 ---
 
 ### 17. Internationalization (i18n): language packs & RTL
-**Goal:** Provide comprehensive localization support across the user interface, supporting community language packs, right-to-left (RTL) layout rendering, in-system translation management for administrators, and user onboarding guided tours.
+**Goal:** Provide comprehensive localization support across the user interface, supporting community language packs, right-to-left (RTL) layout rendering, in-system translation management for administrators, universal plugin localization, and strict decoupling between patron interface language and broker legal correspondence language.
 
-**Architecture:**
-- **Core Translation Architecture:** Master UI dictionary (`core/i18n.py`) with categorized translation keys, explicit screen locations ("where it appears"), and translator guidelines. Hierarchical resolution order: master English defaults → built-in translations (English, Spanish, Arabic, French) → installed language pack plugins (`<plugins_root>/languages/<id>/`) → administrator custom string replacements.
-- **In-System Translation & Replacement Interface:** Administrative UI (`pages/Translations.jsx` gated with `settings.manage`) enabling super admins and managers to search and filter strings by UI location, view English source text, customize wording or replace terminology, toggle active languages, and register new custom locales.
-- **Right-to-Left (RTL) Support:** Dynamic layout mirroring (`html[dir="rtl"]` in `index.css`) detecting RTL scripts (Arabic, Hebrew, Persian, Urdu), mirroring navigation sidebars, form layouts, and modals while preserving left-to-right (`ltr`) direction for email addresses, URLs, phone numbers, and code blocks.
-- **Onboarding Tutorial & User Preferences:** Guided 4-step welcome walkthrough (`components/UserWelcomeModal.jsx`) allowing users to choose their language with instant UI preview, populate their Identity Vault PII for automated opt-outs, review email communications, and complete an orientation tour. User language preference and tutorial completion persist in user profile settings (`preferred_language`, `tutorial_completed`).
-- **Data-Only Language Packs:** Scanned and loaded from `<plugins_root>/languages/` as data-only bundles (`manifest.json` + `messages.json`) requiring 0 permissions and zero subprocess overhead.
+**Detailed Design:** See [`docs/CATALOG_AND_LOCALIZATION_DESIGN.md`](CATALOG_AND_LOCALIZATION_DESIGN.md#section-3-universal-plugin-localization-standard).
 
-**Status:** Complete.
+**Architecture & Implementation:**
+- **Core Translation Architecture (Complete):** Master UI dictionary (`core/i18n.py`) with categorized translation keys, explicit screen locations ("where it appears"), and translator guidelines. Hierarchical resolution order: master English defaults → built-in translations (English, Spanish, Arabic, French) → installed language pack plugins (`<plugins_root>/languages/<id>/`) → administrator custom string replacements.
+- **In-System Translation & Replacement Interface (Complete):** Administrative UI (`pages/Translations.jsx` gated with `settings.manage`) enabling super admins and managers to search and filter strings by UI location, view English source text, customize wording or replace terminology, toggle active languages, and register new custom locales.
+- **Right-to-Left (RTL) Support (Complete):** Dynamic layout mirroring (`html[dir="rtl"]` in `index.css`) detecting RTL scripts (Arabic, Hebrew, Persian, Urdu), mirroring navigation sidebars, form layouts, and modals while preserving left-to-right (`ltr`) direction for email addresses, URLs, phone numbers, and code blocks.
+- **Onboarding Tutorial & User Preferences (Complete):** Guided 4-step welcome walkthrough (`components/UserWelcomeModal.jsx`) allowing users to choose their language with instant UI preview, populate their Identity Vault PII for automated opt-outs, review email communications, and complete an orientation tour. User language preference and tutorial completion persist in user profile settings (`preferred_language`, `tutorial_completed`).
+- **Data-Only Language Packs (Complete):** Scanned and loaded from `<plugins_root>/languages/` as data-only bundles (`manifest.json` + `messages.json`) requiring 0 permissions and zero subprocess overhead.
+- **Universal Plugin Localization Standard (In Design):**
+  - **Per-Plugin String Bundles:** Plugins declare an optional `locales/<code>.json` directory and `default_locale` in `manifest.json`. User-facing checklist instructions, error messages, and descriptions use string keys rather than hardcoded text.
+  - **Five-Tier Resolution Chain:** Admin overrides → Language pack messages → Plugin matching locale → Plugin default locale → English default.
+  - **Cross-Plugin Translations via Language Packs:** Translators can localize third-party plugins without modifying them by including `plugins/<plugin_id>.json` tables inside community language packs.
+- **Legal Request Language vs. UI Interface Language Decoupling (In Design):**
+  - **Jurisdictional Decoupling:** Decouples patron UI preference from statutory opt-out email text. While patron screens render in their chosen language (e.g., Vietnamese or Spanish), opt-out emails sent to US brokers under CCPA are formatted in English to satisfy US corporate legal requirements.
+  - **Broker Specification Alignment:** `BrokerSpec` explicitly declares `jurisdiction` and `legal_language` (e.g., `US`/`en` for US CCPA, `FR`/`fr` for French CNIL/GDPR, `BR`/`pt-BR` for Brazil LGPD), driving template compilation in `core/optout_email_template.py`.
+
+**Status:** Complete (Universal plugin localization standard & legal decoupling in design).
 
 ---
 
