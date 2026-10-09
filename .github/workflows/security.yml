@@ -102,7 +102,6 @@ jobs:
             --exclude-rule python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args \
             --exclude backend/tests \
             --exclude .github \
-            --exclude fuzz \
             --sarif --output semgrep.sarif
           python3 .github/security/sarif_summary.py "Semgrep" semgrep.sarif >> "$GITHUB_STEP_SUMMARY"
 
