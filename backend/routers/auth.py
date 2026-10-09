@@ -3,7 +3,7 @@ Auth router — local login, OIDC redirect/callback, SIP2/LDAP login,
 registration with domain/invite controls, token refresh, me endpoint.
 """
 
-import secrets, json, hashlib, logging
+import secrets, json, hashlib, logging, threading, time
 from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
@@ -30,8 +30,38 @@ from ..core.settings_store import load_settings
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-# In-memory OIDC state store (use Redis in production)
+# In-memory OIDC state store: state -> {provider, redirect_uri, issued_at}.
+# /oidc/{provider}/login is public and adds one per call, so states expire after
+# _OIDC_STATE_TTL and the store is capped (oldest dropped first under a flood).
 _oidc_states: dict[str, dict] = {}
+_OIDC_STATE_TTL = 600
+_OIDC_MAX_STATES = 10_000
+_oidc_lock = threading.Lock()
+
+
+def _prune_oidc_states(now: float):
+    # Insertion order is issue order, so stop at the first live state.
+    while _oidc_states:
+        state, data = next(iter(_oidc_states.items()))
+        if now - data["issued_at"] <= _OIDC_STATE_TTL and len(_oidc_states) < _OIDC_MAX_STATES:
+            break
+        del _oidc_states[state]
+
+
+def _remember_oidc_state(state: str, provider: str, redirect_uri: str):
+    now = time.time()
+    with _oidc_lock:
+        _prune_oidc_states(now)
+        _oidc_states[state] = {"provider": provider, "redirect_uri": redirect_uri, "issued_at": now}
+
+
+def _take_oidc_state(state: str):
+    """Single use: remove and return the state's data, or None if unknown or expired."""
+    with _oidc_lock:
+        data = _oidc_states.pop(state, None)
+    if data and time.time() - data["issued_at"] <= _OIDC_STATE_TTL:
+        return data
+    return None
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -331,7 +361,7 @@ def oidc_login(provider: str, request: Request):
 
     state        = secrets.token_urlsafe(32)
     redirect_uri = str(request.base_url).rstrip("/") + f"/api/auth/oidc/{provider}/callback"
-    _oidc_states[state] = {"provider": provider, "redirect_uri": redirect_uri}
+    _remember_oidc_state(state, provider, redirect_uri)
 
     url = get_oidc_login_url(provider, redirect_uri, state)
     if not url:
@@ -346,7 +376,7 @@ def oidc_callback(
     state: str = Query(...),
     db: Session = Depends(get_db),
 ):
-    state_data = _oidc_states.pop(state, None)
+    state_data = _take_oidc_state(state)
     if not state_data or state_data["provider"] != provider:
         raise HTTPException(400, "Invalid or expired OAuth state")
 

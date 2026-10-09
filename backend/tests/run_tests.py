@@ -5715,6 +5715,37 @@ def t_auth_per_ip_limits():
         rl._buckets.clear(); throttle._state.clear()
 
 
+@test(2, "auth.oidc_states_bounded_and_expire",
+      "Public /api/auth/oidc/{provider}/login stores a state per call; states are single "
+      "use, expire after 10 minutes, and the store is capped so a flood can't grow memory.")
+def t_auth_oidc_states():
+    import time
+    try:
+        auth_router = _imp("routers.auth")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    saved = dict(auth_router._oidc_states)
+    orig_time = auth_router.time.time
+    clock = [10_000.0]
+    auth_router.time.time = lambda: clock[0]
+    try:
+        auth_router._oidc_states.clear()
+        auth_router._remember_oidc_state("s1", "google", "https://x/cb")
+        assert auth_router._take_oidc_state("s1")["provider"] == "google"
+        assert auth_router._take_oidc_state("s1") is None, "single use"
+        auth_router._remember_oidc_state("old", "google", "https://x/cb")
+        clock[0] += auth_router._OIDC_STATE_TTL + 1
+        assert auth_router._take_oidc_state("old") is None, "expired state accepted"
+        for i in range(auth_router._OIDC_MAX_STATES + 50):
+            auth_router._remember_oidc_state(f"f{i}", "google", "https://x/cb")
+        assert len(auth_router._oidc_states) <= auth_router._OIDC_MAX_STATES
+        assert f"f{auth_router._OIDC_MAX_STATES + 49}" in auth_router._oidc_states
+        assert "f0" not in auth_router._oidc_states
+    finally:
+        auth_router.time.time = orig_time
+        auth_router._oidc_states.clear(); auth_router._oidc_states.update(saved)
+
+
 @test(1, "saml.outstanding_requests_bounded",
       "Public /api/saml/login adds a pending request ID per call; the store is capped and "
       "pruned oldest-first, so a flood can't grow memory without limit, and expired IDs go.")
