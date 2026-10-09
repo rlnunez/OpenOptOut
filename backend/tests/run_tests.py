@@ -4458,9 +4458,11 @@ def t_access_effective():
         assert access.effective_permissions(parent) == []
         assert access.effective_permissions(mgr()) == access.clean(access.DEFAULT_MANAGER_PERMISSIONS)
         assert not access.has_permission(mgr(), "members.view_all"), "member data must be off by default"
+        for k in ("brokers.manage", "brokers.automation"):
+            assert not access.has_permission(mgr(), k), f"{k} decides where member data goes; must be granted"
         m = mgr(g='["users.manage"]', r='["help.edit"]')
         held = access.effective_permissions(m)
-        assert "users.manage" in held and "help.edit" not in held and "brokers.manage" in held
+        assert "users.manage" in held and "help.edit" not in held and "scheduler.manage" in held
         assert access.has_permission(mgr(g='["members.edit_all"]'), "members.view_all")
         # Editing the defaults changes every manager, except their own changes.
         settings["access"] = {"manager_defaults": ["reporting.view", "help.edit"]}
@@ -4550,7 +4552,7 @@ def t_access_escalation():
                 other_mgr.id, Perms(permissions=["reporting.view", "plugins.upload"]), session, sa)
             assert out.permissions == ["reporting.view", "plugins.upload"], out.permissions
             assert out.permissions_granted == ["plugins.upload"]
-            assert "reporting.view" not in out.permissions_revoked and "brokers.manage" in out.permissions_revoked
+            assert "reporting.view" not in out.permissions_revoked and "scheduler.manage" in out.permissions_revoked
             expect_http(400, admin_router.set_manager_permissions, parent.id, Perms(permissions=[]), session, sa)
             expect_http(400, admin_router.set_manager_permissions, other_mgr.id,
                         Perms(permissions=["root"]), session, sa)
@@ -4563,6 +4565,223 @@ def t_access_escalation():
         finally:
             settings_store.load_settings, settings_store.SETTINGS_FILE = orig_load, orig_file
             session.close()
+
+
+@test(2, "access.manager_scope_writes",
+      "A manager scoped to a branch or library system can only edit, delete or share accounts "
+      "in their branches, list only those accounts, create new ones in their own branch, and "
+      "only change or delete systems and branches in their scope; super admins, cross-system "
+      "holders and unscoped managers act consortium-wide. Patron branch overrides need "
+      "'Override patron branch' and aren't scope-limited.")
+def t_access_scope_writes():
+    import inspect
+    try:
+        from fastapi import HTTPException
+        admin_router = _imp("routers.admin")
+        consortium = _imp("routers.consortium")
+        settings_store = _imp("core.settings_store")
+        mfa = _imp("core.mfa")
+        db, session = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    def expect_http(status, fn, *a, **kw):
+        try:
+            fn(*a, **kw)
+        except HTTPException as e:
+            assert e.status_code == status, f"expected {status}, got {e.status_code}: {e.detail}"
+            return
+        raise AssertionError(f"expected HTTP {status} from {fn.__name__}")
+
+    def add(row):
+        session.add(row); session.commit(); return row
+
+    def user(email, role, **kw):
+        return add(db.User(email=email, full_name=email.split("@")[0], role=role, hashed_password="x", **kw))
+
+    # mfa binds load_settings at import, so an earlier test's stub can linger there.
+    orig_load, orig_mfa_load = settings_store.load_settings, mfa.load_settings
+    settings_store.load_settings = mfa.load_settings = lambda: {}
+    try:
+        R = db.UserRole
+        sa = user("sa@example.org", R.super_admin)
+        sys_a = add(db.LibrarySystem(name="A", code="a"))
+        sys_b = add(db.LibrarySystem(name="B", code="b"))
+        a1 = add(db.Branch(system_id=sys_a.id, name="A1", code="a1"))
+        a2 = add(db.Branch(system_id=sys_a.id, name="A2", code="a2"))
+        b1 = add(db.Branch(system_id=sys_b.id, name="B1", code="b1"))
+
+        perms = '["users.manage", "consortium.manage"]'
+        branch_mgr = user("bm@example.org", R.manager, permissions_granted=perms)
+        add(db.ManagerScope(user_id=branch_mgr.id, scope_type="branch", branch_id=a1.id))
+        system_mgr = user("sm@example.org", R.manager, permissions_granted=perms)
+        add(db.ManagerScope(user_id=system_mgr.id, scope_type="system", system_id=sys_a.id))
+        unscoped_mgr = user("um@example.org", R.manager, permissions_granted=perms)
+        cross_mgr = user("cm@example.org", R.manager,
+                         permissions_granted='["users.manage", "consortium.cross_system"]')
+        add(db.ManagerScope(user_id=cross_mgr.id, scope_type="branch", branch_id=a1.id))
+
+        p_a1 = user("pa1@example.org", R.parent, branch_id=a1.id)
+        p_a1b = user("pa1b@example.org", R.parent, branch_id=a1.id)
+        p_a2 = user("pa2@example.org", R.parent, branch_id=a2.id)
+        p_b1 = user("pb1@example.org", R.parent, branch_id=b1.id)
+        p_none = user("pn@example.org", R.parent)
+        Update, Grant = admin_router.UpdateUserRequest, admin_router.AccessGrantRequest
+
+        # Listing: scoped managers see only accounts in their branches.
+        listed = lambda actor: {u.email for u in admin_router.list_users(session, actor)}
+        assert listed(branch_mgr) == {"pa1@example.org", "pa1b@example.org"}, listed(branch_mgr)
+        assert listed(system_mgr) == {"pa1@example.org", "pa1b@example.org", "pa2@example.org"}
+        assert "pb1@example.org" in listed(cross_mgr) and "pn@example.org" in listed(unscoped_mgr)
+
+        # The Add user form's branch picker offers only the manager's branches.
+        picker = lambda actor: admin_router.assignable_branches(session, actor)
+        bm = picker(branch_mgr)
+        assert [x["id"] for x in bm["branches"]] == [a1.id] and bm["default_branch_id"] == a1.id and bm["required"]
+        sm = picker(system_mgr)
+        assert {x["id"] for x in sm["branches"]} == {a1.id, a2.id} and sm["default_branch_id"] is None
+        um = picker(unscoped_mgr)
+        assert {x["id"] for x in um["branches"]} == {a1.id, a2.id, b1.id} and not um["required"]
+        assert um["branches"][0]["system_name"] in ("A", "B")
+
+        # Creating: new accounts land in the manager's branch, never outside it.
+        def create(email, actor, **kw):
+            return admin_router.create_user(admin_router.CreateUserRequest(
+                full_name="N", email=email, role="parent", password="password123", **kw), session, actor)
+        branch_of = lambda email: session.query(db.User).filter(db.User.email == email).one().branch_id
+        n1 = create("n1@example.org", branch_mgr)
+        assert branch_of("n1@example.org") == a1.id
+        admin_router.update_user(n1.id, Update(password="password123"), session, branch_mgr)
+        expect_http(403, create, "x1@example.org", branch_mgr, branch_id=b1.id)
+        expect_http(400, create, "x2@example.org", system_mgr)   # two branches, none of its own
+        create("n2@example.org", system_mgr, branch_id=a2.id)
+        assert branch_of("n2@example.org") == a2.id
+        create("n3@example.org", unscoped_mgr)
+        assert branch_of("n3@example.org") is None
+        expect_http(404, create, "x3@example.org", unscoped_mgr, branch_id=9999)
+
+        # Accounts: branch-scoped manager stays in A1.
+        admin_router.update_user(p_a1.id, Update(full_name="Ok"), session, branch_mgr)
+        for target in (p_a2, p_b1, p_none):
+            expect_http(403, admin_router.update_user, target.id, Update(password="password123"), session, branch_mgr)
+            expect_http(403, admin_router.delete_user, target.id, session, branch_mgr)
+        expect_http(403, admin_router.create_grant, Grant(manager_id=p_a1.id, managed_id=p_b1.id), session, branch_mgr)
+        g = admin_router.create_grant(Grant(manager_id=p_a1.id, managed_id=p_a1b.id), session, branch_mgr)
+        # A grant reaching outside A1 can't be revoked by the branch manager.
+        out_grant = add(db.ProfileAccess(manager_id=p_a2.id, managed_id=p_a1.id, can_view=True, can_edit=False))
+        expect_http(403, admin_router.revoke_grant, out_grant.id, session, branch_mgr)
+        admin_router.revoke_grant(g.id, session, branch_mgr)
+
+        # System scope covers every branch in it; cross-system and unscoped go anywhere.
+        admin_router.update_user(p_a2.id, Update(full_name="Ok"), session, system_mgr)
+        expect_http(403, admin_router.delete_user, p_b1.id, session, system_mgr)
+        admin_router.update_user(p_b1.id, Update(full_name="Ok"), session, cross_mgr)
+        admin_router.update_user(p_b1.id, Update(password="password123"), session, cross_mgr)
+
+        # Branch overrides: super admins, or managers granted the permission (any branch).
+        gate = inspect.signature(consortium.override_patron_branch).parameters["current_user"].default.dependency
+        override_mgr = user("om@example.org", R.manager, permissions_granted='["members.override_branch"]')
+        add(db.ManagerScope(user_id=override_mgr.id, scope_type="branch", branch_id=a1.id))
+        for actor in (branch_mgr, system_mgr, unscoped_mgr, p_a1):
+            expect_http(403, gate, actor)
+        gate(sa); gate(override_mgr)
+        Override = consortium.PatronBranchOverride
+        consortium.override_patron_branch(p_none.id, Override(branch_id=b1.id), session, override_mgr)
+        assert branch_of("pn@example.org") == b1.id
+        admin_router.update_user(p_none.id, Update(full_name="Ok"), session, unscoped_mgr)
+        admin_router.delete_user(p_b1.id, session, unscoped_mgr)
+
+        # Hierarchy: branch scope doesn't cover its system or new systems.
+        SysC, SysU = consortium.SystemCreate, consortium.SystemUpdate
+        BrC, BrU = consortium.BranchCreate, consortium.BranchUpdate
+        expect_http(403, consortium.create_system, SysC(name="C", code="c"), session, branch_mgr)
+        expect_http(403, consortium.create_system, SysC(name="C", code="c"), session, system_mgr)
+        expect_http(403, consortium.update_system, sys_a.id, SysU(name="X"), session, branch_mgr)
+        expect_http(403, consortium.delete_system, sys_b.id, session, system_mgr)
+        expect_http(403, consortium.create_branch, BrC(system_id=sys_a.id, name="N", code="n"), session, branch_mgr)
+        expect_http(403, consortium.update_branch, a2.id, BrU(name="X"), session, branch_mgr)
+        expect_http(403, consortium.update_branch, a1.id, BrU(system_id=sys_b.id), session, branch_mgr)
+        expect_http(403, consortium.delete_branch, b1.id, session, system_mgr)
+        consortium.update_branch(a1.id, BrU(name="A1 renamed"), session, branch_mgr)
+        consortium.update_system(sys_a.id, SysU(name="A renamed"), session, system_mgr)
+        consortium.create_branch(BrC(system_id=sys_a.id, name="A3", code="a3"), session, system_mgr)
+        consortium.delete_branch(a2.id, session, system_mgr)
+        consortium.create_system(SysC(name="C", code="c"), session, unscoped_mgr)
+        consortium.delete_system(sys_b.id, session, unscoped_mgr)
+    finally:
+        settings_store.load_settings, mfa.load_settings = orig_load, orig_mfa_load
+        session.close()
+
+
+@test(2, "access.reporting_scope_and_minimal_fields",
+      "Reports count only a scoped manager's branches, the per-member report names only "
+      "members the viewer can already open, and responses carry only the fields the "
+      "Reporting page shows.")
+def t_access_reporting_scope():
+    try:
+        reporting = _imp("routers.reporting")
+        settings_store = _imp("core.settings_store")
+        db, session = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    def add(row):
+        session.add(row); session.commit(); return row
+
+    orig_load = settings_store.load_settings
+    settings_store.load_settings = lambda: {}
+    try:
+        R, S = db.UserRole, db.RequestStatus
+        sys_a = add(db.LibrarySystem(name="A", code="a"))
+        a1 = add(db.Branch(system_id=sys_a.id, name="A1", code="a1"))
+        b1 = add(db.Branch(system_id=sys_a.id, name="B1", code="b1"))
+        brokers = [add(db.Broker(name=n)) for n in ("Acme", "Zed")]
+
+        def patron(name, branch, statuses):
+            u = add(db.User(email=f"{name}@example.org", full_name=name, role=R.parent,
+                            hashed_password="x", branch_id=branch.id))
+            m = add(db.FamilyMember(user_id=u.id, full_name=name))
+            for st, br in zip(statuses, brokers):
+                add(db.RemovalRequest(member_id=m.id, broker_id=br.id, status=st))
+            return u
+        patron("alice", a1, [S.confirmed, S.pending])
+        patron("bob", b1, [S.confirmed])
+        patron("carol", b1, [S.pending])
+
+        def mgr(email, perms, branch_scope=None):
+            u = add(db.User(email=email, full_name=email, role=R.manager, hashed_password="x",
+                            permissions_granted=perms))
+            if branch_scope:
+                add(db.ManagerScope(user_id=u.id, scope_type="branch", branch_id=branch_scope.id))
+            return u
+        sa = add(db.User(email="sa@example.org", full_name="sa", role=R.super_admin, hashed_password="x"))
+        scoped = mgr("s@example.org", None, a1)                          # reporting.view by default
+        scoped_view = mgr("sv@example.org", '["members.view_all"]', a1)
+        unscoped = mgr("u@example.org", None)
+        cross = mgr("c@example.org", '["consortium.cross_system"]', a1)
+
+        names = lambda u: {r["member"] for r in reporting.per_member_stats(session, u)}
+        assert names(sa) == names(cross) == {"alice", "bob", "carol"}
+        assert names(scoped_view) == {"alice"}, names(scoped_view)
+        assert names(scoped) == set() and names(unscoped) == set(), "names need 'view all members' data'"
+
+        s_all, s_a1 = reporting.summary(session, sa), reporting.summary(session, scoped)
+        assert set(s_all) == {"total_users", "total_brokers", "total_sent", "total_confirmed",
+                              "total_pending", "success_rate", "month_sent", "month_new_users"}, set(s_all)
+        assert s_all["total_confirmed"] == 2 and s_all["total_pending"] == 2
+        assert s_a1["total_users"] == 1 and s_a1["total_confirmed"] == 1 and s_a1["total_pending"] == 1
+        assert reporting.summary(session, unscoped)["total_confirmed"] == 2   # counts aren't names
+
+        comp = {r["broker"]: r for r in reporting.broker_compliance(20, session, scoped)}
+        assert set(comp) == {"Acme", "Zed"} and comp["Acme"]["total"] == 1, comp
+        assert set(comp["Acme"]) == {"broker", "total", "confirmed", "rate"}
+        assert reporting.broker_compliance(20, session, sa)[0]["total"] == 3
+
+        enroll = lambda u: sum(r["enrollments"] for r in reporting.enrollments_over_time(12, session, u))
+        assert enroll(scoped) == 1 and enroll(sa) >= 3
+    finally:
+        settings_store.load_settings = orig_load
+        session.close()
 
 
 @test(2, "access.member_data_and_broker_writes",
@@ -4599,6 +4818,7 @@ def t_access_member_data_and_brokers():
             session.add(db.FamilyMember(user_id=u.id, full_name=email)); session.commit()
             return u
         mgr = person("m@example.org", R.manager)
+        broker_mgr = person("b@example.org", R.manager, permissions_granted='["brokers.manage"]')
         viewer = person("v@example.org", R.manager, permissions_granted='["members.view_all"]')
         editor = person("e@example.org", R.manager, permissions_granted='["members.edit_all"]')
         fam = person("f@example.org", R.parent)
@@ -4619,8 +4839,8 @@ def t_access_member_data_and_brokers():
             assert e.status_code == 403
         auth.assert_can_edit(session, editor, fam_member.id)
 
-        # Broker writes over real HTTP: a parent gets 403, a manager with the
-        # default set (includes brokers.manage) gets through.
+        # Broker writes over real HTTP: a parent or a manager with only the
+        # defaults gets 403, a manager granted brokers.manage gets through.
         broker = db.Broker(name="Example Broker", opt_out_url="https://example.com/optout")
         session.add(broker); session.commit()
         app = FastAPI(); app.include_router(brokers_router.router)
@@ -4636,6 +4856,9 @@ def t_access_member_data_and_brokers():
             assert r.status_code == 403, f"parent {method.upper()} {path} -> {r.status_code}"
         assert client.get("/api/brokers").status_code == 200, "reading brokers stays open"
         who["user"] = mgr
+        assert client.patch(f"/api/brokers/{broker.id}", json={"notes": "x"}).status_code == 403, \
+            "brokers.manage is no longer a manager default"
+        who["user"] = broker_mgr
         r = client.patch(f"/api/brokers/{broker.id}", json={
             "opt_out_url": "https://example.com/optout", "method": "form",
             "difficulty": "easy", "notes": "checked"})

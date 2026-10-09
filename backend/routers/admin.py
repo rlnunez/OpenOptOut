@@ -3,6 +3,9 @@ User administration:
   - List / create / update / delete users, and profile access between parents:
     super admins, and managers with the "users.manage" permission. Managers
     only ever act on parent and member accounts and can't change roles.
+    Managers scoped to branches or systems only list, create, edit, delete
+    and share accounts in those branches, unless they also hold
+    "consortium.cross_system".
   - Roles, manager permissions and the manager defaults: super admins only.
 """
 
@@ -13,8 +16,9 @@ import json
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-from ..models.database import get_db, User, FamilyMember, ProfileAccess, UserRole
-from ..core.auth import hash_password, require_super_admin, get_current_user, validate_password_length
+from ..models.database import get_db, User, FamilyMember, ProfileAccess, UserRole, Branch
+from ..core.auth import (hash_password, require_super_admin, get_current_user, validate_password_length,
+                         assert_user_in_scope, manager_scope)
 from ..core import access
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -49,6 +53,7 @@ class CreateUserRequest(BaseModel):
     email: EmailStr
     role: str = "member"          # 'super_admin' | 'manager' | 'parent' | 'member'
     password: Optional[str] = None  # omit to create a no-login member profile
+    branch_id: Optional[int] = None  # scoped managers default to their own branch
 
     _validate_password = field_validator("password")(validate_password_length)
 
@@ -128,6 +133,36 @@ def _parse_role(value: str) -> UserRole:
         raise HTTPException(400, f"Invalid role. Must be one of: {[r.value for r in UserRole]}")
 
 
+def _default_branch(actor: User, branches: set) -> Optional[int]:
+    """A scoped manager's default branch for new accounts: their own branch,
+    else their only scoped branch, else none (they have to choose)."""
+    if actor.branch_id in branches:
+        return actor.branch_id
+    if len(branches) == 1:
+        return next(iter(branches))
+    return None
+
+
+def _new_user_branch(db: Session, actor: User, branch_id: Optional[int]) -> Optional[int]:
+    """The branch a new account goes in. Scoped managers create accounts in
+    their own branches only: the one asked for, else the manager's own branch,
+    else their only scoped branch."""
+    scope = manager_scope(db, actor)
+    if scope is None:
+        if branch_id is not None and not db.query(Branch).filter(Branch.id == branch_id).first():
+            raise HTTPException(404, "Branch not found")
+        return branch_id
+    branches = scope[1]
+    if branch_id is not None:
+        if branch_id not in branches:
+            raise HTTPException(403, "That branch is outside the branches you manage")
+        return branch_id
+    default = _default_branch(actor, branches)
+    if default is None:
+        raise HTTPException(400, "Choose which of your branches the account belongs to")
+    return default
+
+
 def _only_super_admin_touches_privileged(actor: User, *roles):
     """Managers act on parent and member accounts only."""
     if not actor.is_super_admin and any(r in _PRIVILEGED for r in roles):
@@ -140,9 +175,32 @@ def _only_super_admin_touches_privileged(actor: User, *roles):
 @router.get("/users", response_model=List[UserOut])
 def list_users(
     db: Session = Depends(get_db),
-    _: User = Depends(access.require_permission("users.manage")),
+    current_user: User = Depends(access.require_permission("users.manage")),
 ):
-    return [_user_out(u) for u in db.query(User).order_by(User.created_at).all()]
+    q = db.query(User)
+    scope = manager_scope(db, current_user)
+    if scope is not None:
+        q = q.filter(User.branch_id.in_(scope[1]))
+    return [_user_out(u) for u in q.order_by(User.created_at).all()]
+
+
+@router.get("/branches")
+def assignable_branches(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(access.require_permission("users.manage")),
+):
+    """Branches the current user can put new accounts in, for the Add user form.
+    Scoped managers must pick one of theirs; everyone else may leave it empty."""
+    scope = manager_scope(db, current_user)
+    q = db.query(Branch)
+    if scope is not None:
+        q = q.filter(Branch.id.in_(scope[1]))
+    return {
+        "branches": [{"id": b.id, "name": b.name, "system_name": b.system.name if b.system else None}
+                     for b in q.order_by(Branch.name).all()],
+        "default_branch_id": _default_branch(current_user, scope[1]) if scope is not None else None,
+        "required": scope is not None,
+    }
 
 
 @router.post("/users", response_model=UserOut, status_code=201)
@@ -156,11 +214,13 @@ def create_user(
 
     role = _parse_role(req.role)
     _only_super_admin_touches_privileged(current_user, role)
+    branch_id = _new_user_branch(db, current_user, req.branch_id)
 
     user = User(
         email=req.email,
         full_name=req.full_name,
         role=role,
+        branch_id=branch_id,
         hashed_password=hash_password(req.password) if req.password else None,
         created_by_id=current_user.id,
     )
@@ -185,6 +245,7 @@ def update_user(
     if not user:
         raise HTTPException(404, "User not found")
     _only_super_admin_touches_privileged(current_user, user.role)
+    assert_user_in_scope(db, current_user, user)
     if req.role is not None and not current_user.is_super_admin:
         raise HTTPException(403, "Only a super admin can change roles")
 
@@ -238,6 +299,7 @@ def delete_user(
     if not user:
         raise HTTPException(404, "User not found")
     _only_super_admin_touches_privileged(current_user, user.role)
+    assert_user_in_scope(db, current_user, user)
     db.delete(user)
     db.commit()
 
@@ -333,8 +395,10 @@ def _check_grant_allowed(db: Session, actor: User, manager_id: int, managed_id: 
         return
     if actor.id in (manager_id, managed_id):
         raise HTTPException(403, "Managers can't change profile access that involves themselves")
-    roles = [u.role for u in db.query(User).filter(User.id.in_([manager_id, managed_id])).all()]
-    _only_super_admin_touches_privileged(actor, *roles)
+    users = db.query(User).filter(User.id.in_([manager_id, managed_id])).all()
+    _only_super_admin_touches_privileged(actor, *[u.role for u in users])
+    for u in users:
+        assert_user_in_scope(db, actor, u)
 
 
 # ── Manager permissions (super admin only) ────────────────────────────────────

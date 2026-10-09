@@ -5,6 +5,7 @@ import {
   CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 import api from '../api'
+import { useAuth, can } from '../hooks/useAuth'
 
 function StatCard({ label, value, sub, icon: Icon, color = 'text-slate-300' }) {
   return (
@@ -37,6 +38,10 @@ function ChartCard({ title, children }) {
 }
 
 export default function Reporting() {
+  const { user } = useAuth()
+  // The server lists only members this user can already open; say so here.
+  const fullMemberList = can(user, 'consortium.cross_system')
+  const canNameMembers = can(user, 'members.view_all', 'members.edit_all', 'consortium.cross_system')
   const [summary,    setSummary]    = useState(null)
   const [enrollments, setEnrollments] = useState([])
   const [optouts,    setOptouts]    = useState([])
@@ -169,6 +174,13 @@ export default function Reporting() {
               <p className="text-slate-300 text-sm font-medium">Per-member summary</p>
               <p className="text-slate-500 text-xs">{perMember.length} members</p>
             </div>
+            {!fullMemberList && (
+              <p className="px-4 py-2 text-slate-500 text-xs border-b border-slate-700/50">
+                {canNameMembers
+                  ? 'Showing only members you have access to.'
+                  : "Showing only your own and shared profiles. Listing other members needs the \u201cView all members' data\u201d permission."}
+              </p>
+            )}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
               <thead>
@@ -200,6 +212,9 @@ export default function Reporting() {
                     </td>
                   </tr>
                 ))}
+                {perMember.length === 0 && (
+                  <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-500 text-sm">No members to show.</td></tr>
+                )}
               </tbody>
             </table>
             </div>

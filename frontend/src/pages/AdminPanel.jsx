@@ -30,16 +30,26 @@ function RoleBadge({ role }) {
 
 // ── Create user modal ─────────────────────────────────────────────────────────
 function CreateUserModal({ onClose, onCreated, isSuper }) {
-  const [form, setForm] = useState({ full_name: '', email: '', role: 'member', password: '' })
+  const [form, setForm] = useState({ full_name: '', email: '', role: 'member', password: '', branch_id: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
+  const [branches, setBranches] = useState({ branches: [], required: false })
   const needsPassword = form.role !== 'member'
+
+  // Branches this user may put the account in; scoped managers only get theirs.
+  useEffect(() => {
+    api.get('/admin/branches').then(({ data }) => {
+      setBranches(data)
+      if (data.default_branch_id) setForm(f => ({ ...f, branch_id: String(data.default_branch_id) }))
+    }).catch(() => {})
+  }, [])
 
   const submit = async e => {
     e.preventDefault()
     setSaving(true); setError('')
     try {
-      const payload = { ...form, password: form.password || undefined }
+      const payload = { ...form, password: form.password || undefined,
+                        branch_id: form.branch_id ? Number(form.branch_id) : undefined }
       const { data } = await api.post('/admin/users', payload)
       onCreated(data); onClose()
     } catch (err) {
@@ -76,6 +86,20 @@ function CreateUserModal({ onClose, onCreated, isSuper }) {
               <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
           </Field>
+          {(branches.branches.length > 0 || branches.required) && (
+            <Field label="Branch" required={branches.required}>
+              <div className="relative">
+                <select value={form.branch_id} onChange={e => setForm(f => ({...f, branch_id: e.target.value}))}
+                  className={`${input} appearance-none pr-7`} required={branches.required}>
+                  <option value="">{branches.required ? 'Choose a branch' : 'No branch'}</option>
+                  {branches.branches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}{b.system_name ? ` — ${b.system_name}` : ''}</option>
+                  ))}
+                </select>
+                <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              </div>
+            </Field>
+          )}
           <Field label={`Password ${needsPassword ? '*' : '(optional)'}`}>
             <input type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))}
               placeholder={needsPassword ? 'Required for login' : 'Leave blank — no login'}

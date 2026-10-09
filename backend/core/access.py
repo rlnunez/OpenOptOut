@@ -44,7 +44,9 @@ PERMISSIONS = {
         "description": "Create, edit and delete parent and member accounts, set their passwords, "
                        "and share profiles between parents. Setting a password means being able to "
                        "sign in as that person and see their family's data. Can't touch super "
-                       "admins or managers, change roles, or share profiles with themselves.",
+                       "admins or managers, change roles, or share profiles with themselves. "
+                       "A manager scoped to branches only manages accounts in those branches, "
+                       "unless they also hold 'Cross-system patron access'.",
     },
     "users.registration": {
         "group": "Users & access", "label": "Registration & invite codes",
@@ -61,14 +63,17 @@ PERMISSIONS = {
         "description": "Change any family's profiles and identity vault. Includes viewing them.",
     },
     "brokers.manage": {
-        "group": "Brokers", "label": "Manage brokers",
+        "group": "Brokers", "label": "Manage brokers", "sensitive": True,
         "description": "Add, import, edit and delete brokers; enable or disable them; set "
-                       "priorities; group them under parent companies.",
+                       "priorities; group them under parent companies. Opt-out requests send "
+                       "members' names, addresses, phones and emails to the opt-out URLs and "
+                       "emails set here, so this decides where every member's data goes.",
     },
     "brokers.automation": {
-        "group": "Brokers", "label": "Automation scripts",
+        "group": "Brokers", "label": "Automation scripts", "sensitive": True,
         "description": "Edit per-broker form selectors and use the test broker to check email "
-                       "delivery.",
+                       "delivery. Scripts choose the page and fields members' details are "
+                       "typed into.",
     },
     "scheduler.manage": {
         "group": "Operations", "label": "Run the scheduler",
@@ -126,8 +131,10 @@ PERMISSIONS = {
                        "super admin enables them.",
     },
     "consortium.manage": {
-        "group": "Consortium", "label": "Manage consortium hierarchy",
-        "description": "Create, edit, and delete library systems, branches, and map ILS location codes.",
+        "group": "Consortium", "label": "Manage consortium hierarchy", "sensitive": True,
+        "description": "Create, edit, and delete library systems, branches, and map ILS location codes. "
+                       "Location codes decide which branch patrons land in at sign-in, so with "
+                       "'Manage users' this can pull other branches' patrons into a manager's scope.",
     },
     "consortium.sip2": {
         "group": "Consortium", "label": "Manage SIP2 connections", "sensitive": True,
@@ -142,16 +149,19 @@ PERMISSIONS = {
         "description": "Configure customized branding (logo, colors, name) for assigned library systems when permitted by the super admin.",
     },
     "members.override_branch": {
-        "group": "Member data", "label": "Override patron branch",
-        "description": "Manually reassign a patron to a different branch or clear an existing branch override.",
+        "group": "Member data", "label": "Override patron branch", "sensitive": True,
+        "description": "Manually reassign a patron to a different branch or clear an existing branch override. "
+                       "Combined with 'Manage users', lets a manager move a patron into their own "
+                       "branch and then manage that account.",
     },
 }
 
 # The default set a new manager gets: day-to-day operations, nothing that
-# exposes member data, credentials or security configuration.
+# exposes member data, credentials or security configuration. Broker and
+# automation edits decide where members' data is sent, so they're granted
+# individually.
 DEFAULT_MANAGER_PERMISSIONS = [
-    "brokers.manage", "brokers.automation", "scheduler.manage",
-    "reporting.view", "help.edit", "certificates.view",
+    "scheduler.manage", "reporting.view", "help.edit", "certificates.view",
 ]
 
 # Holding the key on the left also counts as holding the ones on the right.

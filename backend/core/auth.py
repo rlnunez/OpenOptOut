@@ -335,6 +335,48 @@ def get_accessible_member_ids(db: Session, user: User) -> List[int]:
     return list(accessible_member_ids)
 
 
+def manager_scope(db: Session, user: User):
+    """
+    The (system_ids, branch_ids) a scoped manager may act on, or None when the
+    user is unrestricted: super admins, 'consortium.cross_system' holders, and
+    managers with no scopes or a consortium-wide scope. branch_ids includes
+    every branch of a scoped system.
+    """
+    if user.is_super_admin or _has(user, "consortium.cross_system"):
+        return None
+    scopes = db.query(ManagerScope).filter(ManagerScope.user_id == user.id).all()
+    if not scopes or any(s.scope_type == "consortium" for s in scopes):
+        return None
+    system_ids = {s.system_id for s in scopes if s.scope_type == "system" and s.system_id}
+    branch_ids = {s.branch_id for s in scopes if s.scope_type == "branch" and s.branch_id}
+    if system_ids:
+        branch_ids |= {b.id for b in db.query(Branch).filter(Branch.system_id.in_(system_ids)).all()}
+    return system_ids, branch_ids
+
+
+def assert_user_in_scope(db: Session, actor: User, target: User):
+    """403 unless the target account's branch is within the actor's scopes.
+    Unassigned accounts are outside every branch scope."""
+    scope = manager_scope(db, actor)
+    if scope is not None and target.branch_id not in scope[1]:
+        raise HTTPException(403, "That account is outside the branches you manage")
+
+
+def assert_system_in_scope(db: Session, actor: User, system_id: Optional[int]):
+    """403 unless the whole library system is within the actor's scopes. A
+    branch scope doesn't cover its system; None (a new system) is in no scope."""
+    scope = manager_scope(db, actor)
+    if scope is not None and system_id not in scope[0]:
+        raise HTTPException(403, "That library system is outside the systems you manage")
+
+
+def assert_branch_in_scope(db: Session, actor: User, branch_id: int):
+    """403 unless the branch is within the actor's scopes."""
+    scope = manager_scope(db, actor)
+    if scope is not None and branch_id not in scope[1]:
+        raise HTTPException(403, "That branch is outside the branches you manage")
+
+
 def assert_can_view(db: Session, user: User, member_id: int) -> FamilyMember:
     """Raise 403 if user cannot view this family member. Returns the member."""
     member = db.query(FamilyMember).filter(FamilyMember.id == member_id).first()
