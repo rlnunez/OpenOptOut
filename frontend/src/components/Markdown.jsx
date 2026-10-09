@@ -71,7 +71,7 @@ function renderInline(text) {
   t = t.replace(/(^|[^_])_([^_\n]+)_(?!_)/g, '$1<em>$2</em>')
   // restore code spans
   t = t.replace(/\u0000CODE(\d+)\u0000/g, (_, i) =>
-    `<code class="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-[0.85em] text-shield-300 font-mono">${codeSpans[+i]}</code>`)
+    `<code class="px-1 py-0.5 rounded-sm bg-slate-800 border border-slate-700 text-[0.85em] text-shield-300 font-mono">${codeSpans[+i]}</code>`)
   return t
 }
 

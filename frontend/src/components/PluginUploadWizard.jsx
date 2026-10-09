@@ -145,7 +145,7 @@ export default function PluginUploadWizard({ onClose, onInstalled, expectedType,
             ) : (
               <div className="text-xs text-slate-400 space-y-1">
                 <p>Requests permissions: {plan.permissions.length
-                  ? plan.permissions.map(p => <code key={p} className="mx-0.5 px-1 rounded bg-slate-800 text-slate-300">{p}</code>)
+                  ? plan.permissions.map(p => <code key={p} className="mx-0.5 px-1 rounded-sm bg-slate-800 text-slate-300">{p}</code>)
                   : <span className="text-slate-500">none</span>}</p>
                 {plan.outbound_domains?.length > 0 && (
                   <p>Network access to: {plan.outbound_domains.join(', ')}</p>

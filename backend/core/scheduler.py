@@ -743,7 +743,7 @@ def result_ingestion_job():
     APScheduler job to drain results from the distributed queue
     and perform periodic orphan lease reclamation.
     """
-    from .distributed.ingestion import ResultIngestionService
+    from .distributed.ingestion import ResultIngestionService, reclaim_orphaned_leases
     from .distributed.queue import get_queue
 
     q = get_queue()
@@ -758,7 +758,7 @@ def result_ingestion_job():
         ingested += 1
 
     # Reclaim timed out worker leases
-    reclaim_report = service.reclaim_orphaned_leases(lease_timeout_seconds=300.0)
+    reclaim_report = reclaim_orphaned_leases(q, lease_timeout_seconds=300.0)
 
     if ingested > 0 or reclaim_report.get("reclaimed_retried", 0) > 0:
         log.info(

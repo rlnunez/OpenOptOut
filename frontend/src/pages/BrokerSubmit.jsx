@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import api from '../api'
 
-const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500"
+const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
 function Field({ label, hint, required, children }) {
   return (
@@ -136,7 +136,7 @@ function AddBrokerForm({ onAdded }) {
           <label className="flex items-center gap-2 cursor-pointer mb-1">
             <input type="checkbox" checked={form.is_property_broker}
               onChange={e => setForm(f => ({...f, is_property_broker: e.target.checked}))}
-              className="w-3.5 h-3.5 rounded accent-shield-500" />
+              className="w-3.5 h-3.5 rounded-sm accent-shield-500" />
             <span className="text-slate-300 text-sm">Property broker</span>
             <span className="text-slate-600 text-xs">
               — uses formal name + deed/mortgage addresses instead of name variants
@@ -261,7 +261,7 @@ function JsonUpload({ onImported }) {
             </table>
           </div>
           <p className="text-slate-600 text-xs">
-            The JSON file can also be wrapped in <code className="bg-slate-800 px-1 rounded">{"{ \"brokers\": [ ... ] }"}</code> for compatibility with export files.
+            The JSON file can also be wrapped in <code className="bg-slate-800 px-1 rounded-sm">{"{ \"brokers\": [ ... ] }"}</code> for compatibility with export files.
             Existing brokers are matched by name (case-insensitive) and updated rather than duplicated.
           </p>
         </div>

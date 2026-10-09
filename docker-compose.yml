@@ -59,6 +59,10 @@ services:
       # Public URL of the deployment, used for SSO (OIDC/SAML) redirects.
       # MUST match how people reach the site (https://your.domain once HTTPS is on).
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+      # Proxies in front of the API, for finding the client IP in
+      # X-Forwarded-For: 1 = nginx (web), 2 = Caddy + nginx (HTTPS profile;
+      # scripts/enable-https.* set it).
+      - TRUSTED_PROXY_HOPS=${TRUSTED_PROXY_HOPS:-1}
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}
       # HTTPS front door (Caddy) — lets the certificate monitor watch our own cert.
       - HTTPS_MODE=${HTTPS_MODE:-}

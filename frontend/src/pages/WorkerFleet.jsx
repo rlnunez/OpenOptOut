@@ -155,7 +155,7 @@ export default function WorkerFleet() {
               type="checkbox"
               checked={autoRefresh}
               onChange={(e) => setAutoRefresh(e.target.checked)}
-              className="rounded bg-slate-800 border-slate-700 text-shield-500 focus:ring-0"
+              className="rounded-sm bg-slate-800 border-slate-700 text-shield-500 focus:ring-0"
             />
             Auto-refresh (5s)
           </label>
@@ -386,7 +386,7 @@ export default function WorkerFleet() {
               placeholder="Search worker ID or host..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg pl-8 pr-3 py-1.5 w-full sm:w-60 focus:outline-none focus:border-shield-500"
+              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg pl-8 pr-3 py-1.5 w-full sm:w-60 focus:outline-hidden focus:border-shield-500"
             />
           </div>
         </div>
@@ -435,7 +435,7 @@ export default function WorkerFleet() {
                             {w.tags.map((tag) => (
                               <span
                                 key={tag}
-                                className="text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded"
+                                className="text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-sm"
                               >
                                 {tag}
                               </span>
@@ -546,7 +546,7 @@ export default function WorkerFleet() {
                             <button
                               onClick={() => handleDeregister(w.worker_id)}
                               disabled={isBusy}
-                              className="p-1.5 rounded bg-red-950/30 text-red-400 hover:bg-red-900/50 transition-colors text-xs flex items-center gap-1"
+                              className="p-1.5 rounded-sm bg-red-950/30 text-red-400 hover:bg-red-900/50 transition-colors text-xs flex items-center gap-1"
                               title="Deregister offline node"
                             >
                               <Trash2 size={13} />

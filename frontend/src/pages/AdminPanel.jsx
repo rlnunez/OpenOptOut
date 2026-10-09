@@ -22,7 +22,7 @@ const ROLE_ICONS = {
 function RoleBadge({ role }) {
   const Icon = ROLE_ICONS[role] ?? User
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border ${ROLE_STYLES[role] ?? ROLE_STYLES.member}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs border ${ROLE_STYLES[role] ?? ROLE_STYLES.member}`}>
       <Icon size={10} />{role}
     </span>
   )
@@ -30,16 +30,26 @@ function RoleBadge({ role }) {
 
 // ── Create user modal ─────────────────────────────────────────────────────────
 function CreateUserModal({ onClose, onCreated, isSuper }) {
-  const [form, setForm] = useState({ full_name: '', email: '', role: 'member', password: '' })
+  const [form, setForm] = useState({ full_name: '', email: '', role: 'member', password: '', branch_id: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
+  const [branches, setBranches] = useState({ branches: [], required: false })
   const needsPassword = form.role !== 'member'
+
+  // Branches this user may put the account in; scoped managers only get theirs.
+  useEffect(() => {
+    api.get('/admin/branches').then(({ data }) => {
+      setBranches(data)
+      if (data.default_branch_id) setForm(f => ({ ...f, branch_id: String(data.default_branch_id) }))
+    }).catch(() => {})
+  }, [])
 
   const submit = async e => {
     e.preventDefault()
     setSaving(true); setError('')
     try {
-      const payload = { ...form, password: form.password || undefined }
+      const payload = { ...form, password: form.password || undefined,
+                        branch_id: form.branch_id ? Number(form.branch_id) : undefined }
       const { data } = await api.post('/admin/users', payload)
       onCreated(data); onClose()
     } catch (err) {
@@ -76,6 +86,20 @@ function CreateUserModal({ onClose, onCreated, isSuper }) {
               <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
           </Field>
+          {(branches.branches.length > 0 || branches.required) && (
+            <Field label="Branch" required={branches.required}>
+              <div className="relative">
+                <select value={form.branch_id} onChange={e => setForm(f => ({...f, branch_id: e.target.value}))}
+                  className={`${input} appearance-none pr-7`} required={branches.required}>
+                  <option value="">{branches.required ? 'Choose a branch' : 'No branch'}</option>
+                  {branches.branches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}{b.system_name ? ` — ${b.system_name}` : ''}</option>
+                  ))}
+                </select>
+                <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              </div>
+            </Field>
+          )}
           <Field label={`Password ${needsPassword ? '*' : '(optional)'}`}>
             <input type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))}
               placeholder={needsPassword ? 'Required for login' : 'Leave blank — no login'}
@@ -147,7 +171,7 @@ function GrantModal({ users, onClose, onGranted }) {
           </Field>
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={canEdit} onChange={e => setCanEdit(e.target.checked)}
-              className="w-3.5 h-3.5 rounded accent-shield-500" />
+              className="w-3.5 h-3.5 rounded-sm accent-shield-500" />
             <span className="text-slate-300 text-sm">Allow editing (not just viewing)</span>
           </label>
           <div>
@@ -157,7 +181,7 @@ function GrantModal({ users, onClose, onGranted }) {
             <input type="number" min="0" value={childLimit}
               onChange={e => setChildLimit(e.target.value)}
               placeholder="System default"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500" />
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500" />
             <p className="text-slate-600 text-xs mt-1">
               Max number of member (child) profiles this parent can manage. 0 = unlimited.
             </p>
@@ -228,7 +252,7 @@ function EditUserRow({ user, onUpdated, onDeleted, currentUserId, isSuper, onEdi
         {editing ? (
           <div className="relative">
             <select value={role} onChange={e => setRole(e.target.value)}
-              className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none appearance-none pr-6">
+              className="bg-slate-700 border border-slate-600 rounded-sm px-2 py-1 text-xs text-slate-200 focus:outline-hidden appearance-none pr-6">
               <option value="member">member</option>
               <option value="parent">parent</option>
               <option value="manager">manager</option>
@@ -409,11 +433,11 @@ export default function AdminPanel() {
                     <td className="px-4 py-2.5 text-slate-200">{g.managed_name}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex gap-1">
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-blue-900/30 text-blue-400 border border-blue-800">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-xs bg-blue-900/30 text-blue-400 border border-blue-800">
                           <Eye size={9} /> view
                         </span>
                         {g.can_edit && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-emerald-900/30 text-emerald-400 border border-emerald-800">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-xs bg-emerald-900/30 text-emerald-400 border border-emerald-800">
                             <Edit3 size={9} /> edit
                           </span>
                         )}
@@ -509,9 +533,9 @@ function PermissionsModal({ catalog, defaults, initial, title, subtitle, resetLa
                     <span className="min-w-0">
                       <span className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-slate-200 text-sm">{p.label}</span>
-                        {defaults.includes(p.key) && <span className="text-[10px] px-1 rounded border border-slate-700 text-slate-500">default</span>}
+                        {defaults.includes(p.key) && <span className="text-[10px] px-1 rounded-sm border border-slate-700 text-slate-500">default</span>}
                         {p.sensitive && (
-                          <span className="inline-flex items-center gap-0.5 text-[10px] px-1 rounded border border-amber-800 text-amber-300">
+                          <span className="inline-flex items-center gap-0.5 text-[10px] px-1 rounded-sm border border-amber-800 text-amber-300">
                             <AlertTriangle size={9} /> sensitive
                           </span>
                         )}
@@ -547,7 +571,7 @@ function PermissionsModal({ catalog, defaults, initial, title, subtitle, resetLa
 }
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
-const input = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500"
+const input = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 const cancelBtn = "flex-1 py-2 border border-slate-700 rounded-lg text-slate-400 text-sm hover:bg-slate-800 transition-colors"
 const primaryBtn = "flex-1 py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white rounded-lg text-sm font-medium transition-colors"
 

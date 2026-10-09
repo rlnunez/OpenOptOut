@@ -4458,9 +4458,11 @@ def t_access_effective():
         assert access.effective_permissions(parent) == []
         assert access.effective_permissions(mgr()) == access.clean(access.DEFAULT_MANAGER_PERMISSIONS)
         assert not access.has_permission(mgr(), "members.view_all"), "member data must be off by default"
+        for k in ("brokers.manage", "brokers.automation"):
+            assert not access.has_permission(mgr(), k), f"{k} decides where member data goes; must be granted"
         m = mgr(g='["users.manage"]', r='["help.edit"]')
         held = access.effective_permissions(m)
-        assert "users.manage" in held and "help.edit" not in held and "brokers.manage" in held
+        assert "users.manage" in held and "help.edit" not in held and "scheduler.manage" in held
         assert access.has_permission(mgr(g='["members.edit_all"]'), "members.view_all")
         # Editing the defaults changes every manager, except their own changes.
         settings["access"] = {"manager_defaults": ["reporting.view", "help.edit"]}
@@ -4550,7 +4552,7 @@ def t_access_escalation():
                 other_mgr.id, Perms(permissions=["reporting.view", "plugins.upload"]), session, sa)
             assert out.permissions == ["reporting.view", "plugins.upload"], out.permissions
             assert out.permissions_granted == ["plugins.upload"]
-            assert "reporting.view" not in out.permissions_revoked and "brokers.manage" in out.permissions_revoked
+            assert "reporting.view" not in out.permissions_revoked and "scheduler.manage" in out.permissions_revoked
             expect_http(400, admin_router.set_manager_permissions, parent.id, Perms(permissions=[]), session, sa)
             expect_http(400, admin_router.set_manager_permissions, other_mgr.id,
                         Perms(permissions=["root"]), session, sa)
@@ -4563,6 +4565,223 @@ def t_access_escalation():
         finally:
             settings_store.load_settings, settings_store.SETTINGS_FILE = orig_load, orig_file
             session.close()
+
+
+@test(2, "access.manager_scope_writes",
+      "A manager scoped to a branch or library system can only edit, delete or share accounts "
+      "in their branches, list only those accounts, create new ones in their own branch, and "
+      "only change or delete systems and branches in their scope; super admins, cross-system "
+      "holders and unscoped managers act consortium-wide. Patron branch overrides need "
+      "'Override patron branch' and aren't scope-limited.")
+def t_access_scope_writes():
+    import inspect
+    try:
+        from fastapi import HTTPException
+        admin_router = _imp("routers.admin")
+        consortium = _imp("routers.consortium")
+        settings_store = _imp("core.settings_store")
+        mfa = _imp("core.mfa")
+        db, session = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    def expect_http(status, fn, *a, **kw):
+        try:
+            fn(*a, **kw)
+        except HTTPException as e:
+            assert e.status_code == status, f"expected {status}, got {e.status_code}: {e.detail}"
+            return
+        raise AssertionError(f"expected HTTP {status} from {fn.__name__}")
+
+    def add(row):
+        session.add(row); session.commit(); return row
+
+    def user(email, role, **kw):
+        return add(db.User(email=email, full_name=email.split("@")[0], role=role, hashed_password="x", **kw))
+
+    # mfa binds load_settings at import, so an earlier test's stub can linger there.
+    orig_load, orig_mfa_load = settings_store.load_settings, mfa.load_settings
+    settings_store.load_settings = mfa.load_settings = lambda: {}
+    try:
+        R = db.UserRole
+        sa = user("sa@example.org", R.super_admin)
+        sys_a = add(db.LibrarySystem(name="A", code="a"))
+        sys_b = add(db.LibrarySystem(name="B", code="b"))
+        a1 = add(db.Branch(system_id=sys_a.id, name="A1", code="a1"))
+        a2 = add(db.Branch(system_id=sys_a.id, name="A2", code="a2"))
+        b1 = add(db.Branch(system_id=sys_b.id, name="B1", code="b1"))
+
+        perms = '["users.manage", "consortium.manage"]'
+        branch_mgr = user("bm@example.org", R.manager, permissions_granted=perms)
+        add(db.ManagerScope(user_id=branch_mgr.id, scope_type="branch", branch_id=a1.id))
+        system_mgr = user("sm@example.org", R.manager, permissions_granted=perms)
+        add(db.ManagerScope(user_id=system_mgr.id, scope_type="system", system_id=sys_a.id))
+        unscoped_mgr = user("um@example.org", R.manager, permissions_granted=perms)
+        cross_mgr = user("cm@example.org", R.manager,
+                         permissions_granted='["users.manage", "consortium.cross_system"]')
+        add(db.ManagerScope(user_id=cross_mgr.id, scope_type="branch", branch_id=a1.id))
+
+        p_a1 = user("pa1@example.org", R.parent, branch_id=a1.id)
+        p_a1b = user("pa1b@example.org", R.parent, branch_id=a1.id)
+        p_a2 = user("pa2@example.org", R.parent, branch_id=a2.id)
+        p_b1 = user("pb1@example.org", R.parent, branch_id=b1.id)
+        p_none = user("pn@example.org", R.parent)
+        Update, Grant = admin_router.UpdateUserRequest, admin_router.AccessGrantRequest
+
+        # Listing: scoped managers see only accounts in their branches.
+        listed = lambda actor: {u.email for u in admin_router.list_users(session, actor)}
+        assert listed(branch_mgr) == {"pa1@example.org", "pa1b@example.org"}, listed(branch_mgr)
+        assert listed(system_mgr) == {"pa1@example.org", "pa1b@example.org", "pa2@example.org"}
+        assert "pb1@example.org" in listed(cross_mgr) and "pn@example.org" in listed(unscoped_mgr)
+
+        # The Add user form's branch picker offers only the manager's branches.
+        picker = lambda actor: admin_router.assignable_branches(session, actor)
+        bm = picker(branch_mgr)
+        assert [x["id"] for x in bm["branches"]] == [a1.id] and bm["default_branch_id"] == a1.id and bm["required"]
+        sm = picker(system_mgr)
+        assert {x["id"] for x in sm["branches"]} == {a1.id, a2.id} and sm["default_branch_id"] is None
+        um = picker(unscoped_mgr)
+        assert {x["id"] for x in um["branches"]} == {a1.id, a2.id, b1.id} and not um["required"]
+        assert um["branches"][0]["system_name"] in ("A", "B")
+
+        # Creating: new accounts land in the manager's branch, never outside it.
+        def create(email, actor, **kw):
+            return admin_router.create_user(admin_router.CreateUserRequest(
+                full_name="N", email=email, role="parent", password="password123", **kw), session, actor)
+        branch_of = lambda email: session.query(db.User).filter(db.User.email == email).one().branch_id
+        n1 = create("n1@example.org", branch_mgr)
+        assert branch_of("n1@example.org") == a1.id
+        admin_router.update_user(n1.id, Update(password="password123"), session, branch_mgr)
+        expect_http(403, create, "x1@example.org", branch_mgr, branch_id=b1.id)
+        expect_http(400, create, "x2@example.org", system_mgr)   # two branches, none of its own
+        create("n2@example.org", system_mgr, branch_id=a2.id)
+        assert branch_of("n2@example.org") == a2.id
+        create("n3@example.org", unscoped_mgr)
+        assert branch_of("n3@example.org") is None
+        expect_http(404, create, "x3@example.org", unscoped_mgr, branch_id=9999)
+
+        # Accounts: branch-scoped manager stays in A1.
+        admin_router.update_user(p_a1.id, Update(full_name="Ok"), session, branch_mgr)
+        for target in (p_a2, p_b1, p_none):
+            expect_http(403, admin_router.update_user, target.id, Update(password="password123"), session, branch_mgr)
+            expect_http(403, admin_router.delete_user, target.id, session, branch_mgr)
+        expect_http(403, admin_router.create_grant, Grant(manager_id=p_a1.id, managed_id=p_b1.id), session, branch_mgr)
+        g = admin_router.create_grant(Grant(manager_id=p_a1.id, managed_id=p_a1b.id), session, branch_mgr)
+        # A grant reaching outside A1 can't be revoked by the branch manager.
+        out_grant = add(db.ProfileAccess(manager_id=p_a2.id, managed_id=p_a1.id, can_view=True, can_edit=False))
+        expect_http(403, admin_router.revoke_grant, out_grant.id, session, branch_mgr)
+        admin_router.revoke_grant(g.id, session, branch_mgr)
+
+        # System scope covers every branch in it; cross-system and unscoped go anywhere.
+        admin_router.update_user(p_a2.id, Update(full_name="Ok"), session, system_mgr)
+        expect_http(403, admin_router.delete_user, p_b1.id, session, system_mgr)
+        admin_router.update_user(p_b1.id, Update(full_name="Ok"), session, cross_mgr)
+        admin_router.update_user(p_b1.id, Update(password="password123"), session, cross_mgr)
+
+        # Branch overrides: super admins, or managers granted the permission (any branch).
+        gate = inspect.signature(consortium.override_patron_branch).parameters["current_user"].default.dependency
+        override_mgr = user("om@example.org", R.manager, permissions_granted='["members.override_branch"]')
+        add(db.ManagerScope(user_id=override_mgr.id, scope_type="branch", branch_id=a1.id))
+        for actor in (branch_mgr, system_mgr, unscoped_mgr, p_a1):
+            expect_http(403, gate, actor)
+        gate(sa); gate(override_mgr)
+        Override = consortium.PatronBranchOverride
+        consortium.override_patron_branch(p_none.id, Override(branch_id=b1.id), session, override_mgr)
+        assert branch_of("pn@example.org") == b1.id
+        admin_router.update_user(p_none.id, Update(full_name="Ok"), session, unscoped_mgr)
+        admin_router.delete_user(p_b1.id, session, unscoped_mgr)
+
+        # Hierarchy: branch scope doesn't cover its system or new systems.
+        SysC, SysU = consortium.SystemCreate, consortium.SystemUpdate
+        BrC, BrU = consortium.BranchCreate, consortium.BranchUpdate
+        expect_http(403, consortium.create_system, SysC(name="C", code="c"), session, branch_mgr)
+        expect_http(403, consortium.create_system, SysC(name="C", code="c"), session, system_mgr)
+        expect_http(403, consortium.update_system, sys_a.id, SysU(name="X"), session, branch_mgr)
+        expect_http(403, consortium.delete_system, sys_b.id, session, system_mgr)
+        expect_http(403, consortium.create_branch, BrC(system_id=sys_a.id, name="N", code="n"), session, branch_mgr)
+        expect_http(403, consortium.update_branch, a2.id, BrU(name="X"), session, branch_mgr)
+        expect_http(403, consortium.update_branch, a1.id, BrU(system_id=sys_b.id), session, branch_mgr)
+        expect_http(403, consortium.delete_branch, b1.id, session, system_mgr)
+        consortium.update_branch(a1.id, BrU(name="A1 renamed"), session, branch_mgr)
+        consortium.update_system(sys_a.id, SysU(name="A renamed"), session, system_mgr)
+        consortium.create_branch(BrC(system_id=sys_a.id, name="A3", code="a3"), session, system_mgr)
+        consortium.delete_branch(a2.id, session, system_mgr)
+        consortium.create_system(SysC(name="C", code="c"), session, unscoped_mgr)
+        consortium.delete_system(sys_b.id, session, unscoped_mgr)
+    finally:
+        settings_store.load_settings, mfa.load_settings = orig_load, orig_mfa_load
+        session.close()
+
+
+@test(2, "access.reporting_scope_and_minimal_fields",
+      "Reports count only a scoped manager's branches, the per-member report names only "
+      "members the viewer can already open, and responses carry only the fields the "
+      "Reporting page shows.")
+def t_access_reporting_scope():
+    try:
+        reporting = _imp("routers.reporting")
+        settings_store = _imp("core.settings_store")
+        db, session = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    def add(row):
+        session.add(row); session.commit(); return row
+
+    orig_load = settings_store.load_settings
+    settings_store.load_settings = lambda: {}
+    try:
+        R, S = db.UserRole, db.RequestStatus
+        sys_a = add(db.LibrarySystem(name="A", code="a"))
+        a1 = add(db.Branch(system_id=sys_a.id, name="A1", code="a1"))
+        b1 = add(db.Branch(system_id=sys_a.id, name="B1", code="b1"))
+        brokers = [add(db.Broker(name=n)) for n in ("Acme", "Zed")]
+
+        def patron(name, branch, statuses):
+            u = add(db.User(email=f"{name}@example.org", full_name=name, role=R.parent,
+                            hashed_password="x", branch_id=branch.id))
+            m = add(db.FamilyMember(user_id=u.id, full_name=name))
+            for st, br in zip(statuses, brokers):
+                add(db.RemovalRequest(member_id=m.id, broker_id=br.id, status=st))
+            return u
+        patron("alice", a1, [S.confirmed, S.pending])
+        patron("bob", b1, [S.confirmed])
+        patron("carol", b1, [S.pending])
+
+        def mgr(email, perms, branch_scope=None):
+            u = add(db.User(email=email, full_name=email, role=R.manager, hashed_password="x",
+                            permissions_granted=perms))
+            if branch_scope:
+                add(db.ManagerScope(user_id=u.id, scope_type="branch", branch_id=branch_scope.id))
+            return u
+        sa = add(db.User(email="sa@example.org", full_name="sa", role=R.super_admin, hashed_password="x"))
+        scoped = mgr("s@example.org", None, a1)                          # reporting.view by default
+        scoped_view = mgr("sv@example.org", '["members.view_all"]', a1)
+        unscoped = mgr("u@example.org", None)
+        cross = mgr("c@example.org", '["consortium.cross_system"]', a1)
+
+        names = lambda u: {r["member"] for r in reporting.per_member_stats(session, u)}
+        assert names(sa) == names(cross) == {"alice", "bob", "carol"}
+        assert names(scoped_view) == {"alice"}, names(scoped_view)
+        assert names(scoped) == set() and names(unscoped) == set(), "names need 'view all members' data'"
+
+        s_all, s_a1 = reporting.summary(session, sa), reporting.summary(session, scoped)
+        assert set(s_all) == {"total_users", "total_brokers", "total_sent", "total_confirmed",
+                              "total_pending", "success_rate", "month_sent", "month_new_users"}, set(s_all)
+        assert s_all["total_confirmed"] == 2 and s_all["total_pending"] == 2
+        assert s_a1["total_users"] == 1 and s_a1["total_confirmed"] == 1 and s_a1["total_pending"] == 1
+        assert reporting.summary(session, unscoped)["total_confirmed"] == 2   # counts aren't names
+
+        comp = {r["broker"]: r for r in reporting.broker_compliance(20, session, scoped)}
+        assert set(comp) == {"Acme", "Zed"} and comp["Acme"]["total"] == 1, comp
+        assert set(comp["Acme"]) == {"broker", "total", "confirmed", "rate"}
+        assert reporting.broker_compliance(20, session, sa)[0]["total"] == 3
+
+        enroll = lambda u: sum(r["enrollments"] for r in reporting.enrollments_over_time(12, session, u))
+        assert enroll(scoped) == 1 and enroll(sa) >= 3
+    finally:
+        settings_store.load_settings = orig_load
+        session.close()
 
 
 @test(2, "access.member_data_and_broker_writes",
@@ -4599,6 +4818,7 @@ def t_access_member_data_and_brokers():
             session.add(db.FamilyMember(user_id=u.id, full_name=email)); session.commit()
             return u
         mgr = person("m@example.org", R.manager)
+        broker_mgr = person("b@example.org", R.manager, permissions_granted='["brokers.manage"]')
         viewer = person("v@example.org", R.manager, permissions_granted='["members.view_all"]')
         editor = person("e@example.org", R.manager, permissions_granted='["members.edit_all"]')
         fam = person("f@example.org", R.parent)
@@ -4619,8 +4839,8 @@ def t_access_member_data_and_brokers():
             assert e.status_code == 403
         auth.assert_can_edit(session, editor, fam_member.id)
 
-        # Broker writes over real HTTP: a parent gets 403, a manager with the
-        # default set (includes brokers.manage) gets through.
+        # Broker writes over real HTTP: a parent or a manager with only the
+        # defaults gets 403, a manager granted brokers.manage gets through.
         broker = db.Broker(name="Example Broker", opt_out_url="https://example.com/optout")
         session.add(broker); session.commit()
         app = FastAPI(); app.include_router(brokers_router.router)
@@ -4636,6 +4856,9 @@ def t_access_member_data_and_brokers():
             assert r.status_code == 403, f"parent {method.upper()} {path} -> {r.status_code}"
         assert client.get("/api/brokers").status_code == 200, "reading brokers stays open"
         who["user"] = mgr
+        assert client.patch(f"/api/brokers/{broker.id}", json={"notes": "x"}).status_code == 403, \
+            "brokers.manage is no longer a manager default"
+        who["user"] = broker_mgr
         r = client.patch(f"/api/brokers/{broker.id}", json={
             "opt_out_url": "https://example.com/optout", "method": "form",
             "difficulty": "easy", "notes": "checked"})
@@ -5221,6 +5444,330 @@ def t_sso_login_works():
     s.close()
     # EXPECTED: SSO users can log in, are linked to their provider, never super admin.
     # IF THIS FAILS: every SSO user gets a 401 after sign-in, or SSO can mint admins.
+
+
+@test(2, "scheduler.result_ingestion_reclaims_leases",
+      "The 30-second result ingestion job drains results and reclaims worker leases that "
+      "timed out (before, it crashed every run calling reclaim as a service method).")
+def t_scheduler_reclaims_leases():
+    from types import SimpleNamespace as NS
+    try:
+        scheduler = _imp("core.scheduler")
+        queue_mod = _imp("core.distributed.queue")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    requeued, dead = [], []
+
+    class StubQueue:
+        def get_result(self, timeout=0.5): return None
+        def get_in_flight_leases(self):
+            return [{"age_seconds": 400.0, "envelope": NS(envelope_id="stale", meta={})},
+                    {"age_seconds": 10.0, "envelope": NS(envelope_id="live", meta={})}]
+        def requeue(self, env, queue_name=None): requeued.append(env.envelope_id)
+        def dead_letter(self, env, reason=""): dead.append(env.envelope_id)
+
+    orig = queue_mod.get_queue
+    queue_mod.get_queue = lambda *a, **kw: StubQueue()
+    try:
+        scheduler.result_ingestion_job()          # raised AttributeError before the fix
+    finally:
+        queue_mod.get_queue = orig
+    assert requeued == ["stale"] and dead == [], (requeued, dead)
+
+
+@test(2, "auth.failed_signin_throttling",
+      "Repeated failed sign-ins (password, LDAP, SIP2, TOTP, backup code) lock that sign-in "
+      "name with 429 + Retry-After before credentials are checked; locks escalate and expire, "
+      "success clears them, unknown accounts behave the same, provider outages don't count.")
+def t_auth_failed_signin_throttling():
+    import time
+    from types import SimpleNamespace as NS
+    try:
+        from fastapi import HTTPException
+        auth_router = _imp("routers.auth")
+        throttle = _imp("core.login_throttle")
+        mfa = _imp("core.mfa")
+        ap = _imp("core.auth_providers")
+        core_auth = _imp("core.auth")
+        settings_store = _imp("core.settings_store")
+        db, session = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    def status_of(fn, *a):
+        try:
+            fn(*a)
+        except HTTPException as e:
+            return e.status_code, (e.headers or {}).get("Retry-After")
+        return 200, None
+
+    clock = [1_000_000.0]
+    orig = (throttle._now, settings_store.load_settings, mfa.load_settings,
+            auth_router.try_ldap_auth, auth_router.provider_enabled)
+    throttle._now = lambda: clock[0]
+    settings_store.load_settings = mfa.load_settings = lambda: {}
+    throttle._state.clear()
+    try:
+        R = db.UserRole
+        u = db.User(email="jane@example.org", full_name="Jane", role=R.parent,
+                    hashed_password=core_auth.hash_password("RightPass123!"))
+        session.add(u); session.commit()
+        login = lambda email, pw: auth_router.login(NS(username=email, password=pw), None, session)
+
+        # Password: 5 failures lock the name; even the right password is refused.
+        for _ in range(throttle.MAX_FAILURES):
+            assert status_of(login, "jane@example.org", "nope")[0] == 401
+        assert status_of(login, "jane@example.org", "RightPass123!") == (429, "30")
+        assert status_of(login, "JANE@example.org ", "RightPass123!")[0] == 429, "same name, other spelling"
+        assert status_of(login, "other@example.org", "nope")[0] == 401, "other names unaffected"
+        # Unknown accounts lock the same way (no account enumeration).
+        for _ in range(throttle.MAX_FAILURES):
+            status_of(login, "ghost@example.org", "x")
+        assert status_of(login, "ghost@example.org", "x")[0] == 429
+        # Lock expires; one more failure re-locks for twice as long; success clears.
+        clock[0] += 31
+        assert status_of(login, "jane@example.org", "nope")[0] == 401
+        assert status_of(login, "jane@example.org", "RightPass123!") == (429, "60")
+        clock[0] += 61
+        assert status_of(login, "jane@example.org", "RightPass123!")[0] == 200
+        assert throttle.account_key("password", "jane@example.org") not in throttle._state
+
+        # TOTP and backup codes share a per-user lock.
+        secret = mfa.generate_totp_secret()
+        plain, hashed = mfa.generate_backup_codes(2)
+        u.totp_enabled = True
+        u.totp_secret_enc = settings_store.encrypt_password(secret)
+        u.backup_codes = __import__("json").dumps(hashed)
+        session.commit()
+        ticket = mfa.create_mfa_ticket(u.id, u.email)
+        live = {mfa.get_totp(secret, timestamp=time.time() + d) for d in (-30, 0, 30)}
+        wrong = next(c for c in ("000000", "111111", "222222", "333333") if c not in live)
+        totp = lambda code: auth_router.verify_totp_login(auth_router.VerifyTotpIn(mfa_ticket=ticket, code=code), session)
+        backup = lambda code: auth_router.verify_backup_code_login(auth_router.VerifyBackupIn(mfa_ticket=ticket, code=code), session)
+        for _ in range(throttle.MAX_FAILURES - 1):
+            assert status_of(totp, wrong)[0] == 401
+        assert status_of(backup, "not-a-code")[0] == 401
+        assert status_of(totp, mfa.get_totp(secret))[0] == 429, "right code refused while locked"
+        assert status_of(backup, plain[0])[0] == 429, "backup codes share the lock"
+        clock[0] += 31
+        assert status_of(totp, mfa.get_totp(secret))[0] == 200
+
+        # LDAP: bad credentials count, an unreachable directory doesn't.
+        auth_router.provider_enabled = lambda name: True
+        ldap = lambda: auth_router.ldap_login(auth_router.LDAPLoginRequest(username="bob", password="x"), session)
+        auth_router.try_ldap_auth = lambda u_, p_: ap.AuthResult(success=False, provider="ldap", unavailable=True,
+                                                                  error="Directory sign-in is unavailable right now.")
+        for _ in range(throttle.MAX_FAILURES + 2):
+            assert status_of(ldap)[0] == 401
+        auth_router.try_ldap_auth = lambda u_, p_: ap.AuthResult(success=False, provider="ldap", error="Invalid")
+        for _ in range(throttle.MAX_FAILURES):
+            assert status_of(ldap)[0] == 401
+        assert status_of(ldap)[0] == 429
+
+        # Memory stays bounded when many names are sprayed.
+        throttle._state.clear()
+        orig_max, throttle.MAX_KEYS = throttle.MAX_KEYS, 100
+        try:
+            for i in range(500):
+                throttle.failure(f"password:spray{i}@example.org")
+            assert len(throttle._state) <= 100
+            assert "password:spray499@example.org" in throttle._state
+        finally:
+            throttle.MAX_KEYS = orig_max
+    finally:
+        (throttle._now, settings_store.load_settings, mfa.load_settings,
+         auth_router.try_ldap_auth, auth_router.provider_enabled) = orig
+        throttle._state.clear()
+        session.close()
+
+
+@test(2, "auth.per_ip_limits",
+      "Client IP comes from X-Forwarded-For counted TRUSTED_PROXY_HOPS from the right (forged "
+      "entries ignored, IPv6 grouped by /64); sign-in, MFA, registration and SSO routes are "
+      "rate limited per IP; many failed sign-ins from one IP lock that IP across accounts.")
+def t_auth_per_ip_limits():
+    import os
+    from types import SimpleNamespace as NS
+    try:
+        from fastapi import HTTPException
+        rl = _imp("core.rate_limit")
+        throttle = _imp("core.login_throttle")
+        auth_router = _imp("routers.auth")
+        saml_router = _imp("routers.saml")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    def req(peer, xff=None):
+        return NS(client=NS(host=peer), headers={"x-forwarded-for": xff} if xff else {})
+
+    def status_of(fn, *a):
+        try:
+            fn(*a)
+        except HTTPException as e:
+            return e.status_code, (e.headers or {}).get("Retry-After")
+        return 200, None
+
+    orig_env = os.environ.get("TRUSTED_PROXY_HOPS")
+    orig_now = (rl._now, throttle._now)
+    try:
+        # nginx only (default 1 hop): nginx appended the real client last.
+        os.environ.pop("TRUSTED_PROXY_HOPS", None)
+        assert rl.client_ip(req("172.18.0.3", "203.0.113.9")) == "203.0.113.9"
+        assert rl.client_ip(req("172.18.0.3", "6.6.6.6, 203.0.113.9")) == "203.0.113.9", "forged entry used"
+        assert rl.client_ip(req("203.0.113.9")) == "203.0.113.9", "no header: the peer"
+        assert rl.client_ip(req("172.18.0.3", "garbage")) == "172.18.0.3"
+        # Caddy + nginx (2 hops): the client is second from the right.
+        os.environ["TRUSTED_PROXY_HOPS"] = "2"
+        assert rl.client_ip(req("172.18.0.3", "198.51.100.7, 172.18.0.5")) == "198.51.100.7"
+        assert rl.client_ip(req("172.18.0.3", "6.6.6.6, 198.51.100.7, 172.18.0.5")) == "198.51.100.7"
+        # Direct exposure (0 hops): the header is never trusted.
+        os.environ["TRUSTED_PROXY_HOPS"] = "0"
+        assert rl.client_ip(req("203.0.113.9", "6.6.6.6")) == "203.0.113.9"
+        # IPv6: one /64 is one client; IPv4-mapped addresses are plain IPv4.
+        assert rl.client_ip(req("2001:db8:1:2::a")) == rl.client_ip(req("2001:db8:1:2:ffff::b")) == "2001:db8:1:2::/64"
+        assert rl.client_ip(req("::ffff:203.0.113.9")) == "203.0.113.9"
+        assert rl.client_ip(None) is None
+        os.environ.pop("TRUSTED_PROXY_HOPS", None)
+
+        # Request limiter: per_minute per IP, refills over time, other IPs unaffected.
+        clock = [1000.0]
+        rl._now = lambda: clock[0]
+        rl._buckets.clear()
+        dep = rl.limit("test", 3)
+        a, b = req("203.0.113.1"), req("203.0.113.2")
+        assert [status_of(dep, a)[0] for _ in range(3)] == [200, 200, 200]
+        assert status_of(dep, a) == (429, "20")
+        assert status_of(dep, b)[0] == 200
+        clock[0] += 20
+        assert status_of(dep, a)[0] == 200 and status_of(dep, a)[0] == 429
+        rl._buckets.clear()
+        orig_max, rl.MAX_KEYS = rl.MAX_KEYS, 50
+        try:
+            for i in range(300):
+                dep(req(f"10.0.{i // 250}.{i % 250}"))
+            assert len(rl._buckets) <= 50
+        finally:
+            rl.MAX_KEYS = orig_max
+
+        # Failed sign-ins: one IP spraying many accounts gets locked; success
+        # doesn't clear the IP; another IP is unaffected.
+        tclock = [5000.0]
+        throttle._now = lambda: tclock[0]
+        throttle._state.clear()
+        bad, good = req("198.51.100.66"), req("198.51.100.77")
+        for i in range(throttle.IP_MAX_FAILURES):
+            throttle.check(throttle.account_key("password", f"u{i}@x.org"), throttle.ip_key(bad))
+            throttle.failure(throttle.account_key("password", f"u{i}@x.org"), throttle.ip_key(bad))
+        throttle.success(throttle.account_key("password", "mine@x.org"))
+        assert status_of(throttle.check, throttle.account_key("password", "new@x.org"), throttle.ip_key(bad))[0] == 429
+        assert status_of(throttle.check, throttle.account_key("password", "new@x.org"), throttle.ip_key(good))[0] == 200
+        throttle._state.clear()
+
+        # Route wiring: every public sign-in / SSO route carries a limiter.
+        def limits(router, path, method):
+            for r in router.routes:
+                if getattr(r, "path", None) == path and method in getattr(r, "methods", ()):
+                    return {getattr(d.call, "rate_limit", (None,))[0] for d in r.dependant.dependencies} - {None}
+            raise AssertionError(f"route {method} {path} not found")
+        p = auth_router.router.prefix
+        for path, method, name in [("/token", "POST", "signin"), ("/ldap/login", "POST", "signin"),
+                                   ("/sip2/login", "POST", "signin"), ("/register", "POST", "register"),
+                                   ("/mfa/verify-totp", "POST", "mfa"), ("/mfa/verify-backup", "POST", "mfa"),
+                                   ("/mfa/verify-webauthn", "POST", "mfa"),
+                                   ("/oidc/{provider}/login", "GET", "sso"), ("/oidc/{provider}/callback", "GET", "sso")]:
+            assert name in limits(auth_router.router, p + path, method), (path, method)
+        sp = saml_router.router.prefix
+        for path, method in [("/login", "GET"), ("/acs", "POST")]:
+            assert "sso" in limits(saml_router.router, sp + path, method), (path, method)
+
+        # Over real HTTP: the 61st sign-in a minute from one client IP gets 429.
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        db_mod = _imp("models.database")
+        engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        db_mod.Base.metadata.create_all(engine)
+        session = sessionmaker(bind=engine)()
+        app = FastAPI(); app.include_router(auth_router.router)
+        app.dependency_overrides[db_mod.get_db] = lambda: session
+        client = TestClient(app)
+        rl._now = orig_now[0]; rl._buckets.clear(); throttle._state.clear()
+        orig_ipmax, throttle.IP_MAX_FAILURES = throttle.IP_MAX_FAILURES, 10_000   # isolate the limiter
+        try:
+            post = lambda i, ip: client.post("/api/auth/token", headers={"X-Forwarded-For": ip},
+                                             data={"username": f"n{i}@x.org", "password": "x"})
+            codes = [post(i, "203.0.113.50").status_code for i in range(60)]
+            assert set(codes) == {401}, set(codes)
+            r = post(60, "203.0.113.50")
+            assert r.status_code == 429 and r.headers.get("retry-after"), (r.status_code, r.headers)
+            assert post(61, "203.0.113.51").status_code == 401, "other client IPs unaffected"
+        finally:
+            throttle.IP_MAX_FAILURES = orig_ipmax
+            session.close()
+    finally:
+        if orig_env is None:
+            os.environ.pop("TRUSTED_PROXY_HOPS", None)
+        else:
+            os.environ["TRUSTED_PROXY_HOPS"] = orig_env
+        rl._now, throttle._now = orig_now
+        rl._buckets.clear(); throttle._state.clear()
+
+
+@test(2, "auth.oidc_states_bounded_and_expire",
+      "Public /api/auth/oidc/{provider}/login stores a state per call; states are single "
+      "use, expire after 10 minutes, and the store is capped so a flood can't grow memory.")
+def t_auth_oidc_states():
+    import time
+    try:
+        auth_router = _imp("routers.auth")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    saved = dict(auth_router._oidc_states)
+    orig_time = auth_router.time.time
+    clock = [10_000.0]
+    auth_router.time.time = lambda: clock[0]
+    try:
+        auth_router._oidc_states.clear()
+        auth_router._remember_oidc_state("s1", "google", "https://x/cb")
+        assert auth_router._take_oidc_state("s1")["provider"] == "google"
+        assert auth_router._take_oidc_state("s1") is None, "single use"
+        auth_router._remember_oidc_state("old", "google", "https://x/cb")
+        clock[0] += auth_router._OIDC_STATE_TTL + 1
+        assert auth_router._take_oidc_state("old") is None, "expired state accepted"
+        for i in range(auth_router._OIDC_MAX_STATES + 50):
+            auth_router._remember_oidc_state(f"f{i}", "google", "https://x/cb")
+        assert len(auth_router._oidc_states) <= auth_router._OIDC_MAX_STATES
+        assert f"f{auth_router._OIDC_MAX_STATES + 49}" in auth_router._oidc_states
+        assert "f0" not in auth_router._oidc_states
+    finally:
+        auth_router.time.time = orig_time
+        auth_router._oidc_states.clear(); auth_router._oidc_states.update(saved)
+
+
+@test(1, "saml.outstanding_requests_bounded",
+      "Public /api/saml/login adds a pending request ID per call; the store is capped and "
+      "pruned oldest-first, so a flood can't grow memory without limit, and expired IDs go.")
+def t_saml_outstanding_bounded():
+    import time
+    sp = _imp("core.saml_sp")
+    saved = dict(sp._OUTSTANDING)
+    try:
+        sp._OUTSTANDING.clear()
+        now = time.time()
+        sp._OUTSTANDING["expired"] = now - sp.REQUEST_TTL - 5
+        for i in range(sp.MAX_OUTSTANDING + 50):            # a flood of live requests
+            sp._OUTSTANDING[f"r{i}"] = now
+        sp._prune()
+        assert len(sp._OUTSTANDING) < sp.MAX_OUTSTANDING, len(sp._OUTSTANDING)
+        assert "expired" not in sp._OUTSTANDING
+        assert f"r{sp.MAX_OUTSTANDING + 49}" in sp._OUTSTANDING, "newest request must survive"
+        assert "r0" not in sp._OUTSTANDING, "oldest requests are dropped first"
+        sp._remember("fresh")
+        assert "fresh" in sp._OUTSTANDING and len(sp._OUTSTANDING) <= sp.MAX_OUTSTANDING
+    finally:
+        sp._OUTSTANDING.clear(); sp._OUTSTANDING.update(saved)
 
 
 @test(2, "saml.end_to_end_and_attacks",

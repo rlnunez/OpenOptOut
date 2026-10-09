@@ -181,7 +181,7 @@ export default function CaptchaQueue() {
                     <span className="text-slate-500 text-xs">•</span>
                     <span className="text-slate-300 text-sm font-medium">{c.member_name}</span>
                     <Badge value={c.status} />
-                    <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700 font-mono">
+                    <span className="text-xs px-2 py-0.5 rounded-sm bg-slate-800 text-amber-300 border border-slate-700 font-mono">
                       {c.challenge_type}
                     </span>
                   </div>
@@ -193,7 +193,7 @@ export default function CaptchaQueue() {
                   </p>
 
                   {c.notes && (
-                    <p className="text-slate-400 text-xs mt-2 bg-slate-950/60 p-2 rounded border border-slate-800">
+                    <p className="text-slate-400 text-xs mt-2 bg-slate-950/60 p-2 rounded-sm border border-slate-800">
                       <strong>Notes:</strong> {c.notes}
                     </p>
                   )}
@@ -278,7 +278,7 @@ export default function CaptchaQueue() {
       {/* Screenshot Viewer Modal */}
       {selectedShot && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-xs"
           onClick={() => setSelectedShot(null)}
         >
           <div
@@ -298,7 +298,7 @@ export default function CaptchaQueue() {
               <img
                 src={selectedShot}
                 alt="CAPTCHA Challenge"
-                className="max-h-[75vh] w-auto inline-block rounded border border-slate-800 shadow"
+                className="max-h-[75vh] w-auto inline-block rounded-sm border border-slate-800 shadow-sm"
               />
             </div>
           </div>
@@ -308,7 +308,7 @@ export default function CaptchaQueue() {
       {/* Token Submission Modal */}
       {showTokenModal && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-xs"
           onClick={() => setShowTokenModal(false)}
         >
           <div
@@ -335,14 +335,14 @@ export default function CaptchaQueue() {
               value={tokenInput}
               onChange={e => setTokenInput(e.target.value)}
               placeholder="e.g. 03AFcWeA..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 font-mono mb-3 focus:outline-none focus:border-sky-500"
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 font-mono mb-3 focus:outline-hidden focus:border-sky-500"
             />
             <input
               type="text"
               value={notesInput}
               onChange={e => setNotesInput(e.target.value)}
               placeholder="Optional notes or reference..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 mb-4 focus:outline-none focus:border-sky-500"
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 mb-4 focus:outline-hidden focus:border-sky-500"
             />
             <div className="flex justify-end gap-2">
               <button

@@ -13,7 +13,8 @@ import json
 from ..models.database import (
     get_db, User, UserRole, LibrarySystem, Branch, SIP2Connection, ManagerScope
 )
-from ..core.auth import get_current_user, require_super_admin
+from ..core.auth import (get_current_user, require_super_admin, assert_system_in_scope,
+                         assert_branch_in_scope)
 from ..core.access import require_permission, has_permission
 from ..core.settings_store import encrypt_password, decrypt_password
 
@@ -197,6 +198,7 @@ def create_system(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("consortium.manage")),
 ):
+    assert_system_in_scope(db, current_user, None)   # only unscoped managers add systems
     code_clean = data.code.strip().lower()
     if db.query(LibrarySystem).filter(LibrarySystem.code == code_clean).first():
         raise HTTPException(400, f"Library system code '{code_clean}' already exists")
@@ -286,6 +288,7 @@ def update_system(
         )
 
     # Super admin or consortium.manage can update all fields
+    assert_system_in_scope(db, current_user, system_id)
     if data.name is not None:
         s.name = data.name.strip()
     if data.code is not None:
@@ -325,6 +328,7 @@ def delete_system(
     s = db.query(LibrarySystem).filter(LibrarySystem.id == system_id).first()
     if not s:
         raise HTTPException(404, "Library system not found")
+    assert_system_in_scope(db, current_user, system_id)
     db.delete(s)
     db.commit()
 
@@ -365,6 +369,7 @@ def create_branch(
     sys = db.query(LibrarySystem).filter(LibrarySystem.id == data.system_id).first()
     if not sys:
         raise HTTPException(404, "Parent library system not found")
+    assert_system_in_scope(db, current_user, data.system_id)
 
     branch = Branch(
         system_id=data.system_id,
@@ -394,11 +399,13 @@ def update_branch(
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
     if not branch:
         raise HTTPException(404, "Branch not found")
+    assert_branch_in_scope(db, current_user, branch_id)
 
     if data.system_id is not None:
         sys = db.query(LibrarySystem).filter(LibrarySystem.id == data.system_id).first()
         if not sys:
             raise HTTPException(404, "Target library system not found")
+        assert_system_in_scope(db, current_user, data.system_id)
         branch.system_id = data.system_id
     if data.name is not None:
         branch.name = data.name.strip()
@@ -429,6 +436,7 @@ def delete_branch(
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
     if not branch:
         raise HTTPException(404, "Branch not found")
+    assert_branch_in_scope(db, current_user, branch_id)
     # Unlink assigned users before deletion
     db.query(User).filter(User.branch_id == branch_id).update({
         User.branch_id: None,

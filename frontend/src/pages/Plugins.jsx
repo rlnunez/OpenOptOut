@@ -9,7 +9,7 @@ import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import PluginUploadWizard from '../components/PluginUploadWizard'
 
-const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500"
+const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
 const RISK_STYLES = {
   high:   { badge: 'bg-red-900/30 text-red-300 border-red-800',       dot: 'bg-red-400' },
@@ -121,7 +121,7 @@ function ViolationsFeed({ violations }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-medium">{v.plugin_id}</span>
                   <span className="text-xs opacity-80">· {v.label}</span>
-                  <span className="text-[10px] uppercase px-1.5 py-0.5 rounded border border-current/30">{v.severity}</span>
+                  <span className="text-[10px] uppercase px-1.5 py-0.5 rounded-sm border border-current/30">{v.severity}</span>
                 </div>
                 <p className="text-xs opacity-75 mt-0.5 font-mono break-all">{v.detail}</p>
                 {v.action_taken && (
@@ -142,7 +142,7 @@ function PermChip({ perm, info, granted }) {
   const meta = info?.[perm] || { label: perm, risk: 'low', description: '' }
   const s = RISK_STYLES[meta.risk] || RISK_STYLES.low
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs ${s.badge} ${granted === false ? 'opacity-40' : ''}`}
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm border text-xs ${s.badge} ${granted === false ? 'opacity-40' : ''}`}
       title={meta.description}>
       <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
       {meta.label}
@@ -224,11 +224,11 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
                 return (
                   <label key={p} className="flex items-start gap-2.5 px-3 py-2 rounded-lg border border-slate-700/50 bg-slate-800/50 cursor-pointer hover:border-slate-600">
                     <input type="checkbox" checked={granted.has(p)} onChange={() => toggle(p)}
-                      className="mt-0.5 w-3.5 h-3.5 rounded accent-shield-500" />
+                      className="mt-0.5 w-3.5 h-3.5 rounded-sm accent-shield-500" />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-slate-200 text-sm">{meta.label}</span>
-                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] uppercase ${s.badge}`}>
+                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm border text-[10px] uppercase ${s.badge}`}>
                           {meta.risk}
                         </span>
                       </div>
@@ -257,7 +257,7 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
             <div className="flex flex-wrap gap-1.5">
               {(plugin.methods && plugin.methods.length > 0)
                 ? plugin.methods.map(m => (
-                    <span key={m} className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-slate-700 bg-slate-800 text-slate-300 text-xs font-mono">
+                    <span key={m} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm border border-slate-700 bg-slate-800 text-slate-300 text-xs font-mono">
                       <Lock size={10} className="text-slate-500" /> {m}
                     </span>
                   ))
@@ -270,7 +270,7 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
                 <p className="text-slate-500 text-xs mb-1">Event types it expects to receive:</p>
                 <div className="flex flex-wrap gap-1.5">
                   {plugin.events.map(ev => (
-                    <span key={ev} className="px-2 py-0.5 rounded border border-slate-700 bg-slate-800 text-slate-400 text-xs font-mono">{ev}</span>
+                    <span key={ev} className="px-2 py-0.5 rounded-sm border border-slate-700 bg-slate-800 text-slate-400 text-xs font-mono">{ev}</span>
                   ))}
                 </div>
               </div>
@@ -283,7 +283,7 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {plugin.outbound_domains.map(d => (
-                    <span key={d} className="px-2 py-0.5 rounded border border-red-800/50 bg-red-900/10 text-red-300 text-xs font-mono">{d}</span>
+                    <span key={d} className="px-2 py-0.5 rounded-sm border border-red-800/50 bg-red-900/10 text-red-300 text-xs font-mono">{d}</span>
                   ))}
                 </div>
               </div>
@@ -328,11 +328,11 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
                       combination in the plugin system that can send that data somewhere. The
                       author declared a narrow exception with the justification below.
                     </p>
-                    <div className="px-2.5 py-2 rounded bg-slate-900/60 border border-red-900/50">
+                    <div className="px-2.5 py-2 rounded-sm bg-slate-900/60 border border-red-900/50">
                       <p className="text-slate-400 text-[11px] uppercase tracking-wide mb-1">Author's justification</p>
                       <p className="text-slate-300 text-xs">{plugin.pii_network_justification || '(none provided)'}</p>
                     </div>
-                    <div className="px-2.5 py-2 rounded bg-slate-900/60 border border-red-900/50">
+                    <div className="px-2.5 py-2 rounded-sm bg-slate-900/60 border border-red-900/50">
                       <p className="text-slate-400 text-[11px] uppercase tracking-wide mb-1">Declared outbound domains</p>
                       <p className="text-slate-300 text-xs font-mono">{(plugin.outbound_domains || []).join(', ') || '(none)'}</p>
                     </div>
@@ -345,7 +345,7 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
                     <label className="flex items-start gap-2.5 pt-1 cursor-pointer">
                       <input type="checkbox" checked={confirmPiiNetwork}
                         onChange={e => setConfirmPiiNetwork(e.target.checked)}
-                        className="mt-0.5 w-3.5 h-3.5 rounded accent-red-500" />
+                        className="mt-0.5 w-3.5 h-3.5 rounded-sm accent-red-500" />
                       <span className="text-red-200 text-xs">
                         I understand this plugin will be able to see member personal data and send
                         it over the network, and I accept the justification above. Grant this
@@ -435,7 +435,7 @@ function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onView
                   <span className="text-red-400 text-xs">· {plugin.crash_count} crash{plugin.crash_count > 1 ? 'es' : ''}</span>
                 )}
                 {plugin.needs_reapproval && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-red-800 bg-red-900/20 text-red-300 text-[10px]">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm border border-red-800 bg-red-900/20 text-red-300 text-[10px]">
                     <ShieldAlert size={9} /> re-approval required
                   </span>
                 )}
@@ -677,7 +677,7 @@ export default function Plugins() {
                         <p className="text-slate-200 text-sm truncate">{p.name}</p>
                         <span className="text-slate-600 text-xs">v{p.version}</span>
                         {!p.valid && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-red-800 bg-red-900/20 text-red-300 text-[10px]">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm border border-red-800 bg-red-900/20 text-red-300 text-[10px]">
                             <XCircle size={9} /> invalid
                           </span>
                         )}

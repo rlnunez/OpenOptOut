@@ -47,11 +47,11 @@ function EmailRow({ log }) {
         <div className="flex items-center gap-2 shrink-0">
           {log.direction === 'received' && (
             matched
-              ? <span className="text-xs text-emerald-400 border border-emerald-800 bg-emerald-900/20 px-2 py-0.5 rounded">matched</span>
-              : <span className="text-xs text-slate-500 border border-slate-700 px-2 py-0.5 rounded">unmatched</span>
+              ? <span className="text-xs text-emerald-400 border border-emerald-800 bg-emerald-900/20 px-2 py-0.5 rounded-sm">matched</span>
+              : <span className="text-xs text-slate-500 border border-slate-700 px-2 py-0.5 rounded-sm">unmatched</span>
           )}
           {log.direction === 'sent' && (
-            <span className="text-xs text-blue-400 border border-blue-800 bg-blue-900/20 px-2 py-0.5 rounded">sent</span>
+            <span className="text-xs text-blue-400 border border-blue-800 bg-blue-900/20 px-2 py-0.5 rounded-sm">sent</span>
           )}
           <span className="text-slate-600 text-xs">{new Date(log.received_at).toLocaleString()}</span>
         </div>

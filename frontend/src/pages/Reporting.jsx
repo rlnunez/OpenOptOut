@@ -5,6 +5,7 @@ import {
   CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 import api from '../api'
+import { useAuth, can } from '../hooks/useAuth'
 
 function StatCard({ label, value, sub, icon: Icon, color = 'text-slate-300' }) {
   return (
@@ -37,6 +38,10 @@ function ChartCard({ title, children }) {
 }
 
 export default function Reporting() {
+  const { user } = useAuth()
+  // The server lists only members this user can already open; say so here.
+  const fullMemberList = can(user, 'consortium.cross_system')
+  const canNameMembers = can(user, 'members.view_all', 'members.edit_all', 'consortium.cross_system')
   const [summary,    setSummary]    = useState(null)
   const [enrollments, setEnrollments] = useState([])
   const [optouts,    setOptouts]    = useState([])
@@ -81,11 +86,11 @@ export default function Reporting() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-white text-xl font-semibold">Usage reporting</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Institutional metrics for administrators</p>
+          <p className="text-slate-400 text-sm mt-0.5">Institutional metrics for administrators and managers</p>
         </div>
         <div className="flex gap-2">
           <select value={months} onChange={e => setMonths(parseInt(e.target.value))}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:outline-none">
+            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:outline-hidden">
             <option value={3}>Last 3 months</option>
             <option value={6}>Last 6 months</option>
             <option value={12}>Last 12 months</option>
@@ -167,8 +172,15 @@ export default function Reporting() {
           <div className="bg-slate-800 rounded-xl border border-slate-700/50 overflow-hidden mb-4">
             <div className="px-4 py-3 border-b border-slate-700/50 flex items-center justify-between">
               <p className="text-slate-300 text-sm font-medium">Per-member summary</p>
-              <p className="text-slate-500 text-xs">{perMember.length} members</p>
+              <p className="text-slate-500 text-xs">{perMember.length} {perMember.length === 1 ? 'member' : 'members'}</p>
             </div>
+            {!fullMemberList && (
+              <p className="px-4 py-2 text-slate-500 text-xs border-b border-slate-700/50">
+                {canNameMembers
+                  ? 'Showing only members you have access to.'
+                  : "Showing only your own and shared profiles. Listing other members needs the \u201cView all members' data\u201d permission."}
+              </p>
+            )}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
               <thead>
@@ -200,6 +212,9 @@ export default function Reporting() {
                     </td>
                   </tr>
                 ))}
+                {perMember.length === 0 && (
+                  <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-500 text-sm">No members to show.</td></tr>
+                )}
               </tbody>
             </table>
             </div>

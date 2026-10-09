@@ -104,7 +104,7 @@ export default function Brokers() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search brokers…"
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-shield-500"
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-shield-500"
           />
         </div>
         <Select value={status} onChange={setStatus} options={STATUS_OPTIONS} label="Status" />
@@ -148,7 +148,7 @@ export default function Brokers() {
                     <select
                       value={b.captcha_plugin_id || ''}
                       onChange={e => handleSolverChange(b.id, e.target.value)}
-                      className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-shield-500"
+                      className="bg-slate-900 border border-slate-700 rounded-sm px-2 py-1 text-xs text-slate-300 focus:outline-hidden focus:border-shield-500"
                     >
                       <option value="">Default (Any)</option>
                       {solvers.map(s => (
@@ -202,7 +202,7 @@ function Select({ value, onChange, options, label }) {
       <select
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="appearance-none bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-7 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-shield-500"
+        className="appearance-none bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-7 py-1.5 text-sm text-slate-300 focus:outline-hidden focus:border-shield-500"
       >
         {options.map(o => (
           <option key={o} value={o}>{o || label}</option>

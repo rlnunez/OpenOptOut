@@ -27,7 +27,7 @@ from ..models.database import get_db, User
 from ..core.auth import require_super_admin
 from ..core.access import require_permission
 from ..core.settings_store import load_settings, SETTINGS_FILE
-from ..core import saml_sp
+from ..core import saml_sp, rate_limit
 from .auth import _resolve_external_user, _sso_redirect
 
 router = APIRouter(prefix="/api/auth/saml", tags=["saml"])
@@ -61,7 +61,7 @@ def metadata(request: Request):
     return Response(content=xml, media_type="application/samlmetadata+xml")
 
 
-@router.get("/login")
+@router.get("/login", dependencies=[Depends(rate_limit.limit("sso", 30))])
 def login(request: Request):
     cfg = _cfg()
     if not cfg.get("enabled"):
@@ -72,7 +72,7 @@ def login(request: Request):
         return _error_page("SAML sign-in could not be initiated. Please check the identity provider configuration.")
 
 
-@router.post("/acs")
+@router.post("/acs", dependencies=[Depends(rate_limit.limit("sso", 30))])
 def acs(request: Request, SAMLResponse: str = Form(""), db: Session = Depends(get_db)):
     cfg = _cfg()
     if not cfg.get("enabled"):

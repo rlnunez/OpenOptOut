@@ -159,7 +159,7 @@ function MemberSelector({ members, selectedId, onChange }) {
   return (
     <div className="relative">
       <select value={selectedId ?? ''} onChange={e => onChange(parseInt(e.target.value))}
-        className="appearance-none bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-200 focus:outline-none focus:border-shield-500 min-w-48">
+        className="appearance-none bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-200 focus:outline-hidden focus:border-shield-500 min-w-48">
         <option value="" disabled>Select member…</option>
         {members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
       </select>
@@ -211,7 +211,7 @@ function FormalNameEditor({ member, onUpdated }) {
             placeholder="e.g. Robert Antonio Nunez"
             autoFocus
             onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
-            className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500 font-mono"
+            className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500 font-mono"
           />
           <button onClick={save} disabled={saving}
             className="px-2 py-1.5 bg-shield-600 text-white rounded-lg text-sm hover:bg-shield-700 disabled:opacity-40 transition-colors">
@@ -288,7 +288,7 @@ function AddIdentityRow({ kind, memberId, currentCount, maxCount, onAdded }) {
     <form onSubmit={submit} className="flex gap-2 mt-2">
       <input value={val} onChange={e => setVal(e.target.value)}
         placeholder={cfg.placeholder}
-        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500" />
+        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500" />
       <button type="button" onClick={() => setPrimary(p => !p)}
         title={primary ? 'Primary — used first in opt-outs' : 'Set as primary'}
         className={`px-2 rounded-lg border transition-colors ${primary ? 'text-amber-400 border-amber-700 bg-amber-900/20' : 'text-slate-600 border-slate-700 hover:text-amber-400'}`}>
@@ -337,12 +337,12 @@ function IdentityRow({ identity, onDeleted, onTogglePrimary, masked }) {
       {identity.kind === 'address' && (identity.is_deed || identity.is_mortgage) && (
         <div className="flex gap-1 shrink-0">
           {identity.is_deed && (
-            <span className="flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded bg-purple-900/30 text-purple-400 border border-purple-800">
+            <span className="flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-sm bg-purple-900/30 text-purple-400 border border-purple-800">
               <Home size={9} /> deed
             </span>
           )}
           {identity.is_mortgage && (
-            <span className="flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded bg-blue-900/30 text-blue-400 border border-blue-800">
+            <span className="flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-sm bg-blue-900/30 text-blue-400 border border-blue-800">
               <FileText size={9} /> mortgage
             </span>
           )}
@@ -350,12 +350,12 @@ function IdentityRow({ identity, onDeleted, onTogglePrimary, masked }) {
       )}
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button onClick={togglePrimary}
-          className={`p-1 rounded transition-colors ${identity.is_primary ? 'text-amber-400 hover:text-slate-400' : 'text-slate-600 hover:text-amber-400'}`}
+          className={`p-1 rounded-sm transition-colors ${identity.is_primary ? 'text-amber-400 hover:text-slate-400' : 'text-slate-600 hover:text-amber-400'}`}
           title={identity.is_primary ? 'Remove primary' : 'Set as primary'}>
           {identity.is_primary ? <StarOff size={12} /> : <Star size={12} />}
         </button>
         <button onClick={del} disabled={deleting}
-          className="p-1 rounded text-slate-600 hover:text-red-400 transition-colors">
+          className="p-1 rounded-sm text-slate-600 hover:text-red-400 transition-colors">
           <Trash2 size={12} />
         </button>
       </div>
@@ -380,7 +380,7 @@ function KindSection({ cfg, identities, memberId, onAdded, onDeleted, onTogglePr
           <span className="text-slate-200 text-sm font-medium">{label}</span>
           <span className="text-slate-500 text-xs">({mine.length}/{limit})</span>
           {mine.length >= limit && (
-            <span className={`text-xs px-1.5 py-0.5 rounded ${color} bg-opacity-10 border border-current opacity-60`}>
+            <span className={`text-xs px-1.5 py-0.5 rounded-sm ${color} bg-opacity-10 border border-current opacity-60`}>
               max
             </span>
           )}
