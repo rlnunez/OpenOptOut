@@ -5446,6 +5446,35 @@ def t_sso_login_works():
     # IF THIS FAILS: every SSO user gets a 401 after sign-in, or SSO can mint admins.
 
 
+@test(2, "scheduler.result_ingestion_reclaims_leases",
+      "The 30-second result ingestion job drains results and reclaims worker leases that "
+      "timed out (before, it crashed every run calling reclaim as a service method).")
+def t_scheduler_reclaims_leases():
+    from types import SimpleNamespace as NS
+    try:
+        scheduler = _imp("core.scheduler")
+        queue_mod = _imp("core.distributed.queue")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    requeued, dead = [], []
+
+    class StubQueue:
+        def get_result(self, timeout=0.5): return None
+        def get_in_flight_leases(self):
+            return [{"age_seconds": 400.0, "envelope": NS(envelope_id="stale", meta={})},
+                    {"age_seconds": 10.0, "envelope": NS(envelope_id="live", meta={})}]
+        def requeue(self, env, queue_name=None): requeued.append(env.envelope_id)
+        def dead_letter(self, env, reason=""): dead.append(env.envelope_id)
+
+    orig = queue_mod.get_queue
+    queue_mod.get_queue = lambda *a, **kw: StubQueue()
+    try:
+        scheduler.result_ingestion_job()          # raised AttributeError before the fix
+    finally:
+        queue_mod.get_queue = orig
+    assert requeued == ["stale"] and dead == [], (requeued, dead)
+
+
 @test(1, "saml.outstanding_requests_bounded",
       "Public /api/saml/login adds a pending request ID per call; the store is capped and "
       "pruned oldest-first, so a flood can't grow memory without limit, and expired IDs go.")
