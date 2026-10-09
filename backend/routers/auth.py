@@ -20,6 +20,7 @@ from ..core.auth import (
     get_current_user, get_current_user_optional, require_super_admin, validate_password_length
 )
 from ..core.access import require_permission
+from ..core import login_throttle
 from ..core.auth_providers import (
     try_ldap_auth, try_sip2_auth,
     get_oidc_login_url, exchange_oidc_code,
@@ -167,13 +168,17 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
 
 @router.post("/token")
 def login(form: OAuth2PasswordRequestForm = Depends(), request: Request = None, db: Session = Depends(get_db)):
+    throttle_key = login_throttle.account_key("password", form.username)
+    login_throttle.check(throttle_key)
     user = db.query(User).filter(User.email == form.username).first()
     if not user or not user.hashed_password or not verify_password(form.password, user.hashed_password):
+        login_throttle.failure(throttle_key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    login_throttle.success(throttle_key)
 
     # Automatic transparent hash upgrade: if legacy unpeppered, upgrade to HMAC-SHA256 peppered hash!
     if is_legacy_unpeppered_hash(form.password, user.hashed_password):
@@ -280,9 +285,14 @@ def ldap_login(req: LDAPLoginRequest, db: Session = Depends(get_db)):
     if not provider_enabled("ldap"):
         raise HTTPException(400, "LDAP authentication is not enabled")
 
+    throttle_key = login_throttle.account_key("ldap", req.username)
+    login_throttle.check(throttle_key)
     result = try_ldap_auth(req.username, req.password)
     if not result.success:
+        if not result.unavailable:
+            login_throttle.failure(throttle_key)
         raise HTTPException(401, result.error or "LDAP authentication failed")
+    login_throttle.success(throttle_key)
 
     return _resolve_external_user(result, db)
 
@@ -296,9 +306,14 @@ def sip2_login(req: SIP2LoginRequest, db: Session = Depends(get_db)):
     if not provider_enabled("sip2") and not has_db_conns:
         raise HTTPException(400, "SIP2 authentication is not enabled")
 
+    throttle_key = login_throttle.account_key("sip2", req.barcode)
+    login_throttle.check(throttle_key)
     result = try_sip2_auth(req.barcode, req.pin, db=db)
     if not result.success:
+        if not result.unavailable:
+            login_throttle.failure(throttle_key)
         raise HTTPException(401, result.error or "Library card authentication failed")
+    login_throttle.success(throttle_key)
 
     return _resolve_external_user(result, db)
 
@@ -562,10 +577,14 @@ def verify_totp_login(data: VerifyTotpIn, db: Session = Depends(get_db)):
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("totp", True):
         raise HTTPException(403, "TOTP authentication is disabled for this account by security policy.")
+    throttle_key = login_throttle.account_key("mfa", user.id)
+    login_throttle.check(throttle_key)
     from ..core.settings_store import decrypt_password
     secret = decrypt_password(user.totp_secret_enc)
     if not mfa.verify_totp(data.code, secret):
+        login_throttle.failure(throttle_key)
         raise HTTPException(401, "Invalid authentication code. Please check your authenticator app.")
+    login_throttle.success(throttle_key)
     return {"access_token": create_access_token({"sub": user.email}), "token_type": "bearer"}
 
 
@@ -581,13 +600,17 @@ def verify_backup_code_login(data: VerifyBackupIn, db: Session = Depends(get_db)
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("backup_codes", True):
         raise HTTPException(403, "Backup recovery codes are disabled for this account by security policy.")
+    throttle_key = login_throttle.account_key("mfa", user.id)
+    login_throttle.check(throttle_key)
     try:
         stored_hashes = json.loads(user.backup_codes)
     except Exception:
         stored_hashes = []
     valid, remaining = mfa.verify_backup_code(data.code, stored_hashes)
     if not valid:
+        login_throttle.failure(throttle_key)
         raise HTTPException(401, "Invalid backup recovery code.")
+    login_throttle.success(throttle_key)
     user.backup_codes = json.dumps(remaining)
     db.commit()
     return {

@@ -125,8 +125,9 @@ export default function Login() {
         return
       }
       navigate('/')
-    } catch {
-      setError('Invalid email or password')
+    } catch (err) {
+      // 429 = too many failed attempts; the server says how long to wait
+      setError(err.response?.status === 429 ? err.response.data.detail : 'Invalid email or password')
     } finally {
       setLoading(false)
     }

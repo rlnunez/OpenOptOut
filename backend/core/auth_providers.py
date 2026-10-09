@@ -32,6 +32,7 @@ class AuthResult:
     system_id: Optional[int] = None
     branch_code: Optional[str] = None
     raw_profile: dict = field(default_factory=dict)
+    unavailable: bool = False   # provider unreachable/misconfigured, not a bad credential
 
 
 # ── Settings helpers ──────────────────────────────────────────────────────────
@@ -355,7 +356,7 @@ def try_ldap_auth(username: str, password: str) -> AuthResult:
             pass
         log.error("LDAP auth error: %s", e)
         # Don't leak server details to the login form; admins see them via the test button.
-        return AuthResult(success=False, provider="ldap",
+        return AuthResult(success=False, provider="ldap", unavailable=True,
                           error="Directory sign-in is unavailable right now.")
     finally:
         if conn is not None:
@@ -684,7 +685,7 @@ def try_sip2_auth(barcode: str, pin: str, db=None) -> AuthResult:
                 resp = _sip2_send(sock, SIP2_LOGIN_MSG.format(login_id=ils_login, password=ils_password))
                 if not resp.startswith("941"):          # 941 = login ok
                     log.error("SIP2: ILS service-account login failed")
-                    return AuthResult(success=False, provider="sip2",
+                    return AuthResult(success=False, provider="sip2", unavailable=True,
                                       error="Library sign-in is unavailable right now.")
             resp = _sip2_send(sock, SIP2_PATRON_MSG.format(
                 date=date_str, institution=institution, barcode=barcode, pin=pin))
@@ -768,7 +769,8 @@ def try_sip2_auth(barcode: str, pin: str, db=None) -> AuthResult:
     except Exception as e:
         log.error("SIP2 auth error: %s", e)
     # Details go to the log / admin test button, not the patron login form.
-    return AuthResult(success=False, provider="sip2", error="Library sign-in is unavailable right now.")
+    return AuthResult(success=False, provider="sip2", unavailable=True,
+                      error="Library sign-in is unavailable right now.")
 
 
 def sip2_cert_status(cfg: dict) -> dict:

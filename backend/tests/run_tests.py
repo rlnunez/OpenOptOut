@@ -5475,6 +5475,112 @@ def t_scheduler_reclaims_leases():
     assert requeued == ["stale"] and dead == [], (requeued, dead)
 
 
+@test(2, "auth.failed_signin_throttling",
+      "Repeated failed sign-ins (password, LDAP, SIP2, TOTP, backup code) lock that sign-in "
+      "name with 429 + Retry-After before credentials are checked; locks escalate and expire, "
+      "success clears them, unknown accounts behave the same, provider outages don't count.")
+def t_auth_failed_signin_throttling():
+    import time
+    from types import SimpleNamespace as NS
+    try:
+        from fastapi import HTTPException
+        auth_router = _imp("routers.auth")
+        throttle = _imp("core.login_throttle")
+        mfa = _imp("core.mfa")
+        ap = _imp("core.auth_providers")
+        core_auth = _imp("core.auth")
+        settings_store = _imp("core.settings_store")
+        db, session = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    def status_of(fn, *a):
+        try:
+            fn(*a)
+        except HTTPException as e:
+            return e.status_code, (e.headers or {}).get("Retry-After")
+        return 200, None
+
+    clock = [1_000_000.0]
+    orig = (throttle._now, settings_store.load_settings, mfa.load_settings,
+            auth_router.try_ldap_auth, auth_router.provider_enabled)
+    throttle._now = lambda: clock[0]
+    settings_store.load_settings = mfa.load_settings = lambda: {}
+    throttle._state.clear()
+    try:
+        R = db.UserRole
+        u = db.User(email="jane@example.org", full_name="Jane", role=R.parent,
+                    hashed_password=core_auth.hash_password("RightPass123!"))
+        session.add(u); session.commit()
+        login = lambda email, pw: auth_router.login(NS(username=email, password=pw), None, session)
+
+        # Password: 5 failures lock the name; even the right password is refused.
+        for _ in range(throttle.MAX_FAILURES):
+            assert status_of(login, "jane@example.org", "nope")[0] == 401
+        assert status_of(login, "jane@example.org", "RightPass123!") == (429, "30")
+        assert status_of(login, "JANE@example.org ", "RightPass123!")[0] == 429, "same name, other spelling"
+        assert status_of(login, "other@example.org", "nope")[0] == 401, "other names unaffected"
+        # Unknown accounts lock the same way (no account enumeration).
+        for _ in range(throttle.MAX_FAILURES):
+            status_of(login, "ghost@example.org", "x")
+        assert status_of(login, "ghost@example.org", "x")[0] == 429
+        # Lock expires; one more failure re-locks for twice as long; success clears.
+        clock[0] += 31
+        assert status_of(login, "jane@example.org", "nope")[0] == 401
+        assert status_of(login, "jane@example.org", "RightPass123!") == (429, "60")
+        clock[0] += 61
+        assert status_of(login, "jane@example.org", "RightPass123!")[0] == 200
+        assert throttle.account_key("password", "jane@example.org") not in throttle._state
+
+        # TOTP and backup codes share a per-user lock.
+        secret = mfa.generate_totp_secret()
+        plain, hashed = mfa.generate_backup_codes(2)
+        u.totp_enabled = True
+        u.totp_secret_enc = settings_store.encrypt_password(secret)
+        u.backup_codes = __import__("json").dumps(hashed)
+        session.commit()
+        ticket = mfa.create_mfa_ticket(u.id, u.email)
+        live = {mfa.get_totp(secret, timestamp=time.time() + d) for d in (-30, 0, 30)}
+        wrong = next(c for c in ("000000", "111111", "222222", "333333") if c not in live)
+        totp = lambda code: auth_router.verify_totp_login(auth_router.VerifyTotpIn(mfa_ticket=ticket, code=code), session)
+        backup = lambda code: auth_router.verify_backup_code_login(auth_router.VerifyBackupIn(mfa_ticket=ticket, code=code), session)
+        for _ in range(throttle.MAX_FAILURES - 1):
+            assert status_of(totp, wrong)[0] == 401
+        assert status_of(backup, "not-a-code")[0] == 401
+        assert status_of(totp, mfa.get_totp(secret))[0] == 429, "right code refused while locked"
+        assert status_of(backup, plain[0])[0] == 429, "backup codes share the lock"
+        clock[0] += 31
+        assert status_of(totp, mfa.get_totp(secret))[0] == 200
+
+        # LDAP: bad credentials count, an unreachable directory doesn't.
+        auth_router.provider_enabled = lambda name: True
+        ldap = lambda: auth_router.ldap_login(auth_router.LDAPLoginRequest(username="bob", password="x"), session)
+        auth_router.try_ldap_auth = lambda u_, p_: ap.AuthResult(success=False, provider="ldap", unavailable=True,
+                                                                  error="Directory sign-in is unavailable right now.")
+        for _ in range(throttle.MAX_FAILURES + 2):
+            assert status_of(ldap)[0] == 401
+        auth_router.try_ldap_auth = lambda u_, p_: ap.AuthResult(success=False, provider="ldap", error="Invalid")
+        for _ in range(throttle.MAX_FAILURES):
+            assert status_of(ldap)[0] == 401
+        assert status_of(ldap)[0] == 429
+
+        # Memory stays bounded when many names are sprayed.
+        throttle._state.clear()
+        orig_max, throttle.MAX_KEYS = throttle.MAX_KEYS, 100
+        try:
+            for i in range(500):
+                throttle.failure(f"password:spray{i}@example.org")
+            assert len(throttle._state) <= 100
+            assert "password:spray499@example.org" in throttle._state
+        finally:
+            throttle.MAX_KEYS = orig_max
+    finally:
+        (throttle._now, settings_store.load_settings, mfa.load_settings,
+         auth_router.try_ldap_auth, auth_router.provider_enabled) = orig
+        throttle._state.clear()
+        session.close()
+
+
 @test(1, "saml.outstanding_requests_bounded",
       "Public /api/saml/login adds a pending request ID per call; the store is capped and "
       "pruned oldest-first, so a flood can't grow memory without limit, and expired IDs go.")
