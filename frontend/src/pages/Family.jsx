@@ -29,7 +29,7 @@ function Avatar({ name, size = 'md' }) {
 
 function IdentityPill({ kind }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs border ${KIND_COLORS[kind] ?? 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-sm text-xs border ${KIND_COLORS[kind] ?? 'bg-slate-800 text-slate-400 border-slate-700'}`}>
       {kind}
     </span>
   )
@@ -72,7 +72,7 @@ function AddMemberModal({ onClose, onCreated }) {
             <input
               value={name} onChange={e => setName(e.target.value)}
               placeholder="Jane Smith"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
               required autoFocus
             />
           </div>
@@ -82,7 +82,7 @@ function AddMemberModal({ onClose, onCreated }) {
               type="number" value={age} onChange={e => setAge(e.target.value)}
               placeholder="42"
               min="1" max="120"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
             />
           </div>
           <div className="flex gap-2 pt-1">
@@ -115,7 +115,7 @@ function EditableName({ member, onUpdated }) {
       <input
         value={val} onChange={e => setVal(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
-        className="bg-slate-700 border border-slate-600 rounded px-2 py-0.5 text-sm text-white focus:outline-none focus:border-shield-500 w-40"
+        className="bg-slate-700 border border-slate-600 rounded-sm px-2 py-0.5 text-sm text-white focus:outline-hidden focus:border-shield-500 w-40"
         autoFocus
       />
       <button onClick={save} className="text-emerald-400 hover:text-emerald-300"><Check size={13} /></button>

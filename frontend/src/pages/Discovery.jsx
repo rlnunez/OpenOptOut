@@ -10,7 +10,7 @@ function MemberSelect({ members, value, onChange }) {
   return (
     <div className="relative">
       <select value={value ?? ''} onChange={e => onChange(parseInt(e.target.value) || null)}
-        className="appearance-none bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-200 focus:outline-none focus:border-shield-500 min-w-48">
+        className="appearance-none bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-200 focus:outline-hidden focus:border-shield-500 min-w-48">
         <option value="">Select member…</option>
         {members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
       </select>
@@ -189,7 +189,7 @@ export default function Discovery() {
               <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input value={searchTerm} onChange={e => setSearch(e.target.value)}
                 placeholder="Search brokers…"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500" />
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500" />
             </div>
             <div className="flex gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700/50">
               {[

@@ -8,7 +8,7 @@ import {
 import api from '../api'
 import { useAuth } from '../hooks/useAuth'
 
-const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500"
+const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
 function RecommendationPill({ rec }) {
   const styles = {
@@ -153,7 +153,7 @@ function MigrationTool() {
 
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)}
-                className="w-3.5 h-3.5 rounded accent-shield-500" disabled={running} />
+                className="w-3.5 h-3.5 rounded-sm accent-shield-500" disabled={running} />
               <span className="text-slate-300 text-sm">I have backed up my SQLite database and the target Postgres DB is empty</span>
             </label>
 
@@ -457,7 +457,7 @@ export default function DatabaseAdmin() {
               </p>
             </div>
             <div className="flex gap-2 text-xs">
-              <span className={`px-2 py-0.5 rounded border ${health.field_encryption ? 'text-emerald-400 border-emerald-800 bg-emerald-900/20' : 'text-slate-500 border-slate-700'}`}>
+              <span className={`px-2 py-0.5 rounded-sm border ${health.field_encryption ? 'text-emerald-400 border-emerald-800 bg-emerald-900/20' : 'text-slate-500 border-slate-700'}`}>
                 {health.field_encryption ? '🔒 field enc' : 'field enc off'}
               </span>
             </div>
@@ -501,7 +501,7 @@ export default function DatabaseAdmin() {
               ...(isSQLite && isSuper ? [{ key: 'migrate', label: 'Migrate to Postgres' }] : []),
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)}
-                className={`px-3 py-1.5 text-sm rounded transition-colors ${tab === t.key ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
+                className={`px-3 py-1.5 text-sm rounded-sm transition-colors ${tab === t.key ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
                 {t.label}
               </button>
             ))}

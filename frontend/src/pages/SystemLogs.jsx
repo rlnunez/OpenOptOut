@@ -155,7 +155,7 @@ export default function SystemLogs() {
         {/* Action Controls */}
         <div className="flex items-center gap-2 flex-wrap">
           {/* Dynamic Verbosity Selector */}
-          <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-300">
+          <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-sm px-2.5 py-1 text-xs text-slate-300">
             <Sliders size={14} className="text-slate-400" />
             <span className="text-slate-400">Verbosity:</span>
             {canManage ? (
@@ -163,7 +163,7 @@ export default function SystemLogs() {
                 value={activeLevel}
                 onChange={(e) => handleLevelChange(e.target.value)}
                 disabled={updatingLevel}
-                className="bg-slate-950 border border-slate-700 text-white rounded px-1.5 py-0.5 text-xs font-mono focus:outline-none focus:border-shield-500"
+                className="bg-slate-950 border border-slate-700 text-white rounded-sm px-1.5 py-0.5 text-xs font-mono focus:outline-hidden focus:border-shield-500"
               >
                 <option value="DEBUG">DEBUG</option>
                 <option value="INFO">INFO</option>
@@ -193,7 +193,7 @@ export default function SystemLogs() {
           <button
             onClick={() => fetchLogs(false)}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
             title="Refresh now"
           >
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
@@ -204,7 +204,7 @@ export default function SystemLogs() {
           <button
             onClick={handleDownload}
             disabled={downloading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-shield-600 hover:bg-shield-500 text-white transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-medium bg-shield-600 hover:bg-shield-500 text-white transition-colors"
             title="Download full diagnostic log file"
           >
             <Download size={13} />
@@ -215,7 +215,7 @@ export default function SystemLogs() {
           {canManage && (
             <button
               onClick={handleClearBuffer}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded text-xs text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 border border-transparent hover:border-rose-900/50 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-sm text-xs text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 border border-transparent hover:border-rose-900/50 transition-colors"
               title="Clear in-memory buffer"
             >
               <Trash2 size={13} />
@@ -235,7 +235,7 @@ export default function SystemLogs() {
               placeholder="Search log messages…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="bg-slate-900 border border-slate-800 text-xs text-white rounded pl-8 pr-3 py-1.5 w-56 focus:outline-none focus:border-shield-500 placeholder-slate-500"
+              className="bg-slate-900 border border-slate-800 text-xs text-white rounded-sm pl-8 pr-3 py-1.5 w-56 focus:outline-hidden focus:border-shield-500 placeholder-slate-500"
             />
           </div>
 
@@ -243,7 +243,7 @@ export default function SystemLogs() {
           <select
             value={levelFilter}
             onChange={(e) => setLevelFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-shield-500"
+            className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-sm px-2.5 py-1.5 focus:outline-hidden focus:border-shield-500"
           >
             <option value="">All Levels</option>
             <option value="DEBUG">DEBUG & higher</option>
@@ -256,7 +256,7 @@ export default function SystemLogs() {
           <select
             value={loggerFilter}
             onChange={(e) => setLoggerFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-shield-500"
+            className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-sm px-2.5 py-1.5 focus:outline-hidden focus:border-shield-500"
           >
             {COMMON_SUBSYSTEMS.map((s) => (
               <option key={s.value} value={s.value}>{s.label}</option>
@@ -267,7 +267,7 @@ export default function SystemLogs() {
           <select
             value={limit}
             onChange={(e) => setLimit(Number(e.target.value))}
-            className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded px-2 py-1.5 focus:outline-none focus:border-shield-500"
+            className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-sm px-2 py-1.5 focus:outline-hidden focus:border-shield-500"
           >
             <option value={100}>Last 100 lines</option>
             <option value={200}>Last 200 lines</option>
@@ -289,7 +289,7 @@ export default function SystemLogs() {
               type="checkbox"
               checked={autoScroll}
               onChange={(e) => setAutoScroll(e.target.checked)}
-              className="rounded bg-slate-900 border-slate-800 text-shield-600 focus:ring-0"
+              className="rounded-sm bg-slate-900 border-slate-800 text-shield-600 focus:ring-0"
             />
             <span>Auto-scroll</span>
           </label>
@@ -321,17 +321,17 @@ export default function SystemLogs() {
             logs.map((entry) => {
               const levelCls = LEVEL_COLORS[entry.level] || 'text-slate-400 bg-slate-900 border-slate-800'
               return (
-                <div key={entry.id} className="flex items-start gap-2 hover:bg-slate-900/40 px-1 py-0.5 rounded leading-relaxed">
+                <div key={entry.id} className="flex items-start gap-2 hover:bg-slate-900/40 px-1 py-0.5 rounded-sm leading-relaxed">
                   <span className="text-slate-500 select-none shrink-0 text-[11px]">
                     {entry.timestamp.replace(' UTC', '')}
                   </span>
-                  <span className={`px-1.5 py-0.2 rounded text-[10px] uppercase font-bold border shrink-0 ${levelCls}`}>
+                  <span className={`px-1.5 py-0.2 rounded-sm text-[10px] uppercase font-bold border shrink-0 ${levelCls}`}>
                     {entry.level}
                   </span>
                   <span className="text-shield-400/80 shrink-0 max-w-[140px] truncate" title={entry.logger}>
                     [{entry.logger}]
                   </span>
-                  <span className="text-slate-200 break-words flex-1">
+                  <span className="text-slate-200 wrap-break-word flex-1">
                     {entry.message}
                   </span>
                 </div>

@@ -9,7 +9,7 @@ import { useBranding } from '../hooks/useBranding'
 import api from '../api'
 import { performWebAuthnAuthenticate, performWebAuthnRegister } from '../utils/webauthn'
 
-const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500"
+const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
 export default function Login() {
   const { login, completeMfaLogin } = useAuth()
@@ -699,7 +699,7 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => { setMfaMethod('webauthn'); setError('') }}
-                    className={`flex-1 py-1.5 rounded flex items-center justify-center gap-1.5 transition-colors ${mfaMethod === 'webauthn' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-slate-200'}`}>
+                    className={`flex-1 py-1.5 rounded-sm flex items-center justify-center gap-1.5 transition-colors ${mfaMethod === 'webauthn' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-slate-200'}`}>
                     <Fingerprint size={13} /> Key / Touch ID
                   </button>
                 )}
@@ -707,7 +707,7 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => { setMfaMethod('totp'); setError('') }}
-                    className={`flex-1 py-1.5 rounded flex items-center justify-center gap-1.5 transition-colors ${mfaMethod === 'totp' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-slate-200'}`}>
+                    className={`flex-1 py-1.5 rounded-sm flex items-center justify-center gap-1.5 transition-colors ${mfaMethod === 'totp' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-slate-200'}`}>
                     <Smartphone size={13} /> Authenticator
                   </button>
                 )}
@@ -715,7 +715,7 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => { setMfaMethod('backup'); setError('') }}
-                    className={`flex-1 py-1.5 rounded flex items-center justify-center gap-1.5 transition-colors ${mfaMethod === 'backup' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-slate-200'}`}>
+                    className={`flex-1 py-1.5 rounded-sm flex items-center justify-center gap-1.5 transition-colors ${mfaMethod === 'backup' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-slate-200'}`}>
                     <Key size={13} /> Backup
                   </button>
                 )}
@@ -991,13 +991,13 @@ export default function Login() {
                 <div className="flex gap-1 bg-slate-800 p-1 rounded-lg mb-5">
                   <button
                     onClick={() => { setTab('staff'); setError('') }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm rounded transition-colors ${tab === 'staff' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm rounded-sm transition-colors ${tab === 'staff' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}
                   >
                     <Users size={13} /> {staffLabel}
                   </button>
                   <button
                     onClick={() => { setTab('patron'); setError('') }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm rounded transition-colors ${tab === 'patron' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm rounded-sm transition-colors ${tab === 'patron' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}
                   >
                     <CreditCard size={13} /> {patronLabel}
                   </button>

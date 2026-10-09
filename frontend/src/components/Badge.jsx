@@ -21,7 +21,7 @@ const styles = {
 export default function Badge({ value }) {
   const cls = styles[value?.toLowerCase()] ?? 'bg-slate-800 text-slate-300 border-slate-700'
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs border ${cls}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-sm text-xs border ${cls}`}>
       {value}
     </span>
   )

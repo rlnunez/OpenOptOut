@@ -69,7 +69,7 @@ function RecheckRow({ req, onRequeue, onSnooze }) {
       <td className="px-4 py-3">
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button onClick={requeue} disabled={acting} title="Re-queue for opt-out"
-            className="flex items-center gap-1 px-2 py-1 text-xs text-shield-400 border border-shield-800 bg-shield-900/20 rounded hover:bg-shield-800/30 transition-colors disabled:opacity-40">
+            className="flex items-center gap-1 px-2 py-1 text-xs text-shield-400 border border-shield-800 bg-shield-900/20 rounded-sm hover:bg-shield-800/30 transition-colors disabled:opacity-40">
             {acting ? <RefreshCw size={10} className="animate-spin" /> : <RotateCcw size={10} />}
             Re-queue
           </button>
@@ -91,7 +91,7 @@ function SnoozeMenu({ reqId, onSnooze }) {
   return (
     <div className="relative">
       <button onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 border border-slate-700 rounded hover:bg-slate-700 transition-colors">
+        className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 border border-slate-700 rounded-sm hover:bg-slate-700 transition-colors">
         <AlarmClock size={10} /> Snooze <ChevronDown size={9} />
       </button>
       {open && (
@@ -204,7 +204,7 @@ export default function Scheduled() {
           {/* Days ahead selector (upcoming only) */}
           {tab === 'upcoming' && (
             <select value={daysAhead} onChange={e => setDaysAhead(parseInt(e.target.value))}
-              className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-slate-300 focus:outline-none">
+              className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-slate-300 focus:outline-hidden">
               <option value={7}>Next 7 days</option>
               <option value={30}>Next 30 days</option>
               <option value={60}>Next 60 days</option>
@@ -215,7 +215,7 @@ export default function Scheduled() {
           {/* Member filter */}
           {members.length > 1 && (
             <select value={memberFilter} onChange={e => setMemberFilter(e.target.value)}
-              className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-slate-300 focus:outline-none">
+              className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-slate-300 focus:outline-hidden">
               <option value="">All members</option>
               {members.map(m => <option key={m} value={m}>{m}</option>)}
             </select>

@@ -393,11 +393,11 @@ function ConnectOAuth({ provider, setError }) {
           error like "doesn't comply with OAuth 2.0 policy" or "redirect_uri_mismatch":
         </p>
         <div className="flex items-center gap-1.5">
-          <code className="flex-1 text-[11px] text-slate-200 bg-slate-900/70 rounded px-2 py-1 break-all">{defaultRedirect}</code>
+          <code className="flex-1 text-[11px] text-slate-200 bg-slate-900/70 rounded-sm px-2 py-1 break-all">{defaultRedirect}</code>
           <button type="button" onClick={() => {
               navigator.clipboard?.writeText(defaultRedirect); setCopied(true); setTimeout(() => setCopied(false), 1500)
             }}
-            className="shrink-0 p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-700/60"
+            className="shrink-0 p-1.5 rounded-sm text-slate-400 hover:text-slate-200 hover:bg-slate-700/60"
             title="Copy redirect URI">
             {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
           </button>
@@ -501,7 +501,7 @@ function HexColorField({ label, value, onChange, placeholder = '#4f46e5' }) {
       {label && <p className="text-slate-400 text-xs mb-1">{label}</p>}
       <div className="relative">
         <button type="button" onClick={() => colorRef.current?.click()}
-          className="absolute left-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded border border-slate-600"
+          className="absolute left-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-sm border border-slate-600"
           style={{ background: swatchColor }} title="Pick a color" />
         <input className={`${inp} pl-9 font-mono`} placeholder={placeholder}
           value={value} onChange={e => onChange(e.target.value)} />

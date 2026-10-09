@@ -503,7 +503,7 @@ function SimpleMarkdown({ content }) {
 function renderInline(text) {
   return renderLinks(escapeHtml(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-medium">$1</strong>')
-    .replace(/`(.+?)`/g, '<code class="bg-slate-700 px-1 py-0.5 rounded text-xs text-slate-200 font-mono">$1</code>'))
+    .replace(/`(.+?)`/g, '<code class="bg-slate-700 px-1 py-0.5 rounded-sm text-xs text-slate-200 font-mono">$1</code>'))
 }
 
 // ── Accordion item ────────────────────────────────────────────────────────────
@@ -574,12 +574,12 @@ function NoteModal({ initial, onClose, onSaved }) {
             <label className="text-slate-400 text-xs mb-1 block">Title</label>
             <input value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))}
               placeholder="e.g. How to opt out of Acxiom" autoFocus
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500" />
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500" />
           </div>
           <div>
             <label className="text-slate-400 text-xs mb-1 block">Section</label>
             <select value={form.section} onChange={e => setForm(f => ({...f, section: e.target.value}))}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none">
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-hidden">
               <option value="general">General</option>
               <option value="resistant">Resistant vendors</option>
               <option value="setup">Setup & configuration</option>
@@ -589,7 +589,7 @@ function NoteModal({ initial, onClose, onSaved }) {
             <label className="text-slate-400 text-xs mb-1 block">Content (Markdown supported)</label>
             <textarea value={form.content} onChange={e => setForm(f => ({...f, content: e.target.value}))}
               rows={12} placeholder="Write your documentation here. **Bold**, `code`, [links](url), and bullet lists are supported."
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500 font-mono resize-none" />
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500 font-mono resize-none" />
           </div>
         </div>
         <div className="flex gap-2 pt-4">

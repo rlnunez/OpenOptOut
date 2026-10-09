@@ -4,20 +4,20 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "axios": "^1.7.2",
+    "lucide-react": "^1.48.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-is": "^19.3.0",
     "react-router-dom": "^7.18.4",
-    "axios": "^1.7.2",
-    "lucide-react": "^1.48.0",
     "recharts": "^3.10.1"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
-    "vite": "^8.3.1",
-    "tailwindcss": "^3.4.17",
-    "autoprefixer": "^10.4.19",
-    "postcss": "^8.4.38"
+    "postcss": "^8.4.38",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.1"
   },
   "scripts": {
     "dev": "vite",
@@ -25,7 +25,6 @@
     "preview": "vite preview"
   },
   "overrides": {
-    "braces": "npm:@franciscosolis/braces@^3.1.1",
-    "postcss-selector-parser": "^7.1.6"
+    "braces": "npm:@franciscosolis/braces@^3.1.1"
   }
 }

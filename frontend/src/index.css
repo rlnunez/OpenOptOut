@@ -1,7 +1,60 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap')
+layer(base);
+@import 'tailwindcss';
+
+@theme {
+  --color-shield-50: #eef2ff;
+  --color-shield-100: #e0e7ff;
+  --color-shield-200: #c7d2fe;
+  --color-shield-300: #a5b4fc;
+  --color-shield-400: #818cf8;
+  --color-shield-500: #6366f1;
+  --color-shield-600: #4f46e5;
+  --color-shield-700: #4338ca;
+  --color-shield-800: #3730a3;
+  --color-shield-900: #1e1b4b;
+
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-mono: JetBrains Mono, monospace;
+
+  /* v3's fixed line heights. v4 uses ratios, which nested text (e.g. a
+     text-[11px] line inside text-sm) inherits, shrinking it; these keep
+     the v3 layout. */
+  --text-xs--line-height: 1rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl--line-height: 2.25rem;
+  --text-4xl--line-height: 2.5rem;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+/* Tailwind v4 dropped the pointer cursor v3 gave buttons; keep it. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
 
 * { box-sizing: border-box; }
 body { margin: 0; font-family: 'Inter', system-ui, sans-serif; }

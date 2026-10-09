@@ -396,7 +396,7 @@ function TestBrokerPanel({ onChanged }) {
 
       <div className="flex gap-2 mt-3 flex-wrap">
         <input value={addr} onChange={e => setAddr(e.target.value)} placeholder="your-test-inbox@example.com"
-          className="flex-1 min-w-[12rem] bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm px-2.5 py-1.5 placeholder-slate-500" />
+          className="flex-1 min-w-48 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm px-2.5 py-1.5 placeholder-slate-500" />
         <button onClick={save} disabled={busy || !addr}
           className="px-3 py-1.5 text-sm text-slate-200 border border-slate-600 rounded-lg hover:bg-slate-800 disabled:opacity-40">
           {tb.exists ? 'Update address' : 'Create test broker'}
@@ -406,7 +406,7 @@ function TestBrokerPanel({ onChanged }) {
       {tb.exists && (
         <div className="flex gap-2 mt-2 flex-wrap items-center">
           <select value={memberId} onChange={e => setMemberId(e.target.value)}
-            className="flex-1 min-w-[12rem] bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm px-2 py-1.5">
+            className="flex-1 min-w-48 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm px-2 py-1.5">
             <option value="">Use built-in fake identity ("Test Person")</option>
             {members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
           </select>

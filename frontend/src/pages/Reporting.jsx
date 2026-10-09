@@ -90,7 +90,7 @@ export default function Reporting() {
         </div>
         <div className="flex gap-2">
           <select value={months} onChange={e => setMonths(parseInt(e.target.value))}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:outline-none">
+            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:outline-hidden">
             <option value={3}>Last 3 months</option>
             <option value={6}>Last 6 months</option>
             <option value={12}>Last 12 months</option>

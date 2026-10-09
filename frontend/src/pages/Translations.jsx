@@ -165,7 +165,7 @@ export default function Translations() {
           <button
             onClick={handleSave}
             disabled={saving || dirtyCount === 0}
-            className={`px-4 py-2 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all shadow-sm ${
+            className={`px-4 py-2 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all shadow-xs ${
               dirtyCount > 0
                 ? 'bg-blue-600 hover:bg-blue-500 text-white'
                 : 'bg-slate-800 text-slate-500 border border-slate-800 cursor-not-allowed'
@@ -197,7 +197,7 @@ export default function Translations() {
                 key={lang.code}
                 className={`flex items-center rounded-xl border transition-all ${
                   isSelected
-                    ? 'border-blue-500 bg-blue-500/10 text-white shadow-sm ring-1 ring-blue-500/40'
+                    ? 'border-blue-500 bg-blue-500/10 text-white shadow-xs ring-1 ring-blue-500/40'
                     : 'border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700'
                 }`}
               >
@@ -208,7 +208,7 @@ export default function Translations() {
                   <span className="font-semibold text-sm">{lang.native_name}</span>
                   <span className="text-xs text-slate-400">({lang.code})</span>
                   {lang.is_rtl && (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-500/20 font-mono">
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-sm bg-amber-500/15 text-amber-300 border border-amber-500/20 font-mono">
                       RTL
                     </span>
                   )}
@@ -243,7 +243,7 @@ export default function Translations() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search keys, original text, or translations..."
-            className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
           />
         </div>
 
@@ -251,7 +251,7 @@ export default function Translations() {
           <select
             value={selectedLocation}
             onChange={(e) => setSelectedLocation(e.target.value)}
-            className="w-full sm:w-64 px-3.5 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-300 focus:outline-none focus:border-blue-500"
+            className="w-full sm:w-64 px-3.5 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-300 focus:outline-hidden focus:border-blue-500"
           >
             {locations.map(loc => (
               <option key={loc} value={loc}>
@@ -298,7 +298,7 @@ export default function Translations() {
                 <div key={item.key} className="p-4 hover:bg-slate-850 transition-colors space-y-2.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-semibold text-slate-300 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                      <span className="font-mono text-xs font-semibold text-slate-300 bg-slate-950 px-2 py-0.5 rounded-sm border border-slate-800">
                         {item.key}
                       </span>
                       <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/20">
@@ -335,7 +335,7 @@ export default function Translations() {
                         value={currentVal}
                         onChange={(e) => handleChangeText(item.key, e.target.value)}
                         placeholder={item.default_text}
-                        className={`w-full px-3 py-2 bg-slate-950 border rounded-xl text-sm text-white placeholder-slate-600 focus:outline-none transition-colors ${
+                        className={`w-full px-3 py-2 bg-slate-950 border rounded-xl text-sm text-white placeholder-slate-600 focus:outline-hidden transition-colors ${
                           isDirty
                             ? 'border-blue-500 bg-blue-950/20'
                             : 'border-slate-800 focus:border-slate-700'
@@ -352,7 +352,7 @@ export default function Translations() {
 
       {/* Add New Language Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in">
           <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 space-y-4">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <Globe size={18} className="text-blue-400" />
@@ -375,7 +375,7 @@ export default function Translations() {
                   placeholder="e.g. it, pt-br, ja, de"
                   value={newCode}
                   onChange={(e) => setNewCode(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-blue-500"
                 />
               </div>
 
@@ -388,7 +388,7 @@ export default function Translations() {
                   placeholder="e.g. Italian"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-blue-500"
                 />
               </div>
 
@@ -401,7 +401,7 @@ export default function Translations() {
                   placeholder="e.g. Italiano"
                   value={newNativeName}
                   onChange={(e) => setNewNativeName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-blue-500"
                 />
               </div>
 
@@ -411,7 +411,7 @@ export default function Translations() {
                   id="newIsRTL"
                   checked={newIsRTL}
                   onChange={(e) => setNewIsRTL(e.target.checked)}
-                  className="rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-0"
+                  className="rounded-sm border-slate-800 bg-slate-950 text-blue-600 focus:ring-0"
                 />
                 <label htmlFor="newIsRTL" className="text-xs text-slate-300">
                   Right-to-Left (RTL) Script (e.g. Arabic, Hebrew, Urdu)

@@ -11,7 +11,7 @@ import { useAuth, can } from '../hooks/useAuth'
 import { performWebAuthnRegister } from '../utils/webauthn'
 
 // ── Shared ────────────────────────────────────────────────────────────────────
-const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500"
+const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 const labelCls = "text-slate-400 text-xs mb-1 block"
 
 function Field({ label, hint, children }) {
@@ -39,7 +39,7 @@ function Section({ icon: Icon, title, description, children, adminOnly, userRole
             {description && <p className="text-slate-500 text-xs mt-0.5">{description}</p>}
           </div>
         </div>
-        {locked && <span className="text-xs text-slate-600 border border-slate-700 px-2 py-0.5 rounded">admin only</span>}
+        {locked && <span className="text-xs text-slate-600 border border-slate-700 px-2 py-0.5 rounded-sm">admin only</span>}
       </div>
       <div className={`px-5 py-4 space-y-4 ${locked ? 'pointer-events-none select-none' : ''}`}>
         {children}
@@ -120,7 +120,7 @@ function AppearanceSection({ initial, onSaved, userRole }) {
         </Field>
         <Field label="App icon" hint="PNG or SVG shown in sidebar">
           <div className="flex items-center gap-2">
-            {form.app_icon_url && <img src={form.app_icon_url} alt="icon" className="w-8 h-8 rounded object-cover border border-slate-600" />}
+            {form.app_icon_url && <img src={form.app_icon_url} alt="icon" className="w-8 h-8 rounded-sm object-cover border border-slate-600" />}
             <button onClick={() => iconRef.current?.click()}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors">
               <Upload size={11} /> Upload
@@ -151,7 +151,7 @@ function AppearanceSection({ initial, onSaved, userRole }) {
           ))}
           <div className="flex items-center gap-1.5 ml-1">
             <input type="color" value={form.accent_color ?? '#6366f1'} onChange={e => setForm(f => ({...f, accent_color: e.target.value}))}
-              className="w-7 h-7 rounded cursor-pointer bg-transparent border-0" />
+              className="w-7 h-7 rounded-sm cursor-pointer bg-transparent border-0" />
             <span className="text-slate-500 text-xs font-mono">{form.accent_color}</span>
           </div>
         </div>
@@ -421,7 +421,7 @@ function EmailSection({ initial, userRole }) {
                   <Clock size={14} className="text-indigo-400" />
                   <span>Dual-Inbox Grace Period Active (Item 11)</span>
                 </div>
-                <span className="bg-indigo-900/60 text-indigo-200 px-2 py-0.5 rounded text-[11px] font-mono">
+                <span className="bg-indigo-900/60 text-indigo-200 px-2 py-0.5 rounded-sm text-[11px] font-mono">
                   {gracePeriod.days_remaining} days remaining
                 </span>
               </div>
@@ -432,14 +432,14 @@ function EmailSection({ initial, userRole }) {
                 <button
                   type="button"
                   onClick={extendGracePeriod}
-                  className="px-2.5 py-1 bg-indigo-800/50 hover:bg-indigo-800 border border-indigo-600 rounded text-indigo-200 transition-colors"
+                  className="px-2.5 py-1 bg-indigo-800/50 hover:bg-indigo-800 border border-indigo-600 rounded-sm text-indigo-200 transition-colors"
                 >
                   Extend +30 Days
                 </button>
                 <button
                   type="button"
                   onClick={dismissGracePeriod}
-                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-slate-300 transition-colors"
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-sm text-slate-300 transition-colors"
                 >
                   Dismiss Grace Period
                 </button>
@@ -501,7 +501,7 @@ function EmailSection({ initial, userRole }) {
               <Field label="Poll every (minutes)"><input type="number" min="5" max="60" value={form.poll_interval_minutes ?? 15} onChange={e => setForm(f=>({...f,poll_interval_minutes:parseInt(e.target.value)}))} className={inp}/></Field>
             </div>
             <label className="flex items-center gap-2 mt-2 cursor-pointer">
-              <input type="checkbox" checked={form.imap_ssl ?? true} onChange={e => setForm(f=>({...f,imap_ssl:e.target.checked}))} className="w-3.5 h-3.5 rounded accent-shield-500"/>
+              <input type="checkbox" checked={form.imap_ssl ?? true} onChange={e => setForm(f=>({...f,imap_ssl:e.target.checked}))} className="w-3.5 h-3.5 rounded-sm accent-shield-500"/>
               <span className="text-slate-400 text-sm">Use SSL/TLS</span>
             </label>
           </div>
@@ -522,7 +522,7 @@ function EmailSection({ initial, userRole }) {
               <Field label='"From" email'><input type="email" value={form.from_email ?? ''} onChange={e => setForm(f=>({...f,from_email:e.target.value}))} placeholder="removals@example.com" className={inp}/></Field>
             </div>
             <label className="flex items-center gap-2 mt-2 cursor-pointer">
-              <input type="checkbox" checked={form.smtp_tls ?? true} onChange={e => setForm(f=>({...f,smtp_tls:e.target.checked}))} className="w-3.5 h-3.5 rounded accent-shield-500"/>
+              <input type="checkbox" checked={form.smtp_tls ?? true} onChange={e => setForm(f=>({...f,smtp_tls:e.target.checked}))} className="w-3.5 h-3.5 rounded-sm accent-shield-500"/>
               <span className="text-slate-400 text-sm">Use STARTTLS</span>
             </label>
           </div>
@@ -614,7 +614,7 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
               </div>
               <span className="text-slate-300 text-sm">{form.enabled ? 'Scheduler enabled' : 'Scheduler disabled'}</span>
             </label>
-            {status?.running && <span className="text-xs text-emerald-400 border border-emerald-800 bg-emerald-900/20 px-2 py-0.5 rounded">running</span>}
+            {status?.running && <span className="text-xs text-emerald-400 border border-emerald-800 bg-emerald-900/20 px-2 py-0.5 rounded-sm">running</span>}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -730,12 +730,12 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
 
           <div className="space-y-2">
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.pause_before_send ?? true} onChange={e => setForm(f=>({...f,pause_before_send:e.target.checked}))} className="w-3.5 h-3.5 rounded accent-shield-500"/>
+              <input type="checkbox" checked={form.pause_before_send ?? true} onChange={e => setForm(f=>({...f,pause_before_send:e.target.checked}))} className="w-3.5 h-3.5 rounded-sm accent-shield-500"/>
               <span className="text-slate-300 text-sm">Pause before sending</span>
               <span className="text-slate-600 text-xs">— queue opt-outs but require manual trigger to fire</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.auto_recheck ?? true} onChange={e => setForm(f=>({...f,auto_recheck:e.target.checked}))} className="w-3.5 h-3.5 rounded accent-shield-500"/>
+              <input type="checkbox" checked={form.auto_recheck ?? true} onChange={e => setForm(f=>({...f,auto_recheck:e.target.checked}))} className="w-3.5 h-3.5 rounded-sm accent-shield-500"/>
               <span className="text-slate-300 text-sm">Auto re-queue expired removals</span>
               <span className="text-slate-600 text-xs">— re-submit opt-out when recheck date passes</span>
             </label>
@@ -795,7 +795,7 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
                   <label className="flex items-center gap-1.5 cursor-pointer">
                     <input type="checkbox" checked={mc.enabled}
                       onChange={e => updateMemberLimit(mc.member_id, 'enabled', e.target.checked)}
-                      className="w-3 h-3 rounded accent-shield-500"/>
+                      className="w-3 h-3 rounded-sm accent-shield-500"/>
                     <span className="text-slate-500 text-xs">active</span>
                   </label>
                   <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1">
@@ -803,7 +803,7 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
                       value={mc.max_optouts_per_day ?? ''}
                       onChange={e => updateMemberLimit(mc.member_id, 'max_optouts_per_day', e.target.value ? parseInt(e.target.value) : 0)}
                       placeholder={`${mc.effective_limit} (default)`}
-                      className="w-20 bg-transparent text-sm text-slate-200 placeholder-slate-600 focus:outline-none text-right"/>
+                      className="w-20 bg-transparent text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden text-right"/>
                     <span className="text-slate-600 text-xs">/day</span>
                   </div>
                 </div>
@@ -954,7 +954,7 @@ function VaultLimitsSection({ initial, userRole, onSaved }) {
                 type="number" min="0" max="100"
                 value={childrenLimit}
                 onChange={e => setForm(prev => ({...prev, max_children_per_parent: Math.max(0, parseInt(e.target.value) || 0)}))}
-                className="w-24 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 text-center focus:outline-none focus:border-shield-500"
+                className="w-24 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 text-center focus:outline-hidden focus:border-shield-500"
               />
               <div>
                 <p className="text-slate-300 text-sm">
@@ -1153,7 +1153,7 @@ function EncryptionSection({ userRole }) {
         <p className={`text-sm font-medium ${ok ? 'text-emerald-300' : 'text-slate-400'}`}>{label}</p>
         {sub && <p className="text-slate-600 text-xs mt-0.5">{sub}</p>}
       </div>
-      <span className={`text-xs px-2 py-0.5 rounded border ${ok ? 'text-emerald-400 border-emerald-800 bg-emerald-900/20' : 'text-slate-500 border-slate-700'}`}>
+      <span className={`text-xs px-2 py-0.5 rounded-sm border ${ok ? 'text-emerald-400 border-emerald-800 bg-emerald-900/20' : 'text-slate-500 border-slate-700'}`}>
         {ok ? 'enabled' : 'disabled'}
       </span>
     </div>
@@ -1205,9 +1205,9 @@ function EncryptionSection({ userRole }) {
             <div className="bg-slate-900 rounded-lg p-3 text-xs space-y-2">
               <p className="text-slate-400 font-medium">To enable SQLCipher encryption:</p>
               <ol className="text-slate-500 space-y-1 ml-3">
-                <li>1. Generate a key: <code className="bg-slate-800 px-1.5 rounded text-slate-300">openssl rand -hex 32</code></li>
-                <li>2. Add to .env: <code className="bg-slate-800 px-1.5 rounded text-slate-300">DB_ENCRYPTION_KEY=your-key-here</code></li>
-                <li>3. Migrate existing data: <code className="bg-slate-800 px-1.5 rounded text-slate-300">docker exec openoptout-api python -m backend.core.encryption migrate</code></li>
+                <li>1. Generate a key: <code className="bg-slate-800 px-1.5 rounded-sm text-slate-300">openssl rand -hex 32</code></li>
+                <li>2. Add to .env: <code className="bg-slate-800 px-1.5 rounded-sm text-slate-300">DB_ENCRYPTION_KEY=your-key-here</code></li>
+                <li>3. Migrate existing data: <code className="bg-slate-800 px-1.5 rounded-sm text-slate-300">docker exec openoptout-api python -m backend.core.encryption migrate</code></li>
                 <li>4. Back up the original .db file, replace with the _encrypted.db file</li>
                 <li>5. Restart the container</li>
               </ol>
@@ -1218,7 +1218,7 @@ function EncryptionSection({ userRole }) {
           {!status.field_encryption_enabled && (
             <div className="bg-slate-900 rounded-lg p-3 text-xs space-y-1">
               <p className="text-slate-400 font-medium">To enable field-level encryption:</p>
-              <p className="text-slate-500">Add to .env: <code className="bg-slate-800 px-1.5 rounded text-slate-300">FIELD_ENCRYPTION_KEY=your-key-here</code></p>
+              <p className="text-slate-500">Add to .env: <code className="bg-slate-800 px-1.5 rounded-sm text-slate-300">FIELD_ENCRYPTION_KEY=your-key-here</code></p>
               <p className="text-slate-600">Existing plaintext values are read correctly on first access. New writes are encrypted immediately.</p>
             </div>
           )}
@@ -1475,8 +1475,8 @@ function ProxySection({ userRole }) {
 
           {isPool && (
             <div className="bg-slate-900 rounded-lg px-3 py-2.5 text-xs text-slate-500">
-              Pool mode reads the proxy list from the <code className="bg-slate-800 px-1 rounded text-slate-300">PROXY_POOL</code> environment
-              variable or <code className="bg-slate-800 px-1 rounded text-slate-300">PROXY_POOL_FILE</code>.
+              Pool mode reads the proxy list from the <code className="bg-slate-800 px-1 rounded-sm text-slate-300">PROXY_POOL</code> environment
+              variable or <code className="bg-slate-800 px-1 rounded-sm text-slate-300">PROXY_POOL_FILE</code>.
               Each entry is a proxy URL. A random proxy is chosen per broker.
               {status && <span className="block mt-1 text-slate-400">Detected pool size: {status.pool_size}</span>}
             </div>
@@ -1901,7 +1901,7 @@ function MfaAccountSection({ user }) {
                   <Key size={13} className="text-slate-400 shrink-0" />
                   <span className="text-slate-200 font-medium truncate">{k.name}</span>
                   {k.fips_certified && (
-                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-900/40 border border-purple-700 text-purple-300 shrink-0">
+                    <span className="px-1.5 py-0.5 rounded-sm text-[10px] bg-purple-900/40 border border-purple-700 text-purple-300 shrink-0">
                       FIPS 140-2 / 140-3
                     </span>
                   )}
@@ -2159,7 +2159,7 @@ function WebAuthnPolicySection({ userRole }) {
                             [r.key]: { ...(prev[r.key] || {}), totp: e.target.checked }
                           }))
                         }}
-                        className="rounded border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-4 h-4 cursor-pointer"
+                        className="rounded-sm border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-4 h-4 cursor-pointer"
                         title="Allow TOTP"
                       />
                     </td>
@@ -2174,7 +2174,7 @@ function WebAuthnPolicySection({ userRole }) {
                             [r.key]: { ...(prev[r.key] || {}), webauthn: e.target.checked }
                           }))
                         }}
-                        className="rounded border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-4 h-4 cursor-pointer"
+                        className="rounded-sm border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-4 h-4 cursor-pointer"
                         title="Allow FIDO2 / WebAuthn"
                       />
                     </td>
@@ -2189,7 +2189,7 @@ function WebAuthnPolicySection({ userRole }) {
                             [r.key]: { ...(prev[r.key] || {}), backup_codes: e.target.checked }
                           }))
                         }}
-                        className="rounded border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-4 h-4 cursor-pointer"
+                        className="rounded-sm border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-4 h-4 cursor-pointer"
                         title="Allow Backup Codes"
                       />
                     </td>
@@ -2206,7 +2206,7 @@ function WebAuthnPolicySection({ userRole }) {
                                 [r.key]: { ...(prev[r.key] || {}), enabled: e.target.checked }
                               }))
                             }}
-                            className="rounded border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-3.5 h-3.5 cursor-pointer"
+                            className="rounded-sm border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-3.5 h-3.5 cursor-pointer"
                           />
                           <span className="text-[11px] text-slate-400">Mandate</span>
                         </label>
@@ -2226,7 +2226,7 @@ function WebAuthnPolicySection({ userRole }) {
                                   [r.key]: { ...(prev[r.key] || {}), value: clamped }
                                 }))
                               }}
-                              className="w-12 px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-100 font-mono text-xs text-center focus:outline-none focus:border-shield-500"
+                              className="w-12 px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded-sm text-slate-100 font-mono text-xs text-center focus:outline-hidden focus:border-shield-500"
                             />
                             <select
                               value={comp.unit || 'days'}
@@ -2237,7 +2237,7 @@ function WebAuthnPolicySection({ userRole }) {
                                   [r.key]: { ...(prev[r.key] || {}), unit: e.target.value }
                                 }))
                               }}
-                              className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs focus:outline-none focus:border-shield-500">
+                              className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded-sm text-slate-200 text-xs focus:outline-hidden focus:border-shield-500">
                               <option value="hours">Hours</option>
                               <option value="days">Days</option>
                               <option value="weeks">Weeks</option>

@@ -8,7 +8,7 @@ import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
 
-const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-shield-500"
+const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
 function Field({ label, hint, children }) {
   return (
@@ -79,7 +79,7 @@ function ColorPicker({ label, value, onChange }) {
         ))}
         <div className="flex items-center gap-1.5 ml-1">
           <input type="color" value={value} onChange={e => onChange(e.target.value)}
-            className="w-7 h-7 rounded cursor-pointer bg-transparent border-0" />
+            className="w-7 h-7 rounded-sm cursor-pointer bg-transparent border-0" />
           <span className="text-slate-500 text-xs font-mono">{value}</span>
         </div>
       </div>
@@ -139,9 +139,9 @@ function BrandingSection() {
         <div className="flex items-center gap-3">
           {branding.logo_url ? (
             <img src={`${branding.logo_url}?v=${Date.now()}`} alt="Logo"
-              className="h-10 object-contain border border-slate-700 rounded bg-slate-900 px-2" />
+              className="h-10 object-contain border border-slate-700 rounded-sm bg-slate-900 px-2" />
           ) : (
-            <div className="h-10 w-20 border border-dashed border-slate-700 rounded flex items-center justify-center text-slate-700 text-xs">
+            <div className="h-10 w-20 border border-dashed border-slate-700 rounded-sm flex items-center justify-center text-slate-700 text-xs">
               No logo
             </div>
           )}
@@ -200,7 +200,7 @@ function BrandingSection() {
           <label className="flex items-center gap-2 cursor-pointer mt-5">
             <input type="checkbox" checked={form.show_powered_by ?? true}
               onChange={e => setForm(f => ({...f, show_powered_by: e.target.checked}))}
-              className="w-3.5 h-3.5 rounded accent-shield-500" />
+              className="w-3.5 h-3.5 rounded-sm accent-shield-500" />
             <span className="text-slate-300 text-sm">Show "Powered by OpenOptOut" footer</span>
           </label>
         </Field>
@@ -512,7 +512,7 @@ function RuleConditionRow({ rule, onChange, onRemove }) {
       <select
         value={isCustom ? 'custom' : rule.field}
         onChange={e => handleFieldChange(e.target.value)}
-        className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200 focus:outline-none focus:border-shield-500 font-medium"
+        className="bg-slate-800 border border-slate-700 rounded-sm px-2 py-1.5 text-slate-200 focus:outline-hidden focus:border-shield-500 font-medium"
       >
         <option value="library">Library / Branch (AQ, AF, AO)</option>
         <option value="age">Age (from birthdate PA, PB)</option>
@@ -527,7 +527,7 @@ function RuleConditionRow({ rule, onChange, onRemove }) {
           value={rule.field || ''}
           onChange={e => onChange({ ...rule, field: e.target.value.toUpperCase() })}
           placeholder="Code (e.g. AO)"
-          className="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200 uppercase font-mono"
+          className="w-20 bg-slate-800 border border-slate-700 rounded-sm px-2 py-1.5 text-slate-200 uppercase font-mono"
         />
       )}
 
@@ -543,7 +543,7 @@ function RuleConditionRow({ rule, onChange, onRemove }) {
           }
           onChange({ ...rule, operator: newOp, value: newVal })
         }}
-        className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200 focus:outline-none focus:border-shield-500"
+        className="bg-slate-800 border border-slate-700 rounded-sm px-2 py-1.5 text-slate-200 focus:outline-hidden focus:border-shield-500"
       >
         {isAge ? (
           <>
@@ -577,7 +577,7 @@ function RuleConditionRow({ rule, onChange, onRemove }) {
               onChange({ ...rule, value: [minVal, maxVal] })
             }}
             placeholder="Min"
-            className="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200 text-center"
+            className="w-16 bg-slate-800 border border-slate-700 rounded-sm px-2 py-1.5 text-slate-200 text-center"
           />
           <span className="text-slate-500 font-medium">and</span>
           <input
@@ -591,7 +591,7 @@ function RuleConditionRow({ rule, onChange, onRemove }) {
               onChange({ ...rule, value: [minVal, maxVal] })
             }}
             placeholder="Max"
-            className="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200 text-center"
+            className="w-16 bg-slate-800 border border-slate-700 rounded-sm px-2 py-1.5 text-slate-200 text-center"
           />
         </div>
       ) : isAge ? (
@@ -601,7 +601,7 @@ function RuleConditionRow({ rule, onChange, onRemove }) {
           max={130}
           value={typeof rule.value === 'number' ? rule.value : (Array.isArray(rule.value) ? rule.value[0] : (rule.value || 18))}
           onChange={e => onChange({ ...rule, value: parseInt(e.target.value) || 0 })}
-          className="w-20 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200 text-center"
+          className="w-20 bg-slate-800 border border-slate-700 rounded-sm px-2 py-1.5 text-slate-200 text-center"
         />
       ) : (
         <input
@@ -609,14 +609,14 @@ function RuleConditionRow({ rule, onChange, onRemove }) {
           value={typeof rule.value === 'string' ? rule.value : (Array.isArray(rule.value) ? rule.value.join(', ') : '')}
           onChange={e => onChange({ ...rule, value: e.target.value })}
           placeholder="e.g. lib1, lib2, lib3"
-          className="flex-1 min-w-[160px] bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-slate-200 placeholder-slate-600"
+          className="flex-1 min-w-[160px] bg-slate-800 border border-slate-700 rounded-sm px-2 py-1.5 text-slate-200 placeholder-slate-600"
         />
       )}
 
       <button
         type="button"
         onClick={onRemove}
-        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded transition-colors ml-auto"
+        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-sm transition-colors ml-auto"
         title="Remove condition"
       >
         <Trash2 size={13} />
@@ -669,7 +669,7 @@ function RuleGroupComponent({ group, onChange, onRemove, isRoot = false }) {
               type="button"
               onClick={() => updateMode('all')}
               className={`px-2.5 py-1 rounded font-medium transition-colors ${
-                mode === 'all' ? 'bg-shield-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                mode === 'all' ? 'bg-shield-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               All must be true (AND)
@@ -678,7 +678,7 @@ function RuleGroupComponent({ group, onChange, onRemove, isRoot = false }) {
               type="button"
               onClick={() => updateMode('any')}
               className={`px-2.5 py-1 rounded font-medium transition-colors ${
-                mode === 'any' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                mode === 'any' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               One must be true (OR)
@@ -690,7 +690,7 @@ function RuleGroupComponent({ group, onChange, onRemove, isRoot = false }) {
           <button
             type="button"
             onClick={onRemove}
-            className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-900/20 transition-colors"
+            className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded-sm hover:bg-red-900/20 transition-colors"
           >
             <Trash2 size={12} /> Remove Group
           </button>
@@ -811,7 +811,7 @@ function SIP2EligibilityRuleBuilder({ value, onChange }) {
             <span className="text-[11px] font-semibold uppercase text-slate-500 tracking-wider block mb-1">
               Active Evaluation Rule:
             </span>
-            <p className="text-xs font-mono text-emerald-400 break-words leading-relaxed">
+            <p className="text-xs font-mono text-emerald-400 wrap-break-word leading-relaxed">
               {summary}
             </p>
           </div>
@@ -1198,7 +1198,7 @@ function OIDCProviderPanel({ provider, onSaved }) {
         <div className="flex items-center gap-2">
           <Globe size={13} className="text-slate-400" />
           <span className="text-slate-300 text-sm font-medium">{provider.label}</span>
-          {provider.enabled && <span className="text-xs text-emerald-400 border border-emerald-800 bg-emerald-900/20 px-1.5 py-0.5 rounded">enabled</span>}
+          {provider.enabled && <span className="text-xs text-emerald-400 border border-emerald-800 bg-emerald-900/20 px-1.5 py-0.5 rounded-sm">enabled</span>}
         </div>
         <ChevronDown size={13} className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
       </div>
@@ -1274,7 +1274,7 @@ function OIDCProviderPanel({ provider, onSaved }) {
               </p>
               <p className="text-slate-600 text-xs">
                 Redirect URI to register with your provider:{' '}
-                <code className="bg-slate-700 px-1.5 rounded text-slate-300">
+                <code className="bg-slate-700 px-1.5 rounded-sm text-slate-300">
                   {window.location.origin}/api/auth/oidc/{provider.key}/callback
                 </code>
               </p>
@@ -1361,7 +1361,7 @@ function SamlPanel() {
   const Copy = ({ label, value }) => (
     <div>
       <p className="text-slate-500 text-xs">{label}</p>
-      <code className="block bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-300 text-xs break-all">{value}</code>
+      <code className="block bg-slate-800 border border-slate-700 rounded-sm px-2 py-1 text-slate-300 text-xs break-all">{value}</code>
     </div>
   )
 

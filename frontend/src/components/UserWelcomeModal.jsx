@@ -51,7 +51,7 @@ export default function UserWelcomeModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         {/* Top Header */}
         <div className="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
@@ -118,7 +118,7 @@ export default function UserWelcomeModal() {
                       onClick={() => setLanguage(lang.code)}
                       className={`p-3.5 rounded-xl border text-start flex items-center justify-between transition-all ${
                         isSelected
-                          ? 'border-blue-500 bg-blue-500/10 text-white shadow-sm ring-1 ring-blue-500/50'
+                          ? 'border-blue-500 bg-blue-500/10 text-white shadow-xs ring-1 ring-blue-500/50'
                           : 'border-slate-800 bg-slate-950/50 text-slate-300 hover:border-slate-700 hover:bg-slate-800/40'
                       }`}
                     >
@@ -127,7 +127,7 @@ export default function UserWelcomeModal() {
                         <span className="text-xs text-slate-400">{lang.name}</span>
                       </div>
                       {lang.is_rtl && (
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono">
+                        <span className="text-[10px] px-2 py-0.5 rounded-sm bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono">
                           RTL
                         </span>
                       )}
@@ -167,7 +167,7 @@ export default function UserWelcomeModal() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="e.g. Jane Doe"
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -178,7 +178,7 @@ export default function UserWelcomeModal() {
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
                       placeholder="e.g. Seattle"
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
                     />
                   </div>
                   <div>
@@ -188,7 +188,7 @@ export default function UserWelcomeModal() {
                       value={state}
                       onChange={(e) => setState(e.target.value)}
                       placeholder="e.g. WA"
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
                     />
                   </div>
                 </div>
@@ -199,7 +199,7 @@ export default function UserWelcomeModal() {
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="e.g. 123 Pine St"
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -209,7 +209,7 @@ export default function UserWelcomeModal() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="e.g. (206) 555-0199"
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
                   />
                 </div>
 
@@ -352,7 +352,7 @@ export default function UserWelcomeModal() {
             {step < totalSteps ? (
               <button
                 onClick={() => setStep(step + 1)}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow-sm"
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow-xs"
               >
                 <span>{t('common.next', 'Next')}</span>
                 {isRTL ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
@@ -360,7 +360,7 @@ export default function UserWelcomeModal() {
             ) : (
               <button
                 onClick={completeWelcomeTour}
-                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow-sm"
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow-xs"
               >
                 <span>{t('tutorial.start_protecting', 'Start Protecting My Data')}</span>
                 <ArrowRight size={14} />
