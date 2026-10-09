@@ -26,6 +26,7 @@ Settings live at settings["auth_providers"]["saml"].
 
 import logging
 import os
+import threading
 import time
 from typing import Optional
 
@@ -33,6 +34,10 @@ log = logging.getLogger(__name__)
 
 REQUEST_TTL = 600                    # seconds an AuthnRequest stays valid
 _OUTSTANDING: dict = {}              # request_id -> issued_at (single-use)
+# /saml/login is public and each call adds an ID, so cap the store: under a
+# flood the oldest pending sign-ins are dropped instead of memory growing.
+MAX_OUTSTANDING = 10_000
+_OUTSTANDING_LOCK = threading.Lock()
 
 # Common attribute names across IdPs (friendly names, OIDs, and Microsoft claim
 # URIs). Admin-configured names are tried first.
@@ -139,9 +144,21 @@ def sp_metadata_xml(cfg: dict, base: str) -> str:
 # ── Login flow ────────────────────────────────────────────────────────────────
 
 def _prune():
+    """Drop expired IDs, and the oldest ones beyond MAX_OUTSTANDING. Dicts keep
+    insertion order, which is issue order, so stop at the first live entry."""
     now = time.time()
-    for rid in [r for r, t in _OUTSTANDING.items() if now - t > REQUEST_TTL]:
-        _OUTSTANDING.pop(rid, None)
+    with _OUTSTANDING_LOCK:
+        while _OUTSTANDING:
+            rid, issued = next(iter(_OUTSTANDING.items()))
+            if now - issued <= REQUEST_TTL and len(_OUTSTANDING) < MAX_OUTSTANDING:
+                break
+            del _OUTSTANDING[rid]
+
+
+def _remember(req_id: str):
+    _prune()
+    with _OUTSTANDING_LOCK:
+        _OUTSTANDING[req_id] = time.time()
 
 
 def begin_login(cfg: dict, base: str) -> str:
@@ -150,8 +167,7 @@ def begin_login(cfg: dict, base: str) -> str:
     client = _client(cfg, base)
     idp = _pick_idp(client, cfg)
     req_id, info = client.prepare_for_authenticate(entityid=idp, binding=BINDING_HTTP_REDIRECT)
-    _prune()
-    _OUTSTANDING[req_id] = time.time()
+    _remember(req_id)
     return dict(info["headers"])["Location"]
 
 
@@ -192,7 +208,9 @@ def consume_response(cfg: dict, base: str, saml_response_b64: str):
         raise SamlError("No SAML response was received.")
     client = _client(cfg, base)
     _prune()
-    outstanding = {rid: "/" for rid in _OUTSTANDING}
+    _prune()   # expired IDs must not be accepted even if no login started since
+    with _OUTSTANDING_LOCK:
+        outstanding = {rid: "/" for rid in _OUTSTANDING}
     try:
         resp = client.parse_authn_request_response(
             saml_response_b64, BINDING_HTTP_POST, outstanding=outstanding)

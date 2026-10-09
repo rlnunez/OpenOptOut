@@ -5446,6 +5446,30 @@ def t_sso_login_works():
     # IF THIS FAILS: every SSO user gets a 401 after sign-in, or SSO can mint admins.
 
 
+@test(1, "saml.outstanding_requests_bounded",
+      "Public /api/saml/login adds a pending request ID per call; the store is capped and "
+      "pruned oldest-first, so a flood can't grow memory without limit, and expired IDs go.")
+def t_saml_outstanding_bounded():
+    import time
+    sp = _imp("core.saml_sp")
+    saved = dict(sp._OUTSTANDING)
+    try:
+        sp._OUTSTANDING.clear()
+        now = time.time()
+        sp._OUTSTANDING["expired"] = now - sp.REQUEST_TTL - 5
+        for i in range(sp.MAX_OUTSTANDING + 50):            # a flood of live requests
+            sp._OUTSTANDING[f"r{i}"] = now
+        sp._prune()
+        assert len(sp._OUTSTANDING) < sp.MAX_OUTSTANDING, len(sp._OUTSTANDING)
+        assert "expired" not in sp._OUTSTANDING
+        assert f"r{sp.MAX_OUTSTANDING + 49}" in sp._OUTSTANDING, "newest request must survive"
+        assert "r0" not in sp._OUTSTANDING, "oldest requests are dropped first"
+        sp._remember("fresh")
+        assert "fresh" in sp._OUTSTANDING and len(sp._OUTSTANDING) <= sp.MAX_OUTSTANDING
+    finally:
+        sp._OUTSTANDING.clear(); sp._OUTSTANDING.update(saved)
+
+
 @test(2, "saml.end_to_end_and_attacks",
       "Real signed SAML via an in-process IdP: sign-in works; replay, tamper, unsigned, unsolicited, forged are rejected.")
 def t_saml_e2e():
