@@ -86,7 +86,7 @@ export default function Reporting() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-white text-xl font-semibold">Usage reporting</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Institutional metrics for administrators</p>
+          <p className="text-slate-400 text-sm mt-0.5">Institutional metrics for administrators and managers</p>
         </div>
         <div className="flex gap-2">
           <select value={months} onChange={e => setMonths(parseInt(e.target.value))}
@@ -172,7 +172,7 @@ export default function Reporting() {
           <div className="bg-slate-800 rounded-xl border border-slate-700/50 overflow-hidden mb-4">
             <div className="px-4 py-3 border-b border-slate-700/50 flex items-center justify-between">
               <p className="text-slate-300 text-sm font-medium">Per-member summary</p>
-              <p className="text-slate-500 text-xs">{perMember.length} members</p>
+              <p className="text-slate-500 text-xs">{perMember.length} {perMember.length === 1 ? 'member' : 'members'}</p>
             </div>
             {!fullMemberList && (
               <p className="px-4 py-2 text-slate-500 text-xs border-b border-slate-700/50">
