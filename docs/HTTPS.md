@@ -62,6 +62,7 @@ DOMAIN=privacy.yourlibrary.org
 ACME_EMAIL=it@yourlibrary.org
 WEB_BIND=127.0.0.1     # the web container stops being reachable directly
 WEB_PORT=8080          # Caddy owns 80/443 instead
+TRUSTED_PROXY_HOPS=2   # Caddy + nginx in front: sign-in limits find the client IP
 FRONTEND_URL=https://privacy.yourlibrary.org
 ```
 

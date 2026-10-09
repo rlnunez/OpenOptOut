@@ -5581,6 +5581,140 @@ def t_auth_failed_signin_throttling():
         session.close()
 
 
+@test(2, "auth.per_ip_limits",
+      "Client IP comes from X-Forwarded-For counted TRUSTED_PROXY_HOPS from the right (forged "
+      "entries ignored, IPv6 grouped by /64); sign-in, MFA, registration and SSO routes are "
+      "rate limited per IP; many failed sign-ins from one IP lock that IP across accounts.")
+def t_auth_per_ip_limits():
+    import os
+    from types import SimpleNamespace as NS
+    try:
+        from fastapi import HTTPException
+        rl = _imp("core.rate_limit")
+        throttle = _imp("core.login_throttle")
+        auth_router = _imp("routers.auth")
+        saml_router = _imp("routers.saml")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    def req(peer, xff=None):
+        return NS(client=NS(host=peer), headers={"x-forwarded-for": xff} if xff else {})
+
+    def status_of(fn, *a):
+        try:
+            fn(*a)
+        except HTTPException as e:
+            return e.status_code, (e.headers or {}).get("Retry-After")
+        return 200, None
+
+    orig_env = os.environ.get("TRUSTED_PROXY_HOPS")
+    orig_now = (rl._now, throttle._now)
+    try:
+        # nginx only (default 1 hop): nginx appended the real client last.
+        os.environ.pop("TRUSTED_PROXY_HOPS", None)
+        assert rl.client_ip(req("172.18.0.3", "203.0.113.9")) == "203.0.113.9"
+        assert rl.client_ip(req("172.18.0.3", "6.6.6.6, 203.0.113.9")) == "203.0.113.9", "forged entry used"
+        assert rl.client_ip(req("203.0.113.9")) == "203.0.113.9", "no header: the peer"
+        assert rl.client_ip(req("172.18.0.3", "garbage")) == "172.18.0.3"
+        # Caddy + nginx (2 hops): the client is second from the right.
+        os.environ["TRUSTED_PROXY_HOPS"] = "2"
+        assert rl.client_ip(req("172.18.0.3", "198.51.100.7, 172.18.0.5")) == "198.51.100.7"
+        assert rl.client_ip(req("172.18.0.3", "6.6.6.6, 198.51.100.7, 172.18.0.5")) == "198.51.100.7"
+        # Direct exposure (0 hops): the header is never trusted.
+        os.environ["TRUSTED_PROXY_HOPS"] = "0"
+        assert rl.client_ip(req("203.0.113.9", "6.6.6.6")) == "203.0.113.9"
+        # IPv6: one /64 is one client; IPv4-mapped addresses are plain IPv4.
+        assert rl.client_ip(req("2001:db8:1:2::a")) == rl.client_ip(req("2001:db8:1:2:ffff::b")) == "2001:db8:1:2::/64"
+        assert rl.client_ip(req("::ffff:203.0.113.9")) == "203.0.113.9"
+        assert rl.client_ip(None) is None
+        os.environ.pop("TRUSTED_PROXY_HOPS", None)
+
+        # Request limiter: per_minute per IP, refills over time, other IPs unaffected.
+        clock = [1000.0]
+        rl._now = lambda: clock[0]
+        rl._buckets.clear()
+        dep = rl.limit("test", 3)
+        a, b = req("203.0.113.1"), req("203.0.113.2")
+        assert [status_of(dep, a)[0] for _ in range(3)] == [200, 200, 200]
+        assert status_of(dep, a) == (429, "20")
+        assert status_of(dep, b)[0] == 200
+        clock[0] += 20
+        assert status_of(dep, a)[0] == 200 and status_of(dep, a)[0] == 429
+        rl._buckets.clear()
+        orig_max, rl.MAX_KEYS = rl.MAX_KEYS, 50
+        try:
+            for i in range(300):
+                dep(req(f"10.0.{i // 250}.{i % 250}"))
+            assert len(rl._buckets) <= 50
+        finally:
+            rl.MAX_KEYS = orig_max
+
+        # Failed sign-ins: one IP spraying many accounts gets locked; success
+        # doesn't clear the IP; another IP is unaffected.
+        tclock = [5000.0]
+        throttle._now = lambda: tclock[0]
+        throttle._state.clear()
+        bad, good = req("198.51.100.66"), req("198.51.100.77")
+        for i in range(throttle.IP_MAX_FAILURES):
+            throttle.check(throttle.account_key("password", f"u{i}@x.org"), throttle.ip_key(bad))
+            throttle.failure(throttle.account_key("password", f"u{i}@x.org"), throttle.ip_key(bad))
+        throttle.success(throttle.account_key("password", "mine@x.org"))
+        assert status_of(throttle.check, throttle.account_key("password", "new@x.org"), throttle.ip_key(bad))[0] == 429
+        assert status_of(throttle.check, throttle.account_key("password", "new@x.org"), throttle.ip_key(good))[0] == 200
+        throttle._state.clear()
+
+        # Route wiring: every public sign-in / SSO route carries a limiter.
+        def limits(router, path, method):
+            for r in router.routes:
+                if getattr(r, "path", None) == path and method in getattr(r, "methods", ()):
+                    return {getattr(d.call, "rate_limit", (None,))[0] for d in r.dependant.dependencies} - {None}
+            raise AssertionError(f"route {method} {path} not found")
+        p = auth_router.router.prefix
+        for path, method, name in [("/token", "POST", "signin"), ("/ldap/login", "POST", "signin"),
+                                   ("/sip2/login", "POST", "signin"), ("/register", "POST", "register"),
+                                   ("/mfa/verify-totp", "POST", "mfa"), ("/mfa/verify-backup", "POST", "mfa"),
+                                   ("/mfa/verify-webauthn", "POST", "mfa"),
+                                   ("/oidc/{provider}/login", "GET", "sso"), ("/oidc/{provider}/callback", "GET", "sso")]:
+            assert name in limits(auth_router.router, p + path, method), (path, method)
+        sp = saml_router.router.prefix
+        for path, method in [("/login", "GET"), ("/acs", "POST")]:
+            assert "sso" in limits(saml_router.router, sp + path, method), (path, method)
+
+        # Over real HTTP: the 61st sign-in a minute from one client IP gets 429.
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        db_mod = _imp("models.database")
+        engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        db_mod.Base.metadata.create_all(engine)
+        session = sessionmaker(bind=engine)()
+        app = FastAPI(); app.include_router(auth_router.router)
+        app.dependency_overrides[db_mod.get_db] = lambda: session
+        client = TestClient(app)
+        rl._now = orig_now[0]; rl._buckets.clear(); throttle._state.clear()
+        orig_ipmax, throttle.IP_MAX_FAILURES = throttle.IP_MAX_FAILURES, 10_000   # isolate the limiter
+        try:
+            post = lambda i, ip: client.post("/api/auth/token", headers={"X-Forwarded-For": ip},
+                                             data={"username": f"n{i}@x.org", "password": "x"})
+            codes = [post(i, "203.0.113.50").status_code for i in range(60)]
+            assert set(codes) == {401}, set(codes)
+            r = post(60, "203.0.113.50")
+            assert r.status_code == 429 and r.headers.get("retry-after"), (r.status_code, r.headers)
+            assert post(61, "203.0.113.51").status_code == 401, "other client IPs unaffected"
+        finally:
+            throttle.IP_MAX_FAILURES = orig_ipmax
+            session.close()
+    finally:
+        if orig_env is None:
+            os.environ.pop("TRUSTED_PROXY_HOPS", None)
+        else:
+            os.environ["TRUSTED_PROXY_HOPS"] = orig_env
+        rl._now, throttle._now = orig_now
+        rl._buckets.clear(); throttle._state.clear()
+
+
 @test(1, "saml.outstanding_requests_bounded",
       "Public /api/saml/login adds a pending request ID per call; the store is capped and "
       "pruned oldest-first, so a flood can't grow memory without limit, and expired IDs go.")

@@ -116,7 +116,7 @@ function Backup-EnvFile([string]$Path) {
 if ($Disable) {
     Backup-EnvFile $EnvFile
     foreach ($k in @("COMPOSE_PROFILES", "HTTPS_MODE", "DOMAIN", "ACME_EMAIL", "ACME_CA",
-                      "ACME_CA_ROOT", "WEB_BIND", "WEB_PORT")) {
+                      "ACME_CA_ROOT", "WEB_BIND", "WEB_PORT", "TRUSTED_PROXY_HOPS")) {
         Remove-EnvVar $EnvFile $k
     }
     Set-EnvVar $EnvFile "FRONTEND_URL" "http://localhost"
@@ -220,6 +220,7 @@ if ($FinalAcmeCaRoot) { Set-EnvVar $EnvFile "ACME_CA_ROOT" $FinalAcmeCaRoot } el
 # Caddy owns ports 80/443; the web container stays reachable only on this machine.
 Set-EnvVar $EnvFile "WEB_BIND" "127.0.0.1"
 Set-EnvVar $EnvFile "WEB_PORT" "8080"
+Set-EnvVar $EnvFile "TRUSTED_PROXY_HOPS" "2"   # Caddy + nginx in front of the API
 Set-EnvVar $EnvFile "FRONTEND_URL" "https://$Primary"
 
 Write-Host ""

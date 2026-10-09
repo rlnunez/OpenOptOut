@@ -64,7 +64,7 @@ backup() { [ -f "$ENV_FILE" ] && cp "$ENV_FILE" "${ENV_FILE}.bak.$(date +%Y%m%d%
 
 if [ "$DISABLE" = 1 ]; then
   backup
-  for k in COMPOSE_PROFILES HTTPS_MODE DOMAIN ACME_EMAIL ACME_CA ACME_CA_ROOT WEB_BIND WEB_PORT; do unset_env "$k"; done
+  for k in COMPOSE_PROFILES HTTPS_MODE DOMAIN ACME_EMAIL ACME_CA ACME_CA_ROOT WEB_BIND WEB_PORT TRUSTED_PROXY_HOPS; do unset_env "$k"; done
   set_env FRONTEND_URL "http://localhost"
   echo "HTTPS disabled. Run:  docker compose down && docker compose up -d"
   exit 0
@@ -144,6 +144,7 @@ if [ -n "$ACME_CA_ROOT" ]; then set_env ACME_CA_ROOT "$ACME_CA_ROOT"; else unset
 # Caddy owns ports 80/443; the web container stays reachable only on this machine.
 set_env WEB_BIND 127.0.0.1
 set_env WEB_PORT 8080
+set_env TRUSTED_PROXY_HOPS 2     # Caddy + nginx in front of the API
 set_env FRONTEND_URL "https://$PRIMARY"
 
 echo

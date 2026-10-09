@@ -20,7 +20,7 @@ from ..core.auth import (
     get_current_user, get_current_user_optional, require_super_admin, validate_password_length
 )
 from ..core.access import require_permission
-from ..core import login_throttle
+from ..core import login_throttle, rate_limit
 from ..core.auth_providers import (
     try_ldap_auth, try_sip2_auth,
     get_oidc_login_url, exchange_oidc_code,
@@ -152,7 +152,8 @@ def needs_setup(db: Session = Depends(get_db)):
     return {"needs_setup": db.query(User).count() == 0}
 
 
-@router.post("/register", response_model=UserOut, status_code=201)
+@router.post("/register", response_model=UserOut, status_code=201,
+             dependencies=[Depends(rate_limit.limit("register", 10))])
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == req.email).first():
         raise HTTPException(400, "Email already registered")
@@ -166,13 +167,14 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     return user
 
 
-@router.post("/token")
+@router.post("/token", dependencies=[Depends(rate_limit.limit("signin", 60))])
 def login(form: OAuth2PasswordRequestForm = Depends(), request: Request = None, db: Session = Depends(get_db)):
     throttle_key = login_throttle.account_key("password", form.username)
-    login_throttle.check(throttle_key)
+    ip_key = login_throttle.ip_key(request)
+    login_throttle.check(throttle_key, ip_key)
     user = db.query(User).filter(User.email == form.username).first()
     if not user or not user.hashed_password or not verify_password(form.password, user.hashed_password):
-        login_throttle.failure(throttle_key)
+        login_throttle.failure(throttle_key, ip_key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -280,17 +282,18 @@ def toggle_unified_view(unified: bool, db: Session = Depends(get_db),
 
 # ── LDAP login ────────────────────────────────────────────────────────────────
 
-@router.post("/ldap/login")
-def ldap_login(req: LDAPLoginRequest, db: Session = Depends(get_db)):
+@router.post("/ldap/login", dependencies=[Depends(rate_limit.limit("signin", 60))])
+def ldap_login(req: LDAPLoginRequest, db: Session = Depends(get_db), request: Request = None):
     if not provider_enabled("ldap"):
         raise HTTPException(400, "LDAP authentication is not enabled")
 
     throttle_key = login_throttle.account_key("ldap", req.username)
-    login_throttle.check(throttle_key)
+    ip_key = login_throttle.ip_key(request)
+    login_throttle.check(throttle_key, ip_key)
     result = try_ldap_auth(req.username, req.password)
     if not result.success:
         if not result.unavailable:
-            login_throttle.failure(throttle_key)
+            login_throttle.failure(throttle_key, ip_key)
         raise HTTPException(401, result.error or "LDAP authentication failed")
     login_throttle.success(throttle_key)
 
@@ -299,19 +302,20 @@ def ldap_login(req: LDAPLoginRequest, db: Session = Depends(get_db)):
 
 # ── SIP2 login ────────────────────────────────────────────────────────────────
 
-@router.post("/sip2/login")
-def sip2_login(req: SIP2LoginRequest, db: Session = Depends(get_db)):
+@router.post("/sip2/login", dependencies=[Depends(rate_limit.limit("signin", 60))])
+def sip2_login(req: SIP2LoginRequest, db: Session = Depends(get_db), request: Request = None):
     from ..models.database import SIP2Connection
     has_db_conns = db.query(SIP2Connection).filter(SIP2Connection.enabled == True).count() > 0
     if not provider_enabled("sip2") and not has_db_conns:
         raise HTTPException(400, "SIP2 authentication is not enabled")
 
     throttle_key = login_throttle.account_key("sip2", req.barcode)
-    login_throttle.check(throttle_key)
+    ip_key = login_throttle.ip_key(request)
+    login_throttle.check(throttle_key, ip_key)
     result = try_sip2_auth(req.barcode, req.pin, db=db)
     if not result.success:
         if not result.unavailable:
-            login_throttle.failure(throttle_key)
+            login_throttle.failure(throttle_key, ip_key)
         raise HTTPException(401, result.error or "Library card authentication failed")
     login_throttle.success(throttle_key)
 
@@ -320,7 +324,7 @@ def sip2_login(req: SIP2LoginRequest, db: Session = Depends(get_db)):
 
 # ── OIDC (Google, Microsoft, Generic) ────────────────────────────────────────
 
-@router.get("/oidc/{provider}/login")
+@router.get("/oidc/{provider}/login", dependencies=[Depends(rate_limit.limit("sso", 30))])
 def oidc_login(provider: str, request: Request):
     if not provider_enabled(provider):
         raise HTTPException(400, f"Provider '{provider}' is not enabled")
@@ -335,7 +339,7 @@ def oidc_login(provider: str, request: Request):
     return RedirectResponse(url)
 
 
-@router.get("/oidc/{provider}/callback")
+@router.get("/oidc/{provider}/callback", dependencies=[Depends(rate_limit.limit("sso", 30))])
 def oidc_callback(
     provider: str,
     code: str = Query(...),
@@ -565,8 +569,8 @@ def _resolve_user_for_mfa(
     raise HTTPException(status_code=401, detail="Authentication session required")
 
 
-@router.post("/mfa/verify-totp")
-def verify_totp_login(data: VerifyTotpIn, db: Session = Depends(get_db)):
+@router.post("/mfa/verify-totp", dependencies=[Depends(rate_limit.limit("mfa", 30))])
+def verify_totp_login(data: VerifyTotpIn, db: Session = Depends(get_db), request: Request = None):
     from ..core import mfa
     tdata = mfa.verify_mfa_ticket(data.mfa_ticket)
     if not tdata:
@@ -578,18 +582,19 @@ def verify_totp_login(data: VerifyTotpIn, db: Session = Depends(get_db)):
     if not allowed.get("totp", True):
         raise HTTPException(403, "TOTP authentication is disabled for this account by security policy.")
     throttle_key = login_throttle.account_key("mfa", user.id)
-    login_throttle.check(throttle_key)
+    ip_key = login_throttle.ip_key(request)
+    login_throttle.check(throttle_key, ip_key)
     from ..core.settings_store import decrypt_password
     secret = decrypt_password(user.totp_secret_enc)
     if not mfa.verify_totp(data.code, secret):
-        login_throttle.failure(throttle_key)
+        login_throttle.failure(throttle_key, ip_key)
         raise HTTPException(401, "Invalid authentication code. Please check your authenticator app.")
     login_throttle.success(throttle_key)
     return {"access_token": create_access_token({"sub": user.email}), "token_type": "bearer"}
 
 
-@router.post("/mfa/verify-backup")
-def verify_backup_code_login(data: VerifyBackupIn, db: Session = Depends(get_db)):
+@router.post("/mfa/verify-backup", dependencies=[Depends(rate_limit.limit("mfa", 30))])
+def verify_backup_code_login(data: VerifyBackupIn, db: Session = Depends(get_db), request: Request = None):
     from ..core import mfa
     tdata = mfa.verify_mfa_ticket(data.mfa_ticket)
     if not tdata:
@@ -601,14 +606,15 @@ def verify_backup_code_login(data: VerifyBackupIn, db: Session = Depends(get_db)
     if not allowed.get("backup_codes", True):
         raise HTTPException(403, "Backup recovery codes are disabled for this account by security policy.")
     throttle_key = login_throttle.account_key("mfa", user.id)
-    login_throttle.check(throttle_key)
+    ip_key = login_throttle.ip_key(request)
+    login_throttle.check(throttle_key, ip_key)
     try:
         stored_hashes = json.loads(user.backup_codes)
     except Exception:
         stored_hashes = []
     valid, remaining = mfa.verify_backup_code(data.code, stored_hashes)
     if not valid:
-        login_throttle.failure(throttle_key)
+        login_throttle.failure(throttle_key, ip_key)
         raise HTTPException(401, "Invalid backup recovery code.")
     login_throttle.success(throttle_key)
     user.backup_codes = json.dumps(remaining)
@@ -645,7 +651,7 @@ def get_webauthn_challenge_options(data: dict, request: Request, db: Session = D
     return opts
 
 
-@router.post("/mfa/verify-webauthn")
+@router.post("/mfa/verify-webauthn", dependencies=[Depends(rate_limit.limit("mfa", 30))])
 def verify_webauthn_login(data: VerifyWebAuthnIn, db: Session = Depends(get_db)):
     from ..core import mfa
     tdata = mfa.verify_mfa_ticket(data.mfa_ticket)
