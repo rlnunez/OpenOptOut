@@ -12,8 +12,8 @@ This guide details procedures for safely updating OpenOptOut deployments, includ
 # 1. Fetch latest release tags
 git fetch origin
 
-# 2. Checkout desired release tag (e.g., v0.10.0-rc3)
-git checkout v0.10.0-rc3
+# 2. Checkout desired release tag (e.g., v0.10.0)
+git checkout v0.10.0
 
 # 3. Stop running containers
 docker compose down
@@ -30,7 +30,7 @@ docker compose up -d
 ```bash
 # Pull latest code and recompile dependencies
 git fetch origin
-git checkout v0.10.0-rc3
+git checkout v0.10.0
 sudo ./deploy/installer/setup.sh --update
 ```
 
