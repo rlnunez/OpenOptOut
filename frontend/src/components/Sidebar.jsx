@@ -4,11 +4,12 @@ import {
   Users, ShieldCheck, Settings, LogOut, ShieldAlert,
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
   Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal,
-  Globe, Compass, Server
+  Globe, Compass, Server, Eye, Sun
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
 import { useLanguage } from '../i18n/LanguageContext'
+import { useAccessibility } from '../context/AccessibilityContext'
 import api from '../api'
 import { useState } from 'react'
 
@@ -52,6 +53,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
   const { user, logout, setUser } = useAuth()
   const { branding }              = useBranding()
   const { language, setLanguage, availableLanguages, setShowWelcomeTour, t } = useLanguage()
+  const { theme, setTheme, highContrast, setHighContrast } = useAccessibility()
   const [toggling, setToggling]   = useState(false)
 
   const toggleView = async () => {
@@ -96,6 +98,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
       )}
 
       <aside
+        aria-label="Main sidebar"
         className={`bg-slate-900 flex flex-col py-4 w-64 md:w-52 shrink-0 h-screen z-40
           fixed inset-y-0 left-0 transform transition-transform duration-200 ease-in-out
           md:sticky md:top-0 md:translate-x-0
@@ -119,7 +122,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
           </button>
         </div>
 
-        <nav className="flex flex-col gap-0.5 flex-1 overflow-y-auto">
+        <nav aria-label="Primary navigation" className="flex flex-col gap-0.5 flex-1 overflow-y-auto">
           <p className="text-slate-600 text-xs px-4 mb-1 uppercase tracking-widest">Manage</p>
           {nav.map(n => <NavItem key={n.to} {...n} onNavigate={handleNavigate} />)}
           <p className="text-slate-600 text-xs px-4 mt-3 mb-1 uppercase tracking-widest">Setup</p>
@@ -161,6 +164,44 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
               ))}
             </select>
           </div>
+
+          {/* Quick Theme Selector */}
+          <div className="flex items-center justify-between py-1 px-2 bg-slate-950/60 rounded-lg border border-slate-800">
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <Sun size={13} className="text-amber-400" />
+              <span className="text-xs">{t('a11y.theme', 'Theme')}</span>
+            </div>
+            <select
+              value={theme}
+              onChange={(e) => setTheme(e.target.value)}
+              className="bg-transparent text-white text-xs border-0 focus:ring-0 cursor-pointer pr-1"
+            >
+              <option value="dark" className="bg-slate-900 text-white">{t('a11y.theme_dark', 'Dark')}</option>
+              <option value="light" className="bg-slate-900 text-white">{t('a11y.theme_light', 'Light')}</option>
+              <option value="gray" className="bg-slate-900 text-white">{t('a11y.theme_gray', 'Gray')}</option>
+              <option value="system" className="bg-slate-900 text-white">{t('a11y.theme_system', 'System')}</option>
+            </select>
+          </div>
+
+          {/* Quick High Contrast Mode Toggle */}
+          <button
+            onClick={() => setHighContrast(!highContrast)}
+            className={`flex items-center justify-between w-full py-1.5 px-2 rounded-lg border text-xs transition-colors ${
+              highContrast
+                ? 'bg-yellow-400/20 text-yellow-300 border-yellow-400/50'
+                : 'bg-slate-950/60 text-slate-400 border-slate-800 hover:text-white'
+            }`}
+            aria-pressed={highContrast}
+            title={t('a11y.high_contrast', 'High Contrast Mode (WCAG 2.2 AAA)')}
+          >
+            <div className="flex items-center gap-1.5">
+              <Eye size={13} className={highContrast ? 'text-yellow-400' : 'text-slate-400'} />
+              <span>{t('a11y.high_contrast', 'High Contrast')}</span>
+            </div>
+            <span className="text-[10px] font-mono px-1 rounded bg-black/40">
+              {highContrast ? 'ON' : 'OFF'}
+            </span>
+          </button>
 
           <div>
             <p className={`text-xs mb-0.5 ${roleColor}`}>{user?.role}</p>

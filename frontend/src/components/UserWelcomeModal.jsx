@@ -1,10 +1,21 @@
-import React, { useState } from 'react'
-import { Globe, User, Mail, Compass, CheckCircle2, ChevronRight, ChevronLeft, X, Shield, Lock, ArrowRight } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import {
+  Globe, User, Mail, Compass, CheckCircle2, ChevronRight, ChevronLeft, X, Shield, Lock, ArrowRight,
+  Eye, ToggleLeft, ToggleRight, Sparkles, Sliders, Sun, Moon, Laptop, Palette, Type
+} from 'lucide-react'
 import { useLanguage } from '../i18n/LanguageContext'
+import { useAccessibility } from '../context/AccessibilityContext'
 import api from '../api'
 
 export default function UserWelcomeModal() {
   const { language, setLanguage, availableLanguages, isRTL, t, showWelcomeTour, completeWelcomeTour } = useLanguage()
+  const {
+    theme, setTheme, resolvedTheme,
+    highContrast, setHighContrast,
+    fontSize, setFontSize,
+    reducedMotion, setReducedMotion,
+    enhancedTargets, setEnhancedTargets,
+  } = useAccessibility()
   const [step, setStep] = useState(1)
   const totalSteps = 4
 
@@ -16,6 +27,47 @@ export default function UserWelcomeModal() {
   const [phone, setPhone] = useState('')
   const [piiSaving, setPiiSaving] = useState(false)
   const [piiSaved, setPiiSaved] = useState(false)
+  const [ilsPending, setIlsPending] = useState(null)
+  const [ilsChoiceMade, setIlsChoiceMade] = useState(false)
+
+  useEffect(() => {
+    if (showWelcomeTour) {
+      api.get('/family/ils-import-pending')
+        .then(res => {
+          if (res.data?.has_pending) {
+            setIlsPending(res.data.fields)
+          }
+        })
+        .catch(() => {})
+    }
+  }, [showWelcomeTour])
+
+  const handleImportIls = () => {
+    if (ilsPending) {
+      if (ilsPending.name) setFullName(ilsPending.name)
+      if (ilsPending.address) setAddress(ilsPending.address)
+      if (ilsPending.city) setCity(ilsPending.city)
+      if (ilsPending.state) setState(ilsPending.state)
+      if (ilsPending.phone) setPhone(ilsPending.phone)
+    }
+    setIlsChoiceMade(true)
+    setIlsPending(null)
+  }
+
+  const handleDiscardIls = async () => {
+    try {
+      await api.post('/family/ils-import-decision', { action: 'discard' })
+    } catch (e) {
+      console.warn('Could not record ILS discard:', e)
+    }
+    setFullName('')
+    setCity('')
+    setState('')
+    setAddress('')
+    setPhone('')
+    setIlsChoiceMade(true)
+    setIlsPending(null)
+  }
 
   if (!showWelcomeTour) return null
 
@@ -143,6 +195,129 @@ export default function UserWelcomeModal() {
                   <span>Right-to-Left (RTL) mode is automatically enabled for this language.</span>
                 </div>
               )}
+
+              {/* Accessibility & Display Preferences Section */}
+              <div className="pt-3 border-t border-slate-800 space-y-4">
+                <div className="flex items-center gap-2 text-sky-400">
+                  <Palette size={17} />
+                  <h4 className="text-sm font-semibold text-white">
+                    {t('tutorial.a11y_section_title', 'Theme & Accessibility Options')}
+                  </h4>
+                </div>
+                <p className="text-xs text-slate-300">
+                  {t('tutorial.a11y_section_desc', 'Customize color theme, high contrast, and text scaling to suit your assistive needs.')}
+                </p>
+
+                {/* 1. Theme Selection: Light, Gray, Dark, System */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-300">
+                    {t('a11y.theme', 'Color Theme')}
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { id: 'light', label: t('a11y.theme_light', 'Light'), icon: Sun, desc: 'Crisp white' },
+                      { id: 'gray', label: t('a11y.theme_gray', 'Gray'), icon: Sliders, desc: 'Slate neutral' },
+                      { id: 'dark', label: t('a11y.theme_dark', 'Dark'), icon: Moon, desc: 'Deep black' },
+                      { id: 'system', label: t('a11y.theme_system', 'System'), icon: Laptop, desc: 'Auto match' },
+                    ].map(item => {
+                      const Icon = item.icon
+                      const isActive = theme === item.id
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setTheme(item.id)}
+                          className={`p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition-all ${
+                            isActive
+                              ? 'border-blue-500 bg-blue-500/10 text-white ring-1 ring-blue-500/50 font-semibold'
+                              : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:text-white hover:border-slate-700'
+                          }`}
+                        >
+                          <Icon size={16} className={isActive ? 'text-blue-400' : 'text-slate-400'} />
+                          <span className="text-xs">{item.label}</span>
+                          <span className="text-[10px] text-slate-400 opacity-80">{item.desc}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. High Contrast Checkbox */}
+                <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="welcome-high-contrast"
+                    checked={highContrast}
+                    onChange={(e) => setHighContrast(e.target.checked)}
+                    className="mt-1 w-4 h-4 rounded text-blue-600 focus:ring-yellow-400 border-slate-700 bg-slate-900 cursor-pointer"
+                  />
+                  <div className="space-y-0.5 flex-1">
+                    <label htmlFor="welcome-high-contrast" className="text-xs font-semibold text-white flex items-center gap-2 cursor-pointer">
+                      <span>{t('a11y.high_contrast', 'Make High Contrast (WCAG 2.2 AAA)')}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-yellow-400/20 text-yellow-300 font-mono">AAA 7:1+</span>
+                    </label>
+                    <p className="text-[11px] text-slate-400 leading-normal">
+                      {t('a11y.contrast_checkbox_desc', 'Enforces maximum contrast (21:1) adapting to your chosen theme. Light theme renders crisp black-on-white; dark theme renders vivid white-on-black with high-visibility borders.')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3. Proportional Font Size Slider with Real-Time Live Preview */}
+                <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
+                      <Type size={15} className="text-blue-400" />
+                      <span>{t('a11y.font_size', 'Font Size & Scaling')}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-mono font-bold text-blue-400">{fontSize}%</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
+                        {fontSize <= 100 ? 'Default' : fontSize <= 120 ? 'Comfortable' : fontSize <= 135 ? 'Enhanced' : 'AAA Large'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <input
+                    type="range"
+                    min="100"
+                    max="150"
+                    step="5"
+                    value={fontSize}
+                    onChange={(e) => setFontSize(Number(e.target.value))}
+                    className="w-full accent-blue-500 cursor-pointer"
+                    aria-label={t('a11y.font_size', 'Font Size Scaling')}
+                  />
+
+                  {/* Live Font Scaling Preview Box */}
+                  <div className="p-3 rounded-lg border border-slate-800/80 bg-slate-900/60 space-y-1">
+                    <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">
+                      {t('a11y.font_preview_label', 'Live Preview')}
+                    </p>
+                    <p className="text-sm font-semibold text-white">
+                      Sample Heading (Scales with Slider)
+                    </p>
+                    <p className="text-xs text-slate-300">
+                      {t('a11y.font_preview_sample', 'This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 4. Reduced Motion Toggle */}
+                <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                  <div className="space-y-0.5 pr-2">
+                    <span className="text-xs font-medium text-white">{t('a11y.reduced_motion', 'Reduced Motion')}</span>
+                    <p className="text-[11px] text-slate-400">{t('a11y.reduced_motion_desc', 'Disables animations, transitions, and pulsing indicators.')}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReducedMotion(!reducedMotion)}
+                    className="p-1 text-slate-400 hover:text-white shrink-0 focus-visible:outline-2 focus-visible:outline-blue-400"
+                    aria-label={t('a11y.reduced_motion', 'Reduced Motion')}
+                  >
+                    {reducedMotion ? <ToggleRight size={24} className="text-emerald-400" /> : <ToggleLeft size={24} className="text-slate-600" />}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -158,6 +333,42 @@ export default function UserWelcomeModal() {
               <p className="text-sm text-slate-300">
                 {t('tutorial.pii_step_desc', 'Provide your name and city/state so automated agents can locate and scrub your listings.')}
               </p>
+
+              {ilsPending && (
+                <div className="p-3.5 bg-blue-950/40 border border-blue-500/40 rounded-xl space-y-2.5 animate-in fade-in duration-200">
+                  <div className="flex items-start gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400 shrink-0 mt-0.5">
+                      <Shield size={16} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-white">
+                        {t('ils.import_prompt_title', 'Import details from your library card?')}
+                      </h4>
+                      <p className="text-[11px] text-slate-300 mt-0.5">
+                        {t('ils.import_prompt_desc', 'Your library account has information available ({details}). Would you like to import it for prefilling, or enter your details manually?', {
+                          details: [ilsPending.name, ilsPending.address, ilsPending.phone].filter(Boolean).join(', ')
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1 pl-8">
+                    <button
+                      type="button"
+                      onClick={handleImportIls}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors shadow-xs"
+                    >
+                      {t('ils.import_action_import', 'Import my information')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDiscardIls}
+                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition-colors border border-slate-700"
+                    >
+                      {t('ils.import_action_discard', 'Let me enter it')}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-3 bg-slate-950/40 p-4 rounded-xl border border-slate-800/80">
                 <div>

@@ -88,3 +88,227 @@ html[dir="rtl"] input[type="tel"] {
   text-align: left;
 }
 
+/* WCAG 2.2 Level AAA: Proportional Font Scaling & Focus Not Obscured (SC 2.4.11 & 2.4.12) */
+html {
+  font-size: var(--a11y-font-size, 100%);
+  scroll-padding-top: 4.5rem;
+  scroll-padding-bottom: 2.5rem;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Color Themes: Light, Gray, Dark
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Light Theme ── */
+html.theme-light body,
+html.theme-light {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html.theme-light .bg-slate-950 {
+  background-color: #f8fafc !important;
+}
+
+html.theme-light .bg-slate-900,
+html.theme-light .bg-slate-900\/50,
+html.theme-light .bg-slate-900\/40,
+html.theme-light aside,
+html.theme-light header {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.theme-light .bg-slate-800,
+html.theme-light .bg-slate-950\/60,
+html.theme-light .bg-slate-950\/80 {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.theme-light .text-white {
+  color: #0f172a !important;
+}
+
+html.theme-light .text-slate-300,
+html.theme-light .text-slate-400 {
+  color: #334155 !important;
+}
+
+html.theme-light .text-slate-500,
+html.theme-light .text-slate-600 {
+  color: #64748b !important;
+}
+
+html.theme-light .border-slate-800,
+html.theme-light .border-slate-700,
+html.theme-light .border-slate-700\/50,
+html.theme-light .border-slate-800\/80 {
+  border-color: #cbd5e1 !important;
+}
+
+/* ── Neutral Gray Theme ── */
+html.theme-gray body,
+html.theme-gray {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+html.theme-gray .bg-slate-950 {
+  background-color: #1e293b !important;
+}
+
+html.theme-gray .bg-slate-900,
+html.theme-gray aside,
+html.theme-gray header {
+  background-color: #273549 !important;
+  border-color: #334155 !important;
+}
+
+html.theme-gray .bg-slate-800 {
+  background-color: #334155 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   WCAG 2.2 Level AAA High Contrast Modes (Dark vs Light)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* High Contrast: Dark Theme Base (Pure #000000 with #ffffff and #ffff00) */
+html.a11y-high-contrast-dark body,
+html.a11y-high-contrast-dark {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+html.a11y-high-contrast-dark .bg-slate-950,
+html.a11y-high-contrast-dark .bg-slate-900,
+html.a11y-high-contrast-dark .bg-slate-800,
+html.a11y-high-contrast-dark .bg-slate-950\/60,
+html.a11y-high-contrast-dark .bg-slate-950\/80,
+html.a11y-high-contrast-dark .bg-slate-900\/50,
+html.a11y-high-contrast-dark .bg-slate-900\/40,
+html.a11y-high-contrast-dark aside,
+html.a11y-high-contrast-dark header,
+html.a11y-high-contrast-dark nav {
+  background-color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+html.a11y-high-contrast-dark .text-slate-400,
+html.a11y-high-contrast-dark .text-slate-500,
+html.a11y-high-contrast-dark .text-slate-600 {
+  color: #f1f5f9 !important;
+}
+
+html.a11y-high-contrast-dark .border-slate-800,
+html.a11y-high-contrast-dark .border-slate-700,
+html.a11y-high-contrast-dark .border-slate-700\/50,
+html.a11y-high-contrast-dark .border-slate-800\/80 {
+  border-color: #ffffff !important;
+  border-width: 2px !important;
+}
+
+html.a11y-high-contrast-dark :focus-visible {
+  outline: 3px solid #ffff00 !important;
+  outline-offset: 2px !important;
+}
+
+html.a11y-high-contrast-dark .bg-shield-600,
+html.a11y-high-contrast-dark .bg-blue-600,
+html.a11y-high-contrast-dark .bg-emerald-600 {
+  background-color: #ffff00 !important;
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+
+html.a11y-high-contrast-dark .text-blue-400,
+html.a11y-high-contrast-dark .text-shield-400,
+html.a11y-high-contrast-dark .text-shield-500 {
+  color: #ffff00 !important;
+  font-weight: 700 !important;
+}
+
+/* High Contrast: Light Theme Base (Pure #ffffff with #000000 and high-visibility blue) */
+html.a11y-high-contrast-light body,
+html.a11y-high-contrast-light {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+html.a11y-high-contrast-light .bg-slate-950,
+html.a11y-high-contrast-light .bg-slate-900,
+html.a11y-high-contrast-light .bg-slate-800,
+html.a11y-high-contrast-light .bg-slate-950\/60,
+html.a11y-high-contrast-light .bg-slate-950\/80,
+html.a11y-high-contrast-light .bg-slate-900\/50,
+html.a11y-high-contrast-light .bg-slate-900\/40,
+html.a11y-high-contrast-light aside,
+html.a11y-high-contrast-light header,
+html.a11y-high-contrast-light nav {
+  background-color: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+html.a11y-high-contrast-light .text-white,
+html.a11y-high-contrast-light .text-slate-300,
+html.a11y-high-contrast-light .text-slate-400,
+html.a11y-high-contrast-light .text-slate-500,
+html.a11y-high-contrast-light .text-slate-600 {
+  color: #000000 !important;
+  font-weight: 600 !important;
+}
+
+html.a11y-high-contrast-light .border-slate-800,
+html.a11y-high-contrast-light .border-slate-700,
+html.a11y-high-contrast-light .border-slate-700\/50,
+html.a11y-high-contrast-light .border-slate-800\/80 {
+  border-color: #000000 !important;
+  border-width: 2px !important;
+}
+
+html.a11y-high-contrast-light :focus-visible {
+  outline: 3px solid #000000 !important;
+  outline-offset: 2px !important;
+}
+
+html.a11y-high-contrast-light .bg-shield-600,
+html.a11y-high-contrast-light .bg-blue-600 {
+  background-color: #0000ee !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html.a11y-high-contrast-light .text-blue-400,
+html.a11y-high-contrast-light .text-shield-400 {
+  color: #0000cc !important;
+  font-weight: 700 !important;
+}
+
+/* 2. Target Size Enhanced (SC 2.5.5 Level AAA: Min 44x44 CSS pixels) */
+html.a11y-enhanced-targets button,
+html.a11y-enhanced-targets [role="button"],
+html.a11y-enhanced-targets select,
+html.a11y-enhanced-targets a.nav-item,
+html.a11y-enhanced-targets input[type="text"],
+html.a11y-enhanced-targets input[type="email"],
+html.a11y-enhanced-targets input[type="password"] {
+  min-height: 44px !important;
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+
+/* 3. Reduced Motion (SC 2.3.3 Level AAA) */
+html.a11y-reduced-motion *,
+html.a11y-reduced-motion *::before,
+html.a11y-reduced-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* 4. Large Text & Visual Presentation (SC 1.4.8 Level AAA) */
+html.a11y-large-text {
+  line-height: 1.6 !important;
+}
+

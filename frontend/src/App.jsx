@@ -4,6 +4,9 @@ import { Menu } from 'lucide-react'
 import { AuthProvider, useAuth, can } from './hooks/useAuth'
 import { BrandingProvider, useBranding } from './hooks/useBranding'
 import { LanguageProvider } from './i18n/LanguageContext'
+import { AccessibilityProvider } from './context/AccessibilityContext'
+import SkipLink from './components/SkipLink'
+import Breadcrumbs from './components/Breadcrumbs'
 import AnnouncementBanner from './components/AnnouncementBanner'
 import UserWelcomeModal from './components/UserWelcomeModal'
 import Sidebar from './components/Sidebar'
@@ -79,15 +82,16 @@ function Layout() {
       <Sidebar open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Mobile top bar with hamburger — hidden on md and up */}
-        <div className="md:hidden flex items-center gap-3 px-4 h-14 bg-slate-900 border-b border-slate-800 shrink-0">
+        <header role="banner" className="md:hidden flex items-center gap-3 px-4 h-14 bg-slate-900 border-b border-slate-800 shrink-0">
           <button onClick={() => setDrawerOpen(true)} className="text-slate-300 hover:text-white p-1 -ml-1" aria-label="Open menu">
             <Menu size={22} />
           </button>
           <span className="text-white font-semibold text-sm truncate">{systemName}</span>
-        </div>
+        </header>
         <AnnouncementBanner />
         <UserWelcomeModal />
-        <main className="flex-1 overflow-auto">
+        <main id="main-content" tabIndex="-1" role="main" className="flex-1 overflow-auto focus:outline-hidden">
+          <Breadcrumbs />
           <Routes>
             <Route path="/"            element={<Dashboard />} />
             <Route path="/brokers"     element={<Brokers />} />
@@ -148,18 +152,21 @@ function RequireAuth({ children }) {
 
 export default function App() {
   return (
-    <BrandingProvider>
-      <AuthProvider>
-        <LanguageProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/login"                element={<Login />} />
-              <Route path="/auth/callback"        element={<OIDCCallback />} />
-              <Route path="/*"                    element={<RequireAuth><Layout /></RequireAuth>} />
-            </Routes>
-          </BrowserRouter>
-        </LanguageProvider>
-      </AuthProvider>
-    </BrandingProvider>
+    <AccessibilityProvider>
+      <BrandingProvider>
+        <AuthProvider>
+          <LanguageProvider>
+            <SkipLink />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login"                element={<Login />} />
+                <Route path="/auth/callback"        element={<OIDCCallback />} />
+                <Route path="/*"                    element={<RequireAuth><Layout /></RequireAuth>} />
+              </Routes>
+            </BrowserRouter>
+          </LanguageProvider>
+        </AuthProvider>
+      </BrandingProvider>
+    </AccessibilityProvider>
   )
 }
