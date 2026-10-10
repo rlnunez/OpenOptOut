@@ -1,14 +1,7 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
 # ==============================================================================
 # OpenOptOut — Automated Live Email Account Verification (OAuth & App Passwords)
 # ==============================================================================
-""":"
-if command -v python3 >/dev/null 2>&1; then
-  exec python3 "$0" "$@"
-else
-  exec python "$0" "$@"
-fi
-"""
 import argparse
 import json
 import os
