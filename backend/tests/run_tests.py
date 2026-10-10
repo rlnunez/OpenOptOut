@@ -2465,14 +2465,15 @@ def t_email_request_key():
     assert "[" not in plain.subject
 
     # With request_key: tracking tag in subject and body
-    key = "7a8b9c0d-1234-5678-90ab-cdef12345678"
+    import uuid
+    tracking_uuid = str(uuid.uuid4())
     keyed = tmpl.compose_optout_email(
         ids, "ParentCorp", "parent@example.com",
         child_sites=["Broker1", "Broker2"],
-        request_key=key,
+        request_key=tracking_uuid,
     )
-    assert f"[{key}]" in keyed.subject, f"subject missing [{key}]: {keyed.subject}"
-    assert f"Reference ID (include in all correspondence): {key}" in keyed.body, "body missing Reference ID line"
+    assert f"[{tracking_uuid}]" in keyed.subject, f"subject missing [{tracking_uuid}]: {keyed.subject}"
+    assert f"Reference ID (include in all correspondence): {tracking_uuid}" in keyed.body, "body missing Reference ID line"
     assert "Broker1" in keyed.body and "Broker2" in keyed.body
     # EXPECTED: tracking key rendered in subject and body for IMAP thread matching.
     # IF THIS FAILS: parent company opt-out confirmation emails cannot be auto-matched.
