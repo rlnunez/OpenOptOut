@@ -6,6 +6,7 @@ import {
   AlertCircle, Grid3X3, Home, FileText, Edit2, Check, X
 } from 'lucide-react'
 import api from '../api'
+import { useLanguage } from '../i18n/LanguageContext'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -455,6 +456,7 @@ function VaultScore({ identities }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function IdentityVault() {
+  const { t } = useLanguage()
   const [searchParams, setSearchParams] = useSearchParams()
   const [members, setMembers]       = useState([])
   const [identities, setIdentities] = useState([])
@@ -462,6 +464,45 @@ export default function IdentityVault() {
   const [selectedId, setSelectedId] = useState(null)
   const [masked, setMasked]         = useState(true)
   const [loading, setLoading]       = useState(true)
+  const [ilsPending, setIlsPending] = useState(null)
+  const [ilsLoading, setIlsLoading] = useState(false)
+
+  useEffect(() => {
+    api.get('/family/ils-import-pending')
+      .then(r => {
+        if (r.data?.has_pending) setIlsPending(r.data.fields)
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleImportIls = async () => {
+    setIlsLoading(true)
+    try {
+      await api.post('/family/ils-import-decision', { action: 'import' })
+      setIlsPending(null)
+      if (selectedId) {
+        const idRes = await api.get(`/identity/${selectedId}`)
+        setIdentities(idRes.data)
+        refreshStats()
+      }
+    } catch (e) {
+      console.warn('Could not import ILS data:', e)
+    } finally {
+      setIlsLoading(false)
+    }
+  }
+
+  const handleDiscardIls = async () => {
+    setIlsLoading(true)
+    try {
+      await api.post('/family/ils-import-decision', { action: 'discard' })
+      setIlsPending(null)
+    } catch (e) {
+      console.warn('Could not discard ILS data:', e)
+    } finally {
+      setIlsLoading(false)
+    }
+  }
 
   useEffect(() => {
     api.get('/family').then(r => {
@@ -514,6 +555,42 @@ export default function IdentityVault() {
           )}
         </div>
       </div>
+
+      {ilsPending && (
+        <div className="bg-blue-950/40 border border-blue-500/40 rounded-xl p-4 mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-200">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400 shrink-0">
+              <ShieldCheck size={18} />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-white">
+                {t('ils.import_prompt_title', 'Import details from your library card?')}
+              </h4>
+              <p className="text-xs text-slate-300 mt-0.5">
+                {t('ils.import_vault_desc', 'Your library account has information available ({details}). Would you like to import it into your Identity Vault, or enter your details manually?', {
+                  details: [ilsPending.name, ilsPending.address, ilsPending.phone].filter(Boolean).join(', ')
+                })}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleImportIls}
+              disabled={ilsLoading}
+              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors shadow-xs disabled:opacity-50"
+            >
+              {t('ils.import_action_import', 'Import my information')}
+            </button>
+            <button
+              onClick={handleDiscardIls}
+              disabled={ilsLoading}
+              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition-colors border border-slate-700 disabled:opacity-50"
+            >
+              {t('ils.import_action_discard', 'Let me enter it')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading && <p className="text-slate-500 text-sm">Loading…</p>}
 

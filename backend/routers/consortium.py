@@ -102,6 +102,8 @@ class SIP2ConnectionCreate(BaseModel):
     date_format: str = "auto"
     map_patron_fields: bool = False
     field_mappings: Optional[Any] = None
+    forced_fields: Optional[Any] = ["library"]
+    patron_choice: bool = True
     populate_vault: bool = False
 
 
@@ -127,6 +129,8 @@ class SIP2ConnectionUpdate(BaseModel):
     date_format: Optional[str] = None
     map_patron_fields: Optional[bool] = None
     field_mappings: Optional[Any] = None
+    forced_fields: Optional[Any] = None
+    patron_choice: Optional[bool] = None
     populate_vault: Optional[bool] = None
 
 
@@ -154,6 +158,8 @@ class SIP2ConnectionOut(BaseModel):
     date_format: str = "auto"
     map_patron_fields: bool = False
     field_mappings: Optional[Any] = None
+    forced_fields: Optional[Any] = ["library"]
+    patron_choice: bool = True
     populate_vault: bool = False
     created_at: datetime
 
@@ -475,6 +481,20 @@ def _parse_field_mappings(raw: Optional[str]) -> Optional[Any]:
         return raw
 
 
+def _parse_forced_fields(raw: Optional[str]) -> List[str]:
+    if not raw:
+        return ["library"]
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            return [str(x) for x in parsed]
+        return [str(parsed)]
+    except Exception:
+        if isinstance(raw, str):
+            return [x.strip() for x in raw.split(",") if x.strip()]
+        return ["library"]
+
+
 @router.get("/sip2-connections", response_model=List[SIP2ConnectionOut])
 def list_sip2_connections(
     db: Session = Depends(get_db),
@@ -497,6 +517,8 @@ def list_sip2_connections(
             date_format=c.date_format or "auto",
             map_patron_fields=bool(getattr(c, "map_patron_fields", False)),
             field_mappings=_parse_field_mappings(getattr(c, "field_mappings", None)),
+            forced_fields=_parse_forced_fields(getattr(c, "forced_fields", None)),
+            patron_choice=bool(getattr(c, "patron_choice", True)),
             populate_vault=bool(getattr(c, "populate_vault", False)),
             created_at=c.created_at,
         )
@@ -528,6 +550,8 @@ def create_sip2_connection(
     if data.field_mappings is not None:
         mappings_str = json.dumps(data.field_mappings) if isinstance(data.field_mappings, (dict, list)) else str(data.field_mappings)
 
+    forced_str = json.dumps(data.forced_fields) if isinstance(data.forced_fields, list) else str(data.forced_fields or '["library"]')
+
     c = SIP2Connection(
         system_id=data.system_id,
         name=data.name.strip(),
@@ -550,6 +574,8 @@ def create_sip2_connection(
         date_format=(data.date_format or "auto").strip(),
         map_patron_fields=bool(data.map_patron_fields),
         field_mappings=mappings_str,
+        forced_fields=forced_str,
+        patron_choice=bool(data.patron_choice),
         populate_vault=bool(data.populate_vault),
     )
     db.add(c)
@@ -570,6 +596,8 @@ def create_sip2_connection(
         date_format=c.date_format or "auto",
         map_patron_fields=bool(c.map_patron_fields),
         field_mappings=_parse_field_mappings(c.field_mappings),
+        forced_fields=_parse_forced_fields(c.forced_fields),
+        patron_choice=bool(c.patron_choice),
         populate_vault=bool(c.populate_vault),
         created_at=c.created_at,
     )
@@ -630,6 +658,10 @@ def update_sip2_connection(
         c.map_patron_fields = bool(data.map_patron_fields)
     if data.field_mappings is not None:
         c.field_mappings = json.dumps(data.field_mappings) if isinstance(data.field_mappings, (dict, list)) else str(data.field_mappings)
+    if data.forced_fields is not None:
+        c.forced_fields = json.dumps(data.forced_fields) if isinstance(data.forced_fields, list) else str(data.forced_fields)
+    if data.patron_choice is not None:
+        c.patron_choice = bool(data.patron_choice)
     if data.populate_vault is not None:
         c.populate_vault = bool(data.populate_vault)
 
@@ -650,6 +682,8 @@ def update_sip2_connection(
         date_format=c.date_format or "auto",
         map_patron_fields=bool(getattr(c, "map_patron_fields", False)),
         field_mappings=_parse_field_mappings(getattr(c, "field_mappings", None)),
+        forced_fields=_parse_forced_fields(getattr(c, "forced_fields", None)),
+        patron_choice=bool(getattr(c, "patron_choice", True)),
         populate_vault=bool(getattr(c, "populate_vault", False)),
         created_at=c.created_at,
     )

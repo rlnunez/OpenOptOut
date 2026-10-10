@@ -33,6 +33,8 @@ class AuthResult:
     branch_code: Optional[str] = None
     raw_profile: dict = field(default_factory=dict)
     mapped_demographics: dict = field(default_factory=dict)
+    forced_fields: list = field(default_factory=lambda: ["library"])
+    patron_choice: bool = True
     populate_vault: bool = False
     unavailable: bool = False   # provider unreachable/misconfigured, not a bad credential
 
@@ -662,6 +664,8 @@ def try_sip2_auth(barcode: str, pin: str, db=None) -> AuthResult:
                 conn_system_id = conn_obj.system_id
                 map_patron_fields = bool(getattr(conn_obj, "map_patron_fields", False))
                 field_mappings_raw = getattr(conn_obj, "field_mappings", "")
+                forced_fields_raw = getattr(conn_obj, "forced_fields", '["library"]')
+                patron_choice = bool(getattr(conn_obj, "patron_choice", True))
                 populate_vault = bool(getattr(conn_obj, "populate_vault", False))
         except Exception as e:
             log.warning("Could not query SIP2Connection table: %s; falling back to settings", e)
@@ -682,6 +686,8 @@ def try_sip2_auth(barcode: str, pin: str, db=None) -> AuthResult:
         branch_field_code = cfg.get("branch_field_code", "AQ")
         map_patron_fields = bool(cfg.get("map_patron_fields", False))
         field_mappings_raw = cfg.get("field_mappings", "")
+        forced_fields_raw = cfg.get("forced_fields", '["library"]')
+        patron_choice = bool(cfg.get("patron_choice", True))
         populate_vault = bool(cfg.get("populate_vault", False))
 
     try:
@@ -798,11 +804,22 @@ def try_sip2_auth(barcode: str, pin: str, db=None) -> AuthResult:
             except Exception as e:
                 log.warning("Could not map branch code '%s': %s", loc_code, e)
 
+        forced_fields = ["library"]
+        if isinstance(forced_fields_raw, str) and forced_fields_raw.strip():
+            try:
+                parsed_ff = json.loads(forced_fields_raw)
+                forced_fields = [str(x).strip().lower() for x in parsed_ff] if isinstance(parsed_ff, list) else [str(parsed_ff).strip().lower()]
+            except Exception:
+                forced_fields = [x.strip().lower() for x in forced_fields_raw.split(",") if x.strip()]
+        elif isinstance(forced_fields_raw, list):
+            forced_fields = [str(x).strip().lower() for x in forced_fields_raw]
+
         return AuthResult(
             success=True, provider="sip2", email=email,
             full_name=name or f"Patron {barcode}", external_id=barcode,
             branch_id=branch_id, system_id=system_id, branch_code=loc_code,
             raw_profile=fields, mapped_demographics=mapped_demographics,
+            forced_fields=forced_fields, patron_choice=patron_choice,
             populate_vault=populate_vault,
         )
 

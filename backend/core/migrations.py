@@ -124,6 +124,22 @@ MIGRATIONS = [
         "Add populate_vault to sip2_connections",
         "ALTER TABLE sip2_connections ADD COLUMN populate_vault BOOLEAN DEFAULT FALSE"
     ),
+    (
+        "Add forced_fields to sip2_connections",
+        "ALTER TABLE sip2_connections ADD COLUMN forced_fields TEXT DEFAULT '[\"library\"]'"
+    ),
+    (
+        "Add patron_choice to sip2_connections",
+        "ALTER TABLE sip2_connections ADD COLUMN patron_choice BOOLEAN DEFAULT TRUE"
+    ),
+    (
+        "Add pending_ils_import to users",
+        "ALTER TABLE users ADD COLUMN pending_ils_import TEXT DEFAULT NULL"
+    ),
+    (
+        "Add accessibility_settings to users",
+        "ALTER TABLE users ADD COLUMN accessibility_settings TEXT DEFAULT NULL"
+    ),
 ]
 
 # Known property brokers — flagged on first startup

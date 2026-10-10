@@ -7,6 +7,7 @@ import {
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
+import { useLanguage } from '../i18n/LanguageContext'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
@@ -823,6 +824,7 @@ function SIP2EligibilityRuleBuilder({ value, onChange }) {
 
 
 function AuthProvidersSection() {
+  const { t } = useLanguage()
   const [config, setConfig]   = useState(null)
   const [presets, setPresets] = useState({})
   const [saving, setSaving]   = useState({})
@@ -872,6 +874,10 @@ function AuthProvidersSection() {
         email_domain: config.sip2_email_domain, default_role: config.sip2_default_role,
         eligibility_rules: config.sip2_eligibility_rules || null,
         date_format: config.sip2_date_format || 'auto',
+        map_patron_fields: Boolean(config.sip2_map_patron_fields),
+        field_mappings: config.sip2_field_mappings || null,
+        forced_fields: config.sip2_forced_fields || ['library'],
+        patron_choice: config.sip2_patron_choice !== false,
         ...(config._sip2_pw ? { ils_password: config._sip2_pw } : {}),
       })
       setSip2Msg({ ok: true, warnings: r.data.warnings || [] })
@@ -1127,6 +1133,67 @@ function AuthProvidersSection() {
               value={config.sip2_eligibility_rules}
               onChange={rules => setConfig(c => ({...c, sip2_eligibility_rules: rules}))}
             />
+
+            {/* Field Mapping & Patron Choice */}
+            <div className="border border-slate-700/60 rounded-xl overflow-hidden bg-slate-900/30 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-slate-200 text-xs font-medium uppercase tracking-wide block">
+                    {t('sip2.field_mapping_title', 'Patron Field Mapping & Consent')}
+                  </span>
+                  <p className="text-slate-500 text-xs">
+                    {t('sip2.field_mapping_desc', 'Import demographic information from the ILS into patron accounts.')}
+                  </p>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-slate-400 text-xs">{config.sip2_map_patron_fields ? t('common.enabled', 'Enabled') : t('common.disabled', 'Disabled')}</span>
+                  <div
+                    onClick={() => setConfig(c => ({...c, sip2_map_patron_fields: !c.sip2_map_patron_fields}))}
+                    className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.sip2_map_patron_fields ? 'bg-shield-600' : 'bg-slate-700'}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.sip2_map_patron_fields ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                  </div>
+                </label>
+              </div>
+
+              {config.sip2_map_patron_fields && (
+                <div className="space-y-3 pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs text-slate-300 font-medium block">
+                        {t('sip2.patron_choice_title', 'Patron-Driven Import (Consent Choice)')}
+                      </span>
+                      <p className="text-[11px] text-slate-500">
+                        {t('sip2.patron_choice_desc', 'When enabled, patrons click "Import my information" or "Let me enter it" after logging in. Non-forced fields remain blank until chosen.')}
+                      </p>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <span className="text-slate-400 text-xs">
+                        {config.sip2_patron_choice !== false ? t('sip2.consent_required', 'Consent Required') : t('sip2.auto_import_all', 'Auto-Import All')}
+                      </span>
+                      <div
+                        onClick={() => setConfig(c => ({...c, sip2_patron_choice: config.sip2_patron_choice === false}))}
+                        className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.sip2_patron_choice !== false ? 'bg-shield-600' : 'bg-slate-700'}`}
+                      >
+                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.sip2_patron_choice !== false ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                      </div>
+                    </label>
+                  </div>
+
+                  <Field label={t('sip2.forced_fields_label', 'Forced Fields (Comma-separated, e.g. library, name)')}>
+                    <input
+                      value={Array.isArray(config.sip2_forced_fields) ? config.sip2_forced_fields.join(', ') : (config.sip2_forced_fields || 'library')}
+                      onChange={e => setConfig(c => ({...c, sip2_forced_fields: e.target.value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)}))}
+                      placeholder="library"
+                      className={inp}
+                    />
+                    <p className="text-slate-500 text-[11px] mt-1">
+                      {t('sip2.forced_fields_desc', 'Fields listed here are force-imported automatically upon sign-in. Non-listed fields remain patron-driven.')}
+                    </p>
+                  </Field>
+                </div>
+              )}
+            </div>
 
             {testResults.sip2 && (
               <div className="text-xs space-y-0.5">

@@ -4,10 +4,11 @@ All access checks go through core.auth.assert_can_view / assert_can_edit.
 Super admins bypass all checks. Parents only access explicitly granted profiles.
 """
 
+import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 from ..models.database import get_db, FamilyMember, Identity, User
@@ -253,3 +254,91 @@ def identity_stats(
     """Return vault completeness + combination matrix preview."""
     member = assert_can_view(db, current_user, member_id)
     return combo_stats(member)
+
+
+# ── ILS Patron Demographics Import Endpoints ─────────────────────────────────
+
+class ILSImportDecision(BaseModel):
+    action: str  # "import" | "discard"
+    fields: Optional[Dict[str, Any]] = None
+
+
+@family_router.get("/ils-import-pending")
+def get_ils_import_pending(
+    current_user: User = Depends(get_current_user),
+):
+    """Check if there are pending demographic fields staged from an ILS login."""
+    raw = getattr(current_user, "pending_ils_import", None)
+    if not raw:
+        return {"has_pending": False, "fields": None}
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict) and any(bool(v) for v in data.values()):
+            return {"has_pending": True, "fields": data}
+    except Exception:
+        pass
+    return {"has_pending": False, "fields": None}
+
+
+@family_router.post("/ils-import-decision")
+def decide_ils_import(
+    req: ILSImportDecision,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Process patron's choice to import their ILS information or enter it manually.
+    If action is 'discard', pending import is cleared and fields remain blank.
+    If action is 'import', demographic fields are saved into their Identity Vault.
+    """
+    if req.action == "discard":
+        current_user.pending_ils_import = None
+        db.commit()
+        return {"ok": True, "action": "discard", "message": "Import dismissed; enter information manually."}
+
+    pending_raw = getattr(current_user, "pending_ils_import", None)
+    pending_data = {}
+    if pending_raw:
+        try:
+            pending_data = json.loads(pending_raw)
+        except Exception:
+            pass
+    data = {**pending_data, **(req.fields or {})}
+
+    member = db.query(FamilyMember).filter(FamilyMember.user_id == current_user.id).first()
+    if not member:
+        member = FamilyMember(user_id=current_user.id, full_name=current_user.full_name or "Primary Member")
+        db.add(member)
+        db.flush()
+
+    if data.get("name"):
+        val = str(data["name"]).strip()
+        db.add(Identity(member_id=member.id, kind="name", value=val, is_primary=True))
+        member.formal_name = val
+        if not current_user.full_name or current_user.full_name.startswith("Patron "):
+            current_user.full_name = val
+
+    if data.get("email"):
+        db.add(Identity(member_id=member.id, kind="email", value=str(data["email"]).strip().lower(), is_primary=True))
+
+    if data.get("phone"):
+        db.add(Identity(member_id=member.id, kind="phone", value=str(data["phone"]).strip(), is_primary=True))
+
+    addr_str = data.get("raw_address") or data.get("address") or ""
+    if not addr_str and (data.get("city") or data.get("state")):
+        addr_str = ", ".join(filter(None, [data.get("address"), data.get("city"), data.get("state")]))
+    if addr_str:
+        db.add(Identity(member_id=member.id, kind="address", value=str(addr_str).strip(), is_primary=True))
+
+    if data.get("birthdate"):
+        try:
+            from ..core.sip2_rules import dob_to_age
+            age = dob_to_age(str(data["birthdate"]))
+            if age is not None:
+                member.age = age
+        except Exception:
+            pass
+
+    current_user.pending_ils_import = None
+    db.commit()
+    return {"ok": True, "action": "import", "message": "Information imported into Identity Vault."}

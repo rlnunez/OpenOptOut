@@ -149,6 +149,8 @@ class SIP2Connection(Base):
     date_format       = Column(String(30), default="auto", nullable=True)  # 'auto', 'MM/DD/YYYY', 'DD/MM/YYYY', 'YYYYMMDD', 'YYYY-MM-DD'
     map_patron_fields = Column(Boolean, default=False, nullable=False)
     field_mappings    = Column(Text, default="", nullable=True)  # JSON mapping dict (e.g. {"name": "AE", "email": "BE", "phone": "BF", "address": "BD"})
+    forced_fields     = Column(Text, default='["library"]', nullable=False)  # JSON list of fields to force import (e.g. ["library"])
+    patron_choice     = Column(Boolean, default=True, nullable=False)  # Require patron confirmation to import non-forced fields
     populate_vault    = Column(Boolean, default=False, nullable=False)
     created_at        = Column(DateTime, default=datetime.utcnow)
 
@@ -204,8 +206,10 @@ class User(Base):
     branch_override_at = Column(DateTime, nullable=True)
 
     # User interface localization & onboarding state (Roadmap Item 17)
-    preferred_language = Column(String(10), default="en", nullable=False)
-    tutorial_completed = Column(Boolean, default=False, nullable=False)
+    preferred_language     = Column(String(10), default="en", nullable=False)
+    tutorial_completed     = Column(Boolean, default=False, nullable=False)
+    pending_ils_import     = Column(Text, nullable=True)  # Staged ILS demographic fields waiting for patron confirmation
+    accessibility_settings = Column(Text, nullable=True)  # JSON dict: {"high_contrast": bool, "large_text": bool, "reduced_motion": bool}
 
     # Multi-Factor Authentication (TOTP + FIDO2/WebAuthn/YubiKey)
     totp_secret_enc      = Column(Text, nullable=True)
