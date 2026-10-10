@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ShieldCheck, CreditCard, Users, Key, Smartphone, Fingerprint, Lock,
-  ShieldAlert, Copy, Check, ArrowLeft, RefreshCw, ChevronRight, Clock, Mail
+  ShieldAlert, Copy, Check, ArrowLeft, RefreshCw, ChevronRight, Clock, Mail,
+  BookOpen, Eye, Sun
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
+import { useAccessibility } from '../context/AccessibilityContext'
 import api from '../api'
 import { performWebAuthnAuthenticate, performWebAuthnRegister } from '../utils/webauthn'
 
@@ -14,6 +16,10 @@ const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 te
 export default function Login() {
   const { login, completeMfaLogin } = useAuth()
   const { branding } = useBranding()
+  const {
+    theme, setTheme, highContrast, setHighContrast,
+    dyslexicFont, setDyslexicFont, fontSize, reducedMotion, enhancedTargets
+  } = useAccessibility()
   const navigate     = useNavigate()
 
   // Auth provider state
@@ -278,6 +284,20 @@ export default function Login() {
     try {
       await api.post('/auth/register', { email, full_name: setupName, password })
       await login(email, password)   // first user is created as super_admin
+      try {
+        await api.post('/i18n/user/preference', {
+          accessibility_settings: {
+            theme,
+            high_contrast: highContrast,
+            dyslexic_font: dyslexicFont,
+            font_size: fontSize,
+            reduced_motion: reducedMotion,
+            enhanced_targets: enhancedTargets,
+          }
+        })
+      } catch (prefErr) {
+        // Non-fatal if offline
+      }
       // Transition to Step 2: MFA setup for Super Admin (skippable)
       setSetupStep('mfa')
       setSetupMfaMode('choose')
@@ -514,8 +534,41 @@ export default function Login() {
   const showTabs = showStaff && showPatron
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      <div className={`w-full transition-all duration-200 ${needsSetup && setupStep === 'mfa' ? 'max-w-md' : 'max-w-sm'}`}>
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 relative">
+      {/* Quick Accessibility Bar */}
+      <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+        <button
+          type="button"
+          onClick={() => setDyslexicFont(!dyslexicFont)}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-colors ${
+            dyslexicFont
+              ? 'bg-purple-500/20 text-purple-300 border-purple-500/50'
+              : 'bg-slate-900/80 text-slate-400 border-slate-800 hover:text-white'
+          }`}
+          aria-pressed={dyslexicFont}
+          title="Dyslexia-Friendly Font (OpenDyslexic)"
+        >
+          <BookOpen size={13} className={dyslexicFont ? 'text-purple-400' : 'text-slate-400'} />
+          <span>Dyslexia Font</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setHighContrast(!highContrast)}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-colors ${
+            highContrast
+              ? 'bg-yellow-400/20 text-yellow-300 border-yellow-400/50'
+              : 'bg-slate-900/80 text-slate-400 border-slate-800 hover:text-white'
+          }`}
+          aria-pressed={highContrast}
+          title="High Contrast Mode (WCAG 2.2 AAA)"
+        >
+          <Eye size={13} className={highContrast ? 'text-yellow-400' : 'text-slate-400'} />
+          <span>Contrast</span>
+        </button>
+      </div>
+
+      <div className={`w-full transition-all duration-200 ${needsSetup ? 'max-w-md' : 'max-w-sm'}`}>
 
         {/* Logo / name */}
         <div className="flex flex-col items-center mb-8">
@@ -556,6 +609,57 @@ export default function Login() {
                     value={password} onChange={e => setPw(e.target.value)} required />
                   <input className={inp} type="password" placeholder="Confirm password"
                     value={setupConfirm} onChange={e => setSetupConfirm(e.target.value)} required />
+
+                  {/* Accessibility & Typography Options for New Account */}
+                  <div className="pt-2 border-t border-slate-800 space-y-2">
+                    <p className="text-slate-400 text-xs font-medium flex items-center gap-1.5">
+                      <BookOpen size={13} className="text-purple-400" />
+                      <span>Accessibility & Typography</span>
+                    </p>
+
+                    <label className="flex items-start gap-2.5 p-2.5 rounded-lg border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={dyslexicFont}
+                        onChange={(e) => setDyslexicFont(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded text-purple-600 focus:ring-purple-400 border-slate-700 bg-slate-900 cursor-pointer"
+                      />
+                      <div className="space-y-0.5 text-start">
+                        <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+                          <span>Dyslexia-Friendly Font (OpenDyslexic)</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">OpenDyslexic</span>
+                        </span>
+                        <p className="text-[11px] text-slate-400 leading-normal">
+                          Switches typography to OpenDyslexic with weighted bottoms to enhance reading flow.
+                        </p>
+                      </div>
+                    </label>
+
+                    {dyslexicFont && (
+                      <div className="p-2 rounded border border-purple-500/30 bg-purple-950/20 text-[11px] text-purple-200" style={{ fontFamily: "'OpenDyslexic', system-ui, sans-serif" }}>
+                        OpenDyslexic typography is active and will be saved to your profile.
+                      </div>
+                    )}
+
+                    <label className="flex items-start gap-2.5 p-2.5 rounded-lg border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={highContrast}
+                        onChange={(e) => setHighContrast(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-yellow-400 border-slate-700 bg-slate-900 cursor-pointer"
+                      />
+                      <div className="space-y-0.5 text-start">
+                        <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+                          <span>High Contrast Mode (WCAG 2.2 AAA)</span>
+                          <span className="text-[10px] px-1 py-0.2 rounded bg-yellow-400/20 text-yellow-300 font-mono">7:1+</span>
+                        </span>
+                        <p className="text-[11px] text-slate-400 leading-normal">
+                          Enforces maximum visual contrast across the interface.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+
                   {error && <p className="text-red-400 text-xs">{error}</p>}
                   <button type="submit" disabled={loading}
                     className="w-full bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white text-sm rounded-lg py-2 flex items-center justify-center gap-1.5 font-medium transition-colors">

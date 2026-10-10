@@ -263,7 +263,36 @@ export default function UserWelcomeModal() {
                   </div>
                 </div>
 
-                {/* 3. Proportional Font Size Slider with Real-Time Live Preview */}
+                {/* 3. Dyslexia-Friendly Typography (OpenDyslexic) */}
+                <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5 pr-2">
+                      <div className="flex items-center gap-1.5">
+                        <BookOpen size={15} className="text-purple-400" />
+                        <span className="text-xs font-semibold text-white">{t('a11y.dyslexic_font', 'Dyslexia-Friendly Font (OpenDyslexic)')}</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">OpenDyslexic</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-normal">
+                        {t('a11y.dyslexic_font_desc', 'Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.')}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDyslexicFont(!dyslexicFont)}
+                      className="p-1 text-slate-400 hover:text-white shrink-0 focus-visible:outline-2 focus-visible:outline-blue-400"
+                      aria-label={t('a11y.dyslexic_font', 'Dyslexia-Friendly Font (OpenDyslexic)')}
+                    >
+                      {dyslexicFont ? <ToggleRight size={24} className="text-purple-400" /> : <ToggleLeft size={24} className="text-slate-600" />}
+                    </button>
+                  </div>
+                  {dyslexicFont && (
+                    <div className="p-2.5 rounded-lg border border-purple-500/30 bg-purple-950/20 text-xs text-purple-200" style={{ fontFamily: "'OpenDyslexic', system-ui, sans-serif" }}>
+                      OpenDyslexic typography is active. Letters have unique heavy bottoms to prevent flipping and confusion.
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Proportional Font Size Slider with Real-Time Live Preview */}
                 <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
@@ -301,35 +330,6 @@ export default function UserWelcomeModal() {
                       {t('a11y.font_preview_sample', 'This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.')}
                     </p>
                   </div>
-                </div>
-
-                {/* 4. Dyslexia-Friendly Typography (OpenDyslexic) */}
-                <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5 pr-2">
-                      <div className="flex items-center gap-1.5">
-                        <BookOpen size={15} className="text-purple-400" />
-                        <span className="text-xs font-semibold text-white">{t('a11y.dyslexic_font', 'Dyslexia-Friendly Font (OpenDyslexic)')}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">OpenDyslexic</span>
-                      </div>
-                      <p className="text-[11px] text-slate-400 leading-normal">
-                        {t('a11y.dyslexic_font_desc', 'Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.')}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setDyslexicFont(!dyslexicFont)}
-                      className="p-1 text-slate-400 hover:text-white shrink-0 focus-visible:outline-2 focus-visible:outline-blue-400"
-                      aria-label={t('a11y.dyslexic_font', 'Dyslexia-Friendly Font (OpenDyslexic)')}
-                    >
-                      {dyslexicFont ? <ToggleRight size={24} className="text-purple-400" /> : <ToggleLeft size={24} className="text-slate-600" />}
-                    </button>
-                  </div>
-                  {dyslexicFont && (
-                    <div className="p-2.5 rounded-lg border border-purple-500/30 bg-purple-950/20 text-xs text-purple-200" style={{ fontFamily: "'OpenDyslexic', system-ui, sans-serif" }}>
-                      OpenDyslexic typography is active. Letters have unique heavy bottoms to prevent flipping and confusion.
-                    </div>
-                  )}
                 </div>
 
                 {/* 5. Reduced Motion Toggle */}
