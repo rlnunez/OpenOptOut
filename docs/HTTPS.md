@@ -4,16 +4,29 @@ OpenOptOut handles passwords, SSO tokens, and personal data — it should always
 
 | Situation | Choose |
 |---|---|
-| Running via **Docker** (bare metal or a VM), nothing else already using ports 80/443 | **Managed** — let OpenOptOut's own Caddy container get and renew certificates |
+| Running via **Docker** (bare metal or a VM), nothing else already using ports 80/443 | **Managed** — let OpenOptOut's own Caddy (default) or Traefik container get and renew certificates |
 | **Native install, no containers** (systemd on Linux, a Windows Service on Windows), nothing else already using ports 80/443 | **Native** — certbot (Linux) or win-acme (Windows) handles it directly on the host |
 | Something else already terminates TLS in front of OpenOptOut — IIS, nginx, Traefik, a load balancer — whether OpenOptOut itself runs in Docker or natively | **External** — point that existing proxy at OpenOptOut; don't run either HTTPS script |
 | Still deciding, or genuinely internal-only for now | **Neither** — plain HTTP, with a standing warning until you pick one |
 
 Choosing wrong mostly just means extra noise (a nag you don't need, or missing one you do) — nothing is destructive, and both scripts have a matching `--disable`/`-Disable`. The one thing to get right is: **don't run the managed or native option if something else on this server already owns ports 80/443** — they'll fight each other for the ports.
 
-## Option A — Managed (Docker + the built-in Caddy container)
+## Option A — Managed (Docker + the built-in Caddy or Traefik container)
 
-Best for Docker with nothing else listening on 80/443 — bare metal or a VM, it makes no difference. Caddy runs as an extra container, gets a certificate automatically, renews it before it expires, and redirects plain HTTP to HTTPS.
+Best for Docker with nothing else listening on 80/443 — bare metal or a VM, it makes no difference. A front-door proxy runs as an extra container, gets a certificate automatically, renews it before it expires, and redirects plain HTTP to HTTPS.
+
+**Caddy or Traefik?** Caddy is the default and the simplest choice — if you have no preference, keep it. Pick Traefik (`--proxy traefik`, or `-Proxy traefik` on Windows) if your team already runs and monitors Traefik elsewhere and wants one tool to know. Both get the same security headers, HTTP→HTTPS redirect, HTTP/3, and certificate monitoring. Differences:
+
+| | Caddy (default) | Traefik |
+|---|---|---|
+| `letsencrypt`, `letsencrypt-staging`, `acme`, `custom` | ✅ | ✅ |
+| `internal` (private CA for LAN-only use) | ✅ | ❌ — use `custom` with your own certificate instead |
+| Wildcard names in `DOMAIN` | ✅ (with a CA that allows it) | ❌ — list each name |
+| Compose profile / certificate volume | `https` / `caddy_data` | `https-traefik` / `traefik_data` |
+
+OpenOptOut's Traefik container never gets the Docker socket and doesn't use Docker labels: its routing comes only from a config file generated at startup from `.env` (`deploy/traefik/entrypoint.sh`), the same way the Caddy container works. If you want an existing, shared Traefik that routes many services by Docker labels, that's **Option C (External)**, not this.
+
+Switching later is safe: rerun the script with the other `--proxy`, then `docker compose down && docker compose up -d`. The new front door requests its own certificate (the old one stays in the other volume), so on `letsencrypt` avoid switching back and forth repeatedly.
 
 **Linux / macOS:**
 ```
@@ -36,6 +49,10 @@ Interactive prompts, or fully flagged for scripting:
 ```
 ./scripts/enable-https.sh --mode letsencrypt --domain privacy.yourlibrary.org --email it@yourlibrary.org --yes
 .\scripts\enable-https.ps1 -Mode letsencrypt -Domain privacy.yourlibrary.org -Email it@yourlibrary.org -Yes
+
+# Same, with Traefik as the front door:
+./scripts/enable-https.sh --proxy traefik --mode letsencrypt --domain privacy.yourlibrary.org --email it@yourlibrary.org --yes
+.\scripts\enable-https.ps1 -Proxy traefik -Mode letsencrypt -Domain privacy.yourlibrary.org -Email it@yourlibrary.org -Yes
 ```
 
 Modes:
@@ -45,7 +62,7 @@ Modes:
 | `letsencrypt` | A public server with DNS pointing at it and ports 80+443 reachable from the internet. |
 | `letsencrypt-staging` | The same, but against Let's Encrypt's **test** environment — untrusted certificates, but no rate limits. Try this first, then switch to `letsencrypt` once it works. |
 | `acme` | Your own ACME server (e.g. an internal `step-ca`). Needs `--acme-ca <directory URL>`, and `--acme-ca-root <file>` if it uses an internal CA browsers won't already trust. |
-| `internal` | Caddy's own private CA. LAN-only — browsers warn until that CA's root is installed on client devices. |
+| `internal` | Caddy's own private CA. LAN-only — browsers warn until that CA's root is installed on client devices. Caddy only. |
 | `custom` | Certificate files you already have. Put `fullchain.pem` and `privkey.pem` in `deploy/certs/` first. |
 
 Requirements for `letsencrypt`:
@@ -56,13 +73,15 @@ Requirements for `letsencrypt`:
 What the script actually changes, all in `.env` (backed up first):
 
 ```
-COMPOSE_PROFILES=https
+COMPOSE_PROFILES=https   # https-traefik with --proxy traefik
+FRONT_DOOR=caddy         # or traefik
+HTTPS_CHECK_HOST=caddy   # or traefik — which container the certificate monitor checks
 HTTPS_MODE=letsencrypt
 DOMAIN=privacy.yourlibrary.org
 ACME_EMAIL=it@yourlibrary.org
 WEB_BIND=127.0.0.1     # the web container stops being reachable directly
-WEB_PORT=8080          # Caddy owns 80/443 instead
-TRUSTED_PROXY_HOPS=2   # Caddy + nginx in front: sign-in limits find the client IP
+WEB_PORT=8080          # the front door owns 80/443 instead
+TRUSTED_PROXY_HOPS=2   # front door + nginx in front: sign-in limits find the client IP
 FRONTEND_URL=https://privacy.yourlibrary.org
 ```
 
@@ -70,10 +89,10 @@ Then:
 
 ```
 docker compose up -d --build
-docker compose logs -f caddy      # watch it obtain the certificate
+docker compose logs -f caddy      # watch it obtain the certificate (or: logs -f traefik)
 ```
 
-Open `https://privacy.yourlibrary.org`. The first certificate can take up to a minute. Caddy stores its certificates and ACME account in the `caddy_data` Docker volume — **keep that volume** across restarts and upgrades; deleting it means requesting a fresh certificate, and doing that too often risks rate limits.
+Open `https://privacy.yourlibrary.org`. The first certificate can take up to a minute. Caddy stores its certificates and ACME account in the `caddy_data` Docker volume (Traefik: `traefik_data`) — **keep that volume** across restarts and upgrades; deleting it means requesting a fresh certificate, and doing that too often risks rate limits.
 
 To turn it back off: `./scripts/enable-https.sh --disable` (or `.\scripts\enable-https.ps1 -Disable` on Windows), then `docker compose down && docker compose up -d`.
 
@@ -119,11 +138,13 @@ If you're on the managed or native option, the daily certificate check also watc
 
 ## Troubleshooting
 
-- **Certificate never issued / times out:** Docker path — `docker compose logs -f caddy`; native path — `sudo journalctl -u certbot` or the output of `enable-https-native.sh` itself. Usually DNS not pointing here yet, or ports 80/443 not actually reachable from the internet (check port forwarding, not just a local firewall rule).
+- **Certificate never issued / times out:** Docker path — `docker compose logs -f caddy` (or `traefik`); native path — `sudo journalctl -u certbot` or the output of `enable-https-native.sh` itself. Usually DNS not pointing here yet, or ports 80/443 not actually reachable from the internet (check port forwarding, not just a local firewall rule).
 - **"too many certificates" / rate limited:** switch to `--mode letsencrypt-staging` (Docker) or `--staging` (native) while you finish testing, then switch back.
 - **Browser shows "not secure" / self-signed warning:** expected for `internal` mode until that CA's root is installed on client devices; for `letsencrypt`/`acme`, check the logs above for the actual issuance error rather than assuming it's trusted.
 - **SSO redirects go to the wrong address:** `FRONTEND_URL` doesn't match what people actually type into their browser (see the SSO doc's reverse-proxy section).
-- **Reused an old `.env` and HTTPS didn't turn on (Docker path):** confirm `COMPOSE_PROFILES=https` is actually set — Compose only starts the `caddy` service when that profile is active.
+- **Reused an old `.env` and HTTPS didn't turn on (Docker path):** confirm `COMPOSE_PROFILES=https` (Caddy) or `https-traefik` (Traefik) is actually set — Compose only starts the front-door service when its profile is active.
+- **Traefik container exits right away:** `docker compose logs traefik` — it refuses `HTTPS_MODE=internal` and wildcard domains with a plain-English message saying what to use instead.
+- **Dashboard HTTPS check can't connect after switching proxies:** `HTTPS_CHECK_HOST` must name the running front door (`caddy` or `traefik`); rerunning `enable-https` sets it.
 - **Native path: nginx site not found:** `enable-https-native.sh` looks for `/etc/nginx/sites-available/openoptout` or `/etc/nginx/conf.d/openoptout.conf` (or legacy `privacyshield`) — pass `--nginx-site PATH` if yours lives elsewhere, or install it first from `deploy/native/nginx-openoptout.conf.example`.
 
 ## Follow-ups (not built yet)

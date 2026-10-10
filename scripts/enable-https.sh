@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Turn on HTTPS for OpenOptOut (Caddy front door + automatic certificates).
+# Turn on HTTPS for OpenOptOut (Caddy or Traefik front door + automatic certificates).
 #
 #   ./scripts/enable-https.sh                       # interactive
 #   ./scripts/enable-https.sh --mode letsencrypt --domain privacy.lib.org --email it@lib.org
+#   ./scripts/enable-https.sh --proxy traefik      # use Traefik instead of Caddy
 #   ./scripts/enable-https.sh --disable             # back to plain HTTP
 #
 # Options: --mode letsencrypt|letsencrypt-staging|acme|internal|custom
 #          --domain D  --email E  --acme-ca URL  --acme-ca-root FILE
+#          --proxy caddy|traefik (default caddy; Traefik has no 'internal' mode)
 #          --env-file PATH (default .env)  --yes (no confirmation prompt)
 #
 # Writes settings to .env (a timestamped backup is made first), then tell you the
@@ -16,10 +18,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-ENV_FILE=".env"; MODE=""; DOMAIN=""; EMAIL=""; ACME_CA=""; ACME_CA_ROOT_SRC=""; YES=0; DISABLE=0
+ENV_FILE=".env"; MODE=""; DOMAIN=""; EMAIL=""; ACME_CA=""; ACME_CA_ROOT_SRC=""; YES=0; DISABLE=0; PROXY=caddy
 while [ $# -gt 0 ]; do
   case "$1" in
     --mode) MODE="$2"; shift 2 ;;
+    --proxy) PROXY="$2"; shift 2 ;;
     --domain) DOMAIN="$2"; shift 2 ;;
     --email) EMAIL="$2"; shift 2 ;;
     --acme-ca) ACME_CA="$2"; shift 2 ;;
@@ -27,7 +30,7 @@ while [ $# -gt 0 ]; do
     --env-file) ENV_FILE="$2"; shift 2 ;;
     --yes|-y) YES=1; shift ;;
     --disable) DISABLE=1; shift ;;
-    -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
@@ -64,20 +67,25 @@ backup() { [ -f "$ENV_FILE" ] && cp "$ENV_FILE" "${ENV_FILE}.bak.$(date +%Y%m%d%
 
 if [ "$DISABLE" = 1 ]; then
   backup
-  for k in COMPOSE_PROFILES HTTPS_MODE DOMAIN ACME_EMAIL ACME_CA ACME_CA_ROOT WEB_BIND WEB_PORT TRUSTED_PROXY_HOPS; do unset_env "$k"; done
+  for k in COMPOSE_PROFILES FRONT_DOOR HTTPS_CHECK_HOST HTTPS_MODE DOMAIN ACME_EMAIL ACME_CA ACME_CA_ROOT WEB_BIND WEB_PORT TRUSTED_PROXY_HOPS; do unset_env "$k"; done
   set_env FRONTEND_URL "http://localhost"
   echo "HTTPS disabled. Run:  docker compose down && docker compose up -d"
   exit 0
 fi
 
 [ -f "$ENV_FILE" ] || die "$ENV_FILE not found. Create it first (cp .env.example .env)."
+case "$PROXY" in caddy|traefik) ;; *) die "--proxy must be caddy or traefik" ;; esac
 
 if [ -z "$MODE" ]; then
   echo "How should OpenOptOut get its certificate?"
   echo "  1) letsencrypt          public server (ports 80+443 reachable from the internet)"
   echo "  2) letsencrypt-staging  same, but Let's Encrypt's TEST service (untrusted certs; use first)"
   echo "  3) acme                 your own ACME CA (e.g. internal step-ca)"
-  echo "  4) internal             Caddy's own private CA (LAN only; browsers warn until trusted)"
+  if [ "$PROXY" = caddy ]; then
+    echo "  4) internal             Caddy's own private CA (LAN only; browsers warn until trusted)"
+  else
+    echo "  4) internal             (Caddy only — not available with Traefik)"
+  fi
   echo "  5) custom               certificate files you provide"
   case "$(ask 'Choose 1-5' 2)" in
     1) MODE=letsencrypt ;; 2) MODE=letsencrypt-staging ;; 3) MODE=acme ;; 4) MODE=internal ;; 5) MODE=custom ;;
@@ -85,9 +93,11 @@ if [ -z "$MODE" ]; then
   esac
 fi
 case "$MODE" in letsencrypt|letsencrypt-staging|acme|internal|custom) ;; *) die "Unknown mode: $MODE" ;; esac
+[ "$PROXY" = traefik ] && [ "$MODE" = internal ] && die "internal mode uses Caddy's private CA. Use --proxy caddy, or --mode custom with your own certificate."
 
 [ -n "$DOMAIN" ] || DOMAIN="$(ask 'Domain name people will use (e.g. privacy.yourlibrary.org)')"
 valid_domain "$DOMAIN" || die "Invalid domain: $DOMAIN"
+if [ "$PROXY" = traefik ] && [[ "$DOMAIN" == *"*"* ]]; then die "Wildcard domains need --proxy caddy (or list each name)."; fi
 PRIMARY="${DOMAIN%%,*}"
 
 if [ -z "$EMAIL" ] && [ "$MODE" != internal ] && [ "$MODE" != custom ]; then
@@ -119,8 +129,8 @@ fi
 # ── preflight ──
 if [ "$MODE" = letsencrypt ] || [ "$MODE" = letsencrypt-staging ]; then
   ip=""
-  if command -v getent >/dev/null; then ip="$(getent hosts "$PRIMARY" | awk '{print $1; exit}')";
-  elif command -v host >/dev/null; then ip="$(host "$PRIMARY" 2>/dev/null | awk '/has address/{print $4; exit}')"; fi
+  if command -v getent >/dev/null; then ip="$(getent hosts "$PRIMARY" | awk '{print $1; exit}' || true)";
+  elif command -v host >/dev/null; then ip="$(host "$PRIMARY" 2>/dev/null | awk '/has address/{print $4; exit}' || true)"; fi
   if [ -z "$ip" ]; then
     warn "$PRIMARY does not resolve in DNS yet. Let's Encrypt needs a DNS record pointing to this server."
   else
@@ -131,27 +141,29 @@ if [ "$MODE" = letsencrypt ] || [ "$MODE" = letsencrypt-staging ]; then
 fi
 
 echo
-echo "About to enable HTTPS:  mode=$MODE  domain=$DOMAIN${EMAIL:+  email=$EMAIL}"
+echo "About to enable HTTPS:  proxy=$PROXY  mode=$MODE  domain=$DOMAIN${EMAIL:+  email=$EMAIL}"
 if [ "$YES" = 0 ]; then [ "$(ask 'Continue? (y/n)' y)" = y ] || die "Cancelled."; fi
 
 backup
-set_env COMPOSE_PROFILES https
+if [ "$PROXY" = traefik ]; then set_env COMPOSE_PROFILES https-traefik; else set_env COMPOSE_PROFILES https; fi
+set_env FRONT_DOOR "$PROXY"
+set_env HTTPS_CHECK_HOST "$PROXY"   # the certificate monitor checks this container
 set_env HTTPS_MODE "$MODE"
 set_env DOMAIN "$DOMAIN"
 if [ -n "$EMAIL" ]; then set_env ACME_EMAIL "$EMAIL"; else unset_env ACME_EMAIL; fi
 if [ -n "$ACME_CA" ]; then set_env ACME_CA "$ACME_CA"; else unset_env ACME_CA; fi
 if [ -n "$ACME_CA_ROOT" ]; then set_env ACME_CA_ROOT "$ACME_CA_ROOT"; else unset_env ACME_CA_ROOT; fi
-# Caddy owns ports 80/443; the web container stays reachable only on this machine.
+# The front door owns ports 80/443; the web container stays reachable only on this machine.
 set_env WEB_BIND 127.0.0.1
 set_env WEB_PORT 8080
-set_env TRUSTED_PROXY_HOPS 2     # Caddy + nginx in front of the API
+set_env TRUSTED_PROXY_HOPS 2     # front door + nginx in front of the API
 set_env FRONTEND_URL "https://$PRIMARY"
 
 echo
 echo "HTTPS settings saved to $ENV_FILE. Now run:"
 echo "    docker compose up -d --build"
 echo "Then open https://$PRIMARY  (first certificate can take a minute)."
-echo "Watch progress:  docker compose logs -f caddy"
+echo "Watch progress:  docker compose logs -f $PROXY"
 [ "$MODE" = internal ] && echo "Browsers will warn until Caddy's root CA is trusted — see docs/HTTPS.md."
 [ "$MODE" = letsencrypt-staging ] && echo "Staging certificates are intentionally untrusted. Rerun with --mode letsencrypt when it works."
 echo "If you use Google/Microsoft sign-in or SAML, update their redirect URLs to https://$PRIMARY (docs/SSO.md)."

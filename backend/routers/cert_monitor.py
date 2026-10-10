@@ -31,7 +31,8 @@ def get_https_status(_: User = Depends(require_permission("certificates.view")))
     other checks' state) for a "did this actually work?" button right after
     running scripts/enable-https.ps1 or .sh and restarting the containers.
 
-    This is a read-only TLS handshake to the caddy container over the internal
+    This is a read-only TLS handshake to the front-door container (caddy or
+    traefik, per HTTPS_CHECK_HOST) over the internal
     Docker network the api container already has (the same thing the daily
     monitor does) — never a docker/host action. The api container deliberately
     has no docker socket and never runs docker compose itself: giving it that

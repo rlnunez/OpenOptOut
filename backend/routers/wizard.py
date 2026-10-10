@@ -10,7 +10,7 @@ Steps:
   2. email     — deployment MODE (shared inbox | per-user), the provider/transport,
                  and an "advanced: separate admin SMTP" toggle. Skippable with a
                  loud warning (opt-outs silently do nothing without email).
-  3. deployment — how is HTTPS handled here: OpenOptOut's own Caddy container
+  3. deployment — how is HTTPS handled here: OpenOptOut's own Caddy (or Traefik) container
                  (Docker, bare metal or a VM — doesn't matter which), a native
                  install's own certbot/win-acme setup (no containers), something
                  that already terminates TLS in front of OpenOptOut either
@@ -283,7 +283,7 @@ def save_branding(body: BrandingStep, db: Session = Depends(get_db),
 # ── Step 3.5: Deployment / reverse proxy ────────────────────────────────────
 #
 # This does NOT start or configure anything by itself — whether the managed
-# path means a sibling Docker container (Caddy) or a native install's own
+# path means a sibling Docker container (Caddy or Traefik) or a native install's own
 # nginx/systemd setup, either needs an action outside the running app (a
 # restart, or a one-time certbot/win-acme run). This step only RECORDS which
 # situation the deployment is in, so the app can:
@@ -311,7 +311,7 @@ def save_deployment(body: DeploymentStep, db: Session = Depends(get_db),
     reverse_proxy:
       managed  — running via Docker (bare metal or a VM — Docker doesn't care
                  which), nothing else already on ports 80/443. Let OpenOptOut's
-                 own Caddy container get and renew certificates. Guidance keeps
+                 own Caddy (default) or Traefik container get and renew certificates. Guidance keeps
                  pointing at scripts/enable-https.sh (Linux/macOS) or .ps1
                  (Windows), run on the host, until HTTPS is live.
       native   — no containers at all: OpenOptOut runs as a native process
@@ -390,7 +390,8 @@ def complete(db: Session = Depends(get_db), user: User = Depends(get_current_use
     if reverse_proxy == "managed":
         warnings.append("Run scripts/enable-https.sh (Linux/macOS) or scripts\\enable-https.ps1 "
                         "(Windows) on the server, then restart the containers, to turn on "
-                        "OpenOptOut's own HTTPS front door.")
+                        "OpenOptOut's own HTTPS front door. It uses Caddy unless you add "
+                        "--proxy traefik (-Proxy traefik on Windows).")
     elif reverse_proxy == "native":
         warnings.append("Run scripts/enable-https-native.sh (Linux) or follow the Windows steps "
                         "in docs/NATIVE_INSTALL.md (IIS + win-acme) to turn on HTTPS for this "

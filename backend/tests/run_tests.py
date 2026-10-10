@@ -3536,6 +3536,90 @@ def t_https_entrypoint():
     #   admin pastes into .env could inject arbitrary Caddy configuration.
 
 
+@test(1, "https.traefik_entrypoint_validation",
+      "deploy/traefik/entrypoint.sh: every supported HTTPS mode produces valid Traefik YAML, "
+      "unsupported modes (internal, wildcards) and injected input are refused.")
+def t_https_traefik_entrypoint():
+    import subprocess, tempfile, shutil
+    if _try_import("yaml") is None:
+        raise Skip("pyyaml not installed")
+    import yaml
+    repo_root = os.path.dirname(_BACKEND_DIR)
+    entry = os.path.join(repo_root, "deploy", "traefik", "entrypoint.sh")
+    if not os.path.isfile(entry):
+        raise Skip("deploy/traefik/entrypoint.sh not present (running from a bare backend checkout)")
+    sh = shutil.which("sh")
+    if not sh:
+        raise Skip("no /bin/sh available")
+
+    with tempfile.TemporaryDirectory() as td:
+        conf = os.path.join(td, "conf")
+
+        def run(env_overrides):
+            env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "GENERATE_ONLY": "1",
+                   "TRAEFIK_CONF_DIR": conf, "ACME_STORAGE": os.path.join(td, "acme.json")}
+            env.update(env_overrides)
+            return subprocess.run([sh, entry], env=env, capture_output=True, text=True, timeout=15)
+
+        bad = [
+            {"HTTPS_MODE": "letsencrypt"},                                    # no DOMAIN
+            {"HTTPS_MODE": "bogus", "DOMAIN": "a.org"},
+            {"HTTPS_MODE": "internal", "DOMAIN": "a.org"},                    # Caddy-only
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "*.a.org"},              # no wildcards
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org`) || PathPrefix(`/"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": 'a.org"\nproviders: {}'},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org\nb.org"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_EMAIL": "x@a.org\nlog: {}"},
+            {"HTTPS_MODE": "acme", "DOMAIN": "a.org"},                        # no ACME_CA
+            {"HTTPS_MODE": "acme", "DOMAIN": "a.org", "ACME_CA": "http://insecure/dir"},
+            {"HTTPS_MODE": "custom", "DOMAIN": "a.org"},                      # no cert files
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "UPSTREAM": "web:80/evil"},
+        ]
+        for env in bad:
+            r = run(env)
+            assert r.returncode != 0, f"should have been refused but wasn't: {env}\nstdout={r.stdout}"
+
+        cert_file = os.path.join(td, "cert.pem"); key_file = os.path.join(td, "key.pem")
+        open(cert_file, "w").close(); open(key_file, "w").close()
+        good = [
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org, www.lib.org",
+             "ACME_EMAIL": "it@lib.org"},
+            {"HTTPS_MODE": "letsencrypt-staging", "DOMAIN": "privacy.lib.org", "HSTS": "off"},
+            {"HTTPS_MODE": "acme", "DOMAIN": "privacy.lib.org",
+             "ACME_CA": "https://ca.lib.internal/acme/acme/directory"},
+            {"HTTPS_MODE": "custom", "DOMAIN": "privacy.lib.org",
+             "TLS_CERT_FILE": cert_file, "TLS_KEY_FILE": key_file},
+        ]
+        for env in good:
+            r = run(env)
+            assert r.returncode == 0, f"valid config was refused: {env}\nstderr={r.stderr}"
+            static = yaml.safe_load(open(os.path.join(conf, "traefik.yml")))
+            dynamic = yaml.safe_load(open(os.path.join(conf, "dynamic.yml")))
+            # Only the generated file may define routes — never the Docker provider.
+            assert list(static["providers"].keys()) == ["file"], static["providers"]
+            assert static["entryPoints"]["web"]["http"]["redirections"]["entryPoint"]["to"] == "websecure"
+            router = dynamic["http"]["routers"]["openoptout"]
+            for d in env["DOMAIN"].split(","):
+                assert f"Host(`{d.strip()}`)" in router["rule"], router["rule"]
+            headers = dynamic["http"]["middlewares"]["openoptout-headers"]["headers"]
+            assert headers.get("frameDeny") and headers.get("contentTypeNosniff")
+            assert ("stsSeconds" in headers) == (env.get("HSTS") != "off")
+            if env["HTTPS_MODE"] == "custom":
+                assert "certificatesResolvers" not in (static or {})
+                assert dynamic["tls"]["certificates"][0]["certFile"] == cert_file
+            else:
+                acme = static["certificatesResolvers"]["openoptout"]["acme"]
+                assert router["tls"]["certResolver"] == "openoptout"
+                assert acme["httpChallenge"]["entryPoint"] == "web"
+                if env["HTTPS_MODE"] == "acme":
+                    assert acme["caServer"] == env["ACME_CA"]
+    # EXPECTED: Traefik gets the same safety properties as the Caddy front door —
+    #   validated input, HTTPS redirect, security headers, file-only routing.
+    # IF THIS FAILS: a legitimate mode is broken, a value pasted into .env could
+    #   inject Traefik config (e.g. widen the router rule), or the Docker provider
+    #   crept in and Traefik could be steered by other containers.
+
+
 @test(1, "https.compose_sanity",
       "docker-compose.yml: the API isn't exposed beyond localhost by default, FRONTEND_URL "
       "actually reaches the api container, and the caddy service is opt-in via a profile.")
@@ -3571,6 +3655,20 @@ def t_compose_sanity():
     volumes = compose.get("volumes", {})
     assert "caddy_data" in volumes, \
         "caddy_data must be a named volume — without it, every restart re-requests certificates"
+
+    # Optional Traefik front door: opt-in via its own profile (never both at
+    # once by default), and never given the Docker socket.
+    assert "traefik" in services, "expected an optional traefik service (FRONT_DOOR=traefik)"
+    traefik = services["traefik"]
+    assert traefik.get("profiles") == ["https-traefik"], \
+        "traefik must be gated behind the 'https-traefik' compose profile"
+    traefik_env = " ".join(str(e) for e in traefik.get("environment", []))
+    for needed in ("HTTPS_MODE", "DOMAIN"):
+        assert needed in traefik_env, f"traefik service missing {needed} passthrough"
+    traefik_vols = " ".join(str(v) for v in traefik.get("volumes", []))
+    assert "docker.sock" not in traefik_vols, \
+        "the traefik front door must not get the Docker socket (host-level control)"
+    assert "traefik_data" in volumes, "traefik_data must be a named volume (ACME account + certs)"
     # EXPECTED: the API stays off the LAN by default, SSO redirects use the real
     #   FRONTEND_URL, and Caddy never starts (or fights for ports 80/443) unless
     #   an admin explicitly opts in.

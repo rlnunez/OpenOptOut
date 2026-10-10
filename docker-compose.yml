@@ -60,11 +60,14 @@ services:
       # MUST match how people reach the site (https://your.domain once HTTPS is on).
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
       # Proxies in front of the API, for finding the client IP in
-      # X-Forwarded-For: 1 = nginx (web), 2 = Caddy + nginx (HTTPS profile;
-      # scripts/enable-https.* set it).
+      # X-Forwarded-For: 1 = nginx (web), 2 = Caddy/Traefik + nginx (HTTPS
+      # profile; scripts/enable-https.* set it).
       - TRUSTED_PROXY_HOPS=${TRUSTED_PROXY_HOPS:-1}
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}
-      # HTTPS front door (Caddy) — lets the certificate monitor watch our own cert.
+      # HTTPS front door (Caddy or Traefik) — lets the certificate monitor watch
+      # our own cert. HTTPS_CHECK_HOST is the front door's service name
+      # (enable-https.* sets it to traefik when FRONT_DOOR=traefik).
+      - FRONT_DOOR=${FRONT_DOOR:-caddy}
       - HTTPS_MODE=${HTTPS_MODE:-}
       - DOMAIN=${DOMAIN:-}
       - HTTPS_CHECK_HOST=${HTTPS_CHECK_HOST:-caddy}
@@ -180,6 +183,46 @@ services:
     depends_on:
       - web
 
+  # ── HTTPS front door, Traefik option (optional) ─────────────────────────────
+  # Same job as the caddy service above — pick ONE. For admins who already know
+  # Traefik. Supports letsencrypt, letsencrypt-staging, acme and custom (not
+  # internal — that's Caddy's own CA). Routing comes only from a generated file;
+  # the Docker socket is deliberately NOT mounted.
+  # Enable with:  ./scripts/enable-https.sh --proxy traefik
+  #   (sets COMPOSE_PROFILES=https-traefik, FRONT_DOOR=traefik, etc.)
+  traefik:
+    image: traefik:v3.7.7
+    container_name: openoptout-traefik
+    profiles: ["https-traefik"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ulimits:
+      core: 0
+    entrypoint: ["/bin/sh", "/deploy/entrypoint.sh"]
+    environment:
+      - HTTPS_MODE=${HTTPS_MODE:-}
+      - DOMAIN=${DOMAIN:-}
+      - ACME_EMAIL=${ACME_EMAIL:-}
+      - ACME_CA=${ACME_CA:-}
+      - ACME_CA_ROOT=${ACME_CA_ROOT:-}
+      - TLS_CERT_FILE=${TLS_CERT_FILE:-/certs/fullchain.pem}
+      - TLS_KEY_FILE=${TLS_KEY_FILE:-/certs/privkey.pem}
+      - HSTS=${HSTS:-on}
+      - UPSTREAM=web:80
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"      # HTTP/3
+    volumes:
+      - ./deploy/traefik/entrypoint.sh:/deploy/entrypoint.sh:ro
+      - ./deploy/certs:/certs:ro          # custom certs / internal CA root, if used
+      # Issued certificates + ACME account (acme.json). KEEP this volume, for
+      # the same rate-limit reason as caddy_data.
+      - traefik_data:/data
+    depends_on:
+      - web
+
   # ── PostgreSQL (optional — uncomment for patron-scale deployments) ──────────
   # Also set DATABASE_URL on the api service to point here.
   #db:
@@ -202,4 +245,5 @@ volumes:
   app_data:
   caddy_data:
   caddy_config:
+  traefik_data:
   #pg_data:

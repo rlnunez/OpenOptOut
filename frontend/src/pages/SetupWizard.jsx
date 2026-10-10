@@ -447,7 +447,7 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
           <input type="radio" checked={mode === 'managed'} onChange={() => setMode('managed')} className="mt-1 accent-shield-500" />
           <div className="flex-1">
             <div className="text-slate-200 text-sm font-medium flex items-center gap-1"><Home size={13} /> Running via Docker — set up HTTPS for me</div>
-            <div className="text-slate-400 text-xs">Docker (bare metal or a VM — it doesn't matter which), nothing else already on ports 80 or 443. OpenOptOut's built-in Caddy container gets and renews certificates automatically.</div>
+            <div className="text-slate-400 text-xs">Docker (bare metal or a VM — it doesn't matter which), nothing else already on ports 80 or 443. OpenOptOut's built-in front door gets and renews certificates automatically (Caddy by default, or Traefik if you prefer it).</div>
             {mode === 'managed' && (
               <input className={`${inp} mt-2`} placeholder="Domain, if you know it yet (e.g. privacy.yourlibrary.org) — optional"
                 value={domain} onChange={e => setDomain(e.target.value)} />

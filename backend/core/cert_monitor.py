@@ -146,13 +146,14 @@ def _checks() -> dict:
 
 def https_cert_status():
     """
-    OpenOptOut's own certificate (Caddy front door), or None if HTTPS isn't on.
+    OpenOptOut's own certificate (Caddy or Traefik front door), or None if HTTPS isn't on.
     Let's Encrypt stopped emailing expiry warnings in 2025, so this is what
     catches a failed automatic renewal.
       letsencrypt          full verification (also catches a leftover staging cert)
       staging/acme/custom  dates only: the API container deliberately doesn't get
                            deploy/certs (it can hold the site's private key)
       internal             Caddy's private CA renews itself; not checked
+                           (Caddy-only — the Traefik front door refuses this mode)
     """
     from .auth_providers import tls_peer_cert_status
     mode = os.getenv("HTTPS_MODE", "").strip()

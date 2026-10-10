@@ -1,6 +1,6 @@
 <#
 ==============================================================================
-Turn on HTTPS for OpenOptOut (Caddy front door + automatic certificates).
+Turn on HTTPS for OpenOptOut (Caddy or Traefik front door + automatic certificates).
 Windows PowerShell / PowerShell 7 port of enable-https.sh — same behavior,
 same .env keys, same docker compose commands afterward. Works whether Docker
 Desktop or Docker Engine is running on this Windows Server (the containers
@@ -9,10 +9,12 @@ run inside them, only docker compose does).
 
   .\scripts\enable-https.ps1                       # interactive
   .\scripts\enable-https.ps1 -Mode letsencrypt -Domain privacy.lib.org -Email it@lib.org
+  .\scripts\enable-https.ps1 -Proxy traefik        # use Traefik instead of Caddy
   .\scripts\enable-https.ps1 -Disable              # back to plain HTTP
 
 Options: -Mode letsencrypt|letsencrypt-staging|acme|internal|custom
          -Domain D  -Email E  -AcmeCa URL  -AcmeCaRoot FILE
+         -Proxy caddy|traefik (default caddy; Traefik has no 'internal' mode)
          -EnvFile PATH (default .env)  -Yes (no confirmation prompt)
 
 Writes settings to .env (a timestamped backup is made first), then tells you
@@ -32,6 +34,8 @@ param(
     [string]$Email,
     [string]$AcmeCa,
     [string]$AcmeCaRoot,
+    [ValidateSet("caddy", "traefik")]
+    [string]$Proxy = "caddy",
     [string]$EnvFile = ".env",
     [switch]$Yes,
     [switch]$Disable
@@ -115,7 +119,7 @@ function Backup-EnvFile([string]$Path) {
 # ── --disable ──────────────────────────────────────────────────────────────
 if ($Disable) {
     Backup-EnvFile $EnvFile
-    foreach ($k in @("COMPOSE_PROFILES", "HTTPS_MODE", "DOMAIN", "ACME_EMAIL", "ACME_CA",
+    foreach ($k in @("COMPOSE_PROFILES", "FRONT_DOOR", "HTTPS_CHECK_HOST", "HTTPS_MODE", "DOMAIN", "ACME_EMAIL", "ACME_CA",
                       "ACME_CA_ROOT", "WEB_BIND", "WEB_PORT", "TRUSTED_PROXY_HOPS")) {
         Remove-EnvVar $EnvFile $k
     }
@@ -134,7 +138,11 @@ if (-not $Mode) {
     Write-Host "  1) letsencrypt          public server (ports 80+443 reachable from the internet)"
     Write-Host "  2) letsencrypt-staging  same, but Let's Encrypt's TEST service (untrusted certs; use first)"
     Write-Host "  3) acme                 your own ACME CA (e.g. internal step-ca)"
-    Write-Host "  4) internal             Caddy's own private CA (LAN only; browsers warn until trusted)"
+    if ($Proxy -eq "caddy") {
+        Write-Host "  4) internal             Caddy's own private CA (LAN only; browsers warn until trusted)"
+    } else {
+        Write-Host "  4) internal             (Caddy only — not available with Traefik)"
+    }
     Write-Host "  5) custom               certificate files you provide"
     switch (Ask "Choose 1-5" "2") {
         "1" { $Mode = "letsencrypt" }
@@ -145,10 +153,14 @@ if (-not $Mode) {
         default { Fail "Please choose 1-5." }
     }
 }
+if ($Proxy -eq "traefik" -and $Mode -eq "internal") {
+    Fail "internal mode uses Caddy's private CA. Use -Proxy caddy, or -Mode custom with your own certificate."
+}
 
 # ── domain ──
 if (-not $Domain) { $Domain = Ask "Domain name people will use (e.g. privacy.yourlibrary.org)" }
 if (-not (Test-ValidDomain $Domain)) { Fail "Invalid domain: $Domain" }
+if ($Proxy -eq "traefik" -and $Domain.Contains("*")) { Fail "Wildcard domains need -Proxy caddy (or list each name)." }
 $Primary = $Domain.Split(",")[0].Trim()
 
 # ── email ──
@@ -205,29 +217,32 @@ if ($Mode -eq "letsencrypt" -or $Mode -eq "letsencrypt-staging") {
 
 Write-Host ""
 $emailSuffix = if ($Email) { "  email=$Email" } else { "" }
-Write-Host "About to enable HTTPS:  mode=$Mode  domain=$Domain$emailSuffix"
+Write-Host "About to enable HTTPS:  proxy=$Proxy  mode=$Mode  domain=$Domain$emailSuffix"
 if (-not $Yes) {
     if ((Ask "Continue? (y/n)" "y") -ne "y") { Fail "Cancelled." }
 }
 
 Backup-EnvFile $EnvFile
-Set-EnvVar $EnvFile "COMPOSE_PROFILES" "https"
+if ($Proxy -eq "traefik") { Set-EnvVar $EnvFile "COMPOSE_PROFILES" "https-traefik" }
+else { Set-EnvVar $EnvFile "COMPOSE_PROFILES" "https" }
+Set-EnvVar $EnvFile "FRONT_DOOR" $Proxy
+Set-EnvVar $EnvFile "HTTPS_CHECK_HOST" $Proxy   # the certificate monitor checks this container
 Set-EnvVar $EnvFile "HTTPS_MODE" $Mode
 Set-EnvVar $EnvFile "DOMAIN" $Domain
 if ($Email) { Set-EnvVar $EnvFile "ACME_EMAIL" $Email } else { Remove-EnvVar $EnvFile "ACME_EMAIL" }
 if ($AcmeCa) { Set-EnvVar $EnvFile "ACME_CA" $AcmeCa } else { Remove-EnvVar $EnvFile "ACME_CA" }
 if ($FinalAcmeCaRoot) { Set-EnvVar $EnvFile "ACME_CA_ROOT" $FinalAcmeCaRoot } else { Remove-EnvVar $EnvFile "ACME_CA_ROOT" }
-# Caddy owns ports 80/443; the web container stays reachable only on this machine.
+# The front door owns ports 80/443; the web container stays reachable only on this machine.
 Set-EnvVar $EnvFile "WEB_BIND" "127.0.0.1"
 Set-EnvVar $EnvFile "WEB_PORT" "8080"
-Set-EnvVar $EnvFile "TRUSTED_PROXY_HOPS" "2"   # Caddy + nginx in front of the API
+Set-EnvVar $EnvFile "TRUSTED_PROXY_HOPS" "2"   # front door + nginx in front of the API
 Set-EnvVar $EnvFile "FRONTEND_URL" "https://$Primary"
 
 Write-Host ""
 Write-Host "HTTPS settings saved to $EnvFile. Now run:"
 Write-Host "    docker compose up -d --build"
 Write-Host "Then open https://$Primary  (first certificate can take a minute)."
-Write-Host "Watch progress:  docker compose logs -f caddy"
+Write-Host "Watch progress:  docker compose logs -f $Proxy"
 if ($Mode -eq "internal") {
     Write-Host "Browsers will warn until Caddy's root CA is trusted — see docs/HTTPS.md."
 }
