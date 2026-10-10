@@ -3,7 +3,7 @@
 #
 # Pinned by digest for OpenSSF Scorecard. Dependabot keeps it up to date.
 # Note: Root is required by OSS-Fuzz's compile_python_fuzzer build toolchain.
-FROM gcr.io/oss-fuzz-base/base-builder-python@sha256:b02a06f9d3918428825b1ebfa2c3627b591a5924a83436b8aaec40c85fd15b16
+FROM gcr.io/oss-fuzz-base/base-builder-python@sha256:690445a4d5f14cb2019f221fecf7bec45f62179dcc56314f2e1731c4082823a4
 
 COPY . $SRC/openoptout
 WORKDIR $SRC/openoptout
