@@ -33,7 +33,10 @@ Caddy and Traefik give the same security headers, HTTP→HTTPS redirect, HTTP/3,
 | `internal` (private CA for LAN-only use) | ✅ | ❌ — use `custom` with your own certificate instead |
 | Wildcard names in `DOMAIN` | ✅ (with a CA that allows it) | ❌ — list each name |
 | Rate limits and Cloudflare DNS | An "extended" Caddy with both modules, built locally the first time it starts — about a minute (`caddy-extended` service, `deploy/caddy/Dockerfile`) | Built in, no extra build |
+| InCommon certificates (beta), and account credentials / key types for other ACME CAs | Built in | Built in |
 | Compose profile / certificate volume | `https-caddy-extended` (or `https` for stock Caddy with rate limits off) / `caddy_data` | `https-traefik` / `traefik_data` |
+
+**What's built in, and what needs plugins.** Traefik includes everything OpenOptOut uses out of the box: rate limits, Let's Encrypt via Cloudflare DNS, InCommon's account credentials, and RSA certificate keys. Caddy covers the certificate features itself — including InCommon's account credentials and RSA keys — but relies on plugins (Caddy calls them modules) for rate limits and Cloudflare DNS. OpenOptOut adds those two plugins in its extended Caddy build, compiled automatically the first time it starts; the plugin versions are pinned and checked in CI. Either way you get the same protection — Traefik just gets there without the extra build.
 
 OpenOptOut's Traefik container never gets the Docker socket and doesn't use Docker labels: its routing comes only from a config file generated at startup from `.env` (`deploy/traefik/entrypoint.sh`), the same way the Caddy container works. If you want an existing, shared Traefik that routes many services by Docker labels, that's **Option C (External)**, not this.
 
@@ -105,14 +108,45 @@ Older commands using only `--mode` (e.g. `--mode letsencrypt`) still work.
 
 #### Advanced modes
 
-Pick **Advanced** in the menu, or pass `--mode` (with `--cert cloudflare-dns`, `letsencrypt-staging` and `acme` also work):
+Pick **Advanced** in the menu, or pass `--mode` (with `--cert cloudflare-dns`, `letsencrypt-staging`, `acme` and `incommon` also work):
 
 | `--mode` | Use for |
 |---|---|
 | `letsencrypt-staging` | Let's Encrypt's **test** environment — untrusted certificates, but no rate limits. Try this first, then switch to `letsencrypt` once it works. |
-| `acme` | Your own ACME server (e.g. an internal `step-ca`). Needs `--acme-ca <directory URL>`, and `--acme-ca-root <file>` if it uses an internal CA browsers won't already trust. |
+| `acme` | Your own ACME server (e.g. an internal `step-ca`) or a commercial CA. Needs `--acme-ca <directory URL>`, and `--acme-ca-root <file>` if it uses an internal CA browsers won't already trust. If the CA gave you account credentials (External Account Binding), add `--eab-kid` and `--eab-hmac` (the script also asks); if it requires a key type, add `--key-type rsa2048` (or `rsa4096`, `p256`, `p384`). |
+| `incommon` | **Beta, untested.** InCommon certificates for universities — see [InCommon](#incommon-certificates-beta) below. |
 | `internal` | Caddy's own private CA. LAN-only — browsers warn until that CA's root is installed on client devices. Caddy only. |
 | `custom` | Certificate files you already have. Put `fullchain.pem` and `privkey.pem` in `deploy/certs/` first. |
+
+#### InCommon certificates (beta)
+
+> **Beta — untested against a live account.** OpenOptOut's InCommon support has been tested end to end against a test certificate authority configured the same way (`deploy/tests/incommon_e2e.sh`), but not yet against a real CERTInext account. If you try it at your institution, please report how it goes.
+
+Universities and research institutions that belong to InCommon get free, publicly trusted certificates through the InCommon Certificate Service. OpenOptOut supports CERTInext, the provider InCommon institutions use, over ACME — so certificates are issued and renewed automatically, just like Let's Encrypt. This is mostly useful for universities; if your organization isn't an InCommon member, use Let's Encrypt instead.
+
+**This information is required during setup** — the script asks for all three and won't continue without them, so get them from your campus IT (the team that runs your InCommon certificate service) first:
+
+| What | Looks like | Notes |
+|---|---|---|
+| **ACME server address** (directory URL) | `https://acme-us.certinext.io/v1/directory` | Pre-filled with this common address. Some institutions get a per-account address instead — use whatever campus IT gives you. |
+| **ACME key ID** (EAB key ID) | A short identifier | Ties OpenOptOut to your department's InCommon account. |
+| **ACME HMAC key** (EAB HMAC key) | A long string of letters, digits, `-` and `_` | A secret. CERTInext shows it only once when campus IT creates it, so if it's lost they'll need to issue a new pair. Typing is hidden when you enter it. |
+
+Your domain must also be one your campus IT has authorized for that account. Many institutions validate their domains with CERTInext once a year, in which case certificates are issued without any per-certificate check and you don't need ports 80/443 open for this. Otherwise the usual check applies: port 80 reachable from the internet, or — if your domain's DNS is on Cloudflare — the DNS check with `--cert cloudflare-dns --mode incommon`.
+
+Run it:
+```
+./scripts/enable-https.sh --proxy traefik --mode incommon --domain privacy.university.edu
+.\scripts\enable-https.ps1 -Proxy traefik -Mode incommon -Domain privacy.university.edu
+```
+(In the setup wizard: pick Caddy or Traefik, open **Advanced** under the certificate question, and choose **InCommon (CERTInext)**. The wizard then gives you the command above; it never stores the secret itself.) Or fully flagged, for automation: add `--acme-ca URL --eab-kid ID --eab-hmac KEY` (`-AcmeCa`, `-EabKid`, `-EabHmac` on Windows).
+
+What OpenOptOut does with them:
+- Uses RSA 2048-bit certificate keys automatically, which CERTInext requires (Caddy would otherwise default to a different key type).
+- Keeps the HMAC key out of files on disk: it's stored in `.env` like your other secrets, Caddy reads it only when starting and is told not to save its loaded configuration, and Traefik's generated configuration lives in memory only.
+- The dashboard's certificate check fully verifies InCommon certificates (they're publicly trusted), so a failed renewal shows up as a warning before the certificate expires.
+
+Both front doors support InCommon with nothing extra to install (see the table in Question 1).
 
 Requirements for plain `letsencrypt` (HTTP check):
 - A DNS **A/AAAA record** for the domain pointing at this server (the script checks this and warns if it doesn't resolve yet).
@@ -128,6 +162,8 @@ HTTPS_CHECK_HOST=caddy         # or traefik — which container the certificate 
 HTTPS_MODE=letsencrypt         # or none, or an advanced mode
 ACME_CHALLENGE=http            # cloudflare for Let's Encrypt via Cloudflare DNS
 CLOUDFLARE_API_TOKEN=...       # only with Cloudflare DNS, if you gave it to the script
+ACME_EAB_KID=... / ACME_EAB_HMAC=...   # only with InCommon (or an ACME CA that issued account credentials)
+ACME_KEY_TYPE=rsa2048          # set automatically for InCommon
 RATE_LIMIT=on                  # off with --no-rate-limit (see "Protecting against floods")
 CLOUDFLARE_PROXY=off           # on with --cloudflare-proxy
 DOMAIN=privacy.yourlibrary.org
@@ -271,6 +307,7 @@ If you're on the managed or native option, the daily certificate check also watc
 - **Cloudflare DNS certificate never issued:** `docker compose logs caddy-extended` (or `traefik`). Check that `CLOUDFLARE_API_TOKEN` is set in `.env`, that the token has **Zone → DNS → Edit** for *this* domain's zone, and that the domain's nameservers really are Cloudflare's. The container refuses to start without a token and says so in plain words. After adding the token, `docker compose up -d --build`.
 - **"This Caddy build has no Cloudflare DNS support" / "no rate limiting":** `.env` asks for a feature the stock `caddy` service doesn't have. Rerun `enable-https.sh` (it sets `COMPOSE_PROFILES=https-caddy-extended`), then `docker compose down && docker compose up -d --build`.
 - **Caddy logs "rate limiting is OFF":** an older `.env` is still on the stock `caddy` service. It keeps working without limits; rerun `enable-https.sh` to switch to the extended build with limits on.
+- **InCommon (beta) certificate never arrives:** `docker compose logs caddy-extended` (or `traefik`). An "account" or "unauthorized" error usually means the key ID or HMAC key is wrong or was revoked; an error naming your domain usually means it isn't authorized for that account yet. Confirm all three values and the domain with campus IT, then rerun the script — it asks for them again.
 - **People get "429 Too Many Requests":** the rate limits are doing their job, or are too tight for your setup — common when many people share one public IP (a library, office, or school network). Raise them with `--rate-limit` / `--auth-rate-limit` (see [Protecting against floods](#protecting-against-floods-ddos)).
 - **Behind Cloudflare's proxy, the site won't load at all:** check the DNS record is **Proxied** (orange cloud) and SSL/TLS mode is **Full (strict)**. Connections that don't come from Cloudflare are dropped on purpose — including you visiting the server's IP directly. If Cloudflare added new IP ranges, run `./scripts/update-cloudflare-ips.sh` and restart the front door.
 - **Plain Let's Encrypt times out at home even with ports forwarded:** your internet provider may block incoming 80/443 or share your public IP between homes (CGNAT — your router's WAN address won't match what websites report as your IP). Port forwarding can't fix either; switch to `--cert cloudflare-dns`.

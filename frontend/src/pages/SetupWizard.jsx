@@ -518,6 +518,15 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
                   <SubChoice name="certificate" value="none" current={certificate} onChange={setCertificate} title="None for now" warn>
                     Plain HTTP until you add a certificate later. Fine for testing; not for real people's data.
                   </SubChoice>
+                  <details className="group" open={certificate === 'incommon'}>
+                    <summary className="text-slate-400 text-xs cursor-pointer select-none py-1 hover:text-slate-200">Advanced</summary>
+                    <div className="mt-2">
+                      <SubChoice name="certificate" value="incommon" current={certificate} onChange={setCertificate}
+                        title={<>InCommon (CERTInext) <span className="ml-1 inline-block whitespace-nowrap text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-900/60 text-amber-200 align-middle">Beta · untested</span></>}>
+                        Mostly for universities and research institutions in InCommon, which get free certificates through CERTInext. Setup will ask for the ACME key ID, HMAC key and server address from your campus IT, and won't continue without them, so have them ready.
+                      </SubChoice>
+                    </div>
+                  </details>
                 </fieldset>
                 <fieldset className="space-y-2">
                   <legend className="text-slate-300 text-xs font-medium mb-1.5">Protection against floods of traffic</legend>

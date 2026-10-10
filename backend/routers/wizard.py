@@ -287,13 +287,18 @@ class DeploymentStep(BaseModel):
     domain: Optional[str] = None        # optional, cosmetic — shown back in the summary
     # Only for "managed": which front door, then (Caddy/Traefik only) where the certificate comes from. Recorded so the summary can hand back the exact enable-https command; nothing is started from here.
     front_door: Optional[str] = None    # "caddy" | "traefik" | "cloudflare-tunnel"
-    certificate: Optional[str] = None   # "letsencrypt" | "cloudflare-dns" | "none"
+    certificate: Optional[str] = None   # "letsencrypt" | "cloudflare-dns" | "none" | "incommon" (beta, advanced)
     rate_limit: Optional[bool] = None   # Caddy/Traefik: per-visitor limits (default on)
     cloudflare_proxy: Optional[bool] = None  # Caddy/Traefik + cloudflare-dns only
 
 
 FRONT_DOORS = ("caddy", "traefik", "cloudflare-tunnel")
-CERTIFICATES = ("letsencrypt", "cloudflare-dns", "none")
+CERTIFICATES = ("letsencrypt", "cloudflare-dns", "none", "incommon")
+
+# Shown when InCommon is chosen. The wizard never stores the EAB secret; the setup command asks for it.
+INCOMMON_NOTE = ("InCommon certificates (beta, untested against a live CERTInext account): when you run the "
+                 "command below, have the ACME key ID, HMAC key and server address from your campus IT "
+                 "ready. Setup asks for all three and won't continue without them.")
 
 # Shown wherever Cloudflare Tunnel is chosen. Kept here so the API, summary and UI say the same thing.
 CLOUDFLARE_PROXY_WARNING = (
@@ -317,7 +322,10 @@ def enable_https_commands(front_door: str, certificate: str, domain: str = "",
     ps = [".\\scripts\\enable-https.ps1", "-Proxy", fd]
     if fd != "cloudflare-tunnel":
         cert = certificate if certificate in CERTIFICATES else "letsencrypt"
-        sh += ["--cert", cert]; ps += ["-Cert", cert]
+        if cert == "incommon":   # an advanced mode in the scripts
+            sh += ["--mode", "incommon"]; ps += ["-Mode", "incommon"]
+        else:
+            sh += ["--cert", cert]; ps += ["-Cert", cert]
         if cloudflare_proxy and cert == "cloudflare-dns":
             sh += ["--cloudflare-proxy"]; ps += ["-CloudflareProxy"]
         if not rate_limit:
@@ -367,7 +375,7 @@ def save_deployment(body: DeploymentStep, db: Session = Depends(get_db),
         if front_door != "cloudflare-tunnel":
             certificate = body.certificate or "letsencrypt"
             if certificate not in CERTIFICATES:
-                raise HTTPException(400, "certificate must be 'letsencrypt', 'cloudflare-dns', or 'none'")
+                raise HTTPException(400, "certificate must be 'letsencrypt', 'cloudflare-dns', 'none', or 'incommon'")
             deployment["certificate"] = certificate
             deployment["rate_limit"] = body.rate_limit is not False
             if body.cloudflare_proxy and certificate != "cloudflare-dns":
@@ -436,6 +444,8 @@ def complete(db: Session = Depends(get_db), user: User = Depends(get_current_use
             warnings.append(TUNNEL_WARNING)
         elif deployment.get("cloudflare_proxy"):
             warnings.append(CLOUDFLARE_PROXY_WARNING)
+        elif certificate == "incommon":
+            warnings.append(INCOMMON_NOTE)
         elif certificate == "none":
             warnings.append("You chose no certificate for now, so traffic stays unencrypted. Run the "
                             "same script again later and pick Let's Encrypt or Cloudflare DNS.")

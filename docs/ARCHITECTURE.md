@@ -187,6 +187,8 @@ openoptout/
 │   ├── traefik/entrypoint.sh      # Same, for the optional Traefik front door (FRONT_DOOR=traefik)
 │   ├── tests/acme_e2e.sh          # Real ACME issuance + renewal test (Caddy + Pebble)
 │   ├── tests/acme_e2e_traefik.sh  # Same, for the Traefik front door
+│   ├── tests/incommon_e2e.sh      # InCommon (beta) mode: account credentials + RSA 2048, both front doors
+│   ├── tests/protection_e2e.sh    # Rate limits + Cloudflare-only mode, both front doors
 │   └── native/                    # Native (no-Docker) install: systemd unit, nginx config,
 │                                   #   install.sh (Linux), install-native.ps1 (Windows) —
 │                                   #   see docs/NATIVE_INSTALL.md

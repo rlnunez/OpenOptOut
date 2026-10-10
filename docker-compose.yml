@@ -162,6 +162,9 @@ services:
       - ACME_EMAIL=${ACME_EMAIL:-}
       - ACME_CA=${ACME_CA:-}
       - ACME_CA_ROOT=${ACME_CA_ROOT:-}
+      - ACME_EAB_KID=${ACME_EAB_KID:-}
+      - ACME_EAB_HMAC=${ACME_EAB_HMAC:-}
+      - ACME_KEY_TYPE=${ACME_KEY_TYPE:-}
       - TLS_CERT_FILE=${TLS_CERT_FILE:-/certs/fullchain.pem}
       - TLS_KEY_FILE=${TLS_KEY_FILE:-/certs/privkey.pem}
       - HSTS=${HSTS:-on}
@@ -200,6 +203,9 @@ services:
       - ACME_EMAIL=${ACME_EMAIL:-}
       - ACME_CA=${ACME_CA:-}
       - ACME_CA_ROOT=${ACME_CA_ROOT:-}
+      - ACME_EAB_KID=${ACME_EAB_KID:-}
+      - ACME_EAB_HMAC=${ACME_EAB_HMAC:-}
+      - ACME_KEY_TYPE=${ACME_KEY_TYPE:-}
       - TLS_CERT_FILE=${TLS_CERT_FILE:-/certs/fullchain.pem}
       - TLS_KEY_FILE=${TLS_KEY_FILE:-/certs/privkey.pem}
       - HSTS=${HSTS:-on}
@@ -226,6 +232,9 @@ services:
     ulimits:
       core: 0
     entrypoint: ["/bin/sh", "/deploy/entrypoint.sh"]
+    # Generated config lives in memory only: with InCommon/EAB it holds the ACME HMAC key.
+    tmpfs:
+      - /etc/traefik:size=1m,mode=0700
     environment:
       - HTTPS_MODE=${HTTPS_MODE:-}
       - ACME_CHALLENGE=${ACME_CHALLENGE:-http}
@@ -234,6 +243,9 @@ services:
       - ACME_EMAIL=${ACME_EMAIL:-}
       - ACME_CA=${ACME_CA:-}
       - ACME_CA_ROOT=${ACME_CA_ROOT:-}
+      - ACME_EAB_KID=${ACME_EAB_KID:-}
+      - ACME_EAB_HMAC=${ACME_EAB_HMAC:-}
+      - ACME_KEY_TYPE=${ACME_KEY_TYPE:-}
       - TLS_CERT_FILE=${TLS_CERT_FILE:-/certs/fullchain.pem}
       - TLS_KEY_FILE=${TLS_KEY_FILE:-/certs/privkey.pem}
       - HSTS=${HSTS:-on}

@@ -19,8 +19,11 @@
 # Rate limits (Caddy/Traefik; on by default):
 #          --no-rate-limit   --rate-limit N (per visitor per minute, default 1200)
 #          --auth-rate-limit N (sign-in attempts per visitor per minute, default 60)
-# Advanced: --mode letsencrypt|letsencrypt-staging|acme|internal|custom|none
-#          (letsencrypt-staging/acme also work with --cert cloudflare-dns)
+# Advanced: --mode letsencrypt|letsencrypt-staging|acme|incommon|internal|custom|none
+#          (letsencrypt-staging/acme/incommon also work with --cert cloudflare-dns)
+#          --mode incommon (BETA, untested): InCommon certificates via CERTInext, mostly for universities. Requires --eab-kid, --eab-hmac and --acme-ca (default https://acme-us.certinext.io/v1/directory) from campus IT; asked for during setup if not given.
+#          --eab-kid K --eab-hmac H   account credentials (External Account Binding) for --mode acme with CAs that issue them
+#          --key-type rsa2048|rsa4096|p256|p384   for CAs that require a key type (incommon always uses rsa2048)
 #          --acme-ca URL  --acme-ca-root FILE
 # Other:   --domain D  --email E  --cf-token T  --tunnel-token T
 #          --env-file PATH (default .env)  --yes (no prompts; use defaults)
@@ -32,6 +35,8 @@ cd "$(dirname "$0")/.."
 
 ENV_FILE=".env"; MODE=""; CERT=""; DOMAIN=""; EMAIL=""; ACME_CA=""; ACME_CA_ROOT_SRC=""
 YES=0; DISABLE=0; PROXY=""; CF_TOKEN=""; TUNNEL_TOKEN=""; CF_PROXY=""; RL=on; RL_SITE=""; RL_AUTH=""
+EAB_KID=""; EAB_HMAC=""; KEY_TYPE=""
+INCOMMON_CA_DEFAULT="https://acme-us.certinext.io/v1/directory"
 while [ $# -gt 0 ]; do
   case "$1" in
     --proxy) PROXY="$2"; shift 2 ;;
@@ -43,6 +48,9 @@ while [ $# -gt 0 ]; do
     --acme-ca-root) ACME_CA_ROOT_SRC="$2"; shift 2 ;;
     --cf-token) CF_TOKEN="$2"; shift 2 ;;
     --tunnel-token) TUNNEL_TOKEN="$2"; shift 2 ;;
+    --eab-kid) EAB_KID="$2"; shift 2 ;;
+    --eab-hmac) EAB_HMAC="$2"; shift 2 ;;
+    --key-type) KEY_TYPE="$2"; shift 2 ;;
     --env-file) ENV_FILE="$2"; shift 2 ;;
     --yes|-y) YES=1; shift ;;
     --disable) DISABLE=1; shift ;;
@@ -97,7 +105,7 @@ unset_env() {
 has_env() { [ -f "$ENV_FILE" ] && grep -q "^${1}=." "$ENV_FILE"; }
 backup() { [ -f "$ENV_FILE" ] && cp "$ENV_FILE" "${ENV_FILE}.bak.$(date +%Y%m%d%H%M%S)" && echo "Backed up $ENV_FILE"; return 0; }
 
-FRONT_DOOR_KEYS="COMPOSE_PROFILES FRONT_DOOR HTTPS_CHECK_HOST HTTPS_MODE ACME_CHALLENGE DOMAIN ACME_EMAIL ACME_CA ACME_CA_ROOT WEB_BIND WEB_PORT TRUSTED_PROXY_HOPS RATE_LIMIT CLOUDFLARE_PROXY"
+FRONT_DOOR_KEYS="COMPOSE_PROFILES FRONT_DOOR HTTPS_CHECK_HOST HTTPS_MODE ACME_CHALLENGE DOMAIN ACME_EMAIL ACME_CA ACME_CA_ROOT ACME_EAB_KID ACME_EAB_HMAC ACME_KEY_TYPE WEB_BIND WEB_PORT TRUSTED_PROXY_HOPS RATE_LIMIT CLOUDFLARE_PROXY"
 
 if [ "$DISABLE" = 1 ]; then
   backup
@@ -215,7 +223,7 @@ case "$CERT" in
     case "$MODE" in ""|letsencrypt|letsencrypt-staging) MODE="${MODE:-letsencrypt}" ;; *) die "--cert letsencrypt goes with --mode letsencrypt or letsencrypt-staging." ;; esac ;;
   cloudflare-dns)
     CHALLENGE=cloudflare
-    case "$MODE" in ""|letsencrypt|letsencrypt-staging|acme) MODE="${MODE:-letsencrypt}" ;; *) die "Cloudflare DNS works with --mode letsencrypt, letsencrypt-staging, or acme." ;; esac ;;
+    case "$MODE" in ""|letsencrypt|letsencrypt-staging|acme|incommon) MODE="${MODE:-letsencrypt}" ;; *) die "Cloudflare DNS works with --mode letsencrypt, letsencrypt-staging, acme, or incommon." ;; esac ;;
   none)
     [ -z "$MODE" ] || [ "$MODE" = none ] || die "--cert none can't be combined with --mode $MODE."
     MODE=none ;;
@@ -230,14 +238,17 @@ case "$CERT" in
         echo "  3) internal             (Caddy only — not available with Traefik)"
       fi
       echo "  4) custom               certificate files you provide"
-      case "$(ask 'Choose 1-4' 1)" in
-        1) MODE=letsencrypt-staging ;; 2) MODE=acme ;; 3) MODE=internal ;; 4) MODE=custom ;;
-        *) die "Please choose 1-4." ;;
+      echo "  5) incommon             InCommon certificates via CERTInext — BETA, untested."
+      echo "                          Mostly for universities in InCommon. You'll need the ACME key ID,"
+      echo "                          HMAC key and server address from your campus IT now."
+      case "$(ask 'Choose 1-5' 1)" in
+        1) MODE=letsencrypt-staging ;; 2) MODE=acme ;; 3) MODE=internal ;; 4) MODE=custom ;; 5) MODE=incommon ;;
+        *) die "Please choose 1-5." ;;
       esac
     fi ;;
   *) die "--cert must be letsencrypt, cloudflare-dns, none, or advanced" ;;
 esac
-case "$MODE" in letsencrypt|letsencrypt-staging|acme|internal|custom|none) ;; *) die "Unknown mode: $MODE" ;; esac
+case "$MODE" in letsencrypt|letsencrypt-staging|acme|incommon|internal|custom|none) ;; *) die "Unknown mode: $MODE" ;; esac
 [ "$PROXY" = traefik ] && [ "$MODE" = internal ] && die "internal mode uses Caddy's private CA. Use --proxy caddy, or --mode custom with your own certificate."
 
 if [ "$MODE" = none ]; then
@@ -269,6 +280,34 @@ if [ "$MODE" = acme ]; then
     ACME_CA_ROOT="/certs/acme-ca-root.pem"
   fi
 fi
+
+# ── account credentials (EAB) + key type ──
+valid_eab_kid()  { [[ "$1" =~ ^[A-Za-z0-9_.-]{1,128}$ ]]; }
+valid_eab_hmac() { [[ "$1" =~ ^[A-Za-z0-9_-]{16,}={0,2}$ ]]; }
+if [ "$MODE" = incommon ]; then
+  # Required now, unlike the Cloudflare token: without them CERTInext refuses the account and nothing works.
+  echo
+  echo "InCommon (BETA, untested against a live account): CERTInext issues these to your campus IT,"
+  echo "who give each department its own ACME key ID, HMAC key and server address."
+  [ -n "$ACME_CA" ] || ACME_CA="$(ask 'ACME server address (directory URL) from campus IT' "$INCOMMON_CA_DEFAULT")"
+  [ -n "$EAB_KID" ] || EAB_KID="$(ask 'ACME key ID (EAB key ID)')"
+  [ -n "$EAB_HMAC" ] || EAB_HMAC="$(ask_secret 'ACME HMAC key (EAB HMAC key; typing is hidden)')"
+  [ -n "$EAB_KID" ] && [ -n "$EAB_HMAC" ] || die "InCommon needs the ACME key ID and HMAC key from campus IT during setup (--eab-kid / --eab-hmac). Nothing was changed."
+  KEY_TYPE=rsa2048   # CERTInext requires RSA 2048
+elif [ "$MODE" = acme ] && [ -z "$EAB_KID$EAB_HMAC" ] && interactive; then
+  if [ "$(ask 'Did your CA give you account credentials (an EAB key ID and HMAC key)? (y/n)' n)" = y ]; then
+    EAB_KID="$(ask 'EAB key ID')"
+    EAB_HMAC="$(ask_secret 'EAB HMAC key (typing is hidden)')"
+  fi
+fi
+if [ -n "$EAB_KID$EAB_HMAC" ]; then
+  [ "$MODE" = acme ] || [ "$MODE" = incommon ] || die "--eab-kid/--eab-hmac only apply to --mode acme or incommon."
+  [ -n "$EAB_KID" ] && [ -n "$EAB_HMAC" ] || die "Give both the EAB key ID and the HMAC key."
+  valid_eab_kid "$EAB_KID" || die "That EAB key ID has unexpected characters."
+  valid_eab_hmac "$EAB_HMAC" || die "That HMAC key doesn't look right (it's a long base64url string; copy it exactly)."
+fi
+case "$KEY_TYPE" in ""|rsa2048|rsa4096|p256|p384) ;; *) die "--key-type must be rsa2048, rsa4096, p256 or p384" ;; esac
+[ "$MODE" = incommon ] && { [[ "$ACME_CA" =~ ^https://[A-Za-z0-9.:/_~%-]+$ ]] || die "The ACME server address must be an https:// URL"; }
 
 if [ "$MODE" = custom ]; then
   for f in deploy/certs/fullchain.pem deploy/certs/privkey.pem; do
@@ -323,7 +362,7 @@ if [ "$CHALLENGE" = http ] && { [ "$MODE" = letsencrypt ] || [ "$MODE" = letsenc
   [ "$MODE" = letsencrypt ] && echo "Tip: test with --mode letsencrypt-staging first to avoid rate limits, then switch."
 fi
 
-CERT_LABEL="$MODE"; [ "$CHALLENGE" = cloudflare ] && CERT_LABEL="$MODE via Cloudflare DNS"
+CERT_LABEL="$MODE"; [ "$MODE" = incommon ] && CERT_LABEL="incommon (beta)"; [ "$CHALLENGE" = cloudflare ] && CERT_LABEL="$CERT_LABEL via Cloudflare DNS"
 echo
 PROTECT_LABEL="rate-limits=$RL"; [ "$CF_PROXY" = on ] && PROTECT_LABEL="$PROTECT_LABEL  cloudflare-proxy=on"
 echo "About to set up:  proxy=$PROXY  certificate=$CERT_LABEL  $PROTECT_LABEL  domain=${DOMAIN:-(any)}${EMAIL:+  email=$EMAIL}"
@@ -346,6 +385,9 @@ set_env ACME_CHALLENGE "$CHALLENGE"
 [ -z "$DOMAIN" ] || set_env DOMAIN "$DOMAIN"
 [ -z "$EMAIL" ] || set_env ACME_EMAIL "$EMAIL"
 [ -z "$ACME_CA" ] || set_env ACME_CA "$ACME_CA"
+[ -z "$EAB_KID" ] || set_env ACME_EAB_KID "$EAB_KID"
+[ -z "$EAB_HMAC" ] || set_env ACME_EAB_HMAC "$EAB_HMAC"
+[ -z "$KEY_TYPE" ] || set_env ACME_KEY_TYPE "$KEY_TYPE"
 [ -z "$ACME_CA_ROOT" ] || set_env ACME_CA_ROOT "$ACME_CA_ROOT"
 [ -z "$CF_TOKEN" ] || set_env CLOUDFLARE_API_TOKEN "$CF_TOKEN"
 # The front door owns ports 80/443; the web container stays reachable only on this machine.
@@ -392,6 +434,10 @@ if [ "$CF_PROXY" = on ]; then
   echo "Remember: Cloudflare can now see all traffic to this site."
 fi
 [ "$MODE" = internal ] && echo "Browsers will warn until Caddy's root CA is trusted — see docs/HTTPS.md."
+if [ "$MODE" = incommon ]; then
+  echo "InCommon is BETA and untested against a live CERTInext account. If the certificate doesn't arrive, check"
+  echo "the logs above and confirm the key ID, HMAC key, server address and domain with campus IT (docs/HTTPS.md)."
+fi
 [ "$MODE" = letsencrypt-staging ] && echo "Staging certificates are intentionally untrusted. Rerun with --mode letsencrypt when it works."
 [ "$MODE" = none ] || echo "If you use Google/Microsoft sign-in or SAML, update their redirect URLs to https://$PRIMARY (docs/SSO.md)."
 exit 0

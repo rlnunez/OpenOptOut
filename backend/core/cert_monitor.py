@@ -150,6 +150,7 @@ def https_cert_status():
     Let's Encrypt stopped emailing expiry warnings in 2025, so this is what
     catches a failed automatic renewal.
       letsencrypt          full verification (also catches a leftover staging cert)
+      incommon             full verification too (publicly trusted emSign root; beta)
       staging/acme/custom  dates only: the API container deliberately doesn't get
                            deploy/certs (it can hold the site's private key)
       cloudflare-tunnel    Cloudflare's edge holds the certificate; not checked
@@ -172,7 +173,7 @@ def https_cert_status():
     host = os.getenv("HTTPS_CHECK_HOST", "caddy").strip() or "caddy"
     port = int(os.getenv("HTTPS_CHECK_PORT", "443") or 443)
     st = tls_peer_cert_status(host, port, timeout=10, service="HTTPS front door",
-                              server_name=domain, verify=(mode == "letsencrypt"))
+                              server_name=domain, verify=(mode in ("letsencrypt", "incommon")))
     if mode == "letsencrypt-staging" and st.get("level") == "ok":
         st["message"] += " (Staging certificate: browsers won't trust it. Switch to letsencrypt.)"
     return st

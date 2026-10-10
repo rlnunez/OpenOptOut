@@ -6,7 +6,8 @@
 #
 #   HTTPS_MODE   letsencrypt          Let's Encrypt (public server; ports 80+443 reachable from the internet, DNS pointing here)
 #                letsencrypt-staging  Let's Encrypt's test environment (untrusted certs; use while testing to avoid rate limits)
-#                acme                 Any ACME CA, e.g. an internal step-ca (ACME_CA = directory URL, ACME_CA_ROOT optional)
+#                acme                 Any ACME CA, e.g. an internal step-ca or a commercial CA (ACME_CA = directory URL, ACME_CA_ROOT optional; ACME_EAB_KID / ACME_EAB_HMAC if the CA issued account credentials)
+#                incommon             BETA, untested against a live account. InCommon certificates via CERTInext, mostly for universities: ACME_CA (default https://acme-us.certinext.io/v1/directory), ACME_EAB_KID and ACME_EAB_HMAC (all from campus IT) are required; keys are RSA 2048 as CERTInext requires.
 #                custom               Your own certificate files (TLS_CERT_FILE / TLS_KEY_FILE, mounted from ./deploy/certs)
 #                none                 No certificate: plain HTTP on port 80 only (DOMAIN optional). Add one later.
 #                (internal is Caddy-only: Traefik has no private CA of its own.)
@@ -18,6 +19,7 @@
 #   CLOUDFLARE_PROXY  on | off (default)  The site sits behind Cloudflare's proxy (orange cloud): accept connections ONLY from Cloudflare's IP ranges (CLOUDFLARE_IPS_FILE) and take the visitor's IP from CF-Connecting-IP. Needs ACME_CHALLENGE=cloudflare or HTTPS_MODE=custom.
 #   DOMAIN       e.g. privacy.example.org (comma-separate several; no wildcards — HTTP-01 challenges can't issue them)
 #   ACME_EMAIL   contact address for the CA (recommended)
+#   ACME_KEY_TYPE  rsa2048 | rsa4096 | p256 | p384  Certificate key type, for CAs that require one (default: Traefik's; incommon always uses rsa2048)
 #   UPSTREAM     where to send traffic (default web:80)
 #   HSTS         on (default) | off
 #
@@ -65,17 +67,40 @@ case "$MODE" in
     CA="${ACME_CA:-}"
     [ -n "$CA" ] || die "HTTPS_MODE=acme needs ACME_CA (the ACME directory URL)."
     url_ok "$CA" || die "ACME_CA must be an https:// URL: $CA" ;;
+  incommon)
+    CA="${ACME_CA:-https://acme-us.certinext.io/v1/directory}"
+    url_ok "$CA" || die "ACME_CA must be an https:// URL: $CA"
+    if [ -z "${ACME_EAB_KID:-}" ] || [ -z "${ACME_EAB_HMAC:-}" ]; then
+      die "HTTPS_MODE=incommon needs ACME_EAB_KID and ACME_EAB_HMAC: the ACME key ID and HMAC key your campus IT issues for the InCommon certificate service."
+    fi ;;
   custom|none) CA="" ;;
   internal) die "HTTPS_MODE=internal needs Caddy's private CA. Use FRONT_DOOR=caddy, or HTTPS_MODE=custom with your own certificate." ;;
-  "") die "HTTPS_MODE is not set (letsencrypt, letsencrypt-staging, acme, custom, none)." ;;
-  *)  die "Unknown HTTPS_MODE '$MODE' (letsencrypt, letsencrypt-staging, acme, custom, none)." ;;
+  "") die "HTTPS_MODE is not set (letsencrypt, letsencrypt-staging, acme, incommon, custom, none)." ;;
+  *)  die "Unknown HTTPS_MODE '$MODE' (letsencrypt, letsencrypt-staging, acme, incommon, custom, none)." ;;
+esac
+
+# Account credentials some CAs issue (External Account Binding): both or neither.
+EAB_KID="${ACME_EAB_KID:-}"; EAB_HMAC="${ACME_EAB_HMAC:-}"
+if [ -n "$EAB_KID$EAB_HMAC" ]; then
+  [ "$MODE" = "acme" ] || [ "$MODE" = "incommon" ] || die "ACME_EAB_KID / ACME_EAB_HMAC only apply to HTTPS_MODE acme or incommon."
+  [ -n "$EAB_KID" ] && [ -n "$EAB_HMAC" ] || die "Set both ACME_EAB_KID and ACME_EAB_HMAC (or neither)."
+  matches "$EAB_KID" '^[A-Za-z0-9_.-]{1,128}$' || die "ACME_EAB_KID has unexpected characters."
+  matches "$EAB_HMAC" '^[A-Za-z0-9_-]{16,}={0,2}$' || die "ACME_EAB_HMAC doesn't look like a base64url key (copy it exactly as issued)."
+fi
+KEY_TYPE="${ACME_KEY_TYPE:-}"
+[ "$MODE" = "incommon" ] && KEY_TYPE=rsa2048   # CERTInext requires RSA 2048
+case "$KEY_TYPE" in
+  "") TRAEFIK_KEY="" ;;
+  rsa2048) TRAEFIK_KEY=RSA2048 ;; rsa4096) TRAEFIK_KEY=RSA4096 ;;
+  p256) TRAEFIK_KEY=EC256 ;; p384) TRAEFIK_KEY=EC384 ;;
+  *) die "ACME_KEY_TYPE must be rsa2048, rsa4096, p256 or p384: $KEY_TYPE" ;;
 esac
 
 CHALLENGE="${ACME_CHALLENGE:-http}"
 case "$CHALLENGE" in
   http) ;;
   cloudflare)
-    [ -n "$CA" ] || die "ACME_CHALLENGE=cloudflare only works with HTTPS_MODE letsencrypt, letsencrypt-staging, or acme."
+    [ -n "$CA" ] || die "ACME_CHALLENGE=cloudflare only works with HTTPS_MODE letsencrypt, letsencrypt-staging, acme, or incommon."
     [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || die "Cloudflare DNS is selected but CLOUDFLARE_API_TOKEN isn't set yet. Create a Cloudflare API token with Zone > DNS > Edit for your domain, add CLOUDFLARE_API_TOKEN=... to .env, then run: docker compose up -d" ;;
   *) die "ACME_CHALLENGE must be http or cloudflare: $CHALLENGE" ;;
 esac
@@ -148,6 +173,13 @@ if [ -n "$CA" ]; then
   fi
   [ -n "$EMAIL" ] && RESOLVER="$RESOLVER
       email: \"$EMAIL\""
+  [ -n "$TRAEFIK_KEY" ] && RESOLVER="$RESOLVER
+      keyType: $TRAEFIK_KEY"
+  # Traefik can't read this from the environment alongside a config file, so it is written here; Compose keeps this directory in memory (tmpfs), never on disk.
+  [ -n "$EAB_KID" ] && RESOLVER="$RESOLVER
+      eab:
+        kid: \"$EAB_KID\"
+        hmacEncoded: \"$EAB_HMAC\""
   if [ -n "${ACME_CA_ROOT:-}" ]; then
     path_ok "$ACME_CA_ROOT" || die "ACME_CA_ROOT must be an absolute path: $ACME_CA_ROOT"
     [ -f "$ACME_CA_ROOT" ] || die "ACME_CA_ROOT file not found: $ACME_CA_ROOT"
@@ -315,7 +347,9 @@ EOF
 
 echo "OpenOptOut HTTPS (Traefik): mode=$MODE challenge=$CHALLENGE rate_limit=$RATE_LIMIT cloudflare_proxy=${CLOUDFLARE_PROXY:-off} domain=${DOMAIN:-(any)} upstream=$UPSTREAM"
 if [ "${GENERATE_ONLY:-}" = "1" ]; then
-  cat "$CONF_DIR/traefik.yml" "$CONF_DIR/dynamic.yml"
+  # Never print the EAB secret, even in test output.
+  if [ -n "$EAB_HMAC" ]; then sed "s|$EAB_HMAC|(hidden)|" "$CONF_DIR/traefik.yml"; else cat "$CONF_DIR/traefik.yml"; fi
+  cat "$CONF_DIR/dynamic.yml"
   exit 0
 fi
 # Traefik's Cloudflare provider reads this name; .env uses the clearer one.

@@ -3510,6 +3510,13 @@ def t_https_entrypoint():
             {"HTTPS_MODE": "none", "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips},
             {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_CHALLENGE": "cloudflare",
              "CLOUDFLARE_API_TOKEN": "x" * 40, "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": bad_ips},
+            # InCommon (beta): credentials required, well-formed, and only for ACME modes
+            {"HTTPS_MODE": "incommon", "DOMAIN": "a.org"},
+            {"HTTPS_MODE": "incommon", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1"},
+            {"HTTPS_MODE": "incommon", "DOMAIN": "a.org", "ACME_EAB_KID": "kid } evil {", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"},
+            {"HTTPS_MODE": "incommon", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "short"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_KEY_TYPE": "dsa1024"},
         ]
         for env in bad:
             r = run(env, cf)
@@ -3536,6 +3543,9 @@ def t_https_entrypoint():
             {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org", "ACME_CHALLENGE": "cloudflare",
              "CLOUDFLARE_API_TOKEN": "t0ken-" + "x" * 34, "CLOUDFLARE_PROXY": "on",
              "CLOUDFLARE_IPS_FILE": cf_ips, "RATE_LIMIT_PER_MINUTE": "600", "AUTH_RATE_LIMIT_PER_MINUTE": "30"},
+            {"HTTPS_MODE": "incommon", "DOMAIN": "privacy.univ.edu", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"},
+            {"HTTPS_MODE": "acme", "DOMAIN": "privacy.lib.org", "ACME_CA": "https://ca.example.com/dir",
+             "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n", "ACME_KEY_TYPE": "p384"},
         ]
         for env in good:
             r = run(env, cf)
@@ -3568,6 +3578,15 @@ def t_https_entrypoint():
                 assert f"events {env.get('RATE_LIMIT_PER_MINUTE', '1200')}" in content
                 assert f"events {env.get('AUTH_RATE_LIMIT_PER_MINUTE', '60')}" in content
             assert "read_header 10s" in content
+            assert "persist_config off" in content, "Caddy must not save its loaded config (it can hold the EAB secret)"
+            if env.get("ACME_EAB_KID"):
+                assert "eab {$ACME_EAB_KID} {$ACME_EAB_HMAC}" in content
+                assert env["ACME_EAB_HMAC"] not in content, "the EAB HMAC key must never be written to the Caddyfile"
+            if env["HTTPS_MODE"] == "incommon":
+                assert "ca https://acme-us.certinext.io/v1/directory" in content
+                assert "key_type rsa2048" in content, "CERTInext requires RSA 2048"
+            elif env.get("ACME_KEY_TYPE"):
+                assert f"key_type {env['ACME_KEY_TYPE']}" in content
             if env.get("CLOUDFLARE_PROXY") == "on":
                 # Only Cloudflare may connect, and only Cloudflare is trusted for the client IP.
                 assert "@not_cloudflare not remote_ip 173.245.48.0/20" in content and "2c0f:f248::/32" in content
@@ -3637,6 +3656,10 @@ def t_https_traefik_entrypoint():
             {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "CLOUDFLARE_PROXY": "on",
              "CLOUDFLARE_IPS_FILE": cf_ips},
             {"HTTPS_MODE": "none", "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips},
+            {"HTTPS_MODE": "incommon", "DOMAIN": "a.org"},
+            {"HTTPS_MODE": "incommon", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": 'x"\nproviders: {}'},
+            {"HTTPS_MODE": "custom", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_KEY_TYPE": "rsa1024"},
         ]
         for env in bad:
             r = run(env)
@@ -3660,6 +3683,7 @@ def t_https_traefik_entrypoint():
             {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org", "ACME_CHALLENGE": "cloudflare",
              "CLOUDFLARE_API_TOKEN": "t0ken-" + "x" * 34, "CLOUDFLARE_PROXY": "on",
              "CLOUDFLARE_IPS_FILE": cf_ips, "RATE_LIMIT_PER_MINUTE": "600", "AUTH_RATE_LIMIT_PER_MINUTE": "30"},
+            {"HTTPS_MODE": "incommon", "DOMAIN": "privacy.univ.edu", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"},
         ]
         for env in good:
             r = run(env)
@@ -3674,6 +3698,12 @@ def t_https_traefik_entrypoint():
                     assert f"Host(`{d.strip()}`)" in router["rule"], router["rule"]
             headers = dynamic["http"]["middlewares"]["openoptout-headers"]["headers"]
             assert headers.get("frameDeny") and headers.get("contentTypeNosniff")
+            if env["HTTPS_MODE"] == "incommon":
+                acme = static["certificatesResolvers"]["openoptout"]["acme"]
+                assert acme["caServer"] == "https://acme-us.certinext.io/v1/directory"
+                assert acme["keyType"] == "RSA2048", "CERTInext requires RSA 2048"
+                assert acme["eab"] == {"kid": "kid1", "hmacEncoded": env["ACME_EAB_HMAC"]}
+                assert env["ACME_EAB_HMAC"] not in r.stdout, "the EAB HMAC key must never be printed"
             # Sign-in endpoints get their own router with the stricter limit.
             signin = dynamic["http"]["routers"]["openoptout-signin"]
             assert "PathPrefix(`/api/auth/`)" in signin["rule"]
@@ -3789,6 +3819,10 @@ def t_compose_sanity():
         vols = " ".join(str(v) for v in services[name].get("volumes", []))
         assert "cloudflare/ip-ranges.txt:/deploy/cloudflare-ips.txt:ro" in vols, \
             f"{name} must mount the Cloudflare IP list read-only"
+        for needed in ("ACME_EAB_KID", "ACME_EAB_HMAC", "ACME_KEY_TYPE"):
+            assert needed in svc_env, f"{name} missing {needed} passthrough (InCommon / EAB)"
+    assert any(str(t).startswith("/etc/traefik") for t in (traefik.get("tmpfs") or [])), \
+        "Traefik's generated config (which can hold the EAB secret) must live in memory (tmpfs)"
     cdns_env = " ".join(str(e) for e in cdns.get("environment", []))
     assert "CLOUDFLARE_API_TOKEN" in cdns_env
     assert "CLOUDFLARE_API_TOKEN" not in " ".join(str(e) for e in caddy.get("environment", [])), \
@@ -3855,6 +3889,10 @@ def t_enable_https_script():
           "CLOUDFLARE_API_TOKEN": token, "HTTPS_CHECK_HOST": "caddy"}),
         (["--proxy", "caddy", "--cert", "cloudflare-dns", "--domain", "a.org", "--no-rate-limit"],
          {"COMPOSE_PROFILES": "https-caddy-extended", "RATE_LIMIT": "off"}),
+        (["--proxy", "traefik", "--mode", "incommon", "--domain", "privacy.univ.edu",
+          "--eab-kid", "kid1", "--eab-hmac", "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"],
+         {"HTTPS_MODE": "incommon", "ACME_CA": "https://acme-us.certinext.io/v1/directory",
+          "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n", "ACME_KEY_TYPE": "rsa2048"}),
         (["--proxy", "traefik", "--cert", "cloudflare-dns", "--domain", "a.org", "--cloudflare-proxy",
           "--rate-limit", "600", "--auth-rate-limit", "30"],
          {"CLOUDFLARE_PROXY": "on", "TRUSTED_PROXY_HOPS": "3", "RATE_LIMIT_PER_MINUTE": "600",
@@ -3891,6 +3929,10 @@ def t_enable_https_script():
         ["--proxy", "cloudflare-tunnel", "--domain", "a.org", "--cloudflare-proxy"],
         ["--proxy", "caddy", "--cert", "none", "--rate-limit", "0"],
         ["--proxy", "caddy", "--cert", "none", "--rate-limit", "12;rm"],
+        # InCommon details are required during setup, and credentials only fit ACME modes
+        ["--proxy", "caddy", "--mode", "incommon", "--domain", "a.org"],
+        ["--proxy", "caddy", "--mode", "incommon", "--domain", "a.org", "--eab-kid", "kid1", "--eab-hmac", "bad\nkey"],
+        ["--proxy", "caddy", "--mode", "letsencrypt", "--domain", "a.org", "--eab-kid", "kid1", "--eab-hmac", "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"],
     ]
     for args in refused:
         r, _ = run(*args)
@@ -3923,6 +3965,9 @@ def t_wizard_commands_and_monitor_modes():
     cfp = cmds("caddy", "cloudflare-dns", "a.org", rate_limit=False, cloudflare_proxy=True)
     assert "--cloudflare-proxy" in cfp["linux"] and "-CloudflareProxy" in cfp["windows"]
     assert "--no-rate-limit" in cfp["linux"] and "-NoRateLimit" in cfp["windows"]
+    inc = cmds("traefik", "incommon", "privacy.univ.edu")
+    assert inc["linux"] == "./scripts/enable-https.sh --proxy traefik --mode incommon --domain privacy.univ.edu"
+    assert "-Mode incommon" in inc["windows"] and "--cert" not in inc["linux"]
     assert "--cloudflare-proxy" not in cmds("caddy", "letsencrypt", "a.org", cloudflare_proxy=True)["linux"], \
         "Cloudflare's proxy is only offered with the Cloudflare DNS certificate"
 

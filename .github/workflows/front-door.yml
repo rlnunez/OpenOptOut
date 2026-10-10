@@ -5,6 +5,7 @@
 #   - build the extended Caddy image (deploy/caddy/Dockerfile: Cloudflare DNS + rate-limit modules) and validate every generated Caddyfile shape with it
 #   - deploy/tests/protection_e2e.sh with that Caddy: Cloudflare-only access, client-IP handling, and rate limits on BOTH Caddy and Traefik
 #   - deploy/tests/acme_e2e*.sh: real certificate issuance + renewal (Pebble) for both front doors
+#   - deploy/tests/incommon_e2e.sh: InCommon (beta) mode — account credentials required, RSA 2048 keys — on both front doors
 # See docs/HTTPS.md.
 # ==============================================================================
 
@@ -94,7 +95,7 @@ jobs:
         run: CADDY_BIN="$PWD/caddy-extended" ./deploy/tests/protection_e2e.sh
 
   certificates:
-    name: Certificate issuance + renewal (${{ matrix.door }})
+    name: Certificates (${{ matrix.door }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -102,7 +103,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        door: [caddy, traefik]
+        door: [caddy, traefik, incommon]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -111,4 +112,8 @@ jobs:
         env:
           DOOR: ${{ matrix.door }}
         run: |
-          if [ "$DOOR" = caddy ]; then sudo ./deploy/tests/acme_e2e.sh; else sudo ./deploy/tests/acme_e2e_traefik.sh; fi
+          case "$DOOR" in
+            caddy) sudo ./deploy/tests/acme_e2e.sh ;;
+            traefik) sudo ./deploy/tests/acme_e2e_traefik.sh ;;
+            incommon) sudo ./deploy/tests/incommon_e2e.sh ;;   # InCommon (beta) mode on both front doors
+          esac

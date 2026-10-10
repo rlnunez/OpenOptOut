@@ -19,8 +19,11 @@ Step 3 (only with cloudflare-dns or custom), -CloudflareProxy:
 Rate limits (Caddy/Traefik; on by default):
          -NoRateLimit   -RateLimit N (per visitor per minute, default 1200)
          -AuthRateLimit N (sign-in attempts per visitor per minute, default 60)
-Advanced: -Mode letsencrypt|letsencrypt-staging|acme|internal|custom|none
+Advanced: -Mode letsencrypt|letsencrypt-staging|acme|incommon|internal|custom|none
          -AcmeCa URL  -AcmeCaRoot FILE
+         -Mode incommon (BETA, untested): InCommon certificates via CERTInext, mostly for universities. Requires -EabKid, -EabHmac and -AcmeCa (default https://acme-us.certinext.io/v1/directory) from campus IT; asked for during setup if not given.
+         -EabKid K -EabHmac H   account credentials (External Account Binding) for -Mode acme with CAs that issue them
+         -KeyType rsa2048|rsa4096|p256|p384   for CAs that require a key type (incommon always uses rsa2048)
 Other:   -Domain D  -Email E  -CfToken T  -TunnelToken T
          -EnvFile PATH (default .env)  -Yes (no prompts; use defaults)
 
@@ -36,7 +39,7 @@ param(
     [string]$Proxy,
     [ValidateSet("letsencrypt", "cloudflare-dns", "none", "advanced")]
     [string]$Cert,
-    [ValidateSet("letsencrypt", "letsencrypt-staging", "acme", "internal", "custom", "none")]
+    [ValidateSet("letsencrypt", "letsencrypt-staging", "acme", "incommon", "internal", "custom", "none")]
     [string]$Mode,
     [string]$Domain,
     [string]$Email,
@@ -44,6 +47,10 @@ param(
     [string]$AcmeCaRoot,
     [string]$CfToken,
     [string]$TunnelToken,
+    [string]$EabKid,
+    [string]$EabHmac,
+    [ValidateSet("", "rsa2048", "rsa4096", "p256", "p384")]
+    [string]$KeyType = "",
     [switch]$CloudflareProxy,
     [switch]$NoRateLimit,
     [int]$RateLimit = 0,
@@ -140,7 +147,7 @@ function Test-HasEnv([string]$Path, [string]$Key) {
 }
 
 $FrontDoorKeys = @("COMPOSE_PROFILES", "FRONT_DOOR", "HTTPS_CHECK_HOST", "HTTPS_MODE", "ACME_CHALLENGE",
-                   "DOMAIN", "ACME_EMAIL", "ACME_CA", "ACME_CA_ROOT", "WEB_BIND", "WEB_PORT", "TRUSTED_PROXY_HOPS",
+                   "DOMAIN", "ACME_EMAIL", "ACME_CA", "ACME_CA_ROOT", "ACME_EAB_KID", "ACME_EAB_HMAC", "ACME_KEY_TYPE", "WEB_BIND", "WEB_PORT", "TRUSTED_PROXY_HOPS",
                    "RATE_LIMIT", "CLOUDFLARE_PROXY")
 
 # ── -Disable ───────────────────────────────────────────────────────────────
@@ -265,7 +272,7 @@ switch ($Cert) {
     "cloudflare-dns" {
         $Challenge = "cloudflare"
         if (-not $Mode) { $Mode = "letsencrypt" }
-        if ($Mode -notin @("letsencrypt", "letsencrypt-staging", "acme")) { Fail "Cloudflare DNS works with -Mode letsencrypt, letsencrypt-staging, or acme." }
+        if ($Mode -notin @("letsencrypt", "letsencrypt-staging", "acme", "incommon")) { Fail "Cloudflare DNS works with -Mode letsencrypt, letsencrypt-staging, acme, or incommon." }
     }
     "none" {
         if ($Mode -and $Mode -ne "none") { Fail "-Cert none can't be combined with -Mode $Mode." }
@@ -282,12 +289,16 @@ switch ($Cert) {
                 Write-Host "  3) internal             (Caddy only — not available with Traefik)"
             }
             Write-Host "  4) custom               certificate files you provide"
-            switch (Ask "Choose 1-4" "1") {
+            Write-Host "  5) incommon             InCommon certificates via CERTInext — BETA, untested." -ForegroundColor Yellow
+            Write-Host "                          Mostly for universities in InCommon. You'll need the ACME key ID,"
+            Write-Host "                          HMAC key and server address from your campus IT now."
+            switch (Ask "Choose 1-5" "1") {
                 "1" { $Mode = "letsencrypt-staging" }
                 "2" { $Mode = "acme" }
                 "3" { $Mode = "internal" }
                 "4" { $Mode = "custom" }
-                default { Fail "Please choose 1-4." }
+                "5" { $Mode = "incommon" }
+                default { Fail "Please choose 1-5." }
             }
         }
     }
@@ -328,6 +339,31 @@ if ($Mode -eq "acme") {
         Copy-Item -Path $AcmeCaRoot -Destination "deploy/certs/acme-ca-root.pem" -Force
         $AcmeCaRootPath = "/certs/acme-ca-root.pem"
     }
+}
+
+# ── account credentials (EAB) + key type ──
+if ($Mode -eq "incommon") {
+    # Required now, unlike the Cloudflare token: without them CERTInext refuses the account and nothing works.
+    Write-Host ""
+    Write-Host "InCommon (BETA, untested against a live account): CERTInext issues these to your campus IT," -ForegroundColor Yellow
+    Write-Host "who give each department its own ACME key ID, HMAC key and server address."
+    if (-not $AcmeCa) { $AcmeCa = Ask "ACME server address (directory URL) from campus IT" "https://acme-us.certinext.io/v1/directory" }
+    if (-not $EabKid) { $EabKid = Ask "ACME key ID (EAB key ID)" }
+    if (-not $EabHmac) { $EabHmac = Ask-Secret "ACME HMAC key (EAB HMAC key; typing is hidden)" }
+    if (-not $EabKid -or -not $EabHmac) { Fail "InCommon needs the ACME key ID and HMAC key from campus IT during setup (-EabKid / -EabHmac). Nothing was changed." }
+    $KeyType = "rsa2048"   # CERTInext requires RSA 2048
+    if ($AcmeCa -notmatch '^https://[A-Za-z0-9.:/_~%-]+$') { Fail "The ACME server address must be an https:// URL" }
+} elseif ($Mode -eq "acme" -and -not $EabKid -and -not $EabHmac -and (Test-Interactive)) {
+    if ((Ask "Did your CA give you account credentials (an EAB key ID and HMAC key)? (y/n)" "n") -eq "y") {
+        $EabKid = Ask "EAB key ID"
+        $EabHmac = Ask-Secret "EAB HMAC key (typing is hidden)"
+    }
+}
+if ($EabKid -or $EabHmac) {
+    if ($Mode -notin @("acme", "incommon")) { Fail "-EabKid/-EabHmac only apply to -Mode acme or incommon." }
+    if (-not $EabKid -or -not $EabHmac) { Fail "Give both the EAB key ID and the HMAC key." }
+    if ($EabKid -cnotmatch '^[A-Za-z0-9_.-]{1,128}$') { Fail "That EAB key ID has unexpected characters." }
+    if ($EabHmac -cnotmatch '^[A-Za-z0-9_-]{16,}={0,2}$') { Fail "That HMAC key doesn't look right (it's a long base64url string; copy it exactly)." }
 }
 
 # ── custom ──
@@ -392,7 +428,8 @@ if ($Challenge -eq "http" -and $Mode -in @("letsencrypt", "letsencrypt-staging")
     }
 }
 
-$certLabel = if ($Challenge -eq "cloudflare") { "$Mode via Cloudflare DNS" } else { $Mode }
+$certLabel = if ($Mode -eq "incommon") { "incommon (beta)" } else { $Mode }
+if ($Challenge -eq "cloudflare") { $certLabel = "$certLabel via Cloudflare DNS" }
 $domainLabel = if ($Domain) { $Domain } else { "(any)" }
 $emailSuffix = if ($Email) { "  email=$Email" } else { "" }
 Write-Host ""
@@ -420,6 +457,9 @@ Set-EnvVar $EnvFile "ACME_CHALLENGE" $Challenge
 if ($Domain) { Set-EnvVar $EnvFile "DOMAIN" $Domain }
 if ($Email) { Set-EnvVar $EnvFile "ACME_EMAIL" $Email }
 if ($AcmeCa) { Set-EnvVar $EnvFile "ACME_CA" $AcmeCa }
+if ($EabKid) { Set-EnvVar $EnvFile "ACME_EAB_KID" $EabKid }
+if ($EabHmac) { Set-EnvVar $EnvFile "ACME_EAB_HMAC" $EabHmac }
+if ($KeyType) { Set-EnvVar $EnvFile "ACME_KEY_TYPE" $KeyType }
 if ($AcmeCaRootPath) { Set-EnvVar $EnvFile "ACME_CA_ROOT" $AcmeCaRootPath }
 if ($CfToken) { Set-EnvVar $EnvFile "CLOUDFLARE_API_TOKEN" $CfToken }
 # The front door owns ports 80/443; the web container stays reachable only on this machine.
@@ -468,6 +508,10 @@ if ($UseCfProxy) {
 }
 if ($Mode -eq "internal") {
     Write-Host "Browsers will warn until Caddy's root CA is trusted — see docs/HTTPS.md."
+}
+if ($Mode -eq "incommon") {
+    Write-Host "InCommon is BETA and untested against a live CERTInext account. If the certificate doesn't arrive, check" -ForegroundColor Yellow
+    Write-Host "the logs above and confirm the key ID, HMAC key, server address and domain with campus IT (docs/HTTPS.md)." -ForegroundColor Yellow
 }
 if ($Mode -eq "letsencrypt-staging") {
     Write-Host "Staging certificates are intentionally untrusted. Rerun with -Mode letsencrypt when it works."

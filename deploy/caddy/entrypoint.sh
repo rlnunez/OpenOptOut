@@ -4,7 +4,8 @@
 #
 #   HTTPS_MODE   letsencrypt          Let's Encrypt (public server; ports 80+443 reachable from the internet, DNS pointing here)
 #                letsencrypt-staging  Let's Encrypt's test environment (untrusted certs; use while testing to avoid rate limits)
-#                acme                 Any ACME CA, e.g. an internal step-ca (ACME_CA = directory URL, ACME_CA_ROOT optional)
+#                acme                 Any ACME CA, e.g. an internal step-ca or a commercial CA (ACME_CA = directory URL, ACME_CA_ROOT optional; ACME_EAB_KID / ACME_EAB_HMAC if the CA issued account credentials)
+#                incommon             BETA, untested against a live account. InCommon certificates via CERTInext, mostly for universities: ACME_CA (default https://acme-us.certinext.io/v1/directory), ACME_EAB_KID and ACME_EAB_HMAC (all from campus IT) are required; keys are RSA 2048 as CERTInext requires.
 #                internal             Caddy's own private CA (LAN-only; browsers warn unless its root is installed)
 #                custom               Your own certificate files (TLS_CERT_FILE / TLS_KEY_FILE, mounted from ./deploy/certs)
 #                none                 No certificate: plain HTTP on port 80 only (DOMAIN optional). Add one later.
@@ -16,6 +17,7 @@
 #   CLOUDFLARE_PROXY  on | off (default)  The site sits behind Cloudflare's proxy (orange cloud): accept connections ONLY from Cloudflare's IP ranges (CLOUDFLARE_IPS_FILE) and take the visitor's IP from CF-Connecting-IP. Needs ACME_CHALLENGE=cloudflare or HTTPS_MODE=custom.
 #   DOMAIN       e.g. privacy.example.org (comma-separate several)
 #   ACME_EMAIL   contact address for the CA (recommended)
+#   ACME_KEY_TYPE  rsa2048 | rsa4096 | p256 | p384  Certificate key type, for CAs that require one (default: Caddy's choice; incommon always uses rsa2048)
 #   UPSTREAM     where to send traffic (default web:80)
 #   HSTS         on (default for trusted certs) | off
 #
@@ -58,16 +60,34 @@ case "$MODE" in
     CA="${ACME_CA:-}"
     [ -n "$CA" ] || die "HTTPS_MODE=acme needs ACME_CA (the ACME directory URL)."
     url_ok "$CA" || die "ACME_CA must be an https:// URL: $CA" ;;
+  incommon)
+    CA="${ACME_CA:-https://acme-us.certinext.io/v1/directory}"
+    url_ok "$CA" || die "ACME_CA must be an https:// URL: $CA"
+    if [ -z "${ACME_EAB_KID:-}" ] || [ -z "${ACME_EAB_HMAC:-}" ]; then
+      die "HTTPS_MODE=incommon needs ACME_EAB_KID and ACME_EAB_HMAC: the ACME key ID and HMAC key your campus IT issues for the InCommon certificate service."
+    fi ;;
   internal|custom|none) CA="" ;;
-  "") die "HTTPS_MODE is not set (letsencrypt, letsencrypt-staging, acme, internal, custom, none)." ;;
-  *)  die "Unknown HTTPS_MODE '$MODE' (letsencrypt, letsencrypt-staging, acme, internal, custom, none)." ;;
+  "") die "HTTPS_MODE is not set (letsencrypt, letsencrypt-staging, acme, incommon, internal, custom, none)." ;;
+  *)  die "Unknown HTTPS_MODE '$MODE' (letsencrypt, letsencrypt-staging, acme, incommon, internal, custom, none)." ;;
 esac
+
+# Account credentials some CAs issue (External Account Binding): both or neither.
+EAB_KID="${ACME_EAB_KID:-}"; EAB_HMAC="${ACME_EAB_HMAC:-}"
+if [ -n "$EAB_KID$EAB_HMAC" ]; then
+  [ "$MODE" = "acme" ] || [ "$MODE" = "incommon" ] || die "ACME_EAB_KID / ACME_EAB_HMAC only apply to HTTPS_MODE acme or incommon."
+  [ -n "$EAB_KID" ] && [ -n "$EAB_HMAC" ] || die "Set both ACME_EAB_KID and ACME_EAB_HMAC (or neither)."
+  matches "$EAB_KID" '^[A-Za-z0-9_.-]{1,128}$' || die "ACME_EAB_KID has unexpected characters."
+  matches "$EAB_HMAC" '^[A-Za-z0-9_-]{16,}={0,2}$' || die "ACME_EAB_HMAC doesn't look like a base64url key (copy it exactly as issued)."
+fi
+KEY_TYPE="${ACME_KEY_TYPE:-}"
+[ "$MODE" = "incommon" ] && KEY_TYPE=rsa2048   # CERTInext requires RSA 2048
+case "$KEY_TYPE" in ""|rsa2048|rsa4096|p256|p384) ;; *) die "ACME_KEY_TYPE must be rsa2048, rsa4096, p256 or p384: $KEY_TYPE" ;; esac
 
 CHALLENGE="${ACME_CHALLENGE:-http}"
 case "$CHALLENGE" in
   http) ;;
   cloudflare)
-    [ -n "$CA" ] || die "ACME_CHALLENGE=cloudflare only works with HTTPS_MODE letsencrypt, letsencrypt-staging, or acme."
+    [ -n "$CA" ] || die "ACME_CHALLENGE=cloudflare only works with HTTPS_MODE letsencrypt, letsencrypt-staging, acme, or incommon."
     [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || die "Cloudflare DNS is selected but CLOUDFLARE_API_TOKEN isn't set yet. Create a Cloudflare API token with Zone > DNS > Edit for your domain, add CLOUDFLARE_API_TOKEN=... to .env, then run: docker compose up -d"
     if [ "${GENERATE_ONLY:-}" != "1" ] && ! caddy list-modules 2>/dev/null | grep -q '^dns.providers.cloudflare$'; then
       die "This Caddy build has no Cloudflare DNS support. Rerun scripts/enable-https.sh, which switches to the caddy-extended service that includes it."
@@ -124,6 +144,15 @@ if [ -n "$CA" ]; then
     TLS="$TLS
 		ca_root $ACME_CA_ROOT"
   fi
+  if [ -n "$EAB_KID" ]; then
+    # Read from the environment when Caddy loads the config ({$VAR}); the secret itself is never written to this file.
+    TLS="$TLS
+		eab {\$ACME_EAB_KID} {\$ACME_EAB_HMAC}"
+  fi
+  if [ -n "$KEY_TYPE" ]; then
+    TLS="$TLS
+		key_type $KEY_TYPE"
+  fi
   if [ "$CHALLENGE" = "cloudflare" ]; then
     # The token stays in the environment; only a placeholder is written to disk. Public resolvers, so a home router's own DNS can't hide the new record.
     TLS="$TLS
@@ -154,7 +183,9 @@ if [ "${HSTS:-on}" != "off" ] && [ "$MODE" != "internal" ] && [ "$MODE" != "none
 fi
 
 # ── global options ────────────────────────────────────────────────────────────
-GLOBAL="	admin off"
+# persist_config off: Caddy would otherwise save the loaded config, including any {$VAR} secrets it read (ACME_EAB_HMAC), to autosave.json on the caddy_config volume.
+GLOBAL="	admin off
+	persist_config off"
 [ -n "$EMAIL" ] && GLOBAL="$GLOBAL
 	email $EMAIL"
 if [ -n "${HTTP_PORT:-}" ]; then
