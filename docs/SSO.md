@@ -87,6 +87,19 @@ The ILS certificate is **always verified**; there is no switch to turn that off.
 
 Patrons see the same message whether the card number or the PIN was wrong, so the login form can't be used to discover which card numbers exist.
 
+### Multi-ILS Consortia & Card Prefix Routing
+
+Consortia supporting multiple library systems can configure multiple SIP2 connections under Consortium settings. Incoming patron cards are routed to their designated ILS server by barcode prefix matching (or evaluated against the default catch-all connection if no prefix matches). Each SIP2 connection maintains its own TLS certificate, patron privilege and restriction policies, fee thresholds, and date formats.
+
+### Optional Field Mapping & Identity Vault Provisioning
+
+By default, OpenOptOut adheres to strict data minimization: newly authenticated SIP2 patrons receive a synthetic, privacy-preserving email address (`<barcode>@<library-domain>`) and zero demographic data is retrieved or stored.
+
+If a library prefers to import patron profile details from the ILS, each SIP2 connection can enable:
+
+- **Map Patron Fields (`map_patron_fields`)**: When enabled, the SIP2 patron status check parses demographic fields returned by the ILS (such as `AE` patron name, `BE` email address, `BF` phone number, and `BD` home address). Administrators can customize field keys via a JSON mapping dictionary (e.g., `{"name": "AE", "email": "BE", "phone": "BF", "address": "BD"}`).
+- **Populate Identity Vault (`populate_vault`)**: When enabled alongside field mapping, OpenOptOut automatically provisions the patron's encrypted Identity Vault on initial sign-up, securely storing their name, email, phone, and address into an `Identity` record and calculating age groups into `FamilyMember` records. Both settings default to disabled to protect patron privacy.
+
 ## Certificate reminders
 
 A daily check covers every certificate sign-in depends on:
