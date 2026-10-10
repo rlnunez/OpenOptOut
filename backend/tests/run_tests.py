@@ -6545,12 +6545,14 @@ def t_ldap_live():
     def free_port():
         s = socket.socket(); s.bind(("127.0.0.1", 0)); p = s.getsockname()[1]; s.close(); return p
     d = tempfile.mkdtemp(); os.makedirs(f"{d}/db")
-    sh = lambda c: subprocess.run(c, shell=True, cwd=d, capture_output=True, check=True)
-    sh('openssl req -x509 -newkey rsa:2048 -nodes -keyout ca.key -out ca.crt -days 2 -subj "/CN=Internal CA"')
-    sh('openssl req -newkey rsa:2048 -nodes -keyout srv.key -out srv.csr -subj "/CN=localhost"')
-    sh('printf "subjectAltName=DNS:localhost,IP:127.0.0.1\\n" > san.ext')
-    sh('openssl x509 -req -in srv.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out srv.crt -days 2 -extfile san.ext')
-    sh('openssl req -x509 -newkey rsa:2048 -nodes -keyout o.key -out other.crt -days 2 -subj "/CN=Other CA"')
+    def run_cmd(args):
+        return subprocess.run(args, cwd=d, capture_output=True, check=True)
+    run_cmd(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "ca.key", "-out", "ca.crt", "-days", "2", "-subj", "/CN=Internal CA"])
+    run_cmd(["openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", "srv.key", "-out", "srv.csr", "-subj", "/CN=localhost"])
+    with open(f"{d}/san.ext", "w") as f:
+        f.write("subjectAltName=DNS:localhost,IP:127.0.0.1\n")
+    run_cmd(["openssl", "x509", "-req", "-in", "srv.csr", "-CA", "ca.crt", "-CAkey", "ca.key", "-CAcreateserial", "-out", "srv.crt", "-days", "2", "-extfile", "san.ext"])
+    run_cmd(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "o.key", "-out", "other.crt", "-days", "2", "-subj", "/CN=Other CA"])
     plain, tls = free_port(), free_port()
     open(f"{d}/slapd.conf", "w").write(f"""include /etc/ldap/schema/core.schema
 include /etc/ldap/schema/cosine.schema
