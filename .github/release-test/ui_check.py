@@ -62,6 +62,7 @@ class Recorder:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", default="http://localhost")
+    ap.add_argument("--browser", default=os.environ.get("PLAYWRIGHT_BROWSER", "chromium"))
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--creds-file", required=True)
     args = ap.parse_args()
@@ -102,9 +103,10 @@ def main():
             return None
 
     with sync_playwright() as p:
-        # Optional: use an already-installed Chromium instead of Playwright's own
+        # Optional: use an already-installed browser executable
         exe = os.environ.get("CHROMIUM_EXECUTABLE") or None
-        browser = p.chromium.launch(executable_path=exe)
+        launcher = getattr(p, args.browser.lower(), p.chromium)
+        browser = launcher.launch(executable_path=exe)
         ctx = browser.new_context(viewport={"width": 1366, "height": 900})
         page = ctx.new_page()
 

@@ -59,6 +59,7 @@ secrets/
 # Uploaded logos / generated output
 logo/
 screenshots/
+test-reports/
 
 # Installed plugins and their runtime storage (examples/ are tracked)
 /data/plugins/

@@ -52,8 +52,27 @@ EOF
   esac
 done
 
+REPORT_DIR="$REPO_ROOT/test-reports"
+mkdir -p "$REPORT_DIR"
+
 cleanup() {
   local exit_code=$?
+  if [ "$exit_code" -ne 0 ]; then
+    printf "\n${BOLD}${RED}TEST SUITE FAILED (exit code: %s)${NC}\n" "$exit_code"
+    info "Dumping container logs for diagnostics..."
+    docker compose logs --no-color > "$REPORT_DIR/containers.log" 2>/dev/null || true
+    if [ -f "$REPO_ROOT/.github/release-test/scan_logs.py" ] && [ -s "$REPORT_DIR/containers.log" ]; then
+      python3 "$REPO_ROOT/.github/release-test/scan_logs.py" "Docker Failure Audit" "$REPORT_DIR/containers.log" "$REPORT_DIR/error-report.md" 2>/dev/null || true
+    fi
+    printf "Container logs saved to: %s\n" "$REPORT_DIR/containers.log"
+    if [ -f "$REPORT_DIR/error-report.md" ]; then
+      printf "\n${BOLD}Aggregated Error Report:${NC}\n"
+      cat "$REPORT_DIR/error-report.md"
+    fi
+    if [ -d "$REPORT_DIR/screenshots" ]; then
+      printf "\nFailure screenshots saved to: %s\n" "$REPORT_DIR/screenshots"
+    fi
+  fi
   if [ "$KEEP_CONTAINERS" -eq 0 ]; then
     info "Cleaning up Docker resources..."
     docker compose down -v >/dev/null 2>&1 || true
@@ -156,8 +175,28 @@ docker compose exec -T api python3 tests/test_tmpfs_sizing.py --concurrency 4 --
 info "Running no-new-privileges compatibility probe inside 'api' container..."
 docker compose exec -T api python3 tests/test_no_new_privs.py
 
-# ── 6. Front Door Config Generation Matrix ────────────────────────────────────
-section "6. Reverse Proxy Configuration Tests"
+# ── 6. Browser Walk-Through & Screenshot Capture ──────────────────────────────
+section "6. Browser UI Walk-Through & Screenshot Capture"
+
+info "Running browser walkthrough and capturing page screenshots..."
+docker compose cp "$REPO_ROOT/.github" api:/app/ 2>/dev/null || true
+docker compose exec -T api python3 /app/.github/release-test/ui_check.py \
+  --base-url http://web:80 \
+  --browser firefox \
+  --out-dir /app/test-reports \
+  --creds-file /app/test-reports/creds.json || true
+docker compose cp api:/app/test-reports/. "$REPORT_DIR/" 2>/dev/null || true
+
+if [ -d "$REPORT_DIR/screenshots" ]; then
+  count=$(find "$REPORT_DIR/screenshots" -name "*.png" | wc -l | tr -d ' ')
+  info "Screenshots saved: $count captured in $REPORT_DIR/screenshots"
+  if [ -f "$REPORT_DIR/ui-report.md" ]; then
+    grep -E '❌|⚠️' "$REPORT_DIR/ui-report.md" || true
+  fi
+fi
+
+# ── 7. Front Door Config Generation Matrix ────────────────────────────────────
+section "7. Reverse Proxy Configuration Tests"
 
 info "Testing Caddy extended configuration generation..."
 docker compose run --rm --no-deps -e HTTPS_MODE=internal -e DOMAIN=localhost caddy-extended /bin/sh -c "test -s /etc/caddy/Caddyfile"
@@ -169,4 +208,17 @@ info "Traefik generated valid configuration."
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 section "Test Matrix Complete"
-printf "${BOLD}${GREEN}All Docker tests, profiles, and security probes passed successfully!${NC}\n\n"
+
+docker compose logs --no-color > "$REPORT_DIR/containers.log" 2>/dev/null || true
+if [ -f "$REPO_ROOT/.github/release-test/scan_logs.py" ] && [ -s "$REPORT_DIR/containers.log" ]; then
+  python3 "$REPO_ROOT/.github/release-test/scan_logs.py" "Docker Matrix Audit" "$REPORT_DIR/containers.log" "$REPORT_DIR/error-report.md" 2>/dev/null || true
+fi
+
+printf "${BOLD}${GREEN}All Docker tests, profiles, UI checks, and security probes passed successfully!${NC}\n"
+printf "Full container logs available at: %s\n" "$REPORT_DIR/containers.log"
+if [ -f "$REPORT_DIR/error-report.md" ]; then
+  printf "Log error summary available at: %s\n" "$REPORT_DIR/error-report.md"
+fi
+if [ -d "$REPORT_DIR/screenshots" ]; then
+  printf "Page and failure screenshots available at: %s\n\n" "$REPORT_DIR/screenshots"
+fi
