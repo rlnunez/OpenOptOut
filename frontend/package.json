@@ -1,6 +1,6 @@
 {
   "name": "openoptout-ui",
-  "version": "0.10.0-rc1",
+  "version": "0.10.0-rc2",
   "private": true,
   "type": "module",
   "dependencies": {
