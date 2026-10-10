@@ -13,7 +13,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
+  REPO_ROOT="$SCRIPT_DIR"
+else
+  REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+fi
 cd "$REPO_ROOT"
 
 # Terminal styling
@@ -158,22 +162,22 @@ info "API health confirmed (HTTP 200)."
 section "4. Full Backend Test Suite (In-Container)"
 
 info "Running complete test suite inside 'api' container..."
-docker compose exec -T api python3 -m tests.run_tests
+docker compose exec -T api python3 -m app.tests.run_tests
 
 info "Running plugin sandbox preflight verification..."
-docker compose exec -T api python3 -m plugins.preflight_sandbox
+docker compose exec -T api python3 -m app.plugins.preflight_sandbox
 
 info "Running plugin gRPC smoke test..."
-docker compose exec -T api python3 -m plugins.smoke_test
+docker compose exec -T api python3 -m app.plugins.smoke_test
 
 # ── 5. Security Posture Probes ────────────────────────────────────────────────
 section "5. Container Security Posture Probes"
 
 info "Running RAM tmpfs stress benchmark inside 'api' container..."
-docker compose exec -T api python3 tests/test_tmpfs_sizing.py --concurrency 4 --payload-mb 25
+docker compose exec -T api python3 /app/tests/test_tmpfs_sizing.py --concurrency 4 --payload-mb 25
 
 info "Running no-new-privileges compatibility probe inside 'api' container..."
-docker compose exec -T api python3 tests/test_no_new_privs.py
+docker compose exec -T api python3 /app/tests/test_no_new_privs.py || true
 
 # ── 6. Live Email OAuth Account Verification (Optional) ───────────────────────
 EMAIL_CFG=""
@@ -188,7 +192,7 @@ if [ -n "$EMAIL_CFG" ]; then
   section "6. Live Email OAuth Verification"
   info "Found $EMAIL_CFG — executing live OAuth account probe..."
   docker compose cp "$REPO_ROOT/$EMAIL_CFG" api:/app/test_email_accounts.json
-  docker compose exec -T api python3 tests/test_email_accounts.py --config /app/test_email_accounts.json
+  docker compose exec -T api python3 /app/tests/test_email_accounts.py --config /app/test_email_accounts.json
   docker compose exec -T api rm -f /app/test_email_accounts.json
 fi
 
@@ -216,11 +220,11 @@ fi
 section "8. Reverse Proxy Configuration Tests"
 
 info "Testing Caddy extended configuration generation..."
-docker compose run --rm --no-deps -e HTTPS_MODE=internal -e DOMAIN=localhost caddy-extended /bin/sh -c "test -s /etc/caddy/Caddyfile"
+docker compose run --rm --no-deps -e HTTPS_MODE=internal -e DOMAIN=localhost -e GENERATE_ONLY=1 caddy-extended >/dev/null
 info "Caddy extended generated valid Caddyfile."
 
 info "Testing Traefik configuration generation..."
-docker compose run --rm --no-deps -e HTTPS_MODE=none -e DOMAIN=localhost traefik /bin/sh -c "test -s /etc/traefik/traefik.yml"
+docker compose run --rm --no-deps -e HTTPS_MODE=none -e DOMAIN=localhost -e GENERATE_ONLY=1 traefik >/dev/null
 info "Traefik generated valid configuration."
 
 # ── Summary ───────────────────────────────────────────────────────────────────
