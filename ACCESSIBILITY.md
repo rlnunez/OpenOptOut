@@ -27,6 +27,7 @@ Starting in release `v0.10.0`, OpenOptOut includes a comprehensive accessibility
 - **Fluid Font Scaling**: Built-in text resizing controls scaling UI typography from 100% to 150% without clipping or overflowing layout containers (`--a11y-font-size`).
 - **Reflow & Zoom**: Full support for browser zoom up to 200% and 400% without horizontal scrolling or loss of functionality (WCAG 1.4.4 and 1.4.10).
 - **Legible Font Stacks**: System-native UI typography engineered for readability, clear letterform distinction, and adequate character spacing.
+- **Dyslexia-Friendly Typography (OpenDyslexic)**: Users can switch to OpenDyslexic (`.a11y-dyslexic-font`), a specialized typeface designed to mitigate reading errors with heavy weighted bottoms, unique letter shaping, and wide apertures. Packaged locally via self-hosted assets to preserve strict air-gapped privacy.
 
 ### 3. Motion & Vestibular Safety
 - **Reduced Motion Support**: Immediate respect for OS-level `prefers-reduced-motion` settings, plus an in-app toggle (`.a11y-reduced-motion`).

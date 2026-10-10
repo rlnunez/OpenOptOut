@@ -22,6 +22,11 @@ export function AccessibilityProvider({ children }) {
     return localStorage.getItem('a11y_high_contrast') === 'true'
   })
 
+  // Dyslexia-friendly font (OpenDyslexic)
+  const [dyslexicFont, setDyslexicFontState] = useState(() => {
+    return localStorage.getItem('a11y_dyslexic_font') === 'true'
+  })
+
   // Font size scaling (100% to 150%)
   const [fontSize, setFontSizeState] = useState(() => {
     const saved = localStorage.getItem('a11y_font_size')
@@ -103,6 +108,16 @@ export function AccessibilityProvider({ children }) {
     }
   }, [enhancedTargets])
 
+  // Sync dyslexic font
+  useEffect(() => {
+    const root = document.documentElement
+    if (dyslexicFont) {
+      root.classList.add('a11y-dyslexic-font')
+    } else {
+      root.classList.remove('a11y-dyslexic-font')
+    }
+  }, [dyslexicFont])
+
   // Fetch saved user preferences on login
   useEffect(() => {
     api.get('/i18n/user/preference')
@@ -116,6 +131,10 @@ export function AccessibilityProvider({ children }) {
           if (typeof cfg.high_contrast === 'boolean') {
             setHighContrastState(cfg.high_contrast)
             localStorage.setItem('a11y_high_contrast', String(cfg.high_contrast))
+          }
+          if (typeof cfg.dyslexic_font === 'boolean') {
+            setDyslexicFontState(cfg.dyslexic_font)
+            localStorage.setItem('a11y_dyslexic_font', String(cfg.dyslexic_font))
           }
           if (typeof cfg.font_size === 'number') {
             setFontSizeState(cfg.font_size)
@@ -138,6 +157,7 @@ export function AccessibilityProvider({ children }) {
     const full = {
       theme: updates.theme ?? theme,
       high_contrast: updates.high_contrast ?? highContrast,
+      dyslexic_font: updates.dyslexic_font ?? dyslexicFont,
       font_size: updates.font_size ?? fontSize,
       reduced_motion: updates.reduced_motion ?? reducedMotion,
       enhanced_targets: updates.enhanced_targets ?? enhancedTargets,
@@ -147,7 +167,7 @@ export function AccessibilityProvider({ children }) {
     } catch (e) {
       // Non-fatal if offline
     }
-  }, [theme, highContrast, fontSize, reducedMotion, enhancedTargets])
+  }, [theme, highContrast, dyslexicFont, fontSize, reducedMotion, enhancedTargets])
 
   const setTheme = (nextTheme) => {
     if (!['light', 'gray', 'dark', 'system'].includes(nextTheme)) return
@@ -170,6 +190,14 @@ export function AccessibilityProvider({ children }) {
     localStorage.setItem('a11y_high_contrast', String(next))
     persistSettings({ high_contrast: next })
     announce(next ? 'High Contrast Mode enabled' : 'High Contrast Mode disabled')
+  }
+
+  const setDyslexicFont = (val) => {
+    const next = Boolean(val)
+    setDyslexicFontState(next)
+    localStorage.setItem('a11y_dyslexic_font', String(next))
+    persistSettings({ dyslexic_font: next })
+    announce(next ? 'OpenDyslexic font enabled' : 'Default font restored')
   }
 
   const setReducedMotion = (val) => {
@@ -203,6 +231,8 @@ export function AccessibilityProvider({ children }) {
       setTheme,
       highContrast,
       setHighContrast,
+      dyslexicFont,
+      setDyslexicFont,
       fontSize,
       setFontSize,
       reducedMotion,
@@ -244,6 +274,8 @@ export function useAccessibility() {
       setTheme: () => {},
       highContrast: false,
       setHighContrast: () => {},
+      dyslexicFont: false,
+      setDyslexicFont: () => {},
       fontSize: 100,
       setFontSize: () => {},
       reducedMotion: false,

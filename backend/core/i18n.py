@@ -157,6 +157,9 @@ MASTER_DICTIONARY: List[Dict[str, str]] = [
     {"key": "a11y.font_preview_label", "default_text": "Live Preview", "location": "Global / Accessibility", "description": "Live preview label for font slider"},
     {"key": "a11y.font_preview_sample", "default_text": "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.", "location": "Global / Accessibility", "description": "Sample text inside font size preview box"},
     {"key": "a11y.contrast_checkbox_desc", "default_text": "Enforces maximum contrast (21:1) adapting to your chosen theme. Light theme renders crisp black-on-white; dark theme renders vivid white-on-black with high-visibility borders.", "location": "Global / Accessibility", "description": "Helper note for theme-aware high contrast"},
+    {"key": "a11y.dyslexic_font", "default_text": "Dyslexia-Friendly Font (OpenDyslexic)", "location": "Global / Accessibility", "description": "Toggle label for OpenDyslexic font family"},
+    {"key": "a11y.dyslexic_font_desc", "default_text": "Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.", "location": "Global / Accessibility", "description": "Description of dyslexia-friendly font option"},
+    {"key": "a11y.dyslexic_font_short", "default_text": "Dyslexia Font", "location": "Navigation / Sidebar", "description": "Short label for sidebar dyslexia font toggle"},
 ]
 
 # Built-in Spanish translations
@@ -260,6 +263,9 @@ BUILTIN_SPANISH = {
     "a11y.font_preview_label": "Vista Previa en Vivo",
     "a11y.font_preview_sample": "Este texto previsualiza el tamaño de fuente seleccionado en tiempo real. Todas las tablas, formularios y menús se ajustan proporcionalmente.",
     "a11y.contrast_checkbox_desc": "Aplica contraste máximo (21:1) adaptado a su tema. El tema claro muestra negro puro sobre blanco; el tema oscuro muestra blanco puro sobre negro con bordes de alta visibilidad.",
+    "a11y.dyslexic_font": "Tipografía para Dislexia (OpenDyslexic)",
+    "a11y.dyslexic_font_desc": "Cambia la tipografía en toda la plataforma a OpenDyslexic con bases reforzadas para facilitar la lectura.",
+    "a11y.dyslexic_font_short": "Fuente Dislexia",
 }
 
 # Built-in Arabic translations (RTL Demonstration)
@@ -363,6 +369,9 @@ BUILTIN_ARABIC = {
     "a11y.font_preview_label": "معاينة مباشرة",
     "a11y.font_preview_sample": "يعرض هذا النص حجم الخط المحدد في الوقت الفعلي. تتكيف جميع الجداول والنماذج والقوائم بشكل متناسب.",
     "a11y.contrast_checkbox_desc": "يفرض أعلى تباين (21:1) متكيف مع السمة المحددة. تعرض السمة الفاتحة نصوصًا سوداء على خلفية بيضاء، بينما تعرض السمة الداكنة نصوصًا بيضاء ساطعة على خلفية سوداء.",
+    "a11y.dyslexic_font": "خط ملائم لعسر القراءة (OpenDyslexic)",
+    "a11y.dyslexic_font_desc": "تغيير خط المنصة إلى OpenDyslexic بقواعد ثقيلة لتحسين تدفق القراءة ومنع التشويش.",
+    "a11y.dyslexic_font_short": "خط عسر القراءة",
 }
 
 # Built-in French translations
@@ -444,6 +453,9 @@ BUILTIN_FRENCH = {
     "a11y.font_preview_label": "Aperçu en Direct",
     "a11y.font_preview_sample": "Ce texte donne un aperçu en temps réel de votre taille de police. Les tableaux, formulaires et menus s'adaptent proportionnellement.",
     "a11y.contrast_checkbox_desc": "Applique un contraste maximal (21:1) adapté au thème choisi. Le thème clair affiche du noir pur sur fond blanc ; le thème sombre affiche du blanc pur sur fond noir.",
+    "a11y.dyslexic_font": "Police adaptée à la dyslexie (OpenDyslexic)",
+    "a11y.dyslexic_font_desc": "Remplace la typographie par OpenDyslexic avec une assise renforcée pour améliorer la fluidité de lecture.",
+    "a11y.dyslexic_font_short": "Police Dyslexie",
 }
 
 # Built-in Pirate translations (Ahoy, matey!)
@@ -556,6 +568,9 @@ BUILTIN_PIRATE = {
     "a11y.font_preview_label": "Spyglass Preview",
     "a11y.font_preview_sample": "This parchment previews yer chosen lettering size right quick. All manifests, logs, and sea charts will heave up proportionally.",
     "a11y.contrast_checkbox_desc": "Strikes maximum blinding contrast (21:1) fittin' yer chosen sea flags. Daylight turns parchment stark white with ink-black runes; midnight turns it pitch-black with gold lanternlight.",
+    "a11y.dyslexic_font": "OpenDyslexic Sea Runes",
+    "a11y.dyslexic_font_desc": "Heaves heavy-keeled anchor runes across all ship manifests so words stop tossin' and turnin' in rough seas.",
+    "a11y.dyslexic_font_short": "Anchor Runes",
 }
 
 BUILTIN_TRANSLATIONS = {

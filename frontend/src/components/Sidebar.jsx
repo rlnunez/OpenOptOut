@@ -53,7 +53,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
   const { user, logout, setUser } = useAuth()
   const { branding }              = useBranding()
   const { language, setLanguage, availableLanguages, setShowWelcomeTour, t } = useLanguage()
-  const { theme, setTheme, highContrast, setHighContrast } = useAccessibility()
+  const { theme, setTheme, highContrast, setHighContrast, dyslexicFont, setDyslexicFont } = useAccessibility()
   const [toggling, setToggling]   = useState(false)
 
   const toggleView = async () => {
@@ -200,6 +200,26 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
             </div>
             <span className="text-[10px] font-mono px-1 rounded bg-black/40">
               {highContrast ? 'ON' : 'OFF'}
+            </span>
+          </button>
+
+          {/* Quick Dyslexia Font Toggle */}
+          <button
+            onClick={() => setDyslexicFont(!dyslexicFont)}
+            className={`flex items-center justify-between w-full py-1.5 px-2 rounded-lg border text-xs transition-colors ${
+              dyslexicFont
+                ? 'bg-purple-500/20 text-purple-300 border-purple-500/50'
+                : 'bg-slate-950/60 text-slate-400 border-slate-800 hover:text-white'
+            }`}
+            aria-pressed={dyslexicFont}
+            title={t('a11y.dyslexic_font', 'Dyslexia-Friendly Font (OpenDyslexic)')}
+          >
+            <div className="flex items-center gap-1.5">
+              <BookOpen size={13} className={dyslexicFont ? 'text-purple-400' : 'text-slate-400'} />
+              <span>{t('a11y.dyslexic_font_short', 'Dyslexia Font')}</span>
+            </div>
+            <span className="text-[10px] font-mono px-1 rounded bg-black/40">
+              {dyslexicFont ? 'ON' : 'OFF'}
             </span>
           </button>
 

@@ -1,5 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap')
-layer(base);
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap') layer(base);
 @import 'tailwindcss';
 
 @theme {
@@ -93,6 +92,17 @@ html {
   font-size: var(--a11y-font-size, 100%);
   scroll-padding-top: 4.5rem;
   scroll-padding-bottom: 2.5rem;
+}
+
+/* Dyslexia-Friendly Typeface Mode (OpenDyslexic) */
+html.a11y-dyslexic-font,
+html.a11y-dyslexic-font body,
+html.a11y-dyslexic-font button,
+html.a11y-dyslexic-font input,
+html.a11y-dyslexic-font select,
+html.a11y-dyslexic-font textarea {
+  font-family: 'OpenDyslexic', system-ui, sans-serif !important;
+  letter-spacing: 0.02em;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
