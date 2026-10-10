@@ -62,10 +62,10 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # ── Helper Functions ──────────────────────────────────────────────────────────
-die()  { printf "${RED}Error: %s${NC}\n" "$*" >&2; exit 1; }
-info() { printf "${GREEN}==>${NC} %s\n" "$*"; }
-warn() { printf "${YELLOW}Warning: %s${NC}\n" "$*" >&2; }
-head() { printf "\n${BOLD}${BLUE}── %s ──${NC}\n" "$*"; }
+die()  { printf "%bError: %s%b\n" "${RED}" "$*" "${NC}" >&2; exit 1; }
+info() { printf "%b==>%b %s\n" "${GREEN}" "${NC}" "$*"; }
+warn() { printf "%bWarning: %s%b\n" "${YELLOW}" "$*" "${NC}" >&2; }
+head() { printf "\n%b── %s ──%b\n" "${BOLD}${BLUE}" "$*" "${NC}"; }
 
 gen_secret() {
   if command -v openssl >/dev/null 2>&1; then
@@ -140,7 +140,7 @@ fi
 
 prompt_ansi() {
   local prompt="$1" def="${2:-}" ans=""
-  printf "${BOLD}%s${NC} [%s]: " "$prompt" "$def"
+  printf "%b%s%b [%s]: " "${BOLD}" "$prompt" "${NC}" "$def"
   read -r ans || true
   echo "${ans:-$def}"
 }

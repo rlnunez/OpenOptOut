@@ -26,9 +26,9 @@ RED='\033[0;31m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-info() { printf "${GREEN}==>${NC} %s\n" "$*"; }
-warn() { printf "${YELLOW}Warning: %s${NC}\n" "$*" >&2; }
-die()  { printf "${RED}Error: %s${NC}\n" "$*" >&2; exit 1; }
+info() { printf "%b==>%b %s\n" "${GREEN}" "${NC}" "$*"; }
+warn() { printf "%bWarning: %s%b\n" "${YELLOW}" "$*" "${NC}" >&2; }
+die()  { printf "%bError: %s%b\n" "${RED}" "$*" "${NC}" >&2; exit 1; }
 
 RUN_TMPFS=0
 RUN_NNP=0
