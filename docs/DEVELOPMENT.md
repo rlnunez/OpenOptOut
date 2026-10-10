@@ -95,6 +95,11 @@ python3 -m tests.run_tests --only saml
 python3 -m tests.run_tests --tier 1
 ```
 
+To run the full test suite and Docker profile matrix inside containers:
+```bash
+./scripts/test-docker-matrix.sh
+```
+
 For full test suite documentation, including test tiers and CI setup, see [`backend/tests/TESTING.md`](../backend/tests/TESTING.md).
 
 ---
