@@ -5,22 +5,12 @@
 #   1. Ephemeral RAM tmpfs (/tmp) sizing & leak tests (Roadmap Phase 15.2)
 #   2. Container no-new-privileges bubblewrap sandbox compatibility (Roadmap Phase 21.2)
 #
-# Can be run manually on-demand via workflow_dispatch ("Run workflow" in Actions),
-# or automatically on pushes touching security hardening scripts and compose files.
+# Run manually on-demand via workflow_dispatch ("Run workflow" in Actions).
 # ==============================================================================
 
 name: Security Posture Audit
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "scripts/test-hardening-posture.sh"
-      - "deploy/tests/**"
-      - "backend/tests/test_tmpfs_sizing.py"
-      - "backend/tests/test_no_new_privs.py"
-      - "docker-compose.yml"
-      - ".github/workflows/posture-audit.yml"
   workflow_dispatch:
     inputs:
       mode:
