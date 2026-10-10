@@ -3,7 +3,7 @@ Auth router — local login, OIDC redirect/callback, SIP2/LDAP login,
 registration with domain/invite controls, token refresh, me endpoint.
 """
 
-import secrets, json, hashlib, logging, threading, time
+import secrets, json, hashlib, hmac, logging, threading, time
 from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
@@ -193,6 +193,14 @@ def _create_user_and_member(db: Session, email: str, full_name: str,
     return user
 
 
+def _is_local_user(user: Any) -> bool:
+    """Return True if user is a local account (auth_source is None, empty string, or 'local')."""
+    if not user:
+        return False
+    source = getattr(user, "auth_source", None)
+    return source is None or source == "" or source == "local"
+
+
 # ── Local auth ────────────────────────────────────────────────────────────────
 
 @router.get("/needs-setup")
@@ -224,9 +232,9 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
 @router.post("/token", dependencies=[Depends(rate_limit.limit("signin", 60))])
 def login(
     form: OAuth2PasswordRequestForm = Depends(),
-    remember_me: bool = Query(False),
     request: Request = None,
     db: Session = Depends(get_db),
+    remember_me: bool = Query(False),
 ):
     throttle_key = login_throttle.account_key("password", form.username)
     ip_key = login_throttle.ip_key(request)
@@ -252,7 +260,7 @@ def login(
     from ..core import mfa
     pwdless_cfg = mfa.get_passwordless_config()
     if pwdless_cfg.get("enabled") and pwdless_cfg.get("enforce_passwordless_local"):
-        if not user.auth_source or user.auth_source == "local":
+        if _is_local_user(user):
             raise HTTPException(
                 status_code=403,
                 detail="Password authentication is disabled for local accounts by security policy. Please sign in using a passkey or one-time email code.",
@@ -1057,7 +1065,7 @@ def delete_webauthn_key(
 # ── Passwordless authentication endpoints (Local Accounts Only) ───────────────
 
 @router.post("/passwordless/options", dependencies=[Depends(rate_limit.limit("signin", 60))])
-def get_passwordless_options(req: PasswordlessOptionsIn, request: Request, db: Session = Depends(get_db)):
+def get_passwordless_options(req: PasswordlessOptionsIn, request: Request = None, db: Session = Depends(get_db)):
     """Generate WebAuthn / Passkey assertion challenge for passwordless sign-in."""
     from ..core import mfa
     cfg = mfa.get_passwordless_config()
@@ -1070,12 +1078,15 @@ def get_passwordless_options(req: PasswordlessOptionsIn, request: Request, db: S
     user_id = None
     if req.email:
         user = db.query(User).filter(User.email == req.email.strip().lower()).first()
-        if user and user.webauthn_credentials:
-            try:
-                keys = json.loads(user.webauthn_credentials)
-                user_id = user.id
-            except Exception:
-                keys = []
+        if user:
+            if not _is_local_user(user):
+                raise HTTPException(400, "Passwordless authentication is only available for local accounts.")
+            if user.webauthn_credentials:
+                try:
+                    keys = json.loads(user.webauthn_credentials)
+                    user_id = user.id
+                except Exception:
+                    keys = []
 
     rp_id = request.url.hostname if request else None
     opts = mfa.create_webauthn_authentication_options(keys, rp_id=rp_id)
@@ -1143,6 +1154,9 @@ def verify_passwordless_passkey(data: PasswordlessVerifyIn, request: Request = N
     if not user or not matching_key:
         raise HTTPException(401, "Passkey or security key is not registered on any active account.")
 
+    if not _is_local_user(user):
+        raise HTTPException(400, "Passwordless authentication is only available for local accounts.")
+
     challenge = tdata.get("challenge", "")
     if not mfa.verify_webauthn_assertion(cred, challenge, matching_key):
         raise HTTPException(401, "Passkey authentication verification failed.")
@@ -1164,6 +1178,8 @@ def request_magic_link(req: MagicLinkRequestIn, request: Request = None, db: Ses
 
     email_clean = req.email.strip().lower()
     user = db.query(User).filter(User.email == email_clean).first()
+    if user and not _is_local_user(user):
+        raise HTTPException(400, "Email code sign-in is only available for local accounts.")
 
     code = f"{secrets.randbelow(900000) + 100000}"
     code_hash = hashlib.sha256(code.encode()).hexdigest()
@@ -1237,6 +1253,9 @@ def verify_magic_link(data: MagicLinkVerifyIn, request: Request = None, db: Sess
 
     if not user:
         raise HTTPException(401, "Account not found.")
+
+    if not _is_local_user(user):
+        raise HTTPException(400, "Email code sign-in is only available for local accounts.")
 
     token = create_user_token(user, remember_me=bool(data.remember_me))
     return {"access_token": token, "token_type": "bearer"}

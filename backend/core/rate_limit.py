@@ -65,7 +65,8 @@ def client_ip(request: Optional[Request]) -> Optional[str]:
     without a request (e.g. a direct call in tests)."""
     if request is None:
         return None
-    peer = request.client.host if request.client else ""
+    client_obj = getattr(request, "client", None)
+    peer = client_obj.host if client_obj else ""
     hops = _hops()
     chain = [p for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()]
     if hops and chain:

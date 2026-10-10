@@ -606,8 +606,13 @@ def create_mfa_ticket(user_id: int, email: str, remember_me: bool = False) -> st
 
 def verify_mfa_ticket(ticket: str) -> Optional[dict]:
     """Validate ephemeral MFA ticket and return payload dict if valid."""
-    if not ticket:
+    if not ticket or not isinstance(ticket, str):
         return None
+    # Reject trailing data appended after base64 padding
+    if "=" in ticket:
+        first_pad = ticket.index("=")
+        if any(c != "=" for c in ticket[first_pad:]):
+            return None
     raw = None
     if ticket.startswith("hmac:"):
         parts = ticket.split(":")
