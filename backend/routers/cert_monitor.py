@@ -1,4 +1,5 @@
 """Certificate monitor API (super admin): dashboard alerts + run-now."""
+import os
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -32,7 +33,7 @@ def get_https_status(_: User = Depends(require_permission("certificates.view")))
     running scripts/enable-https.ps1 or .sh and restarting the containers.
 
     This is a read-only TLS handshake to the front-door container (caddy or
-    traefik, per HTTPS_CHECK_HOST) over the internal
+    traefik, per HTTPS_CHECK_HOST; skipped for Cloudflare Tunnel) over the internal
     Docker network the api container already has (the same thing the daily
     monitor does) — never a docker/host action. The api container deliberately
     has no docker socket and never runs docker compose itself: giving it that
@@ -41,6 +42,11 @@ def get_https_status(_: User = Depends(require_permission("certificates.view")))
     Docker daemon. Turning HTTPS on/off is a host-level step by design.
     """
     st = cm.https_cert_status()
+    if st is None and os.getenv("HTTPS_MODE", "").strip() == "none":
+        return {"configured": False, "level": "none",
+                "message": "The front door is running without a certificate, so this site "
+                           "is plain HTTP. Rerun scripts/enable-https.sh (or .ps1) and pick "
+                           "Let's Encrypt or Cloudflare DNS to turn on HTTPS."}
     if st is None:
         return {"configured": False, "level": "none",
                 "message": "HTTPS_MODE/DOMAIN aren't set — nothing to check yet. "

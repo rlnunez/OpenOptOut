@@ -104,7 +104,7 @@ On a fresh install the app shows a create-administrator screen instead of a logi
 - [ ] **Identity Vault** — fill in name variants, former addresses, and phone numbers for each member (the more identifiers, the better the removal match)
 - [ ] **Discovery scan** (optional) — run Discovery to identify which brokers actually list your family before submitting removals
 - [ ] **Run removals** — click "Run pending" on the Dashboard, or let the daily scheduler handle it automatically
-- [ ] **HTTPS** (production) — run `./scripts/enable-https.sh` (or `.ps1`) to enable Let's Encrypt certificates before inviting users (see [docs/HTTPS.md](docs/HTTPS.md))
+- [ ] **HTTPS** (production) — run `./scripts/enable-https.sh` (or `.ps1`) before inviting users. It asks two questions: which front door (Caddy, Traefik, or Cloudflare Tunnel), then where the certificate comes from (Let's Encrypt, Let's Encrypt via Cloudflare DNS, or none yet). If your internet provider blocks ports 80/443 or shares your IP, Cloudflare DNS is often the only option that works at home. See [docs/HTTPS.md](docs/HTTPS.md)
 
 ---
 
@@ -155,7 +155,7 @@ Detailed technical guides and architectural specifications are organized in [`do
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System architecture, pipeline stages, APScheduler jobs, failure diagnostics, and full repository structure |
 | [`docs/DATABASE.md`](docs/DATABASE.md) | PostgreSQL scaling, enterprise auth (mTLS, IAM, Kerberos), SQLite migration, and encryption at rest |
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Local developer environment setup, Playwright dependencies, and test suite execution |
-| [`docs/HTTPS.md`](docs/HTTPS.md) | Production HTTPS setup: managed Caddy container, native certbot/win-acme, and reverse proxies |
+| [`docs/HTTPS.md`](docs/HTTPS.md) | Production HTTPS setup: built-in Caddy/Traefik front door (Let's Encrypt or Cloudflare DNS), Cloudflare Tunnel, native certbot/win-acme, and reverse proxies |
 | [`docs/SSO.md`](docs/SSO.md) | Single sign-on: OIDC, SAML 2.0, Active Directory / LDAP, and library card (SIP2/SIP2S) authentication |
 | [`docs/NATIVE_INSTALL.md`](docs/NATIVE_INSTALL.md) | Production deployment without containers (systemd + nginx on Linux, Windows Service + IIS on Windows) |
 | [`docs/INTERPRETER.md`](docs/INTERPRETER.md) | Declarative broker-spec interpretation engine and modern add-on format |

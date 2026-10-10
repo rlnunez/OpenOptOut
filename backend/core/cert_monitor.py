@@ -152,14 +152,22 @@ def https_cert_status():
       letsencrypt          full verification (also catches a leftover staging cert)
       staging/acme/custom  dates only: the API container deliberately doesn't get
                            deploy/certs (it can hold the site's private key)
+      cloudflare-tunnel    Cloudflare's edge holds the certificate; not checked
+      none                 front door with no certificate; nothing to check
       internal             Caddy's private CA renews itself; not checked
                            (Caddy-only — the Traefik front door refuses this mode)
     """
     from .auth_providers import tls_peer_cert_status
     mode = os.getenv("HTTPS_MODE", "").strip()
     domain = os.getenv("DOMAIN", "").split(",")[0].strip()
-    if not mode or not domain:
+    if not mode or mode == "none" or not domain:
+        # 'none' = a front door with no certificate yet: nothing to check, and
+        # the plain-HTTP warning elsewhere already covers it.
         return None
+    if mode == "cloudflare-tunnel":
+        return {"level": "none", "checked_at": _now(),
+                "message": "Cloudflare issues and renews this certificate at its edge "
+                           "(Cloudflare Tunnel). Nothing to check on this server."}
     if mode == "internal":
         return {"level": "none", "checked_at": _now(),
                 "message": "Caddy's internal CA issues and renews this certificate itself."}

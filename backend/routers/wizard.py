@@ -10,7 +10,10 @@ Steps:
   2. email     — deployment MODE (shared inbox | per-user), the provider/transport,
                  and an "advanced: separate admin SMTP" toggle. Skippable with a
                  loud warning (opt-outs silently do nothing without email).
-  3. deployment — how is HTTPS handled here: OpenOptOut's own Caddy (or Traefik) container
+  3. deployment — how is HTTPS handled here: OpenOptOut's own front door
+                 (Caddy, Traefik, or Cloudflare Tunnel; for Caddy/Traefik, a
+                 certificate from Let's Encrypt, Let's Encrypt via Cloudflare
+                 DNS, or none yet)
                  (Docker, bare metal or a VM — doesn't matter which), a native
                  install's own certbot/win-acme setup (no containers), something
                  that already terminates TLS in front of OpenOptOut either
@@ -302,6 +305,39 @@ def save_branding(body: BrandingStep, db: Session = Depends(get_db),
 class DeploymentStep(BaseModel):
     reverse_proxy: str                  # "managed" | "native" | "external" | "none"
     domain: Optional[str] = None        # optional, cosmetic — shown back in the summary
+    # Only for "managed": which front door, then (Caddy/Traefik only) where the
+    # certificate comes from. Recorded so the summary can hand back the exact
+    # enable-https command; nothing is started from here.
+    front_door: Optional[str] = None    # "caddy" | "traefik" | "cloudflare-tunnel"
+    certificate: Optional[str] = None   # "letsencrypt" | "cloudflare-dns" | "none"
+
+
+FRONT_DOORS = ("caddy", "traefik", "cloudflare-tunnel")
+CERTIFICATES = ("letsencrypt", "cloudflare-dns", "none")
+
+# Shown wherever Cloudflare Tunnel is chosen. Kept here so the API, summary and
+# UI say the same thing.
+TUNNEL_WARNING = ("Cloudflare Tunnel: Cloudflare decrypts all traffic to this site, so its "
+                  "servers can see everything people send and receive here (names, home "
+                  "addresses, phone numbers, emails, sign-in tokens). For no open ports "
+                  "without that, use Caddy or Traefik with Let's Encrypt via Cloudflare DNS.")
+
+
+def enable_https_commands(front_door: str, certificate: str, domain: str = "") -> dict:
+    """The exact host commands for a managed deployment's choices, for both
+    Linux/macOS and Windows. Domain is only included if it's plainly a hostname
+    list (it ends up in a command the admin copies into a shell)."""
+    import re
+    fd = front_door if front_door in FRONT_DOORS else "caddy"
+    sh = ["./scripts/enable-https.sh", "--proxy", fd]
+    ps = [".\\scripts\\enable-https.ps1", "-Proxy", fd]
+    if fd != "cloudflare-tunnel":
+        cert = certificate if certificate in CERTIFICATES else "letsencrypt"
+        sh += ["--cert", cert]; ps += ["-Cert", cert]
+    d = (domain or "").replace(" ", "")
+    if d and re.fullmatch(r"[A-Za-z0-9.-]+(,[A-Za-z0-9.-]+)*", d):
+        sh += ["--domain", d]; ps += ["-Domain", d]
+    return {"linux": " ".join(sh), "windows": " ".join(ps)}
 
 
 @router.post("/deployment")
@@ -335,11 +371,22 @@ def save_deployment(body: DeploymentStep, db: Session = Depends(get_db),
     _admin(user)
     if body.reverse_proxy not in ("managed", "native", "external", "none"):
         raise HTTPException(400, "reverse_proxy must be 'managed', 'native', 'external', or 'none'")
-    s = _load()
-    s["deployment"] = {
+    deployment = {
         "reverse_proxy": body.reverse_proxy,
         "domain": (body.domain or "").strip()[:255],
     }
+    if body.reverse_proxy == "managed":
+        front_door = body.front_door or "caddy"
+        if front_door not in FRONT_DOORS:
+            raise HTTPException(400, "front_door must be 'caddy', 'traefik', or 'cloudflare-tunnel'")
+        deployment["front_door"] = front_door
+        if front_door != "cloudflare-tunnel":
+            certificate = body.certificate or "letsencrypt"
+            if certificate not in CERTIFICATES:
+                raise HTTPException(400, "certificate must be 'letsencrypt', 'cloudflare-dns', or 'none'")
+            deployment["certificate"] = certificate
+    s = _load()
+    s["deployment"] = deployment
     _save(s)
     _mark_step("deployment", "done")
     return {"ok": True}
@@ -387,11 +434,19 @@ def complete(db: Session = Depends(get_db), user: User = Depends(get_current_use
     if s.get("database", {}).get("kind") == "postgres":
         warnings.append("PostgreSQL was configured — restart the app for the new "
                         "database connection to take effect.")
+    deployment = s.get("deployment", {})
+    commands = None
     if reverse_proxy == "managed":
-        warnings.append("Run scripts/enable-https.sh (Linux/macOS) or scripts\\enable-https.ps1 "
-                        "(Windows) on the server, then restart the containers, to turn on "
-                        "OpenOptOut's own HTTPS front door. It uses Caddy unless you add "
-                        "--proxy traefik (-Proxy traefik on Windows).")
+        front_door = deployment.get("front_door", "caddy")
+        certificate = deployment.get("certificate", "letsencrypt")
+        commands = enable_https_commands(front_door, certificate, deployment.get("domain", ""))
+        warnings.append("Your front door isn't on yet: run the command shown below on the server, "
+                        "then restart the containers.")
+        if front_door == "cloudflare-tunnel":
+            warnings.append(TUNNEL_WARNING)
+        elif certificate == "none":
+            warnings.append("You chose no certificate for now, so traffic stays unencrypted. Run the "
+                            "same script again later and pick Let's Encrypt or Cloudflare DNS.")
     elif reverse_proxy == "native":
         warnings.append("Run scripts/enable-https-native.sh (Linux) or follow the Windows steps "
                         "in docs/NATIVE_INSTALL.md (IIS + win-acme) to turn on HTTPS for this "
@@ -404,5 +459,6 @@ def complete(db: Session = Depends(get_db), user: User = Depends(get_current_use
         "steps": steps,
         "email_configured": email_ok,
         "reverse_proxy": reverse_proxy,
+        "enable_https_commands": commands,
         "warnings": warnings,
     }

@@ -60,13 +60,13 @@ services:
       # MUST match how people reach the site (https://your.domain once HTTPS is on).
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
       # Proxies in front of the API, for finding the client IP in
-      # X-Forwarded-For: 1 = nginx (web), 2 = Caddy/Traefik + nginx (HTTPS
-      # profile; scripts/enable-https.* set it).
+      # X-Forwarded-For: 1 = nginx (web), 2 = Caddy/Traefik/cloudflared + nginx
+      # (HTTPS profiles; scripts/enable-https.* set it).
       - TRUSTED_PROXY_HOPS=${TRUSTED_PROXY_HOPS:-1}
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}
-      # HTTPS front door (Caddy or Traefik) — lets the certificate monitor watch
-      # our own cert. HTTPS_CHECK_HOST is the front door's service name
-      # (enable-https.* sets it to traefik when FRONT_DOOR=traefik).
+      # HTTPS front door (Caddy, Traefik or Cloudflare Tunnel) — lets the
+      # certificate monitor watch our own cert. HTTPS_CHECK_HOST is the front
+      # door's service name (enable-https.* sets it).
       - FRONT_DOOR=${FRONT_DOOR:-caddy}
       - HTTPS_MODE=${HTTPS_MODE:-}
       - DOMAIN=${DOMAIN:-}
@@ -148,8 +148,9 @@ services:
   # Automatic certificates (Let's Encrypt, an internal ACME CA, Caddy's own
   # private CA, or your own files), automatic renewal, HTTP→HTTPS redirect.
   # Enable with:  ./scripts/enable-https.sh   (sets COMPOSE_PROFILES=https etc.)
-  # See docs/HTTPS.md.
-  caddy:
+  # See docs/HTTPS.md. Run only ONE front door: caddy, caddy-dns, traefik, or
+  # cloudflared — each has its own profile and enable-https.sh picks one.
+  caddy: &caddy
     image: caddy:2.8.4-alpine
     container_name: openoptout-caddy
     profiles: ["https"]
@@ -161,6 +162,7 @@ services:
     entrypoint: ["/bin/sh", "/deploy/entrypoint.sh"]
     environment:
       - HTTPS_MODE=${HTTPS_MODE:-}
+      - ACME_CHALLENGE=${ACME_CHALLENGE:-http}
       - DOMAIN=${DOMAIN:-}
       - ACME_EMAIL=${ACME_EMAIL:-}
       - ACME_CA=${ACME_CA:-}
@@ -183,10 +185,37 @@ services:
     depends_on:
       - web
 
+  # ── Caddy + Let's Encrypt via Cloudflare DNS (optional) ─────────────────────
+  # The same Caddy front door, built with the Cloudflare DNS module so the
+  # certificate can be issued without ports 80/443 being reachable from the
+  # internet (ACME_CHALLENGE=cloudflare). Built locally from
+  # deploy/caddy/Dockerfile only when this profile is active.
+  # Enable with:  ./scripts/enable-https.sh --cert cloudflare-dns
+  caddy-dns:
+    <<: *caddy
+    image: openoptout-caddy-cloudflare:2.8.4
+    build: ./deploy/caddy
+    profiles: ["https-caddy-dns"]
+    environment:
+      - HTTPS_MODE=${HTTPS_MODE:-}
+      - ACME_CHALLENGE=${ACME_CHALLENGE:-cloudflare}
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN:-}
+      - DOMAIN=${DOMAIN:-}
+      - ACME_EMAIL=${ACME_EMAIL:-}
+      - ACME_CA=${ACME_CA:-}
+      - ACME_CA_ROOT=${ACME_CA_ROOT:-}
+      - HSTS=${HSTS:-on}
+      - UPSTREAM=web:80
+    networks:
+      default:
+        # The certificate monitor reaches it under the usual name.
+        aliases: [caddy]
+
   # ── HTTPS front door, Traefik option (optional) ─────────────────────────────
   # Same job as the caddy service above — pick ONE. For admins who already know
-  # Traefik. Supports letsencrypt, letsencrypt-staging, acme and custom (not
-  # internal — that's Caddy's own CA). Routing comes only from a generated file;
+  # Traefik. Supports letsencrypt, letsencrypt-staging, acme, custom and none
+  # (not internal — that's Caddy's own CA), and Let's Encrypt via Cloudflare DNS
+  # (ACME_CHALLENGE=cloudflare) with no extra build. Routing comes only from a generated file;
   # the Docker socket is deliberately NOT mounted.
   # Enable with:  ./scripts/enable-https.sh --proxy traefik
   #   (sets COMPOSE_PROFILES=https-traefik, FRONT_DOOR=traefik, etc.)
@@ -202,6 +231,8 @@ services:
     entrypoint: ["/bin/sh", "/deploy/entrypoint.sh"]
     environment:
       - HTTPS_MODE=${HTTPS_MODE:-}
+      - ACME_CHALLENGE=${ACME_CHALLENGE:-http}
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN:-}
       - DOMAIN=${DOMAIN:-}
       - ACME_EMAIL=${ACME_EMAIL:-}
       - ACME_CA=${ACME_CA:-}
@@ -220,6 +251,33 @@ services:
       # Issued certificates + ACME account (acme.json). KEEP this volume, for
       # the same rate-limit reason as caddy_data.
       - traefik_data:/data
+    depends_on:
+      - web
+
+  # ── Cloudflare Tunnel (optional) ────────────────────────────────────────────
+  # Reach OpenOptOut at https://your.domain with NO open ports, no public IP and
+  # no certificate to manage: cloudflared dials out to Cloudflare, which serves
+  # HTTPS and passes requests back through the tunnel. Works behind CGNAT and
+  # ISPs that block ports 80/443, and puts the site behind Cloudflare's DDoS
+  # protection.
+  #   ⚠ Cloudflare decrypts ALL traffic at its edge, so it can see everything
+  #     people send and receive here: names, addresses, phone numbers, emails,
+  #     and sign-in tokens. Prefer Caddy/Traefik if that matters to you.
+  # Set up the tunnel in the Cloudflare dashboard (public hostname -> http://web:80)
+  # and put its token in CLOUDFLARE_TUNNEL_TOKEN.
+  # Enable with:  ./scripts/enable-https.sh --proxy cloudflare-tunnel
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.0
+    container_name: openoptout-cloudflared
+    profiles: ["cloudflare-tunnel"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ulimits:
+      core: 0
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on:
       - web
 
