@@ -522,7 +522,7 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
                     <summary className="text-slate-400 text-xs cursor-pointer select-none py-1 hover:text-slate-200">Advanced</summary>
                     <div className="mt-2">
                       <SubChoice name="certificate" value="incommon" current={certificate} onChange={setCertificate}
-                        title={<>InCommon (CERTInext) <span className="ml-1 inline-block whitespace-nowrap text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-900/60 text-amber-200 align-middle">Beta · untested</span></>}>
+                        title={<>InCommon (CERTInext) <span className="ml-1 inline-block whitespace-nowrap text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded-sm bg-amber-900/60 text-amber-200 align-middle">Beta · untested</span></>}>
                         Mostly for universities and research institutions in InCommon, which get free certificates through CERTInext. Setup will ask for the ACME key ID, HMAC key and server address from your campus IT, and won't continue without them, so have them ready.
                       </SubChoice>
                     </div>
@@ -726,17 +726,17 @@ function CommandBox({ commands }) {
         <div className="flex gap-1" role="group" aria-label="Server type">
           {[['linux', 'Linux / Mac'], ['windows', 'Windows']].map(([k, label]) => (
             <button key={k} type="button" onClick={() => setOs(k)} aria-pressed={os === k}
-              className={`text-xs px-2 py-1 rounded ${os === k ? 'bg-shield-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>{label}</button>
+              className={`text-xs px-2 py-1 rounded-sm ${os === k ? 'bg-shield-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>{label}</button>
           ))}
         </div>
       </div>
       <div className="flex items-start gap-2">
-        <code className="flex-1 text-xs text-slate-200 bg-slate-900 rounded px-2 py-1.5 select-all">
+        <code className="flex-1 text-xs text-slate-200 bg-slate-900 rounded-sm px-2 py-1.5 select-all">
           {/* Wrap only between words, never inside a flag like --cert. */}
           {cmd.split(' ').map((t, i) => <span key={i}>{i ? ' ' : ''}<span className="whitespace-nowrap">{t}</span></span>)}
         </code>
         <button type="button" onClick={copy} aria-label={copied ? 'Copied' : 'Copy command'}
-          className="shrink-0 p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-700">
+          className="shrink-0 p-1.5 rounded-sm text-slate-400 hover:text-slate-200 hover:bg-slate-700">
           {copied ? <Check size={14} /> : <Copy size={14} />}
         </button>
       </div>
