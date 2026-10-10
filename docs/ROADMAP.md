@@ -43,6 +43,11 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 21 | Plugin sandbox IPC & container privilege boundaries | In Testing (21.1 Complete, 21.2 In Testing) |
 | 22 | Independent security audit & penetration testing | Planned |
 | 23 | Unified interactive host & fleet installer (CLI/TUI) | Complete |
+| 24 | Enterprise ingress, edge security & DDoS protection | Complete |
+| 25 | Passwordless authentication & session lifespan governance | Complete |
+| 26 | Automated ILS demographic ingestion & Identity Vault sync | Complete |
+| 27 | Universal accessibility (a11y) & WCAG 2.2 AAA conformance | Complete |
+| 28 | Multi-container test matrix, mock harness & diagnostic automation | Complete |
 
 ---
 
@@ -501,6 +506,76 @@ plugins/
   - Fallback mechanisms for internal consortium networks (custom certificate paste or internal CA configuration).
 - **Pre-Flight Health Handoff:** Executes local loopback health checks before completing, outputting direct URLs and instructions for initial super-admin registration.
 - **Verification:** Pure Python unit tests in `tests/run_tests.py` (`t_installer_role_specialization_and_configs`) validating role package specialization matrices, Nginx reverse proxy configuration generation, systemd unit definitions for API and worker services, and role-tailored environment configurations.
+
+**Status:** Complete.
+
+---
+
+### 24. Enterprise ingress, edge security & DDoS protection
+**Goal:** Harden institutional front-door routing with multi-provider reverse proxy support, Cloudflare Tunnel zero-trust ingress, edge rate limiting, and InCommon academic certificate automation.
+
+**Architecture & Capabilities:**
+- **Dual Reverse Proxy Architecture:** First-class support for both Caddy and Traefik front doors with automated configuration synthesis, container health routing, and WebSocket/SSE pass-through.
+- **Cloudflare Integration & Zero-Trust Ingress:** Native support for Cloudflare Tunnel (`cloudflared`) allowing private network deployments without open inbound firewall ports. Cloudflare Proxy mode validates trusted edge IP ranges (`deploy/cloudflare/ip-ranges.txt`), restores true visitor IPs via `CF-Connecting-IP`, and safeguards against spoofed header injection.
+- **Edge Flood & Brute-Force Rate Limiting:** Configurable per-visitor global request throttling (`RATE_LIMIT_PER_MINUTE`) alongside hardened thresholds for sensitive authentication endpoints (`AUTH_RATE_LIMIT_PER_MINUTE`), returning HTTP 429 with explicit `Retry-After` headers and 10-second slow-header timeouts.
+- **InCommon Federation & ACME EAB Issuance:** Automated certificate issuance via CERTInext for higher-education and research institutions utilizing External Account Binding (EAB) with RSA-2048 key requirements and zero-disk ephemeral secret handling.
+- **Verification:** Unit tests and end-to-end container test suites (`deploy/tests/protection_e2e.sh`, `deploy/tests/incommon_e2e.sh`) verifying rate limits, trusted proxy chains, and ACME issuance.
+
+**Status:** Complete. Documented in [`docs/HTTPS.md`](HTTPS.md).
+
+---
+
+### 25. Passwordless authentication & session lifespan governance
+**Goal:** Deliver modern, phishing-resistant passwordless sign-in options, eliminate password fatigue for patrons, and enforce role-tailored session duration policies.
+
+**Architecture & Capabilities:**
+- **FIDO2 / WebAuthn Passkeys:** Native passkey registration and assertion for local accounts, enabling biometric sign-in (Touch ID, Face ID, Windows Hello) and hardware security keys (YubiKey) with cryptographic challenge-response validation.
+- **Email Magic Codes:** Ephemeral 6-digit one-time sign-in codes sent via institutional email with HMAC verification and 10-minute validity windows.
+- **Local Account Policy Enforcement:** Optional administrative policy (`enforce_passwordless_local`) that disables password authentication for local accounts while strictly fencing external IdP accounts (SAML, LDAP, OIDC) to their respective identity providers.
+- **Role-Based Session Lifespans:** Configurable token expiration windows tailored by user role (`super_admin`, `manager`, `parent`, `member`), paired with persistent "Remember Me" session tokens (up to 30 days) protected by sliding-window invalidation.
+- **Brute-Force Account Throttling:** Multi-tier exponential backoff throttling sign-in attempts per account identifier and IP address, mitigating password spraying and credential stuffing without leaking account existence.
+- **Verification:** Pure Python unit tests in `tests/run_tests.py` validating WebAuthn credential parsing, magic code generation/verification, session policy durations, and throttling lockouts.
+
+**Status:** Complete.
+
+---
+
+### 26. Automated ILS demographic ingestion & Identity Vault synchronization
+**Goal:** Streamline onboarding for library patrons by automatically pulling verified demographic attributes from Integrated Library Systems (ILS) into the encrypted Identity Vault.
+
+**Architecture & Capabilities:**
+- **SIP2 Demographic Field Mapping:** Configurable extraction of patron address lines, city, state, postal code, telephone numbers, and date of birth from SIP2 patron information responses (`64`).
+- **Flexible Synchronization Modes:** Supports patron-driven import (prompted upon first login or in vault settings) as well as policy-enforced automatic provisioning (`ils_sync_demographics: "always"`).
+- **Data Sanitization & Vault Encryption:** Ingested demographic fields undergo phone normalization (E.164), ZIP validation, and deduplication before being committed into AES-256 encrypted `FamilyMember` records.
+- **Mock ILS Testbed Daemon:** Dedicated mock SIP2 test server (`backend/tests/mock_sip2_server.py`) bound to loopback `127.0.0.1` providing barcode validation, configurable patron responses, and demographic verification without external ILS dependencies.
+- **Verification:** Test runner suite validating SIP2 parsing, field mapping transformation, and encrypted vault synchronization.
+
+**Status:** Complete.
+
+---
+
+### 27. Universal accessibility (a11y) & WCAG 2.2 AAA conformance
+**Goal:** Ensure the platform is universally usable by all patrons, staff, and administrators regardless of visual, motor, or cognitive abilities, adhering to WCAG 2.2 AAA standards.
+
+**Architecture & Capabilities:**
+- **In-App Accessibility Preferences:** Dedicated user preferences modal enabling High Contrast mode (enhanced borders and WCAG AAA color ratios), OpenDyslexic typeface, font scaling, and animations toggle.
+- **Reduced Motion Support:** Automatic synchronization with operating system preferences (`prefers-reduced-motion: reduce`) disabling animations, transitions, and auto-scrolling behaviors.
+- **Screen Reader & Keyboard Navigation:** Global skip-to-content anchor link (`#main-content`), distinct high-visibility focus rings (`focus-visible`), and accessible form controls designed to avoid nested label announcements.
+- **Hierarchical Breadcrumbs:** Accessible breadcrumb navigation (`BreadcrumbNav.jsx`) across administrative and patron workflows with structured ARIA landmarks (`aria-label="Breadcrumb"`).
+- **Verification:** Validated via automated browser checks, keyboard navigation flows, and screen-reader testing across dark, light, and high-contrast themes.
+
+**Status:** Complete. Documented in [`ACCESSIBILITY.md`](../ACCESSIBILITY.md).
+
+---
+
+### 28. Multi-container test matrix, integration mockbed & diagnostic telemetry
+**Goal:** Guarantee system reliability across deployment permutations through automated container matrix testing, live email/ILS test harnesses, and automated log diagnostic triage.
+
+**Architecture & Capabilities:**
+- **Docker Profile Matrix Runner:** Automated test script (`scripts/test-docker-matrix.sh`) executing end-to-end verification across core profiles (`base`, `https-caddy`, `https-traefik`, `distributed`), verifying container startup, health probes, UI rendering, and security posture.
+- **Automated Failure Diagnostics:** Log triage scanner (`.github/release-test/scan_logs.py`) analyzing multi-container log streams, filtering benign warnings, and outputting aggregated markdown diagnostic reports (`error-report.md`) with actionable failure traces.
+- **Live Email Verification Probe:** Test harness (`scripts/test-email-account.py`) supporting Google/Microsoft OAuth 2.0 as well as IMAP/SMTP app passwords to verify mailbox connectivity, send/receive loops, and folder permissions.
+- **Verification:** Continuously executed via local development scripts and automated CI workflows.
 
 **Status:** Complete.
 
