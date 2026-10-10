@@ -14,7 +14,7 @@ Endpoints:
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -55,12 +55,14 @@ class TranslationsUpdateRequest(BaseModel):
 
 
 class UserPreferenceRequest(BaseModel):
-    language: str
+    language: Optional[str] = None
+    accessibility_settings: Optional[Dict[str, Any]] = None
 
 
 class UserPreferenceOut(BaseModel):
     preferred_language: str
     tutorial_completed: bool
+    accessibility_settings: Optional[Dict[str, Any]] = None
 
 
 # ── Public / All-User Endpoints ───────────────────────────────────────────────
@@ -89,10 +91,19 @@ def get_translations(locale: str):
 
 @router.get("/user/preference", response_model=UserPreferenceOut)
 def get_user_preference(current_user: User = Depends(get_current_user)):
-    """Fetch current user's saved language preference and tutorial state."""
+    """Fetch current user's saved language preference, tutorial state, and accessibility settings."""
+    import json
+    a11y = None
+    raw_a11y = getattr(current_user, "accessibility_settings", None)
+    if raw_a11y:
+        try:
+            a11y = json.loads(raw_a11y)
+        except Exception:
+            a11y = None
     return UserPreferenceOut(
         preferred_language=getattr(current_user, "preferred_language", "en") or "en",
         tutorial_completed=bool(getattr(current_user, "tutorial_completed", False)),
+        accessibility_settings=a11y,
     )
 
 
@@ -102,18 +113,31 @@ def set_user_preference(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Persist current user's preferred language."""
-    code = req.language.lower().strip()
-    available = {l["code"]: l for l in i18n.get_available_languages()}
+    """Persist current user's preferred language and accessibility settings."""
+    import json
+    if req.language:
+        code = req.language.lower().strip()
+        available = {l["code"]: l for l in i18n.get_available_languages()}
+        if code not in available or not available[code]["enabled"]:
+            raise HTTPException(400, f"Language '{code}' is not currently available or enabled.")
+        current_user.preferred_language = code
 
-    if code not in available or not available[code]["enabled"]:
-        raise HTTPException(400, f"Language '{code}' is not currently available or enabled.")
+    if req.accessibility_settings is not None:
+        current_user.accessibility_settings = json.dumps(req.accessibility_settings)
 
-    current_user.preferred_language = code
     db.commit()
+
+    a11y = None
+    if current_user.accessibility_settings:
+        try:
+            a11y = json.loads(current_user.accessibility_settings)
+        except Exception:
+            a11y = None
+
     return UserPreferenceOut(
         preferred_language=current_user.preferred_language,
         tutorial_completed=bool(getattr(current_user, "tutorial_completed", False)),
+        accessibility_settings=a11y,
     )
 
 

@@ -12,6 +12,7 @@ export function LanguageProvider({ children }) {
     { code: 'es', name: 'Spanish', native_name: 'Español', is_rtl: false, enabled: true },
     { code: 'ar', name: 'Arabic', native_name: 'العربية', is_rtl: true, enabled: true },
     { code: 'fr', name: 'French', native_name: 'Français', is_rtl: false, enabled: true },
+    { code: 'pirate', name: 'Pirate', native_name: 'Pirate (Ahoy!)', is_rtl: false, enabled: true },
   ])
   const [showWelcomeTour, setShowWelcomeTour] = useState(false)
   const [loading, setLoading] = useState(true)
