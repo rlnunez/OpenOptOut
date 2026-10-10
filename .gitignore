@@ -11,6 +11,8 @@ privacyshield_settings.json
 .env
 .env.*
 !.env.example
+test_email_accounts.json
+.test_email_accounts.json
 
 # Python
 __pycache__/

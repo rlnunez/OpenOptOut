@@ -1,0 +1,31 @@
+{
+  "accounts": [
+    {
+      "account_ref": "test-gmail-app-pw",
+      "type": "app_password",
+      "provider": "gmail",
+      "username": "your-test-account@gmail.com",
+      "app_password": "abcd efgh ijkl mnop",
+      "active": true
+    },
+    {
+      "account_ref": "test-custom-smtp",
+      "type": "smtp",
+      "smtp_host": "smtp.example.com",
+      "smtp_port": 587,
+      "smtp_tls": "starttls",
+      "username": "user@example.com",
+      "app_password": "your-smtp-password",
+      "active": false
+    },
+    {
+      "account_ref": "test-gmail-oauth",
+      "type": "oauth",
+      "provider": "gmail",
+      "client_id": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+      "client_secret": "YOUR_GOOGLE_CLIENT_SECRET",
+      "refresh_token": "YOUR_GOOGLE_REFRESH_TOKEN",
+      "active": false
+    }
+  ]
+}
