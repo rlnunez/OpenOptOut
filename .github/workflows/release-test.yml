@@ -52,7 +52,7 @@ jobs:
   # ── Which release are we testing, and which one do we upgrade from? ────────
   resolve:
     name: Pick release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -103,7 +103,7 @@ jobs:
   fresh-install:
     name: Fresh install (${{ needs.resolve.outputs.tag }})
     needs: resolve
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: read
@@ -265,7 +265,7 @@ jobs:
     name: Upgrade ${{ needs.resolve.outputs.previous }} → ${{ needs.resolve.outputs.tag }}
     needs: resolve
     if: needs.resolve.outputs.previous != ''
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 75
     permissions:
       contents: read
@@ -411,7 +411,7 @@ jobs:
     name: Report
     needs: [resolve, fresh-install, upgrade]
     if: always() && needs.resolve.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read

@@ -41,7 +41,7 @@ concurrency:
 jobs:
   caddy-extended:
     name: Extended Caddy image + generated configs
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -96,7 +96,7 @@ jobs:
 
   certificates:
     name: Certificates (${{ matrix.door }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
