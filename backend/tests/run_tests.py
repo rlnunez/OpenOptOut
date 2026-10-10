@@ -2481,28 +2481,28 @@ def t_email_request_key():
 @test(1, "parent.multi_request_confirmation_resolution",
       "When a parent company confirmation arrives, all child requests sharing the tracking key confirm simultaneously.")
 def t_parent_multi_confirm():
-    import re
+    import re, uuid
     from datetime import datetime
     from types import SimpleNamespace as NS
 
     UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
 
     # 1. Setup mock parent company and child removal requests
-    key = "3f81e2b4-7d2a-4c91-9e85-1b2c3d4e5f60"
+    tracking_uuid = str(uuid.uuid4())
     parent = NS(id=42, name="PeopleData Inc", emails_sent=1, emails_confirmed=0, honor_status="unknown")
     broker1 = NS(id=101, name="SearchSite A", parent_company_id=parent.id)
     broker2 = NS(id=102, name="SearchSite B", parent_company_id=parent.id)
 
-    req1 = NS(id=1, request_key=key, status="sent", confirmed_at=None, broker=broker1, member=NS(full_name="Jane Doe"))
-    req2 = NS(id=2, request_key=key, status="sent", confirmed_at=None, broker=broker2, member=NS(full_name="Jane Doe"))
-    unrelated_req = NS(id=3, request_key="other-uuid-0000", status="sent", confirmed_at=None, broker=None, member=NS(full_name="Other"))
+    req1 = NS(id=1, request_key=tracking_uuid, status="sent", confirmed_at=None, broker=broker1, member=NS(full_name="Jane Doe"))
+    req2 = NS(id=2, request_key=tracking_uuid, status="sent", confirmed_at=None, broker=broker2, member=NS(full_name="Jane Doe"))
+    unrelated_req = NS(id=3, request_key=str(uuid.uuid4()), status="sent", confirmed_at=None, broker=None, member=NS(full_name="Other"))
 
     db_requests = [req1, req2, unrelated_req]
 
     # 2. Simulate incoming email with reference ID in subject or body
-    incoming_text = f"Subject: Re: Opt-out request [{key}]\n\nWe have completed processing your removal request {key}."
+    incoming_text = f"Subject: Re: Opt-out request [{tracking_uuid}]\n\nWe have completed processing your removal request {tracking_uuid}."
     found_keys = set(UUID_RE.findall(incoming_text))
-    assert key in found_keys, "UUID pattern failed to extract tracking key from email text"
+    assert tracking_uuid in found_keys, "UUID pattern failed to extract tracking key from email text"
 
     # 3. Simulate scheduler resolution logic
     matched = 0
