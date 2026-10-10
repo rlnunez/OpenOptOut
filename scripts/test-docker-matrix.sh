@@ -25,10 +25,10 @@ RED='\033[0;31m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-info()    { printf "${GREEN}==>${NC} %s\n" "$*"; }
-section() { printf "\n${BOLD}${BLUE}=== %s ===${NC}\n" "$*"; }
-warn()    { printf "${YELLOW}Warning: %s${NC}\n" "$*" >&2; }
-die()     { printf "${RED}Error: %s${NC}\n" "$*" >&2; exit 1; }
+info()    { printf "%b==>%b %s\n" "${GREEN}" "${NC}" "$*"; }
+section() { printf "\n%b=== %s ===%b\n" "${BOLD}${BLUE}" "$*" "${NC}"; }
+warn()    { printf "%bWarning: %s%b\n" "${YELLOW}" "$*" "${NC}" >&2; }
+die()     { printf "%bError: %s%b\n" "${RED}" "$*" "${NC}" >&2; exit 1; }
 
 SKIP_BUILD=0
 KEEP_CONTAINERS=0
@@ -58,7 +58,7 @@ mkdir -p "$REPORT_DIR"
 cleanup() {
   local exit_code=$?
   if [ "$exit_code" -ne 0 ]; then
-    printf "\n${BOLD}${RED}TEST SUITE FAILED (exit code: %s)${NC}\n" "$exit_code"
+    printf "\n%bTEST SUITE FAILED (exit code: %s)%b\n" "${BOLD}${RED}" "$exit_code" "${NC}"
     info "Dumping container logs for diagnostics..."
     docker compose logs --no-color > "$REPORT_DIR/containers.log" 2>/dev/null || true
     if [ -f "$REPO_ROOT/.github/release-test/scan_logs.py" ] && [ -s "$REPORT_DIR/containers.log" ]; then
@@ -66,7 +66,7 @@ cleanup() {
     fi
     printf "Container logs saved to: %s\n" "$REPORT_DIR/containers.log"
     if [ -f "$REPORT_DIR/error-report.md" ]; then
-      printf "\n${BOLD}Aggregated Error Report:${NC}\n"
+      printf "\n%bAggregated Error Report:%b\n" "${BOLD}" "${NC}"
       cat "$REPORT_DIR/error-report.md"
     fi
     if [ -d "$REPORT_DIR/screenshots" ]; then
@@ -231,7 +231,7 @@ if [ -f "$REPO_ROOT/.github/release-test/scan_logs.py" ] && [ -s "$REPORT_DIR/co
   python3 "$REPO_ROOT/.github/release-test/scan_logs.py" "Docker Matrix Audit" "$REPORT_DIR/containers.log" "$REPORT_DIR/error-report.md" 2>/dev/null || true
 fi
 
-printf "${BOLD}${GREEN}All Docker tests, profiles, UI checks, and security probes passed successfully!${NC}\n"
+printf "%bAll Docker tests, profiles, UI checks, and security probes passed successfully!%b\n" "${BOLD}${GREEN}" "${NC}"
 printf "Full container logs available at: %s\n" "$REPORT_DIR/containers.log"
 if [ -f "$REPORT_DIR/error-report.md" ]; then
   printf "Log error summary available at: %s\n" "$REPORT_DIR/error-report.md"
