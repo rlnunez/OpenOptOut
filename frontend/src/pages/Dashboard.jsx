@@ -73,7 +73,7 @@ export default function Dashboard() {
       .catch(() => setReverseProxy('unset'))
   }, [user])
 
-  // For the "managed" (built-in Caddy) path: a live, on-demand check of whether
+  // For the "managed" (built-in Caddy or Traefik) path: a live, on-demand check of whether
   // HTTPS actually came up after running scripts/enable-https.ps1/.sh and
   // restarting — a real answer instead of guessing from the browser's own URL.
   const checkHttps = () => {
@@ -128,7 +128,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* HTTPS setup status — for the "managed" (built-in Caddy) or "native" (certbot/
+      {/* HTTPS setup status — for the "managed" (built-in Caddy/Traefik) or "native" (certbot/
           win-acme) path chosen in the wizard. A live check, not a guess: OpenOptOut
           can't run docker/certbot/win-acme itself (the api process deliberately has no
           access to the host's Docker daemon, .env file, or OS-level service control —

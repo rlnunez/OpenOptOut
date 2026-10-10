@@ -10,13 +10,7 @@ Steps:
   2. email     — deployment MODE (shared inbox | per-user), the provider/transport,
                  and an "advanced: separate admin SMTP" toggle. Skippable with a
                  loud warning (opt-outs silently do nothing without email).
-  3. deployment — how is HTTPS handled here: OpenOptOut's own Caddy container
-                 (Docker, bare metal or a VM — doesn't matter which), a native
-                 install's own certbot/win-acme setup (no containers), something
-                 that already terminates TLS in front of OpenOptOut either
-                 way, or not decided yet? Recorded so the app gives the right
-                 guidance and never suggests something that would fight an
-                 existing reverse proxy for ports 80/443.
+  3. deployment — how is HTTPS handled here: OpenOptOut's own front door (Docker, bare metal or a VM — doesn't matter which; Caddy, Traefik, or Cloudflare Tunnel, and for Caddy/Traefik a certificate from Let's Encrypt, Let's Encrypt via Cloudflare DNS, or none yet), a native install's own certbot/win-acme setup (no containers), something that already terminates TLS in front of OpenOptOut either way, or not decided yet? Recorded so the app gives the right guidance and never suggests something that would fight an existing reverse proxy for ports 80/443.
   4. branding  — optional/cosmetic (system name, logo, colors).
   5. summary   — what's configured vs skipped; mark the wizard complete.
 
@@ -282,26 +276,64 @@ def save_branding(body: BrandingStep, db: Session = Depends(get_db),
 
 # ── Step 3.5: Deployment / reverse proxy ────────────────────────────────────
 #
-# This does NOT start or configure anything by itself — whether the managed
-# path means a sibling Docker container (Caddy) or a native install's own
-# nginx/systemd setup, either needs an action outside the running app (a
-# restart, or a one-time certbot/win-acme run). This step only RECORDS which
-# situation the deployment is in, so the app can:
-#   - stop nagging admins who already have HTTPS handled by something else
-#     (and, importantly, never suggest a step that would try to bind ports
-#     80/443 that an existing proxy is already using), and
-#   - point admins who chose "managed" or "native" at the right script/doc
-#     until the site is actually reached over https.
+# This does NOT start or configure anything by itself — whether the managed path means a sibling Docker container (Caddy or Traefik) or a native install's own nginx/systemd setup, either needs an action outside the running app (a restart, or a one-time certbot/win-acme run). This step only RECORDS which situation the deployment is in, so the app can:
+#   - stop nagging admins who already have HTTPS handled by something else (and, importantly, never suggest a step that would try to bind ports 80/443 that an existing proxy is already using), and
+#   - point admins who chose "managed" or "native" at the right script/doc until the site is actually reached over https.
 #
-# Docker vs. native is the real technical fork here — NOT deployment "size".
-# Docker Engine running on a VM (the common enterprise pattern) or on bare
-# metal behaves identically from OpenOptOut's side; "native" means no
-# containers at all (systemd + nginx + certbot on Linux, or a Windows Service
-# + IIS + win-acme on Windows) — see docs/NATIVE_INSTALL.md.
+# Docker vs. native is the real technical fork here — NOT deployment "size". Docker Engine running on a VM (the common enterprise pattern) or on bare metal behaves identically from OpenOptOut's side; "native" means no containers at all (systemd + nginx + certbot on Linux, or a Windows Service + IIS + win-acme on Windows) — see docs/NATIVE_INSTALL.md.
 
 class DeploymentStep(BaseModel):
     reverse_proxy: str                  # "managed" | "native" | "external" | "none"
     domain: Optional[str] = None        # optional, cosmetic — shown back in the summary
+    # Only for "managed": which front door, then (Caddy/Traefik only) where the certificate comes from. Recorded so the summary can hand back the exact enable-https command; nothing is started from here.
+    front_door: Optional[str] = None    # "caddy" | "traefik" | "cloudflare-tunnel"
+    certificate: Optional[str] = None   # "letsencrypt" | "cloudflare-dns" | "none" | "incommon" (beta, advanced)
+    rate_limit: Optional[bool] = None   # Caddy/Traefik: per-visitor limits (default on)
+    cloudflare_proxy: Optional[bool] = None  # Caddy/Traefik + cloudflare-dns only
+
+
+FRONT_DOORS = ("caddy", "traefik", "cloudflare-tunnel")
+CERTIFICATES = ("letsencrypt", "cloudflare-dns", "none", "incommon")
+
+# Shown when InCommon is chosen. The wizard never stores the EAB secret; the setup command asks for it.
+INCOMMON_NOTE = ("InCommon certificates (beta, untested against a live CERTInext account): when you run the "
+                 "command below, have the ACME key ID, HMAC key and server address from your campus IT "
+                 "ready. Setup asks for all three and won't continue without them.")
+
+# Shown wherever Cloudflare Tunnel is chosen. Kept here so the API, summary and UI say the same thing.
+CLOUDFLARE_PROXY_WARNING = (
+    "Cloudflare proxy: Cloudflare decrypts all traffic to this site, so its servers can see "
+    "everything people send and receive here (names, home addresses, phone numbers, emails, "
+    "sign-in tokens). In the Cloudflare dashboard, set the DNS record to Proxied and SSL/TLS "
+    "to Full (strict), and forward ports 80/443 to this server — only Cloudflare is let in.")
+
+TUNNEL_WARNING = ("Cloudflare Tunnel: Cloudflare decrypts all traffic to this site, so its "
+                  "servers can see everything people send and receive here (names, home "
+                  "addresses, phone numbers, emails, sign-in tokens). For no open ports "
+                  "without that, use Caddy or Traefik with Let's Encrypt via Cloudflare DNS.")
+
+
+def enable_https_commands(front_door: str, certificate: str, domain: str = "",
+                          rate_limit: bool = True, cloudflare_proxy: bool = False) -> dict:
+    """The exact host commands for a managed deployment's choices, for both Linux/macOS and Windows. Domain is only included if it's plainly a hostname list (it ends up in a command the admin copies into a shell)."""
+    import re
+    fd = front_door if front_door in FRONT_DOORS else "caddy"
+    sh = ["./scripts/enable-https.sh", "--proxy", fd]
+    ps = [".\\scripts\\enable-https.ps1", "-Proxy", fd]
+    if fd != "cloudflare-tunnel":
+        cert = certificate if certificate in CERTIFICATES else "letsencrypt"
+        if cert == "incommon":   # an advanced mode in the scripts
+            sh += ["--mode", "incommon"]; ps += ["-Mode", "incommon"]
+        else:
+            sh += ["--cert", cert]; ps += ["-Cert", cert]
+        if cloudflare_proxy and cert == "cloudflare-dns":
+            sh += ["--cloudflare-proxy"]; ps += ["-CloudflareProxy"]
+        if not rate_limit:
+            sh += ["--no-rate-limit"]; ps += ["-NoRateLimit"]
+    d = (domain or "").replace(" ", "")
+    if d and re.fullmatch(r"[A-Za-z0-9.-]+(,[A-Za-z0-9.-]+)*", d):
+        sh += ["--domain", d]; ps += ["-Domain", d]
+    return {"linux": " ".join(sh), "windows": " ".join(ps)}
 
 
 @router.post("/deployment")
@@ -309,11 +341,7 @@ def save_deployment(body: DeploymentStep, db: Session = Depends(get_db),
                     user: User = Depends(get_current_user)):
     """
     reverse_proxy:
-      managed  — running via Docker (bare metal or a VM — Docker doesn't care
-                 which), nothing else already on ports 80/443. Let OpenOptOut's
-                 own Caddy container get and renew certificates. Guidance keeps
-                 pointing at scripts/enable-https.sh (Linux/macOS) or .ps1
-                 (Windows), run on the host, until HTTPS is live.
+      managed  — running via Docker (bare metal or a VM — Docker doesn't care which), nothing else already on ports 80/443. Let OpenOptOut's own Caddy (default) or Traefik container get and renew certificates. Guidance keeps pointing at scripts/enable-https.sh (Linux/macOS) or .ps1 (Windows), run on the host, until HTTPS is live.
       native   — no containers at all: OpenOptOut runs as a native process
                  (systemd on Linux, a Windows Service on Windows). HTTPS is
                  handled directly on the host too — certbot + nginx on Linux,
@@ -335,11 +363,26 @@ def save_deployment(body: DeploymentStep, db: Session = Depends(get_db),
     _admin(user)
     if body.reverse_proxy not in ("managed", "native", "external", "none"):
         raise HTTPException(400, "reverse_proxy must be 'managed', 'native', 'external', or 'none'")
-    s = _load()
-    s["deployment"] = {
+    deployment = {
         "reverse_proxy": body.reverse_proxy,
         "domain": (body.domain or "").strip()[:255],
     }
+    if body.reverse_proxy == "managed":
+        front_door = body.front_door or "caddy"
+        if front_door not in FRONT_DOORS:
+            raise HTTPException(400, "front_door must be 'caddy', 'traefik', or 'cloudflare-tunnel'")
+        deployment["front_door"] = front_door
+        if front_door != "cloudflare-tunnel":
+            certificate = body.certificate or "letsencrypt"
+            if certificate not in CERTIFICATES:
+                raise HTTPException(400, "certificate must be 'letsencrypt', 'cloudflare-dns', 'none', or 'incommon'")
+            deployment["certificate"] = certificate
+            deployment["rate_limit"] = body.rate_limit is not False
+            if body.cloudflare_proxy and certificate != "cloudflare-dns":
+                raise HTTPException(400, "Cloudflare's proxy needs the 'cloudflare-dns' certificate option")
+            deployment["cloudflare_proxy"] = bool(body.cloudflare_proxy)
+    s = _load()
+    s["deployment"] = deployment
     _save(s)
     _mark_step("deployment", "done")
     return {"ok": True}
@@ -387,10 +430,25 @@ def complete(db: Session = Depends(get_db), user: User = Depends(get_current_use
     if s.get("database", {}).get("kind") == "postgres":
         warnings.append("PostgreSQL was configured — restart the app for the new "
                         "database connection to take effect.")
+    deployment = s.get("deployment", {})
+    commands = None
     if reverse_proxy == "managed":
-        warnings.append("Run scripts/enable-https.sh (Linux/macOS) or scripts\\enable-https.ps1 "
-                        "(Windows) on the server, then restart the containers, to turn on "
-                        "OpenOptOut's own HTTPS front door.")
+        front_door = deployment.get("front_door", "caddy")
+        certificate = deployment.get("certificate", "letsencrypt")
+        commands = enable_https_commands(front_door, certificate, deployment.get("domain", ""),
+                                         rate_limit=deployment.get("rate_limit", True),
+                                         cloudflare_proxy=deployment.get("cloudflare_proxy", False))
+        warnings.append("Your front door isn't on yet: run the command shown below on the server, "
+                        "then restart the containers.")
+        if front_door == "cloudflare-tunnel":
+            warnings.append(TUNNEL_WARNING)
+        elif deployment.get("cloudflare_proxy"):
+            warnings.append(CLOUDFLARE_PROXY_WARNING)
+        elif certificate == "incommon":
+            warnings.append(INCOMMON_NOTE)
+        elif certificate == "none":
+            warnings.append("You chose no certificate for now, so traffic stays unencrypted. Run the "
+                            "same script again later and pick Let's Encrypt or Cloudflare DNS.")
     elif reverse_proxy == "native":
         warnings.append("Run scripts/enable-https-native.sh (Linux) or follow the Windows steps "
                         "in docs/NATIVE_INSTALL.md (IIS + win-acme) to turn on HTTPS for this "
@@ -403,5 +461,6 @@ def complete(db: Session = Depends(get_db), user: User = Depends(get_current_use
         "steps": steps,
         "email_configured": email_ok,
         "reverse_proxy": reverse_proxy,
+        "enable_https_commands": commands,
         "warnings": warnings,
     }

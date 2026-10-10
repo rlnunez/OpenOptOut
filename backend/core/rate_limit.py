@@ -7,7 +7,7 @@ TRUSTED_PROXY_HOPS entries from the right; anything further left was sent by
 the client and can be forged.
 
   Docker, plain HTTP (nginx -> API)            1  (default)
-  Docker, HTTPS (Caddy -> nginx -> API)        2  (scripts/enable-https.* set it)
+  Docker, HTTPS (Caddy/Traefik -> nginx -> API) 2  (scripts/enable-https.* set it)
   Native install (nginx terminates TLS)        1
   Nothing in front (API reached directly)      0
 

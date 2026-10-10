@@ -146,26 +146,34 @@ def _checks() -> dict:
 
 def https_cert_status():
     """
-    OpenOptOut's own certificate (Caddy front door), or None if HTTPS isn't on.
+    OpenOptOut's own certificate (Caddy or Traefik front door), or None if HTTPS isn't on.
     Let's Encrypt stopped emailing expiry warnings in 2025, so this is what
     catches a failed automatic renewal.
       letsencrypt          full verification (also catches a leftover staging cert)
+      incommon             full verification too (publicly trusted emSign root; beta)
       staging/acme/custom  dates only: the API container deliberately doesn't get
                            deploy/certs (it can hold the site's private key)
-      internal             Caddy's private CA renews itself; not checked
+      cloudflare-tunnel    Cloudflare's edge holds the certificate; not checked
+      none                 front door with no certificate; nothing to check
+      internal             Caddy's private CA renews itself; not checked (Caddy-only — the Traefik front door refuses this mode)
     """
     from .auth_providers import tls_peer_cert_status
     mode = os.getenv("HTTPS_MODE", "").strip()
     domain = os.getenv("DOMAIN", "").split(",")[0].strip()
-    if not mode or not domain:
+    if not mode or mode == "none" or not domain:
+        # 'none' = a front door with no certificate yet: nothing to check, and the plain-HTTP warning elsewhere already covers it.
         return None
+    if mode == "cloudflare-tunnel":
+        return {"level": "none", "checked_at": _now(),
+                "message": "Cloudflare issues and renews this certificate at its edge "
+                           "(Cloudflare Tunnel). Nothing to check on this server."}
     if mode == "internal":
         return {"level": "none", "checked_at": _now(),
                 "message": "Caddy's internal CA issues and renews this certificate itself."}
     host = os.getenv("HTTPS_CHECK_HOST", "caddy").strip() or "caddy"
     port = int(os.getenv("HTTPS_CHECK_PORT", "443") or 443)
     st = tls_peer_cert_status(host, port, timeout=10, service="HTTPS front door",
-                              server_name=domain, verify=(mode == "letsencrypt"))
+                              server_name=domain, verify=(mode in ("letsencrypt", "incommon")))
     if mode == "letsencrypt-staging" and st.get("level") == "ok":
         st["message"] += " (Staging certificate: browsers won't trust it. Switch to letsencrypt.)"
     return st

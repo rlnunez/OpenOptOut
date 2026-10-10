@@ -3476,6 +3476,10 @@ def t_https_entrypoint():
 
     with tempfile.TemporaryDirectory() as td:
         cf = os.path.join(td, "Caddyfile")
+        cf_ips = os.path.join(repo_root, "deploy", "cloudflare", "ip-ranges.txt")
+        bad_ips = os.path.join(td, "bad-ips.txt")
+        with open(bad_ips, "w") as f:
+            f.write("103.21.244.0/22\n1.2.3.4/32 } evil {\n")
 
         # Each of these must be REFUSED (nonzero exit), including a value whose
         # first line looks valid but carries a second line of injected config —
@@ -3491,6 +3495,28 @@ def t_https_entrypoint():
             {"HTTPS_MODE": "acme", "DOMAIN": "a.org"},                        # no ACME_CA
             {"HTTPS_MODE": "acme", "DOMAIN": "a.org", "ACME_CA": "http://insecure/dir"},
             {"HTTPS_MODE": "custom", "DOMAIN": "a.org"},                      # no cert files
+            # Cloudflare DNS: needs a token, only for ACME modes, known values only
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_CHALLENGE": "cloudflare"},
+            {"HTTPS_MODE": "internal", "DOMAIN": "a.org", "ACME_CHALLENGE": "cloudflare",
+             "CLOUDFLARE_API_TOKEN": "x" * 40},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_CHALLENGE": "dns"},
+            {"HTTPS_MODE": "none", "DOMAIN": "a.org } evil {"},
+            # Flood protection: known values only; Cloudflare's proxy needs a certificate that doesn't rely on Let's Encrypt reaching port 80
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "RATE_LIMIT": "maybe"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "RATE_LIMIT_PER_MINUTE": "0"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "AUTH_RATE_LIMIT_PER_MINUTE": "60 }"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "CLOUDFLARE_PROXY": "on",
+             "CLOUDFLARE_IPS_FILE": cf_ips},
+            {"HTTPS_MODE": "none", "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_CHALLENGE": "cloudflare",
+             "CLOUDFLARE_API_TOKEN": "x" * 40, "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": bad_ips},
+            # InCommon (beta): credentials required, well-formed, and only for ACME modes
+            {"HTTPS_MODE": "incommon", "DOMAIN": "a.org"},
+            {"HTTPS_MODE": "incommon", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1"},
+            {"HTTPS_MODE": "incommon", "DOMAIN": "a.org", "ACME_EAB_KID": "kid } evil {", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"},
+            {"HTTPS_MODE": "incommon", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "short"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_KEY_TYPE": "dsa1024"},
         ]
         for env in bad:
             r = run(env, cf)
@@ -3509,6 +3535,17 @@ def t_https_entrypoint():
              "ACME_CA": "https://ca.lib.internal/acme/acme/directory"},
             {"HTTPS_MODE": "custom", "DOMAIN": "privacy.lib.org",
              "TLS_CERT_FILE": cert_file, "TLS_KEY_FILE": key_file},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org",
+             "ACME_CHALLENGE": "cloudflare", "CLOUDFLARE_API_TOKEN": "t0ken-" + "x" * 34},
+            {"HTTPS_MODE": "none", "DOMAIN": "privacy.lib.org"},
+            {"HTTPS_MODE": "none"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org", "RATE_LIMIT": "off"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org", "ACME_CHALLENGE": "cloudflare",
+             "CLOUDFLARE_API_TOKEN": "t0ken-" + "x" * 34, "CLOUDFLARE_PROXY": "on",
+             "CLOUDFLARE_IPS_FILE": cf_ips, "RATE_LIMIT_PER_MINUTE": "600", "AUTH_RATE_LIMIT_PER_MINUTE": "30"},
+            {"HTTPS_MODE": "incommon", "DOMAIN": "privacy.univ.edu", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"},
+            {"HTTPS_MODE": "acme", "DOMAIN": "privacy.lib.org", "ACME_CA": "https://ca.example.com/dir",
+             "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n", "ACME_KEY_TYPE": "p384"},
         ]
         for env in good:
             r = run(env, cf)
@@ -3527,13 +3564,195 @@ def t_https_entrypoint():
                     host = token.split(":", 1)[0].strip("[]")
                 if host:
                     parsed_hostnames.add(host.lower())
-            expected_domain = env["DOMAIN"]
-            assert any(h == expected_domain for h in parsed_hostnames)
+            if env.get("DOMAIN"):
+                assert any(h == env["DOMAIN"] for h in parsed_hostnames)
+            if env.get("ACME_CHALLENGE") == "cloudflare":
+                # The token is referenced, never written to disk.
+                assert "dns cloudflare {env.CLOUDFLARE_API_TOKEN}" in content
+                assert env["CLOUDFLARE_API_TOKEN"] not in content
+            # Rate limits: on unless switched off (GENERATE_ONLY assumes the module is present), with a stricter zone for sign-in endpoints.
+            if env.get("RATE_LIMIT") == "off":
+                assert "rate_limit" not in content
+            else:
+                assert "rate_limit {" in content and "path /api/auth/*" in content
+                assert f"events {env.get('RATE_LIMIT_PER_MINUTE', '1200')}" in content
+                assert f"events {env.get('AUTH_RATE_LIMIT_PER_MINUTE', '60')}" in content
+            assert "read_header 10s" in content
+            assert "persist_config off" in content, "Caddy must not save its loaded config (it can hold the EAB secret)"
+            if env.get("ACME_EAB_KID"):
+                assert "eab {$ACME_EAB_KID} {$ACME_EAB_HMAC}" in content
+                assert env["ACME_EAB_HMAC"] not in content, "the EAB HMAC key must never be written to the Caddyfile"
+            if env["HTTPS_MODE"] == "incommon":
+                assert "ca https://acme-us.certinext.io/v1/directory" in content
+                assert "key_type rsa2048" in content, "CERTInext requires RSA 2048"
+            elif env.get("ACME_KEY_TYPE"):
+                assert f"key_type {env['ACME_KEY_TYPE']}" in content
+            if env.get("CLOUDFLARE_PROXY") == "on":
+                # Only Cloudflare may connect, and only Cloudflare is trusted for the client IP.
+                assert "@not_cloudflare not remote_ip 173.245.48.0/20" in content and "2c0f:f248::/32" in content
+                assert "abort @not_cloudflare" in content
+                assert "trusted_proxies static 173.245.48.0/20" in content
+                assert "client_ip_headers CF-Connecting-IP" in content
+                # The drop happens first, before rate limiting or proxying.
+                assert content.index("abort @not_cloudflare") < content.index("rate_limit {") < content.index("reverse_proxy")
+            else:
+                assert "trusted_proxies" not in content and "@not_cloudflare" not in content
+            if env["HTTPS_MODE"] == "none":
+                # Plain HTTP: no certificate, no HSTS, no redirect.
+                assert "tls " not in content and "Strict-Transport-Security" not in content
+                assert ("http://privacy.lib.org" in content) if env.get("DOMAIN") else (":80 {" in content)
             os.remove(cf)
     # EXPECTED: the generator accepts every documented mode and rejects malformed
     #   or injected input, including values that only look valid on their first line.
     # IF THIS FAILS: either a legitimate deployment mode is broken, or a value an
     #   admin pastes into .env could inject arbitrary Caddy configuration.
+
+
+@test(1, "https.traefik_entrypoint_validation",
+      "deploy/traefik/entrypoint.sh: every supported HTTPS mode produces valid Traefik YAML, "
+      "unsupported modes (internal, wildcards) and injected input are refused.")
+def t_https_traefik_entrypoint():
+    import subprocess, tempfile, shutil
+    if _try_import("yaml") is None:
+        raise Skip("pyyaml not installed")
+    import yaml
+    repo_root = os.path.dirname(_BACKEND_DIR)
+    entry = os.path.join(repo_root, "deploy", "traefik", "entrypoint.sh")
+    if not os.path.isfile(entry):
+        raise Skip("deploy/traefik/entrypoint.sh not present (running from a bare backend checkout)")
+    sh = shutil.which("sh")
+    if not sh:
+        raise Skip("no /bin/sh available")
+
+    with tempfile.TemporaryDirectory() as td:
+        conf = os.path.join(td, "conf")
+        cf_ips = os.path.join(repo_root, "deploy", "cloudflare", "ip-ranges.txt")
+
+        def run(env_overrides):
+            env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "GENERATE_ONLY": "1",
+                   "TRAEFIK_CONF_DIR": conf, "ACME_STORAGE": os.path.join(td, "acme.json")}
+            env.update(env_overrides)
+            return subprocess.run([sh, entry], env=env, capture_output=True, text=True, timeout=15)
+
+        bad = [
+            {"HTTPS_MODE": "letsencrypt"},                                    # no DOMAIN
+            {"HTTPS_MODE": "bogus", "DOMAIN": "a.org"},
+            {"HTTPS_MODE": "internal", "DOMAIN": "a.org"},                    # Caddy-only
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "*.a.org"},              # no wildcards
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org`) || PathPrefix(`/"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": 'a.org"\nproviders: {}'},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org\nb.org"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_EMAIL": "x@a.org\nlog: {}"},
+            {"HTTPS_MODE": "acme", "DOMAIN": "a.org"},                        # no ACME_CA
+            {"HTTPS_MODE": "acme", "DOMAIN": "a.org", "ACME_CA": "http://insecure/dir"},
+            {"HTTPS_MODE": "custom", "DOMAIN": "a.org"},                      # no cert files
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "UPSTREAM": "web:80/evil"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_CHALLENGE": "cloudflare"},
+            {"HTTPS_MODE": "custom", "DOMAIN": "a.org", "ACME_CHALLENGE": "cloudflare",
+             "CLOUDFLARE_API_TOKEN": "x" * 40},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_CHALLENGE": "dns"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "RATE_LIMIT": "maybe"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "RATE_LIMIT_PER_MINUTE": "-5"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "CLOUDFLARE_PROXY": "on",
+             "CLOUDFLARE_IPS_FILE": cf_ips},
+            {"HTTPS_MODE": "none", "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips},
+            {"HTTPS_MODE": "incommon", "DOMAIN": "a.org"},
+            {"HTTPS_MODE": "incommon", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": 'x"\nproviders: {}'},
+            {"HTTPS_MODE": "custom", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_KEY_TYPE": "rsa1024"},
+        ]
+        for env in bad:
+            r = run(env)
+            assert r.returncode != 0, f"should have been refused but wasn't: {env}\nstdout={r.stdout}"
+
+        cert_file = os.path.join(td, "cert.pem"); key_file = os.path.join(td, "key.pem")
+        open(cert_file, "w").close(); open(key_file, "w").close()
+        good = [
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org, www.lib.org",
+             "ACME_EMAIL": "it@lib.org"},
+            {"HTTPS_MODE": "letsencrypt-staging", "DOMAIN": "privacy.lib.org", "HSTS": "off"},
+            {"HTTPS_MODE": "acme", "DOMAIN": "privacy.lib.org",
+             "ACME_CA": "https://ca.lib.internal/acme/acme/directory"},
+            {"HTTPS_MODE": "custom", "DOMAIN": "privacy.lib.org",
+             "TLS_CERT_FILE": cert_file, "TLS_KEY_FILE": key_file},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org",
+             "ACME_CHALLENGE": "cloudflare", "CLOUDFLARE_API_TOKEN": "t0ken-" + "x" * 34},
+            {"HTTPS_MODE": "none", "DOMAIN": "privacy.lib.org"},
+            {"HTTPS_MODE": "none"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org", "RATE_LIMIT": "off"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org", "ACME_CHALLENGE": "cloudflare",
+             "CLOUDFLARE_API_TOKEN": "t0ken-" + "x" * 34, "CLOUDFLARE_PROXY": "on",
+             "CLOUDFLARE_IPS_FILE": cf_ips, "RATE_LIMIT_PER_MINUTE": "600", "AUTH_RATE_LIMIT_PER_MINUTE": "30"},
+            {"HTTPS_MODE": "incommon", "DOMAIN": "privacy.univ.edu", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"},
+        ]
+        for env in good:
+            r = run(env)
+            assert r.returncode == 0, f"valid config was refused: {env}\nstderr={r.stderr}"
+            static = yaml.safe_load(open(os.path.join(conf, "traefik.yml")))
+            dynamic = yaml.safe_load(open(os.path.join(conf, "dynamic.yml")))
+            # Only the generated file may define routes — never the Docker provider.
+            assert list(static["providers"].keys()) == ["file"], static["providers"]
+            router = dynamic["http"]["routers"]["openoptout"]
+            for d in (env.get("DOMAIN") or "").split(","):
+                if d.strip():
+                    assert f"Host(`{d.strip()}`)" in router["rule"], router["rule"]
+            headers = dynamic["http"]["middlewares"]["openoptout-headers"]["headers"]
+            assert headers.get("frameDeny") and headers.get("contentTypeNosniff")
+            if env["HTTPS_MODE"] == "incommon":
+                acme = static["certificatesResolvers"]["openoptout"]["acme"]
+                assert acme["caServer"] == "https://acme-us.certinext.io/v1/directory"
+                assert acme["keyType"] == "RSA2048", "CERTInext requires RSA 2048"
+                assert acme["eab"] == {"kid": "kid1", "hmacEncoded": env["ACME_EAB_HMAC"]}
+                assert env["ACME_EAB_HMAC"] not in r.stdout, "the EAB HMAC key must never be printed"
+            # Sign-in endpoints get their own router with the stricter limit.
+            signin = dynamic["http"]["routers"]["openoptout-signin"]
+            assert "PathPrefix(`/api/auth/`)" in signin["rule"]
+            mws = dynamic["http"].get("middlewares", {})
+            if env.get("RATE_LIMIT") == "off":
+                assert "openoptout-ratelimit" not in mws and "openoptout-ratelimit" not in router["middlewares"]
+            else:
+                assert router["middlewares"][-3:] == ["openoptout-ratelimit", "openoptout-headers", "openoptout-compress"]
+                assert "openoptout-signin-ratelimit" in signin["middlewares"]
+                assert mws["openoptout-ratelimit"]["rateLimit"]["average"] == int(env.get("RATE_LIMIT_PER_MINUTE", 1200))
+                assert mws["openoptout-signin-ratelimit"]["rateLimit"]["average"] == int(env.get("AUTH_RATE_LIMIT_PER_MINUTE", 60))
+                assert mws["openoptout-ratelimit"]["rateLimit"]["period"] == "1m"
+            if env.get("CLOUDFLARE_PROXY") == "on":
+                for r_ in (router, signin):
+                    assert r_["middlewares"][0] == "openoptout-cloudflare-only", "Cloudflare check must run first"
+                allow = mws["openoptout-cloudflare-only"]["ipAllowList"]["sourceRange"]
+                assert "173.245.48.0/20" in allow and "2c0f:f248::/32" in allow
+                assert static["entryPoints"]["websecure"]["forwardedHeaders"]["trustedIPs"] == allow
+                assert mws["openoptout-ratelimit"]["rateLimit"]["sourceCriterion"] == {"requestHeaderName": "Cf-Connecting-Ip"}
+            else:
+                assert "openoptout-cloudflare-only" not in mws
+                assert "forwardedHeaders" not in (static["entryPoints"]["websecure"] or {})
+            if env["HTTPS_MODE"] == "none":
+                # Plain HTTP on port 80: no redirect, no TLS, no HSTS, no resolver.
+                assert "http" not in (static["entryPoints"]["web"] or {})
+                assert router["entryPoints"] == ["web"] and "tls" not in router
+                assert "stsSeconds" not in headers and "certificatesResolvers" not in static
+                if not env.get("DOMAIN"):
+                    assert router["rule"] == "PathPrefix(`/`)"
+                continue
+            assert static["entryPoints"]["web"]["http"]["redirections"]["entryPoint"]["to"] == "websecure"
+            assert ("stsSeconds" in headers) == (env.get("HSTS") != "off")
+            if env.get("ACME_CHALLENGE") == "cloudflare":
+                acme = static["certificatesResolvers"]["openoptout"]["acme"]
+                assert acme["dnsChallenge"]["provider"] == "cloudflare" and "httpChallenge" not in acme
+                both = open(os.path.join(conf, "traefik.yml")).read() + open(os.path.join(conf, "dynamic.yml")).read()
+                assert env["CLOUDFLARE_API_TOKEN"] not in both, "token must never be written to config files"
+                continue
+            if env["HTTPS_MODE"] == "custom":
+                assert "certificatesResolvers" not in (static or {})
+                assert dynamic["tls"]["certificates"][0]["certFile"] == cert_file
+            else:
+                acme = static["certificatesResolvers"]["openoptout"]["acme"]
+                assert router["tls"]["certResolver"] == "openoptout"
+                assert acme["httpChallenge"]["entryPoint"] == "web"
+                if env["HTTPS_MODE"] == "acme":
+                    assert acme["caServer"] == env["ACME_CA"]
+    # EXPECTED: Traefik gets the same safety properties as the Caddy front door — validated input, HTTPS redirect, security headers, file-only routing.
+    # IF THIS FAILS: a legitimate mode is broken, a value pasted into .env could inject Traefik config (e.g. widen the router rule), or the Docker provider crept in and Traefik could be steered by other containers.
 
 
 @test(1, "https.compose_sanity",
@@ -3571,12 +3790,227 @@ def t_compose_sanity():
     volumes = compose.get("volumes", {})
     assert "caddy_data" in volumes, \
         "caddy_data must be a named volume — without it, every restart re-requests certificates"
+
+    # Optional Traefik front door: opt-in via its own profile (never both at once by default), and never given the Docker socket.
+    assert "traefik" in services, "expected an optional traefik service (FRONT_DOOR=traefik)"
+    traefik = services["traefik"]
+    assert traefik.get("profiles") == ["https-traefik"], \
+        "traefik must be gated behind the 'https-traefik' compose profile"
+    traefik_env = " ".join(str(e) for e in traefik.get("environment", []))
+    for needed in ("HTTPS_MODE", "DOMAIN"):
+        assert needed in traefik_env, f"traefik service missing {needed} passthrough"
+    traefik_vols = " ".join(str(v) for v in traefik.get("volumes", []))
+    assert "docker.sock" not in traefik_vols, \
+        "the traefik front door must not get the Docker socket (host-level control)"
+    assert "traefik_data" in volumes, "traefik_data must be a named volume (ACME account + certs)"
+
+    # Extended Caddy (Cloudflare DNS + rate-limit modules): its own opt-in profile (built only when chosen), reachable as "caddy" so the certificate monitor needs no change, and the only Caddy that gets the Cloudflare token.
+    assert "caddy-extended" in services, "expected a caddy-extended service (rate limits, Cloudflare DNS)"
+    cdns = services["caddy-extended"]
+    assert cdns.get("profiles") == ["https-caddy-extended"], "caddy-extended must be opt-in via its own profile"
+    assert cdns.get("build"), "caddy-extended must build deploy/caddy/Dockerfile (stock Caddy lacks the modules)"
+    assert "caddy" in (cdns.get("networks", {}).get("default", {}) or {}).get("aliases", []), \
+        "caddy-extended must answer as 'caddy' on the Docker network (certificate monitor)"
+    # Every Caddy/Traefik front door gets the flood-protection settings and the Cloudflare IP list (read-only) for CLOUDFLARE_PROXY=on.
+    for name in ("caddy", "caddy-extended", "traefik"):
+        svc_env = " ".join(str(e) for e in services[name].get("environment", []))
+        for needed in ("RATE_LIMIT=", "RATE_LIMIT_PER_MINUTE", "AUTH_RATE_LIMIT_PER_MINUTE", "CLOUDFLARE_PROXY"):
+            assert needed in svc_env, f"{name} missing {needed} passthrough"
+        vols = " ".join(str(v) for v in services[name].get("volumes", []))
+        assert "cloudflare/ip-ranges.txt:/deploy/cloudflare-ips.txt:ro" in vols, \
+            f"{name} must mount the Cloudflare IP list read-only"
+        for needed in ("ACME_EAB_KID", "ACME_EAB_HMAC", "ACME_KEY_TYPE"):
+            assert needed in svc_env, f"{name} missing {needed} passthrough (InCommon / EAB)"
+    assert any(str(t).startswith("/etc/traefik") for t in (traefik.get("tmpfs") or [])), \
+        "Traefik's generated config (which can hold the EAB secret) must live in memory (tmpfs)"
+    cdns_env = " ".join(str(e) for e in cdns.get("environment", []))
+    assert "CLOUDFLARE_API_TOKEN" in cdns_env
+    assert "CLOUDFLARE_API_TOKEN" not in " ".join(str(e) for e in caddy.get("environment", [])), \
+        "the stock caddy service has no use for the Cloudflare token"
+    assert "CLOUDFLARE_API_TOKEN" in " ".join(str(e) for e in traefik.get("environment", []))
+
+    # Cloudflare Tunnel: opt-in, dials out — so it publishes no ports and needs no host mounts at all.
+    assert "cloudflared" in services, "expected an optional cloudflared service (Cloudflare Tunnel)"
+    cfd = services["cloudflared"]
+    assert cfd.get("profiles") == ["cloudflare-tunnel"]
+    assert not cfd.get("ports"), "cloudflared dials out; it must not publish ports"
+    assert not cfd.get("volumes"), "cloudflared needs no host mounts"
+    assert "TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN" in " ".join(str(e) for e in cfd.get("environment", []))
+    assert ":latest" not in str(cfd.get("image", "")) and ":" in str(cfd.get("image", "")), \
+        "pin the cloudflared image version"
     # EXPECTED: the API stays off the LAN by default, SSO redirects use the real
     #   FRONTEND_URL, and Caddy never starts (or fights for ports 80/443) unless
     #   an admin explicitly opts in.
     # IF THIS FAILS: either plain-HTTP sign-in is reachable from other machines by
     #   default, SSO silently redirects to the wrong URL, or a larger deployment's
     #   own reverse proxy could end up fighting our Caddy container for ports.
+
+
+@test(1, "https.enable_script_paths",
+      "scripts/enable-https.sh: each front door + certificate choice writes the right .env keys "
+      "(profiles, challenge, tokens), the tunnel warning shows, and bad combinations are refused.")
+def t_enable_https_script():
+    import subprocess, tempfile, shutil
+    repo_root = os.path.dirname(_BACKEND_DIR)
+    script = os.path.join(repo_root, "scripts", "enable-https.sh")
+    example = os.path.join(repo_root, ".env.example")
+    bash = shutil.which("bash")
+    if not os.path.isfile(script) or not os.path.isfile(example):
+        raise Skip("scripts/enable-https.sh or .env.example not present (bare backend checkout)")
+    if not bash:
+        raise Skip("no bash available")
+
+    def run(*args):
+        td = tempfile.mkdtemp()
+        env_file = os.path.join(td, ".env")
+        shutil.copy(example, env_file)
+        r = subprocess.run([bash, script, "--env-file", env_file, "--yes", *args],
+                           capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
+        vals = {}
+        for line in open(env_file):
+            line = line.rstrip("\n")
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                vals[k] = v
+        shutil.rmtree(td, ignore_errors=True)
+        return r, vals
+
+    token = "t0ken" + "x" * 35
+    cases = [
+        # Rate limits are on by default, so Caddy uses its extended build.
+        (["--proxy", "caddy", "--cert", "letsencrypt", "--domain", "a.org"],
+         {"COMPOSE_PROFILES": "https-caddy-extended", "HTTPS_MODE": "letsencrypt", "ACME_CHALLENGE": "http",
+          "FRONTEND_URL": "https://a.org", "TRUSTED_PROXY_HOPS": "2", "RATE_LIMIT": "on",
+          "CLOUDFLARE_PROXY": "off"}),
+        (["--proxy", "caddy", "--cert", "letsencrypt", "--domain", "a.org", "--no-rate-limit"],
+         {"COMPOSE_PROFILES": "https", "RATE_LIMIT": "off"}),
+        (["--proxy", "caddy", "--cert", "cloudflare-dns", "--domain", "a.org", "--cf-token", token],
+         {"COMPOSE_PROFILES": "https-caddy-extended", "ACME_CHALLENGE": "cloudflare",
+          "CLOUDFLARE_API_TOKEN": token, "HTTPS_CHECK_HOST": "caddy"}),
+        (["--proxy", "caddy", "--cert", "cloudflare-dns", "--domain", "a.org", "--no-rate-limit"],
+         {"COMPOSE_PROFILES": "https-caddy-extended", "RATE_LIMIT": "off"}),
+        (["--proxy", "traefik", "--mode", "incommon", "--domain", "privacy.univ.edu",
+          "--eab-kid", "kid1", "--eab-hmac", "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"],
+         {"HTTPS_MODE": "incommon", "ACME_CA": "https://acme-us.certinext.io/v1/directory",
+          "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n", "ACME_KEY_TYPE": "rsa2048"}),
+        (["--proxy", "traefik", "--cert", "cloudflare-dns", "--domain", "a.org", "--cloudflare-proxy",
+          "--rate-limit", "600", "--auth-rate-limit", "30"],
+         {"CLOUDFLARE_PROXY": "on", "TRUSTED_PROXY_HOPS": "3", "RATE_LIMIT_PER_MINUTE": "600",
+          "AUTH_RATE_LIMIT_PER_MINUTE": "30"}),
+        (["--proxy", "traefik", "--cert", "cloudflare-dns", "--domain", "a.org"],   # token later
+         {"COMPOSE_PROFILES": "https-traefik", "ACME_CHALLENGE": "cloudflare", "HTTPS_CHECK_HOST": "traefik"}),
+        (["--proxy", "traefik", "--cert", "none"],
+         {"HTTPS_MODE": "none", "FRONTEND_URL": "http://localhost"}),
+        (["--proxy", "cloudflare-tunnel", "--domain", "a.org"],
+         {"COMPOSE_PROFILES": "cloudflare-tunnel", "HTTPS_MODE": "cloudflare-tunnel",
+          "FRONTEND_URL": "https://a.org", "WEB_BIND": "127.0.0.1"}),
+    ]
+    for args, expected in cases:
+        r, vals = run(*args)
+        assert r.returncode == 0, f"{args} failed:\n{r.stderr}"
+        for k, v in expected.items():
+            assert vals.get(k) == v, f"{args}: expected {k}={v}, got {vals.get(k)!r}"
+        if "cloudflare-tunnel" in args:
+            assert "Cloudflare decrypts ALL traffic" in r.stdout, "tunnel must show the decryption warning"
+            assert "HTTPS_CHECK_HOST" not in vals and "ACME_CHALLENGE" not in vals
+        if args[3:4] == ["cloudflare-dns"] and "--cf-token" not in args:
+            assert "CLOUDFLARE_API_TOKEN" not in vals
+            assert "CLOUDFLARE_API_TOKEN" in r.stdout, "should say how to add the token later"
+
+    refused = [
+        ["--proxy", "cloudflare-tunnel", "--domain", "a.org", "--cert", "letsencrypt"],
+        ["--proxy", "caddy", "--cert", "cloudflare-dns", "--mode", "custom", "--domain", "a.org"],
+        ["--proxy", "traefik", "--mode", "internal", "--domain", "a.org"],
+        ["--proxy", "caddy", "--cert", "cloudflare-dns", "--domain", "a.org", "--cf-token", "bad\ntoken"],
+        ["--proxy", "nginx"],
+        # Cloudflare's proxy needs a certificate that doesn't depend on port 80
+        ["--proxy", "caddy", "--cert", "letsencrypt", "--domain", "a.org", "--cloudflare-proxy"],
+        ["--proxy", "traefik", "--cert", "none", "--cloudflare-proxy"],
+        ["--proxy", "cloudflare-tunnel", "--domain", "a.org", "--cloudflare-proxy"],
+        ["--proxy", "caddy", "--cert", "none", "--rate-limit", "0"],
+        ["--proxy", "caddy", "--cert", "none", "--rate-limit", "12;rm"],
+        # InCommon details are required during setup, and credentials only fit ACME modes
+        ["--proxy", "caddy", "--mode", "incommon", "--domain", "a.org"],
+        ["--proxy", "caddy", "--mode", "incommon", "--domain", "a.org", "--eab-kid", "kid1", "--eab-hmac", "bad\nkey"],
+        ["--proxy", "caddy", "--mode", "letsencrypt", "--domain", "a.org", "--eab-kid", "kid1", "--eab-hmac", "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"],
+    ]
+    for args in refused:
+        r, _ = run(*args)
+        assert r.returncode != 0, f"should have been refused: {args}"
+    # EXPECTED: the two questions map onto exactly one Compose profile each, the token is only stored when given and valid, and the tunnel always warns.
+    # IF THIS FAILS: a choice would start the wrong container (or none), or a malformed token could inject extra lines into .env.
+
+
+@test(1, "https.wizard_commands_and_monitor_modes",
+      "Wizard hands back the right enable-https command (unsafe domains left out), and the "
+      "certificate monitor skips 'none' and Cloudflare Tunnel instead of raising a false alarm.")
+def t_wizard_commands_and_monitor_modes():
+    import ast
+    src = open(os.path.join(_BACKEND_DIR, "routers", "wizard.py")).read()
+    tree = ast.parse(src)
+    keep = [n for n in tree.body
+            if (isinstance(n, ast.Assign) and any(getattr(t, "id", "") in ("FRONT_DOORS", "CERTIFICATES")
+                                                  for t in n.targets))
+            or (isinstance(n, ast.FunctionDef) and n.name == "enable_https_commands")]
+    ns = {}
+    exec(compile(ast.Module(keep, []), "wizard_cmds", "exec"), ns)
+    cmds = ns["enable_https_commands"]
+    c = cmds("traefik", "cloudflare-dns", "home.example.org")
+    assert c["linux"] == "./scripts/enable-https.sh --proxy traefik --cert cloudflare-dns --domain home.example.org"
+    assert c["windows"].endswith("-Proxy traefik -Cert cloudflare-dns -Domain home.example.org")
+    t = cmds("cloudflare-tunnel", "letsencrypt", "a.org")
+    assert "--cert" not in t["linux"], "the tunnel has no certificate question"
+    bad = cmds("caddy", "none", "a.org; rm -rf /")
+    assert "rm" not in bad["linux"] and "--domain" not in bad["linux"], "unsafe domain must be dropped"
+    cfp = cmds("caddy", "cloudflare-dns", "a.org", rate_limit=False, cloudflare_proxy=True)
+    assert "--cloudflare-proxy" in cfp["linux"] and "-CloudflareProxy" in cfp["windows"]
+    assert "--no-rate-limit" in cfp["linux"] and "-NoRateLimit" in cfp["windows"]
+    inc = cmds("traefik", "incommon", "privacy.univ.edu")
+    assert inc["linux"] == "./scripts/enable-https.sh --proxy traefik --mode incommon --domain privacy.univ.edu"
+    assert "-Mode incommon" in inc["windows"] and "--cert" not in inc["linux"]
+    assert "--cloudflare-proxy" not in cmds("caddy", "letsencrypt", "a.org", cloudflare_proxy=True)["linux"], \
+        "Cloudflare's proxy is only offered with the Cloudflare DNS certificate"
+
+    try:
+        cm = _imp("core.cert_monitor")
+    except ImportError as e:
+        raise Skip(f"needs backend package layout: {e}")
+    saved = {k: os.environ.get(k) for k in ("HTTPS_MODE", "DOMAIN")}
+    try:
+        os.environ["DOMAIN"] = "a.org"
+        os.environ["HTTPS_MODE"] = "none"
+        assert cm.https_cert_status() is None
+        os.environ["HTTPS_MODE"] = "cloudflare-tunnel"
+        st = cm.https_cert_status()
+        assert st["level"] == "none" and "Cloudflare" in st["message"]
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    # EXPECTED: admins get a copy-paste command matching what they chose, and the dashboard never shows a certificate error for a front door that intentionally has no certificate here.
+
+
+@test(1, "https.cloudflare_ip_list",
+      "deploy/cloudflare/ip-ranges.txt: a non-empty list of valid IPv4 and IPv6 ranges and "
+      "nothing else (the front door admits only these when CLOUDFLARE_PROXY=on).")
+def t_cloudflare_ip_list():
+    import ipaddress
+    repo_root = os.path.dirname(_BACKEND_DIR)
+    path = os.path.join(repo_root, "deploy", "cloudflare", "ip-ranges.txt")
+    if not os.path.isfile(path):
+        raise Skip("deploy/cloudflare/ip-ranges.txt not present (bare backend checkout)")
+    nets = []
+    for line in open(path):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        nets.append(ipaddress.ip_network(line, strict=True))   # raises on anything malformed
+    v4 = [n for n in nets if n.version == 4]; v6 = [n for n in nets if n.version == 6]
+    assert len(v4) >= 5 and len(v6) >= 3, f"suspiciously short list: {len(v4)} v4, {len(v6)} v6"
+    assert not any(n.prefixlen < 8 for n in nets), "a huge range would let far more than Cloudflare in"
+    # EXPECTED: only real, reasonably sized ranges. IF THIS FAILS: a bad edit could either lock everyone out or let non-Cloudflare traffic straight in.
 
 
 @test(1, "version.reports_file_env_and_fallback_correctly",
