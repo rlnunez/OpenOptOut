@@ -425,15 +425,42 @@ function ConnectOAuth({ provider, setError }) {
 }
 
 // ── Step 3: Deployment / reverse proxy ─────────────────────────────────────────
+// Smaller radio choice used for the follow-up questions under "set up HTTPS for me".
+function SubChoice({ name, value, current, onChange, title, children, warn }) {
+  const on = current === value
+  return (
+    <label className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer ${on ? (warn ? 'border-amber-600 bg-amber-950/20' : 'border-shield-600 bg-shield-900/20') : 'border-slate-700'}`}>
+      <input type="radio" name={name} value={value} checked={on} onChange={() => onChange(value)} className="mt-1 accent-shield-500" />
+      <div>
+        <div className="text-slate-200 text-sm font-medium">{title}</div>
+        <div className="text-slate-400 text-xs">{children}</div>
+      </div>
+    </label>
+  )
+}
+
 function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
   const [mode, setMode] = useState('managed')
   const [domain, setDomain] = useState('')
+  const [frontDoor, setFrontDoor] = useState('caddy')
+  const [certificate, setCertificate] = useState('letsencrypt')
+  const [rateLimit, setRateLimit] = useState(true)
+  const [cloudflareProxy, setCloudflareProxy] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const save = async () => {
     setSaving(true); setError('')
     try {
-      await api.post('/wizard/deployment', { reverse_proxy: mode, domain: (mode === 'managed' || mode === 'native') ? domain : '' })
+      const body = { reverse_proxy: mode, domain: (mode === 'managed' || mode === 'native') ? domain : '' }
+      if (mode === 'managed') {
+        body.front_door = frontDoor
+        if (frontDoor !== 'cloudflare-tunnel') {
+          body.certificate = certificate
+          body.rate_limit = rateLimit
+          body.cloudflare_proxy = certificate === 'cloudflare-dns' && cloudflareProxy
+        }
+      }
+      await api.post('/wizard/deployment', body)
       onNext()
     } catch (e) { setError(e.response?.data?.detail || 'Failed to save deployment settings') }
     finally { setSaving(false) }
@@ -443,17 +470,96 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
     <div>
       <StepHeader icon={Globe} title="How is HTTPS handled here?" subtitle="Decides whether OpenOptOut should manage HTTPS itself, or stay out of the way of something that already does." />
       <div className="space-y-3">
-        <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer ${mode === 'managed' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700'}`}>
-          <input type="radio" checked={mode === 'managed'} onChange={() => setMode('managed')} className="mt-1 accent-shield-500" />
-          <div className="flex-1">
-            <div className="text-slate-200 text-sm font-medium flex items-center gap-1"><Home size={13} /> Running via Docker — set up HTTPS for me</div>
-            <div className="text-slate-400 text-xs">Docker (bare metal or a VM — it doesn't matter which), nothing else already on ports 80 or 443. OpenOptOut's built-in Caddy container gets and renews certificates automatically.</div>
-            {mode === 'managed' && (
-              <input className={`${inp} mt-2`} placeholder="Domain, if you know it yet (e.g. privacy.yourlibrary.org) — optional"
-                value={domain} onChange={e => setDomain(e.target.value)} />
-            )}
-          </div>
-        </label>
+        <div className={`p-3 rounded-lg border ${mode === 'managed' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700'}`}>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input type="radio" checked={mode === 'managed'} onChange={() => setMode('managed')} className="mt-1 accent-shield-500" />
+            <div className="flex-1">
+              <div className="text-slate-200 text-sm font-medium flex items-center gap-1"><Home size={13} /> Running via Docker — set up HTTPS for me</div>
+              <div className="text-slate-400 text-xs">Docker (bare metal or a VM — it doesn't matter which), nothing else already on ports 80 or 443. OpenOptOut runs its own front door and keeps the certificate renewed.</div>
+            </div>
+          </label>
+          {/* Follow-up questions sit OUTSIDE the label above: nested labels are invalid HTML and make screen readers announce this whole panel as one option. */}
+          {mode === 'managed' && (
+            <div className="mt-3 space-y-3 sm:pl-7">
+              <input className={inp} placeholder="Domain, if you know it yet (e.g. privacy.yourlibrary.org) — optional"
+                aria-label="Domain (optional)" value={domain} onChange={e => setDomain(e.target.value)} />
+              <fieldset className="space-y-2">
+                <legend className="text-slate-300 text-xs font-medium mb-1.5">How should people reach it?</legend>
+                <SubChoice name="front_door" value="caddy" current={frontDoor} onChange={setFrontDoor} title="Caddy (recommended)">
+                  Simplest choice if you have no preference.
+                </SubChoice>
+                <SubChoice name="front_door" value="traefik" current={frontDoor} onChange={setFrontDoor} title="Traefik">
+                  Same protection, for teams that already use Traefik.
+                </SubChoice>
+                <SubChoice name="front_door" value="cloudflare-tunnel" current={frontDoor} onChange={setFrontDoor} title="Cloudflare Tunnel" warn>
+                  No open ports or router setup at all. Cloudflare can see all traffic — see the warning below.
+                </SubChoice>
+              </fieldset>
+              {frontDoor === 'cloudflare-tunnel' ? (
+                <div role="alert" className="px-3 py-2 rounded-lg border border-amber-700 bg-amber-950/30 text-amber-200 text-xs flex items-start gap-2">
+                  <AlertTriangle size={13} className="shrink-0 mt-0.5" aria-hidden="true" />
+                  <span>
+                    <strong>Cloudflare decrypts all traffic to this site.</strong> Its servers can see everything people send
+                    and receive here: names, home addresses, phone numbers, emails, and sign-in tokens. For no open ports
+                    without that, pick Caddy or Traefik with <em>Let's Encrypt via Cloudflare DNS</em> instead.
+                  </span>
+                </div>
+              ) : (<>
+                <fieldset className="space-y-2">
+                  <legend className="text-slate-300 text-xs font-medium mb-1.5">Where should the HTTPS certificate come from?</legend>
+                  <SubChoice name="certificate" value="letsencrypt" current={certificate} onChange={setCertificate} title="Let's Encrypt">
+                    Free and automatic. Ports 80 and 443 must be reachable from the internet.
+                  </SubChoice>
+                  <SubChoice name="certificate" value="cloudflare-dns" current={certificate} onChange={setCertificate} title="Let's Encrypt via Cloudflare DNS">
+                    Free and automatic, with no open ports. Your domain's DNS must be on Cloudflare, which only sees a DNS
+                    record — never your traffic. Many home internet plans block ports or share one IP between homes; then
+                    this is often the only option that works.
+                  </SubChoice>
+                  <SubChoice name="certificate" value="none" current={certificate} onChange={setCertificate} title="None for now" warn>
+                    Plain HTTP until you add a certificate later. Fine for testing; not for real people's data.
+                  </SubChoice>
+                  <details className="group" open={certificate === 'incommon'}>
+                    <summary className="text-slate-400 text-xs cursor-pointer select-none py-1 hover:text-slate-200">Advanced</summary>
+                    <div className="mt-2">
+                      <SubChoice name="certificate" value="incommon" current={certificate} onChange={setCertificate}
+                        title={<>InCommon (CERTInext) <span className="ml-1 inline-block whitespace-nowrap text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-900/60 text-amber-200 align-middle">Beta · untested</span></>}>
+                        Mostly for universities and research institutions in InCommon, which get free certificates through CERTInext. Setup will ask for the ACME key ID, HMAC key and server address from your campus IT, and won't continue without them, so have them ready.
+                      </SubChoice>
+                    </div>
+                  </details>
+                </fieldset>
+                <fieldset className="space-y-2">
+                  <legend className="text-slate-300 text-xs font-medium mb-1.5">Protection against floods of traffic</legend>
+                  <label className="flex items-start gap-2.5 p-2.5 rounded-lg border border-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={rateLimit} onChange={e => setRateLimit(e.target.checked)} className="mt-1 accent-shield-500" />
+                    <div>
+                      <div className="text-slate-200 text-sm font-medium">Limit how fast any one visitor can send requests (recommended)</div>
+                      <div className="text-slate-400 text-xs">Normal use never notices. Floods and password-guessing get slowed down before they reach OpenOptOut.</div>
+                    </div>
+                  </label>
+                  {certificate === 'cloudflare-dns' && (
+                    <label className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer ${cloudflareProxy ? 'border-amber-600 bg-amber-950/20' : 'border-slate-700'}`}>
+                      <input type="checkbox" checked={cloudflareProxy} onChange={e => setCloudflareProxy(e.target.checked)} className="mt-1 accent-shield-500" />
+                      <div>
+                        <div className="text-slate-200 text-sm font-medium">Also put it behind Cloudflare's proxy (DDoS protection)</div>
+                        <div className="text-slate-400 text-xs">For sites that are public and big enough to be a target. Cloudflare absorbs attacks and hides this server's address; the server then lets in only Cloudflare. Needs ports 80/443 open to the internet.</div>
+                      </div>
+                    </label>
+                  )}
+                  {certificate === 'cloudflare-dns' && cloudflareProxy && (
+                    <div role="alert" className="px-3 py-2 rounded-lg border border-amber-700 bg-amber-950/30 text-amber-200 text-xs flex items-start gap-2">
+                      <AlertTriangle size={13} className="shrink-0 mt-0.5" aria-hidden="true" />
+                      <span>
+                        <strong>Cloudflare decrypts all traffic to this site.</strong> Its servers can see everything people send
+                        and receive here: names, home addresses, phone numbers, emails, and sign-in tokens.
+                      </span>
+                    </div>
+                  )}
+                </fieldset>
+              </>)}
+            </div>
+          )}
+        </div>
         <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer ${mode === 'native' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700'}`}>
           <input type="radio" checked={mode === 'native'} onChange={() => setMode('native')} className="mt-1 accent-shield-500" />
           <div className="flex-1">
@@ -604,6 +710,40 @@ function BrandingStep({ onNext, onSkip, onBack, busy, setError }) {
   )
 }
 
+// The exact enable-https command for the choices made in the deployment step, with a copy button — one less thing to get wrong on the server.
+function CommandBox({ commands }) {
+  const [os, setOs] = useState(
+    typeof navigator !== 'undefined' && /Win/i.test(navigator.userAgent || '') ? 'windows' : 'linux')
+  const [copied, setCopied] = useState(false)
+  const cmd = commands[os]
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(cmd); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch { /* clipboard blocked: the text is selectable */ }
+  }
+  return (
+    <div className="mb-4 rounded-lg border border-slate-700 bg-slate-800/40 p-3">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-slate-300 text-xs font-medium">Run this on the server</span>
+        <div className="flex gap-1" role="group" aria-label="Server type">
+          {[['linux', 'Linux / Mac'], ['windows', 'Windows']].map(([k, label]) => (
+            <button key={k} type="button" onClick={() => setOs(k)} aria-pressed={os === k}
+              className={`text-xs px-2 py-1 rounded ${os === k ? 'bg-shield-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>{label}</button>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-start gap-2">
+        <code className="flex-1 text-xs text-slate-200 bg-slate-900 rounded px-2 py-1.5 select-all">
+          {/* Wrap only between words, never inside a flag like --cert. */}
+          {cmd.split(' ').map((t, i) => <span key={i}>{i ? ' ' : ''}<span className="whitespace-nowrap">{t}</span></span>)}
+        </code>
+        <button type="button" onClick={copy} aria-label={copied ? 'Copied' : 'Copy command'}
+          className="shrink-0 p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-700">
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Step 5: Summary ───────────────────────────────────────────────────────────
 function SummaryStep({ summary, onDone }) {
   const steps = summary?.steps || {}
@@ -660,6 +800,7 @@ function SummaryStep({ summary, onDone }) {
           </span>
         </div>
       )}
+      {summary?.enable_https_commands && <CommandBox commands={summary.enable_https_commands} />}
       {(reverseProxy === 'managed' || reverseProxy === 'native') && (
         <div className="mb-4 px-3 py-2 rounded-lg border border-slate-700 bg-slate-800/40 text-slate-400 text-xs">
           After you run the script and restart{reverseProxy === 'native' ? ' the service' : ' the containers'}, the dashboard will show a live

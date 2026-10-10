@@ -177,19 +177,26 @@ openoptout/
 │   ├── INTERPRETER.md             # Declarative broker-spec engine + format
 │   ├── ROADMAP.md                 # Architectural roadmap (broker-addon engine)
 │   ├── SSO.md                     # LDAP/SIP2/OIDC/SAML setup, certs, reverse proxies
-│   ├── HTTPS.md                   # Docker (managed) vs. native vs. external reverse-proxy HTTPS
+│   ├── HTTPS.md                   # Managed (Caddy/Traefik, Let's Encrypt or Cloudflare DNS), Cloudflare Tunnel, native, external
 │   ├── NATIVE_INSTALL.md          # Running OpenOptOut with no Docker (systemd / Windows Service)
 │   └── LEGISLATION.md             # Advocacy guide for privacy legislation
 ├── deploy/
 │   ├── caddy/entrypoint.sh        # Generates Caddy config from env vars (Docker path — docs/HTTPS.md)
+│   ├── caddy/Dockerfile           # Caddy + Cloudflare DNS + rate-limit modules (caddy-extended service)
+│   ├── cloudflare/ip-ranges.txt   # Cloudflare's IP ranges, for CLOUDFLARE_PROXY=on
+│   ├── traefik/entrypoint.sh      # Same, for the optional Traefik front door (FRONT_DOOR=traefik)
 │   ├── tests/acme_e2e.sh          # Real ACME issuance + renewal test (Caddy + Pebble)
+│   ├── tests/acme_e2e_traefik.sh  # Same, for the Traefik front door
+│   ├── tests/incommon_e2e.sh      # InCommon (beta) mode: account credentials + RSA 2048, both front doors
+│   ├── tests/protection_e2e.sh    # Rate limits + Cloudflare-only mode, both front doors
 │   └── native/                    # Native (no-Docker) install: systemd unit, nginx config,
 │                                   #   install.sh (Linux), install-native.ps1 (Windows) —
 │                                   #   see docs/NATIVE_INSTALL.md
 ├── scripts/
-│   ├── enable-https.sh            # Guided HTTPS setup/teardown, Docker path, Linux/macOS
+│   ├── enable-https.sh            # Guided front door + certificate setup/teardown, Docker path, Linux/macOS
 │   ├── enable-https.ps1           # Same, Windows PowerShell
 │   ├── enable-https.cmd           # Double-click launcher for enable-https.ps1
+│   ├── update-cloudflare-ips.sh   # Refreshes deploy/cloudflare/ip-ranges.txt
 │   └── enable-https-native.sh     # Guided HTTPS setup/teardown, native (no-Docker) path, Linux
 ├── docker-compose.yml
 ├── install.sh                     # One-line installer (curl | sh) — detects Docker vs. native

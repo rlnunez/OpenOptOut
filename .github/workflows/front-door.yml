@@ -1,0 +1,119 @@
+# ==============================================================================
+# OpenOptOut — front door (HTTPS + flood protection) checks
+#
+# Things the unit tests can't do because they need real binaries or a Docker build:
+#   - build the extended Caddy image (deploy/caddy/Dockerfile: Cloudflare DNS + rate-limit modules) and validate every generated Caddyfile shape with it
+#   - deploy/tests/protection_e2e.sh with that Caddy: Cloudflare-only access, client-IP handling, and rate limits on BOTH Caddy and Traefik
+#   - deploy/tests/acme_e2e*.sh: real certificate issuance + renewal (Pebble) for both front doors
+#   - deploy/tests/incommon_e2e.sh: InCommon (beta) mode — account credentials required, RSA 2048 keys — on both front doors
+# See docs/HTTPS.md.
+# ==============================================================================
+
+name: Front door
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "deploy/caddy/**"
+      - "deploy/traefik/**"
+      - "deploy/cloudflare/**"
+      - "deploy/tests/**"
+      - "docker-compose.yml"
+      - "scripts/enable-https.sh"
+      - ".github/workflows/front-door.yml"
+  push:
+    branches: [main]
+    paths:
+      - "deploy/caddy/**"
+      - "deploy/traefik/**"
+      - "deploy/cloudflare/**"
+      - "deploy/tests/**"
+      - "docker-compose.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: front-door-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  caddy-extended:
+    name: Extended Caddy image + generated configs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build deploy/caddy/Dockerfile
+        run: docker build -t openoptout-caddy-extended:ci deploy/caddy
+
+      - name: Every config shape validates against the real modules
+        run: |
+          set -euo pipefail
+          mkdir -p certs
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/privkey.pem -out certs/fullchain.pem \
+            -days 2 -subj /CN=privacy.example.org 2>/dev/null
+          chmod 644 certs/*.pem
+          check() {  # check <label> ENV=VALUE...
+            local label="$1"; shift
+            local envs=()
+            for kv in "$@"; do envs+=(-e "$kv"); done
+            docker run --rm "${envs[@]}" \
+              -e CADDYFILE=/tmp/Caddyfile -e CLOUDFLARE_IPS_FILE=/deploy/cloudflare-ips.txt \
+              -v "$PWD/deploy/caddy/entrypoint.sh:/deploy/entrypoint.sh:ro" \
+              -v "$PWD/deploy/cloudflare/ip-ranges.txt:/deploy/cloudflare-ips.txt:ro" \
+              -v "$PWD/certs:/certs:ro" \
+              --entrypoint sh openoptout-caddy-extended:ci -c \
+              'GENERATE_ONLY=1 sh /deploy/entrypoint.sh >/dev/null && caddy validate --config /tmp/Caddyfile --adapter caddyfile' \
+              || { echo "FAIL  $label"; return 1; }
+            echo "OK    $label"
+          }
+          check "letsencrypt + rate limits" HTTPS_MODE=letsencrypt DOMAIN=privacy.example.org RATE_LIMIT=on
+          check "letsencrypt, no rate limits" HTTPS_MODE=letsencrypt DOMAIN=privacy.example.org RATE_LIMIT=off
+          check "Cloudflare DNS + rate limits" HTTPS_MODE=letsencrypt DOMAIN=privacy.example.org RATE_LIMIT=on \
+            ACME_CHALLENGE=cloudflare CLOUDFLARE_API_TOKEN=ci-dummy-token-0123456789
+          check "Cloudflare DNS + Cloudflare proxy + rate limits" HTTPS_MODE=letsencrypt DOMAIN=privacy.example.org \
+            RATE_LIMIT=on ACME_CHALLENGE=cloudflare CLOUDFLARE_API_TOKEN=ci-dummy-token-0123456789 CLOUDFLARE_PROXY=on
+          check "custom cert + Cloudflare proxy" HTTPS_MODE=custom DOMAIN=privacy.example.org CLOUDFLARE_PROXY=on RATE_LIMIT=on
+          check "internal CA" HTTPS_MODE=internal DOMAIN=privacy.example.org RATE_LIMIT=on
+          check "no certificate (plain HTTP)" HTTPS_MODE=none RATE_LIMIT=on
+
+      - name: Extract the extended caddy binary
+        run: |
+          id=$(docker create openoptout-caddy-extended:ci)
+          docker cp "$id:/usr/bin/caddy" ./caddy-extended
+          docker rm "$id"
+          ./caddy-extended list-modules | grep -E '^(dns.providers.cloudflare|http.handlers.rate_limit)$'
+
+      - name: Flood protection end to end (Caddy + Traefik)
+        run: CADDY_BIN="$PWD/caddy-extended" ./deploy/tests/protection_e2e.sh
+
+  certificates:
+    name: Certificates (${{ matrix.door }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        door: [caddy, traefik, incommon]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run against Pebble
+        env:
+          DOOR: ${{ matrix.door }}
+        run: |
+          case "$DOOR" in
+            caddy) sudo ./deploy/tests/acme_e2e.sh ;;
+            traefik) sudo ./deploy/tests/acme_e2e_traefik.sh ;;
+            incommon) sudo ./deploy/tests/incommon_e2e.sh ;;   # InCommon (beta) mode on both front doors
+          esac
