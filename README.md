@@ -44,6 +44,7 @@ OpenOptOut automates the end-to-end data removal lifecycle:
 ### Built for Scale & Institutions
 - **Distributed Execution** — Scale headless browser automation across independent worker nodes via Redis priority queues.
 - **Consortium & Enterprise Ready** — Multi-branch partitioning with SIP2/ILS library card login, OIDC/SAML 2.0 SSO, and delegated staff permissions.
+- **Accessibility (WCAG 2.2 AAA)** — High-contrast modes, dynamic font scaling (100%–150%), vestibular motion safety, skip links, and full keyboard/screen-reader support (see [`ACCESSIBILITY.md`](ACCESSIBILITY.md)).
 - **Security & Compliance** — Full database encryption (SQLCipher), field-level encryption, ephemeral memory zeroization, and audit logging.
 
 ---
@@ -161,6 +162,8 @@ Detailed technical guides and architectural specifications are organized in [`do
 | [`docs/PLUGINS.md`](docs/PLUGINS.md) | Process-isolated gRPC plugin system, capability model, and developer SDK |
 | [`docs/LEGISLATION.md`](docs/LEGISLATION.md) | Plain-language advocacy guide and policy principles for comprehensive data-broker legislation |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Comprehensive architectural roadmap and work-item status |
+| [`ACCESSIBILITY.md`](ACCESSIBILITY.md) | WCAG 2.2 AAA conformance statement, high-contrast themes, typography scaling, and assistive technology guide |
+| [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) | Community standards, ethical stewardship principles, and enforcement guidelines |
 
 ---
 
@@ -189,7 +192,7 @@ We welcome community contributions! High-value areas include:
 - **Resistant vendor guides** — document working removal methods for difficult brokers.
 - **Bug reports & test cases** — help improve platform stability.
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) for full contribution guidelines, testing instructions, and developer setup.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) for full contribution guidelines, testing instructions, and developer setup. All community members and contributors are expected to adhere to our [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 
 ---
 
@@ -215,7 +218,7 @@ OpenOptOut handles sensitive personal information, which demands rigorous securi
 
 While I have actively reviewed, tested, and worked to understand the code introduced, I am human and know that AI-generated code can carry subtle edge cases. If you have expertise in application security, Linux sandboxing, or cryptography, **community code reviews and security feedback are deeply appreciated.**
 
-Ideally, OpenOptOut will undergo a formal, independent security audit prior to wide-scale institutional deployment. In the meantime, please review the architecture, challenge our assumptions, and report any potential vulnerabilities responsibly via GitHub issues or private disclosure.
+Ideally, OpenOptOut will undergo a formal, independent security audit prior to wide-scale institutional deployment. In the meantime, please review the architecture, challenge our assumptions, and report any potential vulnerabilities responsibly via GitHub issues or private disclosure. For our community principles and ethical stewardship standards, see [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 
 ---
 

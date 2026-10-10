@@ -15,10 +15,12 @@ In rough order of impact:
 3. **New broker plugins & specs.** Found a data broker not covered? Add it via a broker plugin or spec, then open a PR.
 4. **Resistant-vendor guides.** If you successfully remove from a difficult broker (Epsilon, Ekata, MyLife, etc.) using a method not already documented, add a note and share it.
 5. **ILS / SSO integration reports.** If you deploy against a specific ILS (Koha, Sierra, Symphony, Polaris, Evergreen, Alma) or SSO provider, real-world notes on quirks and working configs are valuable — much of that path is validated for correctness but benefits from field testing.
-6. **Bug reports.** Open an issue with your Docker version, browser, deployment type (SQLite/Postgres), and steps to reproduce.
+6. **Accessibility & assistive technology.** We strive for WCAG 2.2 AAA conformance across all patron and administrative views. Contributions improving screen reader compatibility, keyboard navigation, contrast, and assistive device interoperability are warmly welcomed (see [`ACCESSIBILITY.md`](ACCESSIBILITY.md)).
+7. **Bug reports.** Open an issue with your Docker version, browser, deployment type (SQLite/Postgres), and steps to reproduce.
 
 ## Ground rules
 
+- **Uphold our Code of Conduct.** All contributors and maintainers are expected to follow [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md), fostering a welcoming, respectful, and harassment-free environment.
 - **Never commit secrets or PII.** `.env`, `*.db`, `openoptout_settings.json` (and legacy `privacyshield_settings.json`), and cert/key files are excluded by `.gitignore` — keep it that way. Don't paste real patron data, credentials, or personal information into issues or PRs.
 - **Keep child-safety and privacy front of mind.** This tool handles sensitive personal data, sometimes for minors. Contributions that would weaken access controls, encryption, or the separation of secrets from the app will not be accepted.
 - **Be honest about limitations.** The project deliberately describes bot-evasion, broker compliance, and integration testing status accurately rather than overselling them. Keep that tone.
