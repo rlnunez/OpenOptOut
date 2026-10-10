@@ -1,8 +1,9 @@
 <#
 ==============================================================================
-Set up OpenOptOut's front door: how people reach it, and how it gets HTTPS. Windows PowerShell / PowerShell 7 port of enable-https.sh — same questions, same flags (PowerShell-style names), same .env keys, same docker compose commands afterward. Works whether Docker Desktop or Docker Engine is running on this Windows Server (the containers are still Linux containers either way).
+Set up OpenOptOut's front door: how people reach it, and how it gets HTTPS.
+Windows PowerShell / PowerShell 7 port of enable-https.sh.
 
-  .\scripts\enable-https.ps1                       # interactive: asks two questions
+  .\scripts\enable-https.ps1                       # interactive setup
   .\scripts\enable-https.ps1 -Proxy caddy -Cert letsencrypt -Domain privacy.lib.org -Email it@lib.org
   .\scripts\enable-https.ps1 -Proxy traefik -Cert cloudflare-dns -Domain home.example.org
   .\scripts\enable-https.ps1 -Proxy cloudflare-tunnel -Domain home.example.org
@@ -10,27 +11,29 @@ Set up OpenOptOut's front door: how people reach it, and how it gets HTTPS. Wind
 
 Step 1, -Proxy:  caddy (default) | traefik | cloudflare-tunnel
 Step 2, -Cert (Caddy/Traefik only):
-         letsencrypt      Let's Encrypt; ports 80+443 must be reachable from the internet
-         cloudflare-dns   Let's Encrypt via Cloudflare DNS; no open ports needed. For many home internet plans this is the only option that works. Token: -CfToken, or add it to .env later.
-         none             No certificate yet; plain HTTP through the proxy
-         advanced         Choose a -Mode below
-Step 3 (only with cloudflare-dns or custom), -CloudflareProxy:
-         Put the site behind Cloudflare's proxy for DDoS protection. The server then accepts connections ONLY from Cloudflare. Cloudflare decrypts and can see all traffic.
+         letsencrypt      Let's Encrypt; ports 80/443 must reach server
+         cloudflare-dns   Let's Encrypt via Cloudflare DNS; no open ports needed.
+                          Token: -CfToken, or set in .env
+         none             Plain HTTP through the reverse proxy
+         advanced         Choose a specific -Mode below
+Step 3 (cloudflare-dns or custom only), -CloudflareProxy:
+         Route traffic through Cloudflare proxy (DDoS protection; server accepts
+         traffic only from Cloudflare IPs). Note: Cloudflare terminates TLS.
 Rate limits (Caddy/Traefik; on by default):
-         -NoRateLimit   -RateLimit N (per visitor per minute, default 1200)
-         -AuthRateLimit N (sign-in attempts per visitor per minute, default 60)
+         -NoRateLimit   -RateLimit N (per visitor per min, default 1200)
+         -AuthRateLimit N (sign-in attempts per visitor per min, default 60)
 Advanced: -Mode letsencrypt|letsencrypt-staging|acme|incommon|internal|custom|none
          -AcmeCa URL  -AcmeCaRoot FILE
-         -Mode incommon (BETA, untested): InCommon certificates via CERTInext, mostly for universities. Requires -EabKid, -EabHmac and -AcmeCa (default https://acme-us.certinext.io/v1/directory) from campus IT; asked for during setup if not given.
-         -EabKid K -EabHmac H   account credentials (External Account Binding) for -Mode acme with CAs that issue them
-         -KeyType rsa2048|rsa4096|p256|p384   for CAs that require a key type (incommon always uses rsa2048)
+         -Mode incommon (BETA, untested): InCommon certificates via CERTInext.
+         Requires -EabKid, -EabHmac, and -AcmeCa from campus IT.
+         -EabKid K -EabHmac H   EAB account credentials for ACME CAs
+         -KeyType rsa2048|rsa4096|p256|p384   key type (incommon forces rsa2048)
 Other:   -Domain D  -Email E  -CfToken T  -TunnelToken T
-         -EnvFile PATH (default .env)  -Yes (no prompts; use defaults)
+         -EnvFile PATH (default .env)  -Yes (non-interactive; use defaults)
 
-Writes settings to .env (a timestamped backup is made first), then tells you the one command to run.
-
-If double-clicking is blocked by execution policy, either run scripts\enable-https.cmd instead (it bypasses policy for this script only), or run from a PowerShell prompt:
-    powershell -ExecutionPolicy Bypass -File .\scripts\enable-https.ps1
+Backs up .env before applying changes.
+If execution policy blocks running this script, run scripts\enable-https.cmd
+or launch with: powershell -ExecutionPolicy Bypass -File .\scripts\enable-https.ps1
 ==============================================================================
 #>
 [CmdletBinding()]

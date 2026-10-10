@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# End-to-end test of HTTPS_MODE=incommon (InCommon certificates via CERTInext, beta) on both front doors, using the exact configs OpenOptOut generates.
+# End-to-end test of HTTPS_MODE=incommon (CERTInext EAB) for Caddy and Traefik:
+#   - Pebble ACME test server requires External Account Binding (EAB)
+#   - Valid credentials produce valid certificates with RSA 2048 keys
+#   - Invalid HMAC keys are rejected
+# Requires: Linux x86_64, bash, curl, openssl, python3, and
+# '127.0.0.1 openoptout.test' in /etc/hosts.
 #
-# CERTInext can't be reached without real university credentials, so Pebble (Let's Encrypt's test ACME server) stands in, configured like CERTInext: it refuses any account without External Account Binding (EAB) credentials. For Caddy and then Traefik it checks that:
-#   - with the right key ID + HMAC key, a certificate is issued and served
-#   - the certificate key is RSA 2048, as CERTInext requires
-#   - with a wrong HMAC key, no certificate is issued
-# Needs: Linux x86_64, bash, curl, openssl, python3, and one /etc/hosts entry (run with sudo, or pre-add "127.0.0.1 openoptout.test").
-#
-#   ./deploy/tests/incommon_e2e.sh     # about a minute
+#   ./deploy/tests/incommon_e2e.sh
 # ==============================================================================
 set -uo pipefail
 CADDY_VERSION=2.8.4

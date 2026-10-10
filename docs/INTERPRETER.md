@@ -4,7 +4,6 @@ The interpretation engine is the reframe at the heart of the roadmap: **a broker
 
 > **Status: unified and on the live path.** The format, the compiler, validation, the dry-run executor, and the real `PlaywrightExecutor` are built. All form opt-outs in `core/optout_engine.py` run through the interpreter. The legacy combo engine has been completely retired.
 
-
 ---
 
 ## The three stages
@@ -128,7 +127,6 @@ Most brokers don't have a hand-written BrokerSpec yet. Instead, `core/interprete
 - **`plugin_form_handler`**: the `fill_form` dispatch, so a plugin can take over a broker whose page the spec format can't express (roadmap item 3).
 
 If a broker has no authored add-on spec or automation script, `get_or_build_broker_spec` automatically generates a fallback declarative `BrokerSpec` with standard heuristic selectors (`firstName`, `email`, submit buttons). The legacy combination-matrix engine (`_fill_one_combo`) has been retired; all form executions route through `PlaywrightExecutor`.
-
 
 ## Trying a spec against a real browser
 

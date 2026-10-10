@@ -106,4 +106,4 @@ Warnings appear on the **dashboard** for super admins, and every super admin is 
 
 SSO redirects are built from the public URL. Set `FRONTEND_URL` (and for SAML, the Public base URL) to the exact external address, including `https://`.
 
-This applies whether HTTPS is terminated by OpenOptOut's own built-in Caddy front door, or by a reverse proxy you already run in front of it — the setup wizard's **deployment** step asks which situation you're in so the app gives the right guidance either way, but `FRONTEND_URL` must be set correctly for SSO to work regardless of which one it is. See [docs/HTTPS.md](HTTPS.md) for turning on the built-in option, or pointing an existing proxy at OpenOptOut.
+This applies whether HTTPS is terminated by OpenOptOut's front door (Caddy/Traefik) or an external reverse proxy. See [`docs/HTTPS.md`](HTTPS.md) for configuration details.

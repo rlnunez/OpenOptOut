@@ -1,8 +1,6 @@
 # Native install (no Docker)
 
-Docker running on a VM or bare metal is a fully supported, common way to run OpenOptOut in an institutional setting (see the main [README](../README.md) and [docs/HTTPS.md](HTTPS.md)). This doc is for the other real case: **no container runtime at all** — often by policy, not by choice, at institutions whose IT department doesn't run Docker. OpenOptOut runs as an ordinary native process either way: systemd on Linux, a Windows Service on Windows.
-
-If you *can* use Docker, it's the lower-maintenance path (one image, one `docker compose up -d`, automatic HTTPS via one script) — this doc is for when that's genuinely not an option.
+This guide covers running OpenOptOut directly as a native system service (**systemd** on Linux, **Windows Service** on Windows) when container runtimes cannot be used due to institutional policy. For standard container deployments, see the [README](../README.md) and [`docs/HTTPS.md`](HTTPS.md).
 
 ## Linux (Debian/Ubuntu)
 
@@ -67,7 +65,6 @@ sudo ./deploy/installer/setup.sh --role worker --queue "redis://control-plane.in
 
 The installer handles user creation, storage permissions, OS packages, Python venv, database provisioning, automated Nginx configuration with WebSockets/SSE, TLS certification via Certbot, and systemd service startup with pre-flight health validation.
 
-
 ### Updating
 
 ```
@@ -126,7 +123,7 @@ git clone https://github.com/rlnunez/OpenOptOut.git C:\OpenOptOut
 cd C:\OpenOptOut
 .\deploy\native\install-native.ps1
 ```
-This does the venv, `pip install`, Playwright's Firefox (best-effort — see `-SkipPlaywright` if that download is blocked by a corporate proxy, same as the Linux note above), the `app`-package layout, proto stub compilation, and the frontend build for you, then prints the exact commands for steps 7-9 below (NSSM, IIS, win-acme) — those aren't reliably automatable across Windows Server versions the way a single script can handle Linux's systemd + certbot, so they stay manual. Skip ahead to step 7.
+This automates virtualenv creation, dependency installation, Playwright Firefox setup, package layout, proto compilation, and the frontend build. Follow steps 7–9 below for service registration (NSSM), IIS reverse proxy setup, and TLS certificate setup.
 
 **Option 2 — manual**, if you'd rather do each step yourself or hit something the script doesn't handle for your setup:
 
@@ -189,9 +186,8 @@ git pull
 nssm restart OpenOptOutAPI
 ```
 
-### Confirming HTTPS actually worked (either OS)
-
-Once you're logged in as a super admin, the **dashboard** shows a live check (with a **Check again** button) confirming whether the certificate is actually valid — a real answer, not a guess from the browser's own address bar. This is the same check used on the Docker/managed path; see [docs/HTTPS.md](HTTPS.md#confirming-it-actually-worked) for why the app can't just run these steps and show you the output itself (it deliberately has no OS-level service control or live access to `.env`, on either platform).
+### Confirming HTTPS status
+Once logged in as super admin, the dashboard displays live HTTPS certificate status with a **Check again** trigger. See [`docs/HTTPS.md`](HTTPS.md) for certificate monitoring details.
 
 ## See also
 

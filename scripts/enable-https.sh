@@ -2,7 +2,7 @@
 # ==============================================================================
 # Set up OpenOptOut's front door: how people reach it, and how it gets HTTPS.
 #
-#   ./scripts/enable-https.sh                       # interactive: asks two questions
+#   ./scripts/enable-https.sh                       # interactive setup
 #   ./scripts/enable-https.sh --proxy caddy --cert letsencrypt --domain privacy.lib.org --email it@lib.org
 #   ./scripts/enable-https.sh --proxy traefik --cert cloudflare-dns --domain home.example.org
 #   ./scripts/enable-https.sh --proxy cloudflare-tunnel --domain home.example.org
@@ -10,25 +10,23 @@
 #
 # Step 1, --proxy:  caddy (default) | traefik | cloudflare-tunnel
 # Step 2, --cert (Caddy/Traefik only):
-#          letsencrypt      Let's Encrypt; ports 80+443 must be reachable from the internet
-#          cloudflare-dns   Let's Encrypt via Cloudflare DNS; no open ports needed. For many home internet plans this is the only option that works. Token: --cf-token, or add it to .env later.
-#          none             No certificate yet; plain HTTP through the proxy
-#          advanced         Choose a --mode below
-# Step 3 (only with cloudflare-dns or custom), --cloudflare-proxy:
-#          Put the site behind Cloudflare's proxy for DDoS protection. The server then accepts connections ONLY from Cloudflare. Cloudflare decrypts and can see all traffic.
+#          letsencrypt      Let's Encrypt; ports 80/443 must reach server
+#          cloudflare-dns   Let's Encrypt via Cloudflare DNS (no open ports; token: --cf-token)
+#          none             Plain HTTP through the reverse proxy
+#          advanced         Choose a specific --mode below
+# Step 3 (cloudflare-dns or custom only), --cloudflare-proxy: DDoS protection via Cloudflare
 # Rate limits (Caddy/Traefik; on by default):
-#          --no-rate-limit   --rate-limit N (per visitor per minute, default 1200)
-#          --auth-rate-limit N (sign-in attempts per visitor per minute, default 60)
+#          --no-rate-limit   --rate-limit N (per visitor per min, default 1200)
+#          --auth-rate-limit N (sign-in attempts per visitor per min, default 60)
 # Advanced: --mode letsencrypt|letsencrypt-staging|acme|incommon|internal|custom|none
-#          (letsencrypt-staging/acme/incommon also work with --cert cloudflare-dns)
-#          --mode incommon (BETA, untested): InCommon certificates via CERTInext, mostly for universities. Requires --eab-kid, --eab-hmac and --acme-ca (default https://acme-us.certinext.io/v1/directory) from campus IT; asked for during setup if not given.
-#          --eab-kid K --eab-hmac H   account credentials (External Account Binding) for --mode acme with CAs that issue them
-#          --key-type rsa2048|rsa4096|p256|p384   for CAs that require a key type (incommon always uses rsa2048)
+#          --mode incommon (BETA, untested): InCommon certs via CERTInext (needs EAB keys)
+#          --eab-kid K --eab-hmac H   EAB account credentials for ACME CAs
+#          --key-type rsa2048|rsa4096|p256|p384   key type (incommon forces rsa2048)
 #          --acme-ca URL  --acme-ca-root FILE
 # Other:   --domain D  --email E  --cf-token T  --tunnel-token T
-#          --env-file PATH (default .env)  --yes (no prompts; use defaults)
+#          --env-file PATH (default .env)  --yes (non-interactive; use defaults)
 #
-# Writes settings to .env (a timestamped backup is made first), then tells you the one command to run. Works on Linux and macOS (no GNU-only tools).
+# Backs up .env before applying changes. Compatible with Linux and macOS.
 # ==============================================================================
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -67,7 +65,7 @@ done
 die()  { echo "Error: $*" >&2; exit 1; }
 warn() { echo "Warning: $*" >&2; }
 interactive() { [ "$YES" = 0 ] && [ -t 0 ]; }
-# Prompt only when a person is at the terminal. With --yes, or when stdin isn't a terminal (automation/CI), never block: use the default; required values that are still missing are then rejected by validation.
+# Prompt only at interactive terminal. Defaults used under --yes or non-interactive stdin.
 ask()  {
   local prompt="$1" def="${2:-}" ans=""
   if ! interactive; then echo "$def"; return 0; fi
@@ -292,7 +290,9 @@ if [ "$MODE" = incommon ]; then
   [ -n "$ACME_CA" ] || ACME_CA="$(ask 'ACME server address (directory URL) from campus IT' "$INCOMMON_CA_DEFAULT")"
   [ -n "$EAB_KID" ] || EAB_KID="$(ask 'ACME key ID (EAB key ID)')"
   [ -n "$EAB_HMAC" ] || EAB_HMAC="$(ask_secret 'ACME HMAC key (EAB HMAC key; typing is hidden)')"
-  [ -n "$EAB_KID" ] && [ -n "$EAB_HMAC" ] || die "InCommon needs the ACME key ID and HMAC key from campus IT during setup (--eab-kid / --eab-hmac). Nothing was changed."
+  if [ -z "$EAB_KID" ] || [ -z "$EAB_HMAC" ]; then
+    die "InCommon needs the ACME key ID and HMAC key from campus IT during setup (--eab-kid / --eab-hmac). Nothing was changed."
+  fi
   KEY_TYPE=rsa2048   # CERTInext requires RSA 2048
 elif [ "$MODE" = acme ] && [ -z "$EAB_KID$EAB_HMAC" ] && interactive; then
   if [ "$(ask 'Did your CA give you account credentials (an EAB key ID and HMAC key)? (y/n)' n)" = y ]; then
@@ -302,7 +302,9 @@ elif [ "$MODE" = acme ] && [ -z "$EAB_KID$EAB_HMAC" ] && interactive; then
 fi
 if [ -n "$EAB_KID$EAB_HMAC" ]; then
   [ "$MODE" = acme ] || [ "$MODE" = incommon ] || die "--eab-kid/--eab-hmac only apply to --mode acme or incommon."
-  [ -n "$EAB_KID" ] && [ -n "$EAB_HMAC" ] || die "Give both the EAB key ID and the HMAC key."
+  if [ -z "$EAB_KID" ] || [ -z "$EAB_HMAC" ]; then
+    die "Give both the EAB key ID and the HMAC key."
+  fi
   valid_eab_kid "$EAB_KID" || die "That EAB key ID has unexpected characters."
   valid_eab_hmac "$EAB_HMAC" || die "That HMAC key doesn't look right (it's a long base64url string; copy it exactly)."
 fi

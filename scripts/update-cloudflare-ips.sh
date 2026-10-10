@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Refresh deploy/cloudflare/ip-ranges.txt from Cloudflare's published lists.
-#
-# Used only with CLOUDFLARE_PROXY=on: the front door accepts connections ONLY from these ranges. Cloudflare rarely changes them, but if it adds one and this list is stale, visitors routed through the new range get refused. Run this now and then (or from cron), then restart the front door:
-#
+# Used with CLOUDFLARE_PROXY=on: front door accepts connections ONLY from these ranges.
+# Run periodically or via cron, then restart the front door:
 #   ./scripts/update-cloudflare-ips.sh && docker compose up -d --force-recreate caddy-extended
-#   (or: ... traefik / caddy — whichever front door you run)
-#
-# Refuses to write anything that doesn't look like a plain list of IP ranges, and never writes an empty list.
+#   (or: ... traefik / caddy — whichever front door is running)
+# Validates IP range format before writing; refuses empty or partial downloads.
 # ==============================================================================
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -20,9 +18,8 @@ v6="$(fetch https://www.cloudflare.com/ips-v6)" || { echo "Error: couldn't downl
 
 {
   echo "# Cloudflare's published IP ranges (https://www.cloudflare.com/ips/), used when"
-  echo "# CLOUDFLARE_PROXY=on: the front door accepts connections ONLY from these, and"
-  echo "# trusts only them to say who the real visitor is (CF-Connecting-IP)."
-  echo "# Refresh with:  ./scripts/update-cloudflare-ips.sh   (they rarely change)"
+  echo "# CLOUDFLARE_PROXY=on: the front door accepts connections ONLY from these ranges and trusts CF-Connecting-IP."
+  echo "# Refresh with:  ./scripts/update-cloudflare-ips.sh (they rarely change)"
   echo "# Last updated: $(date +%Y-%m-%d)"
 } > "$tmp"
 count=0

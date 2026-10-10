@@ -310,7 +310,7 @@ def handle_form(request):
     Returns structured actions for the host browser to execute.
     """
     plugin.log.info(f"Inspecting form for broker {request.broker_name}")
-    
+
     # Check if page indicates already submitted
     if "Your request is in progress" in request.page_html:
         return FormResult(handled=True, status="submitted", actions=[])

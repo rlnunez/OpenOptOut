@@ -45,7 +45,6 @@ The settings accessor refuses any key that looks like a credential (`password`, 
 
 ---
 
-
 ## Permissions
 
 | Permission | Risk | Grants |
@@ -111,7 +110,6 @@ The enable page shows the person exactly which methods, event types, and (if `ne
 
 ---
 
-
 ## The exfiltration path: `read_pii` + `network`, blocked by default
 
 Every other control in this document governs the host's own API surface — what a plugin can ask the *host* to do. It does not stop a plugin that holds both `read_pii` (member data arrives in hook payloads) and `network` (its own process can open a raw socket inside the sandbox) from writing its own code to send that data anywhere: its own HTTP POST, its own SMTP connection, anything. That is the one path where a plugin's own code — not a host API call — could exfiltrate member data. It gets a dedicated, stricter control:
@@ -128,7 +126,6 @@ Every other control in this document governs the host's own API surface — what
 **What this does not do.** It does not make raw network access from a `read_pii`-holding plugin *safe* — a sufficiently small, infrequent transfer could stay under the byte threshold, and detection still lags prevention on a host without full OS sandboxing. The honest position: avoid granting this combination at all if there's any other way to accomplish the plugin's goal — `http.fetch` with a domain allowlist, or splitting the plugin into a PII-handling half and a network-handling half that only exchange non-PII data, are both safer designs than holding both permissions in one process.
 
 ---
-
 
 ## Safety controls (kill-switch, lockdown, monitoring)
 
@@ -222,7 +219,6 @@ Two scripts prove the plugin runtime actually works on your host (run them insid
 - **`python -m plugins.preflight_sandbox`** — reports what OS-level isolation your host can actually provide (bubblewrap, seccomp, rlimits) and prints the posture: FULL, PARTIAL, MINIMAL, or NONE. Run untrusted third-party plugins only when this reports FULL. It also prints the exact sandboxed launch command the manager will use, so you can see the isolation for yourself.
 
 ---
-
 
 ## Limitations & honest caveats
 

@@ -103,8 +103,7 @@ On a fresh install the app shows a create-administrator screen instead of a logi
 - [ ] **Family members** — add yourself and family members (Settings → Family Members)
 - [ ] **Identity Vault** — fill in name variants, former addresses, and phone numbers for each member (the more identifiers, the better the removal match)
 - [ ] **Discovery scan** (optional) — run Discovery to identify which brokers actually list your family before submitting removals
-- [ ] **Run removals** — click "Run pending" on the Dashboard, or let the daily scheduler handle it automatically
-- [ ] **HTTPS** (production) — run `./scripts/enable-https.sh` (or `.ps1`) before inviting users. It asks two questions: which front door (Caddy, Traefik, or Cloudflare Tunnel), then where the certificate comes from (Let's Encrypt, Let's Encrypt via Cloudflare DNS, or none yet). If your internet provider blocks ports 80/443 or shares your IP, Cloudflare DNS is often the only option that works at home. See [docs/HTTPS.md](docs/HTTPS.md). Universities in InCommon can also use their free InCommon certificates (beta, under Advanced). Per-visitor rate limits are on by default, and there's an optional Cloudflare-proxy mode for public instances that need DDoS protection ([Protecting against floods](docs/HTTPS.md#protecting-against-floods-ddos))
+- [ ] **HTTPS** (production) — run `./scripts/enable-https.sh` (or `.ps1`) to configure HTTPS (Caddy, Traefik, Cloudflare Tunnel/DNS, or InCommon) and rate limiting before inviting users (see [docs/HTTPS.md](docs/HTTPS.md))
 
 ---
 
@@ -212,7 +211,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`docs/DEVELOPMENT.md`](docs/DEVELO
 
 ## Development disclosure & security review
 
-OpenOptOut handles sensitive personal information, which demands rigorous security. As the original developer, my personal background in advanced security architecture very is limited. To implement complex subsystems like the Bubblewrap sandbox, gRPC capability broker, SQLCipher database encryption, and SSO integrations, I utilized AI assistants (specifically Claude and Gemini) to help design and write these components. In addition, I also used them to bounce ideas off of for the projects direction, help keep track of the roadmap, and aid in testing. I am one person that has limited time in the day. 
+OpenOptOut handles sensitive personal information, which demands rigorous security. As the original developer, my personal background in advanced security architecture is limited. To implement complex subsystems like the Bubblewrap sandbox, gRPC capability broker, SQLCipher database encryption, and SSO integrations, I utilized AI assistants (specifically Claude and Gemini) to help design and write these components. In addition, I also used them to bounce ideas off of for the project's direction, help keep track of the roadmap, and aid in testing. I am one person that has limited time in the day.
 
 While I have actively reviewed, tested, and worked to understand the code introduced, I am human and know that AI-generated code can carry subtle edge cases. If you have expertise in application security, Linux sandboxing, or cryptography, **community code reviews and security feedback are deeply appreciated.**
 

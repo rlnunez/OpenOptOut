@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# End-to-end test of the front doors' flood protection, against real Traefik and Caddy running the exact configs OpenOptOut generates:
-#   - CLOUDFLARE_PROXY=on: connections not from Cloudflare are refused; from Cloudflare, the visitor's forwarded chain is kept (so the app's TRUSTED_PROXY_HOPS=3 finds the real visitor)
-#   - without it: a visitor's forged X-Forwarded-For is replaced
-#   - rate limits return 429 for the whole site and, sooner, for sign-in
+# End-to-end test of front door flood protection (Traefik and Caddy):
+#   - CLOUDFLARE_PROXY=on: non-Cloudflare IPs refused; forwarded visitor IP kept
+#   - CLOUDFLARE_PROXY=off: forged X-Forwarded-For replaced
+#   - Rate limits return 429 for general site and sign-in routes
 #
-# "Cloudflare" is simulated by pointing CLOUDFLARE_IPS_FILE at 127.0.0.1. Stock Caddy has no rate-limit module, so Caddy's limits are only checked when CADDY_BIN points at the extended build (CI extracts it from deploy/caddy/Dockerfile); otherwise the test checks Caddy refuses RATE_LIMIT=on clearly instead of running unprotected.
-# Needs: Linux x86_64, bash, curl, openssl, python3. No root needed.
+# Simulates Cloudflare by setting CLOUDFLARE_IPS_FILE to 127.0.0.1.
+# Tests Caddy rate limits if CADDY_BIN is provided; otherwise verifies error on stock Caddy without rate-limit module.
+# Requires: Linux x86_64, bash, curl, openssl, python3.
 #
-#   ./deploy/tests/protection_e2e.sh                    # ~30 seconds
+#   ./deploy/tests/protection_e2e.sh
 #   CADDY_BIN=/path/to/extended/caddy ./deploy/tests/protection_e2e.sh
 # ==============================================================================
 set -uo pipefail

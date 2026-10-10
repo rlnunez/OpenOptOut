@@ -44,7 +44,6 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 22 | Independent security audit & penetration testing | Planned |
 | 23 | Unified interactive host & fleet installer (CLI/TUI) | Complete |
 
-
 ---
 
 ## Work Items
@@ -72,7 +71,6 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 - **Legacy Engine Retirement:** The legacy combination-matrix engine (`_fill_one_combo`) has been completely retired. All brokers—whether backed by a formal Broker Add-on, an existing `BrokerScript`, or an unscripted broker—are compiled into standardized `BrokerSpec` structures via `script_bridge.get_or_build_broker_spec()`. Automated form submissions are executed exclusively through `PlaywrightExecutor`, standardizing CAPTCHA interception, screenshot logging, bot evasion, and multi-stage plugin hooks across the entire platform.
 
 **Status:** Complete. Single declarative execution engine unified; legacy combo engine retired. See [`docs/INTERPRETER.md`](INTERPRETER.md).
-
 
 ---
 
@@ -170,7 +168,6 @@ To ensure operational stability and maintain continuous testability without disr
   - Decoupled execution from ORM entities: workers operate exclusively on serialized envelopes without direct database connection requirements.
   - Built-in memory zeroization (`zeroize()` and context manager) for scrubbing sensitive patron data and screenshot buffers from process memory (Roadmap Item 15).
   - *Verification:* Pure Python unit tests in `tests/run_tests.py` validating round-trip envelope serialization, tampering rejection, expiry enforcement, authenticated encryption, and cryptographic zeroization.
-
 
 * **Phase 7.2 — Unified Queue Abstraction & Pluggable Backends (Transport Boundary) — Complete:**
   - Implemented abstract `JobQueue` ABC (`enqueue`, `dequeue`, `acknowledge`, `requeue`, `dead_letter`, `publish_result`, `get_result`, `queue_depth`, `in_flight_count`, `clear`) in `backend/core/distributed/queue.py`.
@@ -508,7 +505,6 @@ plugins/
 **Status:** Complete.
 
 ---
-
 
 ## Explicitly Deferred / Open Questions
 

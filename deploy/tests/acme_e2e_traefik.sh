@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# End-to-end HTTPS test for the Traefik front door: real ACME certificate issuance AND automatic renewal, using the exact Traefik config OpenOptOut generates (deploy/traefik/entrypoint.sh). The Caddy equivalent is acme_e2e.sh.
+# End-to-end HTTPS test for Traefik front door: ACME certificate issuance and renewal.
 #
-# Pebble (Let's Encrypt's official test ACME server) stands in for Let's Encrypt, issuing 2-minute certificates so a full renewal happens within the test.
-# Needs: Linux x86_64, bash, curl, openssl, python3, and permission to add one
-# /etc/hosts entry (run with sudo, or pre-add "127.0.0.1 openoptout.test").
+# Pebble issues short-lived certificates to verify issuance and renewal.
+# Requires: Linux x86_64, bash, curl, openssl, python3, and '127.0.0.1 openoptout.test' in /etc/hosts.
 #
-#   ./deploy/tests/acme_e2e_traefik.sh     # takes ~2 minutes
+#   ./deploy/tests/acme_e2e_traefik.sh
 # ==============================================================================
 set -euo pipefail
 TRAEFIK_VERSION=3.7.7     # keep in step with the traefik image in docker-compose.yml

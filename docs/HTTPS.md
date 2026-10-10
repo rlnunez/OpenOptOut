@@ -9,7 +9,7 @@ OpenOptOut handles passwords, SSO tokens, and personal data — it should always
 | Something else already terminates TLS in front of OpenOptOut — IIS, nginx, Traefik, a load balancer — whether OpenOptOut itself runs in Docker or natively | **External** — point that existing proxy at OpenOptOut; don't run either HTTPS script |
 | Still deciding, or genuinely internal-only for now | **Neither** — plain HTTP, with a standing warning until you pick one |
 
-Choosing wrong mostly just means extra noise (a nag you don't need, or missing one you do) — nothing is destructive, and both scripts have a matching `--disable`/`-Disable`. The one thing to get right is: **don't run the managed or native option if something else on this server already owns ports 80/443** — they'll fight each other for the ports.
+Changing configurations later is non-destructive via `--disable` / `-Disable`. Note: **do not run the managed or native option if another service already binds ports 80/443**.
 
 ## Option A — Managed (Docker + OpenOptOut's own front door)
 
@@ -36,9 +36,9 @@ Caddy and Traefik give the same security headers, HTTP→HTTPS redirect, HTTP/3,
 | InCommon certificates (beta), and account credentials / key types for other ACME CAs | Built in | Built in |
 | Compose profile / certificate volume | `https-caddy-extended` (or `https` for stock Caddy with rate limits off) / `caddy_data` | `https-traefik` / `traefik_data` |
 
-**What's built in, and what needs plugins.** Traefik includes everything OpenOptOut uses out of the box: rate limits, Let's Encrypt via Cloudflare DNS, InCommon's account credentials, and RSA certificate keys. Caddy covers the certificate features itself — including InCommon's account credentials and RSA keys — but relies on plugins (Caddy calls them modules) for rate limits and Cloudflare DNS. OpenOptOut adds those two plugins in its extended Caddy build, compiled automatically the first time it starts; the plugin versions are pinned and checked in CI. Either way you get the same protection — Traefik just gets there without the extra build.
+**Module Comparison:** Traefik includes rate limiting, Cloudflare DNS, and InCommon credentials natively without additional builds. Caddy handles core certificates natively and adds Cloudflare DNS and rate limiting via modules in an extended build (`caddy-extended`, built locally on first start). Both provide equivalent security posture.
 
-OpenOptOut's Traefik container never gets the Docker socket and doesn't use Docker labels: its routing comes only from a config file generated at startup from `.env` (`deploy/traefik/entrypoint.sh`), the same way the Caddy container works. If you want an existing, shared Traefik that routes many services by Docker labels, that's **Option C (External)**, not this.
+The Traefik container does not mount the Docker socket or read Docker labels; configuration is generated strictly from `.env` via `deploy/traefik/entrypoint.sh`. For existing Traefik installations routing by Docker labels, use **Option C (External)**.
 
 ### Question 2 — Where should the certificate come from? (Caddy and Traefik only)
 
@@ -49,7 +49,8 @@ OpenOptOut's Traefik container never gets the Docker socket and doesn't use Dock
 | **None for now** (`none`) | Nothing | Plain HTTP through the front door, so you can set up a certificate later. Testing only — not for real people's data |
 | **Advanced** (`advanced`) | Depends — see [Advanced modes](#advanced-modes) | Let's Encrypt's test service, your own ACME CA, Caddy's private CA, or your own certificate files |
 
-> **For many home users, Let's Encrypt via Cloudflare DNS is the only option that works.** Plenty of home internet providers block incoming ports 80 and 443, or put several homes behind one shared public IP address (often called CGNAT). Either way, Let's Encrypt can't reach your server to check it, and plain Let's Encrypt will never issue a certificate — no matter how the router is set up. Cloudflare DNS sidesteps this: instead of connecting to your server, Let's Encrypt checks a temporary DNS record that OpenOptOut creates through Cloudflare. Nothing has to reach your server from the internet, and **Cloudflare only ever sees that DNS record — never your traffic**. (People on your home network can then use `https://your.domain`; reaching it from outside your home is a separate question — see Option D.)
+> [!TIP]
+> If your ISP blocks inbound ports 80/443 or uses CGNAT (shared public IP), standard HTTP validation will fail. **Let's Encrypt via Cloudflare DNS** solves this by validating via temporary DNS TXT records without open inbound ports. Cloudflare only sees the DNS record, never your application traffic.
 
 #### Setting up Cloudflare DNS
 
@@ -187,11 +188,10 @@ Switching later is safe: rerun the script with different answers, then `docker c
 
 To turn it back off: `./scripts/enable-https.sh --disable` (or `.\scripts\enable-https.ps1 -Disable` on Windows), then `docker compose down && docker compose up -d`.
 
-### Confirming it actually worked
+Once restarted, the **Settings > HTTPS** and **Dashboard** screens run a live read-only verification check against the front door (with a **Check again** trigger) to confirm certificate health.
 
-The setup wizard and the two scripts can only tell you what they *tried* to do — the certificate itself is requested by the front-door container after you restart, outside of anything the wizard runs. Once you're logged back in, the **dashboard** shows a live check (and a **Check again** button) confirming whether the certificate actually came up, using the same read-only check the daily certificate monitor uses — so you get a real answer, not a guess from whether your own browser happens to say `https://` yet.
-
-**Why doesn't the wizard just run the script and show the output itself?** Because it would need something the app is deliberately never given: access to the host's Docker daemon (to bring up the front-door container) and to the host's `.env` file (which isn't mounted into the `api` container — env vars are baked in at container creation by `docker compose`, not read from a live file afterward). Handing the running app that kind of host-level control would mean anything that ever compromises it — a bug, or a misbehaving plugin, given the plugin system — could reach the whole server, not just OpenOptOut's own data. That's a host-level step on purpose; the live status check above is the honest substitute.
+> [!NOTE]
+> The setup wizard does not execute host scripts or reload Docker directly: the application container is intentionally sandboxed without access to the host's Docker socket or host environment files.
 
 ## Option B — Native (no containers — certbot / win-acme)
 
@@ -244,18 +244,18 @@ There's no certificate question — Cloudflare issues and renews it, so the dash
 
 ## Protecting against floods (DDoS)
 
-If OpenOptOut becomes popular, a data broker could try to knock instances offline with floods of traffic. The design already helps: every family or organization runs its own copy, so there is no central server to take down — an attacker has to find and target each instance one by one. What's left to protect is each instance's own address. In order of strength:
+To protect self-hosted instances against traffic floods, brute-force attempts, and resource exhaustion, OpenOptOut supports tiered defenses:
 
 | Protection | Stops | Cost |
 |---|---|---|
-| **Don't expose it publicly** | Everything from the internet — there's nothing to attack | Use it at home, or through a VPN when away |
-| **Rate limits** (on by default, Caddy and Traefik) | One source hammering the site or guessing passwords | None for normal use |
-| **Cloudflare's proxy** (opt-in, Caddy and Traefik) | Large floods from many sources; hides this server's address | Cloudflare can see all traffic |
-| **Cloudflare Tunnel** ([Option D](#option-d--cloudflare-tunnel)) | Large floods; no open ports and no visible address at all | Cloudflare can see all traffic |
+| **Don't expose publicly** | Inbound internet attacks | Use on home LAN, or connect via VPN |
+| **Rate limits** (default on Caddy & Traefik) | Rapid hammering & password guessing | None for normal use |
+| **Cloudflare Proxy** (opt-in) | Distributed volumetric floods; conceals server IP | Cloudflare decrypts edge traffic |
+| **Cloudflare Tunnel** ([Option D](#option-d--cloudflare-tunnel)) | Large floods; zero open ports | Cloudflare decrypts edge traffic |
 
-### 1. Recommended for most families: don't be public
+### 1. Private Hosting (Recommended for Home / Family)
 
-A family instance rarely needs to be reachable from the whole internet. Run it on your home network with a **Let's Encrypt via Cloudflare DNS** certificate (real HTTPS, no open ports), and when you're away, reach home through a VPN (your router's built-in WireGuard/OpenVPN, or a service like Tailscale). With no ports open, there's nothing for anyone outside to flood. The opt-out requests OpenOptOut *sends* still go out normally.
+For household deployments, avoid opening ports 80/443 to the internet. Deploy using **Let's Encrypt via Cloudflare DNS** for automated valid certificates, and connect remotely through a VPN (such as WireGuard or Tailscale). Outbound broker removal requests operate normally without requiring inbound public access.
 
 ### 2. Rate limits (both front doors, on by default)
 
@@ -322,7 +322,7 @@ If you're on the managed or native option, the daily certificate check also watc
 
 ## Follow-ups (not built yet)
 
-- Cloudflare **Authenticated Origin Pulls** for the Cloudflare proxy mode, so only *your* Cloudflare zone can reach the server, not any Cloudflare customer's traffic.
-- A ready-made set of Cloudflare rate-limiting / WAF rules to paste in for Cloudflare Tunnel users.
+- Cloudflare **Authenticated Origin Pulls** for the Cloudflare proxy mode, ensuring only your Cloudflare zone reaches the server.
+- Preconfigured Cloudflare rate-limiting / WAF rulesets for Cloudflare Tunnel deployments.
+- Extended DNS-01 ACME provider support (AWS Route 53, DigitalOcean, deSEC, etc.).
 
-- DNS providers other than Cloudflare for DNS-01 certificates (Route 53, DigitalOcean, deSEC, …). Traefik already supports dozens through the same mechanism and Caddy has a module per provider, so each is mostly a menu entry plus a token. On the native path, certbot has its own DNS-01 plugins you can use directly (outside `enable-https-native.sh`, which is HTTP-01 via the nginx plugin only).

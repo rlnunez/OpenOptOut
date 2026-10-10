@@ -37,7 +37,6 @@ def solve(challenge):
 
 ---
 
-
 ## Beyond hooks: calling into the pipeline
 
 The three hooks above are things the *host* calls on the *plugin*. The SDK also exposes host capabilities the *plugin* can call — each gated by its own permission and declared method (see [Method-level allowlisting](#method-level-allowlisting-least-privilege) above). These are the areas most likely to matter beyond storage/settings:
@@ -79,7 +78,6 @@ plugin.schedule.set_recheck(request_id, recheck_after_unix_ts, reason="...")
 Overrides the default recheck interval for one confirmed request. Diff-logged like request-lifecycle writes. Requires `schedule_write`.
 
 ---
-
 
 ## Method-level allowlisting (least privilege)
 
@@ -127,7 +125,6 @@ The enable page shows the person exactly which methods, event types, and (if `ne
 - **`outbound_domains`** — if the plugin requests `network`, it declares the domains it intends to contact. These are surfaced prominently (network egress is high-risk) so the admin sees exactly where a networked plugin will reach.
 
 ---
-
 
 ## Writing a plugin
 
@@ -231,7 +228,6 @@ bash backend/plugins/proto/compile.sh
 ```
 
 ---
-
 
 ## Limitations & honest caveats
 

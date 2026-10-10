@@ -1,31 +1,26 @@
 #!/bin/sh
 # ==============================================================================
-# OpenOptOut HTTPS front door (Traefik option) — generates Traefik's static and dynamic config from environment variables, then runs Traefik. Traefik obtains certificates, renews them automatically, and redirects HTTP to HTTPS.
+# OpenOptOut HTTPS front door (Traefik option) — generates static and dynamic config from environment variables and runs Traefik.
 #
-# This is the alternative to deploy/caddy/entrypoint.sh, for admins who already know and prefer Traefik. Both read the same .env keys; pick one with FRONT_DOOR=caddy|traefik (scripts/enable-https.* --proxy sets it).
+#   HTTPS_MODE   letsencrypt          Let's Encrypt (ports 80+443 reachable)
+#                letsencrypt-staging  Let's Encrypt staging environment
+#                acme                 Custom ACME CA (ACME_CA directory URL)
+#                incommon             InCommon via CERTInext (requires EAB keys)
+#                custom               Local cert files (mounted in ./deploy/certs)
+#                none                 Plain HTTP on port 80 only
+#   ACME_CHALLENGE  http (default)    HTTP-01 challenge over port 80
+#                   cloudflare        DNS-01 via Cloudflare API (needs token)
+#   RATE_LIMIT   on | off             Per-visitor request limits
+#   RATE_LIMIT_PER_MINUTE             Whole site limit per visitor (default 1200)
+#   AUTH_RATE_LIMIT_PER_MINUTE        Sign-in limit per visitor (default 60)
+#   CLOUDFLARE_PROXY  on | off        Restrict access to Cloudflare IPs
+#   DOMAIN                            Domain name(s) (comma-separated)
+#   ACME_EMAIL                        Registration email for the ACME CA
+#   ACME_KEY_TYPE                     Certificate key type (e.g. rsa2048, p256)
+#   UPSTREAM                          Backend address (default web:80)
+#   HSTS         on | off             Strict-Transport-Security header
 #
-#   HTTPS_MODE   letsencrypt          Let's Encrypt (public server; ports 80+443 reachable from the internet, DNS pointing here)
-#                letsencrypt-staging  Let's Encrypt's test environment (untrusted certs; use while testing to avoid rate limits)
-#                acme                 Any ACME CA, e.g. an internal step-ca or a commercial CA (ACME_CA = directory URL, ACME_CA_ROOT optional; ACME_EAB_KID / ACME_EAB_HMAC if the CA issued account credentials)
-#                incommon             BETA, untested against a live account. InCommon certificates via CERTInext, mostly for universities: ACME_CA (default https://acme-us.certinext.io/v1/directory), ACME_EAB_KID and ACME_EAB_HMAC (all from campus IT) are required; keys are RSA 2048 as CERTInext requires.
-#                custom               Your own certificate files (TLS_CERT_FILE / TLS_KEY_FILE, mounted from ./deploy/certs)
-#                none                 No certificate: plain HTTP on port 80 only (DOMAIN optional). Add one later.
-#                (internal is Caddy-only: Traefik has no private CA of its own.)
-#   ACME_CHALLENGE  http (default)    The CA checks this server over port 80
-#                   cloudflare        The CA checks a DNS record instead, created through the Cloudflare API (built into Traefik): no open ports needed. Needs CLOUDFLARE_API_TOKEN. letsencrypt/-staging/acme.
-#   RATE_LIMIT   on (default) | off   Per-visitor request limits, built into Traefik.
-#   RATE_LIMIT_PER_MINUTE       per visitor, whole site (default 1200)
-#   AUTH_RATE_LIMIT_PER_MINUTE  per visitor, /api/auth/* sign-in endpoints (default 60)
-#   CLOUDFLARE_PROXY  on | off (default)  The site sits behind Cloudflare's proxy (orange cloud): accept connections ONLY from Cloudflare's IP ranges (CLOUDFLARE_IPS_FILE) and take the visitor's IP from CF-Connecting-IP. Needs ACME_CHALLENGE=cloudflare or HTTPS_MODE=custom.
-#   DOMAIN       e.g. privacy.example.org (comma-separate several; no wildcards — HTTP-01 challenges can't issue them)
-#   ACME_EMAIL   contact address for the CA (recommended)
-#   ACME_KEY_TYPE  rsa2048 | rsa4096 | p256 | p384  Certificate key type, for CAs that require one (default: Traefik's; incommon always uses rsa2048)
-#   UPSTREAM     where to send traffic (default web:80)
-#   HSTS         on (default) | off
-#
-# No Docker socket is mounted and the Docker provider is never enabled: routing comes only from the file written here, so nothing that reaches Traefik can discover or steer other containers on the host.
-#
-# Every value is validated before it's written: an unchecked value containing a newline, quote, or backtick could inject arbitrary Traefik configuration.
+# No Docker socket is mounted. Routing comes only from generated configuration.
 # ==============================================================================
 set -eu
 
@@ -55,7 +50,7 @@ if [ -n "$EMAIL" ]; then
 fi
 matches "$UPSTREAM" '^[A-Za-z0-9.-]+:[0-9]+$' || die "UPSTREAM must look like host:port: $UPSTREAM"
 url_ok() { matches "$1" '^https://[A-Za-z0-9.:/_~%-]+$'; }
-path_ok() { matches "$1" '^/[A-Za-z0-9._/-]+$'; }
+path_ok() { matches "$1" '^/[A-Za-z0-9._/ -]+$'; }
 num_ok() { matches "$1" '^[0-9]+$'; }
 path_ok "$CONF_DIR" || die "TRAEFIK_CONF_DIR must be an absolute path"
 path_ok "$ACME_STORAGE" || die "ACME_STORAGE must be an absolute path"
@@ -83,7 +78,9 @@ esac
 EAB_KID="${ACME_EAB_KID:-}"; EAB_HMAC="${ACME_EAB_HMAC:-}"
 if [ -n "$EAB_KID$EAB_HMAC" ]; then
   [ "$MODE" = "acme" ] || [ "$MODE" = "incommon" ] || die "ACME_EAB_KID / ACME_EAB_HMAC only apply to HTTPS_MODE acme or incommon."
-  [ -n "$EAB_KID" ] && [ -n "$EAB_HMAC" ] || die "Set both ACME_EAB_KID and ACME_EAB_HMAC (or neither)."
+  if [ -z "$EAB_KID" ] || [ -z "$EAB_HMAC" ]; then
+    die "Set both ACME_EAB_KID and ACME_EAB_HMAC (or neither)."
+  fi
   matches "$EAB_KID" '^[A-Za-z0-9_.-]{1,128}$' || die "ACME_EAB_KID has unexpected characters."
   matches "$EAB_HMAC" '^[A-Za-z0-9_-]{16,}={0,2}$' || die "ACME_EAB_HMAC doesn't look like a base64url key (copy it exactly as issued)."
 fi

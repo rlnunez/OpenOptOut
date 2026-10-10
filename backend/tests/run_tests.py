@@ -3600,7 +3600,8 @@ def t_https_entrypoint():
             if env["HTTPS_MODE"] == "none":
                 # Plain HTTP: no certificate, no HSTS, no redirect.
                 assert "tls " not in content and "Strict-Transport-Security" not in content
-                assert ("http://privacy.lib.org" in content) if env.get("DOMAIN") else (":80 {" in content)
+                site_header = f"http://{env['DOMAIN']}" if env.get("DOMAIN") else ":80"
+                assert any(line.strip().startswith(site_header) for line in content.splitlines())
             os.remove(cf)
     # EXPECTED: the generator accepts every documented mode and rejects malformed
     #   or injected input, including values that only look valid on their first line.

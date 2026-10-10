@@ -1,27 +1,25 @@
 #!/bin/sh
 # ==============================================================================
-# OpenOptOut HTTPS front door — generates the Caddy config from environment variables, then runs Caddy. Caddy obtains certificates, renews them automatically, and redirects HTTP to HTTPS.
+# OpenOptOut HTTPS front door — generates Caddy config from environment variables and runs Caddy.
 #
-#   HTTPS_MODE   letsencrypt          Let's Encrypt (public server; ports 80+443 reachable from the internet, DNS pointing here)
-#                letsencrypt-staging  Let's Encrypt's test environment (untrusted certs; use while testing to avoid rate limits)
-#                acme                 Any ACME CA, e.g. an internal step-ca or a commercial CA (ACME_CA = directory URL, ACME_CA_ROOT optional; ACME_EAB_KID / ACME_EAB_HMAC if the CA issued account credentials)
-#                incommon             BETA, untested against a live account. InCommon certificates via CERTInext, mostly for universities: ACME_CA (default https://acme-us.certinext.io/v1/directory), ACME_EAB_KID and ACME_EAB_HMAC (all from campus IT) are required; keys are RSA 2048 as CERTInext requires.
-#                internal             Caddy's own private CA (LAN-only; browsers warn unless its root is installed)
-#                custom               Your own certificate files (TLS_CERT_FILE / TLS_KEY_FILE, mounted from ./deploy/certs)
-#                none                 No certificate: plain HTTP on port 80 only (DOMAIN optional). Add one later.
-#   ACME_CHALLENGE  http (default)    The CA checks this server over port 80
-#                   cloudflare        The CA checks a DNS record instead, created through the Cloudflare API: no open ports needed. Needs CLOUDFLARE_API_TOKEN and the extended image (deploy/caddy/Dockerfile). Only for letsencrypt / -staging / acme.
-#   RATE_LIMIT   on | off | (empty)   Per-visitor request limits (needs the extended image). Empty = on when this build supports it.
-#   RATE_LIMIT_PER_MINUTE       per visitor, whole site (default 1200)
-#   AUTH_RATE_LIMIT_PER_MINUTE  per visitor, /api/auth/* sign-in endpoints (default 60)
-#   CLOUDFLARE_PROXY  on | off (default)  The site sits behind Cloudflare's proxy (orange cloud): accept connections ONLY from Cloudflare's IP ranges (CLOUDFLARE_IPS_FILE) and take the visitor's IP from CF-Connecting-IP. Needs ACME_CHALLENGE=cloudflare or HTTPS_MODE=custom.
-#   DOMAIN       e.g. privacy.example.org (comma-separate several)
-#   ACME_EMAIL   contact address for the CA (recommended)
-#   ACME_KEY_TYPE  rsa2048 | rsa4096 | p256 | p384  Certificate key type, for CAs that require one (default: Caddy's choice; incommon always uses rsa2048)
-#   UPSTREAM     where to send traffic (default web:80)
-#   HSTS         on (default for trusted certs) | off
-#
-# Every value is validated before it's written: an unchecked value containing a newline or brace could inject arbitrary Caddy configuration.
+#   HTTPS_MODE   letsencrypt          Let's Encrypt (ports 80+443 reachable)
+#                letsencrypt-staging  Let's Encrypt staging environment
+#                acme                 Custom ACME CA (ACME_CA directory URL)
+#                incommon             InCommon via CERTInext (requires EAB keys)
+#                internal             Caddy private CA (LAN-only testing)
+#                custom               Local cert files (mounted in ./deploy/certs)
+#                none                 Plain HTTP on port 80 only
+#   ACME_CHALLENGE  http (default)    HTTP-01 challenge over port 80
+#                   cloudflare        DNS-01 via Cloudflare API (needs token)
+#   RATE_LIMIT   on | off             Per-visitor request limits
+#   RATE_LIMIT_PER_MINUTE             Whole site limit per visitor (default 1200)
+#   AUTH_RATE_LIMIT_PER_MINUTE        Sign-in limit per visitor (default 60)
+#   CLOUDFLARE_PROXY  on | off        Restrict access to Cloudflare IPs
+#   DOMAIN                            Domain name(s) (comma-separated)
+#   ACME_EMAIL                        Registration email for the ACME CA
+#   ACME_KEY_TYPE                     Certificate key type (e.g. rsa2048, p256)
+#   UPSTREAM                          Backend address (default web:80)
+#   HSTS         on | off             Strict-Transport-Security header
 # ==============================================================================
 set -eu
 
@@ -50,7 +48,7 @@ if [ -n "$EMAIL" ]; then
 fi
 matches "$UPSTREAM" '^[A-Za-z0-9.-]+:[0-9]+$' || die "UPSTREAM must look like host:port: $UPSTREAM"
 url_ok() { matches "$1" '^https://[A-Za-z0-9.:/_~%-]+$'; }
-path_ok() { matches "$1" '^/[A-Za-z0-9._/-]+$'; }
+path_ok() { matches "$1" '^/[A-Za-z0-9._/ -]+$'; }
 num_ok() { matches "$1" '^[1-9][0-9]{0,6}$'; }
 
 case "$MODE" in
@@ -75,7 +73,9 @@ esac
 EAB_KID="${ACME_EAB_KID:-}"; EAB_HMAC="${ACME_EAB_HMAC:-}"
 if [ -n "$EAB_KID$EAB_HMAC" ]; then
   [ "$MODE" = "acme" ] || [ "$MODE" = "incommon" ] || die "ACME_EAB_KID / ACME_EAB_HMAC only apply to HTTPS_MODE acme or incommon."
-  [ -n "$EAB_KID" ] && [ -n "$EAB_HMAC" ] || die "Set both ACME_EAB_KID and ACME_EAB_HMAC (or neither)."
+  if [ -z "$EAB_KID" ] || [ -z "$EAB_HMAC" ]; then
+    die "Set both ACME_EAB_KID and ACME_EAB_HMAC (or neither)."
+  fi
   matches "$EAB_KID" '^[A-Za-z0-9_.-]{1,128}$' || die "ACME_EAB_KID has unexpected characters."
   matches "$EAB_HMAC" '^[A-Za-z0-9_-]{16,}={0,2}$' || die "ACME_EAB_HMAC doesn't look like a base64url key (copy it exactly as issued)."
 fi

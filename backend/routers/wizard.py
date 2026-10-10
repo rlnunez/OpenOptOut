@@ -10,7 +10,7 @@ Steps:
   2. email     — deployment MODE (shared inbox | per-user), the provider/transport,
                  and an "advanced: separate admin SMTP" toggle. Skippable with a
                  loud warning (opt-outs silently do nothing without email).
-  3. deployment — how is HTTPS handled here: OpenOptOut's own front door (Docker, bare metal or a VM — doesn't matter which; Caddy, Traefik, or Cloudflare Tunnel, and for Caddy/Traefik a certificate from Let's Encrypt, Let's Encrypt via Cloudflare DNS, or none yet), a native install's own certbot/win-acme setup (no containers), something that already terminates TLS in front of OpenOptOut either way, or not decided yet? Recorded so the app gives the right guidance and never suggests something that would fight an existing reverse proxy for ports 80/443.
+  3. deployment — HTTPS reverse-proxy configuration (managed Caddy/Traefik/Tunnel, native certbot/win-acme, external proxy, or none).
   4. branding  — optional/cosmetic (system name, logo, colors).
   5. summary   — what's configured vs skipped; mark the wizard complete.
 
@@ -41,9 +41,7 @@ def _admin(user: User):
 
 def _fernet() -> Fernet:
     raw = get_secret_key()
-    # Repeat the key until it fills 32 bytes. Identical to the old
-    # `(raw * 4)[:32]` for keys of 8+ chars (existing data still decrypts),
-    # but no longer crashes on a shorter SECRET_KEY.
+    # Repeat key until 32 bytes; maintains backward compatibility with keys >= 8 chars while safely supporting shorter keys.
     _kb = raw.encode() or b"\0"
     padded = (_kb * (32 // len(_kb) + 1))[:32]
     return Fernet(base64.urlsafe_b64encode(padded))
@@ -248,12 +246,7 @@ def save_email(body: EmailStep, db: Session = Depends(get_db),
 class BrandingStep(BaseModel):
     system_name: Optional[str] = None
     primary_color: Optional[str] = None
-    # No logo_url field here on purpose: the actual logo is a file, uploaded
-    # separately via POST /api/branding/logo (the same endpoint Settings uses,
-    # and what the wizard's drag-and-drop now calls directly). GET
-    # /api/branding/config always derives logo_url from whether that file
-    # exists on disk — it never reads a stored string — so a logo_url here
-    # would only ever be silently ignored dead data.
+    # Logos are uploaded directly via POST /api/branding/logo; GET /api/branding/config inspects disk directly.
 
 
 @router.post("/branding")
