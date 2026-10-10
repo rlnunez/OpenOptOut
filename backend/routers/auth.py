@@ -1189,8 +1189,8 @@ def request_magic_link(req: MagicLinkRequestIn, request: Request = None, db: Ses
                     subject="Your OpenOptOut Sign-In Code",
                     body_text=f"Your one-time sign-in code is: {code}\n\nThis code will expire in 10 minutes.",
                 )
-            except Exception as e:
-                logger.warning("Failed to send passwordless sign-in email: %s", e)
+            except Exception:
+                logger.warning("Email verification code delivery failed")
                 fallback_code = code
         else:
             fallback_code = code
