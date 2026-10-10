@@ -444,6 +444,8 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
   const [domain, setDomain] = useState('')
   const [frontDoor, setFrontDoor] = useState('caddy')
   const [certificate, setCertificate] = useState('letsencrypt')
+  const [rateLimit, setRateLimit] = useState(true)
+  const [cloudflareProxy, setCloudflareProxy] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const save = async () => {
@@ -452,7 +454,11 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
       const body = { reverse_proxy: mode, domain: (mode === 'managed' || mode === 'native') ? domain : '' }
       if (mode === 'managed') {
         body.front_door = frontDoor
-        if (frontDoor !== 'cloudflare-tunnel') body.certificate = certificate
+        if (frontDoor !== 'cloudflare-tunnel') {
+          body.certificate = certificate
+          body.rate_limit = rateLimit
+          body.cloudflare_proxy = certificate === 'cloudflare-dns' && cloudflareProxy
+        }
       }
       await api.post('/wizard/deployment', body)
       onNext()
@@ -472,8 +478,7 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
               <div className="text-slate-400 text-xs">Docker (bare metal or a VM — it doesn't matter which), nothing else already on ports 80 or 443. OpenOptOut runs its own front door and keeps the certificate renewed.</div>
             </div>
           </label>
-          {/* Follow-up questions sit OUTSIDE the label above: nested labels are
-              invalid HTML and make screen readers announce this whole panel as one option. */}
+          {/* Follow-up questions sit OUTSIDE the label above: nested labels are invalid HTML and make screen readers announce this whole panel as one option. */}
           {mode === 'managed' && (
             <div className="mt-3 space-y-3 sm:pl-7">
               <input className={inp} placeholder="Domain, if you know it yet (e.g. privacy.yourlibrary.org) — optional"
@@ -499,7 +504,7 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
                     without that, pick Caddy or Traefik with <em>Let's Encrypt via Cloudflare DNS</em> instead.
                   </span>
                 </div>
-              ) : (
+              ) : (<>
                 <fieldset className="space-y-2">
                   <legend className="text-slate-300 text-xs font-medium mb-1.5">Where should the HTTPS certificate come from?</legend>
                   <SubChoice name="certificate" value="letsencrypt" current={certificate} onChange={setCertificate} title="Let's Encrypt">
@@ -514,7 +519,35 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
                     Plain HTTP until you add a certificate later. Fine for testing; not for real people's data.
                   </SubChoice>
                 </fieldset>
-              )}
+                <fieldset className="space-y-2">
+                  <legend className="text-slate-300 text-xs font-medium mb-1.5">Protection against floods of traffic</legend>
+                  <label className="flex items-start gap-2.5 p-2.5 rounded-lg border border-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={rateLimit} onChange={e => setRateLimit(e.target.checked)} className="mt-1 accent-shield-500" />
+                    <div>
+                      <div className="text-slate-200 text-sm font-medium">Limit how fast any one visitor can send requests (recommended)</div>
+                      <div className="text-slate-400 text-xs">Normal use never notices. Floods and password-guessing get slowed down before they reach OpenOptOut.</div>
+                    </div>
+                  </label>
+                  {certificate === 'cloudflare-dns' && (
+                    <label className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer ${cloudflareProxy ? 'border-amber-600 bg-amber-950/20' : 'border-slate-700'}`}>
+                      <input type="checkbox" checked={cloudflareProxy} onChange={e => setCloudflareProxy(e.target.checked)} className="mt-1 accent-shield-500" />
+                      <div>
+                        <div className="text-slate-200 text-sm font-medium">Also put it behind Cloudflare's proxy (DDoS protection)</div>
+                        <div className="text-slate-400 text-xs">For sites that are public and big enough to be a target. Cloudflare absorbs attacks and hides this server's address; the server then lets in only Cloudflare. Needs ports 80/443 open to the internet.</div>
+                      </div>
+                    </label>
+                  )}
+                  {certificate === 'cloudflare-dns' && cloudflareProxy && (
+                    <div role="alert" className="px-3 py-2 rounded-lg border border-amber-700 bg-amber-950/30 text-amber-200 text-xs flex items-start gap-2">
+                      <AlertTriangle size={13} className="shrink-0 mt-0.5" aria-hidden="true" />
+                      <span>
+                        <strong>Cloudflare decrypts all traffic to this site.</strong> Its servers can see everything people send
+                        and receive here: names, home addresses, phone numbers, emails, and sign-in tokens.
+                      </span>
+                    </div>
+                  )}
+                </fieldset>
+              </>)}
             </div>
           )}
         </div>
@@ -668,8 +701,7 @@ function BrandingStep({ onNext, onSkip, onBack, busy, setError }) {
   )
 }
 
-// The exact enable-https command for the choices made in the deployment step,
-// with a copy button — one less thing to get wrong on the server.
+// The exact enable-https command for the choices made in the deployment step, with a copy button — one less thing to get wrong on the server.
 function CommandBox({ commands }) {
   const [os, setOs] = useState(
     typeof navigator !== 'undefined' && /Win/i.test(navigator.userAgent || '') ? 'windows' : 'linux')

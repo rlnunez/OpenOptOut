@@ -182,7 +182,8 @@ openoptout/
 │   └── LEGISLATION.md             # Advocacy guide for privacy legislation
 ├── deploy/
 │   ├── caddy/entrypoint.sh        # Generates Caddy config from env vars (Docker path — docs/HTTPS.md)
-│   ├── caddy/Dockerfile           # Caddy + Cloudflare DNS module (caddy-dns service only)
+│   ├── caddy/Dockerfile           # Caddy + Cloudflare DNS + rate-limit modules (caddy-extended service)
+│   ├── cloudflare/ip-ranges.txt   # Cloudflare's IP ranges, for CLOUDFLARE_PROXY=on
 │   ├── traefik/entrypoint.sh      # Same, for the optional Traefik front door (FRONT_DOOR=traefik)
 │   ├── tests/acme_e2e.sh          # Real ACME issuance + renewal test (Caddy + Pebble)
 │   ├── tests/acme_e2e_traefik.sh  # Same, for the Traefik front door
@@ -193,6 +194,7 @@ openoptout/
 │   ├── enable-https.sh            # Guided front door + certificate setup/teardown, Docker path, Linux/macOS
 │   ├── enable-https.ps1           # Same, Windows PowerShell
 │   ├── enable-https.cmd           # Double-click launcher for enable-https.ps1
+│   ├── update-cloudflare-ips.sh   # Refreshes deploy/cloudflare/ip-ranges.txt
 │   └── enable-https-native.sh     # Guided HTTPS setup/teardown, native (no-Docker) path, Linux
 ├── docker-compose.yml
 ├── install.sh                     # One-line installer (curl | sh) — detects Docker vs. native

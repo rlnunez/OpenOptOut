@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# End-to-end HTTPS test for the Traefik front door: real ACME certificate
-# issuance AND automatic renewal, using the exact Traefik config OpenOptOut
-# generates (deploy/traefik/entrypoint.sh). The Caddy equivalent is acme_e2e.sh.
+# End-to-end HTTPS test for the Traefik front door: real ACME certificate issuance AND automatic renewal, using the exact Traefik config OpenOptOut generates (deploy/traefik/entrypoint.sh). The Caddy equivalent is acme_e2e.sh.
 #
-# Pebble (Let's Encrypt's official test ACME server) stands in for Let's Encrypt,
-# issuing 2-minute certificates so a full renewal happens within the test.
+# Pebble (Let's Encrypt's official test ACME server) stands in for Let's Encrypt, issuing 2-minute certificates so a full renewal happens within the test.
 # Needs: Linux x86_64, bash, curl, openssl, python3, and permission to add one
 # /etc/hosts entry (run with sudo, or pre-add "127.0.0.1 openoptout.test").
 #
@@ -52,8 +49,7 @@ mkdir -p www && echo "OpenOptOut OK" > www/index.html
 (cd www && exec python3 -m http.server 8080 --bind 127.0.0.1 >/dev/null 2>&1) & PIDS+=($!)
 PEBBLE_VA_NOSLEEP=1 PEBBLE_WFE_NONCEREJECT=0 PEBBLE_AUTHZREUSE=0 ./pebble -config pebble.json > pebble.log 2>&1 & PIDS+=($!)
 sleep 2
-# ACME_CERT_DURATION_HOURS=1 tells Traefik the certs are short-lived, so it
-# checks every minute and renews well before Pebble's 2-minute expiry.
+# ACME_CERT_DURATION_HOURS=1 tells Traefik the certs are short-lived, so it checks every minute and renews well before Pebble's 2-minute expiry.
 PATH="$WORK:$PATH" \
   HTTPS_MODE=acme ACME_CA=https://localhost:14000/dir ACME_CA_ROOT="$WORK/test/certs/pebble.minica.pem" \
   DOMAIN=openoptout.test UPSTREAM=127.0.0.1:8080 HTTP_PORT=5002 HTTPS_PORT=5001 \

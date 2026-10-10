@@ -1,34 +1,25 @@
 #!/bin/sh
 # ==============================================================================
-# OpenOptOut HTTPS front door — generates the Caddy config from environment
-# variables, then runs Caddy. Caddy obtains certificates, renews them
-# automatically, and redirects HTTP to HTTPS.
+# OpenOptOut HTTPS front door — generates the Caddy config from environment variables, then runs Caddy. Caddy obtains certificates, renews them automatically, and redirects HTTP to HTTPS.
 #
-#   HTTPS_MODE   letsencrypt          Let's Encrypt (public server; ports 80+443
-#                                     reachable from the internet, DNS pointing here)
-#                letsencrypt-staging  Let's Encrypt's test environment (untrusted
-#                                     certs; use while testing to avoid rate limits)
-#                acme                 Any ACME CA, e.g. an internal step-ca
-#                                     (ACME_CA = directory URL, ACME_CA_ROOT optional)
-#                internal             Caddy's own private CA (LAN-only; browsers
-#                                     warn unless its root is installed)
-#                custom               Your own certificate files (TLS_CERT_FILE /
-#                                     TLS_KEY_FILE, mounted from ./deploy/certs)
-#                none                 No certificate: plain HTTP on port 80 only
-#                                     (DOMAIN optional). Add one later.
+#   HTTPS_MODE   letsencrypt          Let's Encrypt (public server; ports 80+443 reachable from the internet, DNS pointing here)
+#                letsencrypt-staging  Let's Encrypt's test environment (untrusted certs; use while testing to avoid rate limits)
+#                acme                 Any ACME CA, e.g. an internal step-ca (ACME_CA = directory URL, ACME_CA_ROOT optional)
+#                internal             Caddy's own private CA (LAN-only; browsers warn unless its root is installed)
+#                custom               Your own certificate files (TLS_CERT_FILE / TLS_KEY_FILE, mounted from ./deploy/certs)
+#                none                 No certificate: plain HTTP on port 80 only (DOMAIN optional). Add one later.
 #   ACME_CHALLENGE  http (default)    The CA checks this server over port 80
-#                   cloudflare        The CA checks a DNS record instead, created
-#                                     through the Cloudflare API: no open ports
-#                                     needed. Needs CLOUDFLARE_API_TOKEN and the
-#                                     caddy-dns image (deploy/caddy/Dockerfile).
-#                                     Only for letsencrypt / -staging / acme.
+#                   cloudflare        The CA checks a DNS record instead, created through the Cloudflare API: no open ports needed. Needs CLOUDFLARE_API_TOKEN and the extended image (deploy/caddy/Dockerfile). Only for letsencrypt / -staging / acme.
+#   RATE_LIMIT   on | off | (empty)   Per-visitor request limits (needs the extended image). Empty = on when this build supports it.
+#   RATE_LIMIT_PER_MINUTE       per visitor, whole site (default 1200)
+#   AUTH_RATE_LIMIT_PER_MINUTE  per visitor, /api/auth/* sign-in endpoints (default 60)
+#   CLOUDFLARE_PROXY  on | off (default)  The site sits behind Cloudflare's proxy (orange cloud): accept connections ONLY from Cloudflare's IP ranges (CLOUDFLARE_IPS_FILE) and take the visitor's IP from CF-Connecting-IP. Needs ACME_CHALLENGE=cloudflare or HTTPS_MODE=custom.
 #   DOMAIN       e.g. privacy.example.org (comma-separate several)
 #   ACME_EMAIL   contact address for the CA (recommended)
 #   UPSTREAM     where to send traffic (default web:80)
 #   HSTS         on (default for trusted certs) | off
 #
-# Every value is validated before it's written: an unchecked value containing a
-# newline or brace could inject arbitrary Caddy configuration.
+# Every value is validated before it's written: an unchecked value containing a newline or brace could inject arbitrary Caddy configuration.
 # ==============================================================================
 set -eu
 
@@ -39,9 +30,7 @@ EMAIL="${ACME_EMAIL:-}"
 UPSTREAM="${UPSTREAM:-web:80}"
 
 die() { echo "OpenOptOut HTTPS: $*" >&2; exit 1; }
-# Allowed character sets (no whitespace except the ", " list separator, no braces,
-# quotes, or line breaks). grep matches line by line, so a value with a valid FIRST
-# line and a malicious second line would pass — reject line breaks/tabs outright.
+# Allowed character sets (no whitespace except the ", " list separator, no braces, quotes, or line breaks). grep matches line by line, so a value with a valid FIRST line and a malicious second line would pass — reject line breaks/tabs outright.
 NL='
 '
 CR=$(printf '\r'); TAB=$(printf '\t')
@@ -60,6 +49,7 @@ fi
 matches "$UPSTREAM" '^[A-Za-z0-9.-]+:[0-9]+$' || die "UPSTREAM must look like host:port: $UPSTREAM"
 url_ok() { matches "$1" '^https://[A-Za-z0-9.:/_~%-]+$'; }
 path_ok() { matches "$1" '^/[A-Za-z0-9._/-]+$'; }
+num_ok() { matches "$1" '^[1-9][0-9]{0,6}$'; }
 
 case "$MODE" in
   letsencrypt)         CA="https://acme-v02.api.letsencrypt.org/directory" ;;
@@ -80,9 +70,48 @@ case "$CHALLENGE" in
     [ -n "$CA" ] || die "ACME_CHALLENGE=cloudflare only works with HTTPS_MODE letsencrypt, letsencrypt-staging, or acme."
     [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || die "Cloudflare DNS is selected but CLOUDFLARE_API_TOKEN isn't set yet. Create a Cloudflare API token with Zone > DNS > Edit for your domain, add CLOUDFLARE_API_TOKEN=... to .env, then run: docker compose up -d"
     if [ "${GENERATE_ONLY:-}" != "1" ] && ! caddy list-modules 2>/dev/null | grep -q '^dns.providers.cloudflare$'; then
-      die "This Caddy build has no Cloudflare DNS support. Rerun scripts/enable-https.sh, which switches to the caddy-dns service that includes it."
+      die "This Caddy build has no Cloudflare DNS support. Rerun scripts/enable-https.sh, which switches to the caddy-extended service that includes it."
     fi ;;
   *) die "ACME_CHALLENGE must be http or cloudflare: $CHALLENGE" ;;
+esac
+
+# ── protection: rate limits + Cloudflare-only ─────────────────────────────────
+has_ratelimit() {
+  [ "${GENERATE_ONLY:-}" = "1" ] || caddy list-modules 2>/dev/null | grep -q '^http.handlers.rate_limit$'
+}
+case "${RATE_LIMIT:-}" in
+  on)  has_ratelimit || die "RATE_LIMIT=on but this Caddy build has no rate limiting. Rerun scripts/enable-https.sh, which switches to the caddy-extended service that includes it." ;;
+  off) ;;
+  "")  if has_ratelimit; then RATE_LIMIT=on; else
+         RATE_LIMIT=off
+         echo "OpenOptOut HTTPS: rate limiting is OFF (this Caddy build doesn't include it). Rerun scripts/enable-https.sh to turn it on." >&2
+       fi ;;
+  *)   die "RATE_LIMIT must be on or off: $RATE_LIMIT" ;;
+esac
+RL_SITE="${RATE_LIMIT_PER_MINUTE:-1200}"
+RL_AUTH="${AUTH_RATE_LIMIT_PER_MINUTE:-60}"
+num_ok "$RL_SITE" || die "RATE_LIMIT_PER_MINUTE must be a whole number above 0: $RL_SITE"
+num_ok "$RL_AUTH" || die "AUTH_RATE_LIMIT_PER_MINUTE must be a whole number above 0: $RL_AUTH"
+
+CF_RANGES=""
+case "${CLOUDFLARE_PROXY:-off}" in
+  off) ;;
+  on)
+    [ "$MODE" != "none" ] || die "CLOUDFLARE_PROXY=on needs a certificate: Cloudflare would otherwise reach this server over plain HTTP across the internet."
+    if [ "$CHALLENGE" != "cloudflare" ] && [ "$MODE" != "custom" ]; then
+      die "CLOUDFLARE_PROXY=on needs ACME_CHALLENGE=cloudflare (or HTTPS_MODE=custom with a Cloudflare Origin certificate): behind Cloudflare's proxy, Let's Encrypt can't reliably check this server over port 80."
+    fi
+    CF_FILE="${CLOUDFLARE_IPS_FILE:-/deploy/cloudflare-ips.txt}"
+    path_ok "$CF_FILE" || die "CLOUDFLARE_IPS_FILE must be an absolute path"
+    [ -f "$CF_FILE" ] || die "Cloudflare IP list not found: $CF_FILE"
+    while IFS= read -r r || [ -n "$r" ]; do
+      r=$(printf '%s' "$r" | tr -d ' \t\r')
+      case "$r" in ""|"#"*) continue ;; esac
+      matches "$r" '^[0-9A-Fa-f:.]+/[0-9]{1,3}$' || die "Bad entry in $CF_FILE: $r"
+      CF_RANGES="${CF_RANGES:+$CF_RANGES }$r"
+    done < "$CF_FILE"
+    [ -n "$CF_RANGES" ] || die "$CF_FILE has no IP ranges" ;;
+  *) die "CLOUDFLARE_PROXY must be on or off: $CLOUDFLARE_PROXY" ;;
 esac
 
 # ── tls directive ─────────────────────────────────────────────────────────────
@@ -96,8 +125,7 @@ if [ -n "$CA" ]; then
 		ca_root $ACME_CA_ROOT"
   fi
   if [ "$CHALLENGE" = "cloudflare" ]; then
-    # The token stays in the environment; only a placeholder is written to disk.
-    # Public resolvers, so a home router's own DNS can't hide the new record.
+    # The token stays in the environment; only a placeholder is written to disk. Public resolvers, so a home router's own DNS can't hide the new record.
     TLS="$TLS
 		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
 		resolvers 1.1.1.1 1.0.0.1"
@@ -119,8 +147,7 @@ else
   TLS="	tls $CERT $KEY"
 fi
 
-# HSTS tells browsers to always use HTTPS. Off by default for 'internal' (a
-# private CA the browser may not trust yet) and whenever HSTS=off.
+# HSTS tells browsers to always use HTTPS. Off by default for 'internal' (a private CA the browser may not trust yet) and whenever HSTS=off.
 HSTS_LINE=""
 if [ "${HSTS:-on}" != "off" ] && [ "$MODE" != "internal" ] && [ "$MODE" != "none" ]; then
   HSTS_LINE='		Strict-Transport-Security "max-age=31536000"'
@@ -145,9 +172,49 @@ if [ -n "${RENEW_INTERVAL:-}" ]; then     # testing only; Caddy's default is fin
   GLOBAL="$GLOBAL
 	renew_interval $RENEW_INTERVAL"
 fi
+# Slow-header ("slowloris") protection, and — behind Cloudflare — where the visitor's real IP comes from. Only Cloudflare's own addresses are trusted to set CF-Connecting-IP; anyone else can't reach the site at all (below).
+SERVERS="		timeouts {
+			read_header 10s
+		}"
+if [ -n "$CF_RANGES" ]; then
+  SERVERS="$SERVERS
+		trusted_proxies static $CF_RANGES
+		client_ip_headers CF-Connecting-IP"
+fi
+GLOBAL="$GLOBAL
+	servers {
+$SERVERS
+	}"
 
-# Site address: the domain(s) for HTTPS. With no certificate ('none'), plain
-# HTTP only — http:// tells Caddy not to fetch a certificate or redirect.
+# Request handling, in this exact order (a route block keeps it literal): drop non-Cloudflare connections, apply rate limits, then proxy.
+ROUTE=""
+MATCHERS=""
+if [ -n "$CF_RANGES" ]; then
+  MATCHERS="	@not_cloudflare not remote_ip $CF_RANGES"
+  ROUTE="		abort @not_cloudflare"
+fi
+if [ "$RATE_LIMIT" = "on" ]; then
+  ROUTE="${ROUTE:+$ROUTE
+}		rate_limit {
+			zone site {
+				key {client_ip}
+				window 1m
+				events $RL_SITE
+			}
+			zone signin {
+				match {
+					path /api/auth/*
+				}
+				key {client_ip}
+				window 1m
+				events $RL_AUTH
+			}
+		}"
+fi
+ROUTE="${ROUTE:+$ROUTE
+}		reverse_proxy $UPSTREAM"
+
+# Site address: the domain(s) for HTTPS. With no certificate ('none'), plain HTTP only — http:// tells Caddy not to fetch a certificate or redirect.
 SITE="$DOMAIN"
 if [ "$MODE" = "none" ]; then
   if [ -n "$DOMAIN" ]; then
@@ -174,11 +241,14 @@ $HSTS_LINE
 		X-Frame-Options "DENY"
 		-Server
 	}
-	reverse_proxy $UPSTREAM
+$MATCHERS
+	route {
+$ROUTE
+	}
 }
 EOF
 
-echo "OpenOptOut HTTPS: mode=$MODE challenge=$CHALLENGE domain=${DOMAIN:-(any)} upstream=$UPSTREAM"
+echo "OpenOptOut HTTPS: mode=$MODE challenge=$CHALLENGE rate_limit=$RATE_LIMIT cloudflare_proxy=${CLOUDFLARE_PROXY:-off} domain=${DOMAIN:-(any)} upstream=$UPSTREAM"
 if [ "${GENERATE_ONLY:-}" = "1" ]; then
   cat "$CADDYFILE"
   exit 0

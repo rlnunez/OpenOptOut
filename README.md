@@ -104,7 +104,7 @@ On a fresh install the app shows a create-administrator screen instead of a logi
 - [ ] **Identity Vault** — fill in name variants, former addresses, and phone numbers for each member (the more identifiers, the better the removal match)
 - [ ] **Discovery scan** (optional) — run Discovery to identify which brokers actually list your family before submitting removals
 - [ ] **Run removals** — click "Run pending" on the Dashboard, or let the daily scheduler handle it automatically
-- [ ] **HTTPS** (production) — run `./scripts/enable-https.sh` (or `.ps1`) before inviting users. It asks two questions: which front door (Caddy, Traefik, or Cloudflare Tunnel), then where the certificate comes from (Let's Encrypt, Let's Encrypt via Cloudflare DNS, or none yet). If your internet provider blocks ports 80/443 or shares your IP, Cloudflare DNS is often the only option that works at home. See [docs/HTTPS.md](docs/HTTPS.md)
+- [ ] **HTTPS** (production) — run `./scripts/enable-https.sh` (or `.ps1`) before inviting users. It asks two questions: which front door (Caddy, Traefik, or Cloudflare Tunnel), then where the certificate comes from (Let's Encrypt, Let's Encrypt via Cloudflare DNS, or none yet). If your internet provider blocks ports 80/443 or shares your IP, Cloudflare DNS is often the only option that works at home. See [docs/HTTPS.md](docs/HTTPS.md). Per-visitor rate limits are on by default, and there's an optional Cloudflare-proxy mode for public instances that need DDoS protection ([Protecting against floods](docs/HTTPS.md#protecting-against-floods-ddos))
 
 ---
 

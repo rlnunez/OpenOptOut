@@ -1,10 +1,6 @@
 <#
 ==============================================================================
-Set up OpenOptOut's front door: how people reach it, and how it gets HTTPS.
-Windows PowerShell / PowerShell 7 port of enable-https.sh — same questions,
-same flags (PowerShell-style names), same .env keys, same docker compose
-commands afterward. Works whether Docker Desktop or Docker Engine is running on
-this Windows Server (the containers are still Linux containers either way).
+Set up OpenOptOut's front door: how people reach it, and how it gets HTTPS. Windows PowerShell / PowerShell 7 port of enable-https.sh — same questions, same flags (PowerShell-style names), same .env keys, same docker compose commands afterward. Works whether Docker Desktop or Docker Engine is running on this Windows Server (the containers are still Linux containers either way).
 
   .\scripts\enable-https.ps1                       # interactive: asks two questions
   .\scripts\enable-https.ps1 -Proxy caddy -Cert letsencrypt -Domain privacy.lib.org -Email it@lib.org
@@ -15,22 +11,22 @@ this Windows Server (the containers are still Linux containers either way).
 Step 1, -Proxy:  caddy (default) | traefik | cloudflare-tunnel
 Step 2, -Cert (Caddy/Traefik only):
          letsencrypt      Let's Encrypt; ports 80+443 must be reachable from the internet
-         cloudflare-dns   Let's Encrypt via Cloudflare DNS; no open ports needed.
-                          For many home internet plans this is the only option
-                          that works. Token: -CfToken, or add it to .env later.
+         cloudflare-dns   Let's Encrypt via Cloudflare DNS; no open ports needed. For many home internet plans this is the only option that works. Token: -CfToken, or add it to .env later.
          none             No certificate yet; plain HTTP through the proxy
          advanced         Choose a -Mode below
+Step 3 (only with cloudflare-dns or custom), -CloudflareProxy:
+         Put the site behind Cloudflare's proxy for DDoS protection. The server then accepts connections ONLY from Cloudflare. Cloudflare decrypts and can see all traffic.
+Rate limits (Caddy/Traefik; on by default):
+         -NoRateLimit   -RateLimit N (per visitor per minute, default 1200)
+         -AuthRateLimit N (sign-in attempts per visitor per minute, default 60)
 Advanced: -Mode letsencrypt|letsencrypt-staging|acme|internal|custom|none
          -AcmeCa URL  -AcmeCaRoot FILE
 Other:   -Domain D  -Email E  -CfToken T  -TunnelToken T
          -EnvFile PATH (default .env)  -Yes (no prompts; use defaults)
 
-Writes settings to .env (a timestamped backup is made first), then tells you
-the one command to run.
+Writes settings to .env (a timestamped backup is made first), then tells you the one command to run.
 
-If double-clicking is blocked by execution policy, either run
-scripts\enable-https.cmd instead (it bypasses policy for this script only), or
-run from a PowerShell prompt:
+If double-clicking is blocked by execution policy, either run scripts\enable-https.cmd instead (it bypasses policy for this script only), or run from a PowerShell prompt:
     powershell -ExecutionPolicy Bypass -File .\scripts\enable-https.ps1
 ==============================================================================
 #>
@@ -48,6 +44,10 @@ param(
     [string]$AcmeCaRoot,
     [string]$CfToken,
     [string]$TunnelToken,
+    [switch]$CloudflareProxy,
+    [switch]$NoRateLimit,
+    [int]$RateLimit = 0,
+    [int]$AuthRateLimit = 0,
     [string]$EnvFile = ".env",
     [switch]$Yes,
     [switch]$Disable
@@ -59,11 +59,7 @@ Set-Location (Join-Path $PSScriptRoot "..")
 function Fail($msg) { Write-Host "Error: $msg" -ForegroundColor Red; exit 1 }
 function Warn($msg) { Write-Host "Warning: $msg" -ForegroundColor Yellow }
 
-# Prompt only when a person is actually at the console. With -Yes, when stdin
-# is redirected (piped input / non-interactive launch), or when there's no
-# interactive session at all (Scheduled Tasks, CI, a Windows service), never
-# block: use the default — required values still missing are then caught by
-# validation. This mirrors the bash version's "$YES = 1 || ! -t 0" check.
+# Prompt only when a person is actually at the console. With -Yes, when stdin is redirected (piped input / non-interactive launch), or when there's no interactive session at all (Scheduled Tasks, CI, a Windows service), never block: use the default — required values still missing are then caught by validation. This mirrors the bash version's "$YES = 1 || ! -t 0" check.
 function Ask([string]$Prompt, [string]$Default = "") {
     $noConsole = -not [Environment]::UserInteractive
     $piped = $false
@@ -83,17 +79,10 @@ function Test-ValidEmail([string]$e) {
 }
 
 # ── .env helpers ─────────────────────────────────────────────────────────────
-# Same behavior as the bash version's set_env/unset_env: replace an existing
-# UNCOMMENTED "KEY=..." line in place (preserving every other line, comments
-# included, and their order); otherwise append a new line.
+# Same behavior as the bash version's set_env/unset_env: replace an existing UNCOMMENTED "KEY=..." line in place (preserving every other line, comments included, and their order); otherwise append a new line.
 #
 # Read/write raw UTF-8 without a BOM via .NET directly, rather than
-# Get-Content/Set-Content: their DEFAULT encoding differs between Windows
-# PowerShell 5.1 (system codepage on read; UTF-8 WITH a BOM on write with
-# -Encoding utf8) and PowerShell 7 (UTF-8 no BOM) — either mismatch can
-# silently corrupt non-ASCII characters in .env, or hand docker compose a
-# leading BOM byte some versions don't strip. A fixed, explicit encoding
-# avoids depending on which PowerShell happens to be running this.
+# Get-Content/Set-Content: their DEFAULT encoding differs between Windows PowerShell 5.1 (system codepage on read; UTF-8 WITH a BOM on write with -Encoding utf8) and PowerShell 7 (UTF-8 no BOM) — either mismatch can silently corrupt non-ASCII characters in .env, or hand docker compose a leading BOM byte some versions don't strip. A fixed, explicit encoding avoids depending on which PowerShell happens to be running this.
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 function Read-EnvLines([string]$Path) {
     if (-not (Test-Path $Path -PathType Leaf)) { return @() }
@@ -151,13 +140,15 @@ function Test-HasEnv([string]$Path, [string]$Key) {
 }
 
 $FrontDoorKeys = @("COMPOSE_PROFILES", "FRONT_DOOR", "HTTPS_CHECK_HOST", "HTTPS_MODE", "ACME_CHALLENGE",
-                   "DOMAIN", "ACME_EMAIL", "ACME_CA", "ACME_CA_ROOT", "WEB_BIND", "WEB_PORT", "TRUSTED_PROXY_HOPS")
+                   "DOMAIN", "ACME_EMAIL", "ACME_CA", "ACME_CA_ROOT", "WEB_BIND", "WEB_PORT", "TRUSTED_PROXY_HOPS",
+                   "RATE_LIMIT", "CLOUDFLARE_PROXY")
 
 # ── -Disable ───────────────────────────────────────────────────────────────
 if ($Disable) {
     Backup-EnvFile $EnvFile
     # Tokens too: no reason to keep Cloudflare credentials around with this off.
-    foreach ($k in ($FrontDoorKeys + @("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_TUNNEL_TOKEN"))) {
+    foreach ($k in ($FrontDoorKeys + @("RATE_LIMIT_PER_MINUTE", "AUTH_RATE_LIMIT_PER_MINUTE",
+                                       "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_TUNNEL_TOKEN"))) {
         Remove-EnvVar $EnvFile $k
     }
     Set-EnvVar $EnvFile "FRONTEND_URL" "http://localhost"
@@ -190,6 +181,7 @@ if (-not $Proxy) {
 # ── Cloudflare Tunnel: its own short path (Cloudflare holds the certificate) ─
 if ($Proxy -eq "cloudflare-tunnel") {
     if ($Cert -or $Mode) { Fail "-Cert/-Mode don't apply to Cloudflare Tunnel: Cloudflare issues the certificate." }
+    if ($CloudflareProxy) { Fail "-CloudflareProxy doesn't apply to Cloudflare Tunnel: tunnel traffic already goes through Cloudflare." }
     Write-Host "────────────────────────────────────────────────────────────────────────────────" -ForegroundColor Yellow
     Write-Host " WARNING: with Cloudflare Tunnel, Cloudflare decrypts ALL traffic to this site." -ForegroundColor Yellow
     Write-Host " Cloudflare's servers can see everything people send and receive here: names," -ForegroundColor Yellow
@@ -355,6 +347,30 @@ if ($Challenge -eq "cloudflare" -and -not $CfToken -and -not (Test-HasEnv $EnvFi
 }
 if ($CfToken -and -not (Test-ValidCfToken $CfToken)) { Fail "That doesn't look like a Cloudflare API token." }
 
+# ── step 3: Cloudflare's proxy (DDoS protection) ──
+# Only offered where it works: the certificate must not depend on Let's Encrypt reaching this server directly (Cloudflare DNS, or your own e.g. Cloudflare Origin certificate).
+$cfProxyOk = ($Challenge -eq "cloudflare") -or ($Mode -eq "custom")
+$UseCfProxy = [bool]$CloudflareProxy
+if ($UseCfProxy -and -not $cfProxyOk) {
+    Fail "-CloudflareProxy needs -Cert cloudflare-dns (or -Mode custom with a Cloudflare Origin certificate)."
+}
+if (-not $UseCfProxy -and $cfProxyOk -and (Test-Interactive)) {
+    Write-Host ""
+    Write-Host "Also put the site behind Cloudflare's proxy for DDoS protection?"
+    Write-Host "  Cloudflare absorbs floods of traffic, hides this server's address, and this"
+    Write-Host "  server will then refuse every connection that doesn't come through Cloudflare."
+    Write-Host "  WARNING: Cloudflare then decrypts and can see ALL traffic to this site: names," -ForegroundColor Yellow
+    Write-Host "  home addresses, phone numbers, emails, and sign-in tokens." -ForegroundColor Yellow
+    Write-Host "  Needs ports 80/443 reachable from the internet (from Cloudflare). Most homes"
+    Write-Host "  don't need this — it's for sites that are public and big enough to be a target."
+    if ((Ask "Use Cloudflare proxy? Type yes, or press Enter for no" "no") -eq "yes") { $UseCfProxy = $true }
+}
+$CfProxyValue = if ($UseCfProxy) { "on" } else { "off" }
+
+# ── rate limits ──
+if ($RateLimit -lt 0 -or $AuthRateLimit -lt 0) { Fail "-RateLimit / -AuthRateLimit must be whole numbers above 0." }
+$Rl = if ($NoRateLimit) { "off" } else { "on" }
+
 # ── preflight ──
 if ($Challenge -eq "http" -and $Mode -in @("letsencrypt", "letsencrypt-staging")) {
     $ip = $null
@@ -380,18 +396,23 @@ $certLabel = if ($Challenge -eq "cloudflare") { "$Mode via Cloudflare DNS" } els
 $domainLabel = if ($Domain) { $Domain } else { "(any)" }
 $emailSuffix = if ($Email) { "  email=$Email" } else { "" }
 Write-Host ""
-Write-Host "About to set up:  proxy=$Proxy  certificate=$certLabel  domain=$domainLabel$emailSuffix"
+$protectLabel = "rate-limits=$Rl"; if ($UseCfProxy) { $protectLabel += "  cloudflare-proxy=on" }
+Write-Host "About to set up:  proxy=$Proxy  certificate=$certLabel  $protectLabel  domain=$domainLabel$emailSuffix"
 if (Test-Interactive) {
     if ((Ask "Continue? (y/n)" "y") -ne "y") { Fail "Cancelled." }
 }
 
 Backup-EnvFile $EnvFile
 foreach ($k in $FrontDoorKeys) { Remove-EnvVar $EnvFile $k }
-# Caddy needs a build with the Cloudflare DNS module (the caddy-dns service);
-# Traefik has it built in.
+# Caddy needs its extended build (caddy-extended service) for rate limits or Cloudflare DNS; Traefik has both built in.
+$caddyExtended = ($Proxy -eq "caddy") -and (($Challenge -eq "cloudflare") -or ($Rl -eq "on"))
 if ($Proxy -eq "traefik") { Set-EnvVar $EnvFile "COMPOSE_PROFILES" "https-traefik" }
-elseif ($Challenge -eq "cloudflare") { Set-EnvVar $EnvFile "COMPOSE_PROFILES" "https-caddy-dns" }
+elseif ($caddyExtended) { Set-EnvVar $EnvFile "COMPOSE_PROFILES" "https-caddy-extended" }
 else { Set-EnvVar $EnvFile "COMPOSE_PROFILES" "https" }
+Set-EnvVar $EnvFile "RATE_LIMIT" $Rl
+if ($RateLimit -gt 0) { Set-EnvVar $EnvFile "RATE_LIMIT_PER_MINUTE" "$RateLimit" }
+if ($AuthRateLimit -gt 0) { Set-EnvVar $EnvFile "AUTH_RATE_LIMIT_PER_MINUTE" "$AuthRateLimit" }
+Set-EnvVar $EnvFile "CLOUDFLARE_PROXY" $CfProxyValue
 Set-EnvVar $EnvFile "FRONT_DOOR" $Proxy
 Set-EnvVar $EnvFile "HTTPS_CHECK_HOST" $Proxy   # the certificate monitor checks this container
 Set-EnvVar $EnvFile "HTTPS_MODE" $Mode
@@ -404,7 +425,11 @@ if ($CfToken) { Set-EnvVar $EnvFile "CLOUDFLARE_API_TOKEN" $CfToken }
 # The front door owns ports 80/443; the web container stays reachable only on this machine.
 Set-EnvVar $EnvFile "WEB_BIND" "127.0.0.1"
 Set-EnvVar $EnvFile "WEB_PORT" "8080"
-Set-EnvVar $EnvFile "TRUSTED_PROXY_HOPS" "2"   # front door + nginx in front of the API
+if ($UseCfProxy) {
+    Set-EnvVar $EnvFile "TRUSTED_PROXY_HOPS" "3"   # Cloudflare + front door + nginx in front of the API
+} else {
+    Set-EnvVar $EnvFile "TRUSTED_PROXY_HOPS" "2"   # front door + nginx in front of the API
+}
 if ($Mode -eq "none") {
     $host_ = if ($Primary) { $Primary } else { "localhost" }
     Set-EnvVar $EnvFile "FRONTEND_URL" "http://$host_"
@@ -428,7 +453,19 @@ if ($Mode -eq "none") {
 } else {
     Write-Host "Then open https://$Primary  (first certificate can take a minute; with Cloudflare DNS, up to a few)."
 }
-Write-Host "Watch progress:  docker compose logs -f $Proxy"
+$logSvc = if ($caddyExtended) { "caddy-extended" } else { $Proxy }
+Write-Host "Watch progress:  docker compose logs -f $logSvc"
+if ($caddyExtended) {
+    Write-Host "(The first start builds Caddy with its extra modules; that takes a minute or two.)"
+}
+if ($UseCfProxy) {
+    Write-Host ""
+    Write-Host "Cloudflare proxy: finish these in the Cloudflare dashboard (docs/HTTPS.md, `"Behind Cloudflare's proxy`"):"
+    Write-Host "  1. DNS: set the record for $Primary to Proxied (orange cloud), pointing at this server's public IP."
+    Write-Host "  2. SSL/TLS > Overview: set encryption mode to Full (strict)."
+    Write-Host "  3. Forward ports 80 and 443 to this server. Only Cloudflare will be let in."
+    Write-Host "Remember: Cloudflare can now see all traffic to this site." -ForegroundColor Yellow
+}
 if ($Mode -eq "internal") {
     Write-Host "Browsers will warn until Caddy's root CA is trusted — see docs/HTTPS.md."
 }

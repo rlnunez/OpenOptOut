@@ -32,8 +32,8 @@ Caddy and Traefik give the same security headers, HTTP→HTTPS redirect, HTTP/3,
 | Let's Encrypt, Let's Encrypt via Cloudflare DNS, none, and the advanced `letsencrypt-staging` / `acme` / `custom` modes | ✅ | ✅ |
 | `internal` (private CA for LAN-only use) | ✅ | ❌ — use `custom` with your own certificate instead |
 | Wildcard names in `DOMAIN` | ✅ (with a CA that allows it) | ❌ — list each name |
-| Cloudflare DNS support | A Caddy image with the Cloudflare module, built locally the first time (`caddy-dns` service, `deploy/caddy/Dockerfile`) | Built in, no extra build |
-| Compose profile / certificate volume | `https` (`https-caddy-dns` with Cloudflare DNS) / `caddy_data` | `https-traefik` / `traefik_data` |
+| Rate limits and Cloudflare DNS | An "extended" Caddy with both modules, built locally the first time it starts — about a minute (`caddy-extended` service, `deploy/caddy/Dockerfile`) | Built in, no extra build |
+| Compose profile / certificate volume | `https-caddy-extended` (or `https` for stock Caddy with rate limits off) / `caddy_data` | `https-traefik` / `traefik_data` |
 
 OpenOptOut's Traefik container never gets the Docker socket and doesn't use Docker labels: its routing comes only from a config file generated at startup from `.env` (`deploy/traefik/entrypoint.sh`), the same way the Caddy container works. If you want an existing, shared Traefik that routes many services by Docker labels, that's **Option C (External)**, not this.
 
@@ -94,7 +94,12 @@ Both scripts take the same options and write the same `.env` keys (flag names di
 
 # Caddy, no certificate yet
 ./scripts/enable-https.sh --proxy caddy --cert none --yes
+
+# Public instance behind Cloudflare's proxy for DDoS protection (Cloudflare sees all traffic)
+./scripts/enable-https.sh --proxy traefik --cert cloudflare-dns --cloudflare-proxy --domain privacy.example.org --yes
 ```
+
+After the certificate question, the script asks one more thing only when it applies: whether to put the site behind Cloudflare's proxy (offered with the Cloudflare DNS certificate). Rate limits are on without asking; see [Protecting against floods](#protecting-against-floods-ddos).
 
 Older commands using only `--mode` (e.g. `--mode letsencrypt`) still work.
 
@@ -117,17 +122,19 @@ Requirements for plain `letsencrypt` (HTTP check):
 What the script actually changes, all in `.env` (backed up first):
 
 ```
-COMPOSE_PROFILES=https         # https-caddy-dns (Caddy + Cloudflare DNS) | https-traefik
+COMPOSE_PROFILES=https-caddy-extended   # https (stock Caddy, rate limits off) | https-traefik
 FRONT_DOOR=caddy               # or traefik
 HTTPS_CHECK_HOST=caddy         # or traefik — which container the certificate monitor checks
 HTTPS_MODE=letsencrypt         # or none, or an advanced mode
 ACME_CHALLENGE=http            # cloudflare for Let's Encrypt via Cloudflare DNS
 CLOUDFLARE_API_TOKEN=...       # only with Cloudflare DNS, if you gave it to the script
+RATE_LIMIT=on                  # off with --no-rate-limit (see "Protecting against floods")
+CLOUDFLARE_PROXY=off           # on with --cloudflare-proxy
 DOMAIN=privacy.yourlibrary.org
 ACME_EMAIL=it@yourlibrary.org
 WEB_BIND=127.0.0.1     # the web container stops being reachable directly
 WEB_PORT=8080          # the front door owns 80/443 instead
-TRUSTED_PROXY_HOPS=2   # front door + nginx in front: sign-in limits find the client IP
+TRUSTED_PROXY_HOPS=2   # front door + nginx in front: sign-in limits find the client IP (3 behind Cloudflare's proxy)
 FRONTEND_URL=https://privacy.yourlibrary.org
 ```
 
@@ -135,7 +142,7 @@ Then:
 
 ```
 docker compose up -d --build
-docker compose logs -f caddy      # watch it obtain the certificate (or: logs -f traefik)
+docker compose logs -f caddy-extended   # watch it obtain the certificate (the script prints the right name: caddy, caddy-extended, or traefik)
 ```
 
 Open `https://privacy.yourlibrary.org`. The first certificate can take up to a minute (a few minutes with Cloudflare DNS). Caddy stores its certificates and ACME account in the `caddy_data` Docker volume (Traefik: `traefik_data`) — **keep that volume** across restarts and upgrades; deleting it means requesting a fresh certificate, and doing that too often risks rate limits.
@@ -199,25 +206,86 @@ What you get in exchange: OpenOptOut reachable at `https://your.domain` from any
 
 There's no certificate question — Cloudflare issues and renews it, so the dashboard's certificate check says so instead of checking. The script sets `COMPOSE_PROFILES=cloudflare-tunnel`, `FRONT_DOOR=cloudflare-tunnel`, `HTTPS_MODE=cloudflare-tunnel`, `TRUSTED_PROXY_HOPS=2` (cloudflared + nginx), and keeps the web container on `127.0.0.1` so nothing listens publicly.
 
+## Protecting against floods (DDoS)
+
+If OpenOptOut becomes popular, a data broker could try to knock instances offline with floods of traffic. The design already helps: every family or organization runs its own copy, so there is no central server to take down — an attacker has to find and target each instance one by one. What's left to protect is each instance's own address. In order of strength:
+
+| Protection | Stops | Cost |
+|---|---|---|
+| **Don't expose it publicly** | Everything from the internet — there's nothing to attack | Use it at home, or through a VPN when away |
+| **Rate limits** (on by default, Caddy and Traefik) | One source hammering the site or guessing passwords | None for normal use |
+| **Cloudflare's proxy** (opt-in, Caddy and Traefik) | Large floods from many sources; hides this server's address | Cloudflare can see all traffic |
+| **Cloudflare Tunnel** ([Option D](#option-d--cloudflare-tunnel)) | Large floods; no open ports and no visible address at all | Cloudflare can see all traffic |
+
+### 1. Recommended for most families: don't be public
+
+A family instance rarely needs to be reachable from the whole internet. Run it on your home network with a **Let's Encrypt via Cloudflare DNS** certificate (real HTTPS, no open ports), and when you're away, reach home through a VPN (your router's built-in WireGuard/OpenVPN, or a service like Tailscale). With no ports open, there's nothing for anyone outside to flood. The opt-out requests OpenOptOut *sends* still go out normally.
+
+### 2. Rate limits (both front doors, on by default)
+
+Caddy and Traefik both limit how fast any one visitor can send requests, before anything reaches OpenOptOut:
+
+| Setting | Default | What it covers |
+|---|---|---|
+| `RATE_LIMIT_PER_MINUTE` | 1200 | Every request to the site, per visitor |
+| `AUTH_RATE_LIMIT_PER_MINUTE` | 60 | Sign-in endpoints (`/api/auth/…`), per visitor — signing in is deliberately slow work for the server, so floods there are the cheapest way to overload it |
+
+Over the limit, visitors get **429 Too Many Requests** until the minute rolls over. These sit in front of OpenOptOut's own sign-in lockouts, which still apply. Slow-header connections are also cut off (after 10 seconds in Caddy).
+
+- Change them: `./scripts/enable-https.sh … --rate-limit 2400 --auth-rate-limit 120` (Windows: `-RateLimit`, `-AuthRateLimit`), or edit `.env` and `docker compose up -d`.
+- **Many people behind one IP** (a library, school, or office network) count as one visitor. Raise the limits if they hit 429s.
+- Turn off: `--no-rate-limit` (`-NoRateLimit`). The wizard has the same checkbox.
+- Caddy needs its extended build for this (built automatically the first time; see the table in Question 1). Traefik has it built in. The two count slightly differently — Caddy allows up to the limit within any one-minute window; Traefik allows a steady rate with a short burst (about ten seconds' worth, so pages still load all their files at once) — but both land on about the same number per minute.
+- Cloudflare Tunnel doesn't go through Caddy or Traefik. Use Cloudflare's own rate-limiting rules in its dashboard there; OpenOptOut's sign-in lockouts still apply.
+
+### 3. Behind Cloudflare's proxy
+
+> ⚠ **Cloudflare decrypts all traffic to this site.** Like the tunnel, HTTPS ends at Cloudflare's servers, so Cloudflare can see everything people send and receive through OpenOptOut: names, home addresses, phone numbers, email addresses, and sign-in tokens. Use this only for instances that are public and big enough to be a target.
+
+Cloudflare's network sits in front of your server: it absorbs large floods, filters known attack traffic, and keeps your server's real address out of DNS. OpenOptOut's front door then **accepts connections only from Cloudflare's published IP ranges** and drops everything else — so an attacker who finds the real address can't get past the front door directly. It also takes each visitor's real address from Cloudflare (`CF-Connecting-IP`), trusting that header *only* because nobody else can connect, so rate limits and sign-in lockouts still apply per visitor.
+
+Requirements: the **Let's Encrypt via Cloudflare DNS** certificate (or `--mode custom` with a [Cloudflare Origin certificate](https://developers.cloudflare.com/ssl/origin-configuration/origin-ca/)), and ports 80/443 reachable from the internet (they'll only let Cloudflare in). If your internet provider blocks those ports, use Cloudflare Tunnel instead.
+
+1. Run the script, choose Caddy or Traefik and **Let's Encrypt via Cloudflare DNS**, then answer `yes` to the Cloudflare proxy question — or `--cloudflare-proxy` / `-CloudflareProxy`, or the wizard's checkbox.
+2. Cloudflare dashboard → **DNS**: point the record at this server's public IP and set it to **Proxied** (orange cloud).
+3. **SSL/TLS → Overview**: set encryption mode to **Full (strict)**. ("Flexible" would send traffic between Cloudflare and your server unencrypted.)
+4. Forward ports 80 and 443 to this server, then `docker compose up -d --build`.
+
+The script sets `CLOUDFLARE_PROXY=on` and `TRUSTED_PROXY_HOPS=3` (Cloudflare + front door + nginx).
+
+**Keep Cloudflare's IP list current.** The allowed ranges ship in `deploy/cloudflare/ip-ranges.txt`. Cloudflare rarely changes them, but if it adds one, visitors routed through it would be refused. Refresh now and then (it validates the download and never writes an empty list):
+```
+./scripts/update-cloudflare-ips.sh
+docker compose up -d --force-recreate caddy-extended    # or traefik
+```
+
+**What this doesn't cover:** any Cloudflare customer's traffic also comes from Cloudflare's addresses, so the IP check alone can't tell *your* Cloudflare traffic from someone else's. Cloudflare's [Authenticated Origin Pulls](https://developers.cloudflare.com/ssl/origin-configuration/authenticated-origin-pull/) closes that gap and is a planned follow-up. And if an attacker already knows your real IP from before, they can still try to saturate your internet connection itself — the front door drops their connections, but the bandwidth is used. Changing your public IP after moving behind Cloudflare fixes that.
+
 ## Monitoring
 
 If you're on the managed or native option, the daily certificate check also watches OpenOptOut's own HTTPS certificate, the same way it watches LDAP, SIP2, and SAML — see [docs/SSO.md](SSO.md#certificate-reminders). A failed automatic renewal shows up as a dashboard warning before it actually expires. On the Docker path this reaches the front-door container (`caddy` or `traefik`) over the internal Docker network; on the native path, set `HTTPS_CHECK_HOST=127.0.0.1` in `.env` (`enable-https-native.sh` does this for you) so it checks the local nginx/IIS instead. This check is skipped for `internal` mode (Caddy renews its own private CA itself) and Cloudflare Tunnel (Cloudflare holds the certificate), shows "no certificate yet" for `none`, and does nothing at all when HTTPS isn't configured through OpenOptOut (the external option).
 
 ## Troubleshooting
 
-- **Certificate never issued / times out:** Docker path — `docker compose logs -f caddy` (or `traefik`); native path — `sudo journalctl -u certbot` or the output of `enable-https-native.sh` itself. Usually DNS not pointing here yet, or ports 80/443 not actually reachable from the internet (check port forwarding, not just a local firewall rule).
-- **Cloudflare DNS certificate never issued:** `docker compose logs caddy` (or `traefik`). Check that `CLOUDFLARE_API_TOKEN` is set in `.env`, that the token has **Zone → DNS → Edit** for *this* domain's zone, and that the domain's nameservers really are Cloudflare's. The container refuses to start without a token and says so in plain words. After adding the token, `docker compose up -d --build`.
-- **"This Caddy build has no Cloudflare DNS support":** `.env` asks for Cloudflare DNS but the stock `caddy` service started. Rerun `enable-https.sh` (it sets `COMPOSE_PROFILES=https-caddy-dns`), then `docker compose down && docker compose up -d --build`.
+- **Certificate never issued / times out:** Docker path — `docker compose logs -f caddy-extended` (or `caddy` / `traefik`); native path — `sudo journalctl -u certbot` or the output of `enable-https-native.sh` itself. Usually DNS not pointing here yet, or ports 80/443 not actually reachable from the internet (check port forwarding, not just a local firewall rule).
+- **Cloudflare DNS certificate never issued:** `docker compose logs caddy-extended` (or `traefik`). Check that `CLOUDFLARE_API_TOKEN` is set in `.env`, that the token has **Zone → DNS → Edit** for *this* domain's zone, and that the domain's nameservers really are Cloudflare's. The container refuses to start without a token and says so in plain words. After adding the token, `docker compose up -d --build`.
+- **"This Caddy build has no Cloudflare DNS support" / "no rate limiting":** `.env` asks for a feature the stock `caddy` service doesn't have. Rerun `enable-https.sh` (it sets `COMPOSE_PROFILES=https-caddy-extended`), then `docker compose down && docker compose up -d --build`.
+- **Caddy logs "rate limiting is OFF":** an older `.env` is still on the stock `caddy` service. It keeps working without limits; rerun `enable-https.sh` to switch to the extended build with limits on.
+- **People get "429 Too Many Requests":** the rate limits are doing their job, or are too tight for your setup — common when many people share one public IP (a library, office, or school network). Raise them with `--rate-limit` / `--auth-rate-limit` (see [Protecting against floods](#protecting-against-floods-ddos)).
+- **Behind Cloudflare's proxy, the site won't load at all:** check the DNS record is **Proxied** (orange cloud) and SSL/TLS mode is **Full (strict)**. Connections that don't come from Cloudflare are dropped on purpose — including you visiting the server's IP directly. If Cloudflare added new IP ranges, run `./scripts/update-cloudflare-ips.sh` and restart the front door.
 - **Plain Let's Encrypt times out at home even with ports forwarded:** your internet provider may block incoming 80/443 or share your public IP between homes (CGNAT — your router's WAN address won't match what websites report as your IP). Port forwarding can't fix either; switch to `--cert cloudflare-dns`.
 - **Cloudflare Tunnel shows "Bad gateway" or won't connect:** the tunnel's public hostname must point to `HTTP` → `web:80` (not `localhost`), and `CLOUDFLARE_TUNNEL_TOKEN` must be the tunnel's token. `docker compose logs cloudflared` shows which.
 - **"too many certificates" / rate limited:** switch to `--mode letsencrypt-staging` (Docker) or `--staging` (native) while you finish testing, then switch back.
 - **Browser shows "not secure" / self-signed warning:** expected for `internal` mode until that CA's root is installed on client devices; for `letsencrypt`/`acme`, check the logs above for the actual issuance error rather than assuming it's trusted.
 - **SSO redirects go to the wrong address:** `FRONTEND_URL` doesn't match what people actually type into their browser (see the SSO doc's reverse-proxy section).
-- **Reused an old `.env` and HTTPS didn't turn on (Docker path):** confirm `COMPOSE_PROFILES` is actually set (`https`, `https-caddy-dns`, `https-traefik`, or `cloudflare-tunnel`) — Compose only starts the front-door service when its profile is active.
+- **Reused an old `.env` and HTTPS didn't turn on (Docker path):** confirm `COMPOSE_PROFILES` is actually set (`https`, `https-caddy-extended`, `https-traefik`, or `cloudflare-tunnel`) — Compose only starts the front-door service when its profile is active.
 - **Traefik container exits right away:** `docker compose logs traefik` — it refuses `HTTPS_MODE=internal` and wildcard domains with a plain-English message saying what to use instead.
 - **Dashboard HTTPS check can't connect after switching proxies:** `HTTPS_CHECK_HOST` must name the running front door (`caddy` or `traefik`); rerunning `enable-https` sets it.
 - **Native path: nginx site not found:** `enable-https-native.sh` looks for `/etc/nginx/sites-available/openoptout` or `/etc/nginx/conf.d/openoptout.conf` (or legacy `privacyshield`) — pass `--nginx-site PATH` if yours lives elsewhere, or install it first from `deploy/native/nginx-openoptout.conf.example`.
 
 ## Follow-ups (not built yet)
+
+- Cloudflare **Authenticated Origin Pulls** for the Cloudflare proxy mode, so only *your* Cloudflare zone can reach the server, not any Cloudflare customer's traffic.
+- A ready-made set of Cloudflare rate-limiting / WAF rules to paste in for Cloudflare Tunnel users.
 
 - DNS providers other than Cloudflare for DNS-01 certificates (Route 53, DigitalOcean, deSEC, …). Traefik already supports dozens through the same mechanism and Caddy has a module per provider, so each is mostly a menu entry plus a token. On the native path, certbot has its own DNS-01 plugins you can use directly (outside `enable-https-native.sh`, which is HTTP-01 via the nginx plugin only).

@@ -32,14 +32,7 @@ def get_https_status(_: User = Depends(require_permission("certificates.view")))
     other checks' state) for a "did this actually work?" button right after
     running scripts/enable-https.ps1 or .sh and restarting the containers.
 
-    This is a read-only TLS handshake to the front-door container (caddy or
-    traefik, per HTTPS_CHECK_HOST; skipped for Cloudflare Tunnel) over the internal
-    Docker network the api container already has (the same thing the daily
-    monitor does) — never a docker/host action. The api container deliberately
-    has no docker socket and never runs docker compose itself: giving it that
-    would mean anything that ever compromises the api container (a bug, or a
-    malicious/broken plugin, given the plugin system) could reach the host's
-    Docker daemon. Turning HTTPS on/off is a host-level step by design.
+    This is a read-only TLS handshake to the front-door container (caddy or traefik, per HTTPS_CHECK_HOST; skipped for Cloudflare Tunnel) over the internal Docker network the api container already has (the same thing the daily monitor does) — never a docker/host action. The api container deliberately has no docker socket and never runs docker compose itself: giving it that would mean anything that ever compromises the api container (a bug, or a malicious/broken plugin, given the plugin system) could reach the host's Docker daemon. Turning HTTPS on/off is a host-level step by design.
     """
     st = cm.https_cert_status()
     if st is None and os.getenv("HTTPS_MODE", "").strip() == "none":

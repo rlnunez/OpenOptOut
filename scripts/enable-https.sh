@@ -11,25 +11,27 @@
 # Step 1, --proxy:  caddy (default) | traefik | cloudflare-tunnel
 # Step 2, --cert (Caddy/Traefik only):
 #          letsencrypt      Let's Encrypt; ports 80+443 must be reachable from the internet
-#          cloudflare-dns   Let's Encrypt via Cloudflare DNS; no open ports needed.
-#                           For many home internet plans this is the only option
-#                           that works. Token: --cf-token, or add it to .env later.
+#          cloudflare-dns   Let's Encrypt via Cloudflare DNS; no open ports needed. For many home internet plans this is the only option that works. Token: --cf-token, or add it to .env later.
 #          none             No certificate yet; plain HTTP through the proxy
 #          advanced         Choose a --mode below
+# Step 3 (only with cloudflare-dns or custom), --cloudflare-proxy:
+#          Put the site behind Cloudflare's proxy for DDoS protection. The server then accepts connections ONLY from Cloudflare. Cloudflare decrypts and can see all traffic.
+# Rate limits (Caddy/Traefik; on by default):
+#          --no-rate-limit   --rate-limit N (per visitor per minute, default 1200)
+#          --auth-rate-limit N (sign-in attempts per visitor per minute, default 60)
 # Advanced: --mode letsencrypt|letsencrypt-staging|acme|internal|custom|none
 #          (letsencrypt-staging/acme also work with --cert cloudflare-dns)
 #          --acme-ca URL  --acme-ca-root FILE
 # Other:   --domain D  --email E  --cf-token T  --tunnel-token T
 #          --env-file PATH (default .env)  --yes (no prompts; use defaults)
 #
-# Writes settings to .env (a timestamped backup is made first), then tells you
-# the one command to run. Works on Linux and macOS (no GNU-only tools).
+# Writes settings to .env (a timestamped backup is made first), then tells you the one command to run. Works on Linux and macOS (no GNU-only tools).
 # ==============================================================================
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 ENV_FILE=".env"; MODE=""; CERT=""; DOMAIN=""; EMAIL=""; ACME_CA=""; ACME_CA_ROOT_SRC=""
-YES=0; DISABLE=0; PROXY=""; CF_TOKEN=""; TUNNEL_TOKEN=""
+YES=0; DISABLE=0; PROXY=""; CF_TOKEN=""; TUNNEL_TOKEN=""; CF_PROXY=""; RL=on; RL_SITE=""; RL_AUTH=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --proxy) PROXY="$2"; shift 2 ;;
@@ -44,7 +46,12 @@ while [ $# -gt 0 ]; do
     --env-file) ENV_FILE="$2"; shift 2 ;;
     --yes|-y) YES=1; shift ;;
     --disable) DISABLE=1; shift ;;
-    -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
+    --cloudflare-proxy) CF_PROXY=on; shift ;;
+    --no-cloudflare-proxy) CF_PROXY=off; shift ;;
+    --no-rate-limit) RL=off; shift ;;
+    --rate-limit) RL_SITE="$2"; shift 2 ;;
+    --auth-rate-limit) RL_AUTH="$2"; shift 2 ;;
+    -h|--help) awk 'NR > 2 && /^# =+$/ { exit } NR > 2 { sub(/^# ?/, ""); print }' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
@@ -52,9 +59,7 @@ done
 die()  { echo "Error: $*" >&2; exit 1; }
 warn() { echo "Warning: $*" >&2; }
 interactive() { [ "$YES" = 0 ] && [ -t 0 ]; }
-# Prompt only when a person is at the terminal. With --yes, or when stdin isn't a
-# terminal (automation/CI), never block: use the default; required values that
-# are still missing are then rejected by validation.
+# Prompt only when a person is at the terminal. With --yes, or when stdin isn't a terminal (automation/CI), never block: use the default; required values that are still missing are then rejected by validation.
 ask()  {
   local prompt="$1" def="${2:-}" ans=""
   if ! interactive; then echo "$def"; return 0; fi
@@ -92,12 +97,12 @@ unset_env() {
 has_env() { [ -f "$ENV_FILE" ] && grep -q "^${1}=." "$ENV_FILE"; }
 backup() { [ -f "$ENV_FILE" ] && cp "$ENV_FILE" "${ENV_FILE}.bak.$(date +%Y%m%d%H%M%S)" && echo "Backed up $ENV_FILE"; return 0; }
 
-FRONT_DOOR_KEYS="COMPOSE_PROFILES FRONT_DOOR HTTPS_CHECK_HOST HTTPS_MODE ACME_CHALLENGE DOMAIN ACME_EMAIL ACME_CA ACME_CA_ROOT WEB_BIND WEB_PORT TRUSTED_PROXY_HOPS"
+FRONT_DOOR_KEYS="COMPOSE_PROFILES FRONT_DOOR HTTPS_CHECK_HOST HTTPS_MODE ACME_CHALLENGE DOMAIN ACME_EMAIL ACME_CA ACME_CA_ROOT WEB_BIND WEB_PORT TRUSTED_PROXY_HOPS RATE_LIMIT CLOUDFLARE_PROXY"
 
 if [ "$DISABLE" = 1 ]; then
   backup
   # Tokens too: no reason to keep Cloudflare credentials around with this off.
-  for k in $FRONT_DOOR_KEYS CLOUDFLARE_API_TOKEN CLOUDFLARE_TUNNEL_TOKEN; do unset_env "$k"; done
+  for k in $FRONT_DOOR_KEYS RATE_LIMIT_PER_MINUTE AUTH_RATE_LIMIT_PER_MINUTE CLOUDFLARE_API_TOKEN CLOUDFLARE_TUNNEL_TOKEN; do unset_env "$k"; done
   set_env FRONTEND_URL "http://localhost"
   echo "Front door disabled. Run:  docker compose down && docker compose up -d"
   exit 0
@@ -127,6 +132,7 @@ case "$PROXY" in caddy|traefik|cloudflare-tunnel) ;; *) die "--proxy must be cad
 # ── Cloudflare Tunnel: its own short path (Cloudflare holds the certificate) ──
 if [ "$PROXY" = cloudflare-tunnel ]; then
   [ -z "$CERT$MODE" ] || die "--cert/--mode don't apply to Cloudflare Tunnel: Cloudflare issues the certificate."
+  [ "$CF_PROXY" != on ] || die "--cloudflare-proxy doesn't apply to Cloudflare Tunnel: tunnel traffic already goes through Cloudflare."
   cat <<'EOF'
 ────────────────────────────────────────────────────────────────────────────────
  WARNING: with Cloudflare Tunnel, Cloudflare decrypts ALL traffic to this site.
@@ -277,6 +283,31 @@ if [ "$CHALLENGE" = cloudflare ] && [ -z "$CF_TOKEN" ] && ! has_env CLOUDFLARE_A
 fi
 [ -z "$CF_TOKEN" ] || valid_cf_token "$CF_TOKEN" || die "That doesn't look like a Cloudflare API token."
 
+# ── step 3: Cloudflare's proxy (DDoS protection) ──
+# Only offered where it works: the certificate must not depend on Let's Encrypt reaching this server directly (Cloudflare DNS, or your own e.g. Cloudflare Origin certificate).
+CF_PROXY_OK=0
+{ [ "$CHALLENGE" = cloudflare ] || [ "$MODE" = custom ]; } && CF_PROXY_OK=1
+if [ "$CF_PROXY" = on ] && [ "$CF_PROXY_OK" = 0 ]; then
+  die "--cloudflare-proxy needs --cert cloudflare-dns (or --mode custom with a Cloudflare Origin certificate)."
+fi
+if [ -z "$CF_PROXY" ] && [ "$CF_PROXY_OK" = 1 ] && interactive; then
+  echo
+  echo "Also put the site behind Cloudflare's proxy for DDoS protection?"
+  echo "  Cloudflare absorbs floods of traffic, hides this server's address, and this"
+  echo "  server will then refuse every connection that doesn't come through Cloudflare."
+  echo "  WARNING: Cloudflare then decrypts and can see ALL traffic to this site: names,"
+  echo "  home addresses, phone numbers, emails, and sign-in tokens."
+  echo "  Needs ports 80/443 reachable from the internet (from Cloudflare). Most homes"
+  echo "  don't need this — it's for sites that are public and big enough to be a target."
+  [ "$(ask 'Use Cloudflare proxy? Type yes, or press Enter for no' no)" = yes ] && CF_PROXY=on
+fi
+[ -n "$CF_PROXY" ] || CF_PROXY=off
+
+# ── rate limits ──
+num_ok() { [[ "$1" =~ ^[1-9][0-9]{0,6}$ ]]; }
+[ -z "$RL_SITE" ] || num_ok "$RL_SITE" || die "--rate-limit must be a whole number above 0"
+[ -z "$RL_AUTH" ] || num_ok "$RL_AUTH" || die "--auth-rate-limit must be a whole number above 0"
+
 # ── preflight ──
 if [ "$CHALLENGE" = http ] && { [ "$MODE" = letsencrypt ] || [ "$MODE" = letsencrypt-staging ]; }; then
   ip=""
@@ -294,16 +325,20 @@ fi
 
 CERT_LABEL="$MODE"; [ "$CHALLENGE" = cloudflare ] && CERT_LABEL="$MODE via Cloudflare DNS"
 echo
-echo "About to set up:  proxy=$PROXY  certificate=$CERT_LABEL  domain=${DOMAIN:-(any)}${EMAIL:+  email=$EMAIL}"
+PROTECT_LABEL="rate-limits=$RL"; [ "$CF_PROXY" = on ] && PROTECT_LABEL="$PROTECT_LABEL  cloudflare-proxy=on"
+echo "About to set up:  proxy=$PROXY  certificate=$CERT_LABEL  $PROTECT_LABEL  domain=${DOMAIN:-(any)}${EMAIL:+  email=$EMAIL}"
 if interactive; then [ "$(ask 'Continue? (y/n)' y)" = y ] || die "Cancelled."; fi
 
 backup
 for k in $FRONT_DOOR_KEYS; do unset_env "$k"; done
-# Caddy needs a build with the Cloudflare DNS module (the caddy-dns service);
-# Traefik has it built in.
+# Caddy needs its extended build (caddy-extended service) for rate limits or Cloudflare DNS; Traefik has both built in.
 if [ "$PROXY" = traefik ]; then set_env COMPOSE_PROFILES https-traefik
-elif [ "$CHALLENGE" = cloudflare ]; then set_env COMPOSE_PROFILES https-caddy-dns
+elif [ "$CHALLENGE" = cloudflare ] || [ "$RL" = on ]; then set_env COMPOSE_PROFILES https-caddy-extended
 else set_env COMPOSE_PROFILES https; fi
+set_env RATE_LIMIT "$RL"
+[ -z "$RL_SITE" ] || set_env RATE_LIMIT_PER_MINUTE "$RL_SITE"
+[ -z "$RL_AUTH" ] || set_env AUTH_RATE_LIMIT_PER_MINUTE "$RL_AUTH"
+set_env CLOUDFLARE_PROXY "$CF_PROXY"
 set_env FRONT_DOOR "$PROXY"
 set_env HTTPS_CHECK_HOST "$PROXY"   # the certificate monitor checks this container
 set_env HTTPS_MODE "$MODE"
@@ -316,7 +351,11 @@ set_env ACME_CHALLENGE "$CHALLENGE"
 # The front door owns ports 80/443; the web container stays reachable only on this machine.
 set_env WEB_BIND 127.0.0.1
 set_env WEB_PORT 8080
-set_env TRUSTED_PROXY_HOPS 2     # front door + nginx in front of the API
+if [ "$CF_PROXY" = on ]; then
+  set_env TRUSTED_PROXY_HOPS 3   # Cloudflare + front door + nginx in front of the API
+else
+  set_env TRUSTED_PROXY_HOPS 2   # front door + nginx in front of the API
+fi
 if [ "$MODE" = none ]; then
   set_env FRONTEND_URL "http://${PRIMARY:-localhost}"
 else
@@ -338,7 +377,20 @@ if [ "$MODE" = none ]; then
 else
   echo "Then open https://$PRIMARY  (first certificate can take a minute; with Cloudflare DNS, up to a few)."
 fi
-echo "Watch progress:  docker compose logs -f $PROXY"
+LOG_SVC="$PROXY"
+[ "$PROXY" = caddy ] && { [ "$RL" = on ] || [ "$CHALLENGE" = cloudflare ]; } && LOG_SVC=caddy-extended
+echo "Watch progress:  docker compose logs -f $LOG_SVC"
+if [ "$PROXY" = caddy ] && { [ "$RL" = on ] || [ "$CHALLENGE" = cloudflare ]; }; then
+  echo "(The first start builds Caddy with its extra modules; that takes a minute or two.)"
+fi
+if [ "$CF_PROXY" = on ]; then
+  echo
+  echo "Cloudflare proxy: finish these in the Cloudflare dashboard (docs/HTTPS.md, \"Behind Cloudflare's proxy\"):"
+  echo "  1. DNS: set the record for $PRIMARY to Proxied (orange cloud), pointing at this server's public IP."
+  echo "  2. SSL/TLS > Overview: set encryption mode to Full (strict)."
+  echo "  3. Forward ports 80 and 443 to this server. Only Cloudflare will be let in."
+  echo "Remember: Cloudflare can now see all traffic to this site."
+fi
 [ "$MODE" = internal ] && echo "Browsers will warn until Caddy's root CA is trusted — see docs/HTTPS.md."
 [ "$MODE" = letsencrypt-staging ] && echo "Staging certificates are intentionally untrusted. Rerun with --mode letsencrypt when it works."
 [ "$MODE" = none ] || echo "If you use Google/Microsoft sign-in or SAML, update their redirect URLs to https://$PRIMARY (docs/SSO.md)."
