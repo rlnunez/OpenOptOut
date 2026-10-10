@@ -135,7 +135,7 @@ def handle_client(conn, addr, verbose=True):
             print(f"[*] Connection closed for {addr[0]}:{addr[1]}")
 
 
-def run_server(host="0.0.0.0", port=6001, use_tls=False):
+def run_server(host="127.0.0.1", port=6001, use_tls=False):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((host, port))
@@ -202,13 +202,13 @@ def run_self_test(host="127.0.0.1", port=6001):
 
 def main():
     parser = argparse.ArgumentParser(description="OpenOptOut Mock SIP2 ILS Server")
-    parser.add_argument("--host", default="0.0.0.0", help="Listen address (default: 0.0.0.0)")
+    parser.add_argument("--host", default="127.0.0.1", help="Listen address (default: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=6001, help="Listen port (default: 6001)")
     parser.add_argument("--test", action="store_true", help="Run self-test client against running server")
     args = parser.parse_args()
 
     if args.test:
-        target_host = "127.0.0.1" if args.host == "0.0.0.0" else args.host
+        target_host = "127.0.0.1" if args.host in ("0.0.0.0", "127.0.0.1") else args.host
         sys.exit(run_self_test(target_host, args.port))
     else:
         run_server(args.host, args.port)
