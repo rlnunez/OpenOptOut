@@ -28,6 +28,18 @@ OpenOptOut implements defense-in-depth against data leakage from process memory:
 - **In-Memory Zeroization**: Decrypted secrets and patron records wrap in ephemeral scoped buffers (`core.memory_hygiene.SecureBuffer`) and zeroize immediately upon block completion.
 - **Encrypted Swap**: Operators should run in pure RAM or configure ephemeral encrypted swap via `/etc/crypttab` (`/dev/urandom` key) to prevent cleartext memory paging.
 
+## Architecture & Cryptographic Controls
+
+OpenOptOut enforces rigorous defense-in-depth protections across all layers:
+
+- **Credential & Secret Isolation**: Database and proxy credentials, TLS certificates, and encryption keys are read exclusively from environment variables or mounted files (Docker/Kubernetes secrets, HashiCorp Vault). Secrets are never stored in plaintext database tables and are never written to logs.
+- **PII Field Encryption**: Identifiers (names, physical addresses, phone numbers, email accounts) can be Fernet-encrypted prior to database persistence via `FIELD_ENCRYPTION_KEY`.
+- **Full Database Encryption**: SQLCipher AES-256 encrypts the entire SQLite database file at rest via `DB_ENCRYPTION_KEY`. See [`docs/DATABASE.md`](docs/DATABASE.md).
+- **Key Separation**: Operators must supply distinct random keys for `SECRET_KEY`, `DB_ENCRYPTION_KEY`, and `FIELD_ENCRYPTION_KEY` rather than reusing a single master key (`openssl rand -hex 32`).
+- **Server-Side Authorization**: Every API route enforces authentication and role boundaries; the only unauthenticated public endpoint is `/api/health`.
+- **Bot-Evasion Realism**: User-agent rotation and residential proxies defend against basic IP rate limits, but do not claim to defeat advanced behavioral browser fingerprinting.
+- **Mandatory Production HTTPS**: Deployments must run behind TLS (Caddy, Traefik, or reverse proxies) to prevent plaintext transmission of session tokens, passwords, and patron data. See [`docs/HTTPS.md`](docs/HTTPS.md).
+
 ## Automated scanning
 
 Every change is verified by automated scanners. See [docs/SECURITY_SCANNING.md](docs/SECURITY_SCANNING.md).
