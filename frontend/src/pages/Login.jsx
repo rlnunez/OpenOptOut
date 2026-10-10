@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ShieldCheck, CreditCard, Users, Key, Smartphone, Fingerprint, Lock,
-  ShieldAlert, Copy, Check, ArrowLeft, RefreshCw, ChevronRight, Clock
+  ShieldAlert, Copy, Check, ArrowLeft, RefreshCw, ChevronRight, Clock, Mail
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
@@ -67,6 +67,33 @@ export default function Login() {
   const [setupCopiedCodes, setSetupCopiedCodes] = useState(false)
   const [setupCopiedSecret, setSetupCopiedSecret] = useState(false)
 
+  // Passwordless authentication state
+  const [passwordless, setPasswordless] = useState({
+    enabled: false,
+    allow_passkey: true,
+    allow_magic_link: true,
+    enforce_passwordless_local: false,
+  })
+  const [staffAuthMode, setStaffAuthMode] = useState('password') // 'password' | 'passkey' | 'magic_link_request' | 'magic_link_verify'
+  const [magicLinkToken, setMagicLinkToken] = useState('')
+  const [magicLinkCode, setMagicLinkCode] = useState('')
+  const [magicLinkMessage, setMagicLinkMessage] = useState('')
+
+  // Role-based session duration and Remember Me policy
+  const [sessionPolicy, setSessionPolicy] = useState({
+    remember_me_enabled: true,
+  })
+  const [rememberStaff, setRememberStaff] = useState(false)
+  const [rememberPatron, setRememberPatron] = useState(false)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('saved_login_email')
+    if (saved) {
+      setEmail(saved)
+      setRememberStaff(true)
+    }
+  }, [])
+
   useEffect(() => {
     api.get('/auth/needs-setup')
       .then(r => setNeedsSetup(!!r.data.needs_setup))
@@ -79,6 +106,15 @@ export default function Login() {
       setSip2Enabled(ap.sip2_enabled || false)
       setOidcProviders((ap.oidc_providers || []).filter(p => p.enabled))
       setSaml(ap.saml_enabled ? { label: ap.saml_label || 'Single sign-on' } : null)
+      if (ap.session_policy) {
+        setSessionPolicy(ap.session_policy)
+      }
+      if (ap.passwordless) {
+        setPasswordless(ap.passwordless)
+        if (ap.passwordless.enabled && ap.passwordless.enforce_passwordless_local) {
+          setStaffAuthMode(ap.passwordless.allow_passkey !== false ? 'passkey' : 'magic_link_request')
+        }
+      }
     }).catch(() => {}).finally(() => setLoadingProviders(false))
   }, [])
 
@@ -90,8 +126,13 @@ export default function Login() {
 
   const submitStaff = async e => {
     e.preventDefault(); setError(''); setLoading(true)
+    if (rememberStaff && email.trim()) {
+      localStorage.setItem('saved_login_email', email.trim())
+    } else {
+      localStorage.removeItem('saved_login_email')
+    }
     try {
-      const res = await login(email, password)
+      const res = await login(email, password, rememberStaff)
       if (res?.mfa_required) {
         const allowed = res.allowed_methods || { totp: true, webauthn: true, backup_codes: true }
         const methods = res.methods || {}
@@ -133,10 +174,90 @@ export default function Login() {
     }
   }
 
+  const handlePasswordlessPasskey = async e => {
+    if (e) e.preventDefault()
+    setError('')
+    setLoading(true)
+    if (rememberStaff && email.trim()) {
+      localStorage.setItem('saved_login_email', email.trim())
+    }
+    try {
+      const { data: optData } = await api.post('/auth/passwordless/options', {
+        email: email.trim() || null,
+        remember_me: rememberStaff,
+      })
+      const credential = await performWebAuthnAuthenticate(optData.options)
+      const { data: loginRes } = await api.post('/auth/passwordless/verify', {
+        ticket: optData.ticket,
+        credential,
+        remember_me: rememberStaff,
+      })
+      await completeMfaLogin(loginRes.access_token)
+      navigate('/')
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message || 'Passkey authentication failed.'
+      setError(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRequestMagicLink = async e => {
+    if (e) e.preventDefault()
+    if (!email.trim()) {
+      setError('Please enter your email address to receive a sign-in code.')
+      return
+    }
+    setError('')
+    setLoading(true)
+    try {
+      const { data } = await api.post('/auth/passwordless/magic-link/request', {
+        email: email.trim(),
+      })
+      setMagicLinkToken(data.token || '')
+      setMagicLinkMessage(data.message || 'A 6-digit sign-in code has been sent to your email.')
+      if (data.fallback_code) {
+        setMagicLinkCode(data.fallback_code)
+      }
+      setStaffAuthMode('magic_link_verify')
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to send sign-in code.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleVerifyMagicLink = async e => {
+    if (e) e.preventDefault()
+    if (!magicLinkCode.trim()) {
+      setError('Please enter the 6-digit verification code.')
+      return
+    }
+    setError('')
+    setLoading(true)
+    if (rememberStaff && email.trim()) {
+      localStorage.setItem('saved_login_email', email.trim())
+    }
+    try {
+      const { data } = await api.post('/auth/passwordless/magic-link/verify', {
+        token: magicLinkToken,
+        code: magicLinkCode.trim(),
+        remember_me: rememberStaff,
+      })
+      await completeMfaLogin(data.access_token)
+      navigate('/')
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Invalid or expired sign-in code.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
   const submitPatron = async e => {
     e.preventDefault(); setError(''); setLoading(true)
     try {
-      const { data } = await api.post('/auth/sip2/login', { barcode, pin })
+      const { data } = await api.post('/auth/sip2/login', { barcode, pin, remember_me: rememberPatron })
       localStorage.setItem('token', data.access_token)
       window.location.href = '/'
     } catch (err) {
@@ -1035,31 +1156,204 @@ export default function Login() {
                       ))}
                       <div className="flex items-center gap-2 my-3">
                         <div className="flex-1 h-px bg-slate-800" />
-                        <span className="text-slate-600 text-xs">or with email</span>
+                        <span className="text-slate-600 text-xs">or local sign-in</span>
                         <div className="flex-1 h-px bg-slate-800" />
                       </div>
                     </div>
                   )}
 
-                  {/* Email/password form */}
-                  <form onSubmit={submitStaff} className="space-y-3">
-                    <div>
-                      <label className="text-slate-400 text-xs mb-1 block">Email</label>
-                      <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                        required className={inp} placeholder="you@example.com" autoFocus />
+                  {/* Passwordless enforcement notice */}
+                  {passwordless.enabled && passwordless.enforce_passwordless_local && (
+                    <div className="mb-3 px-3 py-2 bg-shield-950/40 border border-shield-800/80 rounded-lg text-shield-300 text-xs flex items-center gap-2">
+                      <Fingerprint size={15} className="text-shield-400 shrink-0" />
+                      <span>Passwordless authentication required for local accounts.</span>
                     </div>
-                    <div>
-                      <label className="text-slate-400 text-xs mb-1 block">Password</label>
-                      <input type="password" value={password} onChange={e => setPw(e.target.value)}
-                        required className={inp} />
+                  )}
+
+                  {/* 1. Magic Link 6-digit Code Entry */}
+                  {staffAuthMode === 'magic_link_verify' ? (
+                    <form onSubmit={handleVerifyMagicLink} className="space-y-3">
+                      <div className="text-center space-y-1 mb-2">
+                        <p className="text-slate-300 text-xs font-medium">Verification Code Sent</p>
+                        <p className="text-slate-500 text-[11px]">{magicLinkMessage}</p>
+                      </div>
+                      <div>
+                        <label className="text-slate-400 text-xs mb-1 block">6-digit sign-in code</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={6}
+                          placeholder="000000"
+                          value={magicLinkCode}
+                          onChange={e => setMagicLinkCode(e.target.value)}
+                          className={`${inp} text-center font-mono tracking-widest text-lg`}
+                          autoComplete="one-time-code"
+                          autoFocus
+                          required
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={loading || magicLinkCode.trim().length !== 6}
+                        className="w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                        {loading ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
+                        Verify & Sign In
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setError(''); setStaffAuthMode(passwordless.enforce_passwordless_local ? 'passkey' : 'password') }}
+                        className="w-full py-1 text-xs text-slate-500 hover:text-slate-400 flex items-center justify-center gap-1 transition-colors">
+                        <ArrowLeft size={12} /> Back
+                      </button>
+                    </form>
+                  ) : staffAuthMode === 'magic_link_request' ? (
+                    /* 2. Magic Link Request Form */
+                    <form onSubmit={handleRequestMagicLink} className="space-y-3">
+                      <div>
+                        <label className="text-slate-400 text-xs mb-1 block">Account Email</label>
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={e => setEmail(e.target.value)}
+                          required
+                          className={inp}
+                          placeholder="you@example.com"
+                          autoFocus
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={loading || !email.trim()}
+                        className="w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                        {loading ? <RefreshCw size={14} className="animate-spin" /> : <Mail size={14} />}
+                        Send Sign-In Code
+                      </button>
+                      <div className="flex items-center justify-between pt-1 text-xs">
+                        {passwordless.allow_passkey && (
+                          <button
+                            type="button"
+                            onClick={() => { setError(''); setStaffAuthMode('passkey') }}
+                            className="text-shield-400 hover:text-shield-300">
+                            Sign in with Passkey instead
+                          </button>
+                        )}
+                        {!passwordless.enforce_passwordless_local && (
+                          <button
+                            type="button"
+                            onClick={() => { setError(''); setStaffAuthMode('password') }}
+                            className="text-slate-500 hover:text-slate-400">
+                            Use password
+                          </button>
+                        )}
+                      </div>
+                    </form>
+                  ) : passwordless.enabled && passwordless.enforce_passwordless_local ? (
+                    /* 3. Enforced Passwordless (Passkey is primary) */
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-slate-400 text-xs mb-1 block">Account Email</label>
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={e => setEmail(e.target.value)}
+                          className={inp}
+                          placeholder="you@example.com (or leave empty for resident Passkey)"
+                          autoComplete="username webauthn"
+                          autoFocus
+                        />
+                      </div>
+                      {sessionPolicy?.remember_me_enabled !== false && (
+                        <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-300 pt-1">
+                          <input
+                            type="checkbox"
+                            checked={rememberStaff}
+                            onChange={e => setRememberStaff(e.target.checked)}
+                            className="rounded border-slate-700 bg-slate-900 text-shield-600 focus:ring-shield-500"
+                          />
+                          <span>Remember my email on this device</span>
+                        </label>
+                      )}
+                      {passwordless.allow_passkey && (
+                        <button
+                          type="button"
+                          onClick={handlePasswordlessPasskey}
+                          disabled={loading}
+                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                          {loading ? <RefreshCw size={14} className="animate-spin" /> : <Fingerprint size={16} />}
+                          Sign In with Passkey / Security Key
+                        </button>
+                      )}
+                      {passwordless.allow_magic_link && (
+                        <button
+                          type="button"
+                          onClick={() => { setError(''); setStaffAuthMode('magic_link_request') }}
+                          className="w-full py-2 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-300 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-2">
+                          <Mail size={14} /> Send sign-in code to email instead
+                        </button>
+                      )}
                     </div>
-                    <button type="submit" disabled={loading}
-                      className="w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
-                      {loading ? 'Signing in…' : `Sign in`}
-                    </button>
-                  </form>
+                  ) : (
+                    /* 4. Password Form with Optional Passwordless Options */
+                    <>
+                      <form onSubmit={submitStaff} className="space-y-3">
+                        <div>
+                          <label className="text-slate-400 text-xs mb-1 block">Email</label>
+                          <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                            required className={inp} placeholder="you@example.com" autoFocus />
+                        </div>
+                        <div>
+                          <label className="text-slate-400 text-xs mb-1 block">Password</label>
+                          <input type="password" value={password} onChange={e => setPw(e.target.value)}
+                            required className={inp} />
+                        </div>
+                        {sessionPolicy?.remember_me_enabled !== false && (
+                          <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-300 pt-1">
+                            <input
+                              type="checkbox"
+                              checked={rememberStaff}
+                              onChange={e => setRememberStaff(e.target.checked)}
+                              className="rounded border-slate-700 bg-slate-900 text-shield-600 focus:ring-shield-500"
+                            />
+                            <span>Remember my email on this device</span>
+                          </label>
+                        )}
+                        <button type="submit" disabled={loading}
+                          className="w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
+                          {loading ? 'Signing in…' : `Sign in`}
+                        </button>
+                      </form>
+
+                      {passwordless.enabled && (passwordless.allow_passkey || passwordless.allow_magic_link) && (
+                        <div className="mt-4 pt-3 border-t border-slate-800 space-y-2">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-slate-500 text-[11px] font-medium uppercase tracking-wider">Passwordless options</span>
+                          </div>
+                          {passwordless.allow_passkey && (
+                            <button
+                              type="button"
+                              onClick={handlePasswordlessPasskey}
+                              disabled={loading}
+                              className="w-full py-2 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-2">
+                              {loading ? <RefreshCw size={13} className="animate-spin" /> : <Fingerprint size={14} className="text-emerald-400" />}
+                              Sign in with Passkey / Security Key
+                            </button>
+                          )}
+                          {passwordless.allow_magic_link && (
+                            <button
+                              type="button"
+                              onClick={() => { setError(''); setStaffAuthMode('magic_link_request') }}
+                              className="w-full py-1.5 text-xs text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1.5 transition-colors">
+                              <Mail size={13} /> Email me a one-time sign-in code
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </>
               )}
+
 
               {/* ── Patron tab ── */}
               {tab === 'patron' && (
@@ -1076,6 +1370,17 @@ export default function Login() {
                       required className={inp} placeholder="Library PIN"
                       inputMode="numeric" />
                   </div>
+                  {sessionPolicy?.remember_me_enabled !== false && (
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-300 pt-1">
+                      <input
+                        type="checkbox"
+                        checked={rememberPatron}
+                        onChange={e => setRememberPatron(e.target.checked)}
+                        className="rounded border-slate-700 bg-slate-900 text-shield-600 focus:ring-shield-500"
+                      />
+                      <span>Keep me signed in on this device</span>
+                    </label>
+                  )}
                   <button type="submit" disabled={loading || !sip2Enabled}
                     className="w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
                     {loading ? 'Signing in…' : 'Sign in with library card'}

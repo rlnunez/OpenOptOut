@@ -91,14 +91,16 @@ Patrons see the same message whether the card number or the PIN was wrong, so th
 
 Consortia supporting multiple library systems can configure multiple SIP2 connections under Consortium settings. Incoming patron cards are routed to their designated ILS server by barcode prefix matching (or evaluated against the default catch-all connection if no prefix matches). Each SIP2 connection maintains its own TLS certificate, patron privilege and restriction policies, fee thresholds, and date formats.
 
-### Optional Field Mapping & Identity Vault Provisioning
+### Optional Field Mapping, Forced Fields, and Patron-Driven Consent
 
 By default, OpenOptOut adheres to strict data minimization: newly authenticated SIP2 patrons receive a synthetic, privacy-preserving email address (`<barcode>@<library-domain>`) and zero demographic data is retrieved or stored.
 
-If a library prefers to import patron profile details from the ILS, each SIP2 connection can enable:
+If a library prefers to import patron profile details from the ILS, each SIP2 connection provides flexible control over which fields are mandatory versus patron-driven:
 
 - **Map Patron Fields (`map_patron_fields`)**: When enabled, the SIP2 patron status check parses demographic fields returned by the ILS (such as `AE` patron name, `BE` email address, `BF` phone number, and `BD` home address). Administrators can customize field keys via a JSON mapping dictionary (e.g., `{"name": "AE", "email": "BE", "phone": "BF", "address": "BD"}`).
-- **Populate Identity Vault (`populate_vault`)**: When enabled alongside field mapping, OpenOptOut automatically provisions the patron's encrypted Identity Vault on initial sign-up, securely storing their name, email, phone, and address into an `Identity` record and calculating age groups into `FamilyMember` records. Both settings default to disabled to protect patron privacy.
+- **Forced Fields (`forced_fields`)**: A list of fields that the library designates as mandatory (default: `["library"]`). Forced fields are auto-imported and applied immediately upon sign-in (for example, assigning the patron's home branch location).
+- **Patron Choice & Consent (`patron_choice`)**: When enabled (default: `true`), all non-forced fields are held for patron confirmation. After logging in, patrons are presented with a clear choice on their onboarding tour and Identity Vault: **"Import my information"** or **"Let me enter it"**. If they choose to import, the fields are prefilled into their profile and Identity Vault; if they choose to enter it manually, the fields remain completely blank.
+- **Populate Identity Vault (`populate_vault`)**: If patron choice is turned off, this setting determines whether all mapped fields are automatically imported into the patron's encrypted vault without prompting.
 
 ## Certificate reminders
 

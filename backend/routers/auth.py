@@ -19,6 +19,7 @@ from ..core.auth import (
     hash_password, verify_password, is_legacy_unpeppered_hash, create_access_token,
     get_current_user, get_current_user_optional, require_super_admin, validate_password_length
 )
+from ..core.session_policy import create_user_token
 from ..core.access import require_permission
 from ..core import login_throttle, rate_limit
 from ..core.auth_providers import (
@@ -100,11 +101,34 @@ class UserOut(BaseModel):
 class SIP2LoginRequest(BaseModel):
     barcode: str
     pin: str
+    remember_me: Optional[bool] = False
 
 
 class LDAPLoginRequest(BaseModel):
     username: str
     password: str
+    remember_me: Optional[bool] = False
+
+
+class PasswordlessOptionsIn(BaseModel):
+    email: Optional[str] = None
+    remember_me: Optional[bool] = False
+
+
+class PasswordlessVerifyIn(BaseModel):
+    ticket: str
+    credential: Dict[str, Any]
+    remember_me: Optional[bool] = False
+
+
+class MagicLinkRequestIn(BaseModel):
+    email: EmailStr
+
+
+class MagicLinkVerifyIn(BaseModel):
+    token: str
+    code: str
+    remember_me: Optional[bool] = False
 
 
 # ── Registration helpers ──────────────────────────────────────────────────────
@@ -198,7 +222,12 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/token", dependencies=[Depends(rate_limit.limit("signin", 60))])
-def login(form: OAuth2PasswordRequestForm = Depends(), request: Request = None, db: Session = Depends(get_db)):
+def login(
+    form: OAuth2PasswordRequestForm = Depends(),
+    remember_me: bool = Query(False),
+    request: Request = None,
+    db: Session = Depends(get_db),
+):
     throttle_key = login_throttle.account_key("password", form.username)
     ip_key = login_throttle.ip_key(request)
     login_throttle.check(throttle_key, ip_key)
@@ -221,6 +250,14 @@ def login(form: OAuth2PasswordRequestForm = Depends(), request: Request = None, 
             pass
 
     from ..core import mfa
+    pwdless_cfg = mfa.get_passwordless_config()
+    if pwdless_cfg.get("enabled") and pwdless_cfg.get("enforce_passwordless_local"):
+        if not user.auth_source or user.auth_source == "local":
+            raise HTTPException(
+                status_code=403,
+                detail="Password authentication is disabled for local accounts by security policy. Please sign in using a passkey or one-time email code.",
+            )
+
     allowed_methods = mfa.get_user_allowed_mfa_methods(user)
     webauthn_keys = []
     if user.webauthn_credentials:
@@ -234,7 +271,7 @@ def login(form: OAuth2PasswordRequestForm = Depends(), request: Request = None, 
     has_backup = bool(user.backup_codes and len(json.loads(user.backup_codes or "[]")) > 0 and allowed_methods.get("backup_codes", True))
 
     if has_totp or has_webauthn or has_backup:
-        ticket = mfa.create_mfa_ticket(user.id, user.email)
+        ticket = mfa.create_mfa_ticket(user.id, user.email, remember_me=remember_me)
         rp_id = request.url.hostname if (request and request.url) else None
         webauthn_opts = mfa.create_webauthn_authentication_options(webauthn_keys, rp_id=rp_id) if (has_webauthn and webauthn_keys) else None
         if webauthn_opts:
@@ -256,7 +293,7 @@ def login(form: OAuth2PasswordRequestForm = Depends(), request: Request = None, 
 
     mandated, days_left = mfa.is_mfa_mandated(user, db)
     if mandated:
-        ticket = mfa.create_mfa_ticket(user.id, user.email)
+        ticket = mfa.create_mfa_ticket(user.id, user.email, remember_me=remember_me)
         role_val = getattr(getattr(user, "role", None), "value", str(getattr(user, "role", "")))
         compliance_rules = mfa.get_mfa_role_compliance()
         role_comp = compliance_rules.get(role_val, mfa.DEFAULT_MFA_COMPLIANCE.get(role_val, {}))
@@ -270,7 +307,7 @@ def login(form: OAuth2PasswordRequestForm = Depends(), request: Request = None, 
             "detail": f"Multi-Factor Authentication (MFA) is mandated for {role_title} accounts {timer_val} {timer_unit} after account creation. Please configure an authenticator app (TOTP) or security key (YubiKey / Touch ID) to continue.",
         }
 
-    return {"access_token": create_access_token({"sub": user.email}), "token_type": "bearer"}
+    return {"access_token": create_user_token(user, remember_me=remember_me), "token_type": "bearer"}
 
 
 @router.get("/me", response_model=UserOut)
@@ -327,7 +364,7 @@ def ldap_login(req: LDAPLoginRequest, db: Session = Depends(get_db), request: Re
         raise HTTPException(401, result.error or "LDAP authentication failed")
     login_throttle.success(throttle_key)
 
-    return _resolve_external_user(result, db)
+    return _resolve_external_user(result, db, remember_me=bool(req.remember_me))
 
 
 # ── SIP2 login ────────────────────────────────────────────────────────────────
@@ -349,7 +386,7 @@ def sip2_login(req: SIP2LoginRequest, db: Session = Depends(get_db), request: Re
         raise HTTPException(401, result.error or "Library card authentication failed")
     login_throttle.success(throttle_key)
 
-    return _resolve_external_user(result, db)
+    return _resolve_external_user(result, db, remember_me=bool(req.remember_me))
 
 
 # ── OIDC (Google, Microsoft, Generic) ────────────────────────────────────────
@@ -399,7 +436,7 @@ def _auth_source_for(provider: str) -> str:
     return provider if provider in ("ldap", "sip2", "saml") else f"oidc:{provider}"
 
 
-def _resolve_external_user(result, db: Session) -> dict:
+def _resolve_external_user(result, db: Session, remember_me: bool = False) -> dict:
     """
     Find or create a local user for an externally-authenticated identity
     (OIDC, LDAP, SIP2, SAML). Every external login is checked against the ONE
@@ -436,7 +473,7 @@ def _resolve_external_user(result, db: Session) -> dict:
             existing.branch_id = result.branch_id
             existing.branch_source = "sip2"
         db.commit()
-        token = create_access_token({"sub": existing.email})
+        token = create_user_token(existing, remember_me=remember_me)
         return {"access_token": token, "token_type": "bearer"}
 
     if decision.downgraded:
@@ -451,21 +488,27 @@ def _resolve_external_user(result, db: Session) -> dict:
         user.branch_source = "sip2"
 
     demos = getattr(result, "mapped_demographics", {})
-    if demos and getattr(result, "populate_vault", False):
+    forced = [f.lower().strip() for f in getattr(result, "forced_fields", ["library"])]
+    patron_choice = getattr(result, "patron_choice", True)
+    populate_vault = getattr(result, "populate_vault", False)
+
+    if demos:
         try:
             from ..models.database import Identity, FamilyMember
             member = db.query(FamilyMember).filter(FamilyMember.user_id == user.id).first()
             if member:
-                if demos.get("name"):
+                # 1. Force-import fields designated by library policy
+                if "name" in forced and demos.get("name"):
                     db.add(Identity(member_id=member.id, kind="name", value=demos["name"], is_primary=True))
                     member.formal_name = demos["name"]
-                if demos.get("email"):
+                    user.full_name = demos["name"]
+                if "email" in forced and demos.get("email"):
                     db.add(Identity(member_id=member.id, kind="email", value=demos["email"], is_primary=True))
-                if demos.get("phone"):
+                if "phone" in forced and demos.get("phone"):
                     db.add(Identity(member_id=member.id, kind="phone", value=demos["phone"], is_primary=True))
-                if demos.get("address"):
+                if "address" in forced and demos.get("address"):
                     db.add(Identity(member_id=member.id, kind="address", value=demos["address"], is_primary=True))
-                if demos.get("birthdate"):
+                if "birthdate" in forced and demos.get("birthdate"):
                     try:
                         from ..core.sip2_rules import dob_to_age
                         age = dob_to_age(demos["birthdate"])
@@ -473,11 +516,53 @@ def _resolve_external_user(result, db: Session) -> dict:
                             member.age = age
                     except Exception:
                         pass
+
+                # 2. Patron-driven fields (not in forced list)
+                patron_fields = {k: v for k, v in demos.items() if k not in forced and k not in ("library", "branch") and v}
+                if patron_fields:
+                    if patron_choice:
+                        # Parse address components so frontend inputs can prefill cleanly
+                        raw_addr = patron_fields.get("address", "")
+                        addr_parts = [p.strip() for p in raw_addr.split(",") if p.strip()] if raw_addr else []
+                        street_addr = addr_parts[0] if addr_parts else raw_addr
+                        city = addr_parts[1] if len(addr_parts) >= 2 else ""
+                        state = addr_parts[2].split()[0] if len(addr_parts) >= 3 else ""
+
+                        staged = {
+                            "name": patron_fields.get("name", ""),
+                            "email": patron_fields.get("email", ""),
+                            "phone": patron_fields.get("phone", ""),
+                            "raw_address": raw_addr,
+                            "address": street_addr,
+                            "city": city,
+                            "state": state,
+                            "birthdate": patron_fields.get("birthdate", ""),
+                        }
+                        user.pending_ils_import = json.dumps(staged)
+                    elif populate_vault:
+                        # Automatic import without patron choice
+                        if patron_fields.get("name"):
+                            db.add(Identity(member_id=member.id, kind="name", value=patron_fields["name"], is_primary=True))
+                            member.formal_name = patron_fields["name"]
+                        if patron_fields.get("email"):
+                            db.add(Identity(member_id=member.id, kind="email", value=patron_fields["email"], is_primary=True))
+                        if patron_fields.get("phone"):
+                            db.add(Identity(member_id=member.id, kind="phone", value=patron_fields["phone"], is_primary=True))
+                        if patron_fields.get("address"):
+                            db.add(Identity(member_id=member.id, kind="address", value=patron_fields["address"], is_primary=True))
+                        if patron_fields.get("birthdate"):
+                            try:
+                                from ..core.sip2_rules import dob_to_age
+                                age = dob_to_age(patron_fields["birthdate"])
+                                if age is not None:
+                                    member.age = age
+                            except Exception:
+                                pass
         except Exception as e:
-            _log.warning("Could not pre-populate Identity Vault for new user: %s", e)
+            _log.warning("Could not process patron demographics for user: %s", e)
 
     db.commit()
-    token = create_access_token({"sub": user.email})
+    token = create_user_token(user, remember_me=remember_me)
     return {"access_token": token, "token_type": "bearer"}
 
 
@@ -647,7 +732,8 @@ def verify_totp_login(data: VerifyTotpIn, db: Session = Depends(get_db), request
         login_throttle.failure(throttle_key, ip_key)
         raise HTTPException(401, "Invalid authentication code. Please check your authenticator app.")
     login_throttle.success(throttle_key)
-    return {"access_token": create_access_token({"sub": user.email}), "token_type": "bearer"}
+    remember_me = bool(tdata.get("remember_me", False))
+    return {"access_token": create_user_token(user, remember_me=remember_me), "token_type": "bearer"}
 
 
 @router.post("/mfa/verify-backup", dependencies=[Depends(rate_limit.limit("mfa", 30))])
@@ -676,8 +762,9 @@ def verify_backup_code_login(data: VerifyBackupIn, db: Session = Depends(get_db)
     login_throttle.success(throttle_key)
     user.backup_codes = json.dumps(remaining)
     db.commit()
+    remember_me = bool(tdata.get("remember_me", False))
     return {
-        "access_token": create_access_token({"sub": user.email}),
+        "access_token": create_user_token(user, remember_me=remember_me),
         "token_type": "bearer",
         "remaining_backup_codes": len(remaining),
     }
@@ -731,7 +818,8 @@ def verify_webauthn_login(data: VerifyWebAuthnIn, db: Session = Depends(get_db))
     challenge = tdata.get("challenge", "")
     if not mfa.verify_webauthn_assertion(data.credential, challenge, matching_key):
         raise HTTPException(401, "Security key verification failed.")
-    return {"access_token": create_access_token({"sub": user.email}), "token_type": "bearer"}
+    remember_me = bool(tdata.get("remember_me", False))
+    return {"access_token": create_user_token(user, remember_me=remember_me), "token_type": "bearer"}
 
 
 @router.get("/mfa/status")
@@ -941,7 +1029,7 @@ def register_webauthn_key(
         "registered": True,
         "key": parsed,
         "backup_codes": plain_backup_codes,
-        "access_token": create_access_token({"sub": user.email}),
+        "access_token": create_user_token(user),
         "token_type": "bearer",
     }
 
@@ -964,3 +1052,191 @@ def delete_webauthn_key(
     current_user.webauthn_credentials = json.dumps(filtered)
     db.commit()
     return {"deleted": True, "remaining": len(filtered)}
+
+
+# ── Passwordless authentication endpoints (Local Accounts Only) ───────────────
+
+@router.post("/passwordless/options", dependencies=[Depends(rate_limit.limit("signin", 60))])
+def get_passwordless_options(req: PasswordlessOptionsIn, request: Request, db: Session = Depends(get_db)):
+    """Generate WebAuthn / Passkey assertion challenge for passwordless sign-in."""
+    from ..core import mfa
+    cfg = mfa.get_passwordless_config()
+    if not cfg.get("enabled"):
+        raise HTTPException(400, "Passwordless authentication is not enabled.")
+    if not cfg.get("allow_passkey", True):
+        raise HTTPException(400, "Passkey authentication is disabled by security policy.")
+
+    keys = []
+    user_id = None
+    if req.email:
+        user = db.query(User).filter(User.email == req.email.strip().lower()).first()
+        if user and user.webauthn_credentials:
+            try:
+                keys = json.loads(user.webauthn_credentials)
+                user_id = user.id
+            except Exception:
+                keys = []
+
+    rp_id = request.url.hostname if request else None
+    opts = mfa.create_webauthn_authentication_options(keys, rp_id=rp_id)
+    payload = {
+        "uid": user_id,
+        "email": req.email.strip().lower() if req.email else None,
+        "challenge": opts["challenge"],
+        "exp": int(time.time()) + 300,
+        "type": "pwdless_passkey",
+    }
+    from ..core.settings_store import encrypt_password
+    ticket = encrypt_password(json.dumps(payload))
+    return {"ticket": ticket, "options": opts}
+
+
+@router.post("/passwordless/verify", dependencies=[Depends(rate_limit.limit("signin", 60))])
+def verify_passwordless_passkey(data: PasswordlessVerifyIn, request: Request = None, db: Session = Depends(get_db)):
+    """Verify WebAuthn / Passkey response and authenticate local account."""
+    from ..core import mfa
+    from ..core.settings_store import decrypt_password
+    cfg = mfa.get_passwordless_config()
+    if not cfg.get("enabled") or not cfg.get("allow_passkey", True):
+        raise HTTPException(400, "Passkey authentication is disabled.")
+
+    raw = decrypt_password(data.ticket)
+    if not raw:
+        raise HTTPException(400, "Authentication session expired or invalid. Please try again.")
+    try:
+        tdata = json.loads(raw)
+    except Exception:
+        raise HTTPException(400, "Invalid authentication ticket.")
+    if tdata.get("type") != "pwdless_passkey" or tdata.get("exp", 0) < time.time():
+        raise HTTPException(400, "Authentication session expired or invalid. Please try again.")
+
+    cred = data.credential
+    cred_id = cred.get("id")
+    if not cred_id:
+        raise HTTPException(400, "Invalid credential data.")
+
+    user = None
+    matching_key = None
+
+    if tdata.get("uid"):
+        user = db.query(User).filter(User.id == tdata["uid"]).first()
+        if user and user.webauthn_credentials:
+            try:
+                keys = json.loads(user.webauthn_credentials)
+                matching_key = next((k for k in keys if k.get("id") == cred_id), None)
+            except Exception:
+                pass
+
+    if not matching_key:
+        all_users = db.query(User).filter(User.webauthn_credentials.isnot(None)).all()
+        for u in all_users:
+            try:
+                keys = json.loads(u.webauthn_credentials or "[]")
+                k = next((k for k in keys if k.get("id") == cred_id), None)
+                if k:
+                    user = u
+                    matching_key = k
+                    break
+            except Exception:
+                continue
+
+    if not user or not matching_key:
+        raise HTTPException(401, "Passkey or security key is not registered on any active account.")
+
+    challenge = tdata.get("challenge", "")
+    if not mfa.verify_webauthn_assertion(cred, challenge, matching_key):
+        raise HTTPException(401, "Passkey authentication verification failed.")
+
+    token = create_user_token(user, remember_me=bool(data.remember_me))
+    return {"access_token": token, "token_type": "bearer"}
+
+
+@router.post("/passwordless/magic-link/request", dependencies=[Depends(rate_limit.limit("signin", 30))])
+def request_magic_link(req: MagicLinkRequestIn, request: Request = None, db: Session = Depends(get_db)):
+    """Issue a 6-digit verification code sent via institutional email."""
+    from ..core import mfa
+    from ..core.settings_store import encrypt_password
+    cfg = mfa.get_passwordless_config()
+    if not cfg.get("enabled"):
+        raise HTTPException(400, "Passwordless authentication is not enabled.")
+    if not cfg.get("allow_magic_link", True):
+        raise HTTPException(400, "Email code sign-in is disabled by security policy.")
+
+    email_clean = req.email.strip().lower()
+    user = db.query(User).filter(User.email == email_clean).first()
+
+    code = f"{secrets.randbelow(900000) + 100000}"
+    code_hash = hashlib.sha256(code.encode()).hexdigest()
+    payload = {
+        "email": email_clean,
+        "code_hash": code_hash,
+        "uid": user.id if user else None,
+        "exp": int(time.time()) + 600,
+        "type": "magic_code",
+    }
+    token = encrypt_password(json.dumps(payload))
+
+    fallback_code = None
+    if user:
+        s = load_settings()
+        email_cfg = s.get("email", {})
+        has_smtp = bool(email_cfg.get("smtp_host") and email_cfg.get("smtp_user"))
+        if has_smtp:
+            try:
+                from ..core.email_sender import send_email_message
+                send_email_message(
+                    to_email=user.email,
+                    subject="Your OpenOptOut Sign-In Code",
+                    body_text=f"Your one-time sign-in code is: {code}\n\nThis code will expire in 10 minutes.",
+                )
+            except Exception as e:
+                logger.warning("Failed to send passwordless sign-in email: %s", e)
+                fallback_code = code
+        else:
+            fallback_code = code
+    else:
+        pass
+
+    return {
+        "token": token,
+        "message": "A 6-digit sign-in code has been sent to your email address.",
+        "fallback_code": fallback_code,
+    }
+
+
+@router.post("/passwordless/magic-link/verify", dependencies=[Depends(rate_limit.limit("signin", 30))])
+def verify_magic_link(data: MagicLinkVerifyIn, request: Request = None, db: Session = Depends(get_db)):
+    """Verify 6-digit email sign-in code and issue session token."""
+    from ..core import mfa
+    from ..core.settings_store import decrypt_password
+    cfg = mfa.get_passwordless_config()
+    if not cfg.get("enabled") or not cfg.get("allow_magic_link", True):
+        raise HTTPException(400, "Email sign-in code authentication is disabled.")
+
+    raw = decrypt_password(data.token)
+    if not raw:
+        raise HTTPException(400, "Sign-in code expired or invalid. Please request a new code.")
+    try:
+        tdata = json.loads(raw)
+    except Exception:
+        raise HTTPException(400, "Invalid verification token.")
+
+    if tdata.get("type") != "magic_code" or tdata.get("exp", 0) < time.time():
+        raise HTTPException(400, "Sign-in code expired or invalid. Please request a new code.")
+
+    expected_hash = tdata.get("code_hash", "")
+    actual_hash = hashlib.sha256(data.code.strip().encode()).hexdigest()
+    if not hmac.compare_digest(actual_hash, expected_hash):
+        raise HTTPException(401, "Invalid sign-in code. Please check your email and try again.")
+
+    user = None
+    if tdata.get("uid"):
+        user = db.query(User).filter(User.id == tdata["uid"]).first()
+    elif tdata.get("email"):
+        user = db.query(User).filter(User.email == tdata["email"]).first()
+
+    if not user:
+        raise HTTPException(401, "Account not found.")
+
+    token = create_user_token(user, remember_me=bool(data.remember_me))
+    return {"access_token": token, "token_type": "bearer"}

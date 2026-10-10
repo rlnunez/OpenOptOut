@@ -175,6 +175,26 @@ def get_webauthn_config() -> dict:
     }
 
 
+DEFAULT_PASSWORDLESS_CONFIG = {
+    "enabled": False,
+    "allow_passkey": True,
+    "allow_magic_link": True,
+    "enforce_passwordless_local": False,
+}
+
+
+def get_passwordless_config() -> dict:
+    """Read institutional passwordless authentication configuration for local accounts."""
+    s = load_settings()
+    sec = s.get("security", {}).get("passwordless", {})
+    return {
+        "enabled": bool(sec.get("enabled", DEFAULT_PASSWORDLESS_CONFIG["enabled"])),
+        "allow_passkey": bool(sec.get("allow_passkey", DEFAULT_PASSWORDLESS_CONFIG["allow_passkey"])),
+        "allow_magic_link": bool(sec.get("allow_magic_link", DEFAULT_PASSWORDLESS_CONFIG["allow_magic_link"])),
+        "enforce_passwordless_local": bool(sec.get("enforce_passwordless_local", DEFAULT_PASSWORDLESS_CONFIG["enforce_passwordless_local"])),
+    }
+
+
 def generate_webauthn_challenge() -> str:
     """Generate 32-byte URL-safe base64 challenge string."""
     return secrets.token_urlsafe(32)
@@ -564,13 +584,14 @@ def user_has_mfa(user: Any) -> bool:
 
 # ── 5. Ephemeral Login MFA Tickets ────────────────────────────────────────────
 
-def create_mfa_ticket(user_id: int, email: str) -> str:
+def create_mfa_ticket(user_id: int, email: str, remember_me: bool = False) -> str:
     """Create a short-lived (5 minute) ticket for completing MFA challenge."""
     payload = {
         "uid": user_id,
         "sub": email,
         "exp": int(time.time()) + 300,
         "type": "mfa_challenge",
+        "remember_me": bool(remember_me),
     }
     raw = json.dumps(payload)
     try:

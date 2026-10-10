@@ -19,9 +19,9 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const login = async (email, password) => {
+  const login = async (email, password, rememberMe = false) => {
     const form = new URLSearchParams({ username: email, password })
-    const { data } = await api.post('/auth/token', form)
+    const { data } = await api.post(`/auth/token?remember_me=${rememberMe ? 'true' : 'false'}`, form)
     if (data.mfa_required || data.mfa_mandated) {
       return data
     }

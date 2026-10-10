@@ -557,6 +557,101 @@ def update_webauthn_settings(data: WebAuthnSettings, _: User = Depends(require_s
     return {"saved": True, "config": sec["webauthn"]}
 
 
+# ── Passwordless Authentication Policy (Local Accounts Only) ─────────────────
+
+class PasswordlessSettings(BaseModel):
+    enabled: Optional[bool] = False
+    allow_passkey: Optional[bool] = True
+    allow_magic_link: Optional[bool] = True
+    enforce_passwordless_local: Optional[bool] = False
+
+
+@router.get("/security/passwordless")
+def get_passwordless_settings(_: User = Depends(require_super_admin)):
+    """Return institutional passwordless authentication settings and scope descriptions."""
+    from ..core.mfa import get_passwordless_config
+    cfg = get_passwordless_config()
+    return {
+        "config": cfg,
+        "descriptions": {
+            "enabled": "Enables passwordless authentication for local user and staff accounts.",
+            "allow_passkey": "Permits authentication with FIDO2 / WebAuthn passkeys (Touch ID, Face ID, Windows Hello, YubiKey).",
+            "allow_magic_link": "Permits passwordless sign-in via single-use email verification codes and magic links.",
+            "enforce_passwordless_local": "Disables password authentication for local accounts, enforcing passkeys or email codes.",
+            "scope_notice": "Passwordless settings strictly govern local accounts. Accounts managed through third-party systems (LDAP, SIP2, SAML, Google/Microsoft OIDC) continue to rely on their external identity providers as their source of truth.",
+        },
+    }
+
+
+@router.patch("/security/passwordless")
+def update_passwordless_settings(data: PasswordlessSettings, _: User = Depends(require_super_admin)):
+    """Update institutional passwordless authentication settings for local accounts."""
+    s = load_settings()
+    sec = s.setdefault("security", {})
+    pwdless = sec.setdefault("passwordless", {})
+    if data.enabled is not None:
+        pwdless["enabled"] = bool(data.enabled)
+    if data.allow_passkey is not None:
+        pwdless["allow_passkey"] = bool(data.allow_passkey)
+    if data.allow_magic_link is not None:
+        pwdless["allow_magic_link"] = bool(data.allow_magic_link)
+    if data.enforce_passwordless_local is not None:
+        pwdless["enforce_passwordless_local"] = bool(data.enforce_passwordless_local)
+    _save(s)
+    from ..core.mfa import get_passwordless_config
+    return {"saved": True, "config": get_passwordless_config()}
+
+
+# ── Role-Based Session Duration & Remember Me Policy ──────────────────────────
+
+class RoleSessionConfig(BaseModel):
+    session_duration_hours: int = 8
+    remember_me_allowed: bool = True
+    remember_me_mode: str = "username_only"  # "username_only" | "extend_session"
+    remember_me_duration_days: int = 1
+
+class SessionPolicySettings(BaseModel):
+    remember_me_enabled: bool = True
+    roles: Dict[str, RoleSessionConfig]
+
+
+@router.get("/security/session-policy")
+def get_session_policy_settings(_: User = Depends(require_super_admin)):
+    """Return institutional session duration and remember-me policies by role."""
+    from ..core.session_policy import get_session_policy, DEFAULT_SESSION_POLICY
+    return {
+        "policy": get_session_policy(),
+        "defaults": DEFAULT_SESSION_POLICY,
+        "descriptions": {
+            "remember_me_enabled": "Global switch to allow or completely disable the Remember Me feature across the system.",
+            "roles": {
+                "super_admin": "Full system administrator account with total system authority.",
+                "manager": "Staff manager account with delegated operational controls.",
+                "parent": "Account owner managing household profiles.",
+                "member": "Standard patron/household member.",
+            },
+            "modes": {
+                "username_only": "Saves username/email on device for quick prefill; session duration remains short (recommended for staff/admins).",
+                "extend_session": "Maintains an active long-lived signed session on the device for the configured number of days.",
+            },
+        },
+    }
+
+
+@router.patch("/security/session-policy")
+def update_session_policy_settings(data: SessionPolicySettings, _: User = Depends(require_super_admin)):
+    """Update institutional session duration and remember-me policy per role."""
+    s = load_settings()
+    sec = s.setdefault("security", {})
+    sec["session_policy"] = {
+        "remember_me_enabled": bool(data.remember_me_enabled),
+        "roles": {k: v.model_dump() for k, v in data.roles.items()},
+    }
+    _save(s)
+    from ..core.session_policy import get_session_policy
+    return {"saved": True, "policy": get_session_policy()}
+
+
 # ── Role-Based MFA Policy & Compliance Settings ───────────────────────────────
 
 class MfaRolePermissions(BaseModel):

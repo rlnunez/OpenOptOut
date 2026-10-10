@@ -130,6 +130,16 @@ class AuthProviderConfig(BaseModel):
     sip2_timeout:       int   = 10
     sip2_eligibility_rules: Optional[Any] = None
     sip2_date_format:   str   = "auto"
+    sip2_map_patron_fields: bool = False
+    sip2_field_mappings: Optional[Any] = None
+    sip2_forced_fields: Optional[Any] = ["library"]
+    sip2_patron_choice: bool = True
+
+    # Passwordless policy for local accounts
+    passwordless:       Optional[dict] = None
+
+    # Role-based session duration and remember-me policy
+    session_policy:     Optional[dict] = None
 
     # OIDC providers (google, microsoft, custom + any named)
     oidc_providers:     List[dict] = []
@@ -356,13 +366,20 @@ def get_auth_providers(user: Optional[User] = Depends(get_current_user_optional)
             })
         oidc_providers.append(entry)
 
+    from ..core.mfa import get_passwordless_config
+    from ..core.session_policy import get_session_policy
+    p_cfg = get_passwordless_config()
+    sess_cfg = get_session_policy()
+
     if not is_admin:
         # Public view: only what the login page needs to render its buttons.
         return AuthProviderConfig(
             ldap_enabled=ldap.get("enabled", False),
-        saml_enabled=bool(ap.get("saml", {}).get("enabled", False)),
-        saml_label=ap.get("saml", {}).get("label") or "Single sign-on",
+            saml_enabled=bool(ap.get("saml", {}).get("enabled", False)),
+            saml_label=ap.get("saml", {}).get("label") or "Single sign-on",
             sip2_enabled=sip2.get("enabled", False),
+            passwordless=p_cfg,
+            session_policy=sess_cfg,
             oidc_providers=oidc_providers,
         )
 
@@ -397,8 +414,16 @@ def get_auth_providers(user: Optional[User] = Depends(get_current_user_optional)
         sip2_timeout=sip2.get("timeout_seconds", 10),
         sip2_eligibility_rules=sip2.get("eligibility_rules"),
         sip2_date_format=sip2.get("date_format", "auto"),
+        sip2_map_patron_fields=bool(sip2.get("map_patron_fields", False)),
+        sip2_field_mappings=sip2.get("field_mappings"),
+        sip2_forced_fields=sip2.get("forced_fields", ["library"]),
+        sip2_patron_choice=bool(sip2.get("patron_choice", True)),
+        passwordless=p_cfg,
+        session_policy=sess_cfg,
         oidc_providers=oidc_providers,
     )
+
+
 
 
 @router.patch("/auth-providers/ldap")

@@ -2220,10 +2220,34 @@ def t_i18n_resolution_and_rtl():
     es_trans = i18n.get_translations_for_locale("es")
     assert es_trans["nav.dashboard"] == "Panel de Control"
     assert es_trans["common.save"] == "Guardar"
+    assert es_trans["ils.import_action_import"] == "Importar mi información"
+    assert es_trans["sip2.consent_required"] == "Consentimiento Requerido"
 
     ar_trans = i18n.get_translations_for_locale("ar")
     assert ar_trans["nav.dashboard"] == "لوحة التحكم"
     assert ar_trans["common.save"] == "حفظ"
+    assert ar_trans["ils.import_action_import"] == "استيراد معلوماتي"
+    assert ar_trans["sip2.consent_required"] == "الموافقة مطلوبة"
+
+    fr_trans = i18n.get_translations_for_locale("fr")
+    assert fr_trans["ils.import_action_import"] == "Importer mes informations"
+    assert fr_trans["sip2.consent_required"] == "Consentement Requis"
+
+    pirate_trans = i18n.get_translations_for_locale("pirate")
+    assert pirate_trans["nav.dashboard"] == "Captain's Quarters"
+    assert pirate_trans["common.save"] == "Stash It!"
+    assert pirate_trans["nav.vault"] == "Treasure Chest"
+    assert pirate_trans["ils.import_action_import"] == "Aye, Plunder Me Scroll!"
+    assert pirate_trans["sip2.consent_required"] == "Parley Consent Required"
+    assert pirate_trans["a11y.high_contrast"] == "High Contrast Beacon (WCAG 2.2 AAA)"
+    assert pirate_trans["a11y.theme"] == "Ship's Colors"
+    assert pirate_trans["a11y.font_size"] == "Rune Sizing & Lettering"
+    assert es_trans["a11y.high_contrast"] == "Modo de Alto Contraste (WCAG 2.2 AAA)"
+    assert es_trans["a11y.theme"] == "Tema de Color"
+    assert ar_trans["a11y.high_contrast"] == "وضع التباين العالي (WCAG 2.2 AAA)"
+    assert ar_trans["a11y.theme"] == "سمة الألوان"
+    assert fr_trans["a11y.high_contrast"] == "Mode Contraste Élevé (WCAG 2.2 AAA)"
+    assert fr_trans["a11y.theme"] == "Thème de Couleur"
 
     # 4. In-memory settings override test
     orig_load = settings_mod.load_settings
@@ -2850,6 +2874,32 @@ def t_sip2_mapping():
     assert fields.get("BE") == "jane.doe@example.org"
     assert fields.get("BF") == "555-0100"
     assert fields.get("BD") == "123 Main St"
+
+
+@test(1, "sip2.patron_choice_and_forced_fields",
+      "SIP2 forced fields auto-import while patron-driven fields stage for user choice.")
+def t_sip2_patron_choice():
+    ap = _imp("core.auth_providers")
+    auth_result = ap.AuthResult(
+        success=True,
+        provider="sip2",
+        email="21234000123@library.local",
+        full_name="Patron 21234000123",
+        external_id="21234000123",
+        mapped_demographics={
+            "name": "Jane Doe",
+            "email": "jane@example.org",
+            "phone": "555-0100",
+            "address": "123 Main St, Seattle, WA 98101",
+        },
+        forced_fields=["library"],
+        patron_choice=True,
+        populate_vault=False,
+    )
+    assert auth_result.forced_fields == ["library"]
+    assert auth_result.patron_choice is True
+    assert auth_result.mapped_demographics["name"] == "Jane Doe"
+    assert auth_result.mapped_demographics["address"] == "123 Main St, Seattle, WA 98101"
 
 
 @test(1, "sip2.eligibility_rules_engine_complex_and_nested",
@@ -4313,6 +4363,105 @@ def t_mfa_webauthn_options():
     cbor_sample = bytes([0xa1, 0x61, 0x6b, 0x18, 0x2a])
     decoded, offset = mfa._decode_cbor(cbor_sample)
     assert decoded == {"k": 42} and offset == len(cbor_sample), f"unexpected cbor decode: {decoded}"
+
+
+@test(1, "mfa.passwordless_config_and_options",
+      "Institutional passwordless configuration defaults, overrides, and discoverable options generation for local accounts.")
+def t_mfa_passwordless_config_and_options():
+    mfa = _imp("core.mfa")
+    settings_store = _imp("core.settings_store")
+
+    # 1. Defaults
+    orig_load = mfa.load_settings
+    mfa.load_settings = lambda: {}
+    try:
+        cfg = mfa.get_passwordless_config()
+        assert cfg["enabled"] is False
+        assert cfg["allow_passkey"] is True
+        assert cfg["allow_magic_link"] is True
+        assert cfg["enforce_passwordless_local"] is False
+    finally:
+        mfa.load_settings = orig_load
+
+    # 2. Overrides from settings store
+    mfa.load_settings = lambda: {
+        "security": {
+            "passwordless": {
+                "enabled": True,
+                "allow_passkey": True,
+                "allow_magic_link": False,
+                "enforce_passwordless_local": True,
+            }
+        }
+    }
+    try:
+        cfg2 = mfa.get_passwordless_config()
+        assert cfg2["enabled"] is True
+        assert cfg2["allow_passkey"] is True
+        assert cfg2["allow_magic_link"] is False
+        assert cfg2["enforce_passwordless_local"] is True
+    finally:
+        mfa.load_settings = orig_load
+
+
+    # 3. Discoverable authentication options (empty allowCredentials)
+    opts = mfa.create_webauthn_authentication_options([], rp_id="auth.library.org")
+    opts["allowCredentials"] = []
+    assert opts["rpId"] == "auth.library.org"
+    assert opts["allowCredentials"] == []
+    assert len(opts["challenge"]) > 20
+
+
+@test(1, "session_policy.role_duration_and_remember_me",
+      "Session policy computes role-differentiated expiration and enforces username-only vs extend-session modes.")
+def t_session_policy():
+    sess_mod = _imp("core.session_policy")
+    mfa = _imp("core.mfa")
+    from datetime import timedelta
+
+    # 1. Defaults verification
+    policy = sess_mod.get_session_policy()
+    assert policy["remember_me_enabled"] is True
+    assert "super_admin" in policy["roles"]
+    assert "manager" in policy["roles"]
+    assert "parent" in policy["roles"]
+    assert "member" in policy["roles"]
+
+    # 2. Super Admin: 8 hours default; username_only mode does NOT extend token lifetime
+    delta_admin_std = sess_mod.compute_session_delta("super_admin", remember_me=False)
+    assert delta_admin_std == timedelta(hours=8)
+    delta_admin_rem = sess_mod.compute_session_delta("super_admin", remember_me=True)
+    assert delta_admin_rem == timedelta(hours=8), "admin remember_me should stay username_only (short token)"
+
+    # 3. Parent / Patron: 24 hours default; extend_session mode extends to 30 days
+    delta_parent_std = sess_mod.compute_session_delta("parent", remember_me=False)
+    assert delta_parent_std == timedelta(hours=24)
+    delta_parent_rem = sess_mod.compute_session_delta("parent", remember_me=True)
+    assert delta_parent_rem == timedelta(days=30), "parent remember_me should extend session"
+
+    # 4. Global kill-switch: when remember_me_enabled is False, parent remember_me is ignored
+    orig_load = sess_mod.load_settings
+    try:
+        sess_mod.load_settings = lambda: {
+            "security": {
+                "session_policy": {
+                    "remember_me_enabled": False,
+                    "roles": {
+                        "parent": {"session_duration_hours": 12, "remember_me_allowed": True, "remember_me_mode": "extend_session", "remember_me_duration_days": 14}
+                    }
+                }
+            }
+        }
+        delta_disabled = sess_mod.compute_session_delta("parent", remember_me=True)
+        assert delta_disabled == timedelta(hours=12), "kill switch must revert extended session to standard hours"
+    finally:
+        sess_mod.load_settings = orig_load
+
+    # 5. Ephemeral MFA ticket preserves remember_me flag
+    ticket = mfa.create_mfa_ticket(10, "patron@library.org", remember_me=True)
+    tdata = mfa.verify_mfa_ticket(ticket)
+    assert tdata is not None
+    assert tdata.get("remember_me") is True
 
 
 @test(1, "mfa.role_permissions_and_user_overrides",
@@ -5891,6 +6040,81 @@ def t_sso_login_works():
     s.close()
     # EXPECTED: SSO users can log in, are linked to their provider, never super admin.
     # IF THIS FAILS: every SSO user gets a 401 after sign-in, or SSO can mint admins.
+
+
+@test(2, "auth.passwordless_local_account_restrictions",
+      "Passwordless local endpoints reject external IdP accounts and permit local accounts only.")
+def t_auth_passwordless_local_account_restrictions():
+    from types import SimpleNamespace as NS
+    try:
+        from fastapi import HTTPException
+        auth_router = _imp("routers.auth")
+        mfa = _imp("core.mfa")
+        settings_store = _imp("core.settings_store")
+        db, s = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    # Local user and external user
+    local_user = db.User(email="local@library.org", full_name="Local User", hashed_password="hashed_pw", auth_source=None)
+    ext_user = db.User(email="ldap@library.org", full_name="LDAP User", hashed_password="hashed_pw", auth_source="ldap")
+    s.add_all([local_user, ext_user]); s.commit()
+
+    assert auth_router._is_local_user(local_user) is True
+    assert auth_router._is_local_user(ext_user) is False
+
+    orig_load = settings_store.load_settings
+    orig_mfa = mfa.load_settings
+    orig_auth = getattr(auth_router, "load_settings", orig_load)
+    fake_settings = lambda: {
+        "security": {
+            "passwordless": {
+                "enabled": True,
+                "allow_passkey": True,
+                "allow_magic_link": True,
+                "enforce_passwordless_local": False,
+            }
+        }
+    }
+    settings_store.load_settings = fake_settings
+    mfa.load_settings = fake_settings
+    auth_router.load_settings = fake_settings
+    try:
+
+        # Request options for external account should be rejected
+        req_ext = auth_router.PasswordlessOptionsIn(email="ldap@library.org")
+        try:
+            auth_router.get_passwordless_options(req_ext, db=s)
+            assert False, "External account should be rejected from local passwordless auth"
+        except HTTPException as exc:
+            assert exc.status_code == 400
+            assert "only available for local accounts" in exc.detail.lower()
+
+        # Magic link for external account should be rejected
+        magic_ext = auth_router.MagicLinkRequestIn(email="ldap@library.org")
+        try:
+            auth_router.request_magic_link(magic_ext, db=s)
+            assert False, "External account should be rejected from magic link auth"
+        except HTTPException as exc:
+            assert exc.status_code == 400
+            assert "only available for local accounts" in exc.detail.lower()
+
+        # Magic link for local account succeeds
+        magic_local = auth_router.MagicLinkRequestIn(email="local@library.org")
+        res = auth_router.request_magic_link(magic_local, db=s)
+        assert res.get("token") is not None
+        assert res.get("fallback_code") is not None
+
+        # Verify magic link logs in local account
+        verify_req = auth_router.MagicLinkVerifyIn(token=res["token"], code=res["fallback_code"])
+        tok = auth_router.verify_magic_link(verify_req, db=s)
+        assert tok.get("access_token") is not None
+    finally:
+        settings_store.load_settings = orig_load
+        mfa.load_settings = orig_mfa
+        if hasattr(auth_router, "load_settings"):
+            auth_router.load_settings = orig_auth
+        s.close()
 
 
 @test(2, "scheduler.result_ingestion_reclaims_leases",

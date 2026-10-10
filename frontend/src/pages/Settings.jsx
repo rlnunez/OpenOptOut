@@ -2381,6 +2381,358 @@ function WebAuthnPolicySection({ userRole }) {
   )
 }
 
+// ── Institutional Passwordless Authentication Policy (Super Admin) ───────────
+function PasswordlessPolicySection({ userRole }) {
+  if (userRole !== 'super_admin') return null
+
+  const [config, setConfig] = useState({
+    enabled: false,
+    allow_passkey: true,
+    allow_magic_link: true,
+    enforce_passwordless_local: false,
+  })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    api.get('/settings/security/passwordless')
+      .then(r => {
+        if (r.data?.config) setConfig(r.data.config)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const save = async () => {
+    setError('')
+    setSaving(true)
+    try {
+      const res = await api.patch('/settings/security/passwordless', config)
+      if (res.data?.config) setConfig(res.data.config)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to save passwordless authentication settings.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return null
+
+  return (
+    <Section
+      icon={Fingerprint}
+      title="Passwordless Authentication Policy"
+      description="Configure passwordless sign-in methods (FIDO2 Passkeys and one-time email codes) for local user and staff accounts."
+      adminOnly
+      userRole={userRole}
+    >
+      {error && (
+        <div className="p-3 bg-red-950/40 border border-red-800/80 rounded-lg text-xs text-red-300 flex items-center gap-2">
+          <AlertTriangle size={14} className="shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Scope banner */}
+      <div className="p-3 bg-slate-900/60 border border-slate-700/60 rounded-lg text-xs text-slate-300 space-y-1">
+        <p className="font-semibold text-slate-200 flex items-center gap-1.5">
+          <Info size={14} className="text-shield-400" /> Local Accounts Scope Notice
+        </p>
+        <p className="text-slate-400">
+          Passwordless policies strictly govern local accounts. Accounts authenticated via 3rd-party identity providers (LDAP, SIP2, SAML, Google/Microsoft OIDC) continue to rely on their external identity providers as their source of truth.
+        </p>
+      </div>
+
+      {/* Master Enable */}
+      <div className="flex items-center justify-between py-2 border-b border-slate-700/40">
+        <div>
+          <p className="text-sm font-medium text-slate-200">Enable Passwordless Authentication</p>
+          <p className="text-xs text-slate-400">Permit local staff and users to sign in without entering an account password.</p>
+        </div>
+        <input
+          type="checkbox"
+          checked={!!config.enabled}
+          onChange={e => setConfig(c => ({ ...c, enabled: e.target.checked }))}
+          className="rounded border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-4 h-4 cursor-pointer"
+        />
+      </div>
+
+      {config.enabled && (
+        <div className="space-y-3 pt-2 pl-2">
+          {/* FIDO2 / WebAuthn Passkeys */}
+          <div className="flex items-center justify-between py-1.5">
+            <div>
+              <p className="text-xs font-medium text-slate-200">FIDO2 / WebAuthn Passkeys</p>
+              <p className="text-[11px] text-slate-400">Allow Touch ID, Face ID, Windows Hello, and hardware security keys (YubiKey).</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={!!config.allow_passkey}
+              onChange={e => setConfig(c => ({ ...c, allow_passkey: e.target.checked }))}
+              className="rounded border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-4 h-4 cursor-pointer"
+            />
+          </div>
+
+          {/* Email One-Time Codes */}
+          <div className="flex items-center justify-between py-1.5">
+            <div>
+              <p className="text-xs font-medium text-slate-200">Email Verification Codes / Magic Links</p>
+              <p className="text-[11px] text-slate-400">Allow single-use 6-digit codes sent directly to the user's registered inbox.</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={!!config.allow_magic_link}
+              onChange={e => setConfig(c => ({ ...c, allow_magic_link: e.target.checked }))}
+              className="rounded border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-4 h-4 cursor-pointer"
+            />
+          </div>
+
+          {/* Enforce Passwordless (Disables password login for local accounts) */}
+          <div className="flex items-center justify-between py-1.5 pt-2 border-t border-slate-700/40">
+            <div>
+              <p className="text-xs font-medium text-amber-300">Enforce Passwordless for Local Accounts</p>
+              <p className="text-[11px] text-slate-400">Disables standard password inputs on the login form for local users.</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={!!config.enforce_passwordless_local}
+              onChange={e => setConfig(c => ({ ...c, enforce_passwordless_local: e.target.checked }))}
+              className="rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end pt-2">
+        <SaveButton saving={saving} saved={saved} onClick={save} />
+      </div>
+    </Section>
+  )
+}
+
+// ── Role-Based Session Duration & Remember Me Policy (Super Admin) ────────────
+function SessionPolicySection({ userRole }) {
+  if (userRole !== 'super_admin') return null
+
+  const [policy, setPolicy] = useState({
+    remember_me_enabled: true,
+    roles: {
+      super_admin: { session_duration_hours: 8, remember_me_allowed: true, remember_me_mode: 'username_only', remember_me_duration_days: 1 },
+      manager:     { session_duration_hours: 8, remember_me_allowed: true, remember_me_mode: 'username_only', remember_me_duration_days: 3 },
+      parent:      { session_duration_hours: 24, remember_me_allowed: true, remember_me_mode: 'extend_session', remember_me_duration_days: 30 },
+      member:      { session_duration_hours: 24, remember_me_allowed: true, remember_me_mode: 'extend_session', remember_me_duration_days: 30 },
+    },
+  })
+  const [activeTab, setActiveTab] = useState('super_admin')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
+
+  const roleLabels = {
+    super_admin: 'Super Admin',
+    manager: 'Manager / Staff',
+    parent: 'User / Parent',
+    member: 'Patron / Member',
+  }
+
+  useEffect(() => {
+    api.get('/settings/security/session-policy')
+      .then(r => {
+        if (r.data?.policy) setPolicy(r.data.policy)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const save = async () => {
+    setError('')
+    setSaving(true)
+    try {
+      const res = await api.patch('/settings/security/session-policy', policy)
+      if (res.data?.policy) setPolicy(res.data.policy)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to save session duration and remember-me policies.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return null
+
+  const curRoleCfg = policy.roles?.[activeTab] || {
+    session_duration_hours: 8,
+    remember_me_allowed: true,
+    remember_me_mode: 'username_only',
+    remember_me_duration_days: 1,
+  }
+
+  const updateCurrentRole = updates => {
+    setPolicy(prev => ({
+      ...prev,
+      roles: {
+        ...prev.roles,
+        [activeTab]: {
+          ...(prev.roles?.[activeTab] || {}),
+          ...updates,
+        },
+      },
+    }))
+  }
+
+  return (
+    <Section
+      icon={Clock}
+      title="Session Duration & Remember Me Policy"
+      description="Configure standard session duration and role-specific Remember Me behavior (prefilling username vs extending session)."
+      adminOnly
+      userRole={userRole}
+    >
+      {error && (
+        <div className="p-3 bg-red-950/40 border border-red-800/80 rounded-lg text-xs text-red-300 flex items-center gap-2">
+          <AlertTriangle size={14} className="shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Global Remember Me Kill Switch */}
+      <div className="flex items-center justify-between py-2 border-b border-slate-700/40">
+        <div>
+          <p className="text-sm font-medium text-slate-200">Global "Remember Me" Feature</p>
+          <p className="text-xs text-slate-400">Master switch: when disabled, Remember Me checkboxes are hidden across the entire system.</p>
+        </div>
+        <input
+          type="checkbox"
+          checked={!!policy.remember_me_enabled}
+          onChange={e => setPolicy(p => ({ ...p, remember_me_enabled: e.target.checked }))}
+          className="rounded border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-4 h-4 cursor-pointer"
+        />
+      </div>
+
+      {/* Role Tabs */}
+      <div className="pt-3">
+        <div className="flex border-b border-slate-700/60 gap-1 overflow-x-auto">
+          {Object.entries(roleLabels).map(([rk, label]) => (
+            <button
+              key={rk}
+              type="button"
+              onClick={() => setActiveTab(rk)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-t-lg transition-colors whitespace-nowrap ${
+                activeTab === rk
+                  ? 'bg-slate-700 text-white border-t border-x border-slate-600'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Selected Role Configuration Card */}
+        <div className="p-4 bg-slate-900/50 rounded-b-lg border-x border-b border-slate-700/60 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Standard Session Duration */}
+            <div>
+              <label className={labelCls}>Standard Session Lifetime (Hours)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="720"
+                  value={curRoleCfg.session_duration_hours ?? 8}
+                  onChange={e => {
+                    const v = Math.max(1, parseInt(e.target.value, 10) || 1)
+                    updateCurrentRole({ session_duration_hours: v })
+                  }}
+                  className={inp}
+                />
+                <span className="text-xs text-slate-400 shrink-0">hours</span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">Default token expiration when Remember Me is unchecked.</p>
+            </div>
+
+            {/* Remember Me Allowed */}
+            <div>
+              <label className={labelCls}>Remember Me Allowed for Role</label>
+              <div className="flex items-center h-10">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!curRoleCfg.remember_me_allowed}
+                    onChange={e => updateCurrentRole({ remember_me_allowed: e.target.checked })}
+                    className="rounded border-slate-600 bg-slate-800 text-shield-500 focus:ring-shield-500 w-4 h-4 cursor-pointer"
+                  />
+                  <span className="text-xs text-slate-300">Allow this role to use Remember Me</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {curRoleCfg.remember_me_allowed && policy.remember_me_enabled && (
+            <div className="pt-3 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Remember Me Mode */}
+              <div>
+                <label className={labelCls}>Remember Me Mode</label>
+                <select
+                  value={curRoleCfg.remember_me_mode || 'username_only'}
+                  onChange={e => updateCurrentRole({ remember_me_mode: e.target.value })}
+                  className={inp}
+                >
+                  <option value="username_only">Save Username Only (Recommended for Staff/Admin)</option>
+                  <option value="extend_session">Extend Active Session (Recommended for Patrons/Users)</option>
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  {curRoleCfg.remember_me_mode === 'username_only'
+                    ? 'Device only saves email/username for quick prefill; session lifetime remains short.'
+                    : 'Device retains an active signed JWT login session for the configured days.'}
+                </p>
+              </div>
+
+              {/* Extended Session Duration (Days) */}
+              <div>
+                <label className={labelCls}>
+                  {curRoleCfg.remember_me_mode === 'extend_session'
+                    ? 'Extended Session Lifetime (Days)'
+                    : 'Device Prefill Retention (Days)'}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={curRoleCfg.remember_me_duration_days ?? 30}
+                    onChange={e => {
+                      const v = Math.max(1, parseInt(e.target.value, 10) || 1)
+                      updateCurrentRole({ remember_me_duration_days: v })
+                    }}
+                    className={inp}
+                  />
+                  <span className="text-xs text-slate-400 shrink-0">days</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  {curRoleCfg.remember_me_mode === 'extend_session'
+                    ? 'How long the signed token remains active on this device.'
+                    : 'Institutional recommendation for device credential cache.'}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex justify-end pt-2">
+        <SaveButton saving={saving} saved={saved} onClick={save} />
+      </div>
+    </Section>
+  )
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function Settings() {
   const { user } = useAuth()
@@ -2417,6 +2769,8 @@ export default function Settings() {
       <AppearanceSection initial={settings?.appearance ?? {}} onSaved={a => setSettings(s=>({...s,appearance:a}))} userRole={sectionRole('branding.manage')}/>
       <MfaAccountSection user={user} />
       <WebAuthnPolicySection userRole={user?.role} />
+      <PasswordlessPolicySection userRole={user?.role} />
+      <SessionPolicySection userRole={user?.role} />
       <EmailSection initial={settings?.email ?? {}} userRole={sectionRole('email.manage')}/>
       <SchedulerSection
         initial={settings?.scheduler ?? {}}
