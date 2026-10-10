@@ -6538,14 +6538,20 @@ def t_wizard_deployment():
             "an external reverse proxy shouldn't be told to run our own HTTPS setup"
         assert not any("unencrypted" in w for w in summary["warnings"])
 
-        # "managed" (Docker + Caddy): recorded with an optional domain; completion
-        # nudges toward the Docker-path HTTPS setup script.
+        # "managed" (Docker + Caddy): recorded with an optional domain and the
+        # front-door defaults (Caddy, Let's Encrypt, rate limits on, no Cloudflare
+        # proxy); completion nudges toward the Docker-path HTTPS setup script.
         wiz.save_deployment(wiz.DeploymentStep(reverse_proxy="managed", domain="privacy.lib.org"),
                             db=None, user=admin)
-        assert store["deployment"] == {"reverse_proxy": "managed", "domain": "privacy.lib.org"}
+        assert store["deployment"] == {"reverse_proxy": "managed", "domain": "privacy.lib.org",
+                                       "front_door": "caddy", "certificate": "letsencrypt",
+                                       "rate_limit": True, "cloudflare_proxy": False}, store["deployment"]
         summary = wiz.complete(db=None, user=admin)
-        assert any("enable-https.sh" in w and "native" not in w for w in summary["warnings"]), \
+        cmds = summary["enable_https_commands"]
+        assert cmds and "enable-https.sh" in cmds["linux"] and "native" not in cmds["linux"], \
             "managed (Docker) deployment should be pointed at scripts/enable-https.sh, not the native one"
+        assert "enable-https.ps1" in cmds["windows"]
+        assert any("front door isn't on yet" in w for w in summary["warnings"])
 
         # "native" (no containers): recorded; completion nudges toward the native-path
         # script/doc instead — must NOT be confused with the Docker-managed message.
