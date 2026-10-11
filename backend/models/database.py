@@ -814,6 +814,7 @@ class CaptchaChallenge(Base):
     screenshot     = Column(String(500), nullable=True)       # path to screenshot on disk
     status         = Column(String(30), default="pending", index=True)   # pending | resolved | dismissed
     token          = Column(Text, nullable=True)             # solution token if injected or manually provided
+    combo_enc      = Column(EncryptedText, nullable=True)    # the details being sent (JSON), for a live hand-off
     notes          = Column(Text, nullable=True)
     resolved_by    = Column(Integer, ForeignKey("users.id"), nullable=True)
     resolved_at    = Column(DateTime, nullable=True)

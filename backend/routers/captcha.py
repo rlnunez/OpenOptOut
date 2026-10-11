@@ -19,7 +19,7 @@ from ..models.database import (
     Broker, FamilyMember, User, AutomationLog
 )
 from ..core.auth import (
-    get_current_user, get_accessible_member_ids, assert_can_view
+    get_current_user, get_accessible_member_ids, assert_can_view, require_super_admin
 )
 from ..core.broker_health import record_success
 
@@ -306,3 +306,146 @@ def retry_challenge(
 
     db.commit()
     return {"retried": True, "request_id": c.request_id}
+
+
+# ── Live hand-off: solve it in the real page (core/live_captcha.py) ───────────
+
+class LiveInput(BaseModel):
+    type: str                      # click | text | key | scroll
+    x: Optional[float] = None
+    y: Optional[float] = None
+    text: Optional[str] = None
+    key: Optional[str] = None
+    dy: Optional[float] = None
+
+
+def _live_challenge(db, current_user, challenge_id: int) -> CaptchaChallenge:
+    c = db.query(CaptchaChallenge).filter(CaptchaChallenge.id == challenge_id).first()
+    if not c:
+        raise HTTPException(404, "That CAPTCHA is gone. Refresh the page.")
+    member = assert_can_view(db, current_user, c.member_id)
+    from ..core.privacy_record import log_access
+    log_access(db, current_user, member, "view", "live CAPTCHA page")
+    return c
+
+
+@router.post("/challenges/{challenge_id}/live")
+def live_start(challenge_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from ..core.live_captcha import MANAGER
+    c = _live_challenge(db, current_user, challenge_id)
+    if c.status != "pending":
+        raise HTTPException(400, "This one is already finished.")
+    try:
+        return MANAGER.start(challenge_id, current_user.id)
+    except RuntimeError as e:
+        raise HTTPException(429, str(e))
+
+
+@router.get("/challenges/{challenge_id}/live")
+def live_status(challenge_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from ..core.live_captcha import MANAGER
+    c = db.query(CaptchaChallenge).filter(CaptchaChallenge.id == challenge_id).first()
+    if not c:
+        raise HTTPException(404, "That CAPTCHA is gone. Refresh the page.")
+    assert_can_view(db, current_user, c.member_id)
+    return MANAGER.status(challenge_id) or {"challenge_id": challenge_id, "state": "none", "active": False}
+
+
+@router.get("/challenges/{challenge_id}/live/frame")
+def live_frame(challenge_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from ..core.live_captcha import MANAGER
+    c = db.query(CaptchaChallenge).filter(CaptchaChallenge.id == challenge_id).first()
+    if not c:
+        raise HTTPException(404, "That CAPTCHA is gone. Refresh the page.")
+    assert_can_view(db, current_user, c.member_id)
+    img = MANAGER.frame(challenge_id)
+    if img is None:
+        return Response(status_code=204)
+    return Response(img, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
+@router.post("/challenges/{challenge_id}/live/input")
+def live_input(challenge_id: int, ev: LiveInput, db: Session = Depends(get_db),
+               current_user: User = Depends(get_current_user)):
+    from ..core.live_captcha import MANAGER
+    c = db.query(CaptchaChallenge).filter(CaptchaChallenge.id == challenge_id).first()
+    if not c:
+        raise HTTPException(404, "That CAPTCHA is gone. Refresh the page.")
+    assert_can_view(db, current_user, c.member_id)
+    if not MANAGER.send_input(challenge_id, ev.model_dump()):
+        raise HTTPException(409, "The page isn't waiting for you right now.")
+    return {"ok": True}
+
+
+@router.post("/challenges/{challenge_id}/live/solved")
+def live_solved(challenge_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from ..core.live_captcha import MANAGER
+    _live_challenge(db, current_user, challenge_id)
+    if not MANAGER.solved(challenge_id):
+        raise HTTPException(409, "The page isn't waiting for you right now.")
+    return {"ok": True}
+
+
+@router.delete("/challenges/{challenge_id}/live")
+def live_cancel(challenge_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from ..core.live_captcha import MANAGER
+    c = db.query(CaptchaChallenge).filter(CaptchaChallenge.id == challenge_id).first()
+    if not c:
+        raise HTTPException(404, "That CAPTCHA is gone. Refresh the page.")
+    assert_can_view(db, current_user, c.member_id)
+    return {"stopped": MANAGER.cancel(challenge_id)}
+
+
+# ── Automatic solving settings (super admin) ──────────────────────────────────
+
+class SolvingIn(BaseModel):
+    service: str
+    api_key: Optional[str] = None      # omit to keep the saved key; "" to clear it
+
+
+@router.get("/solving")
+def solving_settings(db: Session = Depends(get_db), _=Depends(require_super_admin)):
+    from ..core import captcha_services as cs
+    from ..core.settings_store import load_settings
+    from ..models.database import InstalledPlugin
+    row = db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == cs.SERVICE_PLUGIN).first()
+    return {**cs.public(load_settings()), "plugin_id": cs.SERVICE_PLUGIN,
+            "plugin_installed": row is not None, "plugin_enabled": bool(row and row.enabled)}
+
+
+@router.patch("/solving")
+def save_solving(data: SolvingIn, _=Depends(require_super_admin)):
+    from ..core import captcha_services as cs
+    try:
+        return cs.save_service(cs.SERVICE_PLUGIN, data.service, data.api_key)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/solving/install")
+def install_solving_plugin(db: Session = Depends(get_db), current: User = Depends(require_super_admin)):
+    """Copy the built-in solving plugin into the plugins folder and register it
+    (off). An admin then turns it on and approves its permissions on the Plugins page."""
+    import json as _json
+    from ..core import captcha_services as cs
+    from ..models.database import InstalledPlugin
+    from ..plugins import layout
+    from ..plugins.permissions import PluginManifest
+    from .plugins import _register, _code_inspection, _audit
+    row = db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == cs.SERVICE_PLUGIN).first()
+    if row is not None:
+        return {"installed": True, "enabled": bool(row.enabled)}
+    src = layout.bundled_plugins().get(cs.SERVICE_PLUGIN)
+    if not src:
+        raise HTTPException(404, "The built-in solving plugin is missing from this install.")
+    with open(os.path.join(src, "manifest.json"), encoding="utf-8") as f:
+        manifest = PluginManifest.from_dict(_json.load(f))
+    if manifest.validate():
+        raise HTTPException(500, "The built-in solving plugin is damaged.")
+    dest = layout.sync_bundled(src, layout.plugins_root(), manifest)
+    code = _code_inspection(manifest, dest)
+    if code.get("blocked"):
+        raise HTTPException(400, "The solving plugin didn't pass the code check: " + "; ".join(code.get("high", [])))
+    _register(db, manifest, dest)
+    _audit(db, manifest.id, "installed", current.id, "built-in CAPTCHA solving service")
+    return {"installed": True, "enabled": False}

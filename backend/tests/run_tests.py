@@ -467,7 +467,9 @@ def t_captcha_detection():
     assert res.challenge.get("type") == "recaptcha_v2", f"Unexpected type: {res.challenge.get('type')}"
     assert res.challenge.get("site_key") == "SITEKEY-999", f"Unexpected site_key: {res.challenge.get('site_key')}"
     assert res.challenge.get("page_url") == "https://optout.example/verify"
-    assert res.challenge.get("screenshot") == b"\x89PNGfake"
+    # Never the whole page: only a cropped, blacked-out picture of the CAPTCHA,
+    # and here (no element boxes from the fake page) nothing at all.
+    assert res.challenge.get("screenshot") == b""
     # EXPECTED: challenge metadata captured and returned in ExecResult on human pause.
     # IF THIS FAILS: the Human-in-the-Loop queue won't receive challenge details from execution.
 
@@ -9475,6 +9477,238 @@ def t_calendar():
     s.close()
     # EXPECTED: admins pick opt-out days and holidays; families see what's coming and can subscribe.
     # IF THIS FAILS: opt-outs go out on days off, or the calendar feed leaks details.
+
+
+@test(2, "captcha.redaction_and_safe_urls",
+      "CAPTCHA pictures keep only the puzzle, black out fields and saved details for good, and page addresses lose anything personal.")
+def t_captcha_redaction():
+    import io
+    cp = _imp("core.captcha_privacy")
+    try:
+        from PIL import Image, PngImagePlugin
+    except ImportError:
+        raise Skip("Pillow not installed")
+    db, s = _memory_db()
+    m = _member_with_vault(db, s)
+    sec = cp.member_secrets(m)
+    for want in ("Jane", "Public", "123 Main St", "5125550134", "512-555-0134", "jane@old.example"):
+        assert want in sec, (want, sec[:20])
+    assert cp.contains_secret("Results for JANE public in Austin", sec)
+    assert not cp.contains_secret("Please verify you are human", sec)
+    assert cp.safe_page_url("https://www.spokeo.com/Jane-Public/Texas?ref=x#y", sec) == "https://www.spokeo.com/"
+    assert cp.safe_page_url("https://site.example/optout?name=Jane", sec) == "https://site.example/optout"
+    assert cp.safe_page_url("https://site.example/lookup/5125550134", sec) == "https://site.example/"
+    assert cp.safe_page_url("javascript:alert(1)", sec) == ""
+    # A white page with metadata; black out a box inside a crop.
+    img = Image.new("RGB", (400, 300), (255, 255, 255))
+    meta = PngImagePlugin.PngInfo(); meta.add_text("Comment", "Jane Q Public 123 Main St")
+    buf = io.BytesIO(); img.save(buf, format="PNG", pnginfo=meta)
+    out = cp.redact_image(buf.getvalue(), boxes=[(120, 120, 40, 20)], crop=(100, 100, 300, 250))
+    red = Image.open(io.BytesIO(out))
+    assert red.size == (200, 150), red.size
+    assert red.getpixel((40, 30)) == (0, 0, 0) and red.getpixel((5, 140)) == (255, 255, 255)
+    assert b"Jane" not in out and not red.info.get("Comment"), "no metadata carried over"
+    s.close()
+    # EXPECTED: nothing personal in any CAPTCHA image or address that is stored or sent.
+    # IF THIS FAILS: a solving service (or the screenshots folder) could see a person's details.
+
+
+def _chromium_or_skip():
+    try:
+        from playwright.async_api import async_playwright  # noqa: F401
+    except ImportError:
+        raise Skip("playwright not installed")
+
+
+@test(3, "captcha.capture_live_page",
+      "A real page: only the CAPTCHA area is captured, with the filled-in form fields blacked out.")
+def t_captcha_capture_live():
+    _chromium_or_skip()
+    import asyncio, io
+    from PIL import Image
+    cp = _imp("core.captcha_privacy")
+    html = """<html><body style='margin:0;background:#fff'>
+      <div style='position:absolute;left:40px;top:40px'>Jane Q Public</div>
+      <input id=name value='Jane Q Public' style='position:absolute;left:40px;top:200px;width:200px;height:30px;background:#fff;border:0'>
+      <div id=captcha style='position:absolute;left:30px;top:180px;width:300px;height:120px;background:#c0e0ff'></div>
+      <input id=name2 value='Jane Q Public' style='position:absolute;left:60px;top:240px;width:150px;height:24px;background:#fff;border:0'>
+    </body></html>"""
+    async def go():
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            b = await p.chromium.launch()
+            try:
+                page = await b.new_page(viewport={"width": 800, "height": 600})
+                await page.set_content(html)
+                return await cp.capture(page, "#captcha", ["Jane Q Public", "Jane"])
+            finally:
+                await b.close()
+    try:
+        res = asyncio.run(go())
+    except Exception as e:
+        raise Skip(f"no browser here: {e}")
+    img = Image.open(io.BytesIO(res["image"]))
+    assert img.size == (300 + 2 * cp.PAD, 120 + 2 * cp.PAD), img.size
+    assert res["boxes"] >= 1
+    # Field at page (60,240) -> crop (60-6, 240-156) = (54, 84): blacked out.
+    assert img.getpixel((54 + 20, 84 + 10)) == (0, 0, 0)
+    # The name at the top of the page is outside the crop entirely.
+    # EXPECTED: solvers and the screenshots folder get the puzzle, not the person's form.
+
+
+@test(3, "captcha.live_handoff_session",
+      "A live session waits at the CAPTCHA, shows the page, passes clicks and typing to it, and carries on when the person is done.")
+def t_live_handoff():
+    _chromium_or_skip()
+    import time as _t, asyncio
+    lc = _imp("core.live_captcha")
+    html = """<html><body><button id=b style='position:absolute;left:100px;top:100px;width:200px;height:60px'
+      onclick="document.title='clicked'">I'm not a robot</button><input id=t style='position:absolute;left:100px;top:300px'></body></html>"""
+    outcome = {}
+    async def runner(s):
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            b = await p.chromium.launch()
+            try:
+                page = await b.new_page(viewport=lc.VIEWPORT)
+                await page.set_content(html)
+                s.page = page
+                s.state = "replaying"
+                outcome["result"] = await lc._person_solver(s)({"type": "recaptcha_v2"})
+                outcome["title"] = await page.title()
+                outcome["typed"] = await page.input_value("#t")
+                s.state = "done"
+            except Exception as e:
+                outcome["error"] = str(e); s.state = "failed"
+            finally:
+                s.page = None
+                await b.close()
+    mgr = lc.LiveManager()
+    info = mgr.start(42, user_id=1, runner=runner)
+    assert info["state"] in ("starting", "replaying", "waiting_for_you")
+    for _ in range(100):
+        st = mgr.status(42)
+        if st["state"] in ("waiting_for_you", "failed"):
+            break
+        _t.sleep(0.1)
+    if st["state"] == "failed":
+        raise Skip(f"no browser here: {outcome.get('error')}")
+    assert st["can_interact"]
+    frame = mgr.frame(42)
+    assert frame and frame[:3] == b"\xff\xd8\xff", "a JPEG of the page"
+    assert mgr.send_input(42, {"type": "click", "x": 200, "y": 130})
+    assert mgr.send_input(42, {"type": "click", "x": 150, "y": 310})
+    assert mgr.send_input(42, {"type": "text", "text": "hello"})
+    assert not mgr.send_input(42, {"type": "key", "key": "Meta"}), "only ordinary keys"
+    assert mgr.solved(42)
+    for _ in range(100):
+        if mgr.status(42)["state"] == "done":
+            break
+        _t.sleep(0.1)
+    assert outcome["result"] == {"solved": True, "by_person": True}, outcome
+    assert outcome["title"] == "clicked" and outcome["typed"] == "hello", outcome
+    assert mgr.frame(42) is None and not mgr.send_input(42, {"type": "text", "text": "x"}), "closed afterwards"
+    # EXPECTED: "Solve it here" works end to end and the opt-out continues after the person.
+    # IF THIS FAILS: CAPTCHAs still need the person to redo the whole opt-out by hand.
+
+
+@test(2, "captcha.finish_and_service_settings",
+      "A live session's result updates the request; the solving-service key is stored encrypted and never shown.")
+def t_captcha_finish_services():
+    import os, json, tempfile, types
+    db, s = _memory_db()
+    lc = _imp("core.live_captcha")
+    cs = _imp("core.captcha_services")
+    store = _imp("core.settings_store")
+    m = _member_with_vault(db, s)
+    b = db.Broker(name="B", opt_out_url="https://b.example"); s.add(b); s.flush()
+    r = db.RemovalRequest(member_id=m.id, broker_id=b.id, status=db.RequestStatus.pending); s.add(r); s.flush()
+    ch = db.CaptchaChallenge(request_id=r.id, broker_id=b.id, member_id=m.id, status="pending",
+                             combo_enc=json.dumps({"name": "Jane Q Public", "city": "Austin"}))
+    s.add(ch); s.commit()
+    assert json.loads(ch.combo_enc)["city"] == "Austin"
+    lc.finish(s, ch, r, types.SimpleNamespace(ok=True, needs_manual=False, needs_captcha=False, detail="ok",
+                                              human_instruction=""), user_id=1)
+    assert r.status == db.RequestStatus.sent and r.recheck_after and ch.status == "resolved" and ch.resolved_by == 1
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".json"); tmp.write(b"{}"); tmp.close()
+    old = store.SETTINGS_FILE; store.SETTINGS_FILE = tmp.name
+    try:
+        pub = cs.save_service(cs.SERVICE_PLUGIN, "2captcha", "sk-test-123")
+        raw = open(tmp.name).read()
+        assert "sk-test-123" not in raw and pub["services"][cs.SERVICE_PLUGIN] == {"service": "2captcha", "has_key": True}
+        meta = cs.plugin_meta(cs.SERVICE_PLUGIN)
+        assert meta["api_key"] == "sk-test-123" and meta["service_base"] == "https://api.2captcha.com"
+        assert cs.plugin_meta("some-other-solver") == {}, "the key goes only to its own plugin"
+        try:
+            cs.save_service(cs.SERVICE_PLUGIN, "made-up", None); raise AssertionError("accepted an unknown service")
+        except ValueError:
+            pass
+        cs.save_service(cs.SERVICE_PLUGIN, "2captcha", "")
+        assert cs.plugin_meta(cs.SERVICE_PLUGIN) == {}
+    finally:
+        store.SETTINGS_FILE = old; os.unlink(tmp.name)
+    s.close()
+
+
+@test(1, "captcha.solving_service_plugin_tasks",
+      "The built-in solving-service plugin builds the right task per service, and defers without a key.")
+def t_solver_plugin_tasks():
+    import importlib.util, sys, pathlib, json, types
+    here = pathlib.Path(__file__).resolve().parents[1]
+    d = here / "plugins" / "bundled" / "captcha" / "captcha-solving-service"
+    perms = _imp("plugins.permissions")
+    m = perms.PluginManifest.from_dict(json.loads((d / "manifest.json").read_text()))
+    assert m.validate() == [] and m.effective_type == "captcha" and "read_pii" not in m.permissions
+    sys.path.insert(0, str(here / "plugins" / "sdk"))
+    try:
+        spec = importlib.util.spec_from_file_location("solver_plugin_under_test", d / "plugin.py")
+        mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+    except Exception as e:
+        raise Skip(f"plugin SDK not importable here: {e}")
+    finally:
+        sys.path.pop(0)
+    C = lambda **k: types.SimpleNamespace(**{"type": "recaptcha_v2", "site_key": "6Lc", "page_url": "https://b.example/optout",
+                                              "screenshot": b"", "meta": {}, **k})
+    assert mod.build_task(C(), "2captcha") == {"type": "RecaptchaV2TaskProxyless", "websiteURL": "https://b.example/optout", "websiteKey": "6Lc"}
+    assert mod.build_task(C(), "capsolver")["type"] == "ReCaptchaV2TaskProxyLess"
+    assert mod.build_task(C(type="hcaptcha"), "anticaptcha") is None
+    img = mod.build_task(C(type="image", screenshot=b"PNG"), "capmonster")
+    assert img["type"] == "ImageToTextTask" and img["body"] == "UE5H"
+    assert mod.build_task(C(site_key=""), "2captcha") is None
+    assert mod.solve(C()) == {"defer_to_human": True}, "no service key: hand it to a person"
+
+
+@test(1, "captcha.executor_person_and_picture_answers",
+      "The executor carries on after a person solves it, and types a picture-CAPTCHA answer into its box.")
+def t_executor_answers():
+    import asyncio
+    ex_mod = _imp("core.interpreter.executor")
+    comp = _imp("core.interpreter.compiler")
+
+    class FakePage:
+        url = "https://b.example/optout?name=Jane"
+        def __init__(self): self.filled = {}
+        async def content(self): return "<img src='/captcha.png'><input name='captcha_code'>"
+        async def query_selector(self, sel):
+            return object() if "captcha" in sel.lower() and sel.startswith("input") else None
+        async def screenshot(self, **k): return b""
+        async def evaluate(self, js, *a): return None
+        async def fill(self, sel, val, timeout=0): self.filled[sel] = val
+
+    def run(result):
+        page = FakePage()
+        ex = ex_mod.PlaywrightExecutor(page=page, captcha_solver=lambda ch: result, secrets=["Jane"])
+        job = comp.Job(broker_id="1", broker_name="B", member_id="2", method="form",
+                       steps=[comp.JobStep(kind="solve_captcha", selector="img")])
+        return asyncio.new_event_loop().run_until_complete(ex.run(job)), page, ex
+
+    res, page, ex = run({"solved": True, "token": "X7KQ"})
+    assert not res.needs_captcha and page.filled == {"input[name*='captcha' i]": "X7KQ"}, (res.trace, page.filled)
+    assert ex.last_challenge["page_url"] == "https://b.example/optout", "query string dropped"
+    res, page, _ = run({"solved": True, "by_person": True})
+    assert not res.needs_captcha and page.filled == {}
+    res, _, _ = run({"defer_to_human": True})
+    assert res.needs_captcha
 
 
 def main():

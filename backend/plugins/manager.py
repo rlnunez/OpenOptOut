@@ -849,7 +849,8 @@ class PluginManager:
                 self._handle_crash(pid, f"fill_form error: {e}")
         return None
 
-    def dispatch_solve_captcha(self, challenge: dict, preferred_plugin_id: Optional[str] = None) -> Optional[dict]:
+    def dispatch_solve_captcha(self, challenge: dict, preferred_plugin_id: Optional[str] = None,
+                               meta_for=None) -> Optional[dict]:
         """
         Ask plugins (that implement solve_captcha) to solve a CAPTCHA. Returns
         the first real result — {"solved": True, "token": ...} or
@@ -867,13 +868,20 @@ class PluginManager:
             candidates.sort(key=lambda item: 0 if item[0] == preferred_plugin_id else 1)
 
         for pid, rp in candidates:
+            # Per-plugin extras (e.g. that plugin's own service key) go only to that plugin.
+            meta = dict(challenge.get("meta", {}))
+            if meta_for:
+                try:
+                    meta.update(meta_for(pid) or {})
+                except Exception:
+                    pass
             req = _pb.SolveCaptchaRequest(
                 challenge=_pb.CaptchaChallenge(
                     type=challenge.get("type", "other"),
                     site_key=challenge.get("site_key", ""),
                     page_url=challenge.get("page_url", ""),
                     screenshot=challenge.get("screenshot", b"") or b"",
-                    meta={k: str(v) for k, v in challenge.get("meta", {}).items()},
+                    meta={k: str(v) for k, v in meta.items()},
                 )
             )
             try:
