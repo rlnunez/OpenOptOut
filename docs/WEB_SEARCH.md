@@ -15,13 +15,11 @@ Search engines' own pages and a few large general sites are ignored. Titles and 
 
 ## Privacy
 
-Searches send the person's names, phone numbers, addresses and email addresses to the search provider. A SearXNG server also passes them on to the search engines it uses. That's unavoidable for web search, and it's why the feature is off until an admin turns it on.
+Searches send the person's names, phone numbers, addresses and email addresses to your SearXNG server, which passes them on to the search engines it uses. That's unavoidable for web search, and it's why the feature is off until an admin turns it on.
 
-## Providers
+## Provider: SearXNG
 
-### SearXNG (self-hosted, free)
-
-[SearXNG](https://docs.searxng.org/) is an open-source search server that collects results from other search engines. Run it next to OpenOptOut, for example by adding to `docker-compose.yml`:
+[SearXNG](https://docs.searxng.org/) is an open-source search server that collects results from other search engines. It's the only provider OpenOptOut supports, so web search stays self-hosted. Run it next to OpenOptOut, for example by adding to `docker-compose.yml`:
 
 ```yaml
   searxng:
@@ -42,11 +40,7 @@ search:
 
 Then enter `http://searxng:8080` as the SearXNG address. Without `json`, SearXNG answers with "403 Forbidden".
 
-### Brave Search API (paid)
-
-Create an API key in Brave's Search API dashboard and paste it in. Brave charges per search, so keep **Searches per person per run** modest; a family of four with 12 searches each, run weekly, is roughly 200 searches a month.
-
-Google's Custom Search JSON API isn't offered: it's closed to new customers and being shut down.
+Keep **Searches per person per run** modest: the search engines SearXNG uses may start refusing a server that sends many searches quickly.
 
 ## Running it
 
