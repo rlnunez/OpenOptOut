@@ -59,6 +59,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 37 | Long tail: privacy-request page finder & OneTrust/TrustArc forms | In Review — live verification pending |
 | 38 | Built-in receive-only inbox | In Design ([`docs/BUILTIN_INBOX.md`](BUILTIN_INBOX.md)) |
 | 39 | Automated removal verification & re-listing monitor | In Review — live verification pending |
+| 40 | Data-sharing detection & aggregator-first targeting | In Review |
 
 ---
 
@@ -702,6 +703,12 @@ plugins/
 - Dashboard *Removal checks* card. See [`docs/VERIFICATION.md`](VERIFICATION.md).
 
 **Status:** In Review — live verification pending.
+### 40. Data-sharing detection & aggregator-first targeting
+- **Sharing:** opt-out addresses that receive mail from a company they were never given to become "given to → came from" edges (possible / likely / strong by how many distinct addresses), excluding the broker's own family. Admin → Data sharing.
+- **Targeting:** brokers weighted by known wholesalers (`catalog/aggregators.json`), cascades, family size and observed sharing; new default dispatch order "aggregators first".
+- See [`docs/DATA_SHARING.md`](DATA_SHARING.md).
+
+**Status:** In Review.
 
 ---
 

@@ -5,6 +5,7 @@ import {
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
   Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal,
   Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Bell
+  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Share2
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
@@ -102,6 +103,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
     { to: '/broker-updates',   icon: Bell,        label: 'Broker updates',   perms: ['brokers.manage'], badge: updatesCount, badgeLabel: 'new broker updates' },
     { to: '/broker-health',    icon: Activity,    label: 'Broker health',    perms: ['brokers.manage'] },
     { to: '/broker-priority',  icon: ListOrdered, label: 'Broker priority',  perms: ['brokers.manage'] },
+    { to: '/data-sharing',     icon: Share2,      label: 'Data sharing',     perms: ['brokers.manage'] },
     { to: '/parent-companies', icon: Building2,   label: 'Parent companies', perms: ['brokers.manage'] },
     { to: '/state-registries', icon: Landmark,    label: 'State registries', perms: ['brokers.manage'] },
     { to: '/web-search',       icon: Globe2,      label: 'Web search',       perms: ['settings.system'] },

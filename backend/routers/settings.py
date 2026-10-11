@@ -149,10 +149,11 @@ class SchedulerConfig(BaseModel):
     auto_recheck:          Optional[bool] = True
     pause_before_send:     Optional[bool] = True
     # Order in which throttled brokers are dispatched each day:
-    #   "priority" (default) — highest broker priority (1..5) first
+    #   "aggregators_first" (default) — brokers that feed others first
+    #   "priority"       — highest broker priority (1..5) first
     #   "fifo"           — oldest pending first
     #   "easy_first"     — easiest brokers first (quick wins)
-    dispatch_order:        Optional[str]  = "priority"
+    dispatch_order:        Optional[str]  = "aggregators_first"
     # ── Job spread configuration ──
     # spread_mode: burst | window | rate | distributed
     spread_mode:                Optional[str] = "burst"

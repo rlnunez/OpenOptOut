@@ -7899,6 +7899,51 @@ def t_verification_schedule():
     assert s.query(db.RemovalRequest).filter_by(member_id=pm.id, broker_id=bs[1].id).count() == 1, "no duplicate request"
     summ = vf.summary(s, [pm.id])
     assert summ["counts"]["listed"] >= 1 and summ["recent"]
+# ── Data sharing signals and aggregator-first targeting ───────────────────────
+
+@test(2, "broker_network.sharing_and_aggregators_first",
+      "Opt-out addresses that receive mail from other companies become sharing edges; aggregators and sharers are sent first.")
+def t_broker_network():
+    db, s = _memory_db()
+    bn = _imp("core.broker_network")
+    bp = _imp("core.broker_priority")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    parent = db.ParentCompany(name="FamilyCo", website="https://familyco.example")
+    s.add(parent); s.flush()
+    a = db.Broker(name="LeakyPeople", opt_out_url="https://leakypeople.example/optout", priority=3)
+    sib = db.Broker(name="FamilyCo Phones", opt_out_url="https://familyphones.example", parent_company_id=parent.id, priority=3)
+    sib2 = db.Broker(name="FamilyCo Records", opt_out_url="https://familyrecords.example", parent_company_id=parent.id, priority=3)
+    buyer = db.Broker(name="BuyerSearch", opt_out_url="https://buyersearch.example", priority=3)
+    acx = db.Broker(name="Acxiom", opt_out_url="https://www.acxiom.com/optout", priority=2)
+    plain = db.Broker(name="PlainSite", opt_out_url="https://plainsite.example", priority=5)
+    s.add_all([a, sib, sib2, buyer, acx, plain]); s.flush()
+    def ca(broker, member, senders, tag):
+        s.add(db.ContactAddress(tag=tag, address=f"pat+{tag}@gmail.com", address_hash=tag, mailbox_id=boxes["parent"].id,
+                                member_id=member.id, broker_id=broker.id, unexpected_senders=senders))
+    ca(a, pm, "mail.buyersearch.example,promo.gmail.com", "oo1")
+    ca(a, cm, "buyersearch.example", "oo2")
+    ca(sib, pm, "familyrecords.example,deals.example", "oo3")   # its own sibling never counts
+    s.commit()
+    edges = bn.sharing_edges(s)
+    by = {(e["from_name"], e["to_domain"]): e for e in edges}
+    e = by[("LeakyPeople", "buyersearch.example")]
+    assert e["addresses"] == 2 and e["members"] == 2 and e["confidence"] == "likely" and e["to_broker_id"] == buyer.id, e
+    assert ("FamilyCo Phones", "familyrecords.example") not in by, "a sibling site isn't a third party"
+    assert by[("FamilyCo Phones", "deals.example")]["confidence"] == "possible"
+    assert by[("LeakyPeople", "gmail.com")]["confidence"] == "unknown_sender"
+    sc = bn.upstream_scores(s, edges)
+    assert sc[acx.id]["score"] >= 8 and "wholesaler" in sc[acx.id]["reasons"][0]
+    assert sc[a.id]["score"] > 0 and any("BuyerSearch" in r for r in sc[a.id]["reasons"])
+    assert sc[sib.id]["score"] > 0 and plain.id not in sc
+    # Aggregators-first: Acxiom (priority 2) goes before PlainSite (priority 5).
+    reqs = [db.RemovalRequest(member_id=pm.id, broker_id=b.id, status=db.RequestStatus.pending) for b in (plain, acx, a, buyer)]
+    s.add_all(reqs); s.commit()
+    up = {k: v["score"] for k, v in sc.items()}
+    order = [r.broker.name for r in bp.order_pending(reqs, "aggregators_first", up)]
+    assert order[0] == "Acxiom" and order.index("LeakyPeople") < order.index("PlainSite"), order
+    assert bp.order_pending(reqs, "priority")[0].broker.name == "PlainSite", "priority order unchanged"
+    rank = bn.ranking(s)
+    assert rank[0]["broker_name"] == "Acxiom" and all(r["score"] > 0 for r in rank)
     s.close()
 
 

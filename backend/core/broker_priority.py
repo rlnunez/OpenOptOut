@@ -165,7 +165,7 @@ def reset_to_default(broker) -> None:
 
 # ── Dispatch ordering (used by the scheduler throttle) ────────────────────────
 
-def order_pending(pending: list, strategy: str = "priority") -> list:
+def order_pending(pending: list, strategy: str = "priority", upstream: Optional[dict] = None) -> list:
     """
     Order pending RemovalRequest rows for dispatch.
 
@@ -175,6 +175,10 @@ def order_pending(pending: list, strategy: str = "priority") -> list:
                              with the derived score only as a tiebreaker.
       "fifo"               — oldest pending first.
       "easy_first"         — lowest priority first (quick, low-stakes wins).
+      "aggregators_first"  — brokers that feed other brokers first (data
+                             wholesalers, sites whose opt-out also clears
+                             others, observed sharing; see broker_network),
+                             then by priority. `upstream` = broker_id -> score.
     """
     def created(req):
         return getattr(req, "created_at", None) or 0
@@ -189,6 +193,10 @@ def order_pending(pending: list, strategy: str = "priority") -> list:
         return sorted(pending, key=created)
     if strategy == "easy_first":
         return sorted(pending, key=lambda r: (prio(r), created(r)))
+    if strategy == "aggregators_first":
+        up = upstream or {}
+        return sorted(pending, key=lambda r: (-(up.get(r.broker_id, 0) if r.broker else 0),
+                                              -prio(r), -deriv(r), created(r)))
     return sorted(pending, key=lambda r: (-prio(r), -deriv(r), created(r)))
 
 
