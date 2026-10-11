@@ -74,7 +74,7 @@ export default function Brokers() {
 
   return (
     <div className="p-4 md:p-6 max-w-6xl">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div>
           <h1 className="text-white text-xl font-semibold">Brokers</h1>
           <p className="text-slate-400 text-sm mt-0.5">{brokers.length} brokers loaded</p>
@@ -97,8 +97,8 @@ export default function Brokers() {
       )}
 
       {/* Filters */}
-      <div className="flex gap-2 mb-4">
-        <div className="relative flex-1">
+      <div className="flex flex-wrap gap-2 mb-4">
+        <div className="relative flex-1 min-w-[200px]">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             value={search}
@@ -198,11 +198,11 @@ export default function Brokers() {
 
 function Select({ value, onChange, options, label }) {
   return (
-    <div className="relative">
+    <div className="relative min-w-[110px]">
       <select
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="appearance-none bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-7 py-1.5 text-sm text-slate-300 focus:outline-hidden focus:border-shield-500"
+        className="w-full appearance-none bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-7 py-1.5 text-sm text-slate-300 focus:outline-hidden focus:border-shield-500"
       >
         {options.map(o => (
           <option key={o} value={o}>{o || label}</option>

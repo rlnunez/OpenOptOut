@@ -60,7 +60,7 @@ function AddMemberModal({ onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-6">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-white font-semibold">Add family member</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><X size={16} /></button>

@@ -322,3 +322,46 @@ html.a11y-large-text {
   line-height: 1.6 !important;
 }
 
+/* 5. Adaptive Sidebar Expansion for Large Text & Dyslexia Mode */
+html.a11y-large-text aside[aria-label="Main sidebar"],
+html.a11y-dyslexic-font aside[aria-label="Main sidebar"] {
+  width: 17rem;
+}
+
+@media (min-width: 768px) {
+  html.a11y-large-text aside[aria-label="Main sidebar"],
+  html.a11y-dyslexic-font aside[aria-label="Main sidebar"] {
+    width: 17.5rem;
+  }
+}
+
+/* 6. Resilient Word Wrapping & Text Bounds */
+html.a11y-large-text,
+html.a11y-dyslexic-font {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+html.a11y-large-text h1,
+html.a11y-large-text h2,
+html.a11y-large-text h3,
+html.a11y-large-text h4,
+html.a11y-dyslexic-font h1,
+html.a11y-dyslexic-font h2,
+html.a11y-dyslexic-font h3,
+html.a11y-dyslexic-font h4 {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* 7. Modal & Dialog Screen Bounds (Guarantee windows never overflow viewport) */
+.fixed.inset-0 > div:not([aria-hidden="true"]) {
+  max-height: calc(100vh - 2rem);
+  box-sizing: border-box;
+}
+
+html.a11y-large-text .fixed.inset-0 > div:not([aria-hidden="true"]),
+html.a11y-dyslexic-font .fixed.inset-0 > div:not([aria-hidden="true"]) {
+  max-height: calc(100vh - 1.5rem);
+}
+

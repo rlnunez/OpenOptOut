@@ -165,7 +165,7 @@ export default function Scheduled() {
 
   return (
     <div className="p-4 md:p-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-white text-xl font-semibold">Scheduled re-checks</h1>
           <p className="text-slate-400 text-sm mt-0.5">
@@ -185,8 +185,8 @@ export default function Scheduled() {
       </div>
 
       {/* Tabs + filters */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700/50">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700/50 flex-wrap">
           {[
             { key: 'overdue',  label: `Overdue (${overdue.length})` },
             { key: 'upcoming', label: `Upcoming (${upcoming.length})` },
@@ -200,7 +200,7 @@ export default function Scheduled() {
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Days ahead selector (upcoming only) */}
           {tab === 'upcoming' && (
             <select value={daysAhead} onChange={e => setDaysAhead(parseInt(e.target.value))}

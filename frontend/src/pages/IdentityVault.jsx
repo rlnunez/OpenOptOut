@@ -539,12 +539,12 @@ export default function IdentityVault() {
 
   return (
     <div className="p-4 md:p-6 max-w-3xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-white text-xl font-semibold">Identity vault</h1>
           <p className="text-slate-400 text-sm mt-0.5">All PII variants used to find and remove listings</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => setMasked(m => !m)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
             {masked ? <Eye size={12} /> : <EyeOff size={12} />}

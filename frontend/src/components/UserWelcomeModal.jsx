@@ -105,11 +105,11 @@ export default function UserWelcomeModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+      <div className="relative w-full max-w-2xl max-h-[calc(100vh-2rem)] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         {/* Top Header */}
-        <div className="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+        <div className="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/50 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+            <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
               <Shield size={20} />
             </div>
             <div>
@@ -131,7 +131,7 @@ export default function UserWelcomeModal() {
         </div>
 
         {/* Progress Bar */}
-        <div className="px-6 py-3 bg-slate-950/60 border-b border-slate-800 flex items-center justify-between">
+        <div className="px-6 py-3 bg-slate-950/60 border-b border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             {[1, 2, 3, 4].map(s => (
               <div
@@ -148,7 +148,7 @@ export default function UserWelcomeModal() {
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto max-h-[60vh] space-y-6">
+        <div className="p-6 overflow-y-auto flex-1 min-h-0 space-y-6">
           {/* STEP 1: LANGUAGE SELECTION */}
           {step === 1 && (
             <div className="space-y-4 animate-in fade-in duration-150">
@@ -571,7 +571,7 @@ export default function UserWelcomeModal() {
         </div>
 
         {/* Footer Navigation */}
-        <div className="px-6 py-4 border-t border-slate-800 bg-slate-900/80 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-slate-800 bg-slate-900/80 flex items-center justify-between shrink-0">
           <button
             onClick={completeWelcomeTour}
             className="text-xs text-slate-400 hover:text-white transition-colors"

@@ -312,7 +312,7 @@ export default function CaptchaQueue() {
           onClick={() => setShowTokenModal(false)}
         >
           <div
-            className="bg-slate-900 border border-slate-700 rounded-xl p-5 max-w-md w-full shadow-2xl"
+            className="bg-slate-900 border border-slate-700 rounded-xl p-5 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">

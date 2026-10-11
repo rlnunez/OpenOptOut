@@ -8,12 +8,12 @@ import { useAuth, can } from '../hooks/useAuth'
 
 function StatCard({ label, value, icon: Icon, color }) {
   return (
-    <div className="bg-slate-800 rounded-xl p-4 border border-slate-700/50">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-slate-400 text-xs uppercase tracking-wide">{label}</p>
-        <Icon size={15} className={color} />
+    <div className="bg-slate-800 rounded-xl p-4 border border-slate-700/50 min-w-0">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="text-slate-400 text-xs uppercase tracking-wide break-words">{label}</p>
+        <Icon size={15} className={`${color} shrink-0`} />
       </div>
-      <p className={`text-3xl font-semibold ${color}`}>{value ?? '—'}</p>
+      <p className={`text-3xl font-semibold break-words ${color}`}>{value ?? '—'}</p>
     </div>
   )
 }
@@ -95,12 +95,12 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 md:p-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-white text-xl font-semibold">Dashboard</h1>
           <p className="text-slate-400 text-sm mt-0.5">Overview of your data removal campaign</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
             <RefreshCw size={13} /> Run scan
           </button>
@@ -201,8 +201,8 @@ export default function Dashboard() {
 
       {/* CAPTCHA / Human-in-the-loop alert — shown when opt-outs are paused for challenges */}
       {pendingCaptchas > 0 && (
-        <div className="flex items-center justify-between gap-3 mb-6 px-4 py-3 rounded-xl border border-amber-800 bg-amber-950/30">
-          <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6 px-4 py-3 rounded-xl border border-amber-800 bg-amber-950/30">
+          <div className="flex items-center gap-2.5 min-w-0">
             <ShieldAlert size={18} className="text-amber-400 shrink-0" />
             <div>
               <p className="text-amber-200 text-sm font-medium">
@@ -223,7 +223,7 @@ export default function Dashboard() {
       )}
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard label="Total brokers"      value={stats?.total_brokers} icon={ShieldOff}     color="text-slate-300" />
         <StatCard label="Confirmed removed"  value={stats?.confirmed}     icon={CheckCircle}   color="text-emerald-400" />
         <StatCard label="Pending reply"      value={stats?.pending}       icon={Clock}         color="text-amber-400" />
@@ -236,7 +236,7 @@ export default function Dashboard() {
         {/* Overall progress */}
         <div className="bg-slate-800 rounded-xl p-4 border border-slate-700/50">
           <p className="text-slate-400 text-xs uppercase tracking-wide mb-3">Overall progress</p>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <div className="w-24 h-24">
               <ResponsiveContainer width="100%" height="100%">
                 <RadialBarChart

@@ -158,14 +158,14 @@ export default function EmailMonitor() {
 
   return (
     <div className="p-4 md:p-6 max-w-4xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-white text-xl font-semibold">Email monitor</h1>
           <p className="text-slate-400 text-sm mt-0.5">
             Tracking confirmation emails from data brokers
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button onClick={load} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
             <RefreshCw size={13} /> Refresh
           </button>
@@ -185,7 +185,7 @@ export default function EmailMonitor() {
         <>
           {/* Connection status banner */}
           {!status?.configured && (
-            <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-amber-900/20 border border-amber-800 rounded-xl">
+            <div className="mb-4 flex flex-wrap items-center gap-2 px-4 py-3 bg-amber-900/20 border border-amber-800 rounded-xl">
               <AlertCircle size={14} className="text-amber-400 shrink-0" />
               <p className="text-amber-300 text-sm">
                 Email not configured. Go to <a href="/settings" className="underline hover:text-amber-200">Settings → Email</a> to set up your IMAP inbox.
@@ -194,7 +194,7 @@ export default function EmailMonitor() {
           )}
 
           {status?.configured && (
-            <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-slate-800 border border-slate-700/50 rounded-xl">
+            <div className="mb-4 flex flex-wrap items-center gap-3 px-4 py-3 bg-slate-800 border border-slate-700/50 rounded-xl">
               <StatusDot ok={status.last_poll_status === 'done'} />
               <div className="flex-1">
                 <p className="text-slate-200 text-sm">
