@@ -308,7 +308,7 @@ def resolve_broker(db, url: str) -> dict:
 _OPEN_STATUSES = ("pending", "sent", "submitted", "needs_manual", "recheck_due")
 
 
-def add_listing(db, member, url: str, create_unknown: bool = True) -> dict:
+def add_listing(db, member, url: str, create_unknown: bool = True, source: str = "manual") -> dict:
     """
     Record a listing the person found and make sure it's in the removal cycle.
     Returns a result dict with a plain-language `message`.
@@ -330,8 +330,9 @@ def add_listing(db, member, url: str, create_unknown: bool = True) -> dict:
         created = True
 
     db.add(DiscoveryResult(member_id=member.id, broker_id=broker.id, found=True,
-                           listing_url=clean, source="manual",
-                           snippet="Added by a family member", scanned_at=datetime.utcnow()))
+                           listing_url=clean, source=source,
+                           snippet=("Added by a family member" if source == "manual"
+                                    else "Found by web search"), scanned_at=datetime.utcnow()))
 
     open_statuses = [RequestStatus(s) for s in _OPEN_STATUSES if s in RequestStatus.__members__]
     req = db.query(RemovalRequest).filter(

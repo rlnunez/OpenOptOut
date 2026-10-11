@@ -152,6 +152,23 @@ def registry_maintenance_job():
         except Exception as e:
             log.warning("Site checks failed: %s", e)
         cfg = load_settings()
+        # Weekly web searches, when an admin turned them on.
+        try:
+            from .web_search import run_weekly
+            last_ws = cfg.get("web_search_last_weekly")
+            ws_due = True
+            if last_ws:
+                try:
+                    ws_due = datetime.utcnow() - datetime.fromisoformat(last_ws.rstrip("Z")) >= timedelta(days=7)
+                except ValueError:
+                    ws_due = True
+            if ws_due and run_weekly(db, cfg):
+                cfg = load_settings()
+                cfg["web_search_last_weekly"] = datetime.utcnow().isoformat() + "Z"
+                with open(SETTINGS_FILE, "w") as f:
+                    json.dump(cfg, f, indent=2)
+        except Exception as e:
+            log.warning("Weekly web search failed: %s", e)
         last = cfg.get("registry_last_refresh")
         due = True
         if last:

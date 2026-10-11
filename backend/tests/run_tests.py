@@ -7718,6 +7718,70 @@ def t_listing_manual_registry():
     s.close()
 
 
+
+# ── General web search ────────────────────────────────────────────────────────
+
+@test(1, "web_search.match_strength",
+      "Results are scored strong (exact phone/address/email), medium (name + city) or weak.")
+def t_ws_score():
+    ws = _imp("core.web_search")
+    prof = {"names": ["Jane Q Public", "Jane Public"], "places": ["Austin, TX"],
+            "streets": ["123 Main Street"], "phones": ["+1 (512) 555-0134"], "emails": ["jane@old.example"]}
+    assert ws.score(prof, "Jane Public, age 41, phone 512.555.0134") == ("strong", "phone")
+    assert ws.score(prof, "Lives at 123 Main St, Austin TX") == ("strong", "address")
+    assert ws.score(prof, "contact: JANE@old.example") == ("strong", "email")
+    assert ws.score(prof, "Jane Public in Austin, TX — relatives") == ("medium", "name+city")
+    assert ws.score(prof, "Jane Public of Denver") == ("weak", "name")
+    assert ws.score(prof, "1123 Main Street Springfield") == ("weak", ""), "street must match as a whole"
+    assert ws.score(prof, "call 512-555-0135") == ("weak", "")
+    assert not ws.configured({"enabled": True, "provider": "searxng", "searxng_url": ""})
+    assert ws.configured({"enabled": True, "provider": "searxng", "searxng_url": "http://searxng:8080"})
+
+
+@test(2, "web_search.sorts_results_and_adds_strong_broker_matches",
+      "Strong matches on known brokers join the removal cycle; everything else waits for review; 'not me' is remembered.")
+def t_ws_run():
+    db, s = _memory_db()
+    ws = _imp("core.web_search")
+    m = _member_with_vault(db, s)
+    s.add_all([db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy"),
+               db.Broker(name="Spokeo.com", opt_out_url="https://www.spokeo.com/optout")])
+    s.commit()
+    pages = [
+        {"url": "https://radaris.com/p/Jane/Public/", "title": "Jane Public, Austin", "snippet": "Phone (512) 555-0134"},
+        {"url": "https://www.spokeo.com/Jane-Public/Texas/Austin", "title": "Jane Public - Austin, TX", "snippet": "Age 41"},
+        {"url": "https://unknownpeople.example/jane", "title": "Jane Q Public", "snippet": "512-555-0134"},
+        {"url": "https://www.google.com/search?q=x", "title": "x", "snippet": ""},
+        {"url": "https://radaris.com/p/Jane/Public", "title": "dupe", "snippet": "same page"},
+    ]
+    calls = []
+    search = lambda q: (calls.append(q) or pages)
+    st = ws.run_for_member(s, m, {"web_search": {"max_queries": 3}}, search=search, pause=0)
+    assert len(calls) == 3 and st["queries"] == 3
+    assert st["new"] == 3 and st["added"] == 1, st
+    H = {h.domain: h for h in s.query(db.WebSearchHit).all()}
+    assert set(H) == {"radaris.com", "spokeo.com", "unknownpeople.example"}
+    assert H["radaris.com"].status == "added" and H["radaris.com"].request_id
+    req = s.query(db.RemovalRequest).get(H["radaris.com"].request_id)
+    assert req.listing_url.startswith("https://radaris.com/p/Jane/Public")
+    assert H["spokeo.com"].status == "new" and H["spokeo.com"].strength == "medium"
+    assert H["unknownpeople.example"].status == "new" and H["unknownpeople.example"].strength == "strong", \
+        "unknown sites are never added without a person"
+    assert H["radaris.com"].title == "Jane Public, Austin"
+    ws.dismiss_hit(s, H["spokeo.com"])
+    st2 = ws.run_for_member(s, m, {"web_search": {"max_queries": 1}}, search=lambda q: pages, pause=0)
+    assert st2["new"] == 0 and s.query(db.WebSearchHit).filter_by(status="dismissed").count() == 1
+    res = ws.add_hit(s, H["unknownpeople.example"], m)
+    assert res["state"] == "new_broker" and H["unknownpeople.example"].status == "added"
+    def broken(q):
+        raise RuntimeError("Brave Search rejected the API key.")
+    st3 = ws.run_for_member(s, m, {"web_search": {"max_queries": 5}}, search=broken, pause=0)
+    assert st3["queries"] == 0 and len(st3["errors"]) == 1, "stop after a key/limit error"
+    s.close()
+    # EXPECTED: no person-less additions except strong matches on known brokers.
+    # IF THIS FAILS: wrong people's pages could be sent opt-outs, or real listings missed.
+
+
 # ── runner ────────────────────────────────────────────────────────────────────
 
 def main():

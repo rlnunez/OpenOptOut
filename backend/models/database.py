@@ -377,6 +377,33 @@ class ContactAddress(Base):
     mailbox = relationship("Mailbox")
 
 
+class WebSearchHit(Base):
+    """
+    A page a server-side web search found for a family member. Strong matches
+    on known brokers go straight into the removal cycle; the rest wait here for
+    the person to say "that's me" or "not me". Title and snippet can contain the
+    member's details, so they're encrypted at rest.
+    """
+    __tablename__ = "web_search_hits"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    member_id    = Column(Integer, ForeignKey("family_members.id"), nullable=False, index=True)
+    url          = Column(Text, nullable=False)
+    url_hash     = Column(String(64), nullable=False, index=True)
+    domain       = Column(String, nullable=False, index=True)
+    title        = Column(EncryptedText, nullable=True)
+    snippet      = Column(EncryptedText, nullable=True)
+    query_label  = Column(String, nullable=True)
+    strength     = Column(String(10), nullable=False, default="weak")   # strong | medium | weak
+    matched_on   = Column(String, nullable=True)                         # "phone", "address", "email", "name+city"
+    broker_id    = Column(Integer, ForeignKey("brokers.id"), nullable=True)
+    status       = Column(String(12), nullable=False, default="new")    # new | added | dismissed
+    dismiss_reason = Column(String(20), nullable=True)                   # not_me | not_broker
+    request_id   = Column(Integer, ForeignKey("removal_requests.id"), nullable=True)
+    found_at     = Column(DateTime, default=datetime.utcnow)
+    last_seen_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Identity(Base):
     """PII variants for a family member: name spellings, emails, phones, addresses."""
     __tablename__ = "identities"

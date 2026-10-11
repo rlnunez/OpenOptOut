@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link2, ExternalLink, ChevronDown, ChevronRight, Search, CheckCircle2, AlertTriangle } from 'lucide-react'
 import api from '../api'
+import WebSearchResults from './WebSearchResults'
 
 const inp = 'w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-shield-500'
 
@@ -136,6 +137,8 @@ export default function FindListings({ memberId, memberName, onAdded }) {
           </div>
         </>
       )}
+
+      <WebSearchResults memberId={memberId} memberName={memberName} onAdded={onAdded} />
     </section>
   )
 }
