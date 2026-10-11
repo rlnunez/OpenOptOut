@@ -644,6 +644,19 @@ async def _run_form_via_interpreter(
         # No real steps for this site. Guessing could type the person's details
         # into the wrong form (a newsletter box, a search bar), so a person does it.
         from .interpreter.executor import ExecResult
+        found = None
+        try:
+            from .privacy_finder import best
+            found = best(db, broker)
+        except Exception:
+            pass
+        if found is not None:
+            where = (f"OpenOptOut found {broker.name}'s privacy page at {found.url}. Open it"
+                     if found.kind != "policy" else
+                     f"{broker.name}'s privacy policy is at {found.url}; it should say how to opt out. Follow it")
+            return ExecResult(ok=False, needs_manual=True, detail="no opt-out steps for this broker yet",
+                              human_instruction=(f"{where}, ask for {member.full_name}'s data to be deleted "
+                                                 f"and not sold, then press \"I've done this\"."))
         return ExecResult(ok=False, needs_manual=True, detail="no opt-out steps for this broker yet",
                           human_instruction=(
                               f"OpenOptOut doesn't have the steps for {broker.name}'s opt-out form yet. "
@@ -794,7 +807,13 @@ def _manual_instruction(request, broker, member, cfg, db) -> str:
         log.debug("no spec for manual broker %s: %s", broker.name, e)
     text = (getattr(spec, "instructions", "") or "") if spec is not None and not is_heuristic(spec) else ""
     if not text:
-        where = f"at {broker.opt_out_url}" if broker.opt_out_url else f"on {broker.name}'s website"
+        try:
+            from .privacy_finder import best
+            found = best(db, broker)
+        except Exception:
+            found = None
+        where = (f"at {found.url}" if found is not None else
+                 f"at {broker.opt_out_url}" if broker.opt_out_url else f"on {broker.name}'s website")
         how = "by phone" if broker.method == OptOutMethod.phone else where
         return (f"Opt {member.full_name} out of {broker.name} {how}, then press \"I've done this\"."
                 + (f"\n{broker.notes.strip()}" if (broker.notes or "").strip() else ""))

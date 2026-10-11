@@ -56,7 +56,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 34 | Checklist & per-variant removal report | Complete (#73, #75) |
 | 35 | Broker confirmation links clicked automatically | Complete (#76) |
 | 36 | Curated broker form plugins & honest form results | In Review — live verification pending |
-| 37 | Long tail: privacy-request page finder & OneTrust/TrustArc forms | Planned (next) |
+| 37 | Long tail: privacy-request page finder & OneTrust/TrustArc forms | In Review — live verification pending |
 | 38 | Built-in receive-only inbox | In Design ([`docs/BUILTIN_INBOX.md`](BUILTIN_INBOX.md)) |
 
 ---
@@ -676,7 +676,12 @@ plugins/
 ### 37. Long tail: privacy-request page finder & hosted privacy forms
 **Goal:** Cover brokers no one has written steps for. Find a site's privacy-request page, and fill the hosted forms many companies use (OneTrust, TrustArc) with one shared handler.
 
-**Status:** Planned (next).
+- **Privacy-page finder** (`core/privacy_finder.py`): reads a broker's own website (no personal data sent, at most 8 public pages) for hosted OneTrust/TrustArc forms, in-house request forms, opt-out pages, policies and privacy email addresses. Daily for 20 brokers without steps (30-day recheck), immediately for sites from pasted listings, or on demand from the Brokers page.
+- **Label-driven form filler** (`autofill` step, `interpreter/hosted_forms.py`): picks delete / do-not-sell and "myself", fills name, one-time email and address, ticks certifications, never marketing boxes; refuses ID/SSN/DOB fields, forms without a name and email box, and request types without deletion — those go on the checklist with the page.
+- Found forms become the broker's opt-out steps after plugins and admin scripts; their verification emails are clicked via item 35. Found email addresses are used only after an admin approves them.
+- See [`docs/PRIVACY_PAGES.md`](PRIVACY_PAGES.md).
+
+**Status:** In Review — live verification pending.
 
 ---
 

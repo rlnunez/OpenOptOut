@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Search, Upload, ExternalLink, ChevronDown } from 'lucide-react'
+import { Search, Upload, ExternalLink, ChevronDown, ScanSearch } from 'lucide-react'
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import Badge from '../components/Badge'
+import PrivacyPagesPanel from '../components/PrivacyPagesPanel'
 
 const STATUS_OPTIONS   = ['', 'compliant', 'resistant', 'inconsistent', 'undetermined']
 const METHOD_OPTIONS   = ['', 'form', 'email', 'manual', 'phone']
@@ -20,6 +21,15 @@ export default function Brokers() {
   const [importing, setImporting] = useState(false)
   const [importMsg, setImportMsg] = useState('')
   const [solvers, setSolvers]     = useState([])
+  const [ppKey, setPpKey]         = useState(0)
+
+  const findPrivacyPage = async (b) => {
+    try {
+      const { data } = await api.post(`/privacy-pages/find/${b.id}`)
+      setImportMsg(data.message ? `✓ ${data.message}` : `✓ Already looking at ${b.name}'s website.`)
+      setPpKey(k => k + 1)
+    } catch (e) { setImportMsg(e.response?.data?.detail || "Couldn't start the search.") }
+  }
 
   useEffect(() => {
     api.get('/brokers/captcha-solvers')
@@ -173,7 +183,13 @@ export default function Brokers() {
                       : new Date(b.recheck_after).toLocaleDateString()
                     : '—'}
                 </td>
-                <td className="px-4 py-2.5">
+                <td className="px-4 py-2.5 flex items-center gap-2">
+                  {canManage && (
+                    <button onClick={() => findPrivacyPage(b)} className="text-slate-400 hover:text-shield-300"
+                      title="Find this broker's privacy request page" aria-label={`Find ${b.name}'s privacy request page`}>
+                      <ScanSearch size={13} />
+                    </button>
+                  )}
                   {b.opt_out_url && (
                     <a
                       href={b.opt_out_url}
@@ -192,6 +208,7 @@ export default function Brokers() {
         </table>
         </div>
       </div>
+      {canManage && <PrivacyPagesPanel refreshKey={ppKey} />}
     </div>
   )
 }

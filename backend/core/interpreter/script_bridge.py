@@ -169,5 +169,16 @@ def get_or_build_broker_spec(broker, script=None, db=None) -> BrokerSpec:
         if spec:
             return spec
 
+    # A privacy-request form the finder found on the broker's own website.
+    if db is not None:
+        try:
+            from ..privacy_finder import best, FILLABLE
+            from .hosted_forms import spec_for_page
+            page = best(db, broker, FILLABLE)
+            if page is not None:
+                return spec_for_page(broker, page)
+        except Exception as e:
+            log.debug("found-form lookup failed for %s: %s", getattr(broker, "name", "?"), e)
+
     return heuristic_spec_for_broker(broker)
 

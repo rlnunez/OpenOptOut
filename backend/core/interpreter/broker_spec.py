@@ -65,6 +65,8 @@ STEP_KINDS = {
     "submit",         # submit the form
     "expect_success", # assert a success signal (selector/text) to confirm the opt-out
     "solve_captcha",  # hand off to the CAPTCHA layer (roadmap item 4)
+    "autofill",       # fill a privacy-request form by its labels (hosted_forms.plan_autofill);
+                      # stops for a person when unsure
     "pause_for_human",# stop here; a person finishes the rest (pick a listing,
                       # answer a phone call). With a selector, pause only if it
                       # is on the page. `text` is the plain-language instruction.

@@ -65,6 +65,7 @@ If `opt_out_url` is set and the steps don't begin with a `navigate`, the compile
 | `expect_success` | confirm the opt-out succeeded | `selector` or `text` |
 | `solve_captcha` | hand off to the CAPTCHA layer (roadmap item 4) | `selector` |
 | `type` | like `fill`, but key by key, for React/Material UI inputs that ignore a programmatic fill | `selector`, `field` or `value` |
+| `autofill` | fill a privacy-request form by reading its labels; stops for a person when unsure (see [PRIVACY_PAGES.md](PRIVACY_PAGES.md)) | nothing — values come from the member |
 | `pause_for_human` | stop here; a person finishes. With a `selector`, only when that element is on the page | `text` (may use `{field}` placeholders) |
 
 Steps run against the current page, or the iframe chosen with `frame` (every action works inside iframes). `click_matching` prefers an element whose whole text matches (so "Kansas" never picks "Arkansas"). A `navigate` URL may contain `{field}` placeholders: values are slugged in the path (`Jane-Doe`) and percent-encoded in the query; a missing value stops the job at compile time.
@@ -140,7 +141,7 @@ Most brokers don't have a hand-written BrokerSpec yet. Instead, `core/interprete
 
 Curated broker add-ons ship with the app in `backend/plugins/bundled/brokers/` and install themselves at startup (`broker_addon.sync_builtin_brokers`). An admin who turns one off keeps it off; an admin's own add-on with the same id is never replaced.
 
-If a broker has no add-on spec or automation script, `get_or_build_broker_spec` builds a best-guess spec with generic selectors (`firstName`, `email`, submit buttons). It is **not used by default**: guessing can type a person's details into the wrong box on an unknown page. Such brokers go on the checklist instead. Admins can turn guessing on (`automation.best_guess_forms`); even then a guess only counts when the page says the request was received. The legacy combination-matrix engine (`_fill_one_combo`) has been retired; all form executions route through `PlaywrightExecutor`.
+If a broker has no add-on spec or automation script but the privacy-page finder found a OneTrust, TrustArc or in-house request form on its website, that form is used (`hosted_forms.spec_for_page`). Otherwise `get_or_build_broker_spec` builds a best-guess spec with generic selectors (`firstName`, `email`, submit buttons). It is **not used by default**: guessing can type a person's details into the wrong box on an unknown page. Such brokers go on the checklist instead. Admins can turn guessing on (`automation.best_guess_forms`); even then a guess only counts when the page says the request was received. The legacy combination-matrix engine (`_fill_one_combo`) has been retired; all form executions route through `PlaywrightExecutor`.
 
 ## Trying a spec against a real browser
 
