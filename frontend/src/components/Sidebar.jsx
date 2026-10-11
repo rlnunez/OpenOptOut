@@ -4,7 +4,7 @@ import {
   Users, ShieldCheck, Settings, LogOut, ShieldAlert,
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
   Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal,
-  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Bell, Share2, Snowflake, DatabaseBackup
+  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Bell, Share2, Snowflake, Gavel, DatabaseBackup
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
@@ -21,6 +21,7 @@ const nav = [
   { k: 'nav.email_monitor', label: 'Replies',       to: '/email',      icon: Mail },
   { k: 'nav.scheduled', label: 'Check again',   to: '/scheduled',  icon: CalendarClock },
   { k: 'nav.captcha', label: 'CAPTCHAs',      to: '/captcha',    icon: ShieldAlert },
+  { k: 'nav.deadlines', label: 'Deadline report', to: '/deadlines', icon: Gavel },
 ]
 const setup = [
   { k: 'nav.family', label: 'Family members', to: '/family',   icon: Users },

@@ -216,6 +216,8 @@ MASTER_DICTIONARY: List[Dict[str, str]] = [
     {"key": "status.skipped", "default_text": "Skipped", "location": "Status labels / Badges", "description": "Status label shown on badges"},
     # ── Added with the plain-language pass ──
     {"key": "nav.backups", "default_text": "Backups", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    # ── Added with the plain-language pass ──
+    {"key": "nav.deadlines", "default_text": "Deadline report", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
 ]
 
 # Built-in Spanish translations
@@ -376,6 +378,7 @@ BUILTIN_SPANISH = {
     "status.captcha": "CAPTCHA",
     "status.skipped": "Omitido",
     "nav.backups": "Copias de seguridad",
+    "nav.deadlines": "Informe de plazos",
 }
 
 # Built-in Arabic translations (RTL Demonstration)
@@ -536,6 +539,7 @@ BUILTIN_ARABIC = {
     "status.captcha": "CAPTCHA",
     "status.skipped": "تم التخطي",
     "nav.backups": "النسخ الاحتياطية",
+    "nav.deadlines": "تقرير المهل",
 }
 
 # Built-in French translations
@@ -694,6 +698,7 @@ BUILTIN_FRENCH = {
     "vault.add_email": "Ajouter une adresse e-mail",
     "vault.add_phone": "Ajouter un numéro de téléphone",
     "nav.backups": "Sauvegardes",
+    "nav.deadlines": "Rapport des délais",
 }
 
 # Built-in Pirate translations (Ahoy, matey!)
@@ -863,6 +868,7 @@ BUILTIN_PIRATE = {
     "status.captcha": "Riddle",
     "status.skipped": "Passed By",
     "nav.backups": "Buried Treasure",
+    "nav.deadlines": "Overdue Scallywags",
 }
 
 BUILTIN_TRANSLATIONS = {

@@ -209,6 +209,7 @@ class User(Base):
     preferred_language     = Column(String(10), default="en", nullable=False)
     tutorial_completed     = Column(Boolean, default=False, nullable=False)
     pending_ils_import     = Column(Text, nullable=True)  # Staged ILS demographic fields waiting for patron confirmation
+    notification_prefs = Column(Text, nullable=True)  # JSON: {"overdue": bool, "relisted": bool} (core/compliance.py)
     accessibility_settings = Column(Text, nullable=True)  # JSON dict: {"high_contrast": bool, "large_text": bool, "reduced_motion": bool}
 
     # Multi-Factor Authentication (TOTP + FIDO2/WebAuthn/YubiKey)
@@ -695,6 +696,18 @@ class RemovalRequest(Base):
     captcha_challenges = relationship("CaptchaChallenge", back_populates="request", cascade="all, delete-orphan")
     events = relationship("RequestEvent", back_populates="request", cascade="all, delete-orphan",
                           order_by="RequestEvent.at")
+
+
+class NoticeSent(Base):
+    """A deadline or re-listing notice already emailed, so each goes out once per round."""
+    __tablename__ = "notices_sent"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    request_id = Column(Integer, ForeignKey("removal_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind       = Column(String(20), nullable=False)        # overdue | relisted
+    round_key  = Column(String(40), nullable=False)        # the round's send date, or when it was found again
+    sent_at    = Column(DateTime, default=datetime.utcnow)
 
 
 class RequestEvent(Base):

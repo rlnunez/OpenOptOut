@@ -9219,6 +9219,56 @@ def t_family_add_remove():
     s.close()
     # EXPECTED: "Add a person" and "Remove" on the Family page work.
     # IF THIS FAILS: families can't add children or remove people they added.
+@test(2, "compliance.deadlines_scope_and_notices",
+      "The deadline report flags late and relisting sites for the viewer's people only, and opted-in notices go out once.")
+def t_compliance_report():
+    import datetime as _dt, json as _json
+    db, s = _memory_db()
+    cp = _imp("core.compliance")
+    tl = _imp("core.timeline")
+    jane = _member_with_vault(db, s)
+    U2 = db.User(email="other@x.example", full_name="Other Family", role=db.UserRole.parent)
+    s.add(U2); s.flush()
+    other = db.FamilyMember(user_id=U2.id, full_name="Other Family"); s.add(other); s.flush()
+    b = db.Broker(name="SlowSite", opt_out_url="https://slow.example")
+    s.add(b); s.flush()
+    d = lambda day: _dt.datetime(2026, 1, 1) + _dt.timedelta(days=day)
+    R = db.RequestStatus
+    r1 = db.RemovalRequest(member_id=jane.id, broker_id=b.id, status=R.sent)
+    r2 = db.RemovalRequest(member_id=other.id, broker_id=b.id, status=R.sent)
+    s.add_all([r1, r2]); s.commit()
+    for r in (r1, r2):
+        for e in r.events:
+            e.at = d(0)
+        s.add(db.AutomationLog(request_id=r.id, action="form_fill", status="success", created_at=d(0)))
+    s.add(db.VerificationCheck(request_id=r2.id, checked_at=d(10), method="broker_search", verdict="gone"))
+    s.add(db.VerificationCheck(request_id=r2.id, checked_at=d(40), method="broker_search", verdict="listed"))
+    s.commit()
+    orig = tl.build
+    tl.build = lambda db_, req, now=None: (lambda o: (o.update(response_days=45) or [c.update(due_by=(_dt.datetime.fromisoformat(c["sent_at"]) + _dt.timedelta(days=45)).isoformat()) for c in o["cycles"] if c["sent_at"]] and o))(orig(db_, req, now=now))
+    try:
+        mine = cp.report(s, [jane.id], now=d(60))
+        assert [r["person"] for r in mine["rows"]] == ["Jane Q Public"], "only the viewer's people"
+        assert mine["rows"][0]["verdict"] == "overdue" and mine["totals"]["overdue"] == 1
+        theirs = cp.report(s, [other.id], now=d(60))
+        assert theirs["totals"]["relisted"] == 1 and theirs["rows"][0]["verdict"] == "on_time"
+        assert "found_again" in cp.to_csv(theirs).splitlines()[0]
+        assert cp.report(s, [], now=d(60))["rows"] == []
+        # Notices: off by default; once turned on, each problem is emailed once.
+        u = jane.user
+        assert cp.pending_notices(s, u, now=d(60)) == []
+        u.notification_prefs = _json.dumps({"overdue": True, "relisted": True}); s.commit()
+        sent = []
+        st = cp.run_notices(s, {}, send=lambda to, subj, body: sent.append((to, subj, body)) or {"ok": True}, now=d(60))
+        assert st["emails"] == 1 and len(sent) == 1 and "SlowSite" in sent[0][2] and sent[0][0] == "jane@x.example"
+        assert "Other Family" not in sent[0][2], "never about people outside the family"
+        st = cp.run_notices(s, {}, send=lambda *a: sent.append(a) or {"ok": True}, now=d(61))
+        assert st["emails"] == 0 and len(sent) == 1, "not sent twice"
+    finally:
+        tl.build = orig
+    s.close()
+    # EXPECTED: per-viewer deadline report; notices only for opted-in people, once per problem.
+    # IF THIS FAILS: people could see others' requests, miss notices, or get the same email every day.
 
 
 def main():

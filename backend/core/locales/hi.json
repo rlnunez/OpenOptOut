@@ -148,5 +148,6 @@
   "status.failure": "नहीं हो पाया",
   "status.captcha": "कैप्चा",
   "status.skipped": "छोड़ दिया",
-  "nav.backups": "बैकअप"
+  "nav.backups": "बैकअप",
+  "nav.deadlines": "समय-सीमा रिपोर्ट"
 }

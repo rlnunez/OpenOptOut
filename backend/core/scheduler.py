@@ -68,6 +68,12 @@ def start_scheduler():
               replace_existing=True, misfire_grace_time=3600,
               next_run_time=datetime.utcnow() + timedelta(minutes=20))
 
+    # Deadline and re-listing notices for people who asked for them. Daily,
+    # after the removal checks.
+    s.add_job(notice_job, IntervalTrigger(hours=24), id="notices",
+              replace_existing=True, misfire_grace_time=3600,
+              next_run_time=datetime.utcnow() + timedelta(minutes=50))
+
     if not sc.get("enabled", False):
         s.start()
         log.info("Opt-out scheduling disabled — maintenance jobs only")
@@ -846,6 +852,25 @@ def verification_job():
     except Exception as e:
         run.status = "error"; run.errors = json.dumps([str(e)])
         log.error("Verification job error: %s", e)
+    finally:
+        run.finished_at = datetime.utcnow()
+        db.commit(); db.close()
+
+
+def notice_job():
+    """Daily: email opted-in people when a site misses its deadline or relists them."""
+    db = SessionLocal()
+    run = SchedulerRun(run_type="notices", status="running")
+    db.add(run); db.commit()
+    try:
+        from .compliance import run_notices
+        stats = run_notices(db, load_settings())
+        run.status = "done"
+        if stats["emails"]:
+            log.info("Notices: %s", stats)
+    except Exception as e:
+        run.status = "error"; run.errors = json.dumps([str(e)])
+        log.error("Notice job error: %s", e)
     finally:
         run.finished_at = datetime.utcnow()
         db.commit(); db.close()

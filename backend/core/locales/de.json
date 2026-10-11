@@ -148,5 +148,6 @@
   "status.failure": "Hat nicht geklappt",
   "status.captcha": "CAPTCHA",
   "status.skipped": "Übersprungen",
-  "nav.backups": "Sicherungen"
+  "nav.backups": "Sicherungen",
+  "nav.deadlines": "Fristenbericht"
 }

@@ -148,5 +148,6 @@
   "status.failure": "Hindi gumana",
   "status.captcha": "CAPTCHA",
   "status.skipped": "Nilaktawan",
-  "nav.backups": "Mga backup"
+  "nav.backups": "Mga backup",
+  "nav.deadlines": "Ulat sa mga deadline"
 }
