@@ -355,6 +355,17 @@ def add_listing(db, member, url: str, create_unknown: bool = True) -> dict:
             req.notes = ((req.notes or "") + f"\nAnother listing: {clean}").strip()
         state = "already_open"
 
+    if not created and broker.method == OptOutMethod.manual and req.status == RequestStatus.pending \
+            and (broker.origin or "curated") != "state_program":
+        # No automated opt-out for this site yet: tell the person what to do.
+        where = broker.opt_out_url or f"https://{hit['domain']}"
+        how = f"Ask {broker.name} to delete your information at {where}"
+        if broker.registry_contact_email:
+            how += (f", or email {broker.registry_contact_email} (the contact address it gave the "
+                    f"state registry)")
+        req.status = RequestStatus.needs_manual
+        req.notes = f"{how}. Include the address of your listing: {clean}"
+
     if created:
         req.status = RequestStatus.needs_manual
         req.notes = (f"OpenOptOut doesn't know how to opt out of {hit['domain']} yet. On that site, "

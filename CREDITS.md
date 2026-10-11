@@ -22,7 +22,7 @@ OpenOptOut is open source (AGPL-3.0) and noncommercial.
 
 - **Who:** stephenlthorn and contributors — [stephenlthorn/auto-identity-remove](https://github.com/stephenlthorn/auto-identity-remove)
 - **License:** MIT
-- **What we use:** ideas for removal verification (search the broker again using a search URL and a listing pattern; our `search_url` and `listing_pattern` spec fields), status categories, and refreshing broker lists from state data-broker registries. If we copy code or selectors from it, its copyright notice goes with them.
+- **What we use:** ideas for removal verification (search the broker again using a search URL and a listing pattern; our `search_url` and `listing_pattern` spec fields), status categories, refreshing broker lists from state data-broker registries (its Vermont export address is offered as a suggestion), and flagging brokers whose sites stay unreachable. We wrote our own implementations; if we copy code or selectors from it, its copyright notice goes with them.
 
 ## Opt-Out Desk
 

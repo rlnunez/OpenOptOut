@@ -560,8 +560,9 @@ def process_pending_parent_company_optouts(
         # Skip bouncing email addresses
         if parent.honor_status == EmailHonorStatus.bounces:
             continue
-        # Skip disabled or test brokers
-        if not req.broker.enabled or getattr(req.broker, "is_test", False):
+        # Skip disabled or test brokers (and registry-only brokers DROP covers)
+        from .broker_gate import request_allowed
+        if not request_allowed(req, db):
             continue
 
         groups[(req.member_id, pid)].append(req)
@@ -993,7 +994,8 @@ async def run_optout_batch(request_ids: list[int]) -> dict:
                     # Skip brokers that are disabled (by an admin or auto-disabled
                     # by the health monitor) — a broken broker never crashes or
                     # slows a run; it's quietly passed over until reviewed.
-                    if req.broker and (not req.broker.enabled or getattr(req.broker, "is_test", False)):
+                    from .broker_gate import request_allowed
+                    if req.broker and not request_allowed(req, db):
                         skipped += 1
                         log.info("Skipping disabled broker %s (request %s)",
                                  req.broker.name, req_id)

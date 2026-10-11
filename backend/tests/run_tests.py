@@ -7551,6 +7551,173 @@ def t_listing_url_field():
     assert [st.value for st in job.steps if st.kind == "fill"] == ["https://s.example/p/jane"]
 
 
+
+# ── State registries, dead sites, California DROP ─────────────────────────────
+
+_CA_CSV = ("﻿Data Broker Name,Website URL,Email Address,Registration Date,Notes\n"
+           "Radaris LLC,https://radaris.com,privacy@radaris.example,2026-01-02,\n"
+           "Acme Audience Data,www.acme-audience.example,optout@acme-audience.example,2026-02-03,\n"
+           "TruthFinder,https://www.truthfinder.com/,,2026-02-04,\n"
+           "No Website Co,,x@y.example,2026-02-05,\n").encode("utf-8")
+
+
+@test(1, "registry.parse_exports",
+      "Registry exports are read whatever their column names, encoding or delimiter; rows without a website are skipped.")
+def t_registry_parse():
+    rs = _imp("core.registry_sync")
+    p = rs.parse_registry(_CA_CSV, "ca.csv")
+    assert [r["domain"] for r in p["rows"]] == ["radaris.com", "acme-audience.example", "truthfinder.com"], p["rows"]
+    assert p["skipped"] == 1 and p["mapped"]["name"] == "Data Broker Name" and "Registration Date" in p["unmapped"]
+    assert p["rows"][0]["email"] == "privacy@radaris.example"
+    semi = "Title line\n\nBusiness Name;Website;Contact Email\nOregon Data Co;oregondata.example;bad-email\n".encode("cp1252")
+    q = rs.parse_registry(semi, "or.csv")
+    assert q["rows"] == [{"name": "Oregon Data Co", "website": "oregondata.example",
+                          "domain": "oregondata.example", "email": "", "opt_out_url": ""}], q
+    for data, name, frag in ((b"", "x.csv", "empty"), (b"a,b\n1,2\n", "x.csv", "columns"),
+                             (b"x", "old.xls", "xls")):
+        try:
+            rs.parse_registry(data, name); raise AssertionError(name)
+        except ValueError as e:
+            assert frag in str(e).lower(), (name, str(e))
+    for url in ("http://x.example/a.csv", "https://localhost/a.csv", "https://127.0.0.1/a.csv"):
+        try:
+            rs.fetch_registry(url); raise AssertionError(url)
+        except ValueError:
+            pass
+
+
+@test(2, "registry.import_starts_off_and_never_overrides",
+      "Imported brokers start turned off; existing brokers only gain registry details; repeat imports from other states merge.")
+def t_registry_import():
+    db, s = _memory_db()
+    rs = _imp("core.registry_sync")
+    s.add(db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy", enabled=True))
+    s.commit()
+    rows = rs.parse_registry(_CA_CSV, "ca.csv")["rows"]
+    plan = rs.plan(s, "CA", rows)
+    assert plan["counts"] == {"rows": 3, "new": 2, "matched": 1, "no_longer_listed": 0}, plan["counts"]
+    assert s.query(db.Broker).count() == 1, "preview must not write"
+    assert any(n["domain"] == "truthfinder.com" and n["family"] == "PeopleConnect (Intelius)" for n in plan["new"])
+    rs.apply(s, "CA", rows)
+    B = {b.name: b for b in s.query(db.Broker).all()}
+    acme = B["Acme Audience Data"]
+    assert acme.enabled is False and acme.origin == "registry" and acme.registry_states == "CA"
+    assert acme.method == db.OptOutMethod.manual and acme.registry_contact_email == "optout@acme-audience.example"
+    rad = B["Radaris"]
+    assert rad.enabled and rad.opt_out_url == "https://radaris.com/control-privacy" and rad.registry_states == "CA"
+    assert (rad.origin or "curated") == "curated"
+    rs.apply(s, "VT", rows[:1])
+    s.refresh(rad); s.refresh(acme)
+    assert rad.registry_states == "CA,VT"
+    gone = rs.plan(s, "CA", rows[:1])["no_longer_listed"]
+    assert {g["broker_name"] for g in gone} == {"Acme Audience Data", "TruthFinder"}, gone
+    assert s.query(db.Broker).filter(db.Broker.enabled.is_(True)).count() == 1, "import must never turn brokers on"
+    assert rs.enable_brokers(s, all_registry=True) == 2
+    s.close()
+
+
+@test(2, "registry.turning_on_requires_acknowledging_warning",
+      "The admin endpoint refuses to turn registry brokers on unless the warning was acknowledged.")
+def t_registry_ack():
+    db, s = _memory_db()
+    try:
+        reg = _imp("routers.registry")
+    except Exception as e:
+        raise Skip(f"router deps missing: {e}")
+    from fastapi import HTTPException
+    b = db.Broker(name="Acme", opt_out_url="https://acme.example", enabled=False, origin="registry", registry_states="CA")
+    s.add(b); s.commit()
+    try:
+        reg.enable(reg.EnableIn(broker_ids=[b.id]), s, None)
+        raise AssertionError("enabled without acknowledgement")
+    except HTTPException as e:
+        assert e.status_code == 400 and "more harm than good" in e.detail
+    s.refresh(b); assert b.enabled is False
+    assert reg.enable(reg.EnableIn(broker_ids=[b.id], acknowledge=True), s, None)["enabled"] == 1
+    s.close()
+
+
+@test(2, "registry.gate_listing_exception_and_drop",
+      "Off registry brokers run only for someone with a listing there; CA-only registry brokers are skipped 90 days after DROP.")
+def t_registry_gate():
+    from datetime import datetime, timedelta
+    db, s = _memory_db()
+    gate = _imp("core.broker_gate")
+    sp = _imp("core.state_programs")
+    U = db.User(email="c@x.example", full_name="Cal Resident", role=db.UserRole.parent)
+    s.add(U); s.flush()
+    m = db.FamilyMember(user_id=U.id, full_name="Cal Resident"); s.add(m); s.flush()
+    s.add(db.Identity(member_id=m.id, kind="address", value="1 Ocean Ave, Santa Monica, CA 90401", is_primary=True))
+    off = db.Broker(name="AdCo", opt_out_url="https://adco.example", enabled=False, origin="registry", registry_states="CA")
+    cur = db.Broker(name="Curated", opt_out_url="https://cur.example", enabled=False)
+    on_ca = db.Broker(name="OnCA", opt_out_url="https://onca.example", enabled=True, origin="registry", registry_states="CA")
+    on_ca_tx = db.Broker(name="OnCATX", opt_out_url="https://oncatx.example", enabled=True, origin="registry", registry_states="CA,TX")
+    s.add_all([off, cur, on_ca, on_ca_tx]); s.flush()
+    R = lambda b, url=None: db.RemovalRequest(member_id=m.id, broker_id=b.id, listing_url=url, status=db.RequestStatus.pending)
+    reqs = {"off": R(off), "off_listed": R(off, "https://adco.example/p/cal"), "cur": R(cur, "https://cur.example/p"),
+            "on_ca": R(on_ca), "on_ca_tx": R(on_ca_tx)}
+    s.add_all(reqs.values()); s.commit()
+    ok = {k: gate.request_allowed(r, s) for k, r in reqs.items()}
+    assert ok == {"off": False, "off_listed": True, "cur": False, "on_ca": True, "on_ca_tx": True}, ok
+    assert sp.ensure_drop_items(s) == 1 and sp.ensure_drop_items(s) == 0, "one DROP item, once"
+    drop_req = s.query(db.RemovalRequest).join(db.Broker).filter(db.Broker.origin == "state_program").one()
+    assert drop_req.status == db.RequestStatus.needs_manual and "privacy.ca.gov/drop" in drop_req.notes
+    drop_req.status = db.RequestStatus.confirmed
+    drop_req.confirmed_at = datetime.utcnow() - timedelta(days=91); s.commit()
+    assert gate.request_allowed(reqs["on_ca"], s) is False, "CA-only registry broker covered by DROP"
+    assert gate.request_allowed(reqs["on_ca_tx"], s) is True, "also registered elsewhere: still contact it"
+    drop_req.confirmed_at = datetime.utcnow() - timedelta(days=10); s.commit()
+    assert gate.request_allowed(reqs["on_ca"], s) is True, "brokers' 90 days not up yet"
+    s.close()
+
+
+@test(2, "broker_health.dead_sites",
+      "A site unreachable for 30+ days is marked defunct and turned off; one that answers again is flagged, not turned on.")
+def t_dead_sites():
+    from datetime import datetime, timedelta
+    db, s = _memory_db()
+    bh = _imp("core.broker_health")
+    b = db.Broker(name="Gone.example", opt_out_url="https://gone.example/optout", enabled=True,
+                  registry_states="CA", registry_last_seen=datetime.utcnow())
+    s.add(b); s.commit()
+    assert bh.classify_failure("net::ERR_NAME_NOT_RESOLVED at https://gone.example") == "unreachable"
+    assert bh.classify_failure("Timeout 8000ms exceeded") == "timeout"
+    bh.record_failure(s, b.id, "net::ERR_NAME_NOT_RESOLVED")
+    h = s.query(db.BrokerHealth).filter_by(broker_id=b.id).one()
+    assert h.unreachable_since and not h.defunct and b.enabled
+    h.unreachable_since = datetime.utcnow() - timedelta(days=31); s.commit()
+    bh.record_probe(s, b.id, False, "getaddrinfo failed")
+    s.refresh(h); s.refresh(b)
+    assert h.defunct and not b.enabled and "still on a state data broker registry" in h.auto_disabled_reason
+    bh.record_probe(s, b.id, True, "HTTP 200")
+    s.refresh(h); s.refresh(b)
+    assert not h.defunct and h.needs_review and not b.enabled, "a returning site needs a person to check it"
+    bh.record_failure(s, b.id, "selector #email not found")
+    s.refresh(h); assert h.unreachable_since is None, "a form error means the site is up"
+    seen = []
+    res = bh.probe_sites(s, limit=5, fetch=lambda d: (seen.append(d) or (True, "ok")))
+    assert res == {"checked": 1, "unreachable": 0} and seen == ["gone.example"]
+    s.close()
+
+
+@test(2, "listings.manual_broker_gets_instructions",
+      "A listing on a site with no automated opt-out becomes a checklist item naming where to ask, including the registry contact.")
+def t_listing_manual_registry():
+    db, s = _memory_db()
+    lf = _imp("core.listing_finder")
+    m = _member_with_vault(db, s)
+    b = db.Broker(name="Acme Audience Data", opt_out_url="https://acme-audience.example", enabled=False,
+                  origin="registry", registry_states="CA", registry_contact_email="optout@acme-audience.example",
+                  method=db.OptOutMethod.manual)
+    s.add(b); s.commit()
+    r = lf.add_listing(s, m, "https://acme-audience.example/people/jane")
+    req = s.query(db.RemovalRequest).get(r["request_id"])
+    assert r["broker_name"] == "Acme Audience Data"
+    assert req.status == db.RequestStatus.needs_manual
+    assert "optout@acme-audience.example" in req.notes and "acme-audience.example/people/jane" in req.notes
+    s.close()
+
+
 # ── runner ────────────────────────────────────────────────────────────────────
 
 def main():
