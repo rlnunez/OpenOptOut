@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   BookOpen, Shield, Mail, AlertTriangle, Plus,
   Edit3, Trash2, X, Check, ChevronDown, ChevronRight,
-  ExternalLink, Info, Lightbulb, ShieldAlert
+  ExternalLink, Info, Lightbulb, ShieldAlert, Copy
 } from 'lucide-react'
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
@@ -637,10 +637,13 @@ export default function Help() {
   const [customNotes, setCustomNotes] = useState([])
   const [editing, setEditing]         = useState(null)   // null | 'new' | noteObj
   const [activeTab, setActiveTab]     = useState('docs') // 'docs' | 'resistant' | 'notes'
+  const [versionInfo, setVersionInfo] = useState(null)
+  const [copiedReport, setCopiedReport] = useState(false)
   const isAdmin = can(user, 'help.edit')
 
   useEffect(() => {
     api.get('/help/notes').then(r => setCustomNotes(r.data)).catch(() => {})
+    api.get('/health').then(r => setVersionInfo(r.data)).catch(() => {})
   }, [])
 
   const deleteNote = async id => {
@@ -659,16 +662,24 @@ export default function Help() {
   const customBySection = section => customNotes.filter(n => n.section === section).map(n => ({ ...n, _custom: true }))
 
   const TABS = [
-    { key: 'docs',      label: 'How it works',       icon: BookOpen },
-    { key: 'resistant', label: 'Resistant vendors',  icon: ShieldAlert },
-    { key: 'general',   label: 'Templates & tips',   icon: Lightbulb },
+    { key: 'docs',      label: 'How it works',          icon: BookOpen },
+    { key: 'resistant', label: 'Resistant vendors',     icon: ShieldAlert },
+    { key: 'general',   label: 'Templates & tips',      icon: Lightbulb },
+    { key: 'system',    label: 'System & Issue Report', icon: Info },
   ]
 
   return (
     <div className="p-4 md:p-6 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-white text-xl font-semibold">Help & documentation</h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-white text-xl font-semibold">Help & documentation</h1>
+            {versionInfo?.version && (
+              <span className="text-xs font-mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700/60">
+                v{versionInfo.version}
+              </span>
+            )}
+          </div>
           <p className="text-slate-400 text-sm mt-0.5">Guides, templates, and tactics for data removal</p>
         </div>
         {isAdmin && (
@@ -740,6 +751,109 @@ export default function Help() {
             </div>
           )}
         </>
+      )}
+
+      {/* System info & Issue report */}
+      {activeTab === 'system' && (
+        <div className="space-y-6">
+          <div className="bg-slate-800/80 rounded-xl border border-slate-700/60 p-5">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="flex items-start gap-3">
+                <Info size={18} className="text-shield-400 mt-0.5 shrink-0" />
+                <div>
+                  <h2 className="text-white font-medium text-base">System Details & Issue Reporting</h2>
+                  <p className="text-slate-400 text-xs mt-0.5">
+                    When submitting bug reports, feature requests, or seeking technical support, include the system details below.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const report = [
+                    '### OpenOptOut System Report',
+                    `- **App Version**: ${versionInfo?.version || 'unknown'}`,
+                    `- **Git Commit**: ${versionInfo?.commit || 'unknown'}`,
+                    `- **API Status**: ${versionInfo?.status || 'ok'}`,
+                    `- **Account Role**: ${user?.role || 'unknown'}`,
+                    `- **Platform/Browser**: ${typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown'}`,
+                    `- **Reported At**: ${new Date().toISOString()}`,
+                  ].join('\n')
+                  navigator.clipboard?.writeText(report)
+                  setCopiedReport(true)
+                  setTimeout(() => setCopiedReport(false), 2000)
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-shield-600 hover:bg-shield-500 text-white rounded-lg transition-colors shrink-0"
+              >
+                {copiedReport ? (
+                  <>
+                    <Check size={13} className="text-emerald-300" />
+                    <span>Copied report!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={13} />
+                    <span>Copy report details</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2 border-t border-slate-700/40">
+              <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800">
+                <p className="text-slate-500 text-[11px] uppercase tracking-wider font-semibold">Installed Version</p>
+                <p className="text-white font-mono text-sm mt-0.5 font-medium">
+                  v{versionInfo?.version || 'Loading...'}
+                </p>
+              </div>
+
+              <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800">
+                <p className="text-slate-500 text-[11px] uppercase tracking-wider font-semibold">Build Commit</p>
+                <p className="text-slate-300 font-mono text-sm mt-0.5">
+                  {versionInfo?.commit || 'unknown'}
+                </p>
+              </div>
+
+              <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800">
+                <p className="text-slate-500 text-[11px] uppercase tracking-wider font-semibold">API Health</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-emerald-400 text-sm font-medium">Online ({versionInfo?.status || 'ok'})</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800">
+                <p className="text-slate-500 text-[11px] uppercase tracking-wider font-semibold">User Role</p>
+                <p className="text-slate-300 text-sm mt-0.5 capitalize">{user?.role || 'User'}</p>
+              </div>
+
+              <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800 sm:col-span-2">
+                <p className="text-slate-500 text-[11px] uppercase tracking-wider font-semibold">Client Environment</p>
+                <p className="text-slate-400 font-mono text-xs mt-0.5 truncate" title={typeof navigator !== 'undefined' ? navigator.userAgent : ''}>
+                  {typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="border border-slate-700/50 rounded-xl p-4 bg-slate-800/40 flex items-center justify-between">
+            <div>
+              <p className="text-slate-200 text-sm font-medium">Reporting an issue on GitHub?</p>
+              <p className="text-slate-400 text-xs mt-0.5">
+                Paste the copied report into your issue description to help developers reproduce and fix issues quickly.
+              </p>
+            </div>
+            <a
+              href="https://github.com/rlnunez/OpenOptOut/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-shield-400 hover:text-shield-300 bg-slate-900 border border-slate-700 rounded-lg transition-colors shrink-0"
+            >
+              <ExternalLink size={13} />
+              <span>GitHub Issues</span>
+            </a>
+          </div>
+        </div>
       )}
 
       {(editing === 'new' || (editing && typeof editing === 'object')) && (

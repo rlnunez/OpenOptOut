@@ -4,14 +4,14 @@ import {
   Users, ShieldCheck, Settings, LogOut, ShieldAlert,
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
   Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal,
-  Globe, Compass, Server, Eye, Sun
+  Globe, Compass, Server, Eye, Sun, Copy, Check
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
 import { useLanguage } from '../i18n/LanguageContext'
 import { useAccessibility } from '../context/AccessibilityContext'
 import api from '../api'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const nav = [
   { label: 'Dashboard',     to: '/',           icon: LayoutDashboard },
@@ -55,6 +55,12 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
   const { language, setLanguage, availableLanguages, setShowWelcomeTour, t } = useLanguage()
   const { theme, setTheme, highContrast, setHighContrast, dyslexicFont, setDyslexicFont } = useAccessibility()
   const [toggling, setToggling]   = useState(false)
+  const [versionInfo, setVersionInfo] = useState(null)
+  const [copiedVersion, setCopiedVersion] = useState(false)
+
+  useEffect(() => {
+    api.get('/health').then(r => setVersionInfo(r.data)).catch(() => {})
+  }, [])
 
   const toggleView = async () => {
     if (toggling) return
@@ -236,12 +242,32 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
             <Compass size={13} /> {t('nav.welcome_tour', 'Welcome Tour')}
           </button>
 
-          {branding?.show_powered_by && (
-            <p className="text-slate-700 text-xs mt-1">Powered by OpenOptOut</p>
-          )}
           <button onClick={logout} className="mt-1 flex items-center gap-1.5 text-slate-500 hover:text-white text-xs transition-colors">
             <LogOut size={13} /> {t('nav.logout', 'Sign out')}
           </button>
+
+          <div className="pt-2 mt-1 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
+            <span className="text-slate-600 text-[11px] truncate">
+              {branding?.show_powered_by ? 'Powered by OpenOptOut' : 'OpenOptOut'}
+            </span>
+            {versionInfo?.version && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const commitStr = versionInfo.commit && versionInfo.commit !== 'unknown' ? ` (${versionInfo.commit})` : ''
+                  navigator.clipboard?.writeText(`OpenOptOut v${versionInfo.version}${commitStr}`)
+                  setCopiedVersion(true)
+                  setTimeout(() => setCopiedVersion(false), 2000)
+                }}
+                title="Click to copy version for reporting"
+                className="font-mono text-[11px] text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1 bg-slate-800/80 hover:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700/50"
+              >
+                <span>v{versionInfo.version}</span>
+                {copiedVersion ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} className="text-slate-500" />}
+              </button>
+            )}
+          </div>
         </div>
       </aside>
     </>
