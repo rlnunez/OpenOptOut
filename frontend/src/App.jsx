@@ -36,6 +36,8 @@ import CaptchaQueue from './pages/CaptchaQueue'
 import WorkerFleet from './pages/WorkerFleet'
 import Login from './pages/Login'
 import SetupWizard from './pages/SetupWizard'
+import Inboxes from './pages/Inboxes'
+import InboxPrompt from './components/InboxPrompt'
 
 // Super admins, plus managers holding at least one of these permissions.
 function RequirePermission({ perms, children }) {
@@ -89,6 +91,7 @@ function Layout() {
           <span className="text-white font-semibold text-sm truncate">{systemName}</span>
         </header>
         <AnnouncementBanner />
+        <InboxPrompt />
         <UserWelcomeModal />
         <main id="main-content" tabIndex="-1" role="main" className="flex-1 overflow-auto focus:outline-hidden">
           <Breadcrumbs />
@@ -101,6 +104,7 @@ function Layout() {
             <Route path="/discovery"   element={<Discovery />} />
             <Route path="/family"      element={<Family />} />
             <Route path="/identity"    element={<IdentityVault />} />
+            <Route path="/inboxes"     element={<Inboxes />} />
             <Route path="/settings"    element={<Settings />} />
             <Route path="/translations" element={<RequirePermission perms={['settings.manage']}><Translations /></RequirePermission>} />
             <Route path="/help"        element={<Help />} />

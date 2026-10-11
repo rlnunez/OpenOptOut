@@ -151,7 +151,6 @@ function DatabaseStep({ onNext, onSkip, busy, setError }) {
 
 // ── Step 2: Email ─────────────────────────────────────────────────────────────
 function EmailStep({ onNext, onSkip, onBack, busy, setError }) {
-  const [mode, setMode] = useState('shared')
   const [provider, setProvider] = useState('')
   const [smtp, setSmtp] = useState({ smtp_host: '', smtp_port: 587, imap_host: '', imap_port: 993, username: '', password: '', tls: 'starttls', from_address: '' })
   const [advanced, setAdvanced] = useState(false)
@@ -193,7 +192,7 @@ function EmailStep({ onNext, onSkip, onBack, busy, setError }) {
       // Proton (via Bridge) is the generic-SMTP transport pointed at the local
       // Bridge endpoint — save it as 'smtp' with the Bridge fields.
       const effectiveProvider = provider === 'proton' ? 'smtp' : provider
-      const body = { mode, provider: effectiveProvider, separate_admin_smtp: advanced }
+      const body = { mode: 'per_user', provider: effectiveProvider, separate_admin_smtp: advanced }
       if (effectiveProvider === 'smtp') Object.assign(body, smtp)
       await api.post('/wizard/email', body)
       onNext()
@@ -212,31 +211,11 @@ function EmailStep({ onNext, onSkip, onBack, busy, setError }) {
 
   return (
     <div>
-      <StepHeader icon={Mail} title="Email" subtitle="How opt-out requests are sent and confirmations received. This is the most important step." />
+      <StepHeader icon={Mail} title="Email" subtitle="The system inbox sends sign-in links, status updates and admin alerts. It never sends opt-outs." />
 
-      {/* Loud warning */}
-      <div className="mb-4 px-3 py-2.5 rounded-lg border border-amber-700 bg-amber-950/30 flex items-start gap-2">
-        <AlertTriangle size={14} className="text-amber-400 shrink-0 mt-0.5" />
-        <p className="text-amber-200 text-xs">Without email configured, opt-outs are prepared but <strong>never actually sent</strong>. You can skip this and set it up later in Settings, but the tool won't do anything until you do.</p>
-      </div>
-
-      {/* Mode */}
-      <p className="text-slate-300 text-sm font-medium mb-2">Deployment mode</p>
-      <div className="space-y-2 mb-4">
-        <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer ${mode === 'shared' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700'}`}>
-          <input type="radio" checked={mode === 'shared'} onChange={() => setMode('shared')} className="mt-1 accent-shield-500" />
-          <div>
-            <div className="text-slate-200 text-sm font-medium">Shared inbox</div>
-            <div className="text-slate-400 text-xs">One account sends all opt-outs and receives all confirmations. Simplest to run.</div>
-          </div>
-        </label>
-        <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer ${mode === 'per_user' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700'}`}>
-          <input type="radio" checked={mode === 'per_user'} onChange={() => setMode('per_user')} className="mt-1 accent-shield-500" />
-          <div>
-            <div className="text-slate-200 text-sm font-medium">Per-user email</div>
-            <div className="text-slate-400 text-xs">Each user grants access to their own email; their opt-outs come from their own address. More private; uses OAuth.</div>
-          </div>
-        </label>
+      <div className="mb-4 px-3 py-2.5 rounded-lg border border-slate-700 bg-slate-800/40 flex items-start gap-2">
+        <Shield size={14} className="text-shield-400 shrink-0 mt-0.5" />
+        <p className="text-slate-300 text-xs">Opt-outs are sent from each family's own inbox, which they connect after signing in. Some brokers allow only one opt-out per email address, so using one shared address for everyone doesn't work. If you set up Gmail, Outlook or Yahoo sign-in here, families can connect those inboxes with one click.</p>
       </div>
 
       {/* Transport */}

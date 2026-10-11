@@ -29,6 +29,7 @@ export default function Breadcrumbs() {
       '/captcha': [{ label: t('nav.captcha', 'CAPTCHA Queue'), to: '/captcha' }],
       '/family': [{ label: t('nav.family', 'Family Members'), to: '/family' }],
       '/identity': [{ label: t('nav.vault', 'Identity Vault'), to: '/identity' }],
+      '/inboxes': [{ label: t('nav.inboxes', 'Email inboxes'), to: '/inboxes' }],
       '/settings': [{ label: t('nav.settings', 'Settings'), to: '/settings' }],
       '/help': [{ label: t('nav.help', 'Help'), to: '/help' }],
       '/admin': [

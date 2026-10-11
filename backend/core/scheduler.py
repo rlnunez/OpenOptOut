@@ -2,7 +2,7 @@
 Background scheduler — three APScheduler jobs wired to real engines.
 """
 
-import asyncio, json, imaplib, email, re, logging, threading
+import asyncio, json, imaplib, email, os, re, logging, threading
 from datetime import datetime, timedelta
 from typing import Optional
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -440,46 +440,8 @@ def _poll_imap_mailbox(ec: dict, db: Session, cfg: dict, is_grace_period: bool =
 
                 if not plugin_handled:
                     for key in set(UUID_RE.findall(text)):
-                        matching_reqs = db.query(RemovalRequest).filter(
-                            RemovalRequest.request_key == key,
-                            RemovalRequest.status == RequestStatus.sent,
-                        ).all()
-                        if matching_reqs:
-                            recheck_days = cfg.get("scheduler", {}).get("recheck_interval_days", 90)
-                            recheck_dt = datetime.utcnow() + timedelta(days=recheck_days)
-                            now = datetime.utcnow()
-                            parent_ids_to_confirm = set()
-
-                            for req in matching_reqs:
-                                req.status = RequestStatus.confirmed
-                                req.confirmed_at = now
-                                req.recheck_after = recheck_dt
-                                db.add(EmailLog(
-                                    request_id=req.id, direction="received",
-                                    subject=subj[:500], body_snippet=body[:500], matched_key=key,
-                                ))
-                                matched += 1
-                                via_label = "grace_uuid" if is_grace_period else "uuid"
-                                log.info(f"Matched ({via_label}): {req.broker.name} (member_id={req.member_id})")
-                                if req.broker and req.broker.parent_company_id:
-                                    parent_ids_to_confirm.add(req.broker.parent_company_id)
-                                try:
-                                    from ..plugins.hooks import fire_event
-                                    fire_event("confirmation_received", entity_id=str(req.id),
-                                               data={"broker": req.broker.name, "via": via_label})
-                                except Exception:
-                                    pass
-
-                            db.commit()
-
-                            # Record confirmation for parent companies
-                            if parent_ids_to_confirm:
-                                try:
-                                    from . import parent_company as pcmod
-                                    for pid in parent_ids_to_confirm:
-                                        pcmod.record_confirmation(db, pid)
-                                except Exception as _pce:
-                                    log.debug("parent confirmation tracking error: %s", _pce)
+                        matched += _confirm_by_key(db, cfg, key, subj, body,
+                                                   "grace_uuid" if is_grace_period else "uuid")
 
                 conn.store(mid, "+FLAGS", "\\Seen")
             except Exception as e:
@@ -491,6 +453,139 @@ def _poll_imap_mailbox(ec: dict, db: Session, cfg: dict, is_grace_period: bool =
         log.warning("IMAP polling error (%s): %s", "grace_period" if is_grace_period else "primary", e)
 
     return matched, errors
+
+
+def _confirm_by_key(db, cfg: dict, key: str, subj: str, body: str, via_label: str) -> int:
+    """
+    A broker replied about the requests sharing tracking key `key`: mark the
+    still-'sent' ones confirmed, log the email, and credit the parent company.
+    Returns how many requests changed.
+    """
+    matching_reqs = db.query(RemovalRequest).filter(
+        RemovalRequest.request_key == key,
+        RemovalRequest.status == RequestStatus.sent,
+    ).all()
+    if not matching_reqs:
+        return 0
+    recheck_days = cfg.get("scheduler", {}).get("recheck_interval_days", 90)
+    now = datetime.utcnow()
+    recheck_dt = now + timedelta(days=recheck_days)
+    parent_ids_to_confirm = set()
+    for req in matching_reqs:
+        req.status = RequestStatus.confirmed
+        req.confirmed_at = now
+        req.recheck_after = recheck_dt
+        db.add(EmailLog(request_id=req.id, direction="received",
+                        subject=(subj or "")[:500], body_snippet=(body or "")[:500], matched_key=key))
+        log.info(f"Matched ({via_label}): {req.broker.name} (member_id={req.member_id})")
+        if req.broker and req.broker.parent_company_id:
+            parent_ids_to_confirm.add(req.broker.parent_company_id)
+        try:
+            from ..plugins.hooks import fire_event
+            fire_event("confirmation_received", entity_id=str(req.id),
+                       data={"broker": req.broker.name, "via": via_label})
+        except Exception:
+            pass
+    db.commit()
+    if parent_ids_to_confirm:
+        try:
+            from . import parent_company as pcmod
+            for pid in parent_ids_to_confirm:
+                pcmod.record_confirmation(db, pid)
+        except Exception as _pce:
+            log.debug("parent confirmation tracking error: %s", _pce)
+    return len(matching_reqs)
+
+
+def _handle_member_message(db, cfg: dict, mailbox, to_h: str, from_h: str,
+                           subj: str, text: str) -> int:
+    """Match one message in a family member's inbox: +address tag first, then
+    a tracking key in the subject/snippet."""
+    from . import mailboxes as mbx
+    matched = 0
+    hit = mbx.match_inbound(db, mailbox, to_h, from_h)
+    keys = set(hit["request_keys"])
+    for key in keys:
+        matched += _confirm_by_key(db, cfg, key, subj, text, "tag")
+    if not hit["plus_check"] and not hit["unexpected"]:
+        for key in set(UUID_RE.findall(f"{subj} {text}")) - keys:
+            matched += _confirm_by_key(db, cfg, key, subj, text, "uuid")
+    return matched
+
+
+def _poll_member_mailboxes(db, cfg: dict) -> tuple:
+    """
+    Check every connected family inbox for broker replies. OAuth inboxes
+    (Gmail, Outlook, Yahoo) are read through their provider plugin; inboxes
+    connected with an app password are read over IMAP here. Only headers and a
+    short snippet are read, never stored beyond the email log's 500 characters.
+    """
+    from ..models.database import Mailbox
+    from . import mailboxes as mbx
+    matched, errors = 0, []
+    try:
+        mbx.expire_plus_checks(db)
+    except Exception as e:
+        log.debug("plus-check expiry skipped: %s", e)
+
+    for mb in db.query(Mailbox).filter(Mailbox.status == "connected").all():
+        started = datetime.utcnow()
+        since = mb.last_polled_at or (started - timedelta(days=14))
+        try:
+            if mb.transport == "oauth":
+                from ..plugins import get_manager
+                from .email_send import _refresh_if_needed
+                mgr = get_manager()
+                if not mgr:
+                    continue
+                _refresh_if_needed(cfg, mb.account_ref, mb.provider_key)
+                res = mgr.dispatch_email_list(mb.provider_key, mb.account_ref,
+                                              max_results=50, since_ts=int(since.timestamp()))
+                if res is None:
+                    continue
+                if not res.get("ok"):
+                    errors.append(f"Inbox {mb.id}: {res.get('error') or 'list failed'}")
+                    continue
+                for m in res.get("messages", []):
+                    if m.get("received_ts") and m["received_ts"] < int(since.timestamp()):
+                        continue
+                    matched += _handle_member_message(db, cfg, mb, m.get("to", ""), m.get("from", ""),
+                                                      m.get("subject", ""), m.get("snippet", ""))
+            else:
+                matched += _poll_member_imap(db, cfg, mb)
+            mb.last_polled_at = started
+            db.commit()
+        except Exception as e:
+            errors.append(f"Inbox {mb.id}: {e}")
+            log.warning("Inbox poll failed for mailbox_id=%s: %s", mb.id, e)
+    return matched, errors
+
+
+def _poll_member_imap(db, cfg: dict, mb) -> int:
+    from .memory_hygiene import ephemeral_secret
+    from . import mailboxes as mbx
+    if not mb.imap_host or not mb.password_enc:
+        return 0
+    matched = 0
+    conn = imaplib.IMAP4_SSL(mb.imap_host, mb.imap_port or 993)
+    try:
+        with ephemeral_secret(mb.password_enc) as pw:
+            conn.login(mb.username or mbx.base_address(mb.address), pw)
+        conn.select("INBOX")
+        _, msg_ids = conn.search(None, "UNSEEN")
+        for mid in msg_ids[0].split():
+            # BODY.PEEK leaves the message unread for the person.
+            _, data = conn.fetch(mid, "(BODY.PEEK[])")
+            msg = email.message_from_bytes(data[0][1])
+            to_h = ", ".join(filter(None, [msg.get("To", ""), msg.get("Delivered-To", "")]))
+            matched += _handle_member_message(db, cfg, mb, to_h, msg.get("From", ""),
+                                              msg.get("Subject", ""), _get_body(msg)[:2000])
+    finally:
+        try:
+            conn.logout()
+        except Exception:
+            pass
+    return matched
 
 
 def email_monitor_job():
@@ -508,7 +603,16 @@ def email_monitor_job():
             matched += succ
             errors.extend(errs)
 
-        # 2. Mode-Switching Grace Period Dual-Inbox Polling (Roadmap Item 11)
+        # 2. Family members' own inboxes — where opt-out replies now arrive.
+        try:
+            m_succ, m_errs = _poll_member_mailboxes(db, cfg)
+            matched += m_succ
+            errors.extend(m_errs)
+        except Exception as me:
+            errors.append(f"Family inbox polling: {me}")
+            log.warning("Family inbox polling failed: %s", me)
+
+        # 3. Mode-Switching Grace Period Dual-Inbox Polling (Roadmap Item 11)
         try:
             from .email_grace import get_email_grace_status
             grace = get_email_grace_status(cfg)
@@ -637,6 +741,31 @@ def enqueue_pending_optouts(
                 "state": p.get("state", ""),
                 "zip": p.get("zip", ""),
             }
+
+            member_fields["listing_url"] = req.listing_url or ""
+            if any(st.field == "listing_url" and not st.optional for st in (spec.steps or [])) \
+                    and not req.listing_url:
+                req.status = RequestStatus.needs_manual
+                req.notes = (f"{broker.name} needs the web address of {member.full_name}'s own listing. "
+                             "Add it under Discovery → Find your listings.")
+                db.commit()
+                continue
+            if any(st.field == "contact_email" for st in (spec.steps or [])):
+                from . import mailboxes as mbx
+                import uuid as _uuid
+                if not req.request_key:
+                    req.request_key = str(_uuid.uuid4())
+                mailbox = mbx.resolve_mailbox(db, member)
+                contact, reason = (None, mbx.missing_mailbox_instruction(member)) if mailbox is None \
+                    else mbx.issue_contact_address(
+                        db, mailbox, member, broker=broker, request_key=req.request_key,
+                        one_optout_per_email=bool(getattr(spec, "one_optout_per_email", False)))
+                if contact is None:
+                    req.status = RequestStatus.needs_manual
+                    req.notes = reason
+                    db.commit()
+                    continue
+                member_fields["contact_email"] = contact.address
 
             job = compile_job(spec, member_fields, member_id=str(member.id))
             priority = "high" if getattr(broker, "priority", 3) >= 4 else "normal"

@@ -298,9 +298,83 @@ class FamilyMember(Base):
     age         = Column(Integer)
     created_at  = Column(DateTime, default=datetime.utcnow)
 
+    # The inbox opt-outs for this member are sent from and replies arrive at.
+    # None = use the member's own default inbox, else a managing parent's
+    # inbox that supports +addresses (see core/mailboxes.py).
+    mailbox_id  = Column(Integer, ForeignKey("mailboxes.id"), nullable=True, index=True)
+
     user       = relationship("User", back_populates="family_member")
+    mailbox    = relationship("Mailbox", foreign_keys=[mailbox_id])
     identities = relationship("Identity", back_populates="member", cascade="all, delete-orphan")
     requests   = relationship("RemovalRequest", back_populates="member")
+
+
+class Mailbox(Base):
+    """
+    An email inbox a user has connected. Opt-outs for the members it is
+    assigned to are sent from it, and broker replies arrive in it. A parent
+    may connect several and assign each to a family member.
+
+    Credentials never live here for OAuth inboxes: tokens are stored
+    encrypted in settings under `account_ref` (as the system inbox's are).
+    App-password inboxes keep their password encrypted in `password_enc`.
+    """
+    __tablename__ = "mailboxes"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    owner_user_id  = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    label          = Column(String, nullable=True)            # "Mom's Gmail"
+    address        = Column(EncryptedText, nullable=False)    # PII — encrypted at rest
+    address_hash   = Column(String(64), nullable=False, unique=True, index=True)  # sha256 of lowercased address
+    provider_key   = Column(String(40), nullable=False)       # gmail | outlook | yahoo | smtp
+    transport      = Column(String(20), nullable=False, default="oauth")   # oauth | app_password
+    account_ref    = Column(String(64), nullable=False, unique=True)       # token key, "mbx-<id>"
+    # App-password inboxes only:
+    smtp_host      = Column(String, nullable=True)
+    smtp_port      = Column(Integer, nullable=True)
+    imap_host      = Column(String, nullable=True)
+    imap_port      = Column(Integer, nullable=True)
+    username       = Column(EncryptedText, nullable=True)
+    password_enc   = Column(Text, nullable=True)               # Fernet, like the system inbox
+    status         = Column(String(20), nullable=False, default="pending")  # pending | connected | error
+    status_detail  = Column(Text, nullable=True)
+    # +address support: unknown | checking | verified | unsupported
+    plus_status    = Column(String(20), nullable=False, default="unknown")
+    plus_test_tag  = Column(String(32), nullable=True)
+    plus_test_sent_at = Column(DateTime, nullable=True)
+    last_polled_at = Column(DateTime, nullable=True)
+    created_at     = Column(DateTime, default=datetime.utcnow)
+
+    owner = relationship("User", foreign_keys=[owner_user_id])
+
+
+class ContactAddress(Base):
+    """
+    The address given to a broker for ONE opt-out (one form submission or one
+    email). With a +address inbox this is unique, e.g. jane+oo7f3k2a@gmail.com,
+    so every reply can be matched to its request, one-opt-out-per-email limits
+    don't bite, and mail arriving at the tag from anyone else shows the
+    address was passed on.
+    """
+    __tablename__ = "contact_addresses"
+
+    id               = Column(Integer, primary_key=True, index=True)
+    tag              = Column(String(32), nullable=True, unique=True, index=True)  # None = plain address
+    address          = Column(EncryptedText, nullable=False)
+    address_hash     = Column(String(64), nullable=False, index=True)
+    mailbox_id       = Column(Integer, ForeignKey("mailboxes.id"), nullable=False, index=True)
+    member_id        = Column(Integer, ForeignKey("family_members.id"), nullable=False, index=True)
+    broker_id        = Column(Integer, ForeignKey("brokers.id"), nullable=True, index=True)
+    parent_company_id = Column(Integer, ForeignKey("parent_companies.id"), nullable=True)
+    request_key      = Column(String, nullable=True, index=True)
+    combo_label      = Column(String, nullable=True)
+    created_at       = Column(DateTime, default=datetime.utcnow)
+    inbound_count    = Column(Integer, default=0)
+    last_inbound_at  = Column(DateTime, nullable=True)
+    # Sender domains that wrote to this address but aren't the broker (comma-separated).
+    unexpected_senders = Column(Text, nullable=True)
+
+    mailbox = relationship("Mailbox")
 
 
 class Identity(Base):

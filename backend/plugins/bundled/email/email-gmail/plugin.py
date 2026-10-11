@@ -115,6 +115,9 @@ def send(req):
     if cc:
         msg["Cc"] = ", ".join(cc)
     msg["Subject"] = req.get("subject", "")
+    reply_to = (req.get("meta") or {}).get("reply_to", "")
+    if reply_to:
+        msg["Reply-To"] = reply_to     # host-supplied; not a recipient
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
 
     try:
@@ -147,12 +150,13 @@ def list_messages(req):
         for m in listing.get("messages", []):
             full = svc.users().messages().get(
                 userId="me", id=m["id"], format="metadata",
-                metadataHeaders=["From", "Subject", "Date"]).execute()
+                metadataHeaders=["From", "To", "Delivered-To", "Subject", "Date"]).execute()
             headers = {h["name"]: h["value"]
                        for h in full.get("payload", {}).get("headers", [])}
             out.append({
                 "message_id": m["id"],
                 "from": headers.get("From", ""),
+                "to": ", ".join(filter(None, [headers.get("To", ""), headers.get("Delivered-To", "")])),
                 "subject": headers.get("Subject", ""),
                 "snippet": full.get("snippet", ""),
                 "received_ts": int(int(full.get("internalDate", "0")) / 1000),

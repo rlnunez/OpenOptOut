@@ -4,7 +4,7 @@ import {
   Users, ShieldCheck, Settings, LogOut, ShieldAlert,
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
   Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal,
-  Globe, Compass, Server, Eye, Sun, Copy, Check
+  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
@@ -24,6 +24,7 @@ const nav = [
 const setup = [
   { label: 'Family members', to: '/family',   icon: Users },
   { label: 'Identity vault', to: '/identity', icon: ShieldCheck },
+  { label: 'Email inboxes',  to: '/inboxes',  icon: Inbox },
   { label: 'Settings',       to: '/settings', icon: Settings },
   { label: 'Help',           to: '/help',     icon: BookOpen },
 ]

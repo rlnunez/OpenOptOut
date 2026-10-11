@@ -467,6 +467,7 @@ message InboundMessage {
   string subject    = 3;
   string snippet    = 4;     // first chars of body
   int64  received_ts = 5;
+  string to         = 6;     // To / Delivered-To, for matching +address tags
 }
 message EmailProviderListResponse {
   bool   ok                     = 1;

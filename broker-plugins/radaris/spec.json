@@ -17,7 +17,7 @@
       "text": "Radaris needs you to finish this one. Go to radaris.com/control-privacy, search your name and city, click your own profile, then press the blue \"Start Removing\" button. Enter your email address and submit. Radaris will email you a link: click it to complete the removal."
     },
     { "kind": "wait_for", "selector": "input[id='user_email']", "timeout_ms": 60000 },
-    { "kind": "fill", "selector": "input[id='user_email']", "field": "email" },
+    { "kind": "fill", "selector": "input[id='user_email']", "field": "contact_email" },
     { "kind": "click", "selector": "button.btn-sbmt:not(.get-url-btn)" }
   ],
   "legal_basis": ["ccpa", "cpra", "gdpr"],

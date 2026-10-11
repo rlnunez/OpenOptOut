@@ -7056,44 +7056,6 @@ def t_email_no_guess():
     # IF THIS FAILS: member PII could be emailed to an unverified address.
 
 
-@test(2, "email.per_broker_send_uses_unified_transport",
-      "send_opt_out_email goes through email_send.send_email (OAuth provider or SMTP) with no NameError.")
-def t_email_unified_transport():
-    from types import SimpleNamespace as NS
-    oe = _imp("core.optout_engine")
-    es = _imp("core.email_send")
-    calls = []
-    orig = es.send_email
-    es.send_email = lambda cfg, **kw: calls.append(kw) or {"ok": True, "via": "provider"}
-
-    class FakeDB:
-        def __init__(self): self.added = []
-        def add(self, x): self.added.append(x)
-        def commit(self): pass
-        def rollback(self): pass
-        def query(self, *a):            # no installed add-on for this broker
-            class Q:
-                def filter(self, *a, **k): return self
-                def first(self): return None
-            return Q()
-    try:
-        broker = NS(name="Acme.com", notes="opt-out: privacy@acme.example", plugin_id=None,
-                    is_property_broker=False)
-        db = FakeDB()
-        ok = oe.send_opt_out_email(_fake_member(), broker, "KEY1", None,
-                                   {"email": {"provider": "gmail"}}, db)
-    finally:
-        es.send_email = orig
-    assert ok, "send should report success"
-    assert calls and calls[0]["to"] == ["privacy@acme.example"], calls
-    body = calls[0]["body"]
-    assert "Jane Public" in body and "KEY1" in body, "identifiers / reference missing from body"
-    assert db.added, "sent email should be logged"
-    # EXPECTED: one call to the unified sender, to the recorded address, with every variant.
-    # IF THIS FAILS: per-broker email opt-outs can't send (the old path crashed on
-    #   undefined from_name/from_email and ignored OAuth accounts).
-
-
 @test(1, "interpreter.spec_metadata_fields",
       "BrokerSpec accepts legal basis, response days, verification, requirement and provenance fields, and rejects bad values.")
 def t_spec_metadata():
@@ -7248,6 +7210,345 @@ def t_broker_plugins_validate():
     assert rc == 0, out.getvalue()
     # EXPECTED: all broker plugins valid.
     # IF THIS FAILS: a plugin in the repo would be rejected on upload; the output says why.
+
+
+
+# ── Family inboxes and per-opt-out addresses ──────────────────────────────────
+
+def _family(db, s, parent_inbox=None, child_inbox=None, child_plus="verified", parent_plus="verified"):
+    """A parent who manages a child, each optionally with an inbox."""
+    P = db.User(email="parent@x.example", full_name="Pat Parent", role=db.UserRole.parent)
+    C = db.User(email="kid@x.example", full_name="Kim Kid", role=db.UserRole.member)
+    s.add_all([P, C]); s.flush()
+    pm = db.FamilyMember(user_id=P.id, full_name="Pat Parent")
+    cm = db.FamilyMember(user_id=C.id, full_name="Kim Kid")
+    s.add_all([pm, cm]); s.flush()
+    s.add(db.ProfileAccess(manager_id=P.id, managed_id=C.id))
+    boxes = {}
+    for who, owner, addr, plus in (("parent", P, parent_inbox, parent_plus), ("child", C, child_inbox, child_plus)):
+        if addr:
+            mb = db.Mailbox(owner_user_id=owner.id, address=addr, address_hash=_imp("core.mailboxes").address_hash(addr),
+                            provider_key="gmail" if "gmail" in addr else "smtp",
+                            transport="oauth", account_ref=f"mbx-{who}", status="connected", plus_status=plus)
+            s.add(mb); s.flush(); boxes[who] = mb
+    s.commit()
+    return P, C, pm, cm, boxes
+
+
+@test(1, "mailboxes.plus_addresses_and_tags",
+      "Known providers are classified, tags are random and replace any existing tag, and tags are found in headers.")
+def t_mbx_tags():
+    m = _imp("core.mailboxes")
+    assert m.plus_support("a@gmail.com") == "supported"
+    assert m.plus_support("a@yahoo.com") == "unsupported"
+    assert m.plus_support("a@family.example", "gmail") == "supported", "Google Workspace custom domain"
+    assert m.plus_support("a@corp.example", "outlook") == "unknown", "Microsoft 365 can disable it; must be tested"
+    t1, t2 = m.new_tag(), m.new_tag()
+    assert t1 != t2 and t1.startswith("oo")
+    addr = m.tagged("Jane+old@Gmail.com", t1)
+    assert addr == f"Jane+{t1}@gmail.com", addr
+    assert m.tags_in(f'"Jane" <{addr}>, other@x.com') == {t1}
+    assert m.tags_in("jane+newsletter@gmail.com") == set(), "only our own tags count"
+    # EXPECTED: one fresh, non-revealing address per opt-out.
+    # IF THIS FAILS: replies can't be matched, or tags leak what they're for.
+
+
+@test(2, "mailboxes.which_inbox_a_member_uses",
+      "Assigned inbox wins, then the member's own, then a parent's +address inbox; nothing else.")
+def t_mbx_resolve():
+    db, s = _memory_db()
+    m = _imp("core.mailboxes")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    assert m.resolve_mailbox(s, cm).id == boxes["parent"].id, "child should use parent's Gmail"
+    boxes["parent"].plus_status = "unsupported"; s.commit()
+    assert m.resolve_mailbox(s, cm) is None, "a plain inbox can't be shared across members"
+    assert m.resolve_mailbox(s, pm).id == boxes["parent"].id, "the owner can still use their own plain inbox"
+    cm.mailbox_id = boxes["parent"].id; s.commit()
+    assert m.resolve_mailbox(s, cm).id == boxes["parent"].id, "explicit assignment wins"
+    boxes["parent"].status = "removed"; s.commit()
+    assert m.resolve_mailbox(s, cm) is None and m.resolve_mailbox(s, pm) is None
+    s.close()
+    # EXPECTED: every member resolves to an inbox whose replies stay separable.
+    # IF THIS FAILS: opt-outs could go out with nowhere (or the wrong place) to reply.
+
+
+@test(2, "mailboxes.addresses_unique_and_one_per_email_respected",
+      "+address inboxes get a fresh address per opt-out; plain inboxes refuse a second use at one-per-email brokers.")
+def t_mbx_issue():
+    db, s = _memory_db()
+    m = _imp("core.mailboxes")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    b = db.Broker(name="BeenVerified.com", opt_out_url="https://www.beenverified.com/app/optout/search")
+    s.add(b); s.commit()
+    a1, _ = m.issue_contact_address(s, boxes["parent"], pm, broker=b, request_key="k1", one_optout_per_email=True)
+    a2, _ = m.issue_contact_address(s, boxes["parent"], cm, broker=b, request_key="k2", one_optout_per_email=True)
+    assert a1.address != a2.address and a1.tag and a2.tag, "each opt-out needs its own address"
+    boxes["parent"].plus_status = "unsupported"; s.commit()
+    p1, r1 = m.issue_contact_address(s, boxes["parent"], pm, broker=b, request_key="k3",
+                                     combo_label="A", one_optout_per_email=True)
+    assert p1 is not None and p1.address == "pat@gmail.com"
+    p2, r2 = m.issue_contact_address(s, boxes["parent"], pm, broker=b, request_key="k4",
+                                     combo_label="B", one_optout_per_email=True)
+    assert p2 is None and "only one opt-out per email address" in r2, r2
+    s.close()
+    # EXPECTED: unique addresses where possible; a clear checklist reason where not.
+    # IF THIS FAILS: BeenVerified-style brokers silently reject later opt-outs.
+
+
+@test(2, "mailboxes.inbound_matching_and_leak_flag",
+      "Replies are matched by +address; mail to a tag from another sender is flagged; the +address test verifies the inbox.")
+def t_mbx_inbound():
+    db, s = _memory_db()
+    m = _imp("core.mailboxes")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@family.example", parent_plus="checking")
+    mb = boxes["parent"]
+    mb.plus_test_tag = "ootesttag1"; s.commit()
+    hit = m.match_inbound(s, mb, "pat+ootesttag1@family.example", "pat@family.example")
+    assert hit["plus_check"] and mb.plus_status == "verified"
+    b = db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy")
+    s.add(b); s.commit()
+    ca, _ = m.issue_contact_address(s, mb, cm, broker=b, request_key="key-123")
+    good = m.match_inbound(s, mb, ca.address, "Radaris <noreply@mail.radaris.com>")
+    assert good["request_keys"] == ["key-123"], good
+    bad = m.match_inbound(s, mb, ca.address, "Deals <promo@spam-deals.example>")
+    assert not bad["request_keys"] and bad["unexpected"], bad
+    s.refresh(ca)
+    assert ca.inbound_count == 2 and "spam-deals.example" in (ca.unexpected_senders or "")
+    s.close()
+    # EXPECTED: broker replies match their request; strangers writing to a tag are recorded.
+    # IF THIS FAILS: confirmations go unmatched, or address resale goes unnoticed.
+
+
+@test(2, "mailboxes.reply_confirms_request",
+      "A broker reply to an opt-out's +address marks that request confirmed.")
+def t_mbx_reply_confirms():
+    db, s = _memory_db()
+    m = _imp("core.mailboxes")
+    try:
+        sched = _imp("core.scheduler")
+    except Exception as e:
+        raise Skip(f"scheduler deps missing: {e}")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    b = db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy")
+    s.add(b); s.flush()
+    req = db.RemovalRequest(member_id=cm.id, broker_id=b.id, request_key="rk-1",
+                            status=db.RequestStatus.sent)
+    s.add(req); s.commit()
+    ca, _ = m.issue_contact_address(s, boxes["parent"], cm, broker=b, request_key="rk-1")
+    n = sched._handle_member_message(s, {}, boxes["parent"], ca.address,
+                                     "noreply@radaris.com", "Confirm your request", "Click to confirm")
+    s.refresh(req)
+    assert n == 1 and req.status == db.RequestStatus.confirmed, (n, req.status)
+    s.close()
+
+
+@test(2, "email.per_broker_send_from_member_inbox",
+      "Per-broker opt-out emails go out from the member's inbox with Reply-To set to a fresh +address.")
+def t_email_from_member_inbox():
+    db, s = _memory_db()
+    oe = _imp("core.optout_engine")
+    es = _imp("core.email_send")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    s.add(db.Identity(member_id=cm.id, kind="name", value="Kim Kid", is_primary=True))
+    s.add(db.Identity(member_id=cm.id, kind="email", value="kim@old.example", is_primary=True))
+    broker = db.Broker(name="Acme.com", notes="opt-out: privacy@acme.example")
+    s.add(broker); s.commit()
+    calls = []
+    orig = es.send_email
+    es.send_email = lambda cfg, **kw: calls.append((cfg, kw)) or {"ok": True, "via": "provider"}
+    try:
+        ok = oe.send_opt_out_email(cm, broker, "KEY1", None, {"email": {"provider": "smtp"}}, s)
+        assert ok and len(calls) == 1
+        cfg, kw = calls[0]
+        assert kw["to"] == ["privacy@acme.example"]
+        assert kw["account_ref"] == "mbx-parent" and cfg["email"]["provider"] == "gmail"
+        assert kw["reply_to"].startswith("pat+oo") and kw["reply_to"].endswith("@gmail.com")
+        assert "Kim Kid" in kw["body"] and "KEY1" in kw["body"]
+        # A member with no usable inbox: nothing is sent.
+        boxes["parent"].status = "removed"; s.commit()
+        calls.clear()
+        assert oe.send_opt_out_email(cm, broker, "KEY2", None, {}, s) is False and not calls
+    finally:
+        es.send_email = orig
+        s.close()
+    # EXPECTED: the system inbox never sends opt-outs; replies come back tagged.
+    # IF THIS FAILS: opt-outs go out from the wrong account or can't be matched.
+
+
+@test(2, "engine.no_inbox_goes_on_checklist",
+      "A member with no inbox gets a plain-language checklist item, not a failed opt-out.")
+def t_engine_no_inbox():
+    import asyncio
+    db, s = _memory_db()
+    oe = _imp("core.optout_engine")
+    P, C, pm, cm, boxes = _family(db, s)
+    broker = db.Broker(name="Acme.com", notes="opt-out: privacy@acme.example", method=db.OptOutMethod.email)
+    s.add(broker); s.flush()
+    req = db.RemovalRequest(member_id=cm.id, broker_id=broker.id, status=db.RequestStatus.pending)
+    s.add(req); s.commit()
+    asyncio.run(oe.execute_optout(req, None, {}, s))
+    s.refresh(req)
+    assert req.status == db.RequestStatus.needs_manual, req.status
+    assert "Kim Kid" in (req.notes or "") and "inbox" in req.notes
+    s.close()
+
+
+@test(2, "email_send.refresh_keeps_real_settings",
+      "Refreshing an inbox's OAuth token saves only the token; a per-inbox settings copy never replaces the settings file.")
+def t_refresh_keeps_settings():
+    import json, tempfile
+    es = _imp("core.email_send")
+    ss = _imp("core.settings_store")
+    oeng = _imp("core.oauth_engine")
+    tmp = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
+    real = {"email": {"provider": "smtp", "smtp_host": "system.example"},
+            "oauth_clients": {"gmail": {"client_id": "id", "client_secret_enc": "", "redirect_uri": ""}},
+            "email_credentials": {}}
+    json.dump(real, tmp); tmp.close()
+    saved = (ss.SETTINGS_FILE, oeng.load_tokens, oeng.is_expired, oeng.refresh_token, oeng.store_tokens)
+    store = {}
+    try:
+        ss.SETTINGS_FILE = tmp.name
+        oeng.load_tokens = lambda st, ref: {"refresh_token": "r", "client_id": "id", "client_secret": "x"}
+        oeng.is_expired = lambda t: True
+        oeng.refresh_token = lambda flow, client, rt: {"access_token": "new"}
+        def _store(st, ref, toks):
+            st.setdefault("email_credentials", {})[ref] = {"t": toks["access_token"]}
+            store[ref] = toks
+        oeng.store_tokens = _store
+        inbox_cfg = dict(real); inbox_cfg["email"] = {"provider": "gmail"}
+        ok = es._refresh_if_needed(inbox_cfg, "mbx-7", "gmail")
+        on_disk = json.load(open(tmp.name))
+        assert ok and store.get("mbx-7"), "token should be refreshed"
+        assert on_disk["email"]["smtp_host"] == "system.example", "system email settings were overwritten"
+        assert on_disk["email_credentials"]["mbx-7"] == {"t": "new"}
+    finally:
+        ss.SETTINGS_FILE, oeng.load_tokens, oeng.is_expired, oeng.refresh_token, oeng.store_tokens = saved
+        os.unlink(tmp.name)
+
+
+
+# ── Find your listings ────────────────────────────────────────────────────────
+
+def _member_with_vault(db, s):
+    U = db.User(email="jane@x.example", full_name="Jane Q Public", role=db.UserRole.parent)
+    s.add(U); s.flush()
+    m = db.FamilyMember(user_id=U.id, full_name="Jane Q Public")
+    s.add(m); s.flush()
+    for kind, value, primary in (("name", "Jane Q Public", True), ("name", "Jane Public", False),
+                                 ("phone", "+1 (512) 555-0134", True),
+                                 ("address", "123 Main St, Austin, TX 78701", True),
+                                 ("email", "jane@old.example", True)):
+        s.add(db.Identity(member_id=m.id, kind=kind, value=value, is_primary=primary))
+    s.commit()
+    return m
+
+
+@test(1, "listings.url_checks_and_phone_formats",
+      "Listing URLs are cleaned and unsafe ones refused; phone numbers come out in the formats people-search pages use.")
+def t_listing_url_checks():
+    lf = _imp("core.listing_finder")
+    assert lf.validate_listing_url("radaris.com/p/Jane/Public") == "https://radaris.com/p/Jane/Public"
+    for bad, frag in (("", "Paste"), ("ftp://x.com/a", "web address"), ("http://10.0.0.5/x", "IP"),
+                      ("http://localhost/x", "public"), ("https://www.google.com/search?q=jane", "search results")):
+        try:
+            lf.validate_listing_url(bad)
+            raise AssertionError(f"accepted {bad!r}")
+        except ValueError as e:
+            assert frag in str(e), (bad, str(e))
+    assert lf.phone_variants("+1 (512) 555-0134") == ["(512) 555-0134", "512-555-0134", "512.555.0134", "5125550134"]
+    assert lf.registrable_domain("people.radaris.com") == "radaris.com"
+    assert lf.registrable_domain("a.b.example.co.uk") == "example.co.uk"
+
+
+@test(2, "listings.search_plan_uses_every_variant",
+      "Web searches cover each name, phone format, address and email once, with working search links.")
+def t_listing_plan():
+    db, s = _memory_db()
+    lf = _imp("core.listing_finder")
+    m = _member_with_vault(db, s)
+    s.add_all([db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy"),
+               db.Broker(name="Spokeo.com", opt_out_url="https://www.spokeo.com/optout"),
+               db.Broker(name="Off.com", opt_out_url="https://off.com/x", enabled=False)])
+    s.commit()
+    plan = lf.search_plan(s, m)
+    qs = [q["query"] for q in plan["queries"]]
+    assert len(qs) == len(set(qs)), "duplicate searches"
+    for needle in ('"(512) 555-0134"', '"512-555-0134"', '"123 Main St"', '"Jane Public" "Austin, TX"',
+                   '"Jane Q Public" "possible relatives"', '"jane@old.example"'):
+        assert needle in qs, f"missing {needle}: {qs}"
+    link = plan["queries"][0]["links"]["google"]
+    assert link.startswith("https://www.google.com/search?q=%22"), link
+    names = {b["broker_name"] for b in plan["brokers"]}
+    assert names == {"Radaris", "Spokeo.com"}, names
+    assert all("site%3A" in b["search_url"] for b in plan["brokers"])
+    s.close()
+
+
+@test(2, "listings.url_to_broker",
+      "A listing URL resolves to its broker by domain, subdomain, parent company or network of state sites.")
+def t_listing_resolve():
+    db, s = _memory_db()
+    lf = _imp("core.listing_finder")
+    pc = _imp("core.parent_catalog")
+    s.add_all([db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy"),
+               db.Broker(name="Intelius.com", opt_out_url="https://suppression.peopleconnect.us/login"),
+               db.Broker(name="Staterecords.org", opt_out_url="https://staterecords.org/optout")])
+    s.commit()
+    pc.apply_catalog(s)
+    r = lf.resolve_broker(s, "https://people.radaris.com/p/Jane/Public/")
+    assert r["broker"].name == "Radaris" and r["match"] == "subdomain", r
+    r = lf.resolve_broker(s, "https://www.instantcheckmate.com/people/jane-public/")
+    assert r["broker"].name == "Intelius.com" and r["match"] == "parent" and "PeopleConnect" in r["note"], r
+    r = lf.resolve_broker(s, "https://texasarrests.org/jane-public")
+    assert r["broker"].name == "Staterecords.org", r
+    r = lf.resolve_broker(s, "https://brand-new-broker.example/people/jane")
+    assert r["broker"] is None and r["domain"] == "brand-new-broker.example"
+    s.close()
+
+
+@test(2, "listings.add_to_removal_cycle",
+      "Adding a listing creates a pending request with its URL, reuses an open one, and turns unknown sites into checklist items.")
+def t_listing_add():
+    db, s = _memory_db()
+    lf = _imp("core.listing_finder")
+    m = _member_with_vault(db, s)
+    b = db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy")
+    s.add(b); s.commit()
+    r1 = lf.add_listing(s, m, "https://radaris.com/p/Jane/Public/")
+    req = s.query(db.RemovalRequest).get(r1["request_id"])
+    assert r1["state"] == "added" and req.status == db.RequestStatus.pending
+    assert req.listing_url == "https://radaris.com/p/Jane/Public/" and req.request_key
+    r2 = lf.add_listing(s, m, "https://radaris.com/p/Jane/Public/2")
+    assert r2["state"] == "already_open" and r2["request_id"] == r1["request_id"]
+    s.refresh(req)
+    assert "Public/2" in (req.notes or ""), "second listing should be kept"
+    req.status = db.RequestStatus.confirmed; s.commit()
+    r3 = lf.add_listing(s, m, "https://radaris.com/p/Jane/Public/")
+    assert r3["state"] == "added" and r3["request_id"] != r1["request_id"], "listing came back: new request"
+    r4 = lf.add_listing(s, m, "https://www.brand-new-broker.example/people/jane")
+    nb = s.query(db.Broker).get(r4["broker_id"])
+    nreq = s.query(db.RemovalRequest).get(r4["request_id"])
+    assert r4["state"] == "new_broker" and nb.name == "brand-new-broker.example"
+    assert nb.method == db.OptOutMethod.manual and lf.UNKNOWN_BROKER_NOTE in nb.notes
+    assert nreq.status == db.RequestStatus.needs_manual and "brand-new-broker.example" in nreq.notes
+    found = s.query(db.DiscoveryResult).filter(db.DiscoveryResult.source == "manual").count()
+    assert found == 4, found
+    s.close()
+    # EXPECTED: every pasted listing ends up in the removal cycle or on the checklist.
+    # IF THIS FAILS: listings people find by hand get lost.
+
+
+@test(1, "interpreter.listing_url_field",
+      "Broker specs can fill a form box with the member's own listing address.")
+def t_listing_url_field():
+    ci = _imp("core.interpreter")
+    spec = ci.BrokerSpec.from_dict({"broker_id": "s", "name": "S", "method": "form",
+                                    "opt_out_url": "https://s.example/optout",
+                                    "steps": [{"kind": "fill", "selector": "input[name=url]", "field": "listing_url"}]})
+    assert spec.validate() == []
+    job = ci.compile_job(spec, {"listing_url": "https://s.example/p/jane"}, member_id="1")
+    assert [st.value for st in job.steps if st.kind == "fill"] == ["https://s.example/p/jane"]
 
 
 # ── runner ────────────────────────────────────────────────────────────────────

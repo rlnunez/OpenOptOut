@@ -448,28 +448,11 @@ function EmailSection({ initial, userRole }) {
             </div>
           )}
 
-          <Field label="Email Mode">
-            <div className="flex gap-2">
-              {[
-                { value: 'shared', label: 'Shared central inbox', hint: 'Dispatches all opt-outs from one central organizational inbox' },
-                { value: 'per_user', label: 'Per-user mail authorization', hint: 'Family members authorize their individual mailboxes' }
-              ].map(m => (
-                <button
-                  key={m.value}
-                  type="button"
-                  onClick={() => setForm(f => ({ ...f, mode: m.value }))}
-                  className={`flex-1 text-left p-3 rounded-lg border text-xs transition-colors ${
-                    (form.mode || 'shared') === m.value
-                      ? 'border-shield-600 bg-shield-900/20 text-slate-200'
-                      : 'border-slate-700 bg-slate-900/60 text-slate-400 hover:border-slate-600'
-                  }`}
-                >
-                  <div className="font-medium text-slate-200">{m.label}</div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">{m.hint}</div>
-                </button>
-              ))}
-            </div>
-          </Field>
+          <div className="p-3 rounded-lg border border-slate-700 bg-slate-900/60 text-xs text-slate-300">
+            <div className="font-medium text-slate-200 mb-0.5">This is the system inbox</div>
+            It sends sign-in links, status updates and admin alerts only. Opt-outs are sent from each
+            family's own inbox, connected under <a href="/inboxes" className="text-shield-400 underline">Email inboxes</a>.
+          </div>
 
           <ConnectedAccounts currentProvider={initial.provider} onChanged={() => { /* status badge refreshes on next page load; accounts list refreshes itself */ }} />
 

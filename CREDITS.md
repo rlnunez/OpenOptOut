@@ -26,9 +26,12 @@ OpenOptOut is open source (AGPL-3.0) and noncommercial.
 
 ## Opt-Out Desk
 
-- **Who:** patrickomatic — [patrickomatic/opt-out](https://github.com/patrickomatic/opt-out)
+- **Who:** Patrick Carroll — [patrickomatic/opt-out](https://github.com/patrickomatic/opt-out)
 - **License:** MIT
-- **What we use:** ideas for generating discovery searches across name, phone and address variants, for multi-variant tracking.
+- **What we use:** the search patterns behind **Find your listings** ([`backend/core/listing_finder.py`](backend/core/listing_finder.py)): exact-phone and exact-address searches, name-and-city searches, the phrases people-search pages use ("possible relatives", "background check", "reverse phone", age), and per-broker searches through the broker's own search page or a site-restricted web search. We translated them from Rust to Python and extended them to every name, phone format, address and email in the identity vault.
+- **Notice:** that module carries Opt-Out Desk's MIT copyright notice, as the license requires:
+
+  > MIT License — Copyright (c) 2026 Patrick Carroll. Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ## Adding to this page
 

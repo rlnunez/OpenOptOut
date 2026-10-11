@@ -83,7 +83,8 @@ _SAFE_SPEC = {
 # Fake member data for the test — never real PII for the safe run.
 _TEST_MEMBER = {
     "first_name": "Test", "last_name": "User", "full_name": "Test User",
-    "email": "test@example.com", "state": "TX", "address": "1 Test St",
+    "email": "test@example.com", "contact_email": "test+oolivetest@example.com",
+    "state": "TX", "address": "1 Test St",
     "city": "Austin", "zip": "78701", "phone": "555-0100",
 }
 

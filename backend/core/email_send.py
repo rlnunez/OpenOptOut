@@ -52,10 +52,15 @@ def _refresh_if_needed(settings: dict, account_ref: str, provider_key: str):
         )
         new = oe.refresh_token(flow, client, toks["refresh_token"])
         oe.store_tokens(settings, account_ref, new)
-        # Persist the refreshed token.
-        from .settings_store import SETTINGS_FILE
+        # Persist ONLY the refreshed token, into a fresh read of the settings
+        # file. `settings` may be a per-inbox copy whose "email" section points
+        # at a family member's inbox; writing it back whole would replace the
+        # real settings.
+        from .settings_store import SETTINGS_FILE, load_settings
+        on_disk = load_settings()
+        oe.store_tokens(on_disk, account_ref, new)
         with open(SETTINGS_FILE, "w") as f:
-            json.dump(settings, f, indent=2)
+            json.dump(on_disk, f, indent=2)
         log.info("Refreshed OAuth session for account '%s'", account_ref)
         return True
     except Exception as e:
@@ -64,11 +69,15 @@ def _refresh_if_needed(settings: dict, account_ref: str, provider_key: str):
 
 
 def send_email(cfg: dict, to: list, cc: list, subject: str, body: str,
-               account_ref: str = "default", from_address: str = "") -> dict:
+               account_ref: str = "default", from_address: str = "",
+               reply_to: str = "") -> dict:
     """
     Send an email via the configured provider, or SMTP fallback.
+    `reply_to`, when given, sets the Reply-To header — opt-outs use it so the
+    broker answers at that opt-out's own +address.
     Returns {"ok": bool, "via": "provider"|"smtp", "error": str, "sent_to": [...]}.
     """
+    meta = {"reply_to": reply_to} if reply_to else {}
     email_cfg = cfg.get("email", {})
     provider = email_cfg.get("provider", "")
     provider_note = ""   # why the provider path didn't work, if it didn't — carried
@@ -88,7 +97,7 @@ def send_email(cfg: dict, to: list, cc: list, subject: str, body: str,
                 _refresh_if_needed(cfg, account_ref, provider)
                 result = mgr.dispatch_email_send(
                     provider_key=provider, account_ref=account_ref,
-                    to=to, cc=cc, subject=subject, body=body, meta={})
+                    to=to, cc=cc, subject=subject, body=body, meta=meta)
             if result is None:
                 # No plugin running for this provider yet — either the plugin
                 # system is off, or the matching plugin was never installed
@@ -110,7 +119,7 @@ def send_email(cfg: dict, to: list, cc: list, subject: str, body: str,
                         _refresh_if_needed(cfg, account_ref, provider)
                         result = mgr.dispatch_email_send(
                             provider_key=provider, account_ref=account_ref,
-                            to=to, cc=cc, subject=subject, body=body, meta={})
+                            to=to, cc=cc, subject=subject, body=body, meta=meta)
                     if result is None:
                         provider_note = (f"provider '{provider}''s plugin was installed and enabled, "
                                          "but still didn't produce a result — check the API "
@@ -130,11 +139,11 @@ def send_email(cfg: dict, to: list, cc: list, subject: str, body: str,
             log.error("provider send failed (%s); trying SMTP fallback: %s", provider, e)
 
     # ── Direct SMTP fallback ──────────────────────────────────────────────────
-    return _smtp_send(cfg, to, cc, subject, body, from_address, provider_note)
+    return _smtp_send(cfg, to, cc, subject, body, from_address, provider_note, reply_to)
 
 
 def _smtp_send(cfg: dict, to: list, cc: list, subject: str, body: str,
-               from_address: str = "", provider_note: str = "") -> dict:
+               from_address: str = "", provider_note: str = "", reply_to: str = "") -> dict:
     email_cfg = cfg.get("email", {})
     host = email_cfg.get("smtp_host")
     port = int(email_cfg.get("smtp_port", 587))
@@ -165,6 +174,8 @@ def _smtp_send(cfg: dict, to: list, cc: list, subject: str, body: str,
     msg["To"] = ", ".join(to)
     if cc:
         msg["Cc"] = ", ".join(cc)
+    if reply_to:
+        msg["Reply-To"] = reply_to
     msg.attach(MIMEText(body, "plain"))
     recipients = list(to) + list(cc)
 
