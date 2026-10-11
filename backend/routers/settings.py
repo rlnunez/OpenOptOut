@@ -732,6 +732,9 @@ class AutomationConfig(BaseModel):
     rotate_user_agents:   bool = True
     custom_user_agents:   list[str] = []
     inter_submission_delay_seconds: float = 1.5
+    # Try a best-guess fill on broker sites OpenOptOut has no steps for. Off by
+    # default: guessing can type a person's details into the wrong form.
+    best_guess_forms: bool = False
 
 
 @router.get("/automation", response_model=AutomationConfig)
@@ -742,6 +745,7 @@ def get_automation(_: User = Depends(get_current_user)):
         rotate_user_agents=a.get("rotate_user_agents", True),
         custom_user_agents=a.get("custom_user_agents", []),
         inter_submission_delay_seconds=a.get("inter_submission_delay_seconds", 1.5),
+        best_guess_forms=bool(a.get("best_guess_forms", False)),
     )
 
 

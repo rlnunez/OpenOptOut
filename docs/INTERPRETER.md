@@ -64,6 +64,16 @@ If `opt_out_url` is set and the steps don't begin with a `navigate`, the compile
 | `submit` | submit the form | `selector` (optional) |
 | `expect_success` | confirm the opt-out succeeded | `selector` or `text` |
 | `solve_captcha` | hand off to the CAPTCHA layer (roadmap item 4) | `selector` |
+| `type` | like `fill`, but key by key, for React/Material UI inputs that ignore a programmatic fill | `selector`, `field` or `value` |
+| `pause_for_human` | stop here; a person finishes. With a `selector`, only when that element is on the page | `text` (may use `{field}` placeholders) |
+
+Steps run against the current page, or the iframe chosen with `frame` (every action works inside iframes). `click_matching` prefers an element whose whole text matches (so "Kansas" never picks "Arkansas"). A `navigate` URL may contain `{field}` placeholders: values are slugged in the path (`Jane-Doe`) and percent-encoded in the query; a missing value stops the job at compile time.
+
+After a run the executor also checks the page:
+
+- **A refused email address.** If the page says the email is invalid or not allowed, the result is `email_rejected`. The engine remembers that the broker refuses "+" addresses (`brokers.rejects_plus_addresses`) and tries once more with the inbox's plain address. Replies to a plain address are matched by the sender's domain.
+- **Success.** A passing `expect_success` step, or the spec's `success_selector` / `success_text`, marks the result `verified`. A form that submits still counts only as **sent**: it becomes **confirmed** when the broker replies, its confirmation link is clicked, or a person checks the listing is gone.
+- **CAPTCHAs.** Visible reCAPTCHA and hCaptcha widgets go to a solver plugin or the CAPTCHA queue; invisible reCAPTCHA is ignored, and Cloudflare Turnstile gets up to 15 seconds to pass on its own.
 
 `"optional": true` on a step means *failure of that step doesn't fail the flow* (e.g. an optional field that may not be present). Note: an `optional` `solve_captcha` still pauses if a CAPTCHA is actually present — optional refers to the element's presence, not to skipping a real challenge.
 
@@ -89,7 +99,7 @@ Templates use `{field}` placeholders drawn from the known member fields. `locale
 
 ### Manual method
 
-`{"broker_id": "...", "name": "...", "method": "manual"}` — no steps. The engine queues it for a human.
+`{"broker_id": "...", "name": "...", "method": "manual", "instructions": "..."}` — no steps. The request goes on the checklist with `instructions`, filled in for the member. If they mention `{contact_email}`, a one-time address is issued for the broker, so its reply is matched and any confirmation link is clicked automatically, even though a person submitted the form. A manual request is never counted as sent until the person says they've done it or the broker writes back.
 
 ---
 
@@ -97,7 +107,9 @@ Templates use `{field}` placeholders drawn from the known member fields. `locale
 
 A spec may only reference these (the schema validates against the list, so a typo is caught before execution):
 
-`first_name`, `last_name`, `full_name`, `formal_name`, `email`, `phone`, `address`, `city`, `state`, `zip`, `age`, `dob`, `relatives`
+`first_name`, `last_name`, `full_name`, `formal_name`, `email`, `phone`, `address`, `city`, `state`, `zip`, `age`, `dob`, `relatives`, `contact_email`, `listing_url`, `street`, `state_name`, `birth_year`, `phone_digits`
+
+`contact_email` is a one-time address for this opt-out (a +address on inboxes that support it); use it for "where should we send the confirmation" boxes. `email` is an address the person wants removed. `state_name` is the full state name, `phone_digits` ten digits without punctuation, and `birth_year` comes from the member's age (it can be a year off). Values are resolved in `core/interpreter/member_fields.py`. When a required field is missing, the opt-out goes on the checklist asking for it.
 
 ---
 
@@ -126,7 +138,9 @@ Most brokers don't have a hand-written BrokerSpec yet. Instead, `core/interprete
 - **`captcha_solver`**: the plugin manager's `solve_captcha` dispatch. If a CAPTCHA-solver plugin is installed, it gets the challenge and returns a token or defers to a human. With no solver installed, the executor pauses and returns `needs_captcha`. No human-in-the-loop handoff exists yet (roadmap item 4).
 - **`plugin_form_handler`**: the `fill_form` dispatch, so a plugin can take over a broker whose page the spec format can't express (roadmap item 3).
 
-If a broker has no authored add-on spec or automation script, `get_or_build_broker_spec` automatically generates a fallback declarative `BrokerSpec` with standard heuristic selectors (`firstName`, `email`, submit buttons). The legacy combination-matrix engine (`_fill_one_combo`) has been retired; all form executions route through `PlaywrightExecutor`.
+Curated broker add-ons ship with the app in `backend/plugins/bundled/brokers/` and install themselves at startup (`broker_addon.sync_builtin_brokers`). An admin who turns one off keeps it off; an admin's own add-on with the same id is never replaced.
+
+If a broker has no add-on spec or automation script, `get_or_build_broker_spec` builds a best-guess spec with generic selectors (`firstName`, `email`, submit buttons). It is **not used by default**: guessing can type a person's details into the wrong box on an unknown page. Such brokers go on the checklist instead. Admins can turn guessing on (`automation.best_guess_forms`); even then a guess only counts when the page says the request was received. The legacy combination-matrix engine (`_fill_one_combo`) has been retired; all form executions route through `PlaywrightExecutor`.
 
 ## Trying a spec against a real browser
 

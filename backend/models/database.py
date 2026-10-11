@@ -552,6 +552,9 @@ class Broker(Base):
     registry_states        = Column(String(40), nullable=True)   # "CA,VT,TX,OR"
     registry_contact_email = Column(String, nullable=True)       # as registered; not used until confirmed
     registry_last_seen     = Column(DateTime, nullable=True)
+    # Learned when this broker's form refused a "+" address; from then on its
+    # forms get the inbox's plain address (replies are matched by sender).
+    rejects_plus_addresses = Column(Boolean, default=False, nullable=True)
 
     requests = relationship("RemovalRequest", back_populates="broker")
     health   = relationship("BrokerHealth", back_populates="broker", uselist=False)

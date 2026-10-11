@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
-Validate every broker plugin in broker-plugins/.
+Validate every built-in broker plugin (backend/plugins/bundled/brokers/).
 
 Runs the app's own manifest and spec validators (the same checks an upload
 goes through), then the repo rules from broker-plugins/README.md. Folders
 starting with "_" (the template) are skipped. Exits non-zero on any error.
 
     python broker-plugins/tools/validate.py [plugin-folder ...]
+
+Every plugin is also compiled for a made-up member and walked by the
+dry-run executor, so a step that can't run is caught before it reaches a
+live site.
 """
 
 import json
@@ -14,8 +18,11 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PLUGINS_DIR = os.path.dirname(HERE)
-REPO_ROOT = os.path.dirname(PLUGINS_DIR)
+KIT_DIR = os.path.dirname(HERE)                      # broker-plugins/ (template, tools, dist)
+REPO_ROOT = os.path.dirname(KIT_DIR)
+# The plugins themselves ship inside the app image, so they live with the
+# other built-in plugins and are installed automatically at startup.
+PLUGINS_DIR = os.path.join(REPO_ROOT, "backend", "plugins", "bundled", "brokers")
 sys.path.insert(0, REPO_ROOT)
 
 from backend.plugins.permissions import PluginManifest          # noqa: E402
@@ -51,7 +58,39 @@ def check(folder: str) -> list:
     for i, s in enumerate(spec.steps):
         if s.kind == "pause_for_human" and len(s.text.strip()) < 20:
             errs.append(f"step[{i}] pause_for_human text is too short to tell a person what to do")
+    from backend.core.interpreter.compiler import uses_field
+    mentions = lambda f: uses_field(spec, f) or ("{" + f + "}") in spec.instructions
+    if "email_confirmation" in spec.requires and not mentions("contact_email"):
+        errs.append("requires email_confirmation, so the form's email box (or the instructions) must "
+                    "use contact_email: that's how the confirmation is matched and clicked")
+    if spec.method == "manual" and len(spec.instructions.strip()) < 40:
+        errs.append("a manual broker needs instructions that tell a person exactly what to do")
+    if mentions("listing_url") and "listing_url" not in spec.requires:
+        errs.append("a step uses listing_url: add \"listing_url\" to requires")
+    errs += [f"dry run: {e}" for e in dry_run(spec)]
     return errs
+
+
+SAMPLE_MEMBER = {
+    "first_name": "Jane", "last_name": "Sample", "full_name": "Jane Sample", "formal_name": "Jane Q Sample",
+    "email": "jane@example.org", "contact_email": "jane+oosample01@example.org",
+    "phone": "(512) 555-0100", "phone_digits": "5125550100", "address": "12 Oak St", "street": "12 Oak St",
+    "city": "Austin", "state": "TX", "state_name": "Texas", "zip": "78701", "age": "40",
+    "birth_year": "1986", "dob": "1986-01-02", "relatives": "John Sample",
+    "listing_url": "https://www.example.com/listing/jane-sample",
+}
+
+
+def dry_run(spec) -> list:
+    from backend.core.interpreter import compile_job, DryRunExecutor
+    try:
+        job = compile_job(spec, dict(SAMPLE_MEMBER), member_id="0")
+    except Exception as e:
+        return [f"doesn't compile: {e}"]
+    res = DryRunExecutor().run(job)
+    if not (res.ok or res.needs_manual or res.needs_captcha):
+        return [res.detail]
+    return []
 
 
 def main(argv):

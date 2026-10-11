@@ -21,7 +21,27 @@ Result shape is uniform across executors so the engine treats them identically:
 from dataclasses import dataclass, field
 from typing import Optional
 
+import re
+
 from .compiler import Job, JobStep
+
+# A form saying the email address it was given isn't acceptable.
+EMAIL_REJECTED = re.compile(
+    r"(not a valid|invalid|enter a valid|incorrect|unsupported|not supported|not allowed|isn't valid|is not valid)"
+    r"[^.\n]{0,30}\be-?mail\b|"
+    r"\be-?mail\b[^.\n]{0,40}(is invalid|is not valid|isn't valid|not allowed|not supported|"
+    r"can(no|')t contain|must not contain|special characters)",
+    re.I)
+
+# Visible CAPTCHA widgets. Invisible reCAPTCHA (v3 / size=invisible) is left
+# alone: it never asks a person anything.
+CAPTCHA_SELECTORS = (
+    "iframe[src*='recaptcha'][src*='anchor']:not([src*='size=invisible'])",
+    "iframe[src*='hcaptcha'][src*='checkbox']",
+    ".h-captcha:not([data-size='invisible'])",
+    "#captcha",
+)
+TURNSTILE = "iframe[src*='challenges.cloudflare.com']"
 
 
 @dataclass
@@ -35,6 +55,8 @@ class ExecResult:
     trace: list[str] = field(default_factory=list)   # human-readable per-step log
     challenge: Optional[dict] = None  # challenge metadata for human/solver path (type, site_key, page_url, etc.)
     human_instruction: str = ""     # what the person must do, when a pause_for_human step stopped the flow
+    verified: bool = False          # the page showed the spec's success signal
+    email_rejected: bool = False    # the form refused the contact address (e.g. a "+" address)
 
     def to_dict(self) -> dict:
         d = {
@@ -50,6 +72,10 @@ class ExecResult:
             d["challenge"] = dict(self.challenge)
         if self.human_instruction:
             d["human_instruction"] = self.human_instruction
+        if self.verified:
+            d["verified"] = True
+        if self.email_rejected:
+            d["email_rejected"] = True
         return d
 
     @classmethod
@@ -64,6 +90,8 @@ class ExecResult:
             trace=list(d.get("trace", [])),
             challenge=dict(d["challenge"]) if d.get("challenge") is not None else None,
             human_instruction=str(d.get("human_instruction", "")),
+            verified=bool(d.get("verified", False)),
+            email_rejected=bool(d.get("email_rejected", False)),
         )
 
 
@@ -122,9 +150,9 @@ class DryRunExecutor(JobExecutor):
     def _describe(i: int, s: JobStep) -> str:
         if s.kind == "navigate":
             return f"[{i}] navigate -> {s.url}"
-        if s.kind == "fill":
+        if s.kind in ("fill", "type"):
             shown = (s.value[:20] + "…") if len(s.value) > 20 else s.value
-            return f"[{i}] fill {s.selector} = {shown!r}"
+            return f"[{i}] {s.kind} {s.selector} = {shown!r}"
         if s.kind in ("select", "check", "click"):
             return f"[{i}] {s.kind} {s.selector}" + (f" = {s.value!r}" if s.value else "")
         if s.kind in ("wait_for",):
@@ -177,6 +205,22 @@ class PlaywrightExecutor(JobExecutor):
         """Current interaction target: either an active iframe locator or the main page."""
         return self._current_frame if self._current_frame is not None else self.page
 
+    def _loc(self, selector: str):
+        """First element matching selector in the current page or iframe.
+        (Locators work the same on a Page and a FrameLocator, which has no
+        fill()/click() of its own.)"""
+        return self._target().locator(selector).first
+
+    async def _turnstile_passed(self, wait_ms: int = 15000) -> bool:
+        """Cloudflare Turnstile usually passes by itself; give it a moment."""
+        try:
+            await self.page.wait_for_function(
+                "() => { const i = document.querySelector('input[name=\"cf-turnstile-response\"]');"
+                " return !!(i && i.value); }", timeout=wait_ms)
+            return True
+        except Exception:
+            return False
+
     async def _get_page_context(self, stage_index: int = 0) -> dict:
         """Gather rich page state for fill_form plugins (roadmap item 3)."""
         current_url = getattr(self.page, "url", "") if hasattr(self.page, "url") else ""
@@ -220,6 +264,7 @@ class PlaywrightExecutor(JobExecutor):
 
         trace = []
         self._current_frame = None
+        self._verified = False
 
         # Extension point: a fill_form plugin may take over this broker entirely
         # (multi-form / complex wizard flow, roadmap item 3). Supports multi-stage
@@ -287,10 +332,41 @@ class PlaywrightExecutor(JobExecutor):
                 if s.optional:
                     trace.append(f"[{i}] {s.kind} optional-failed: {e}")
                     continue
+                if await self._email_rejected(job):
+                    return ExecResult(ok=False, steps_run=i, steps_total=total, email_rejected=True,
+                                      detail="the form refused the email address", trace=trace)
                 return ExecResult(ok=False, steps_run=i, steps_total=total,
                                   detail=f"step {i} ({s.kind}) failed: {e}", trace=trace)
-        return ExecResult(ok=True, steps_run=total, steps_total=total,
+        if await self._email_rejected(job):
+            return ExecResult(ok=False, steps_run=total, steps_total=total, email_rejected=True,
+                              detail="the form refused the email address", trace=trace)
+        verified = self._verified
+        if job.success_selector or job.success_text:
+            try:
+                if job.success_selector:
+                    await self.page.locator(job.success_selector).first.wait_for(timeout=10000)
+                if job.success_text and job.success_text not in (await self.page.content()):
+                    raise RuntimeError("success text not on the page")
+                verified = True
+            except Exception as e:
+                return ExecResult(ok=False, steps_run=total, steps_total=total,
+                                  detail=f"the broker's page didn't confirm the request ({e})", trace=trace)
+        return ExecResult(ok=True, steps_run=total, steps_total=total, verified=verified,
                           detail="form flow complete", trace=trace)
+
+    async def _email_rejected(self, job) -> bool:
+        """Did the form complain about the email address we gave it?"""
+        if not job.contact_email:
+            return False
+        texts = []
+        for tgt in (self.page, self._current_frame):
+            if tgt is None:
+                continue
+            try:
+                texts.append(await tgt.locator("body").inner_text(timeout=2000))
+            except Exception:
+                pass
+        return any(EMAIL_REJECTED.search(t or "") for t in texts)
 
     async def _run_plugin_actions(self, actions: list, trace: list):
         """Execute the BrowserActions a fill_form plugin returned. Reuses the
@@ -342,77 +418,91 @@ class PlaywrightExecutor(JobExecutor):
             await self.page.wait_for_timeout(1500)   # let the page settle
 
         elif s.kind == "fill":
-            target = self._target()
-            await target.fill(s.selector, s.value, timeout=s.timeout_ms or 8000)
+            await self._loc(s.selector).fill(s.value, timeout=s.timeout_ms or 8000)
+
+        elif s.kind == "type":
+            # Key by key: React/MUI inputs ignore a programmatic fill.
+            loc = self._loc(s.selector)
+            await loc.click(timeout=s.timeout_ms or 8000)
+            await loc.fill("", timeout=s.timeout_ms or 8000)
+            await loc.press_sequentially(s.value, delay=35, timeout=max(s.timeout_ms or 8000, 60 * len(s.value)))
 
         elif s.kind == "select":
-            target = self._target()
-            await target.select_option(s.selector, s.value, timeout=s.timeout_ms or 8000)
+            loc = self._loc(s.selector)
+            try:
+                await loc.select_option(s.value, timeout=s.timeout_ms or 8000)
+            except Exception:
+                await loc.select_option(label=s.value, timeout=s.timeout_ms or 8000)
 
         elif s.kind == "check":
-            target = self._target()
-            await target.check(s.selector, timeout=s.timeout_ms or 8000)
+            await self._loc(s.selector).check(timeout=s.timeout_ms or 8000)
 
         elif s.kind == "click":
-            target = self._target()
-            await target.click(s.selector, timeout=s.timeout_ms or 8000)
+            await self._loc(s.selector).click(timeout=s.timeout_ms or 8000)
             await self.page.wait_for_timeout(500)
 
         elif s.kind == "click_matching":
             target = self._target()
             matching_text = s.text or s.value
+            exact = re.compile(r"^\s*" + re.escape(matching_text) + r"\s*$", re.I)
             if s.selector:
-                locator = target.locator(s.selector).filter(has_text=matching_text).first
+                # Whole-text match first, so "Kansas" never picks "Arkansas".
+                locator = target.locator(s.selector).filter(has_text=exact)
+                if not await locator.count():
+                    locator = target.locator(s.selector).filter(has_text=matching_text)
+                locator = locator.first
             else:
-                locator = target.locator(f"text={matching_text}").first
+                locator = target.get_by_text(matching_text, exact=True).first
             await locator.click(timeout=s.timeout_ms or 8000)
             await self.page.wait_for_timeout(1000)
 
         elif s.kind == "press":
-            target = self._target()
-            await target.press(s.selector or "body", s.value or "Enter", timeout=s.timeout_ms or 8000)
+            if s.selector:
+                await self._loc(s.selector).press(s.value or "Enter", timeout=s.timeout_ms or 8000)
+            else:
+                await self.page.keyboard.press(s.value or "Enter")
             await self.page.wait_for_timeout(500)
 
         elif s.kind == "scroll":
             if s.selector:
-                target = self._target()
-                await target.locator(s.selector).first.scroll_into_view_if_needed(timeout=s.timeout_ms or 8000)
+                await self._loc(s.selector).scroll_into_view_if_needed(timeout=s.timeout_ms or 8000)
             else:
                 await self.page.evaluate("window.scrollBy(0, 500)")
 
         elif s.kind == "wait_for":
-            target = self._target()
-            await target.wait_for_selector(s.selector, timeout=s.timeout_ms or 8000)
+            await self._loc(s.selector).wait_for(state="visible", timeout=s.timeout_ms or 8000)
 
         elif s.kind == "wait":
             await self.page.wait_for_timeout(s.timeout_ms or 1000)
 
         elif s.kind == "submit":
-            target = self._target()
             if s.selector:
-                await target.click(s.selector, timeout=s.timeout_ms or 8000)
+                await self._loc(s.selector).click(timeout=s.timeout_ms or 8000)
             else:
                 await self.page.evaluate(
                     "() => { const f = document.querySelector('form'); if (f) f.submit(); }")
             await self.page.wait_for_timeout(2000)
 
         elif s.kind == "expect_success":
-            target = self._target()
             if s.selector:
-                await target.wait_for_selector(s.selector, timeout=s.timeout_ms or 8000)
+                await self._loc(s.selector).wait_for(timeout=s.timeout_ms or 8000)
             elif s.text:
-                content = await self.page.content()
-                if s.text not in content:
+                body = await self._target().locator("body").inner_text(timeout=s.timeout_ms or 8000)
+                if s.text.lower() not in (body or "").lower():
                     raise RuntimeError(f"success text not found: {s.text!r}")
+            self._verified = True
 
         # Best-effort CAPTCHA detection AFTER the action: if a known CAPTCHA
         # widget appeared, try to solve it (via the solver hook) or pause for
         # the human path.
         try:
-            for sel in ("iframe[src*='recaptcha']", ".g-recaptcha",
-                        "iframe[src*='hcaptcha']", ".h-captcha", "#captcha"):
-                if await self.page.query_selector(sel):
-                    return await self._handle_captcha(sel, trace, i)
+            if s.kind not in ("wait", "expect_success"):
+                for sel in CAPTCHA_SELECTORS:
+                    el = await self.page.query_selector(sel)
+                    if el and await el.is_visible():
+                        return await self._handle_captcha(sel, trace, i)
+                if await self.page.query_selector(TURNSTILE) and not await self._turnstile_passed():
+                    return await self._handle_captcha(TURNSTILE, trace, i)
         except Exception:
             pass
 
