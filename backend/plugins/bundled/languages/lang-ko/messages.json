@@ -151,5 +151,6 @@
   "nav.backups": "백업",
   "nav.deadlines": "기한 보고서",
   "nav.privacy_record": "개인정보 처리 기록",
-  "nav.calendar": "캘린더"
+  "nav.calendar": "캘린더",
+  "nav.spec_helpers": "브로커 자동 단계"
 }

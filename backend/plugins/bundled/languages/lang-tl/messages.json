@@ -151,5 +151,6 @@
   "nav.backups": "Mga backup",
   "nav.deadlines": "Ulat sa mga deadline",
   "nav.privacy_record": "Talaan ng privacy",
-  "nav.calendar": "Kalendaryo"
+  "nav.calendar": "Kalendaryo",
+  "nav.spec_helpers": "Awtomatikong hakbang ng broker"
 }

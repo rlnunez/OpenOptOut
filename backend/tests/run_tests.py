@@ -7032,6 +7032,12 @@ def t_access_route_gates():
         ("GET", "/api/database/health"): {"database.view"},
         ("GET", "/api/plugins"): {"plugins.view"},
         ("POST", "/api/plugins/upload"): {"plugins.upload"},
+        # AI helper keys are never delegated; reviewing drafted steps is broker work
+        ("PUT", "/api/spec-helpers/providers/{pid}"): {"SUPER"},
+        ("POST", "/api/spec-helpers/local"): {"SUPER"},
+        ("PUT", "/api/spec-helpers/settings"): {"SUPER"},
+        ("GET", "/api/spec-helpers/drafts"): {"brokers.manage"},
+        ("POST", "/api/spec-helpers/drafts/{draft_id}/approve"): {"brokers.manage"},
     }
     wrong = {k: (table.get(k), v) for k, v in expect.items() if table.get(k) != v}
     assert not wrong, "route gates differ from the design (got, expected): " + \
@@ -9947,6 +9953,465 @@ def t_plugin_text_translated():
     assert pi.member_language(NS(user=NS(preferred_language="vi"))) == "vi"
     # IF THIS FAILS: a family would read checklist steps in English, or the robot would look
     #   for translated words on an English-language site.
+
+
+# ── AI helpers and automatic broker steps ─────────────────────────────────────
+
+def _ai_settings(extra=None):
+    """A throwaway settings file with the three online helpers keyed, for AI helper tests."""
+    import json, tempfile
+    ss = _imp("core.settings_store")
+    oe = _imp("core.oauth_engine")
+    path = tempfile.mktemp(suffix=".json")
+    cfg = {"ai_helpers": {"providers": {pid: {"enabled": True, "api_key_enc": oe._encrypt(f"key-{pid}")}
+                                        for pid in ("claude", "openai", "antigravity")}}}
+    if extra:
+        cfg["ai_helpers"].update(extra)
+    json.dump(cfg, open(path, "w"))
+    old = ss.SETTINGS_FILE
+    ss.SETTINGS_FILE = path
+    return ss, old, path
+
+
+_GOOD_DRAFT = {"method": "form", "opt_out_url": "https://acme.example/privacy",
+               "steps": [{"kind": "navigate", "selector": "", "field": "", "value": "", "url": "https://acme.example/privacy",
+                          "text": "", "optional": False},
+                         {"kind": "fill", "selector": "#email", "field": "contact_email", "value": "", "url": "",
+                          "text": "", "optional": False},
+                         {"kind": "click", "selector": "#send", "field": "", "value": "", "url": "", "text": "",
+                          "optional": False}],
+               "success_text": "received", "success_selector": "", "instructions": "", "requires": [],
+               "lookup_by": "", "confidence": "high", "notes": "Simple form."}
+
+
+@test(1, "ai.draft_schema_closed",
+      "The draft shape every AI helper must return is closed, fully required, and limited to the spec's own step kinds and member fields.")
+def t_ai_schema():
+    ai = _imp("core.ai_helpers")
+    bs = _imp("core.interpreter.broker_spec")
+    sch = ai.draft_schema()
+    assert sch["additionalProperties"] is False and set(sch["required"]) == set(sch["properties"])
+    step = sch["properties"]["steps"]["items"]
+    assert step["additionalProperties"] is False and set(step["required"]) == set(step["properties"])
+    assert set(step["properties"]["kind"]["enum"]) == bs.STEP_KINDS
+    assert set(step["properties"]["field"]["enum"]) == bs.KNOWN_FIELDS | {""}
+    assert "ssn" not in " ".join(step["properties"]["field"]["enum"])
+    assert "contact_email" in ai.system_prompt() and "{fields}" not in ai.system_prompt()
+    # IF THIS FAILS: a helper could return steps the interpreter doesn't know, or a
+    #   structured-output mode would reject the schema (all three need closed objects).
+
+
+@test(1, "ai.provider_requests",
+      "Claude, ChatGPT/Codex and Antigravity are called with their documented request shapes, and their answers are read back.")
+def t_ai_providers():
+    import json
+    ai = _imp("core.ai_helpers")
+    ss, old, path = _ai_settings()
+    calls = []
+    try:
+        def claude(m, url, h, body, timeout=None):
+            calls.append((m, url, h, body))
+            return 200, {"stop_reason": "end_turn", "content": [{"type": "text", "text": json.dumps(_GOOD_DRAFT)}]}
+        ai.TRANSPORT = claude
+        out = ai.draft(ss.load_settings(), "claude", "page")
+        m, url, h, body = calls[-1]
+        assert url == "https://api.anthropic.com/v1/messages" and h["x-api-key"] == "key-claude"
+        assert h["anthropic-version"] == "2023-06-01" and body["model"] == "claude-opus-5-5"
+        assert body["output_config"]["format"]["type"] == "json_schema" and out["steps"][1]["field"] == "contact_email"
+
+        def openai(m, url, h, body, timeout=None):
+            calls.append((m, url, h, body))
+            return 200, {"output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(_GOOD_DRAFT)}]}]}
+        ai.TRANSPORT = openai
+        out = ai.draft(ss.load_settings(), "openai", "page")
+        m, url, h, body = calls[-1]
+        assert url == "https://api.openai.com/v1/responses" and h["Authorization"] == "Bearer key-openai"
+        assert body["text"]["format"]["strict"] is True and body["model"] == "gpt-6-astra"
+        assert out["method"] == "form"
+
+        seq = []
+        def agent(m, url, h, body, timeout=None):
+            calls.append((m, url, h, body))
+            seq.append(url)
+            if m == "POST" and url.endswith("/interactions"):
+                return 200, {"id": "int-1", "status": "in_progress", "steps": []}
+            if m == "GET":
+                return 200, {"id": "int-1", "status": "requires_action",
+                             "steps": [{"type": "function_call", "id": "c1", "name": "submit_draft", "arguments": _GOOD_DRAFT}]}
+            return 200, {}
+        ai.TRANSPORT, ai.SLEEP = agent, (lambda s: None)
+        out = ai.draft(ss.load_settings(), "antigravity", "page", page_url="https://acme.example/privacy")
+        first = [c for c in calls if c[1].endswith("/interactions")][-1]
+        body = first[3]
+        assert first[2]["x-goog-api-key"] == "key-antigravity" and body["agent"].startswith("antigravity-")
+        assert {t["type"] for t in body["tools"]} == {"url_context", "function"}, "the agent may only read pages"
+        assert "environment" not in body, "no sandbox filesystem for the agent"
+        assert out["steps"][2]["selector"] == "#send"
+        assert any(u.endswith(":cancel") for u in seq), "the run is cancelled once the draft is in"
+
+        ai.TRANSPORT = lambda *a, **k: (401, {"error": {"message": "bad key"}})
+        try:
+            ai.draft(ss.load_settings(), "claude", "page")
+            raise AssertionError("a refused key should raise")
+        except ai.AIError as e:
+            assert "refused the API key" in str(e)
+        cfg = json.load(open(path))
+        assert cfg["ai_helpers"]["usage"]["calls"] == 4, "online calls are counted"
+        assert "key-claude" not in open(path).read(), "keys are stored encrypted"
+    finally:
+        ai.TRANSPORT, ai.SLEEP = ai._http, __import__("time").sleep
+        ss.SETTINGS_FILE = old
+    # IF THIS FAILS: a provider changed its API, or the request shape drifted from
+    #   what Anthropic / OpenAI / Google document.
+
+
+@test(1, "ai.local_model_connection",
+      "Your own model (LM Studio, Ollama...) is reached through the OpenAI chat API at the address you give, falls back to plain JSON, and isn't counted.")
+def t_ai_local():
+    import json
+    ai = _imp("core.ai_helpers")
+    ss, old, path = _ai_settings({"monthly_limit": 0})
+    try:
+        for bad in ("localhost:1234", "ftp://x/v1", "http://a b/v1"):
+            try:
+                ai.save_local(None, "LM", bad, "m")
+                raise AssertionError(f"accepted {bad}")
+            except ValueError:
+                pass
+        pub = ai.save_local(None, "LM Studio", "http://192.168.1.20:1234/v1/", "qwen3-coder-30b")
+        pub = ai.save_local(None, "LM Studio", "http://host.docker.internal:11434/v1", "llama3.1:8b", api_key="")
+        ids = [l["id"] for l in pub["local"]]
+        assert ids == ["lm-studio", "lm-studio-2"], ids
+        assert pub["order"][:2] == ["local:lm-studio-2", "local:lm-studio"], "new connections are tried first"
+        cfg = ss.load_settings()
+        assert ai.available(cfg)[:2] == ["local:lm-studio-2", "local:lm-studio"]
+        calls = []
+        def server(m, url, h, body, timeout=None):
+            calls.append((url, h, body, timeout))
+            if body.get("response_format", {}).get("type") == "json_schema":
+                return 400, {"error": "json_schema not supported"}
+            return 200, {"choices": [{"message": {"content": "Here you go:\n" + json.dumps(_GOOD_DRAFT)}}]}
+        ai.TRANSPORT = server
+        out = ai.draft(cfg, "local:lm-studio", "page")
+        assert calls[0][0] == "http://192.168.1.20:1234/v1/chat/completions"
+        assert "Authorization" not in calls[0][1], "no key, no Authorization header"
+        assert calls[1][2]["response_format"] == {"type": "json_object"}, "falls back to plain JSON"
+        assert calls[0][3] >= 600, "a home model gets a long timeout"
+        assert out["steps"][1]["field"] == "contact_email"
+        assert "usage" not in json.load(open(path))["ai_helpers"], "your own model isn't counted (limit was 0)"
+        ai.TRANSPORT = lambda *a, **k: (_ for _ in ()).throw(ConnectionError("refused"))
+        res = ai.test_connection(cfg, "local:lm-studio")
+        assert not res["ok"] and "host.docker.internal" in res["message"]
+        pub = ai.delete_local("lm-studio")
+        assert [l["id"] for l in pub["local"]] == ["lm-studio-2"] and "local:lm-studio" not in pub["order"]
+        try:
+            ai.draft(ss.load_settings(), "claude", "page")
+            raise AssertionError("monthly limit 0 should stop online helpers")
+        except ai.AIError as e:
+            assert "monthly limit" in str(e)
+    finally:
+        ai.TRANSPORT = ai._http
+        ss.SETTINGS_FILE = old
+    # IF THIS FAILS: people running their own model couldn't connect it, or its calls
+    #   would eat the online helpers' monthly budget.
+
+
+@test(1, "ai.refuses_personal_details",
+      "Nothing is sent to an AI helper if it contains any saved name, email, phone number or address.")
+def t_ai_pii():
+    ai = _imp("core.ai_helpers")
+    blocked = ["Zelda Quintessa", "zelda@example.com", "(512) 555-0142", "12 Oak Lane, Austin TX"]
+    ai.check_outgoing("A form with a name box and an email box. Call 1-800-555-0000.", blocked)
+    for leak in ("listing for zelda quintessa in Austin", "contact ZELDA@example.com",
+                 "phone 512.555.0142", "lives at 12 Oak Lane, Austin TX"):
+        try:
+            ai.check_outgoing(leak, blocked)
+            raise AssertionError(f"not caught: {leak}")
+        except ai.AIError:
+            pass
+    ss, old, path = _ai_settings()
+    sent = []
+    try:
+        ai.TRANSPORT = lambda *a, **k: sent.append(a) or (200, {})
+        try:
+            ai.draft(ss.load_settings(), "claude", "Page text: Zelda Quintessa, age 41", blocked)
+            raise AssertionError("should refuse")
+        except ai.AIError:
+            pass
+        assert not sent, "a request with personal details must not leave"
+    finally:
+        ai.TRANSPORT = ai._http
+        ss.SETTINGS_FILE = old
+    # IF THIS FAILS: a family member's details could be sent to an outside AI service.
+
+
+@test(1, "spec_drafter.draft_safety_checks",
+      "An AI draft can't send the browser off the broker's site, type fixed emails or numbers, or skip warnings about dates of birth or low confidence.")
+def t_drafter_safety():
+    from types import SimpleNamespace as NS
+    import copy
+    sd = _imp("core.spec_drafter")
+    broker = NS(name="Acme", plugin_id=None)
+    spec, warns = sd.build_spec(_GOOD_DRAFT, broker, {"acme.example"})
+    assert spec.validate() == [] and spec.method == "form" and warns == []
+    assert spec.source and "Drafted automatically" in spec.notes
+    bad = copy.deepcopy(_GOOD_DRAFT)
+    bad["steps"][0]["url"] = "https://evil.example/collect"
+    for d, why in [(bad, "isn't the broker's site")]:
+        try:
+            sd.build_spec(d, broker, {"acme.example"})
+            raise AssertionError("off-site navigate accepted")
+        except ValueError as e:
+            assert why in str(e)
+    hosted = copy.deepcopy(_GOOD_DRAFT)
+    hosted["steps"][0]["url"] = "https://privacyportal.onetrust.com/webform/abc"
+    sd.build_spec(hosted, broker, {"acme.example"})   # a known privacy platform is fine
+    lit = copy.deepcopy(_GOOD_DRAFT)
+    lit["steps"][1].update(field="", value="someone@else.example")
+    try:
+        sd.build_spec(lit, broker, {"acme.example"})
+        raise AssertionError("fixed email accepted")
+    except ValueError:
+        pass
+    dob = copy.deepcopy(_GOOD_DRAFT)
+    dob["steps"].insert(2, dict(dob["steps"][1], selector="#dob", field="dob"))
+    dob["confidence"] = "low"
+    _, warns = sd.build_spec(dob, broker, {"acme.example"})
+    assert len(warns) == 2, warns
+    # IF THIS FAILS: a helper's mistake (or a page trying to steer it) could send a
+    #   family's details somewhere other than the broker.
+
+
+@test(1, "spec_drafter.final_click_and_selector_only",
+      "Rehearsals stop at the click that would send the request, and a fix counts as selector-only only when nothing typed, used or said changes.")
+def t_drafter_rules():
+    sd = _imp("core.spec_drafter")
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    mk = lambda steps: BrokerSpec.from_dict({"broker_id": "a", "name": "A", "method": "form",
+                                             "opt_out_url": "https://a.example", "steps": steps})
+    s = mk([{"kind": "navigate", "url": "https://a.example"}, {"kind": "fill", "selector": "#n", "field": "full_name"},
+            {"kind": "click", "selector": "#next"}, {"kind": "fill", "selector": "#e", "field": "contact_email"},
+            {"kind": "click", "selector": "#send"}, {"kind": "wait", "timeout_ms": 1000},
+            {"kind": "expect_success", "text": "ok"}])
+    assert sd.final_submit_index(s.steps) == 4, "the last click after all filling is the one that sends"
+    assert sd.final_submit_index(mk([{"kind": "navigate", "url": "https://a.example"}, {"kind": "autofill"}]).steps) == -1
+    import copy
+    moved = copy.deepcopy(s)
+    moved.steps[3].selector, moved.steps[4].selector = "input[name=mail]", "#go"
+    assert sd.selector_only_change(s, moved)
+    for change in (lambda x: setattr(x.steps[3], "field", "email"),
+                   lambda x: setattr(x.steps[0], "url", "https://b.example"),
+                   lambda x: x.steps.append(x.steps[-1]),
+                   lambda x: setattr(x.steps[1], "value", "x")):
+        other = copy.deepcopy(s)
+        change(other)
+        assert not sd.selector_only_change(s, other)
+    # IF THIS FAILS: a rehearsal could press the final button, or a fix that changes what
+    #   is sent could apply itself without an admin.
+
+
+@test(3, "spec_drafter.rehearsal_and_rule_repair",
+      "A rehearsal fills a form with made-up details and stops before the final click; when the page's fields move, the built-in rules find them by label.")
+def t_drafter_rehearsal():
+    if _try_import("playwright") is None:
+        raise Skip("playwright not installed")
+    import threading, http.server, socketserver, os, tempfile
+    sd = _imp("core.spec_drafter")
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    v1 = (b"<html><body><form><label for=first_name>First name</label><input id=first_name>"
+          b"<label for=email>Email</label><input id=email type=email>"
+          b"<label><input type=checkbox id=agree> I certify this is my information</label>"
+          b"<button id=send type=button onclick=\"document.title='SENT'\">Submit request</button></form></body></html>")
+    v2 = (b"<html><head><title>v2</title></head><body><form><label>First name <input name=fname></label>"
+          b"<label for=mail>Email address</label><input id=mail type=email>"
+          b"<label><input type=checkbox id=agree> I certify this is my information</label>"
+          b"<button id=go type=button onclick=\"document.title='SENT'\">Send request</button></form></body></html>")
+    page = {"html": v1}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200); self.send_header("Content-Type", "text/html"); self.end_headers()
+            self.wfile.write(page["html"])
+
+        def log_message(self, *a):
+            pass
+    srv = socketserver.TCPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_address[1]}/optout"
+    spec = BrokerSpec.from_dict({"broker_id": "t", "name": "T", "method": "form", "opt_out_url": url, "steps": [
+        {"kind": "navigate", "url": url},
+        {"kind": "fill", "selector": "#first_name", "field": "first_name", "timeout_ms": 1500},
+        {"kind": "fill", "selector": "#email", "field": "contact_email", "timeout_ms": 1500},
+        {"kind": "check", "selector": "#agree", "timeout_ms": 1500},
+        {"kind": "click", "selector": "#send", "timeout_ms": 1500},
+        {"kind": "expect_success", "text": "received"}]})
+    try:
+        shot = os.path.join(tempfile.mkdtemp(), "r.png")
+        r = sd.rehearse(spec, shot)
+        assert r["ok"] and r["stop"] == 4 and os.path.getsize(shot) > 1000, r
+        assert r["page_map"]["title"] != "SENT", "the final button must not be pressed"
+        names = {f.get("id") or f.get("name") for f in r["page_map"]["fields"]}
+        assert {"first_name", "email", "agree"} <= names
+        page["html"] = v2
+        cand = spec
+        for _ in range(5):
+            r = sd.rehearse(cand)
+            if r["ok"]:
+                break
+            cand = sd.rule_repair(cand, r["failed"], r["page_map"])
+            assert cand is not None, r["detail"]
+        assert r["ok"] and r["page_map"]["title"] == "v2", r
+        assert [s.selector for s in cand.steps[1:5]] == ['input[name="fname"]', "#mail", "#agree", "#go"]
+        assert sd.selector_only_change(spec, cand)
+    finally:
+        srv.shutdown()
+    # IF THIS FAILS: automatic repairs can't see where a field moved, or a rehearsal
+    #   could submit a request.
+
+
+@test(2, "spec_drafter.apply_approve_revert",
+      "A form failure queues one repair a day; a passing selector-only fix applies itself and is used, can be undone, and is set aside when the plugin updates; a new draft waits for approval.")
+def t_drafter_db():
+    import json
+    db, s = _memory_db()
+    sd = _imp("core.spec_drafter")
+    bh = _imp("core.broker_health")
+    bridge = _imp("core.interpreter.script_bridge")
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    ss, old, path = _ai_settings()
+    try:
+        b = db.Broker(name="DraftCo", enabled=True, method=db.OptOutMethod.form, opt_out_url="https://draftco.example")
+        s.add(b); s.commit()
+        bh.record_failure(s, b.id, detail="Locator.fill: Timeout - selector #email not found")
+        bh.record_failure(s, b.id, detail="selector #email not found")
+        q = s.query(db.SpecDraft).filter_by(broker_id=b.id).all()
+        assert len(q) == 1 and q[0].status == "queued" and q[0].kind == "repair", "one repair a day"
+        bh.record_failure(s, b.id, detail="Timeout waiting")   # not a page change: nothing more
+        assert s.query(db.SpecDraft).count() == 1
+
+        old_spec = BrokerSpec.from_dict({"broker_id": "draftco", "name": "DraftCo", "method": "form",
+                                         "opt_out_url": "https://draftco.example",
+                                         "steps": [{"kind": "navigate", "url": "https://draftco.example"},
+                                                   {"kind": "fill", "selector": "#email", "field": "contact_email"},
+                                                   {"kind": "click", "selector": "#send"}]})
+        new_spec = BrokerSpec.from_dict(dict(old_spec.to_dict(), steps=[
+            {"kind": "navigate", "url": "https://draftco.example"},
+            {"kind": "fill", "selector": "#mail", "field": "contact_email"}, {"kind": "click", "selector": "#send"}]))
+        row = q[0]
+        row.spec_json, row.previous_spec_json, row.source = json.dumps(new_spec.to_dict()), json.dumps(old_spec.to_dict()), "rules"
+        s.commit()
+        sd.decide(s, row, b, old_spec, new_spec, {"ok": True}, ss.load_settings())
+        assert row.status == "applied" and row.decided_by == "automatic"
+        used = bridge.get_or_build_broker_spec(b, db=s)
+        assert used.steps[1].selector == "#mail", "the applied fix is used"
+        assert bridge.get_or_build_broker_spec(b, db=s, use_drafts=False).steps[1].selector != "#mail"
+        assert s.query(db.BrokerUpdate).filter_by(kind="steps_applied", broker_id=b.id).count() == 1
+        sd.revert(s, row, "admin@example.invalid")
+        assert row.status == "reverted" and bridge.get_or_build_broker_spec(b, db=s).steps[1].selector != "#mail"
+
+        # Not selector-only (a step added): waits for an admin even with auto-apply on.
+        more = BrokerSpec.from_dict(dict(new_spec.to_dict(), steps=new_spec.to_dict()["steps"] + [{"kind": "wait", "timeout_ms": 500}]))
+        r2 = db.SpecDraft(broker_id=b.id, kind="repair", status="drafting", spec_json=json.dumps(more.to_dict()))
+        s.add(r2); s.commit()
+        sd.decide(s, r2, b, old_spec, more, {"ok": True}, ss.load_settings())
+        assert r2.status == "ready"
+        sd.approve(s, r2, "admin@example.invalid")
+        assert r2.status == "approved" and len(bridge.get_or_build_broker_spec(b, db=s).steps) == 4
+
+        # A repair made against plugin 1.0.0 is set aside once the plugin is 1.1.0.
+        s.add(db.InstalledPlugin(plugin_id="draftco", name="DraftCo", version="1.1.0", author="x",
+                                 manifest_json="{}", granted_permissions="[]", enabled=True, status="spec",
+                                 install_path="/nonexistent/draftco"))
+        b.plugin_id = "draftco"
+        r2.base_version = "1.0.0"
+        s.commit()
+        assert sd.active_draft(s, b, "1.1.0") is None and r2.status == "superseded"
+
+        # A new broker's draft is never applied automatically.
+        r3 = db.SpecDraft(broker_id=b.id, kind="new", status="drafting", spec_json=json.dumps(new_spec.to_dict()))
+        s.add(r3); s.commit()
+        sd.decide(s, r3, b, None, new_spec, {"ok": True}, ss.load_settings())
+        assert r3.status == "ready"
+        try:
+            sd.revert(s, r3, "x")
+            raise AssertionError("only steps in use can be undone")
+        except ValueError:
+            pass
+    finally:
+        ss.SETTINGS_FILE = old
+        s.close()
+    # IF THIS FAILS: automatic fixes wouldn't be used, couldn't be undone, or could
+    #   override a newer plugin; or new steps could go live without an admin.
+
+
+@test(2, "spec_drafter.ai_repair_never_leaks",
+      "When the rules can't fix a broker, the AI helper is asked with the page and steps; a draft from a page showing a family member's details is refused before anything is sent.")
+def t_drafter_ai_repair():
+    import json
+    db, s = _memory_db()
+    sd = _imp("core.spec_drafter")
+    ai = _imp("core.ai_helpers")
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    ss, old, path = _ai_settings()
+    real_rehearse, real_current = sd.rehearse, sd.current_spec
+    try:
+        m = db.FamilyMember(full_name="Zelda Quintessa", user_id=1)
+        s.add(m); s.commit()
+        s.add(db.Identity(member_id=m.id, kind="email", value="zelda@example.com", is_primary=True))
+        b = db.Broker(name="LeakCo", enabled=True, method=db.OptOutMethod.form, opt_out_url="https://acme.example/privacy")
+        s.add(b); s.commit()
+        spec = BrokerSpec.from_dict({"broker_id": "leakco", "name": "LeakCo", "method": "form",
+                                     "opt_out_url": "https://acme.example/privacy",
+                                     "steps": [{"kind": "navigate", "url": "https://acme.example/privacy"},
+                                               {"kind": "fill", "selector": "#old", "field": "contact_email"},
+                                               {"kind": "click", "selector": "#send"}]})
+        sd.current_spec = lambda db_, broker: spec
+        pmap = {"url": "https://acme.example/privacy", "title": "Privacy", "fields": [
+            {"selector": "#a", "tag": "input", "type": "text", "label": "Your contact"},
+            {"selector": "#b", "tag": "input", "type": "text", "label": "Your contact"}], "buttons": [], "text": ""}
+        results = iter([{"ok": False, "failed": 1, "detail": "step 2 (fill) failed", "page_map": pmap, "trace": []},
+                        {"ok": True, "detail": "Stopped before the final click, which is on the page.", "trace": []}])
+        sd.rehearse = lambda sp, shot="": next(results)
+        prompts = []
+        def claude(mth, url, h, body, timeout=None):
+            prompts.append(body["messages"][0]["content"])
+            return 200, {"stop_reason": "end_turn", "content": [{"type": "text", "text": json.dumps(_GOOD_DRAFT)}]}
+        ai.TRANSPORT = claude
+        row = db.SpecDraft(broker_id=b.id, kind="repair", status="queued")
+        s.add(row); s.commit()
+        sd.repair(s, row)
+        assert row.source == "claude" and row.status == "ready", (row.status, row.reason)
+        assert "LeakCo" in prompts[0] and "#old" in prompts[0] and "zelda" not in prompts[0].lower()
+        # Now the page shows a saved detail: nothing is sent.
+        pmap["text"] = "Results: Zelda Quintessa, Austin TX"
+        results = iter([{"ok": False, "failed": 1, "detail": "step 2 (fill) failed", "page_map": pmap, "trace": []}])
+        n = len(prompts)
+        row2 = db.SpecDraft(broker_id=b.id, kind="repair", status="queued")
+        s.add(row2); s.commit()
+        sd.repair(s, row2)
+        assert row2.status == "failed" and len(prompts) == n, "the request with a saved name was not sent"
+        assert "saved details" in row2.reason
+    finally:
+        sd.rehearse, sd.current_spec = real_rehearse, real_current
+        ai.TRANSPORT = ai._http
+        ss.SETTINGS_FILE = old
+        s.close()
+    # IF THIS FAILS: a broken broker couldn't be repaired with a helper, or a page that
+    #   shows a family's listing could be sent to an outside service.
+
+
+@test(1, "agents.instructions_present",
+      "Coding agents (Claude Code, Codex, Antigravity) find the project's rules and the broker-plugin procedure, and both copies of the procedure match.")
+def t_agent_instructions():
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    agents = open(os.path.join(root, "AGENTS.md"), encoding="utf-8").read()
+    assert "No personal data" in agents and "broker-plugin/SKILL.md" in agents
+    assert len(agents) < 12000, "Antigravity reads rule files up to 12,000 characters"
+    assert open(os.path.join(root, "CLAUDE.md"), encoding="utf-8").read().startswith("@AGENTS.md")
+    a = open(os.path.join(root, ".agents", "skills", "broker-plugin", "SKILL.md"), encoding="utf-8").read()
+    b = open(os.path.join(root, ".claude", "skills", "broker-plugin", "SKILL.md"), encoding="utf-8").read()
+    assert a == b and a.startswith("---\nname: broker-plugin\ndescription: ")
+    # IF THIS FAILS: copy .agents/skills/broker-plugin/SKILL.md over the .claude one (or back).
 
 
 @test(1, "matching.classify_unclear_listings",

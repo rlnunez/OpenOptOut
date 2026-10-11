@@ -74,6 +74,13 @@ def start_scheduler():
               replace_existing=True, misfire_grace_time=3600,
               next_run_time=datetime.utcnow() + timedelta(minutes=50))
 
+    # Opt-out steps: repair steps that stopped finding things on a broker's
+    # page, and (if turned on) draft steps for brokers without any. Hourly,
+    # a few at a time (core/spec_drafter.py).
+    s.add_job(spec_helper_job, IntervalTrigger(hours=1), id="spec_helpers",
+              replace_existing=True, misfire_grace_time=3600,
+              next_run_time=datetime.utcnow() + timedelta(minutes=30))
+
     # Retention: delete old logs and excerpts (Settings → Privacy & data).
     s.add_job(retention_job, IntervalTrigger(hours=24), id="retention",
               replace_existing=True, misfire_grace_time=3600,
@@ -849,6 +856,20 @@ def backup_job():
         log.info("Scheduled backup finished")
     except Exception as e:
         log.error("Backup job error: %s", e)
+
+
+def spec_helper_job():
+    """Hourly: work on queued step repairs and, if turned on, draft new steps."""
+    db = SessionLocal()
+    try:
+        from .spec_drafter import run_queue
+        res = run_queue(db)
+        if res["repaired"] or res["drafted"]:
+            log.info("Opt-out steps: %s", res)
+    except Exception as e:
+        log.warning("Opt-out step drafting failed: %s", e)
+    finally:
+        db.close()
 
 
 def verification_job():

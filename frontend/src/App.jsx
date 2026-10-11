@@ -32,6 +32,7 @@ import SystemLogs from './pages/SystemLogs'
 import BrokerHealth from './pages/BrokerHealth'
 import Backups from './pages/Backups'
 import BrokerUpdates from './pages/BrokerUpdates'
+import SpecHelpers from './pages/SpecHelpers'
 import BrokerNetwork from './pages/BrokerNetwork'
 import BrokerPriority from './pages/BrokerPriority'
 import ParentCompanies from './pages/ParentCompanies'
@@ -135,6 +136,7 @@ function Layout() {
             <Route path="/broker-updates" element={<RequirePermission perms={['brokers.manage']}><BrokerUpdates /></RequirePermission>} />
             <Route path="/data-sharing" element={<RequirePermission perms={['brokers.manage']}><BrokerNetwork /></RequirePermission>} />
             <Route path="/broker-health" element={<RequirePermission perms={['brokers.manage']}><BrokerHealth /></RequirePermission>} />
+            <Route path="/spec-helpers" element={<RequirePermission perms={['brokers.manage']}><SpecHelpers /></RequirePermission>} />
             <Route path="/web-search" element={<RequirePermission perms={['settings.system']}><WebSearchSettings /></RequirePermission>} />
             <Route path="/state-registries" element={<RequirePermission perms={['brokers.manage']}><StateRegistries /></RequirePermission>} />
             <Route path="/broker-priority" element={<RequirePermission perms={['brokers.manage']}><BrokerPriority /></RequirePermission>} />

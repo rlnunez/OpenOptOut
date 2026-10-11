@@ -12,6 +12,9 @@ super administrators as a digest:
   delisted         brokers that dropped off a state registry
   new_site         someone pasted a listing on a site OpenOptOut didn't know
   contact_changed  a registry gave a broker a contact address
+  steps_applied    a broker's opt-out steps were fixed automatically (core/spec_drafter.py)
+  steps_ready      drafted or repaired steps are ready for an admin to approve
+  steps_rehearsal_failed  drafted steps didn't get through a rehearsal
 
 The same thing about the same broker isn't recorded twice within
 DEDUPE_DAYS. Nothing here contains family members' personal details: titles
@@ -32,6 +35,9 @@ KINDS = {
     "delisted":        ("review", "Left a registry"),
     "new_site":        ("review", "New site from a listing"),
     "contact_changed": ("info", "New contact address"),
+    "steps_applied":   ("review", "Steps fixed automatically"),
+    "steps_ready":     ("review", "Steps ready to approve"),
+    "steps_rehearsal_failed": ("review", "Drafted steps need a look"),
 }
 DEFAULT_SETTINGS = {"email_digest": "daily"}     # off | daily | weekly
 

@@ -64,6 +64,9 @@ def collect(src: str = SRC) -> dict:
 SERVER_TEXTS = [
     ("backend/core/registry_sync.py", "SOURCES", "how"),
     ("backend/core/registry_sync.py", "REGISTRY_ENABLE_WARNING", None),
+    ("backend/core/spec_drafter.py", "REHEARSAL_TEXTS", None),
+    ("backend/core/spec_drafter.py", "WARNING_TEXTS", None),
+    ("backend/core/ai_helpers.py", "PROVIDERS", "key_help"),
 ]
 
 
@@ -73,7 +76,10 @@ def collect_server(found: dict) -> dict:
         for node in tree.body:
             if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == var for t in node.targets):
                 value = ast.literal_eval(node.value)
-                items = [v[key] for v in value.values()] if key else [value]
+                if key:
+                    items = [v[key] for v in value.values()]
+                else:
+                    items = list(value.values()) if isinstance(value, dict) else [value]
                 for s in items:
                     if s.strip():
                         found.setdefault(s, set()).add("server: " + os.path.basename(rel))

@@ -440,6 +440,30 @@
    ]
   },
   {
+   "text": "A Gemini API key from Google AI Studio. The Antigravity agent is in preview.",
+   "where": [
+    "server: ai_helpers.py"
+   ]
+  },
+  {
+   "text": "A guided opt-out without instructions for the person.",
+   "where": [
+    "server: spec_drafter.py"
+   ]
+  },
+  {
+   "text": "A guided opt-out: nothing to rehearse.",
+   "where": [
+    "server: spec_drafter.py"
+   ]
+  },
+  {
+   "text": "A helper only sees the broker's public opt-out page and its current steps. OpenOptOut checks every request for your family's saved details and refuses to send one that contains any.",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "A load balancer, IIS, nginx, or another team's reverse proxy already handles TLS in front of OpenOptOut — whether OpenOptOut itself runs in Docker or natively. We won't suggest anything that would fight it for ports 80/443, or nag about plain HTTP once you're reaching it over https.",
    "where": [
     "pages/SetupWizard.jsx"
@@ -834,6 +858,12 @@
    ]
   },
   {
+   "text": "Add your own model",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Add your own UA strings — mixed into the rotation pool",
    "where": [
     "pages/Settings.jsx"
@@ -849,6 +879,12 @@
    "text": "Add yourself first, then the rest of your family",
    "where": [
     "pages/Family.jsx"
+   ]
+  },
+  {
+   "text": "added",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -887,6 +923,12 @@
     "components/FindListings.jsx",
     "pages/BrokerSubmit.jsx",
     "pages/Family.jsx"
+   ]
+  },
+  {
+   "text": "Address",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -1060,6 +1102,12 @@
    ]
   },
   {
+   "text": "AI helpers",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "All",
    "where": [
     "pages/CaptchaQueue.jsx"
@@ -1136,6 +1184,12 @@
    "text": "All states",
    "where": [
     "pages/StateRegistries.jsx"
+   ]
+  },
+  {
+   "text": "All steps ran.",
+   "where": [
+    "server: spec_drafter.py"
    ]
   },
   {
@@ -1253,6 +1307,18 @@
    ]
   },
   {
+   "text": "An API key from platform.claude.com (starts with sk-ant-).",
+   "where": [
+    "server: ai_helpers.py"
+   ]
+  },
+  {
+   "text": "An API key from platform.openai.com (starts with sk-).",
+   "where": [
+    "server: ai_helpers.py"
+   ]
+  },
+  {
    "text": "and",
    "where": [
     "pages/Branding.jsx"
@@ -1295,6 +1361,12 @@
    ]
   },
   {
+   "text": "Any helper, in order",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Any notes about the opt-out process",
    "where": [
     "pages/BrokerSubmit.jsx"
@@ -1328,6 +1400,18 @@
    "text": "API Health",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "API key",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "API key, if your server needs one",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -1391,6 +1475,12 @@
    ]
   },
   {
+   "text": "Approve",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "approved",
    "where": [
     "components/PrivacyPagesPanel.jsx"
@@ -1400,6 +1490,12 @@
    "text": "Ask again automatically",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Asking your model… this can take a while.",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -1563,6 +1659,13 @@
    "text": "Automatic backups",
    "where": [
     "pages/Backups.jsx"
+   ]
+  },
+  {
+   "text": "Automatic broker steps",
+   "where": [
+    "components/Sidebar.jsx",
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -1808,6 +1911,7 @@
    "where": [
     "pages/BrokerHealth.jsx",
     "pages/BrokerPriority.jsx",
+    "pages/SpecHelpers.jsx",
     "pages/StateRegistries.jsx"
    ]
   },
@@ -1932,6 +2036,12 @@
    "text": "Built-in Platform Biometrics Only (Mac Touch ID / Windows Hello)",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Built-in rules",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -2080,6 +2190,7 @@
     "pages/ParentCompanies.jsx",
     "pages/Plugins.jsx",
     "pages/Settings.jsx",
+    "pages/SpecHelpers.jsx",
     "pages/StateRegistries.jsx",
     "pages/Translations.jsx"
    ]
@@ -2770,6 +2881,12 @@
    ]
   },
   {
+   "text": "Connect any of these with your own account. A helper is only asked when the built-in rules can't fix a broker's steps, or to draft steps for a new broker.",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Connect inbox",
    "where": [
     "components/InboxPrompt.jsx",
@@ -3088,6 +3205,12 @@
    ]
   },
   {
+   "text": "Couldn't build the plugin file.",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Couldn't change the priority. Please try again.",
    "where": [
     "pages/BrokerPriority.jsx"
@@ -3190,6 +3313,12 @@
    ]
   },
   {
+   "text": "Couldn't load the drafts.",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Couldn't load the history.",
    "where": [
     "components/RemovalTimeline.jsx"
@@ -3229,6 +3358,12 @@
    "text": "Couldn't load your inboxes. Please refresh the page.",
    "where": [
     "pages/Inboxes.jsx"
+   ]
+  },
+  {
+   "text": "Couldn't make steps",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -3330,6 +3465,7 @@
    "text": "Couldn't save.",
    "where": [
     "pages/BrokerUpdates.jsx",
+    "pages/SpecHelpers.jsx",
     "pages/WebSearchSettings.jsx"
    ]
   },
@@ -3915,6 +4051,12 @@
    ]
   },
   {
+   "text": "Details",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Details look complete",
    "where": [
     "pages/Family.jsx"
@@ -4273,6 +4415,30 @@
    ]
   },
   {
+   "text": "Download these steps as a broker plugin, to share or contribute",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Draft new steps",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Draft or fix steps for one broker",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Drafting new steps needs an AI helper. Fixing tries the built-in rules first, which need no helper.",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Drag & drop a logo here, or click to browse",
    "where": [
     "pages/SetupWizard.jsx"
@@ -4490,6 +4656,12 @@
    ]
   },
   {
+   "text": "Each day, draft steps for one broker that has none (they wait for your approval)",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Each request",
    "where": [
     "pages/DeadlineReport.jsx"
@@ -4528,7 +4700,8 @@
   {
    "text": "Edit",
    "where": [
-    "pages/ParentCompanies.jsx"
+    "pages/ParentCompanies.jsx",
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -5052,6 +5225,12 @@
    ]
   },
   {
+   "text": "Everything",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Everything OpenOptOut can't finish on its own, in the order to do it.",
    "where": [
     "pages/Checklist.jsx"
@@ -5324,6 +5503,18 @@
    ]
   },
   {
+   "text": "final click: checked, not pressed",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Find a broker",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Find a site",
    "where": [
     "pages/Discovery.jsx"
@@ -5395,6 +5586,18 @@
    "text": "FIPS 140-2 / 140-3",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Fix",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Fixed automatically",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -5845,6 +6048,12 @@
    ]
   },
   {
+   "text": "Hide details",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "High",
    "where": [
     "pages/BrokerPriority.jsx",
@@ -6279,6 +6488,12 @@
    "text": "In that developer console, find \"Authorized redirect URIs\" (Google) or \"Redirect URIs\" (Azure) on this OAuth client and add this exact value — it won't work otherwise, and you'll see an error like \"doesn't comply with OAuth 2.0 policy\" or \"redirect_uri_mismatch\":",
    "where": [
     "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "In use",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -6990,6 +7205,7 @@
     "pages/Reporting.jsx",
     "pages/Scheduled.jsx",
     "pages/Settings.jsx",
+    "pages/SpecHelpers.jsx",
     "pages/StateRegistries.jsx",
     "pages/WebSearchSettings.jsx"
    ]
@@ -7072,6 +7288,12 @@
    "text": "Lowest",
    "where": [
     "pages/BrokerPriority.jsx"
+   ]
+  },
+  {
+   "text": "Made by {source} · {when}",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -7493,6 +7715,18 @@
    ]
   },
   {
+   "text": "Model",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Model name, as your server lists it",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Modified",
    "where": [
     "pages/Translations.jsx"
@@ -7538,6 +7772,18 @@
    "text": "Mostly for universities and research institutions in InCommon, which get free certificates through CERTInext. Setup will ask for the ACME key ID, HMAC key and server address from your campus IT, and won't continue without them, so have them ready.",
    "where": [
     "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Move {name} down",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Move {name} up",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -7597,7 +7843,8 @@
   {
    "text": "Name",
    "where": [
-    "pages/AdminPanel.jsx"
+    "pages/AdminPanel.jsx",
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -7677,6 +7924,12 @@
    ]
   },
   {
+   "text": "Needs a look",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Needs attention",
    "where": [
     "pages/BrokerUpdates.jsx"
@@ -7753,6 +8006,12 @@
    "text": "New passphrase",
    "where": [
     "pages/Backups.jsx"
+   ]
+  },
+  {
+   "text": "New steps",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -7843,6 +8102,12 @@
    "text": "No audit entries.",
    "where": [
     "pages/Plugins.jsx"
+   ]
+  },
+  {
+   "text": "No automatic steps are in use.",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -8275,6 +8540,12 @@
    ]
   },
   {
+   "text": "Notes from the helper",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Nothing can be sent for these people until they have an inbox.",
    "where": [
     "pages/Checklist.jsx"
@@ -8384,6 +8655,12 @@
    ]
   },
   {
+   "text": "Nothing to look at right now.",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Nothing waiting for review.",
    "where": [
     "components/WebSearchResults.jsx"
@@ -8468,6 +8745,7 @@
   {
    "text": "On",
    "where": [
+    "pages/SpecHelpers.jsx",
     "pages/StateRegistries.jsx"
    ]
   },
@@ -8559,6 +8837,12 @@
    "text": "Online ({v})",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "Online helper requests per month, at most",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -8926,6 +9210,12 @@
    ]
   },
   {
+   "text": "Order helpers are tried in",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "other",
    "where": [
     "pages/EmailMonitor.jsx"
@@ -9149,6 +9439,12 @@
    "text": "Paste the copied report into your issue description to help developers reproduce and fix issues quickly.",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "Paste the key",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -9868,6 +10164,24 @@
    ]
   },
   {
+   "text": "Reached the CAPTCHA, which a rehearsal doesn't solve.",
+   "where": [
+    "server: spec_drafter.py"
+   ]
+  },
+  {
+   "text": "Reached the confirmation check.",
+   "where": [
+    "server: spec_drafter.py"
+   ]
+  },
+  {
+   "text": "Reached the point where a person takes over.",
+   "where": [
+    "server: spec_drafter.py"
+   ]
+  },
+  {
    "text": "Read PII + Network — the exfiltration-risk combination",
    "where": [
     "pages/Plugins.jsx"
@@ -9883,6 +10197,12 @@
    "text": "Reading…",
    "where": [
     "pages/StateRegistries.jsx"
+   ]
+  },
+  {
+   "text": "Ready to check",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -9992,6 +10312,7 @@
     "pages/Plugins.jsx",
     "pages/Reporting.jsx",
     "pages/Scheduled.jsx",
+    "pages/SpecHelpers.jsx",
     "pages/SystemLogs.jsx",
     "pages/WorkerFleet.jsx"
    ]
@@ -10078,6 +10399,42 @@
    "text": "Registry brokers <0>({registry_brokers_on} of {registry_brokers} turned on)</0>",
    "where": [
     "pages/StateRegistries.jsx"
+   ]
+  },
+  {
+   "text": "Rehearsal of {broker}'s opt-out page",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Rehearsal stopped",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Rehearsal: {detail}",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Rehearse and fix",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Reject",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Rejected",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -10185,7 +10542,8 @@
   {
    "text": "Remove key",
    "where": [
-    "components/SolvingSettings.jsx"
+    "components/SolvingSettings.jsx",
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -10204,6 +10562,12 @@
    "text": "Remove security key \"{keyLabel}\"?",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Remove the connection to {name}?",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -10237,6 +10601,12 @@
    ]
   },
   {
+   "text": "Remove {name}",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Removed",
    "where": [
     "components/Badge.jsx",
@@ -10244,6 +10614,12 @@
     "pages/Dashboard.jsx",
     "pages/DeadlineReport.jsx",
     "pages/Reporting.jsx"
+   ]
+  },
+  {
+   "text": "removed",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -10280,6 +10656,12 @@
    "text": "Removing…",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Replaced",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -10698,7 +11080,14 @@
     "pages/IdentityVault.jsx",
     "pages/ParentCompanies.jsx",
     "pages/Settings.jsx",
+    "pages/SpecHelpers.jsx",
     "pages/WebSearchSettings.jsx"
+   ]
+  },
+  {
+   "text": "Save as plugin",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -10802,6 +11191,12 @@
    ]
   },
   {
+   "text": "Saved — type to replace",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Saved!",
    "where": [
     "pages/Translations.jsx"
@@ -10817,6 +11212,7 @@
     "pages/Calendar.jsx",
     "pages/Inboxes.jsx",
     "pages/Settings.jsx",
+    "pages/SpecHelpers.jsx",
     "pages/WebSearchSettings.jsx"
    ]
   },
@@ -11283,6 +11679,12 @@
    "text": "Sends a real opt-out through the production email path to an address <0>you</0> control, so you can confirm delivery end to end. It's fenced off: never scanned by discovery and never included in scheduled runs.",
    "where": [
     "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
+   "text": "Sends to {host}",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -12197,9 +12599,21 @@
    ]
   },
   {
+   "text": "Step {n}",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Step {step} of {totalSteps}",
    "where": [
     "components/UserWelcomeModal.jsx"
+   ]
+  },
+  {
+   "text": "Steps",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -12242,6 +12656,18 @@
    "text": "Stopped",
    "where": [
     "pages/Plugins.jsx"
+   ]
+  },
+  {
+   "text": "Stopped before the final click, which is on the page.",
+   "where": [
+    "server: spec_drafter.py"
+   ]
+  },
+  {
+   "text": "stopped here",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -12548,7 +12974,8 @@
   {
    "text": "Test",
    "where": [
-    "pages/Backups.jsx"
+    "pages/Backups.jsx",
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -12617,6 +13044,12 @@
    ]
   },
   {
+   "text": "That didn't work.",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "That email and password don't match. Check them and try again.",
    "where": [
     "pages/Login.jsx"
@@ -12677,6 +13110,12 @@
    ]
   },
   {
+   "text": "The helper wasn't confident about these steps.",
+   "where": [
+    "server: spec_drafter.py"
+   ]
+  },
+  {
    "text": "The ILS certificate is always verified. If it comes from an internal CA or is self-signed, paste that CA certificate here — don't paste the ILS server's own certificate, or sign-in will break the next time it renews.",
    "where": [
     "pages/Branding.jsx"
@@ -12698,6 +13137,12 @@
    "text": "The month view needs a wider screen. Everything coming up is listed below.",
    "where": [
     "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "The page at the end of the rehearsal, filled in with made-up details",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -12824,6 +13269,12 @@
    "text": "These sites asked to prove a person is there.",
    "where": [
     "pages/Checklist.jsx"
+   ]
+  },
+  {
+   "text": "These steps give the broker a date of birth. Check the form really requires it.",
+   "where": [
+    "server: spec_drafter.py"
    ]
   },
   {
@@ -13154,7 +13605,14 @@
    "text": "Try again",
    "where": [
     "components/LiveCaptcha.jsx",
-    "pages/CaptchaQueue.jsx"
+    "pages/CaptchaQueue.jsx",
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Try to fix steps when a broker's page changes",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -13333,6 +13791,18 @@
    ]
   },
   {
+   "text": "Undo",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Undone",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Uninstall",
    "where": [
     "pages/Plugins.jsx"
@@ -13479,9 +13949,21 @@
    ]
   },
   {
+   "text": "Use a fix straight away when it only finds a moved field or button and its rehearsal passed (you'll get a notice and can undo it)",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Use a Gmail App Password",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Use a model running on this computer or another one on your network: LM Studio, Ollama, llama.cpp, vLLM, or anything else that offers the OpenAI chat API. Nothing leaves your network, and it isn't counted against the monthly limit. If OpenOptOut runs in Docker, use host.docker.internal or the computer's network address instead of localhost.",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -13572,6 +14054,12 @@
    "text": "Use this code",
    "where": [
     "pages/CaptchaQueue.jsx"
+   ]
+  },
+  {
+   "text": "Use {name}",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -13827,7 +14315,8 @@
    "text": "Waiting",
    "where": [
     "pages/CaptchaQueue.jsx",
-    "pages/Reporting.jsx"
+    "pages/Reporting.jsx",
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -13989,6 +14478,12 @@
    ]
   },
   {
+   "text": "What changed",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "What every manager gets, unless you changed it for that manager.",
    "where": [
     "pages/AdminPanel.jsx"
@@ -14016,6 +14511,12 @@
    "text": "When",
    "where": [
     "pages/PrivacyRecord.jsx"
+   ]
+  },
+  {
+   "text": "When a broker changes its page and the opt-out steps stop working, OpenOptOut tries to fix them. With an AI helper connected, it can also draft steps for brokers nobody has written steps for. Every draft is rehearsed with made-up details and stops before the final click, so nothing is sent while trying it.",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -14100,6 +14601,12 @@
    "text": "Which brokers go first each day",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Which helper",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -14278,6 +14785,12 @@
    ]
   },
   {
+   "text": "Working on it",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "Worth a look",
    "where": [
     "pages/BrokerUpdates.jsx"
@@ -14391,6 +14904,12 @@
    "text": "Your new passphrase (shown once): <0/>",
    "where": [
     "pages/Backups.jsx"
+   ]
+  },
+  {
+   "text": "Your own model",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -14699,6 +15218,12 @@
    "text": "{n} sites to check again",
    "where": [
     "pages/Dashboard.jsx"
+   ]
+  },
+  {
+   "text": "{n} used this month; your own model isn't counted",
+   "where": [
+    "pages/SpecHelpers.jsx"
    ]
   },
   {

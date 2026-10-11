@@ -13,6 +13,7 @@ const LEVEL = {
 const LINK = {
   auto_disabled: '/broker-health', defunct: '/broker-health', back_online: '/broker-health',
   new_brokers: '/state-registries', delisted: '/state-registries', new_site: '/brokers', contact_changed: '/brokers',
+  steps_applied: '/spec-helpers', steps_ready: '/spec-helpers', steps_rehearsal_failed: '/spec-helpers',
 }
 
 export default function BrokerUpdates() {
