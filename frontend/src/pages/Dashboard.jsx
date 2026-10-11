@@ -91,6 +91,15 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, reverseProxy])
 
+  const [runMsg, setRunMsg] = useState('')
+  const sendNow = async () => {
+    setRunMsg('')
+    try {
+      await api.post('/scheduler/trigger/optout')
+      setRunMsg('Sending opt-outs now. This can take a few minutes; the numbers below update as replies come in.')
+    } catch (e) { setRunMsg(e.response?.data?.detail || "Couldn't start sending. Please try again.") }
+  }
+
   const progress = stats
     ? Math.round((stats.actioned / Math.max(stats.total_brokers, 1)) * 100)
     : 0
@@ -100,17 +109,20 @@ export default function Dashboard() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-white text-xl font-semibold">Dashboard</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Overview of your data removal campaign</p>
+          <p className="text-slate-400 text-sm mt-0.5">How far your family's information has been removed</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
-            <RefreshCw size={13} /> Run scan
-          </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 transition-colors">
-            <Send size={13} /> Send opt-outs
-          </button>
+          <Link to="/discovery" className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
+            <RefreshCw size={13} aria-hidden="true" /> Find listings
+          </Link>
+          {can(user, 'scheduler.manage') && (
+            <button onClick={sendNow} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 transition-colors">
+              <Send size={13} aria-hidden="true" /> Send opt-outs now
+            </button>
+          )}
         </div>
       </div>
+      {runMsg && <p role="status" className="mb-4 text-sm text-shield-300">{runMsg}</p>}
 
       {/* Plain-HTTP warning — super admins, when reached from another machine */}
       {user?.role === 'super_admin' && onPlainHttp && !hideHttpWarning && (
@@ -194,8 +206,8 @@ export default function Dashboard() {
             </p>
             <p className="text-amber-300/70 text-xs mt-0.5">
               {unhealthy.slice(0, 3).map(b => b.name).join(', ')}
-              {unhealthy.length > 3 ? ` +${unhealthy.length - 3} more` : ''} — auto-disabled after repeated
-              failures so they don't slow your runs. Tap to review.
+              {unhealthy.length > 3 ? ` and ${unhealthy.length - 3} more` : ''}: turned off after failing several
+              times in a row, so they don't hold up everyone else. Open to check them.
             </p>
           </div>
         </Link>
@@ -208,10 +220,10 @@ export default function Dashboard() {
             <ShieldAlert size={18} className="text-amber-400 shrink-0" />
             <div>
               <p className="text-amber-200 text-sm font-medium">
-                {pendingCaptchas} opt-out {pendingCaptchas === 1 ? 'request requires' : 'requests require'} manual CAPTCHA resolution
+                {pendingCaptchas} opt-out{pendingCaptchas === 1 ? ' is' : 's are'} waiting for someone to solve a CAPTCHA
               </p>
               <p className="text-slate-400 text-xs">
-                Execution paused at a challenge wall. Verify or complete the removal in the queue.
+                The site asked to prove a person is there ("I'm not a robot"). Solve it, or finish the opt-out yourself.
               </p>
             </div>
           </div>
@@ -219,17 +231,17 @@ export default function Dashboard() {
             to="/captcha"
             className="px-3 py-1.5 text-xs font-medium text-amber-200 bg-amber-900/40 border border-amber-700/60 rounded-lg hover:bg-amber-900/60 transition-colors shrink-0"
           >
-            Review challenges →
+            Open CAPTCHAs →
           </Link>
         </div>
       )}
 
       {/* Stats grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Total brokers"      value={stats?.total_brokers} icon={ShieldOff}     color="text-slate-300" />
-        <StatCard label="Confirmed removed"  value={stats?.confirmed}     icon={CheckCircle}   color="text-emerald-400" />
-        <StatCard label="Pending reply"      value={stats?.pending}       icon={Clock}         color="text-amber-400" />
-        <StatCard label="Resistant / failed" value={stats?.resistant}     icon={AlertCircle}   color="text-red-400" />
+        <StatCard label="Sites we check"     value={stats?.total_brokers} icon={ShieldOff}     color="text-slate-300" />
+        <StatCard label="Removed"            value={stats?.confirmed}     icon={CheckCircle}   color="text-emerald-400" />
+        <StatCard label="Waiting for a reply" value={stats?.pending}      icon={Clock}         color="text-amber-400" />
+        <StatCard label="Refused or didn't work" value={stats?.resistant} icon={AlertCircle}   color="text-red-400" />
       </div>
 
       <VariantCoverage />
@@ -256,9 +268,9 @@ export default function Dashboard() {
             </div>
             <div>
               <p className="text-white text-3xl font-semibold">{progress}%</p>
-              <p className="text-slate-400 text-sm">{stats?.actioned ?? 0} of {stats?.total_brokers ?? 0} actioned</p>
+              <p className="text-slate-400 text-sm">{stats?.actioned ?? 0} of {stats?.total_brokers ?? 0} sites asked to remove you</p>
               {stats?.recheck_due > 0 && (
-                <p className="text-orange-400 text-xs mt-1">{stats.recheck_due} recheck{stats.recheck_due !== 1 ? 's' : ''} overdue</p>
+                <p className="text-orange-400 text-xs mt-1">{stats.recheck_due} site{stats.recheck_due !== 1 ? 's' : ''} to check again</p>
               )}
             </div>
           </div>
@@ -266,9 +278,9 @@ export default function Dashboard() {
 
         {/* Recheck due */}
         <div className="bg-slate-800 rounded-xl p-4 border border-slate-700/50">
-          <p className="text-slate-400 text-xs uppercase tracking-wide mb-3">Re-check queue</p>
+          <p className="text-slate-400 text-xs uppercase tracking-wide mb-3">Coming up: check again</p>
           {recheck.length === 0 ? (
-            <p className="text-slate-500 text-sm">No re-checks due — all clear.</p>
+            <p className="text-slate-500 text-sm">Nothing to check again yet.</p>
           ) : (
             <div className="space-y-2">
               {recheck.slice(0, 5).map(r => (
@@ -277,8 +289,8 @@ export default function Dashboard() {
                   <span className="text-orange-400 text-xs shrink-0">
                     {r.recheck_after
                       ? new Date(r.recheck_after) < new Date()
-                        ? 'overdue'
-                        : `${Math.ceil((new Date(r.recheck_after) - new Date()) / 86400000)}d`
+                        ? 'now'
+                        : `in ${Math.ceil((new Date(r.recheck_after) - new Date()) / 86400000)} days`
                       : '—'}
                   </span>
                 </div>
@@ -306,18 +318,18 @@ function RecentRequests() {
     api.get('/requests?limit=8').then(r => setReqs(r.data))
   }, [])
 
-  if (!reqs.length) return <p className="text-slate-500 text-sm p-4">No requests yet.</p>
+  if (!reqs.length) return <p className="text-slate-500 text-sm p-4">Nothing has been sent yet.</p>
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
       <thead>
         <tr className="text-slate-500 text-xs">
-          <th className="text-left px-4 py-2 font-normal">Broker</th>
-          <th className="text-left px-4 py-2 font-normal">Member</th>
-          <th className="text-left px-4 py-2 font-normal">Status</th>
-          <th className="text-left px-4 py-2 font-normal">Method</th>
-          <th className="text-left px-4 py-2 font-normal">Re-check</th>
+          <th className="text-left px-4 py-2 font-normal">Site</th>
+          <th className="text-left px-4 py-2 font-normal">Person</th>
+          <th className="text-left px-4 py-2 font-normal">Where it's at</th>
+          <th className="text-left px-4 py-2 font-normal">How</th>
+          <th className="text-left px-4 py-2 font-normal">Check again</th>
         </tr>
       </thead>
       <tbody>

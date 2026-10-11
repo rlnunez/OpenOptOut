@@ -48,8 +48,8 @@ function EmailRow({ log }) {
         <div className="flex items-center gap-2 shrink-0">
           {log.direction === 'received' && (
             matched
-              ? <span className="text-xs text-emerald-400 border border-emerald-800 bg-emerald-900/20 px-2 py-0.5 rounded-sm">matched</span>
-              : <span className="text-xs text-slate-500 border border-slate-700 px-2 py-0.5 rounded-sm">unmatched</span>
+              ? <span className="text-xs text-emerald-400 border border-emerald-800 bg-emerald-900/20 px-2 py-0.5 rounded-sm">broker reply</span>
+              : <span className="text-xs text-slate-500 border border-slate-700 px-2 py-0.5 rounded-sm">other</span>
           )}
           {log.direction === 'sent' && (
             <span className="text-xs text-blue-400 border border-blue-800 bg-blue-900/20 px-2 py-0.5 rounded-sm">sent</span>
@@ -63,7 +63,7 @@ function EmailRow({ log }) {
             {log.body_snippet}
           </pre>
           {log.matched_key && (
-            <p className="text-slate-600 text-xs mt-1 font-mono">Key: {log.matched_key}</p>
+            <p className="text-slate-600 text-xs mt-1">Reference: <span className="font-mono">{log.matched_key}</span></p>
           )}
         </div>
       )}
@@ -76,16 +76,16 @@ function PollHistory({ history }) {
   return (
     <div className="bg-slate-800 rounded-xl border border-slate-700/50 overflow-hidden mt-4">
       <div className="px-4 py-3 border-b border-slate-700/50">
-        <p className="text-slate-300 text-sm font-medium">Recent poll history</p>
+        <p className="text-slate-300 text-sm font-medium">Recent inbox checks</p>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
         <thead>
           <tr className="text-slate-600 border-b border-slate-700/30">
             <th className="text-left px-4 py-2 font-normal">Time</th>
-            <th className="text-left px-4 py-2 font-normal">Status</th>
-            <th className="text-left px-4 py-2 font-normal">Matched</th>
-            <th className="text-left px-4 py-2 font-normal">Duration</th>
+            <th className="text-left px-4 py-2 font-normal">Result</th>
+            <th className="text-left px-4 py-2 font-normal">Replies found</th>
+            <th className="text-left px-4 py-2 font-normal">Took</th>
           </tr>
         </thead>
         <tbody>
@@ -98,7 +98,7 @@ function PollHistory({ history }) {
                 <td className="px-4 py-2 text-slate-400">{new Date(r.started_at).toLocaleString()}</td>
                 <td className="px-4 py-2">
                   <span className={r.status === 'done' ? 'text-emerald-400' : r.status === 'error' ? 'text-red-400' : 'text-amber-400'}>
-                    {r.status}
+                    {r.status === 'done' ? 'Done' : r.status === 'error' ? 'Problem' : 'Checking'}
                   </span>
                 </td>
                 <td className="px-4 py-2 text-slate-300">{r.emails_matched}</td>
@@ -163,7 +163,7 @@ export default function EmailMonitor() {
         <div>
           <h1 className="text-white text-xl font-semibold">Email monitor</h1>
           <p className="text-slate-400 text-sm mt-0.5">
-            Tracking confirmation emails from data brokers
+            Replies from data brokers to your family's opt-outs
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -174,7 +174,7 @@ export default function EmailMonitor() {
             <button onClick={triggerPoll} disabled={polling || !status?.configured}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 disabled:opacity-40 transition-colors">
               {polling ? <RefreshCw size={13} className="animate-spin" /> : <Play size={13} />}
-              {polling ? 'Polling…' : 'Poll now'}
+              {polling ? 'Checking…' : 'Check inboxes now'}
             </button>
           )}
         </div>
@@ -189,7 +189,7 @@ export default function EmailMonitor() {
             <div className="mb-4 flex flex-wrap items-center gap-2 px-4 py-3 bg-amber-900/20 border border-amber-800 rounded-xl">
               <AlertCircle size={14} className="text-amber-400 shrink-0" />
               <p className="text-amber-300 text-sm">
-                Email not configured. Go to <a href="/settings" className="underline hover:text-amber-200">Settings → Email</a> to set up your IMAP inbox.
+                The system inbox isn't set up yet. Family members' own inboxes are still checked; connect them under <a href="/inboxes" className="underline hover:text-amber-200">Email inboxes</a>.
               </p>
             </div>
           )}
@@ -200,11 +200,11 @@ export default function EmailMonitor() {
               <div className="flex-1">
                 <p className="text-slate-200 text-sm">
                   <span className="font-medium">{status.imap_user}</span>
-                  <span className="text-slate-500"> on {status.imap_host}</span>
+                  <span className="text-slate-500"> (system inbox)</span>
                 </p>
                 <p className="text-slate-500 text-xs">
-                  Polls every {status.poll_interval_minutes}m
-                  {status.last_poll && ` · last poll ${new Date(status.last_poll).toLocaleString()}`}
+                  Checked every {status.poll_interval_minutes} minutes
+                  {status.last_poll && ` · last checked ${new Date(status.last_poll).toLocaleString()}`}
                 </p>
               </div>
               <span className={`text-xs border px-2 py-0.5 rounded ${
@@ -212,16 +212,16 @@ export default function EmailMonitor() {
                 : status.last_poll_status === 'error' ? 'text-red-400 border-red-800 bg-red-900/20'
                 : 'text-slate-500 border-slate-700'
               }`}>
-                {status.last_poll_status ?? 'never polled'}
+                {status.last_poll_status === 'done' ? 'Working' : status.last_poll_status === 'error' ? 'Problem' : status.last_poll_status ? 'Checking' : 'Not checked yet'}
               </span>
             </div>
           )}
 
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-            <StatCard label="Confirmations matched" value={status?.total_matched}   icon={Check}    color="text-emerald-400" />
-            <StatCard label="Unmatched received"    value={status?.total_unmatched} icon={AlertCircle} color="text-amber-400" />
-            <StatCard label="Poll interval"         value={status?.configured ? `${status.poll_interval_minutes}m` : 'off'} icon={Clock} />
+            <StatCard label="Broker replies"        value={status?.total_matched}   icon={Check}    color="text-emerald-400" />
+            <StatCard label="Other mail"            value={status?.total_unmatched} icon={AlertCircle} color="text-amber-400" />
+            <StatCard label="Checked every"         value={status?.configured ? `${status.poll_interval_minutes} min` : 'off'} icon={Clock} />
           </div>
 
           <ConfirmLinksCard isAdmin={can(user, 'settings.system')} />
@@ -233,8 +233,8 @@ export default function EmailMonitor() {
               <div className="flex gap-1 bg-slate-900 p-1 rounded-lg">
                 {[
                   { key: 'all',       label: `All (${logs.length})` },
-                  { key: 'matched',   label: `Matched (${logs.filter(l => l.direction==='received' && l.matched_key).length})` },
-                  { key: 'unmatched', label: `Unmatched (${logs.filter(l => l.direction==='received' && !l.matched_key).length})` },
+                  { key: 'matched',   label: `Broker replies (${logs.filter(l => l.direction==='received' && l.matched_key).length})` },
+                  { key: 'unmatched', label: `Other (${logs.filter(l => l.direction==='received' && !l.matched_key).length})` },
                   { key: 'sent',      label: `Sent (${logs.filter(l => l.direction==='sent').length})` },
                 ].map(f => (
                   <button key={f.key} onClick={() => setFilter(f.key)}
@@ -249,7 +249,7 @@ export default function EmailMonitor() {
                 <Inbox size={24} className="text-slate-700 mx-auto mb-2" />
                 <p className="text-slate-500 text-sm">No emails yet</p>
                 <p className="text-slate-600 text-xs mt-1">
-                  {status?.configured ? 'Emails will appear here after the next poll.' : 'Configure your email inbox in Settings first.'}
+                  {status?.configured ? 'Emails show up here after the next inbox check.' : 'Connect an inbox under Email inboxes first.'}
                 </p>
               </div>
             ) : (
