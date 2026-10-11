@@ -1,4 +1,5 @@
 import { useT } from '../i18n/LanguageContext'
+import { tx } from '../i18n/tx'
 
 const styles = {
   confirmed:  'bg-emerald-900/50 text-emerald-400 border-emerald-800',
@@ -25,12 +26,12 @@ const styles = {
 // Plain words for the codes the server uses. Anything not listed is shown
 // with underscores turned into spaces.
 export const LABELS = {
-  pending: 'Waiting to send', sent: 'Sent', submitted: 'Sent', confirmed: 'Removed',
-  rejected: 'Refused', failed: "Didn't work", needs_manual: 'Needs you', recheck_due: 'Check again',
-  resistant: 'Often refuses', compliant: 'Usually removes', inconsistent: 'Mixed results',
-  undetermined: 'Not known yet', form: 'Web form', email: 'Email', manual: 'By hand', phone: 'By phone',
-  easy: 'Easy', medium: 'Medium', hard: 'Hard', running: 'Running', done: 'Done', error: 'Problem',
-  success: 'Worked', failure: "Didn't work", captcha: 'CAPTCHA', skipped: 'Skipped',
+  pending: tx("Waiting to send"), sent: tx("Sent"), submitted: tx("Sent"), confirmed: tx("Removed"),
+  rejected: tx("Refused"), failed: tx("Didn't work"), needs_manual: tx("Needs you"), recheck_due: tx("Check again"),
+  resistant: tx("Often refuses"), compliant: tx("Usually removes"), inconsistent: tx("Mixed results"),
+  undetermined: tx("Not known yet"), form: tx("Web form"), email: tx("Email"), manual: tx("By hand"), phone: tx("By phone"),
+  easy: tx("Easy"), medium: tx("Medium"), hard: tx("Hard"), running: tx("Running"), done: tx("Done"), error: tx("Problem"),
+  success: tx("Worked"), failure: tx("Didn't work"), captcha: 'CAPTCHA', skipped: tx("Skipped"),
 }
 
 // Pass `t` (from useLanguage) to get the label in the person's language;

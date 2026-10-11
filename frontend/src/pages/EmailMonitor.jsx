@@ -7,6 +7,7 @@ import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import Badge from '../components/Badge'
 import ConfirmLinksCard from '../components/ConfirmLinksCard'
+import { tx, txr } from '../i18n/tx'
 
 function StatusDot({ ok }) {
   return <span className={`w-2 h-2 rounded-full inline-block ${ok ? 'bg-emerald-400' : 'bg-slate-600'}`} />
@@ -37,7 +38,7 @@ function EmailRow({ log }) {
           {log.direction === 'sent' ? <Mail size={13} /> : matched ? <Check size={13} /> : <AlertCircle size={13} />}
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-slate-200 text-sm truncate">{log.subject || '(no subject)'}</p>
+          <p className="text-slate-200 text-sm truncate">{log.subject || tx("(no subject)")}</p>
           {matched && (
             <p className="text-slate-500 text-xs truncate">
               {log.broker_name && <span className="text-emerald-500">{log.broker_name}</span>}
@@ -48,11 +49,11 @@ function EmailRow({ log }) {
         <div className="flex items-center gap-2 shrink-0">
           {log.direction === 'received' && (
             matched
-              ? <span className="text-xs text-emerald-400 border border-emerald-800 bg-emerald-900/20 px-2 py-0.5 rounded-sm">broker reply</span>
-              : <span className="text-xs text-slate-500 border border-slate-700 px-2 py-0.5 rounded-sm">other</span>
+              ? <span className="text-xs text-emerald-400 border border-emerald-800 bg-emerald-900/20 px-2 py-0.5 rounded-sm">{tx("broker reply")}</span>
+              : <span className="text-xs text-slate-500 border border-slate-700 px-2 py-0.5 rounded-sm">{tx("other")}</span>
           )}
           {log.direction === 'sent' && (
-            <span className="text-xs text-blue-400 border border-blue-800 bg-blue-900/20 px-2 py-0.5 rounded-sm">sent</span>
+            <span className="text-xs text-blue-400 border border-blue-800 bg-blue-900/20 px-2 py-0.5 rounded-sm">{tx("sent")}</span>
           )}
           <span className="text-slate-600 text-xs">{new Date(log.received_at).toLocaleString()}</span>
         </div>
@@ -63,7 +64,7 @@ function EmailRow({ log }) {
             {log.body_snippet}
           </pre>
           {log.matched_key && (
-            <p className="text-slate-600 text-xs mt-1">Reference: <span className="font-mono">{log.matched_key}</span></p>
+            <p className="text-slate-600 text-xs mt-1">{txr("Reference: <0/>", [<span className="font-mono">{log.matched_key}</span>])}</p>
           )}
         </div>
       )}
@@ -76,16 +77,16 @@ function PollHistory({ history }) {
   return (
     <div className="bg-slate-800 rounded-xl border border-slate-700/50 overflow-hidden mt-4">
       <div className="px-4 py-3 border-b border-slate-700/50">
-        <p className="text-slate-300 text-sm font-medium">Recent inbox checks</p>
+        <p className="text-slate-300 text-sm font-medium">{tx("Recent inbox checks")}</p>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
         <thead>
           <tr className="text-slate-600 border-b border-slate-700/30">
-            <th className="text-left px-4 py-2 font-normal">Time</th>
-            <th className="text-left px-4 py-2 font-normal">Result</th>
-            <th className="text-left px-4 py-2 font-normal">Replies found</th>
-            <th className="text-left px-4 py-2 font-normal">Took</th>
+            <th className="text-left px-4 py-2 font-normal">{tx("Time")}</th>
+            <th className="text-left px-4 py-2 font-normal">{tx("Result")}</th>
+            <th className="text-left px-4 py-2 font-normal">{tx("Replies found")}</th>
+            <th className="text-left px-4 py-2 font-normal">{tx("Took")}</th>
           </tr>
         </thead>
         <tbody>
@@ -98,7 +99,7 @@ function PollHistory({ history }) {
                 <td className="px-4 py-2 text-slate-400">{new Date(r.started_at).toLocaleString()}</td>
                 <td className="px-4 py-2">
                   <span className={r.status === 'done' ? 'text-emerald-400' : r.status === 'error' ? 'text-red-400' : 'text-amber-400'}>
-                    {r.status === 'done' ? 'Done' : r.status === 'error' ? 'Problem' : 'Checking'}
+                    {r.status === 'done' ? tx("Done") : r.status === 'error' ? tx("Problem") : tx("Checking")}
                   </span>
                 </td>
                 <td className="px-4 py-2 text-slate-300">{r.emails_matched}</td>
@@ -161,26 +162,26 @@ export default function EmailMonitor() {
     <div className="p-4 md:p-6 max-w-4xl">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-white text-xl font-semibold">Replies</h1>
+          <h1 className="text-white text-xl font-semibold">{tx("Replies")}</h1>
           <p className="text-slate-400 text-sm mt-0.5">
-            Replies from data brokers to your family's opt-outs
+            {tx("Replies from data brokers to your family's opt-outs")}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={load} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
-            <RefreshCw size={13} /> Refresh
+            <RefreshCw size={13} />{" "}{tx("Refresh")}
           </button>
           {isAdmin && (
             <button onClick={triggerPoll} disabled={polling || !status?.configured}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 disabled:opacity-40 transition-colors">
               {polling ? <RefreshCw size={13} className="animate-spin" /> : <Play size={13} />}
-              {polling ? 'Checking…' : 'Check inboxes now'}
+              {polling ? tx("Checking…") : tx("Check inboxes now")}
             </button>
           )}
         </div>
       </div>
 
-      {loading && <p className="text-slate-500 text-sm">Loading…</p>}
+      {loading && <p className="text-slate-500 text-sm">{tx("Loading…")}</p>}
 
       {!loading && (
         <>
@@ -189,8 +190,7 @@ export default function EmailMonitor() {
             <div className="mb-4 flex flex-wrap items-center gap-2 px-4 py-3 bg-amber-900/20 border border-amber-800 rounded-xl">
               <AlertCircle size={14} className="text-amber-400 shrink-0" />
               <p className="text-amber-300 text-sm">
-                The system inbox isn't set up yet. Family members' own inboxes are still checked; connect them under <a href="/inboxes" className="underline hover:text-amber-200">Email inboxes</a>.
-              </p>
+                {txr("The system inbox isn't set up yet. Family members' own inboxes are still checked; connect them under <0>Email inboxes</0>.", [<a href="/inboxes" className="underline hover:text-amber-200" />])}</p>
             </div>
           )}
 
@@ -200,11 +200,11 @@ export default function EmailMonitor() {
               <div className="flex-1">
                 <p className="text-slate-200 text-sm">
                   <span className="font-medium">{status.imap_user}</span>
-                  <span className="text-slate-500"> (system inbox)</span>
+                  <span className="text-slate-500">{" "}{tx("(system inbox)")}</span>
                 </p>
                 <p className="text-slate-500 text-xs">
-                  Checked every {status.poll_interval_minutes} minutes
-                  {status.last_poll && ` · last checked ${new Date(status.last_poll).toLocaleString()}`}
+                  {tx("Checked every {poll_interval_minutes} minutes", { poll_interval_minutes: status.poll_interval_minutes })}
+                  {status.last_poll && tx("· last checked {v}", { v: new Date(status.last_poll).toLocaleString() })}
                 </p>
               </div>
               <span className={`text-xs border px-2 py-0.5 rounded ${
@@ -212,16 +212,16 @@ export default function EmailMonitor() {
                 : status.last_poll_status === 'error' ? 'text-red-400 border-red-800 bg-red-900/20'
                 : 'text-slate-500 border-slate-700'
               }`}>
-                {status.last_poll_status === 'done' ? 'Working' : status.last_poll_status === 'error' ? 'Problem' : status.last_poll_status ? 'Checking' : 'Not checked yet'}
+                {status.last_poll_status === 'done' ? tx("Working") : status.last_poll_status === 'error' ? tx("Problem") : status.last_poll_status ? tx("Checking") : tx("Not checked yet")}
               </span>
             </div>
           )}
 
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-            <StatCard label="Broker replies"        value={status?.total_matched}   icon={Check}    color="text-emerald-400" />
-            <StatCard label="Other mail"            value={status?.total_unmatched} icon={AlertCircle} color="text-amber-400" />
-            <StatCard label="Checked every"         value={status?.configured ? `${status.poll_interval_minutes} min` : 'off'} icon={Clock} />
+            <StatCard label={tx("Broker replies")}        value={status?.total_matched}   icon={Check}    color="text-emerald-400" />
+            <StatCard label={tx("Other mail")}            value={status?.total_unmatched} icon={AlertCircle} color="text-amber-400" />
+            <StatCard label={tx("Checked every")}         value={status?.configured ? `${status.poll_interval_minutes} min` : 'off'} icon={Clock} />
           </div>
 
           <ConfirmLinksCard isAdmin={can(user, 'settings.system')} />
@@ -229,13 +229,13 @@ export default function EmailMonitor() {
           {/* Log table */}
           <div className="bg-slate-800 rounded-xl border border-slate-700/50 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50">
-              <p className="text-slate-300 text-sm font-medium">Email log</p>
+              <p className="text-slate-300 text-sm font-medium">{tx("Email log")}</p>
               <div className="flex gap-1 bg-slate-900 p-1 rounded-lg">
                 {[
-                  { key: 'all',       label: `All (${logs.length})` },
-                  { key: 'matched',   label: `Broker replies (${logs.filter(l => l.direction==='received' && l.matched_key).length})` },
-                  { key: 'unmatched', label: `Other (${logs.filter(l => l.direction==='received' && !l.matched_key).length})` },
-                  { key: 'sent',      label: `Sent (${logs.filter(l => l.direction==='sent').length})` },
+                  { key: 'all',       label: tx("All ({length})", { length: logs.length }) },
+                  { key: 'matched',   label: tx("Broker replies ({length})", { length: logs.filter(l => l.direction==='received' && l.matched_key).length }) },
+                  { key: 'unmatched', label: tx("Other ({length})", { length: logs.filter(l => l.direction==='received' && !l.matched_key).length }) },
+                  { key: 'sent',      label: tx("Sent ({length})", { length: logs.filter(l => l.direction==='sent').length }) },
                 ].map(f => (
                   <button key={f.key} onClick={() => setFilter(f.key)}
                     className={`px-2.5 py-1 text-xs rounded transition-colors ${
@@ -247,9 +247,9 @@ export default function EmailMonitor() {
             {filteredLogs.length === 0 ? (
               <div className="text-center py-10">
                 <Inbox size={24} className="text-slate-700 mx-auto mb-2" />
-                <p className="text-slate-500 text-sm">No emails yet</p>
+                <p className="text-slate-500 text-sm">{tx("No emails yet")}</p>
                 <p className="text-slate-600 text-xs mt-1">
-                  {status?.configured ? 'Emails show up here after the next inbox check.' : 'Connect an inbox under Email inboxes first.'}
+                  {status?.configured ? tx("Emails show up here after the next inbox check.") : tx("Connect an inbox under Email inboxes first.")}
                 </p>
               </div>
             ) : (

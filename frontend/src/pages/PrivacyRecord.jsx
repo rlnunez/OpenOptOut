@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FileLock2, Download, AlertTriangle, Trash2 } from 'lucide-react'
 import api from '../api'
+import { tx, txn, txr } from '../i18n/tx'
 
 // OpenOptOut's own record of the personal data it keeps (GDPR Article 30
 // style), its protection and retention, staff access, and tools for answering
@@ -17,7 +18,7 @@ export default function PrivacyRecord() {
   const [msg, setMsg] = useState('')
 
   const load = () => {
-    api.get('/privacy/record').then(r => setRec(r.data)).catch(e => setMsg(e.response?.data?.detail || "Couldn't load the record."))
+    api.get('/privacy/record').then(r => setRec(r.data)).catch(e => setMsg(e.response?.data?.detail || tx("Couldn't load the record.")))
     api.get('/privacy/access-log', { params: { limit: 200 } }).then(r => setLog(r.data)).catch(() => {})
   }
   useEffect(() => {
@@ -33,7 +34,7 @@ export default function PrivacyRecord() {
       const a = document.createElement('a'); a.href = url; a.download = `openoptout-person-${who}.json`; a.click()
       setTimeout(() => URL.revokeObjectURL(url), 1000)
       load()
-    } catch (e) { setMsg(e.response?.data?.detail || "Couldn't export that person's data.") }
+    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't export that person's data.")) }
   }
 
   const purge = async () => {
@@ -41,8 +42,8 @@ export default function PrivacyRecord() {
     try {
       const { data } = await api.post('/privacy/purge')
       const n = Object.values(data.removed).reduce((a, b) => a + b, 0)
-      setMsg(`Done. ${n} old record${n === 1 ? '' : 's'} removed.`); load()
-    } catch (e) { setMsg(e.response?.data?.detail || "Couldn't run it.") }
+      setMsg(txn(n, "Done. {n} old record removed.", "Done. {n} old records removed.")); load()
+    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't run it.")) }
   }
 
   const downloadRecord = () => {
@@ -56,17 +57,16 @@ export default function PrivacyRecord() {
     <div className="p-4 md:p-6 max-w-5xl">
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
-          <h1 className="text-white text-xl font-semibold flex items-center gap-2"><FileLock2 size={18} aria-hidden="true" /> Privacy record</h1>
+          <h1 className="text-white text-xl font-semibold flex items-center gap-2"><FileLock2 size={18} aria-hidden="true" />{" "}{tx("Privacy record")}</h1>
           <p className="text-slate-400 text-sm mt-1 max-w-2xl">
-            What personal data this OpenOptOut keeps, why, how it's protected and for how long, and who looked at it.
-            Use it as your record of processing under GDPR Article 30, and to answer requests under the CCPA and GDPR.
+            {tx("What personal data this OpenOptOut keeps, why, how it's protected and for how long, and who looked at it. Use it as your record of processing under GDPR Article 30, and to answer requests under the CCPA and GDPR.")}
           </p>
         </div>
         {rec && <button onClick={downloadRecord} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-200 border border-slate-600 rounded-lg hover:bg-slate-700">
-          <Download size={13} aria-hidden="true" /> Download the record</button>}
+          <Download size={13} aria-hidden="true" />{" "}{tx("Download the record")}</button>}
       </div>
       {msg && <p role="status" className="text-slate-200 text-sm mb-3">{msg}</p>}
-      {!rec && !msg && <p className="text-slate-400 text-sm">Loading…</p>}
+      {!rec && !msg && <p className="text-slate-400 text-sm">{tx("Loading…")}</p>}
 
       {rec && (
         <>
@@ -77,67 +77,64 @@ export default function PrivacyRecord() {
           )}
 
           <section aria-labelledby="h-inv" className={`${card} overflow-x-auto`}>
-            <h2 id="h-inv" className="text-white font-medium mb-2">What's kept</h2>
+            <h2 id="h-inv" className="text-white font-medium mb-2">{tx("What's kept")}</h2>
             <table className="w-full text-sm">
               <thead><tr className="text-slate-400 text-xs text-left">
-                {['Data', 'Why', 'How it is protected', 'Kept for', 'Where'].map(h => <th key={h} scope="col" className="py-1 pr-3 font-normal">{h}</th>)}
+                {[tx("Data"), tx("Why"), tx("How it is protected"), tx("Kept for"), tx("Where")].map(h => <th key={h} scope="col" className="py-1 pr-3 font-normal">{h}</th>)}
               </tr></thead>
               <tbody>{rec.inventory.map(r => (
                 <tr key={r.key} className="border-t border-slate-700/40 align-top">
                   <th scope="row" className="py-1.5 pr-3 text-left text-slate-200 font-normal">{r.what}</th>
                   <td className="py-1.5 pr-3 text-slate-300">{r.why}</td>
-                  <td className="py-1.5 pr-3 text-slate-300">Encrypted: {r.encrypted}</td>
+                  <td className="py-1.5 pr-3 text-slate-300">{tx("Encrypted:")}{" "}{r.encrypted}</td>
                   <td className="py-1.5 pr-3 text-slate-300">{r.kept}</td>
                   <td className="py-1.5 text-slate-500 text-xs font-mono">{r.tables.join(', ')}</td>
                 </tr>))}</tbody>
             </table>
-            <p className="text-slate-400 text-sm mt-3">Never kept: {rec.never_stored.join(', ')}.</p>
+            <p className="text-slate-400 text-sm mt-3">{tx("Never kept: {v}.", { v: rec.never_stored.join(', ') })}</p>
           </section>
 
           <section aria-labelledby="h-state" className={card}>
-            <h2 id="h-state" className="text-white font-medium mb-2">Right now</h2>
+            <h2 id="h-state" className="text-white font-medium mb-2">{tx("Right now")}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
               {Object.entries(rec.counts).map(([k, v]) => (
                 <div key={k}><p className="text-white text-lg font-semibold">{v}</p><p className="text-slate-400 text-xs">{k.replace('_', ' ')}</p></div>
               ))}
             </div>
             <p className="text-slate-300 text-sm mt-3">
-              Database file encrypted: <strong>{rec.encryption.database ? 'yes' : 'no'}</strong> ({rec.encryption.database_type}) ·
-              Personal details encrypted: <strong>{rec.encryption.fields ? 'yes' : 'no'}</strong> ·
-              Logs kept for <strong>{rec.retention_days} days</strong> (change in Settings → Privacy & data)
+              {txr("Database file encrypted: <0/> ({database_type}) · Personal details encrypted: <1/> · Logs kept for", [<strong>{rec.encryption.database ? 'yes' : 'no'}</strong>, <strong>{rec.encryption.fields ? 'yes' : 'no'}</strong>], { database_type: rec.encryption.database_type })}{" "}<strong>{rec.retention_days}{" "}{tx("days")}</strong>{" "}{tx("(change in Settings → Privacy & data)")}
             </p>
             <div className="flex flex-wrap items-center gap-3 mt-2">
-              <p className="text-slate-400 text-xs">Last clean-up: {rec.last_purge ? fmt(rec.last_purge.at) : 'not yet'}</p>
+              <p className="text-slate-400 text-xs">{tx("Last clean-up:")}{" "}{rec.last_purge ? fmt(rec.last_purge.at) : tx("not yet")}</p>
               <button onClick={purge} className="flex items-center gap-1.5 px-3 py-1 text-xs text-slate-200 border border-slate-600 rounded-lg hover:bg-slate-700">
-                <Trash2 size={12} aria-hidden="true" /> Clean up now</button>
+                <Trash2 size={12} aria-hidden="true" />{" "}{tx("Clean up now")}</button>
             </div>
           </section>
 
           <section aria-labelledby="h-req" className={card}>
-            <h2 id="h-req" className="text-white font-medium mb-1">Answer a request</h2>
+            <h2 id="h-req" className="text-white font-medium mb-1">{tx("Answer a request")}</h2>
             <p className="text-slate-400 text-sm mb-2">
-              When someone asks what you hold about them, download it here and send it to them. To delete someone,
-              remove their account under Admin panel; everything about them goes with it. Both are recorded below.
+              {tx("When someone asks what you hold about them, download it here and send it to them. To delete someone, remove their account under Admin panel; everything about them goes with it. Both are recorded below.")}
             </p>
             <div className="flex flex-wrap gap-2 items-center">
-              <label htmlFor="req-who" className="sr-only">Person</label>
+              <label htmlFor="req-who" className="sr-only">{tx("Person")}</label>
               <select id="req-who" value={who} onChange={e => setWho(e.target.value)}
                 className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200">
-                <option value="">Choose a person…</option>
+                <option value="">{tx("Choose a person…")}</option>
                 {people.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
               </select>
               <button onClick={exportPerson} disabled={!who}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 disabled:opacity-40">
-                <Download size={13} aria-hidden="true" /> Download their data</button>
+                <Download size={13} aria-hidden="true" />{" "}{tx("Download their data")}</button>
             </div>
           </section>
 
           <section aria-labelledby="h-log" className={`${card} overflow-x-auto`}>
-            <h2 id="h-log" className="text-white font-medium mb-2">Who looked at whose details</h2>
-            {log.length === 0 ? <p className="text-slate-400 text-sm">Nothing recorded yet. Staff viewing, changing, downloading or removing someone else's details shows up here.</p> : (
+            <h2 id="h-log" className="text-white font-medium mb-2">{tx("Who looked at whose details")}</h2>
+            {log.length === 0 ? <p className="text-slate-400 text-sm">{tx("Nothing recorded yet. Staff viewing, changing, downloading or removing someone else's details shows up here.")}</p> : (
               <table className="w-full text-sm">
                 <thead><tr className="text-slate-400 text-xs text-left">
-                  {['When', 'Who', 'Did', 'Whose', 'What'].map(h => <th key={h} scope="col" className="py-1 pr-3 font-normal">{h}</th>)}
+                  {[tx("When"), tx("Who"), tx("Did"), tx("Whose"), tx("What")].map(h => <th key={h} scope="col" className="py-1 pr-3 font-normal">{h}</th>)}
                 </tr></thead>
                 <tbody>{log.map((e, i) => (
                   <tr key={i} className="border-t border-slate-700/40">

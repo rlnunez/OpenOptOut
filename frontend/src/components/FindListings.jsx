@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link2, ExternalLink, ChevronDown, ChevronRight, Search, CheckCircle2, AlertTriangle } from 'lucide-react'
 import api from '../api'
 import WebSearchResults from './WebSearchResults'
+import { tx, txr } from '../i18n/tx'
 
 const inp = 'w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-shield-500'
 
@@ -41,7 +42,7 @@ export default function FindListings({ memberId, memberName, onAdded }) {
       setResult(data); setUrl(''); setPreview(null)
       onAdded && onAdded()
     } catch (err) {
-      setError(err.response?.data?.detail || "Couldn't add that listing. Please check the address and try again.")
+      setError(err.response?.data?.detail || tx("Couldn't add that listing. Please check the address and try again."))
     } finally { setBusy(false) }
   }
 
@@ -56,29 +57,28 @@ export default function FindListings({ memberId, memberName, onAdded }) {
   return (
     <section aria-labelledby="find-listings" className="mb-6 p-4 rounded-xl border border-slate-700/50 bg-slate-800/60">
       <h2 id="find-listings" className="text-white font-medium flex items-center gap-2">
-        <Search size={16} className="text-shield-500" aria-hidden="true" /> Find your listings
+        <Search size={16} className="text-shield-500" aria-hidden="true" />{" "}{tx("Find your listings")}
       </h2>
       <p className="text-slate-400 text-sm mt-1 mb-4">
-        These searches use {memberName ? `${memberName}'s` : 'your'} saved names, phone numbers and addresses.
-        They open in your browser. If you find a page about {memberName || 'you'}, copy its web address and paste it below.
+        {tx("These searches use {v} saved names, phone numbers and addresses. They open in your browser. If you find a page about {v2}, copy its web address and paste it below.", { v: memberName ? `${memberName}'s` : 'your', v2: memberName || 'you' })}
       </p>
 
       <form onSubmit={add} className="mb-4" aria-describedby="listing-help">
-        <label htmlFor="listing-url" className="block text-sm text-slate-300 mb-1">Paste a page that shows {memberName ? `${memberName}'s` : 'your'} information</label>
+        <label htmlFor="listing-url" className="block text-sm text-slate-300 mb-1">{tx("Paste a page that shows {v} information", { v: memberName ? `${memberName}'s` : 'your' })}</label>
         <div className="flex gap-2 flex-col sm:flex-row">
           <input id="listing-url" type="url" inputMode="url" className={inp} placeholder="https://www.example.com/people/jane-doe/..."
             value={url} onChange={e => setUrl(e.target.value)} required />
           <button type="submit" disabled={busy || !url.trim()}
             className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-shield-600 hover:bg-shield-500 text-white text-sm font-medium disabled:opacity-50 shrink-0">
-            <Link2 size={14} aria-hidden="true" /> {busy ? 'Adding…' : 'Add to removals'}
+            <Link2 size={14} aria-hidden="true" /> {busy ? tx("Adding…") : tx("Add to removals")}
           </button>
         </div>
         <p id="listing-help" className="text-xs text-slate-500 mt-1" aria-live="polite">
           {preview
             ? (preview.broker_name
-                ? <>This is <span className="text-slate-300">{preview.broker_name}</span>{preview.note ? ` — ${preview.note}` : ''}.</>
-                : <>OpenOptOut doesn't know {preview.domain} yet. You can still add it; it will go on your checklist.</>)
-            : 'OpenOptOut works out which site it is from the address. It never visits the page.'}
+                ? <>{txr("This is <0/>", [<span className="text-slate-300">{preview.broker_name}</span>])}{preview.note ? ` — ${preview.note}` : ''}.</>
+                : <>{tx("OpenOptOut doesn't know {domain} yet. You can still add it; it will go on your checklist.", { domain: preview.domain })}</>)
+            : tx("OpenOptOut works out which site it is from the address. It never visits the page.")}
         </p>
       </form>
 
@@ -90,13 +90,13 @@ export default function FindListings({ memberId, memberName, onAdded }) {
       )}
       {error && <p role="alert" className="mb-4 text-sm text-red-300">{error}</p>}
 
-      {!plan ? <p className="text-slate-500 text-sm">Loading searches…</p> : (
+      {!plan ? <p className="text-slate-500 text-sm">{tx("Loading searches…")}</p> : (
         <>
           <div className="mb-3">
-            <Toggle k="web">Search the web ({plan.queries.length})</Toggle>
+            <Toggle k="web">{tx("Search the web ({length})", { length: plan.queries.length })}</Toggle>
             {open.web && (
               plan.queries.length === 0
-                ? <p className="text-slate-400 text-sm mt-2">Add names, phone numbers or addresses on the Your details page to get searches here.</p>
+                ? <p className="text-slate-400 text-sm mt-2">{tx("Add names, phone numbers or addresses on the Your details page to get searches here.")}</p>
                 : <ul className="mt-2 divide-y divide-slate-700/40">
                     {plan.queries.map(q => (
                       <li key={q.query} className="py-2 flex items-start justify-between gap-3 flex-wrap">
@@ -108,7 +108,7 @@ export default function FindListings({ memberId, memberName, onAdded }) {
                           {Object.entries(q.links).map(([engine, href]) => (
                             <a key={engine} href={href} target="_blank" rel="noopener noreferrer"
                               className="text-shield-400 hover:text-shield-300 flex items-center gap-1"
-                              aria-label={`Search ${engine} for ${q.label.toLowerCase()} (opens a new tab)`}>
+                              aria-label={tx("Search {engine} for {v} (opens a new tab)", { engine, v: q.label.toLowerCase() })}>
                               <ExternalLink size={12} aria-hidden="true" />{engine === 'duckduckgo' ? 'DuckDuckGo' : engine[0].toUpperCase() + engine.slice(1)}
                             </a>
                           ))}
@@ -119,7 +119,7 @@ export default function FindListings({ memberId, memberName, onAdded }) {
             )}
           </div>
           <div>
-            <Toggle k="brokers">Search each broker site ({plan.brokers.length})</Toggle>
+            <Toggle k="brokers">{tx("Search each broker site ({length})", { length: plan.brokers.length })}</Toggle>
             {open.brokers && (
               <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6">
                 {plan.brokers.map(b => (
@@ -127,8 +127,8 @@ export default function FindListings({ memberId, memberName, onAdded }) {
                     <span className="text-sm text-slate-200 truncate">{b.broker_name}</span>
                     <a href={b.search_url} target="_blank" rel="noopener noreferrer"
                       className="text-shield-400 hover:text-shield-300 text-sm flex items-center gap-1 shrink-0"
-                      aria-label={`Search ${b.broker_name} (opens a new tab)`}>
-                      <ExternalLink size={12} aria-hidden="true" />{b.kind === 'broker_search' ? 'Search site' : 'Search web'}
+                      aria-label={tx("Search {broker_name} (opens a new tab)", { broker_name: b.broker_name })}>
+                      <ExternalLink size={12} aria-hidden="true" />{b.kind === 'broker_search' ? tx("Search site") : tx("Search web")}
                     </a>
                   </li>
                 ))}

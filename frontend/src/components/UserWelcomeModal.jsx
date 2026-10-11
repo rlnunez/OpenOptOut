@@ -6,6 +6,7 @@ import {
 import { useLanguage } from '../i18n/LanguageContext'
 import { useAccessibility } from '../context/AccessibilityContext'
 import api from '../api'
+import { tx } from '../i18n/tx'
 
 export default function UserWelcomeModal() {
   const { language, setLanguage, availableLanguages, isRTL, t, showWelcomeTour, completeWelcomeTour } = useLanguage()
@@ -143,7 +144,7 @@ export default function UserWelcomeModal() {
             ))}
           </div>
           <span className="text-xs font-medium text-slate-400">
-            Step {step} of {totalSteps}
+            {tx("Step {step} of {totalSteps}", { step, totalSteps })}
           </span>
         </div>
 
@@ -181,7 +182,7 @@ export default function UserWelcomeModal() {
                       </div>
                       {lang.is_rtl && (
                         <span className="text-[10px] px-2 py-0.5 rounded-sm bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono">
-                          RTL
+                          {tx("RTL")}
                         </span>
                       )}
                       {isSelected && <CheckCircle2 size={16} className="text-blue-400" />}
@@ -192,8 +193,8 @@ export default function UserWelcomeModal() {
 
               {isRTL && (
                 <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-200 flex items-center gap-2">
-                  <span>ℹ️</span>
-                  <span>Right-to-Left (RTL) mode is automatically enabled for this language.</span>
+                  <span>{tx("ℹ️")}</span>
+                  <span>{tx("Right-to-Left (RTL) mode is automatically enabled for this language.")}</span>
                 </div>
               )}
 
@@ -216,11 +217,11 @@ export default function UserWelcomeModal() {
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
                     {[
-                      { id: 'light', label: t('a11y.theme_light', 'Light'), icon: Sun, desc: 'Crisp white' },
-                      { id: 'gray', label: t('a11y.theme_gray', 'Gray'), icon: Sliders, desc: 'Slate neutral' },
-                      { id: 'dark', label: t('a11y.theme_dark', 'Dark'), icon: Moon, desc: 'Deep black' },
-                      { id: 'system', label: t('a11y.theme_system', 'System'), icon: Laptop, desc: 'Auto match' },
-                      { id: 'space', label: t('a11y.theme_space', 'Space Explorer'), icon: Compass, desc: 'Deep space' },
+                      { id: 'light', label: t('a11y.theme_light', 'Light'), icon: Sun, desc: tx("Crisp white") },
+                      { id: 'gray', label: t('a11y.theme_gray', 'Gray'), icon: Sliders, desc: tx("Slate neutral") },
+                      { id: 'dark', label: t('a11y.theme_dark', 'Dark'), icon: Moon, desc: tx("Deep black") },
+                      { id: 'system', label: t('a11y.theme_system', 'System'), icon: Laptop, desc: tx("Auto match") },
+                      { id: 'space', label: t('a11y.theme_space', 'Space Explorer'), icon: Compass, desc: tx("Deep space") },
                     ].map(item => {
                       const Icon = item.icon
                       const isActive = theme === item.id
@@ -256,7 +257,7 @@ export default function UserWelcomeModal() {
                   <div className="space-y-0.5 flex-1">
                     <label htmlFor="welcome-high-contrast" className="text-xs font-semibold text-white flex items-center gap-2 cursor-pointer">
                       <span>{t('a11y.high_contrast', 'Make High Contrast (WCAG 2.2 AAA)')}</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-yellow-400/20 text-yellow-300 font-mono">AAA 7:1+</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-yellow-400/20 text-yellow-300 font-mono">{tx("AAA 7:1+")}</span>
                     </label>
                     <p className="text-[11px] text-slate-400 leading-normal">
                       {t('a11y.contrast_checkbox_desc', 'Enforces maximum contrast (21:1) adapting to your chosen theme. Light theme renders crisp black-on-white; dark theme renders vivid white-on-black with high-visibility borders.')}
@@ -271,7 +272,7 @@ export default function UserWelcomeModal() {
                       <div className="flex items-center gap-1.5">
                         <BookOpen size={15} className="text-purple-400" />
                         <span className="text-xs font-semibold text-white">{t('a11y.dyslexic_font', 'Dyslexia-Friendly Font (OpenDyslexic)')}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">OpenDyslexic</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">{"OpenDyslexic"}</span>
                       </div>
                       <p className="text-[11px] text-slate-400 leading-normal">
                         {t('a11y.dyslexic_font_desc', 'Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.')}
@@ -288,7 +289,7 @@ export default function UserWelcomeModal() {
                   </div>
                   {dyslexicFont && (
                     <div className="p-2.5 rounded-lg border border-purple-500/30 bg-purple-950/20 text-xs text-purple-200" style={{ fontFamily: "'OpenDyslexic', system-ui, sans-serif" }}>
-                      OpenDyslexic typography is active. Letters have unique heavy bottoms to prevent flipping and confusion.
+                      {tx("OpenDyslexic typography is active. Letters have unique heavy bottoms to prevent flipping and confusion.")}
                     </div>
                   )}
                 </div>
@@ -303,7 +304,7 @@ export default function UserWelcomeModal() {
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-mono font-bold text-blue-400">{fontSize}%</span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
-                        {fontSize <= 100 ? 'Default' : fontSize <= 120 ? 'Comfortable' : fontSize <= 135 ? 'Enhanced' : 'AAA Large'}
+                        {fontSize <= 100 ? tx("Default") : fontSize <= 120 ? tx("Comfortable") : fontSize <= 135 ? tx("Enhanced") : tx("AAA Large")}
                       </span>
                     </div>
                   </div>
@@ -325,7 +326,7 @@ export default function UserWelcomeModal() {
                       {t('a11y.font_preview_label', 'Live Preview')}
                     </p>
                     <p className="text-sm font-semibold text-white">
-                      Sample Heading (Scales with Slider)
+                      {tx("Sample Heading (Scales with Slider)")}
                     </p>
                     <p className="text-xs text-slate-300">
                       {t('a11y.font_preview_sample', 'This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.')}
@@ -403,54 +404,54 @@ export default function UserWelcomeModal() {
 
               <div className="space-y-3 bg-slate-950/40 p-4 rounded-xl border border-slate-800/80">
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Full Legal Name</label>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">{tx("Full Legal Name")}</label>
                   <input
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. Jane Doe"
+                    placeholder={tx("e.g. Jane Doe")}
                     className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1">City</label>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">{tx("City")}</label>
                     <input
                       type="text"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      placeholder="e.g. Seattle"
+                      placeholder={tx("e.g. Seattle")}
                       className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1">State / Province</label>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">{tx("State / Province")}</label>
                     <input
                       type="text"
                       value={state}
                       onChange={(e) => setState(e.target.value)}
-                      placeholder="e.g. WA"
+                      placeholder={tx("e.g. WA")}
                       className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Street Address (Optional)</label>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">{tx("Street Address (Optional)")}</label>
                   <input
                     type="text"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="e.g. 123 Pine St"
+                    placeholder={tx("e.g. 123 Pine St")}
                     className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Phone Number (Optional)</label>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">{tx("Phone Number (Optional)")}</label>
                   <input
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="e.g. (206) 555-0199"
+                    placeholder={tx("e.g. (206) 555-0199")}
                     className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
                   />
                 </div>
@@ -458,14 +459,14 @@ export default function UserWelcomeModal() {
                 <div className="flex items-center justify-between pt-2">
                   <div className="flex items-center gap-1.5 text-xs text-slate-400">
                     <Lock size={12} className="text-emerald-400" />
-                    <span>Encrypted with AES-256 at rest</span>
+                    <span>{tx("Encrypted with AES-256 at rest")}</span>
                   </div>
                   <button
                     onClick={handleSavePii}
                     disabled={piiSaving || (!fullName && !address)}
                     className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
                   >
-                    {piiSaving ? 'Saving...' : piiSaved ? '✓ Saved' : 'Save my details'}
+                    {piiSaving ? tx("Saving...") : piiSaved ? tx("✓ Saved") : tx("Save my details")}
                   </button>
                 </div>
               </div>
@@ -491,9 +492,9 @@ export default function UserWelcomeModal() {
                     <Shield size={18} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-white">Centralized Automated Inbox</h4>
+                    <h4 className="text-sm font-semibold text-white">{tx("Centralized Automated Inbox")}</h4>
                     <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                      By default, opt-out requests are sent from your organization's configured mail transport. Inbound confirmation links are captured and honored automatically in the background.
+                      {tx("By default, opt-out requests are sent from your organization's configured mail transport. Inbound confirmation links are captured and honored automatically in the background.")}
                     </p>
                   </div>
                 </div>
@@ -503,9 +504,9 @@ export default function UserWelcomeModal() {
                     <CheckCircle2 size={18} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-white">Zero Mailbox Clutter</h4>
+                    <h4 className="text-sm font-semibold text-white">{tx("Zero Mailbox Clutter")}</h4>
                     <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                      You won't receive hundreds of data broker marketing emails or spam. Only final verification status changes are reported on your dashboard.
+                      {tx("You won't receive hundreds of data broker marketing emails or spam. Only final verification status changes are reported on your dashboard.")}
                     </p>
                   </div>
                 </div>
@@ -530,40 +531,40 @@ export default function UserWelcomeModal() {
                 <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/50 space-y-1">
                   <div className="flex items-center gap-2 font-medium text-sm text-white">
                     <span className="text-blue-400">📊</span>
-                    <span>Dashboard</span>
+                    <span>{tx("Dashboard")}</span>
                   </div>
                   <p className="text-xs text-slate-400">
-                    View real-time removal rates, active scan records, and overall protection coverage.
+                    {tx("View real-time removal rates, active scan records, and overall protection coverage.")}
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/50 space-y-1">
                   <div className="flex items-center gap-2 font-medium text-sm text-white">
                     <span className="text-purple-400">🔐</span>
-                    <span>Your details</span>
+                    <span>{tx("Your details")}</span>
                   </div>
                   <p className="text-xs text-slate-400">
-                    Add prior addresses, maiden names, and relative records to maximize data scrubbing.
+                    {tx("Add prior addresses, maiden names, and relative records to maximize data scrubbing.")}
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/50 space-y-1">
                   <div className="flex items-center gap-2 font-medium text-sm text-white">
                     <span className="text-amber-400">⚡</span>
-                    <span>Removal Requests</span>
+                    <span>{tx("Removal Requests")}</span>
                   </div>
                   <p className="text-xs text-slate-400">
-                    Track the progress of requests submitted across major brokers (Spokeo, Radaris, Whitepages, etc.).
+                    {tx("Track the progress of requests submitted across major brokers (Spokeo, Radaris, Whitepages, etc.).")}
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/50 space-y-1">
                   <div className="flex items-center gap-2 font-medium text-sm text-white">
                     <span className="text-emerald-400">🌐</span>
-                    <span>Language Picker</span>
+                    <span>{tx("Language Picker")}</span>
                   </div>
                   <p className="text-xs text-slate-400">
-                    Switch your interface language anytime from the menu bar with full RTL and LTR support.
+                    {tx("Switch your interface language anytime from the menu bar with full RTL and LTR support.")}
                   </p>
                 </div>
               </div>

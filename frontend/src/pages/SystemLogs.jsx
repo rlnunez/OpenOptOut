@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
+import { tx, txr } from '../i18n/tx'
 
 const LEVEL_COLORS = {
   DEBUG:    'text-slate-400 bg-slate-800/60 border-slate-700/50',
@@ -15,18 +16,18 @@ const LEVEL_COLORS = {
 }
 
 const COMMON_SUBSYSTEMS = [
-  { value: '', label: 'All Subsystems' },
-  { value: 'core.auth', label: 'Auth & SSO' },
-  { value: 'core.scheduler', label: 'Scheduler' },
-  { value: 'core.optout', label: 'Opt-out Engine' },
-  { value: 'plugins', label: 'Plugins' },
-  { value: 'core.cert_monitor', label: 'Cert Monitor' },
-  { value: 'consortium', label: 'Consortium' },
-  { value: 'uvicorn', label: 'API Server' },
+  { value: '', label: tx("All Subsystems") },
+  { value: 'core.auth', label: tx("Auth & SSO") },
+  { value: 'core.scheduler', label: tx("Scheduler") },
+  { value: 'core.optout', label: tx("Opt-out Engine") },
+  { value: 'plugins', label: tx("Plugins") },
+  { value: 'core.cert_monitor', label: tx("Cert Monitor") },
+  { value: 'consortium', label: tx("Consortium") },
+  { value: 'uvicorn', label: tx("API Server") },
 ]
 
 function formatBytes(bytes) {
-  if (!bytes || bytes === 0) return '0 B'
+  if (!bytes || bytes === 0) return tx("0 B")
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
@@ -145,10 +146,10 @@ export default function SystemLogs() {
         <div>
           <div className="flex items-center gap-2">
             <Terminal className="text-shield-400" size={24} />
-            <h1 className="text-xl font-bold text-white">Operational Visibility & Diagnostics</h1>
+            <h1 className="text-xl font-bold text-white">{tx("Operational Visibility & Diagnostics")}</h1>
           </div>
           <p className="text-sm text-slate-400 mt-1">
-            Real-time diagnostic logs across background workers, authentication providers, and plugins.
+            {tx("Real-time diagnostic logs across background workers, authentication providers, and plugins.")}
           </p>
         </div>
 
@@ -157,7 +158,7 @@ export default function SystemLogs() {
           {/* Dynamic Verbosity Selector */}
           <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-sm px-2.5 py-1 text-xs text-slate-300">
             <Sliders size={14} className="text-slate-400" />
-            <span className="text-slate-400">Verbosity:</span>
+            <span className="text-slate-400">{tx("Verbosity:")}</span>
             {canManage ? (
               <select
                 value={activeLevel}
@@ -165,10 +166,10 @@ export default function SystemLogs() {
                 disabled={updatingLevel}
                 className="bg-slate-950 border border-slate-700 text-white rounded-sm px-1.5 py-0.5 text-xs font-mono focus:outline-hidden focus:border-shield-500"
               >
-                <option value="DEBUG">DEBUG</option>
-                <option value="INFO">INFO</option>
-                <option value="WARNING">WARNING</option>
-                <option value="ERROR">ERROR</option>
+                <option value="DEBUG">{tx("DEBUG")}</option>
+                <option value="INFO">{tx("INFO")}</option>
+                <option value="WARNING">{tx("WARNING")}</option>
+                <option value="ERROR">{tx("ERROR")}</option>
               </select>
             ) : (
               <span className="font-mono text-white font-medium">{activeLevel}</span>
@@ -183,10 +184,10 @@ export default function SystemLogs() {
                 ? 'bg-emerald-950/60 border-emerald-800/60 text-emerald-300 hover:bg-emerald-900/60'
                 : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
             }`}
-            title={autoRefresh ? 'Pause live tail' : 'Resume live tail'}
+            title={autoRefresh ? tx("Pause live tail") : tx("Resume live tail")}
           >
             {autoRefresh ? <Pause size={13} /> : <Play size={13} />}
-            <span>{autoRefresh ? 'Live' : 'Paused'}</span>
+            <span>{autoRefresh ? tx("Live") : tx("Paused")}</span>
           </button>
 
           {/* Refresh Now */}
@@ -194,10 +195,10 @@ export default function SystemLogs() {
             onClick={() => fetchLogs(false)}
             disabled={loading}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
-            title="Refresh now"
+            title={tx("Refresh now")}
           >
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-            <span>Refresh</span>
+            <span>{tx("Refresh")}</span>
           </button>
 
           {/* Download Logs */}
@@ -205,10 +206,10 @@ export default function SystemLogs() {
             onClick={handleDownload}
             disabled={downloading}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-medium bg-shield-600 hover:bg-shield-500 text-white transition-colors"
-            title="Download full diagnostic log file"
+            title={tx("Download full diagnostic log file")}
           >
             <Download size={13} />
-            <span>{downloading ? 'Exporting…' : 'Export File'}</span>
+            <span>{downloading ? tx("Exporting…") : tx("Export File")}</span>
           </button>
 
           {/* Clear Buffer */}
@@ -216,7 +217,7 @@ export default function SystemLogs() {
             <button
               onClick={handleClearBuffer}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-sm text-xs text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 border border-transparent hover:border-rose-900/50 transition-colors"
-              title="Clear in-memory buffer"
+              title={tx("Clear in-memory buffer")}
             >
               <Trash2 size={13} />
             </button>
@@ -232,7 +233,7 @@ export default function SystemLogs() {
             <Search size={14} className="absolute left-2.5 top-2.5 text-slate-500" />
             <input
               type="text"
-              placeholder="Search log messages…"
+              placeholder={tx("Search log messages…")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="bg-slate-900 border border-slate-800 text-xs text-white rounded-sm pl-8 pr-3 py-1.5 w-56 focus:outline-hidden focus:border-shield-500 placeholder-slate-500"
@@ -245,11 +246,11 @@ export default function SystemLogs() {
             onChange={(e) => setLevelFilter(e.target.value)}
             className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-sm px-2.5 py-1.5 focus:outline-hidden focus:border-shield-500"
           >
-            <option value="">All Levels</option>
-            <option value="DEBUG">DEBUG & higher</option>
-            <option value="INFO">INFO & higher</option>
-            <option value="WARNING">WARNING & higher</option>
-            <option value="ERROR">ERROR & higher</option>
+            <option value="">{tx("All Levels")}</option>
+            <option value="DEBUG">{tx("DEBUG & higher")}</option>
+            <option value="INFO">{tx("INFO & higher")}</option>
+            <option value="WARNING">{tx("WARNING & higher")}</option>
+            <option value="ERROR">{tx("ERROR & higher")}</option>
           </select>
 
           {/* Subsystem Filter */}
@@ -269,19 +270,19 @@ export default function SystemLogs() {
             onChange={(e) => setLimit(Number(e.target.value))}
             className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-sm px-2 py-1.5 focus:outline-hidden focus:border-shield-500"
           >
-            <option value={100}>Last 100 lines</option>
-            <option value={200}>Last 200 lines</option>
-            <option value={500}>Last 500 lines</option>
-            <option value={1000}>Last 1000 lines</option>
+            <option value={100}>{tx("Last 100 lines")}</option>
+            <option value={200}>{tx("Last 200 lines")}</option>
+            <option value={500}>{tx("Last 500 lines")}</option>
+            <option value={1000}>{tx("Last 1000 lines")}</option>
           </select>
         </div>
 
         {/* Status Indicators */}
         <div className="flex items-center gap-3 text-xs text-slate-400">
-          <span>{logs.length} entries shown</span>
+          <span>{logs.length}{" "}{tx("entries shown")}</span>
           {fileInfo && fileInfo.exists && (
             <span className="hidden sm:inline border-l border-slate-800 pl-3">
-              Disk log: <span className="font-mono text-slate-300">{formatBytes(fileInfo.size_bytes)}</span>
+              {txr("Disk log: <0/>", [<span className="font-mono text-slate-300">{formatBytes(fileInfo.size_bytes)}</span>])}
             </span>
           )}
           <label className="flex items-center gap-1.5 cursor-pointer border-l border-slate-800 pl-3">
@@ -291,7 +292,7 @@ export default function SystemLogs() {
               onChange={(e) => setAutoScroll(e.target.checked)}
               className="rounded-sm bg-slate-900 border-slate-800 text-shield-600 focus:ring-0"
             />
-            <span>Auto-scroll</span>
+            <span>{tx("Auto-scroll")}</span>
           </label>
         </div>
       </div>
@@ -303,11 +304,11 @@ export default function SystemLogs() {
             <div className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
             <div className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
-            <span className="ml-2 text-slate-400 text-[11px]">openoptout-diagnostics.log</span>
+            <span className="ml-2 text-slate-400 text-[11px]">{"openoptout-diagnostics.log"}</span>
           </div>
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
             <Shield size={12} />
-            <span>Passwords and personal details are hidden automatically</span>
+            <span>{tx("Passwords and personal details are hidden automatically")}</span>
           </div>
         </div>
 
@@ -315,7 +316,7 @@ export default function SystemLogs() {
           {logs.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-2 py-12">
               <Terminal size={32} className="opacity-40" />
-              <p>No log records matching criteria</p>
+              <p>{tx("No log records matching criteria")}</p>
             </div>
           ) : (
             logs.map((entry) => {

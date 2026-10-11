@@ -4,9 +4,17 @@ import '@fontsource/opendyslexic/400.css'
 import '@fontsource/opendyslexic/700.css'
 import '@fontsource/antonio/400.css'
 import '@fontsource/antonio/700.css'
-import App from './App'
 import './index.css'
+import { loadTable } from './i18n/tx'
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode><App /></React.StrictMode>
-)
+// The language's text is loaded first, so every screen (and every list a
+// module builds when it loads) comes up in that language.
+let lang = 'en'
+try { lang = localStorage.getItem('preferred_language') || 'en' } catch { /* private mode */ }
+
+loadTable(lang).finally(async () => {
+  const { default: App } = await import('./App')
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <React.StrictMode><App /></React.StrictMode>
+  )
+})
