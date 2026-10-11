@@ -8,7 +8,7 @@ core/listing_finder.py.
   POST /api/listings/{member_id}        add a listing URL to the member's removal cycle
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -41,11 +41,29 @@ def resolve(body: UrlIn, db: Session = Depends(get_db), user: User = Depends(get
             "broker_id": b.id if b else None, "broker_name": b.name if b else None}
 
 
+def _check_new_site(broker_id: int):
+    """Look at a new site's privacy pages in the background (no personal data is sent)."""
+    from ..models.database import SessionLocal, Broker
+    from ..core import privacy_finder as pf
+    db = SessionLocal()
+    try:
+        b = db.query(Broker).filter(Broker.id == broker_id).first()
+        if b is not None:
+            pf.check_new_site(db, b)
+    except Exception:
+        pass
+    finally:
+        db.close()
+
+
 @router.post("/{member_id}")
-def add(member_id: int, body: UrlIn, db: Session = Depends(get_db),
+def add(member_id: int, body: UrlIn, background: BackgroundTasks, db: Session = Depends(get_db),
         user: User = Depends(get_current_user)):
     member = assert_can_edit(db, user, member_id)
     try:
-        return lf.add_listing(db, member, body.url)
+        res = lf.add_listing(db, member, body.url)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    if res.get("state") == "new_broker":
+        background.add_task(_check_new_site, res["broker_id"])
+    return res

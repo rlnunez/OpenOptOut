@@ -157,6 +157,14 @@ def allowed_domains(db, req) -> set:
                           getattr(spec, "search_url", ""), getattr(spec, "opt_out_url", "")]
         except Exception:
             pass
+        # Hosted privacy forms (OneTrust, TrustArc) send their own verification links.
+        try:
+            from ..models.database import PrivacyPage
+            cands += [p.url for p in db.query(PrivacyPage).filter(
+                PrivacyPage.broker_id == b.id, PrivacyPage.status.in_(("active", "approved")),
+                PrivacyPage.kind.in_(("hosted_onetrust", "hosted_trustarc", "request_form"))).all()]
+        except Exception:
+            pass
     for c in cands:
         h = lf_host(c or "")
         if h:

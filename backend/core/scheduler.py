@@ -151,6 +151,14 @@ def registry_maintenance_job():
             log.info("Site checks: %d checked, %d unreachable", res["checked"], res["unreachable"])
         except Exception as e:
             log.warning("Site checks failed: %s", e)
+        # Look for privacy-request pages on brokers nobody wrote steps for.
+        try:
+            from .privacy_finder import run_daily as find_privacy_pages
+            pf = find_privacy_pages(db, limit=20)
+            if pf["checked"]:
+                log.info("Privacy-page finder: %d sites checked, %d with a privacy page", pf["checked"], pf["found"])
+        except Exception as e:
+            log.warning("Privacy-page finder failed: %s", e)
         cfg = load_settings()
         # Weekly web searches, when an admin turned them on.
         try:
