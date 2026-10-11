@@ -14,10 +14,10 @@ absent, reports an error rather than crashing.
 
 import json
 
-from openoptout_sdk import Plugin, manifest
+from openoptout_sdk import Plugin, manifest, extract_links, wants_links
 
 plugin = Plugin(manifest(
-    id="email-outlook", name="Outlook / Microsoft 365 Email Provider", version="1.0.0",
+    id="email-outlook", name="Outlook / Microsoft 365 Email Provider", version="1.2.0",
     author="OpenOptOut",
     permissions=["email_provider", "read_pii", "network", "settings_read"],
     hooks=["email_provider"],
@@ -130,10 +130,19 @@ def list_messages(req):
                 pass
             to_list = ", ".join((r.get("emailAddress", {}) or {}).get("address", "")
                                 for r in (m.get("toRecipients") or []))
-            out.append({"message_id": m.get("id", ""), "from": frm, "to": to_list,
-                        "subject": m.get("subject", ""),
-                        "snippet": m.get("bodyPreview", ""), "received_ts": ts})
-        return {"ok": True, "messages": out}
+            item = {"message_id": m.get("id", ""), "from": frm, "to": to_list,
+                    "subject": m.get("subject", ""),
+                    "snippet": m.get("bodyPreview", ""), "received_ts": ts}
+            if wants_links(req, to_list) and m.get("id"):
+                b = requests.get(f"{_GRAPH}/me/messages/{m['id']}?$select=body",
+                                 headers={"Authorization": f"Bearer {token}"}, timeout=25)
+                if b.status_code == 200:
+                    body = (b.json().get("body") or {})
+                    is_html = (body.get("contentType") or "").lower() == "html"
+                    content = body.get("content", "")
+                    item["links"] = extract_links("" if is_html else content, content if is_html else "")
+            out.append(item)
+        return {"ok": True, "messages": out, "links_supported": bool(req.get("include_links"))}
     except Exception as e:
         return {"ok": False, "error": f"Outlook list failed: {str(e) or type(e).__name__}"}
 

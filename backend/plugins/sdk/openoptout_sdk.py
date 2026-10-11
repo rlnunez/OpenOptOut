@@ -372,6 +372,67 @@ class _ScheduleProxy:
 
 # ---- The Plugin object ----
 
+# ── Email links (for the "email_list" hook's include_links) ─────────────────
+
+import html as _html_mod
+import re as _re
+
+_A_HREF = _re.compile(r"<a\b[^>]*?\bhref\s*=\s*([\"'])(.*?)\1[^>]*>(.*?)</a>", _re.I | _re.S)
+_URL = _re.compile(r"https?://[^\s<>\"'()\[\]]+", _re.I)
+_TAG = _re.compile(r"<[^>]+>")
+
+
+def extract_links(text: str = "", html: str = "", limit: int = 60) -> list:
+    """
+    [{"url", "text"}] for every http(s) link in a message body (HTML anchors
+    first, then bare URLs). Email plugins return these when the host asks
+    with include_links, so bodies never leave the plugin.
+    """
+    out, seen = [], set()
+
+    def add(url, label=""):
+        url = _html_mod.unescape((url or "").strip()).rstrip(".,;:!>")
+        if not url.lower().startswith(("http://", "https://")) or url in seen:
+            return
+        seen.add(url)
+        out.append({"url": url[:2000],
+                    "text": " ".join(_TAG.sub(" ", _html_mod.unescape(label or "")).split())[:200]})
+
+    for _, href, label in _A_HREF.findall(html or ""):
+        add(href, label)
+    for u in _URL.findall(_TAG.sub(" ", html or "")) + _URL.findall(text or ""):
+        add(u)
+    return out[:limit]
+
+
+def wants_links(req: dict, to_header: str) -> bool:
+    """Should this message's body be read for links? (see links_if_to_contains)"""
+    if not req.get("include_links"):
+        return False
+    needle = (req.get("links_if_to_contains") or "").lower()
+    return not needle or needle in (to_header or "").lower()
+
+
+def links_from_mime(raw: bytes) -> list:
+    """Links from a raw RFC 822 message (IMAP plugins)."""
+    import email as _email
+    msg = _email.message_from_bytes(raw)
+    text, html = "", ""
+    for part in (msg.walk() if msg.is_multipart() else [msg]):
+        ct = part.get_content_type()
+        if ct not in ("text/plain", "text/html"):
+            continue
+        try:
+            body = part.get_payload(decode=True).decode(part.get_content_charset() or "utf-8", "replace")
+        except Exception:
+            continue
+        if ct == "text/html" and not html:
+            html = body
+        elif ct == "text/plain" and not text:
+            text = body
+    return extract_links(text, html)
+
+
 class Plugin:
     """
     The main entry point plugin authors instantiate. Register handlers with the
@@ -652,7 +713,9 @@ class _PluginServicer:
         if not fn:
             return pb.EmailProviderListResponse(ok=False, error="no email_list handler")
         req = {"account_ref": request.account_ref,
-               "max_results": request.max_results, "since_ts": request.since_ts}
+               "max_results": request.max_results, "since_ts": request.since_ts,
+               "include_links": bool(getattr(request, "include_links", False)),
+               "links_if_to_contains": getattr(request, "links_if_to_contains", "")}
         try:
             r = fn(req) or {}
         except Exception as e:
@@ -664,11 +727,14 @@ class _PluginServicer:
                 subject=m.get("subject", ""), snippet=m.get("snippet", ""),
                 received_ts=int(m.get("received_ts", 0)),
                 to=m.get("to", ""),
+                links=[pb.MessageLink(url=l.get("url", "")[:2000], text=l.get("text", "")[:200])
+                       for l in (m.get("links") or [])[:60]],
             )
             setattr(im, "from", m.get("from", ""))  # 'from' is a Python keyword
             msgs.append(im)
         return pb.EmailProviderListResponse(ok=bool(r.get("ok", False)),
-                                            messages=msgs, error=r.get("error", ""))
+                                            messages=msgs, error=r.get("error", ""),
+                                            links_supported=bool(r.get("links_supported", False)))
 
     def Shutdown(self, request, context):
         if self._server:

@@ -1,7 +1,7 @@
 {
   "id": "email-outlook",
   "name": "Outlook / Microsoft 365 Email Provider",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "email",
   "author": "OpenOptOut",
   "description": "Sends opt-out emails and reads confirmations via Microsoft Graph using OAuth 2.0. Trusted email-provider class; host inspects for hidden recipients and enforces the recipient at send time.",

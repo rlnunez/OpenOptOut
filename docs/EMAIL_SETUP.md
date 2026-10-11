@@ -74,6 +74,40 @@ The email monitor job checks every connected family inbox on its schedule:
 1. If the message was sent to one of OpenOptOut's +addresses, it belongs to that address's request, provided it came from the broker (or parent company) the address was given to. Otherwise it is recorded as an unexpected sender.
 2. Otherwise, a tracking ID in the subject or text is used, as before.
 
-Only headers and a short preview are read. OpenOptOut doesn't mark messages as read in IMAP inboxes.
+Only headers and a short preview are read, plus the links in replies to OpenOptOut's +addresses (see below). OpenOptOut doesn't mark messages as read in IMAP inboxes.
 
 The system inbox is still checked too, so replies to opt-outs sent before family inboxes existed are still matched.
+
+---
+
+## Confirmation links
+
+Some brokers (Radaris, Spokeo, BeenVerified and others) won't act until someone clicks a link they email back. OpenOptOut handles this for you:
+
+1. When a matched reply asks for a click, the request stays **sent** (not removed). OpenOptOut saves the link encrypted and never writes it to the logs.
+2. After each email check, OpenOptOut opens the link. If the page has a "Confirm" button, it presses it in a hidden browser.
+3. The opt-out only counts as **confirmed** once the page says it worked.
+
+A link is only opened when all of these are true:
+
+- it starts with `https://`
+- it goes to that broker's own website, its parent company's, or an email click-tracker (SendGrid, Mailgun, and similar) that leads there
+- it doesn't point to a private or local network address (this is checked again at every redirect)
+- it isn't an unsubscribe, preferences or policy link
+
+No personal details, cookies or form entries are sent. Mail that reaches a +address from someone other than the broker is never clicked.
+
+If a link can't be clicked, it goes on the **Checklist** under *Confirm these opt-outs* with the reason and one button to open it. This happens when the link goes to a different site, the page says the link expired, the page didn't say whether it worked, or the inbox couldn't show the link. Press **I've confirmed it** when you're done.
+
+Administrators can turn automatic clicking (and the button-pressing browser) off on the **Email Monitor** page.
+
+**Which inboxes can supply links:**
+
+| Inbox | Links read |
+|---|---|
+| Gmail (OAuth), Outlook / Microsoft 365 (OAuth) | Yes, from replies to +addresses |
+| App-password / IMAP inboxes, including Yahoo over IMAP | Yes |
+| Yahoo (OAuth) | Not yet: these replies go on the checklist |
+| Third-party email plugins that predate this feature | No: these replies go on the checklist |
+
+For +address inboxes, only messages sent to an OpenOptOut +address are opened to look for links. Inboxes without +addresses have every recent message checked. In both cases the message body stays inside the email plugin's sandbox, and only the links leave it.

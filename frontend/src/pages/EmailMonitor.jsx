@@ -6,6 +6,7 @@ import {
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import Badge from '../components/Badge'
+import ConfirmLinksCard from '../components/ConfirmLinksCard'
 
 function StatusDot({ ok }) {
   return <span className={`w-2 h-2 rounded-full inline-block ${ok ? 'bg-emerald-400' : 'bg-slate-600'}`} />
@@ -222,6 +223,8 @@ export default function EmailMonitor() {
             <StatCard label="Unmatched received"    value={status?.total_unmatched} icon={AlertCircle} color="text-amber-400" />
             <StatCard label="Poll interval"         value={status?.configured ? `${status.poll_interval_minutes}m` : 'off'} icon={Clock} />
           </div>
+
+          <ConfirmLinksCard isAdmin={can(user, 'settings.system')} />
 
           {/* Log table */}
           <div className="bg-slate-800 rounded-xl border border-slate-700/50 overflow-hidden">

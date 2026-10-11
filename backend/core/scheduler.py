@@ -499,9 +499,12 @@ def _poll_imap_mailbox(ec: dict, db: Session, cfg: dict, is_grace_period: bool =
                     log.debug("plugin email parse skipped: %s", _pe)
 
                 if not plugin_handled:
+                    from .confirm_links import extract_links
+                    links = extract_links(body, _get_html(msg))
                     for key in set(UUID_RE.findall(text)):
                         matched += _confirm_by_key(db, cfg, key, subj, body,
-                                                   "grace_uuid" if is_grace_period else "uuid")
+                                                   "grace_uuid" if is_grace_period else "uuid",
+                                                   links=links, sender=msg.get("From", ""), links_known=True)
 
                 conn.store(mid, "+FLAGS", "\\Seen")
             except Exception as e:
@@ -515,10 +518,13 @@ def _poll_imap_mailbox(ec: dict, db: Session, cfg: dict, is_grace_period: bool =
     return matched, errors
 
 
-def _confirm_by_key(db, cfg: dict, key: str, subj: str, body: str, via_label: str) -> int:
+def _confirm_by_key(db, cfg: dict, key: str, subj: str, body: str, via_label: str,
+                    links=None, sender: str = "", links_known: bool = False) -> int:
     """
-    A broker replied about the requests sharing tracking key `key`: mark the
-    still-'sent' ones confirmed, log the email, and credit the parent company.
+    A broker replied about the requests sharing tracking key `key`. If the
+    reply asks for a confirmation click, save the link to be clicked (the
+    requests stay 'sent' until it is). Otherwise mark the still-'sent' ones
+    confirmed, log the email, and credit the parent company.
     Returns how many requests changed.
     """
     matching_reqs = db.query(RemovalRequest).filter(
@@ -527,6 +533,19 @@ def _confirm_by_key(db, cfg: dict, key: str, subj: str, body: str, via_label: st
     ).all()
     if not matching_reqs:
         return 0
+    try:
+        from . import confirm_links as cl
+        if cl.handle_reply(db, matching_reqs, subj, body, links or [], sender=sender,
+                           links_known=links_known):
+            for req in matching_reqs:
+                db.add(EmailLog(request_id=req.id, direction="received",
+                                subject=(subj or "")[:500], body_snippet="(asks for a confirmation click)",
+                                matched_key=key))
+            db.commit()
+            return len(matching_reqs)
+    except Exception as e:
+        log.warning("confirmation-link check failed, treating as a normal reply: %s", e)
+        db.rollback()
     recheck_days = cfg.get("scheduler", {}).get("recheck_interval_days", 90)
     now = datetime.utcnow()
     recheck_dt = now + timedelta(days=recheck_days)
@@ -558,18 +577,26 @@ def _confirm_by_key(db, cfg: dict, key: str, subj: str, body: str, via_label: st
 
 
 def _handle_member_message(db, cfg: dict, mailbox, to_h: str, from_h: str,
-                           subj: str, text: str) -> int:
+                           subj: str, text: str, links=None) -> int:
     """Match one message in a family member's inbox: +address tag first, then
-    a tracking key in the subject/snippet."""
+    a tracking key in the subject/snippet. `links` is None when the inbox
+    couldn't give us the message's links (older provider plugins)."""
     from . import mailboxes as mbx
     matched = 0
     hit = mbx.match_inbound(db, mailbox, to_h, from_h)
     keys = set(hit["request_keys"])
+    known = links is not None
+    if hit["unexpected"]:
+        # Someone other than the broker wrote to this opt-out address: never
+        # click anything they sent.
+        links, known = [], True
     for key in keys:
-        matched += _confirm_by_key(db, cfg, key, subj, text, "tag")
+        matched += _confirm_by_key(db, cfg, key, subj, text, "tag",
+                                   links=links, sender=from_h, links_known=known)
     if not hit["plus_check"] and not hit["unexpected"]:
         for key in set(UUID_RE.findall(f"{subj} {text}")) - keys:
-            matched += _confirm_by_key(db, cfg, key, subj, text, "uuid")
+            matched += _confirm_by_key(db, cfg, key, subj, text, "uuid",
+                                       links=links, sender=from_h, links_known=known)
     return matched
 
 
@@ -600,7 +627,10 @@ def _poll_member_mailboxes(db, cfg: dict) -> tuple:
                     continue
                 _refresh_if_needed(cfg, mb.account_ref, mb.provider_key)
                 res = mgr.dispatch_email_list(mb.provider_key, mb.account_ref,
-                                              max_results=50, since_ts=int(since.timestamp()))
+                                              max_results=50, since_ts=int(since.timestamp()),
+                                              include_links=True,
+                                              links_if_to_contains=("+" + mbx.TAG_PREFIX)
+                                              if mbx.uses_plus(mb) else "")
                 if res is None:
                     continue
                 if not res.get("ok"):
@@ -610,7 +640,8 @@ def _poll_member_mailboxes(db, cfg: dict) -> tuple:
                     if m.get("received_ts") and m["received_ts"] < int(since.timestamp()):
                         continue
                     matched += _handle_member_message(db, cfg, mb, m.get("to", ""), m.get("from", ""),
-                                                      m.get("subject", ""), m.get("snippet", ""))
+                                                      m.get("subject", ""), m.get("snippet", ""),
+                                                      links=m.get("links") if res.get("links_supported") else None)
             else:
                 matched += _poll_member_imap(db, cfg, mb)
             mb.last_polled_at = started
@@ -638,8 +669,11 @@ def _poll_member_imap(db, cfg: dict, mb) -> int:
             _, data = conn.fetch(mid, "(BODY.PEEK[])")
             msg = email.message_from_bytes(data[0][1])
             to_h = ", ".join(filter(None, [msg.get("To", ""), msg.get("Delivered-To", "")]))
+            from .confirm_links import extract_links
+            body = _get_body(msg)
             matched += _handle_member_message(db, cfg, mb, to_h, msg.get("From", ""),
-                                              msg.get("Subject", ""), _get_body(msg)[:2000])
+                                              msg.get("Subject", ""), body[:2000],
+                                              links=extract_links(body, _get_html(msg)))
     finally:
         try:
             conn.logout()
@@ -690,6 +724,16 @@ def email_monitor_job():
         except Exception as ge:
             log.debug("Grace period inbox check skipped: %s", ge)
 
+        # 4. Click the confirmation links brokers sent back.
+        try:
+            from .confirm_links import click_pending
+            stats = click_pending(db, cfg)
+            if stats["clicked"] or stats["needs_person"]:
+                log.info("Confirmation links: %d clicked, %d need a person", stats["clicked"], stats["needs_person"])
+        except Exception as ce:
+            errors.append(f"Confirmation links: {ce}")
+            log.warning("Confirmation link clicking failed: %s", ce)
+
         run.emails_matched = matched; run.status = "done"
 
     except Exception as e:
@@ -710,6 +754,17 @@ def _get_body(msg) -> str:
         return ""
     try: return msg.get_payload(decode=True).decode("utf-8", errors="replace")
     except Exception: return ""
+
+
+def _get_html(msg) -> str:
+    parts = msg.walk() if msg.is_multipart() else [msg]
+    for part in parts:
+        if part.get_content_type() == "text/html":
+            try:
+                return part.get_payload(decode=True).decode(part.get_content_charset() or "utf-8", errors="replace")
+            except Exception:
+                pass
+    return ""
 
 
 # ── Job 3: recheck scanner ────────────────────────────────────────────────────

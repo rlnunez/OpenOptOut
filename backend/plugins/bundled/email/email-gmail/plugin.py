@@ -28,10 +28,10 @@ so the host can surface "install these to use Gmail."
 import base64
 from email.mime.text import MIMEText
 
-from openoptout_sdk import Plugin, manifest
+from openoptout_sdk import Plugin, manifest, extract_links, wants_links
 
 plugin = Plugin(manifest(
-    id="email-gmail", name="Gmail Email Provider", version="1.0.0",
+    id="email-gmail", name="Gmail Email Provider", version="1.2.0",
     author="OpenOptOut",
     permissions=["email_provider", "read_pii", "network", "settings_read"],
     hooks=["email_provider"],
@@ -128,11 +128,36 @@ def send(req):
         return {"ok": False, "error": f"Gmail send failed: {str(e) or type(e).__name__}"}
 
 
+def _gmail_bodies(payload):
+    """(text, html) from a Gmail API message payload."""
+    import base64
+    text, html = "", ""
+    stack = [payload]
+    while stack:
+        part = stack.pop(0)
+        stack.extend(part.get("parts") or [])
+        data = (part.get("body") or {}).get("data")
+        if not data:
+            continue
+        try:
+            decoded = base64.urlsafe_b64decode(data + "=" * (-len(data) % 4)).decode("utf-8", "replace")
+        except Exception:
+            continue
+        mt = part.get("mimeType", "")
+        if mt == "text/html" and not html:
+            html = decoded
+        elif mt == "text/plain" and not text:
+            text = decoded
+    return text, html
+
+
 @plugin.email_list
 def list_messages(req):
     """
     List recent inbound messages for confirmation matching.
-    req = {account_ref, max_results, since_ts}.
+    req = {account_ref, max_results, since_ts, include_links, links_if_to_contains}.
+    With include_links, bodies of matching messages are read here and only
+    their links are returned.
     """
     try:
         svc = _gmail_service(req.get("account_ref", "default"))
@@ -153,15 +178,20 @@ def list_messages(req):
                 metadataHeaders=["From", "To", "Delivered-To", "Subject", "Date"]).execute()
             headers = {h["name"]: h["value"]
                        for h in full.get("payload", {}).get("headers", [])}
-            out.append({
+            to_h = ", ".join(filter(None, [headers.get("To", ""), headers.get("Delivered-To", "")]))
+            item = {
                 "message_id": m["id"],
                 "from": headers.get("From", ""),
-                "to": ", ".join(filter(None, [headers.get("To", ""), headers.get("Delivered-To", "")])),
+                "to": to_h,
                 "subject": headers.get("Subject", ""),
                 "snippet": full.get("snippet", ""),
                 "received_ts": int(int(full.get("internalDate", "0")) / 1000),
-            })
-        return {"ok": True, "messages": out}
+            }
+            if wants_links(req, to_h):
+                body = svc.users().messages().get(userId="me", id=m["id"], format="full").execute()
+                item["links"] = extract_links(*_gmail_bodies(body.get("payload", {})))
+            out.append(item)
+        return {"ok": True, "messages": out, "links_supported": bool(req.get("include_links"))}
     except Exception as e:
         return {"ok": False, "error": f"Gmail list failed: {str(e) or type(e).__name__}"}
 
