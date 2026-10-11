@@ -2,7 +2,7 @@
 
 OpenOptOut can search the web for pages about each family member. It runs the same searches **Find your listings** offers as links — exact phone numbers, exact street addresses, exact email addresses, name + city, and phrases people-search pages use — for every variant in the identity vault.
 
-It's **off by default**. An admin turns it on under **Admin → Web search**.
+It's **on by default**: finding where people are listed is the point of OpenOptOut. Docker installs come with a private SearXNG server, and weekly searches are on. An admin can turn web search off, or stop the weekly runs, under **Admin → Web search**.
 
 ## What happens to results
 
@@ -15,30 +15,17 @@ Search engines' own pages and a few large general sites are ignored. Titles and 
 
 ## Privacy
 
-Searches send the person's names, phone numbers, addresses and email addresses to your SearXNG server, which passes them on to the search engines it uses. That's unavoidable for web search, and it's why the feature is off until an admin turns it on.
+Searches send the person's names, phone numbers, addresses and email addresses to your SearXNG server, which passes them on to the search engines it uses. That's unavoidable for web search. The settings page says so, and an admin can turn it off.
 
 ## Provider: SearXNG
 
-[SearXNG](https://docs.searxng.org/) is an open-source search server that collects results from other search engines. It's the only provider OpenOptOut supports, so web search stays self-hosted. Run it next to OpenOptOut, for example by adding to `docker-compose.yml`:
+[SearXNG](https://docs.searxng.org/) is an open-source search server that collects results from other search engines. It's the only provider OpenOptOut supports, so web search stays self-hosted.
 
-```yaml
-  searxng:
-    image: searxng/searxng:latest
-    restart: unless-stopped
-    volumes:
-      - ./searxng:/etc/searxng
-```
+`docker-compose.yml` runs one for you (the `searxng` service, settings in `deploy/searxng/settings.yml`). It isn't published on any port, and OpenOptOut reaches it at `http://searxng:8080` (the `SEARXNG_URL` setting of the `api` service).
 
-In `searxng/settings.yml`, allow JSON results:
-
-```yaml
-search:
-  formats:
-    - html
-    - json
-```
-
-Then enter `http://searxng:8080` as the SearXNG address. Without `json`, SearXNG answers with "403 Forbidden".
+- **Use a different SearXNG:** enter its address under **Admin → Web search**. Its `settings.yml` must allow JSON results (`search: formats: [html, json]`); otherwise it answers "403 Forbidden".
+- **Install without Docker:** there's no bundled SearXNG, so web search stays off until you enter an address.
+- **Don't want it at all:** turn it off under **Admin → Web search**, and remove the `searxng` service from `docker-compose.yml` if you like.
 
 Keep **Searches per person per run** modest: the search engines SearXNG uses may start refusing a server that sends many searches quickly.
 

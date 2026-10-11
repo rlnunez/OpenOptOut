@@ -31,6 +31,8 @@ services:
       - SECRET_KEY=${SECRET_KEY:-change-me-please}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
       - SETTINGS_FILE=/data/openoptout_settings.json
+      # Web search goes through the bundled SearXNG (service below). Empty = off.
+      - SEARXNG_URL=${SEARXNG_URL-http://searxng:8080}
 
       # ── Database ────────────────────────────────────────────────────────────
       # SQLite by default (fine for families / small staff deployments).
@@ -124,6 +126,24 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  # ── Web search (on by default) ──────────────────────────────────────────────
+  # A private SearXNG that OpenOptOut uses to find pages about family members.
+  # Not published on any port. To turn web search off: Admin → Web search, or
+  # set SEARXNG_URL= (empty) for the api service and remove this service.
+  searxng:
+    image: searxng/searxng:2026.10.4-ce913b893
+    container_name: openoptout-searxng
+    restart: unless-stopped
+    environment:
+      - SEARXNG_SECRET=${SEARXNG_SECRET:-${SECRET_KEY:-change-me-please}}
+      - SEARXNG_BASE_URL=http://searxng:8080/
+    volumes:
+      - ./deploy/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    security_opt:
+      - no-new-privileges:true
+    ulimits:
+      core: 0
 
   web:
     build: ./frontend

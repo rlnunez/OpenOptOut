@@ -8015,6 +8015,26 @@ def t_ws_score():
     assert ws.configured({"enabled": True, "provider": "searxng", "searxng_url": "http://searxng:8080"})
 
 
+@test(1, "web_search.on_by_default",
+      "Web search is on (weekly too) when the bundled SearXNG address is set; an admin's choice wins.")
+def t_ws_default():
+    ws = _imp("core.web_search")
+    old = os.environ.get("SEARXNG_URL")
+    try:
+        os.environ["SEARXNG_URL"] = "http://searxng:8080"
+        d = ws.settings_of({})
+        assert d["enabled"] and d["weekly"] and ws.configured(d), d
+        assert ws.configured(ws.settings_of({"web_search": {"searxng_url": ""}})), "empty saved address keeps the bundled one"
+        assert not ws.configured(ws.settings_of({"web_search": {"enabled": False}})), "an admin can turn it off"
+        os.environ["SEARXNG_URL"] = ""
+        assert not ws.configured(ws.settings_of({})), "no SearXNG anywhere: nothing to search with"
+    finally:
+        if old is None:
+            os.environ.pop("SEARXNG_URL", None)
+        else:
+            os.environ["SEARXNG_URL"] = old
+
+
 @test(2, "web_search.sorts_results_and_adds_strong_broker_matches",
       "Strong matches on known brokers join the removal cycle; everything else waits for review; 'not me' is remembered.")
 def t_ws_run():
