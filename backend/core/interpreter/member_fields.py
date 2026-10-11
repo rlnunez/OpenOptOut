@@ -41,6 +41,26 @@ def phone_digits(phone: str) -> str:
     return d[1:] if len(d) == 11 and d.startswith("1") else d
 
 
+def phone_e164(phone: str) -> str:
+    """+1XXXXXXXXXX for a US/Canada number; a number already written with + keeps its digits."""
+    raw = (phone or "").strip()
+    d = "".join(c for c in raw if c.isdigit())
+    if not d:
+        return ""
+    if raw.startswith("+"):
+        return "+" + d
+    if len(d) == 10:
+        return "+1" + d
+    if len(d) == 11 and d.startswith("1"):
+        return "+" + d
+    return "+" + d
+
+
+def phone_dashed(phone: str) -> str:
+    d = phone_digits(phone)
+    return f"{d[:3]}-{d[3:6]}-{d[6:]}" if len(d) == 10 else d
+
+
 def _split_name(name: str):
     parts = (name or "").split()
     return (parts[0] if parts else ""), (" ".join(parts[1:]) if len(parts) > 1 else "")
@@ -67,7 +87,9 @@ def resolve(member, combo=None, today=None) -> dict:
         email, phone = first("email"), first("phone")
 
     first_name, last_name = _split_name(name)
-    age = getattr(member, "age", None)
+    from ..age import current_age, member_dob, age_range
+    age = current_age(member, today)
+    dob = member_dob(member)
     year = (today or date.today()).year
     out = {
         "full_name": name,
@@ -77,14 +99,23 @@ def resolve(member, combo=None, today=None) -> dict:
         "email": email,
         "phone": phone,
         "phone_digits": phone_digits(phone),
+        "phone_e164": phone_e164(phone),
+        "phone_dashed": phone_dashed(phone),
+        "all_phones": ", ".join(_get_values(member, "phone", 50)),
+        "all_emails": ", ".join(_get_values(member, "email", 50)),
         "address": street,
         "street": street,
         "city": city,
         "state": state_code(state) if state else "",
         "state_name": state_name(state) if state else "",
         "zip": zip_,
-        "age": str(age) if age else None,
-        "birth_year": str(year - int(age)) if age else None,
+        "age": str(age) if age is not None else None,
+        "birth_year": str(dob.year) if dob else (str(year - int(age)) if age is not None else None),
+        "age_range": age_range(age) or None,
+        "dob": dob.strftime("%m/%d/%Y") if dob else None,
+        "dob_iso": dob.isoformat() if dob else None,
+        "birth_month": str(dob.month) if dob else None,
+        "birth_day": str(dob.day) if dob else None,
     }
     # Missing values are None, so required steps fail at compile time with a
     # clear message instead of typing an empty string into a form.

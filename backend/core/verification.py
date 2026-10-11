@@ -231,6 +231,44 @@ def check_broker_search(spec, fields: dict, profile: dict, domain: str, fetch) -
     return "gone", "the broker's search no longer finds them", None
 
 
+def check_keyed_search(spec, member, profile: dict, domain: str, fetch, key: str = "phone") -> tuple:
+    """
+    Search a site that files people by phone number or email once per saved
+    number or address. Listed if any one still shows the person; gone only if
+    every one was checked and none did.
+    """
+    from .interpreter.member_fields import resolve as resolve_fields
+    from .combinations import build_keyed_optout_combos
+    combos = build_keyed_optout_combos(member, key)
+    what = "numbers" if key == "phone" else "email addresses"
+    if not combos:
+        return "unknown", f"no {what} saved to search with", None
+    seen = []
+    for combo in combos:
+        # The results page repeats what was searched, so that alone isn't
+        # evidence; the name or address next to it has to match.
+        if key == "phone":
+            searched = re.sub(r"\D", "", combo.phone or "")[-10:]
+            prof = dict(profile, phones=[p for p in profile.get("phones", [])
+                                         if re.sub(r"\D", "", p)[-10:] != searched])
+            tag = f"number ending {(combo.phone or '')[-4:]}"
+        else:
+            searched = (combo.email or "").lower()
+            prof = dict(profile, emails=[e for e in profile.get("emails", []) if e.lower() != searched])
+            tag = f"email {searched.split('@')[0][:2]}…@{searched.split('@')[-1]}"
+        v, d, ev = check_broker_search(spec, resolve_fields(member, combo), prof, domain, fetch)
+        if v == "listed":
+            return "listed", f"{d} ({tag})", ev
+        seen.append(v)
+    if all(v == "gone" for v in seen):
+        return "gone", f"none of the {len(seen)} saved {what} show them any more", None
+    if "blocked" in seen:
+        return "blocked", "the site refused some of the searches", None
+    if "not_found" in seen:
+        return "not_found", f"the site shows someone else for these {what}", None
+    return "unknown", f"couldn't check every one of the {what}", None
+
+
 def check_web(db, req, profile: dict, domain: str, fetch, cfg: dict, search=None) -> tuple:
     """(verdict, detail, evidence_url) from a site-restricted web search, confirmed by visiting the hits."""
     from . import web_search as wsm
@@ -295,7 +333,10 @@ def verify_request(db, req, cfg: dict, fetch=None, search=None, now=None) -> dic
         method, evidence = "listing_url", req.listing_url
         verdict, detail = check_listing_page(req.listing_url, profile, domain, fetch)
     if verdict in ("unknown", "blocked") and spec is not None and getattr(spec, "search_url", ""):
-        v, d, ev = check_broker_search(spec, resolve_fields(member), profile, domain, fetch)
+        if getattr(spec, "lookup_by", "") in ("phone", "email"):
+            v, d, ev = check_keyed_search(spec, member, profile, domain, fetch, spec.lookup_by)
+        else:
+            v, d, ev = check_broker_search(spec, resolve_fields(member), profile, domain, fetch)
         if v not in ("unknown",) or method == "":
             verdict, detail, evidence, method = v, d, ev, "broker_search"
     if verdict in ("unknown", "blocked"):

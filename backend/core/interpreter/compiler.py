@@ -178,8 +178,8 @@ def _render_url(template: str, fields: dict) -> str:
 
 
 def uses_field(spec: BrokerSpec, name: str) -> bool:
-    """Does any step fill, match or mention this field?"""
-    return any(st.field == name or ("{" + name + "}") in (st.text or "") or ("{" + name + "}") in (st.url or "")
+    """Does any step fill, match or mention this field? (An autofill step may use the reply address.)"""
+    return any(st.field == name or (st.kind == "autofill" and name == "contact_email") or ("{" + name + "}") in (st.text or "") or ("{" + name + "}") in (st.url or "")
                for st in (spec.steps or []))
 
 

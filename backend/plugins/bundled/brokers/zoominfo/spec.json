@@ -1,0 +1,20 @@
+{
+  "broker_id": "zoominfo",
+  "name": "ZoomInfo",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://privacy.zoominfo.com/",
+  "lookup_by": "email",
+  "instructions": "Open https://privacy.zoominfo.com/, look up {full_name} with your employer, choose the listing and ask for it to be removed. Verify with each work email ZoomInfo asks about. Your saved addresses: {all_emails}. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "own_inbox_confirmation"
+  ],
+  "notes": "Usually a few business days. An employer that uploads its contact lists to ZoomInfo can bring you back, so it's rechecked.",
+  "source": "Steps per meprism's 2026 ZoomInfo guide.",
+  "last_verified": ""
+}

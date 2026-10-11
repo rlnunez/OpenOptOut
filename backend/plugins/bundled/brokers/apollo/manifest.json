@@ -1,0 +1,12 @@
+{
+  "id": "apollo",
+  "type": "brokers",
+  "broker_id": "apollo",
+  "name": "Apollo.io",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Guided opt-out for Apollo.io, which lists people by email address. One opt-out covers every saved email address.",
+  "spec_file": "spec.json",
+  "difficulty": "medium",
+  "is_property_broker": false
+}

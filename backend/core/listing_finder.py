@@ -104,7 +104,10 @@ def _profile(member) -> dict:
             places.append(place)
     phones = _get_values(member, "phone", LIMITS["phone"])
     emails = _get_values(member, "email", LIMITS["email"])
+    from .age import plausible_ages, birth_years
     return {
+        "ages": sorted(plausible_ages(member)),
+        "birth_years": sorted(birth_years(member)),
         "names": names[:LIMITS["name"]],
         "streets": streets[:LIMITS["address"]],
         "places": places[:LIMITS["place"]],
@@ -206,7 +209,7 @@ def broker_searches(db, member, include_disabled: bool = False) -> list:
         if not domain or domain in seen_domains:
             continue
         seen_domains.add(domain)
-        direct = ""
+        direct, spec = "", None
         try:
             from ..plugins.broker_addon import get_broker_spec_for_broker
             spec = get_broker_spec_for_broker(db, b)
@@ -214,6 +217,26 @@ def broker_searches(db, member, include_disabled: bool = False) -> list:
                 direct = _fill(spec.search_url, fields)
         except Exception:
             pass
+        key = getattr(spec, "lookup_by", "") if spec is not None else ""
+        if key in ("phone", "email"):
+            # Sites that file people by number or email: one search for each
+            # saved one, since each is its own listing there.
+            for v in (p["phones"] if key == "phone" else p["emails"]):
+                f = dict(fields)
+                if key == "phone":
+                    from .interpreter.member_fields import phone_digits, phone_e164, phone_dashed
+                    f.update(phone=re.sub(r"\D", "", v), phone_digits=phone_digits(v),
+                             phone_e164=phone_e164(v), phone_dashed=phone_dashed(v))
+                else:
+                    f["email"] = v
+                q_ = f'"{phone_variants(v)[0] if key == "phone" and phone_variants(v) else v}" site:{domain}'
+                out.append({
+                    "broker_id": b.id, "broker_name": b.name, "domain": domain,
+                    "search_url": _fill(spec.search_url, f) if spec.search_url else _links(q_)["google"],
+                    "kind": "broker_search" if spec.search_url else "site_search",
+                    "searched_for": key,
+                })
+            continue
         needle = " ".join(x for x in (f'"{name}"' if name else "", f'"{place}"' if place else "") if x)
         site_query = f"{needle} site:{domain}".strip() if needle else f"site:{domain}"
         out.append({

@@ -818,6 +818,9 @@ def _manual_instruction(request, broker, member, cfg, db) -> str:
         return (f"Opt {member.full_name} out of {broker.name} {how}, then press \"I've done this\"."
                 + (f"\n{broker.notes.strip()}" if (broker.notes or "").strip() else ""))
     fields = {k: v for k, v in resolve_fields(member).items() if v}
+    key = getattr(spec, "lookup_by", "") or ""
+    if key in ("phone", "email") and not fields.get(key):
+        return _missing_key_instruction(broker, member, key)
     if request.listing_url:
         fields["listing_url"] = request.listing_url
     if "{contact_email}" in text:
@@ -835,6 +838,23 @@ def _manual_instruction(request, broker, member, cfg, db) -> str:
     if "{listing_url}" in text and "listing_url" not in fields:
         fields["listing_url"] = "the address of your listing (find it under Discovery → Find your listings)"
     return _render(text, fields)
+
+
+def _missing_key_instruction(broker, member, key: str) -> str:
+    what, many = ("phone number", "phone numbers") if key == "phone" else ("email address", "email addresses")
+    return (f"{broker.name} lists people by {what}. Add {member.full_name}'s {many} "
+            f"on the Your details page, then send this again.")
+
+
+def _lookup_by(db, broker) -> str:
+    """'phone' or 'email' when this broker files people by that detail, else ''."""
+    try:
+        from .interpreter.script_bridge import get_or_build_broker_spec
+        script = db.query(BrokerScript).filter(BrokerScript.broker_id == broker.id).first() if db else None
+        spec = get_or_build_broker_spec(broker, script=script, db=db)
+        return getattr(spec, "lookup_by", "") or ""
+    except Exception:
+        return ""
 
 
 def _plus_ok(spec, broker) -> bool:
@@ -954,7 +974,14 @@ async def execute_optout(
             ))
 
         elif broker.method == OptOutMethod.form:
-            if broker.is_property_broker:
+            key = _lookup_by(db, broker)
+            if key in ("phone", "email"):
+                from .combinations import build_keyed_optout_combos
+                combos = build_keyed_optout_combos(member, key)
+                if not combos:
+                    needs_human = _missing_key_instruction(broker, member, key)
+                log.info(f"{key} opt-out {broker.name} (member_id={member.id}): {len(combos)} {key}s")
+            elif broker.is_property_broker:
                 combos = build_property_optout_combos(member)
                 log.info(f"Property form opt-out {broker.name} (member_id={member.id}): {len(combos)} combos")
             else:

@@ -296,6 +296,9 @@ class FamilyMember(Base):
     full_name   = Column(String, nullable=False)
     formal_name = Column(EncryptedText, nullable=True)  # legal name — encrypted at rest
     age         = Column(Integer)
+    # Optional date of birth (YYYY-MM-DD), encrypted at rest. Some brokers'
+    # forms require it; it also tells a person's listing from a namesake's.
+    dob         = Column(EncryptedText, nullable=True)
     created_at  = Column(DateTime, default=datetime.utcnow)
 
     # The inbox opt-outs for this member are sent from and replies arrive at.

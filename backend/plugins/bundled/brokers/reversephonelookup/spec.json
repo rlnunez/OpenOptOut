@@ -1,0 +1,20 @@
+{
+  "broker_id": "reversephonelookup",
+  "name": "ReversePhoneLookup.com",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://www.reversephonelookup.com/",
+  "lookup_by": "phone",
+  "instructions": "Open https://www.reversephonelookup.com/ and click \"Do Not Sell or Share My Personal Information\" at the bottom. Enter {contact_email} and one of these numbers (digits only if it complains): {all_phones}. Finish the robot check and submit; we'll click the confirmation link it emails. Repeat for each number, then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "email_confirmation"
+  ],
+  "notes": "Takes about 3 to 7 days after the email is confirmed.",
+  "source": "Steps per ClearNym's ReversePhoneLookup opt-out guide.",
+  "last_verified": ""
+}
