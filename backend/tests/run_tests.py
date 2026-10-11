@@ -9477,6 +9477,19 @@ def t_calendar():
     # IF THIS FAILS: opt-outs go out on days off, or the calendar feed leaks details.
 
 
+@test(1, "frontend.no_undefined_names",
+      "No screen uses a name (an icon, a component) that was never imported; the build doesn't catch these and the screen crashes.")
+def t_frontend_names():
+    import shutil, subprocess
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    fe = os.path.join(root, "frontend")
+    if not shutil.which("node") or not os.path.isdir(os.path.join(fe, "node_modules", "@babel", "traverse")):
+        raise Skip("node or the frontend's dev packages aren't installed (run npm install in frontend/)")
+    r = subprocess.run(["node", "scripts/check-names.mjs", "src"], cwd=fe, capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-1000:]
+    # IF THIS FAILS: add the missing import; the listed screen would crash for everyone who opens it.
+
+
 def main():
     ap = argparse.ArgumentParser(description="OpenOptOut test runner")
     ap.add_argument("--tier", type=int, default=4, help="run tiers up to N (1-4)")
