@@ -7,6 +7,8 @@ Groups (in the order a person should tackle them):
   inbox     — family members with no email inbox (nothing can be sent for them)
   finish    — opt-outs OpenOptOut can't finish alone (needs_manual), with the
               plain-language instructions the engine wrote, incl. California DROP
+  confirm   — brokers that emailed a confirmation link OpenOptOut couldn't
+              click by itself (wrong site, expired, needed a button, ...)
   captcha   — opt-outs paused at a CAPTCHA
   review    — web search results waiting for "that's me / not me"
   overdue   — sent requests the broker hasn't answered within its legal window
@@ -39,11 +41,12 @@ def _response_days(db, broker, cache: dict) -> int:
 
 def build(db, member_ids: list, now=None) -> dict:
     from ..models.database import (FamilyMember, RemovalRequest, RequestStatus, CaptchaChallenge,
-                                   WebSearchHit)
+                                   WebSearchHit, ConfirmationLink)
+    from .confirm_links import instruction as confirm_instruction
     from . import mailboxes as mbx
     now = now or datetime.utcnow()
     members = {m.id: m for m in db.query(FamilyMember).filter(FamilyMember.id.in_(member_ids)).all()}
-    groups = {k: [] for k in ("inbox", "finish", "captcha", "review", "overdue", "recheck")}
+    groups = {k: [] for k in ("inbox", "finish", "confirm", "captcha", "review", "overdue", "recheck")}
 
     for m in members.values():
         if mbx.resolve_mailbox(db, m) is None:
@@ -53,6 +56,13 @@ def build(db, member_ids: list, now=None) -> dict:
     reqs = db.query(RemovalRequest).filter(RemovalRequest.member_id.in_(list(members))).all()
     paused = {c.request_id for c in db.query(CaptchaChallenge).filter(
         CaptchaChallenge.member_id.in_(list(members)), CaptchaChallenge.status == "pending").all()}
+    req_ids = [r.id for r in reqs]
+    confirm = {}
+    if req_ids:
+        for c in (db.query(ConfirmationLink)
+                    .filter(ConfirmationLink.request_id.in_(req_ids), ConfirmationLink.status == "needs_person")
+                    .order_by(ConfirmationLink.found_at).all()):
+            confirm[c.request_id] = c
     days_cache = {}
     progress = {mid: {"member_id": mid, "member_name": m.full_name, "removed": 0, "in_progress": 0,
                       "needs_you": 0, "other": 0} for mid, m in members.items()}
@@ -69,6 +79,14 @@ def build(db, member_ids: list, now=None) -> dict:
         elif r.id in paused and st == RequestStatus.pending:
             groups["captcha"].append({**item, "text": f"{item['broker_name']} asked for a CAPTCHA.",
                                       "link": "/captcha"}); p["needs_you"] += 1
+        elif st in (RequestStatus.sent, RequestStatus.submitted) and r.id in confirm:
+            c = confirm[r.id]
+            mb = mbx.resolve_mailbox(db, members[r.member_id])
+            groups["confirm"].append({**item, "confirm_id": c.id,
+                                      "confirm_url": c.url if (c.url and c.reason != "off_site") else None,
+                                      "text": confirm_instruction(c, item["broker_name"],
+                                                                  mbx.base_address(mb.address) if mb else "")})
+            p["needs_you"] += 1
         elif st in (RequestStatus.sent, RequestStatus.submitted):
             days = _response_days(db, b, days_cache) if b else DEFAULT_RESPONSE_DAYS
             waited = (now - r.sent_at).days if r.sent_at else 0

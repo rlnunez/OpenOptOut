@@ -7336,7 +7336,8 @@ def t_mbx_reply_confirms():
     s.add(req); s.commit()
     ca, _ = m.issue_contact_address(s, boxes["parent"], cm, broker=b, request_key="rk-1")
     n = sched._handle_member_message(s, {}, boxes["parent"], ca.address,
-                                     "noreply@radaris.com", "Confirm your request", "Click to confirm")
+                                     "noreply@radaris.com", "Your request",
+                                     "We have processed your opt-out request.", links=[])
     s.refresh(req)
     assert n == 1 and req.status == db.RequestStatus.confirmed, (n, req.status)
     s.close()
@@ -7828,6 +7829,135 @@ def t_checklist():
     assert not g2["finish"] and not g2["overdue"]
     s.close()
 
+
+
+# ── Broker confirmation links ─────────────────────────────────────────────────
+
+@test(1, "confirm_links.reading_the_email",
+      "Confirmation links are found in HTML and text; only https links on the broker's site (or a click-tracker) are picked.")
+def t_confirm_read():
+    c = _imp("core.confirm_links")
+    links = c.extract_links("Or paste https://radaris.com/optout/verify?t=abc.",
+                            '<a href="https://radaris.com/unsubscribe?u=1">Unsubscribe</a>'
+                            '<a href="https://u1.ct.sendgrid.net/ls/click?upn=x&amp;y=1">Confirm my removal</a>')
+    urls = [l["url"] for l in links]
+    assert "https://u1.ct.sendgrid.net/ls/click?upn=x&y=1" in urls and "https://radaris.com/optout/verify?t=abc" in urls
+    dom = {"radaris.com"}
+    assert c.pick_link(links, dom) == ("https://radaris.com/optout/verify?t=abc", None)
+    assert c.pick_link([{"url": "https://radaris.com/unsubscribe", "text": "confirm"}], dom) == (None, "no_link")
+    assert c.pick_link([{"url": "http://radaris.com/confirm?t=1", "text": ""}], dom)[0] is None, "https only"
+    assert c.pick_link([{"url": "https://radaris.evil.example/confirm?t=1", "text": ""}], dom) == (None, "off_site")
+    assert c.pick_link([{"url": "https://u1.ct.sendgrid.net/ls/click?u=1", "text": "Verify email"}], dom)[0]
+    assert c.asks_for_click("Confirm your opt-out", "Please click the link below to confirm your request.")
+    assert c.asks_for_click("", "Use the verification link we sent.")
+    assert not c.asks_for_click("Removed", "Your listing was removed. Questions? Click here for support.")
+    # EXPECTED: the confirm link is chosen, unsubscribe/off-site/plain-http links never are.
+
+
+@test(2, "confirm_links.safe_visit",
+      "Clicking follows only https redirects on the broker's site or a click-tracker, never private addresses, and reads the result.")
+def t_confirm_visit():
+    c = _imp("core.confirm_links")
+    dom = {"radaris.com"}
+    pages = {
+        "https://u1.ct.sendgrid.net/c?1": (302, "https://radaris.com/optout/done?t=1", ""),
+        "https://radaris.com/optout/done?t=1": (200, "", "<h1>Your request has been confirmed.</h1>"),
+        "https://u1.ct.sendgrid.net/c?2": (302, "https://other-site.example/x", ""),
+        "https://radaris.com/c?3": (302, "https://internal.radaris.com/x", ""),
+        "https://radaris.com/c?4": (200, "", "<p>This link has expired.</p>"),
+        "https://radaris.com/c?5": (200, "", '<form><button type="submit">Confirm removal</button></form>'),
+        "https://radaris.com/c?6": (302, "http://radaris.com/plain", ""),
+    }
+    visited = []
+    def get(u):
+        visited.append(u); return pages[u]
+    resolve = lambda h: h != "internal.radaris.com"
+    assert c.http_visit("https://u1.ct.sendgrid.net/c?1", dom, get, resolve)[0] == "ok"
+    assert c.http_visit("https://u1.ct.sendgrid.net/c?2", dom, get, resolve)[0] == "off_site"
+    assert "https://other-site.example/x" not in visited, "never request a site that isn't the broker's"
+    assert c.http_visit("https://radaris.com/c?3", dom, get, resolve)[0] == "off_site"
+    assert "https://internal.radaris.com/x" not in visited, "never request private addresses"
+    assert c.http_visit("https://radaris.com/c?4", dom, get, resolve)[0] == "rejected"
+    assert c.http_visit("https://radaris.com/c?5", dom, get, resolve)[0] == "needs_button"
+    assert c.http_visit("https://radaris.com/c?6", dom, get, resolve)[0] == "off_site"
+    # EXPECTED: only the broker's own pages (via a tracker at most) are ever requested.
+    # IF THIS FAILS: a reply email could make the server fetch arbitrary or internal URLs.
+
+
+@test(2, "confirm_links.reply_waits_for_click",
+      "A 'click to confirm' reply keeps the request sent until the link is clicked; failures go on the checklist.")
+def t_confirm_flow():
+    db, s = _memory_db()
+    m = _imp("core.mailboxes")
+    c = _imp("core.confirm_links")
+    cl = _imp("core.checklist")
+    try:
+        sched = _imp("core.scheduler")
+    except Exception as e:
+        raise Skip(f"scheduler deps missing: {e}")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    R = db.RequestStatus
+    b1 = db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy")
+    b2 = db.Broker(name="Spokeo", opt_out_url="https://www.spokeo.com/optout")
+    s.add_all([b1, b2]); s.flush()
+    r1 = db.RemovalRequest(member_id=cm.id, broker_id=b1.id, request_key="rk-1", status=R.sent)
+    r2 = db.RemovalRequest(member_id=cm.id, broker_id=b2.id, request_key="rk-2", status=R.sent)
+    s.add_all([r1, r2]); s.commit()
+    ca1, _ = m.issue_contact_address(s, boxes["parent"], cm, broker=b1, request_key="rk-1")
+    ca2, _ = m.issue_contact_address(s, boxes["parent"], cm, broker=b2, request_key="rk-2")
+    ask = "Please click the link below to confirm your opt-out request."
+
+    # 1. Link on the broker's site: saved, request still 'sent', then clicked.
+    n = sched._handle_member_message(s, {}, boxes["parent"], ca1.address, "privacy@radaris.com",
+                                     "Confirm your request", ask,
+                                     links=[{"url": "https://radaris.com/optout/verify?t=SECRET", "text": "Confirm"}])
+    s.refresh(r1)
+    row = s.query(db.ConfirmationLink).filter_by(request_id=r1.id).one()
+    assert n == 1 and r1.status == R.sent and row.status == "pending" and row.host == "radaris.com"
+    stats = c.click_pending(s, {}, visit=lambda u, d: ("ok", u), press=lambda u, d: "ok")
+    s.refresh(r1); s.refresh(row)
+    assert stats["clicked"] == 1 and row.status == "clicked" and r1.status == R.confirmed and r1.recheck_after
+
+    # 2. The inbox couldn't give us links: goes on the checklist; "I've confirmed it" finishes it.
+    sched._handle_member_message(s, {}, boxes["parent"], ca2.address, "noreply@spokeo.com",
+                                 "Action required", ask, links=None)
+    s.refresh(r2)
+    row2 = s.query(db.ConfirmationLink).filter_by(request_id=r2.id).one()
+    assert r2.status == R.sent and row2.status == "needs_person" and row2.reason == "no_link"
+    g = cl.build(s, [cm.id])["groups"]
+    assert [i["broker_name"] for i in g["confirm"]] == ["Spokeo"] and g["confirm"][0]["confirm_url"] is None
+    assert "noreply@spokeo.com" in g["confirm"][0]["text"]
+    c.mark_done(s, row2, {}, "Pat")
+    s.refresh(r2)
+    assert r2.status == R.confirmed and row2.status == "done"
+
+    # 3. A stranger writing to the tag: nothing of theirs is ever clicked.
+    r3 = db.RemovalRequest(member_id=cm.id, broker_id=b1.id, request_key="rk-3", status=R.sent)
+    s.add(r3); s.commit()
+    ca3, _ = m.issue_contact_address(s, boxes["parent"], cm, broker=b1, request_key="rk-3")
+    sched._handle_member_message(s, {}, boxes["parent"], ca3.address, "promo@spam-deals.example",
+                                 "Confirm now", ask,
+                                 links=[{"url": "https://radaris.com/confirm?t=FAKE", "text": "Confirm"}])
+    assert not s.query(db.ConfirmationLink).filter(db.ConfirmationLink.request_id == r3.id,
+                                                   db.ConfirmationLink.url.isnot(None)).count()
+
+    # 4. A page that rejects the link goes to the checklist with the link to open by hand.
+    r4 = db.RemovalRequest(member_id=cm.id, broker_id=b2.id, request_key="rk-4", status=R.sent)
+    s.add(r4); s.commit()
+    c.handle_reply(s, [r4], "Verify", ask, [{"url": "https://www.spokeo.com/optout/confirm/xyz", "text": ""}])
+    c.click_pending(s, {}, visit=lambda u, d: ("rejected", u))
+    item = [i for i in cl.build(s, [cm.id])["groups"]["confirm"] if i["request_id"] == r4.id][0]
+    assert item["confirm_url"] == "https://www.spokeo.com/optout/confirm/xyz" and "expired" in item["text"]
+
+    # 5. Auto-click turned off: everything waits for a person.
+    r5 = db.RemovalRequest(member_id=cm.id, broker_id=b1.id, request_key="rk-5", status=R.sent)
+    s.add(r5); s.commit()
+    c.handle_reply(s, [r5], "Verify", ask, [{"url": "https://radaris.com/confirm?t=5", "text": ""}])
+    c.click_pending(s, {"confirm_links": {"auto_click": False}}, visit=lambda u, d: 1 / 0)
+    assert s.query(db.ConfirmationLink).filter_by(request_id=r5.id).one().reason == "turned_off"
+    s.close()
+    # EXPECTED: "click to confirm" replies are no longer counted as removals until clicked.
+    # IF THIS FAILS: the dashboard counts removals that the broker never processed.
 
 
 # ── Per-variant removal report ────────────────────────────────────────────────

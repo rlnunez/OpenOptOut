@@ -420,6 +420,35 @@ class RequestVariant(Base):
     created_at  = Column(DateTime, default=datetime.utcnow)
 
 
+class ConfirmationLink(Base):
+    """
+    A broker emailed back asking the person to click a link before it will
+    act (Radaris, Spokeo, BeenVerified, ...). The request stays 'sent' until
+    the link is clicked; only then is it 'confirmed'.
+
+    status:
+      pending       found, not clicked yet (clicked on the next email check)
+      clicked       visited and the page accepted it → request confirmed
+      needs_person  couldn't be clicked automatically; on the checklist
+      done          the person clicked it themselves
+
+    The link carries a one-time token, so it's encrypted at rest and never
+    logged; only its host is stored in the clear.
+    """
+    __tablename__ = "confirmation_links"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    request_id  = Column(Integer, ForeignKey("removal_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    url         = Column(EncryptedText, nullable=True)     # empty when the email had no usable link
+    host        = Column(String(255), nullable=True)
+    status      = Column(String(20), nullable=False, default="pending", index=True)
+    reason      = Column(String(40), nullable=True)        # why it needs a person (see confirm_links.REASONS)
+    attempts    = Column(Integer, default=0)
+    sender      = Column(String(255), nullable=True)       # From: of the email, for "find the email from …"
+    found_at    = Column(DateTime, default=datetime.utcnow)
+    clicked_at  = Column(DateTime, nullable=True)
+
+
 class Identity(Base):
     """PII variants for a family member: name spellings, emails, phones, addresses."""
     __tablename__ = "identities"

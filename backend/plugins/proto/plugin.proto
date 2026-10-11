@@ -460,6 +460,16 @@ message EmailProviderListRequest {
   string account_ref = 2;
   int32  max_results = 3;
   int64  since_ts    = 4;    // only messages after this unix ts
+  // Also return the links in each message body (for broker confirmation
+  // links). Bodies stay inside the plugin; only http(s) links leave it.
+  bool   include_links        = 5;
+  // When set, only read bodies of messages whose To/Delivered-To contains
+  // this text (e.g. "+oo" for OpenOptOut's tagged addresses).
+  string links_if_to_contains = 6;
+}
+message MessageLink {
+  string url  = 1;
+  string text = 2;           // anchor text, if any
 }
 message InboundMessage {
   string message_id = 1;
@@ -468,9 +478,11 @@ message InboundMessage {
   string snippet    = 4;     // first chars of body
   int64  received_ts = 5;
   string to         = 6;     // To / Delivered-To, for matching +address tags
+  repeated MessageLink links = 7;   // only when include_links was asked for
 }
 message EmailProviderListResponse {
   bool   ok                     = 1;
   repeated InboundMessage messages = 2;
   string error                  = 3;
+  bool   links_supported        = 4;   // the plugin honored include_links
 }

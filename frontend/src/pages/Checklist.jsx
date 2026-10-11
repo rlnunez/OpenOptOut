@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ListChecks, Inbox, Hand, ShieldAlert, Search, Clock, RotateCcw,
-  ExternalLink, Check, Send, CheckCircle2
+  ExternalLink, Check, Send, CheckCircle2, MailCheck
 } from 'lucide-react'
 import api from '../api'
 
@@ -11,6 +11,7 @@ const btn = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm'
 const GROUPS = [
   { key: 'inbox',   icon: Inbox,       title: 'Connect an email inbox',  intro: 'Nothing can be sent for these people until they have an inbox.' },
   { key: 'finish',  icon: Hand,        title: 'Finish these opt-outs',   intro: "OpenOptOut got as far as it could. Each one says exactly what's left." },
+  { key: 'confirm', icon: MailCheck,   title: 'Confirm these opt-outs',  intro: "These brokers emailed a link to click before they'll remove anything. OpenOptOut couldn't click them by itself." },
   { key: 'captcha', icon: ShieldAlert, title: 'Solve a CAPTCHA',         intro: 'These sites asked to prove a person is there.' },
   { key: 'review',  icon: Search,      title: 'Is this you?',            intro: 'Web search found pages that might be about your family.' },
   { key: 'overdue', icon: Clock,       title: "Brokers that haven't answered", intro: 'They were sent a request and their time to respond has passed.' },
@@ -60,7 +61,19 @@ function Item({ group, item, act }) {
             {group === 'inbox' ? 'Connect inbox' : group === 'captcha' ? 'Open CAPTCHA queue' : 'Review'}
           </Link>
         )}
-        {!item.link && open && (
+        {group === 'confirm' && item.confirm_url && (
+          <a href={item.confirm_url} target="_blank" rel="noopener noreferrer nofollow" referrerPolicy="no-referrer"
+            className={`${btn} bg-shield-600 hover:bg-shield-500 text-white`}
+            aria-label={`Open ${item.broker_name}'s confirmation link in a new tab`}>
+            <ExternalLink size={13} aria-hidden="true" /> Open confirmation link
+          </a>
+        )}
+        {group === 'confirm' && (
+          <button onClick={() => act('confirmed', item)} className={`${btn} bg-emerald-700 hover:bg-emerald-600 text-white`}>
+            <Check size={13} aria-hidden="true" /> I've confirmed it
+          </button>
+        )}
+        {!item.link && open && group !== 'confirm' && (
           <a href={open} target="_blank" rel="noopener noreferrer" className={`${btn} border border-slate-600 text-slate-200`}
             aria-label={`Open ${item.broker_name} in a new tab`}>
             <ExternalLink size={13} aria-hidden="true" /> Open site
@@ -102,6 +115,7 @@ export default function Checklist() {
   const act = async (kind, item) => {
     try {
       if (kind === 'done') { const { data: d } = await api.post(`/checklist/${item.request_id}/done`); setMsg(d.message) }
+      else if (kind === 'confirmed') { const { data: d } = await api.post(`/checklist/confirm/${item.confirm_id}/done`); setMsg(d.message) }
       else if (kind === 'removed') { const { data: d } = await api.post(`/checklist/${item.request_id}/removed`); setMsg(d.message) }
       else if (kind === 'requeue') { await api.post(`/requests/${item.request_id}/requeue`); setMsg(`${item.broker_name} will be sent again in the next run.`) }
       load()

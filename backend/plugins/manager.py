@@ -981,12 +981,14 @@ class PluginManager:
         return None
 
     def dispatch_email_list(self, provider_key: str, account_ref: str,
-                            max_results: int = 50, since_ts: int = 0) -> Optional[dict]:
+                            max_results: int = 50, since_ts: int = 0,
+                            include_links: bool = False, links_if_to_contains: str = "") -> Optional[dict]:
         """
         Ask the matching email-provider plugin for recent inbound messages
-        (headers and a short snippet, never full bodies). Returns
-        {"ok", "messages": [{message_id, from, to, subject, snippet, received_ts}], "error"},
-        or None if no running plugin provides `provider_key`.
+        (headers and a short snippet, never full bodies). With include_links
+        the plugin also returns the http(s) links found in each body. Returns
+        {"ok", "messages": [{message_id, from, to, subject, snippet, received_ts, links}],
+         "error", "links_supported"}, or None if no running plugin provides `provider_key`.
         """
         for pid, rp in list(self.running.items()):
             if "email_provider" not in rp.manifest.hooks:
@@ -1000,7 +1002,9 @@ class PluginManager:
                 continue
             req = _pb.EmailProviderListRequest(account_ref=account_ref,
                                                max_results=int(max_results),
-                                               since_ts=int(since_ts))
+                                               since_ts=int(since_ts),
+                                               include_links=bool(include_links),
+                                               links_if_to_contains=links_if_to_contains or "")
             try:
                 resp = rp.stub.EmailProviderList(req, timeout=rp.manifest.timeout_seconds)
             except Exception as e:
@@ -1008,9 +1012,11 @@ class PluginManager:
                 return {"ok": False, "messages": [], "error": str(e)}
             msgs = [{"message_id": m.message_id, "from": getattr(m, "from"),
                      "to": getattr(m, "to", ""), "subject": m.subject,
-                     "snippet": m.snippet, "received_ts": m.received_ts}
+                     "snippet": m.snippet, "received_ts": m.received_ts,
+                     "links": [{"url": l.url, "text": l.text} for l in getattr(m, "links", [])]}
                     for m in resp.messages]
-            return {"ok": resp.ok, "messages": msgs, "error": resp.error}
+            return {"ok": resp.ok, "messages": msgs, "error": resp.error,
+                    "links_supported": bool(getattr(resp, "links_supported", False))}
         return None
 
     def dispatch_parse_email(self, email: dict, tracking_keys: list) -> Optional[dict]:
