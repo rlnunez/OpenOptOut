@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 import {
   ShieldAlert, CheckCircle, ExternalLink, Eye, X,
   RefreshCw, AlertCircle, KeyRound, RotateCcw,
-  FileImage, Clock, Check
+  FileImage, Clock, Check, MonitorPlay
 } from 'lucide-react'
 import api from '../api'
 import Badge from '../components/Badge'
+import LiveCaptcha from '../components/LiveCaptcha'
+import SolvingSettings from '../components/SolvingSettings'
+import { useAuth } from '../hooks/useAuth'
 
 export default function CaptchaQueue() {
   const [challenges, setChallenges] = useState([])
@@ -18,6 +21,8 @@ export default function CaptchaQueue() {
   const [notesInput, setNotesInput] = useState('')
   const [showTokenModal, setShowTokenModal] = useState(false)
   const [actionInProgress, setActionInProgress] = useState(false)
+  const [liveFor, setLiveFor] = useState(null)
+  const { user } = useAuth()
 
   const loadData = async () => {
     setLoading(true)
@@ -112,7 +117,7 @@ export default function CaptchaQueue() {
             <h1 className="text-white text-xl font-semibold">CAPTCHAs</h1>
           </div>
           <p className="text-slate-400 text-sm mt-1">
-            Some sites ask to prove a person is there ("I'm not a robot") before they take an opt-out. These are waiting for someone: open the site, finish the opt-out, then press "I finished it".
+            Some sites ask to prove a person is there ("I'm not a robot") before they take an opt-out. Press "Solve it here" to solve it in the site's own page; the opt-out then finishes by itself. Or open the site, do it yourself, and press "I finished it".
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -126,6 +131,8 @@ export default function CaptchaQueue() {
           </button>
         </div>
       </div>
+
+      {user?.role === 'super_admin' && <SolvingSettings />}
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-slate-800 pb-3 mb-6">
@@ -234,6 +241,13 @@ export default function CaptchaQueue() {
 
                   {c.status === 'pending' ? (
                     <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        onClick={() => setLiveFor(c)}
+                        disabled={actionInProgress}
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-shield-600 hover:bg-shield-500 rounded-lg transition-colors"
+                      >
+                        <MonitorPlay size={12} aria-hidden="true" /> Solve it here
+                      </button>
                       <button
                         onClick={() => handleResolveManual(c.id)}
                         disabled={actionInProgress}
@@ -361,6 +375,9 @@ export default function CaptchaQueue() {
             </div>
           </div>
         </div>
+      )}
+      {liveFor && (
+        <LiveCaptcha challenge={liveFor} onClose={() => { setLiveFor(null); loadData() }} onFinished={loadData} />
       )}
     </div>
   )

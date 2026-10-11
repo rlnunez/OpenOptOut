@@ -1,0 +1,17 @@
+{
+  "id": "captcha-solving-service",
+  "name": "CAPTCHA solving service",
+  "version": "1.0.0",
+  "type": "captcha",
+  "author": "OpenOptOut contributors",
+  "description": "Sends CAPTCHAs to a solving service you have an account with (2Captcha, Anti-Captcha, CapSolver or CapMonster Cloud). It never sees personal details: only the site's CAPTCHA key and a cleaned page address, or a cropped picture of the puzzle with every form field and saved detail blacked out. The account key is set on the CAPTCHAs page and given to this plugin only while it solves. If the service can't solve it, a person can.",
+  "api_version": "1.0",
+  "permissions": ["solve_captcha", "http_fetch", "network"],
+  "hooks": ["solve_captcha"],
+  "methods": ["http.fetch", "log"],
+  "outbound_domains": ["api.2captcha.com", "api.anti-captcha.com", "api.capsolver.com", "api.capmonster.cloud"],
+  "entrypoint": "plugin.py",
+  "max_memory_mb": 128,
+  "max_cpu_seconds": 30,
+  "timeout_seconds": 150
+}

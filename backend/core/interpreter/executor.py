@@ -199,7 +199,7 @@ class PlaywrightExecutor(JobExecutor):
     """
 
     def __init__(self, page=None, email_sender=None, captcha_solver=None,
-                 plugin_form_handler=None):
+                 plugin_form_handler=None, secrets=None):
         # page: a Playwright Page (async). email_sender: callable(EmailJob)->ok.
         # captcha_solver: callable(challenge_dict) -> result_dict | None, where
         #   result is {"solved": bool, "token": str, "defer_to_human": bool}.
@@ -211,6 +211,9 @@ class PlaywrightExecutor(JobExecutor):
         self.captcha_solver = captcha_solver
         self.plugin_form_handler = plugin_form_handler
         self._current_frame = None
+        # The person's saved details: blacked out of any CAPTCHA image and kept
+        # out of any page address before either is stored or sent anywhere.
+        self.secrets = list(secrets or [])
 
     def _target(self):
         """Current interaction target: either an active iframe locator or the main page."""
@@ -591,7 +594,13 @@ class PlaywrightExecutor(JobExecutor):
             return True   # can't tell — safer to hand it to a person
 
     async def _detect_challenge(self, selector: str) -> dict:
-        """Gather what we can about the CAPTCHA for the solver hook."""
+        """
+        Gather what a solver needs about the CAPTCHA, without personal details:
+        its type and site key, the page address without query or saved
+        details, and (for picture CAPTCHAs) a cropped, blacked-out image of
+        just the puzzle (core/captcha_privacy.py).
+        """
+        from ..captcha_privacy import capture, safe_page_url
         ctype, site_key = "other", ""
         try:
             content = await self.page.content()
@@ -600,6 +609,10 @@ class PlaywrightExecutor(JobExecutor):
                 ctype = "hcaptcha"
             elif "recaptcha" in low:
                 ctype = "recaptcha_v2"
+            elif "challenges.cloudflare.com" in low or "cf-turnstile" in low:
+                ctype = "turnstile"
+            elif re.search(r"<img[^>]+captcha", low):
+                ctype = "image"
             # Try to read a site-key attribute from a common widget.
             try:
                 el = await self.page.query_selector("[data-sitekey]")
@@ -609,15 +622,27 @@ class PlaywrightExecutor(JobExecutor):
                 pass
         except Exception:
             pass
-        screenshot = b""
+        shot = {"image": b"", "boxes": 0}
         try:
-            screenshot = await self.page.screenshot()
+            shot = await capture(self.page, selector, self.secrets)
         except Exception:
             pass
+        raw_url = getattr(self.page, "url", "") if isinstance(getattr(self.page, "url", ""), str) else ""
+        answer = ""
+        if ctype == "image":
+            try:
+                for sel in ("input[name*='captcha' i]", "input[id*='captcha' i]", "input[placeholder*='code' i]",
+                            "input[name*='security' i]", "input[aria-label*='captcha' i]"):
+                    if await self.page.query_selector(sel):
+                        answer = sel
+                        break
+            except Exception:
+                pass
         return {
             "type": ctype, "site_key": site_key,
-            "page_url": getattr(self.page, "url", "") if isinstance(getattr(self.page, "url", ""), str) else "",
-            "screenshot": screenshot, "meta": {"selector": selector},
+            "page_url": safe_page_url(raw_url, self.secrets),
+            "screenshot": shot["image"],
+            "meta": {"selector": selector, "answer_selector": answer, "blacked_out": str(shot["boxes"])},
         }
 
     async def _handle_captcha(self, selector: str, trace: list, i: int) -> bool:
@@ -639,6 +664,19 @@ class PlaywrightExecutor(JobExecutor):
         if not result or result.get("defer_to_human") or not result.get("solved"):
             trace.append(f"[{i}] CAPTCHA solver deferred — pausing for human")
             return True
+        if result.get("by_person"):
+            # A person solved it in this very page (core/live_captcha.py).
+            trace.append(f"[{i}] CAPTCHA solved by a person — continuing")
+            return False
+        text = result.get("text") or (result.get("token") if challenge.get("type") == "image" else "")
+        if text and challenge.get("meta", {}).get("answer_selector"):
+            try:
+                await self.page.fill(challenge["meta"]["answer_selector"], text, timeout=8000)
+                trace.append(f"[{i}] picture CAPTCHA answered — continuing")
+                return False
+            except Exception as e:
+                trace.append(f"[{i}] couldn't type the CAPTCHA answer ({e}) — pausing for human")
+                return True
         token = result.get("token", "")
         if not token:
             trace.append(f"[{i}] CAPTCHA solver returned no token — pausing for human")

@@ -622,6 +622,7 @@ async def _run_form_via_interpreter(
     cfg: dict,
     db,
     combo: Optional[IdentityCombo] = None,
+    captcha_solver_override=None,
 ):
     """
     Run a form opt-out through the unified declarative interpreter engine:
@@ -723,7 +724,9 @@ async def _run_form_via_interpreter(
         mgr = get_manager()
         if mgr:
             preferred_captcha = getattr(broker, "captcha_plugin_id", None)
-            captcha_solver = lambda ch: mgr.dispatch_solve_captcha(ch, preferred_plugin_id=preferred_captcha)
+            from .captcha_services import plugin_meta
+            captcha_solver = lambda ch: mgr.dispatch_solve_captcha(ch, preferred_plugin_id=preferred_captcha,
+                                                                   meta_for=plugin_meta)
             def form_handler(job_, page_context):
                 if isinstance(page_context, dict):
                     page_html = page_context.get("html", "")
@@ -759,8 +762,12 @@ async def _run_form_via_interpreter(
         page = None
 
     try:
+        from .captcha_privacy import member_secrets
+        if captcha_solver_override is not None:
+            captcha_solver = captcha_solver_override
         executor = PlaywrightExecutor(
-            page=page, captcha_solver=captcha_solver, plugin_form_handler=form_handler)
+            page=page, captcha_solver=captcha_solver, plugin_form_handler=form_handler,
+            secrets=member_secrets(member))
         res = await executor.run(job)
         if res.email_rejected and "+" in (job.contact_email or ""):
             res = await _retry_without_plus(db, request, broker, member, spec, combo, member_fields,
@@ -892,8 +899,9 @@ async def _retry_without_plus(db, request, broker, member, spec, combo, member_f
     db.commit()
     fields = dict(member_fields, contact_email=contact.address)
     job = compile_job(spec, fields, member_id=str(member.id))
+    from .captcha_privacy import member_secrets
     res = await PlaywrightExecutor(page=page, captcha_solver=captcha_solver,
-                                   plugin_form_handler=form_handler).run(job)
+                                   plugin_form_handler=form_handler, secrets=member_secrets(member)).run(job)
     if res.email_rejected:
         return ExecResult(ok=False, needs_manual=True, detail="form refused the email address",
                           trace=res.trace,
@@ -1034,15 +1042,19 @@ async def execute_optout(
                                 page_url=ch.get("page_url") or broker.opt_out_url or None,
                                 screenshot=screenshot_path,
                                 status="pending",
+                                # which combination was being sent, so a person can
+                                # pick it up live from the same point (encrypted)
+                                combo_enc=__import__("json").dumps(combo.as_dict()),
                             )
                             db.add(c_entry)
                             db.commit()
                             db.refresh(c_entry)
                             try:
                                 from ..plugins.hooks import fire_event
+                                # No names or page addresses go to plugins.
                                 fire_event("captcha_challenge_detected", entity_id=str(c_entry.id), data={
-                                    "broker": broker.name, "member": member.full_name,
-                                    "challenge_type": c_entry.challenge_type, "page_url": c_entry.page_url
+                                    "broker": broker.name, "member_id": member.id,
+                                    "challenge_type": c_entry.challenge_type,
                                 })
                             except Exception:
                                 pass
