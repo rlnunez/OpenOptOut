@@ -58,6 +58,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 36 | Curated broker form plugins & honest form results | In Review — live verification pending |
 | 37 | Long tail: privacy-request page finder & OneTrust/TrustArc forms | In Review — live verification pending |
 | 38 | Built-in receive-only inbox | In Design ([`docs/BUILTIN_INBOX.md`](BUILTIN_INBOX.md)) |
+| 39 | Automated removal verification & re-listing monitor | In Review — live verification pending |
 
 ---
 
@@ -689,6 +690,18 @@ plugins/
 **Goal:** Unique addresses on a family-owned domain for inboxes without `+` addressing. Design: [`docs/BUILTIN_INBOX.md`](BUILTIN_INBOX.md).
 
 **Status:** In Design.
+
+---
+
+### 39. Automated removal verification & re-listing monitor
+**Goal:** Know that removals stuck, and catch listings that come back.
+
+- `core/verification.py` checks each removal through the listing page, the broker's own search (`search_url` / `listing_pattern`) or a site-restricted web search confirmed by visiting the page.
+- Verdicts: gone, still up, not found, couldn't check. Sent + gone → removed; removed + still up → sent again ("came back").
+- Runs daily within a budget, before every scheduled re-send, and whenever the weekly web search finds a page on a broker someone was removed from.
+- Dashboard *Removal checks* card. See [`docs/VERIFICATION.md`](VERIFICATION.md).
+
+**Status:** In Review — live verification pending.
 
 ---
 

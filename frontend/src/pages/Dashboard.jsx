@@ -5,6 +5,7 @@ import { RadialBarChart, RadialBar, ResponsiveContainer, Tooltip } from 'rechart
 import api from '../api'
 import Badge from '../components/Badge'
 import VariantCoverage from '../components/VariantCoverage'
+import RemovalChecks from '../components/RemovalChecks'
 import { useAuth, can } from '../hooks/useAuth'
 
 function StatCard({ label, value, icon: Icon, color }) {
@@ -232,6 +233,7 @@ export default function Dashboard() {
       </div>
 
       <VariantCoverage />
+      <RemovalChecks />
 
       {/* Progress + recheck row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">

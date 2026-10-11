@@ -33,6 +33,7 @@ from .routers.registry import router as registry_router
 from .routers.web_search import router as web_search_router
 from .routers.privacy_pages import router as privacy_pages_router
 from .routers.broker_updates import router as broker_updates_router
+from .routers.verification import router as verification_router
 from .routers.confirm_links import router as confirm_links_router
 from .routers.checklist import router as checklist_router
 from .routers.variants import router as variants_router
@@ -111,7 +112,7 @@ for r in [
     email_oauth_router, test_broker_router, saml_router, cert_monitor_router,
     consortium_router, logs_router, captcha_router, i18n_router,
     workers_router, mailboxes_router, listings_router, registry_router,
-    web_search_router, checklist_router, variants_router, privacy_pages_router, confirm_links_router, broker_updates_router,
+    web_search_router, checklist_router, variants_router, privacy_pages_router, confirm_links_router, broker_updates_router, verification_router,
 ]:
     app.include_router(r)
 
