@@ -57,6 +57,7 @@ class RequestStatus(str, enum.Enum):
     failed       = "failed"
     submitted    = "submitted"
     needs_manual = "needs_manual"
+    skipped      = "skipped"        # left alone on purpose (e.g. unclear matches, by setting)
 
 class OptOutMethod(str, enum.Enum):
     form   = "form"
@@ -212,6 +213,7 @@ class User(Base):
     pending_ils_import     = Column(Text, nullable=True)  # Staged ILS demographic fields waiting for patron confirmation
     notification_prefs = Column(Text, nullable=True)  # JSON: {"overdue": bool, "relisted": bool} (core/compliance.py)
     calendar_token_hash = Column(String(64), nullable=True, index=True)  # private calendar feed link (hash only)
+    optout_prefs = Column(Text, nullable=True)  # JSON: {"unclear_listings": "ask"|"skip"|"remove_all"} (core/match_policy.py)
     accessibility_settings = Column(Text, nullable=True)  # JSON dict: {"high_contrast": bool, "large_text": bool, "reduced_motion": bool}
 
     # Multi-Factor Authentication (TOTP + FIDO2/WebAuthn/YubiKey)
@@ -688,6 +690,10 @@ class RemovalRequest(Base):
     # Latest automatic check of whether the listing is still up (see VerificationCheck).
     last_checked_at = Column(DateTime, nullable=True)
     last_verdict    = Column(String(20), nullable=True)
+    # Possible listings the site showed that only matched by name (core/match_policy.py),
+    # kept encrypted while the person decides, and the ones they picked.
+    candidates_enc  = Column(EncryptedText, nullable=True)
+    picked_enc      = Column(EncryptedText, nullable=True)
     notes         = Column(Text)
     created_at    = Column(DateTime, default=datetime.utcnow)
     updated_at    = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

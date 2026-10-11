@@ -9722,6 +9722,179 @@ def t_frontend_names():
     # IF THIS FAILS: add the missing import; the listed screen would crash for everyone who opens it.
 
 
+@test(1, "matching.classify_unclear_listings",
+      "Possible listings are sorted into yours, unclear (only the name shows) and not you (a different name or age).")
+def t_match_classify():
+    mp = _imp("core.match_policy")
+    prof = {"names": ["Jane Q Public", "Jane Public"], "places": ["Austin, TX"], "streets": ["123 Main St"],
+            "phones": ["+1 (512) 555-0134"], "emails": [], "ages": [44, 45], "birth_years": [1981, 1982]}
+    assert mp.classify(prof, "Jane Public, Austin, TX")[0] == "yours"
+    assert mp.classify(prof, "Jane Public")[0] == "unclear"
+    assert mp.classify(prof, "Jane Public  View details")[0] == "unclear"
+    assert mp.classify(prof, "Robert Smith, Austin TX")[0] == "not_you"
+    assert mp.classify(prof, "Jane Public, Age 87")[0] == "not_you"
+    assert mp.classify(prof, "Jane Public, Age 45")[0] in ("yours", "unclear")
+    g = mp.global_settings({})
+    assert g == {"unclear_listings": "ask", "users_choose": True}
+    assert mp.global_settings({"matching": {"unclear_listings": "nonsense"}})["unclear_listings"] == "ask"
+    # EXPECTED: only listings that could really be the person reach the policy.
+
+
+@test(2, "matching.policy_default_user_and_parent",
+      "The admin's default applies unless people may choose; then a person's own choice, or their parent's, wins.")
+def t_match_policy():
+    db, s = _memory_db()
+    mp = _imp("core.match_policy")
+    m = _member_with_vault(db, s)
+    cfg = {"matching": {"unclear_listings": "skip", "users_choose": True}}
+    assert mp.for_member(s, m, cfg) == "skip"
+    parent = db.User(email="mom@x.example", full_name="Mom", role=db.UserRole.parent); s.add(parent); s.flush()
+    s.add(db.ProfileAccess(manager_id=parent.id, managed_id=m.user_id)); s.flush()
+    mp.save_user(parent, "remove_all"); s.commit()
+    assert mp.for_member(s, m, cfg) == "remove_all", "a parent's choice covers the people they manage"
+    mp.save_user(m.user, "ask"); s.commit()
+    assert mp.for_member(s, m, cfg) == "ask", "the person's own choice comes first"
+    assert mp.for_member(s, m, {"matching": {"unclear_listings": "skip", "users_choose": False}}) == "skip"
+    mp.save_user(m.user, None); s.commit()
+    assert mp.user_choice(m.user) is None and m.user.optout_prefs is None
+    try:
+        mp.save_user(m.user, "everything"); raise AssertionError("accepted a made-up choice")
+    except ValueError:
+        pass
+    s.close()
+
+
+@test(1, "matching.executor_pick_listing",
+      "pick_listing goes to the person's listing, and for name-only results follows the setting: ask, skip or remove all.")
+def t_match_executor():
+    import asyncio
+    ex_mod = _imp("core.interpreter.executor")
+    comp = _imp("core.interpreter.compiler")
+    prof = {"names": ["Jane Public"], "places": ["Austin, TX"], "streets": [], "phones": [], "emails": [],
+            "ages": [], "birth_years": []}
+
+    class FakePage:
+        url = "https://b.example/search"
+        def __init__(self, results): self.results, self.visited = results, []
+        async def evaluate(self, js, *a): return self.results
+        async def goto(self, url, timeout=0): self.visited.append(url)
+        async def wait_for_timeout(self, ms): pass
+
+    def run(results, policy, preset=None):
+        page = FakePage(results)
+        ex = ex_mod.PlaywrightExecutor(page=page, match_profile=prof, unclear_policy=policy, preset_listing_url=preset)
+        job = comp.Job(broker_id="1", broker_name="B", member_id="2", method="form",
+                       steps=[comp.JobStep(kind="pick_listing", selector="a.result")])
+        return asyncio.new_event_loop().run_until_complete(ex.run(job)), page
+
+    unclear = [{"url": f"https://b.example/p/{i}", "text": "Jane Public"} for i in range(3)]
+    mine = [{"url": "https://b.example/p/me", "text": "Jane Public, Austin, TX, age 45"}]
+    other = [{"url": "https://b.example/p/bob", "text": "Bob Jones, Reno, NV"}]
+    res, page = run(mine + unclear + other, "ask")
+    assert res.ok and page.visited == ["https://b.example/p/me"] and res.extra_picks == [], res.trace
+    res, page = run(unclear + other, "ask")
+    assert res.needs_manual and len(res.candidates) == 3 and page.visited == [], res.trace
+    assert "Checklist" in res.human_instruction
+    res, page = run(unclear, "skip")
+    assert res.skipped and not res.ok and page.visited == []
+    res, page = run(unclear, "remove_all")
+    assert res.ok and page.visited == ["https://b.example/p/0"] and res.extra_picks == ["https://b.example/p/1", "https://b.example/p/2"]
+    res, page = run(other, "remove_all")
+    assert res.not_listed and page.visited == []
+    res, page = run(unclear, "ask", preset="https://b.example/p/2")
+    assert res.ok and page.visited == ["https://b.example/p/2"], "a listing the person picked is used directly"
+
+
+@test(3, "matching.results_from_a_real_page",
+      "On a real search-results page, each result link comes back with the text of its own result card.")
+def t_match_results_live():
+    _chromium_or_skip()
+    import asyncio
+    ex_mod = _imp("core.interpreter.executor")
+    html = """<html><body><div id=results>
+      <div class=card><h3>Jane Public</h3><a class=r href='/p/1'>View</a></div>
+      <div class=card><h3>Jane Public</h3><span>Austin, TX</span><a class=r href='/p/2'>View</a></div>
+      <div class=card><h3>Bob Jones</h3><a class=r href='/p/3'>View</a></div>
+    </div><a href='/about'>About</a></body></html>"""
+    async def go():
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            b = await p.chromium.launch()
+            try:
+                page = await b.new_page()
+                await page.route("https://search.example/**", lambda r: r.fulfill(body=html, content_type="text/html"))
+                await page.goto("https://search.example/s")
+                by_sel = await page.evaluate(ex_mod.PlaywrightExecutor._RESULTS_JS, ["a.r", ""])
+                by_pat = await page.evaluate(ex_mod.PlaywrightExecutor._RESULTS_JS, ["", r"/p/\d+"])
+                return by_sel, by_pat
+            finally:
+                await b.close()
+    try:
+        by_sel, by_pat = asyncio.run(go())
+    except Exception as e:
+        raise Skip(f"no browser here: {e}")
+    assert [r["url"] for r in by_sel] == [f"https://search.example/p/{i}" for i in (1, 2, 3)], by_sel
+    assert "Austin" in by_sel[1]["text"] and "Austin" not in by_sel[0]["text"], by_sel
+    assert "Bob Jones" in by_sel[2]["text"]
+    assert [r["url"] for r in by_pat] == [r["url"] for r in by_sel], "the address pattern finds the same results"
+
+
+@test(2, "matching.checklist_pick_and_none",
+      "Unclear listings show on the Checklist; picked ones are queued, and 'none of these' marks the site skipped.")
+def t_match_checklist():
+    import json
+    db, s = _memory_db()
+    cl = _imp("core.checklist")
+    m = _member_with_vault(db, s)
+    b = db.Broker(name="B", opt_out_url="https://b.example"); s.add(b); s.flush()
+    cands = [{"url": "https://b.example/p/1", "text": "Jane Public", "why": "only the name"},
+             {"url": "https://b.example/p/2", "text": "Jane Public", "why": "only the name"},
+             {"url": "javascript:alert(1)", "text": "x"}]
+    r = db.RemovalRequest(member_id=m.id, broker_id=b.id, status=db.RequestStatus.needs_manual,
+                          candidates_enc=json.dumps(cands), notes="pick")
+    s.add(r); s.commit()
+    item = cl.build(s, [m.id])["groups"]["finish"][0]
+    assert [c["url"] for c in item["candidates"]] == ["https://b.example/p/1", "https://b.example/p/2"]
+    assert cl.pick(s, r, ["https://b.example/p/2", "https://evil.example/x"], "Jane") == "queued"
+    assert r.status == db.RequestStatus.pending and json.loads(r.picked_enc) == ["https://b.example/p/2"]
+    assert r.candidates_enc is None, "only picked addresses are kept"
+    r.status, r.candidates_enc = db.RequestStatus.needs_manual, json.dumps(cands); s.commit()
+    assert cl.pick(s, r, [], "Jane") == "skipped" and r.status == db.RequestStatus.skipped
+    s.close()
+
+
+@test(2, "matching.web_search_follows_the_setting",
+      "Name-only web search hits on known brokers are skipped, queued for removal or left to review, per the setting.")
+def t_match_web_search():
+    db, s = _memory_db()
+    ws = _imp("core.web_search")
+    m = _member_with_vault(db, s)
+    s.add(db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy")); s.commit()
+    pages = [{"url": "https://radaris.com/p/Jane/Public/1", "title": "Jane Public", "snippet": "View profile"},
+             {"url": "https://radaris.com/p/Jane/Public/2", "title": "Jane Public", "snippet": "View profile"},
+             {"url": "https://radaris.com/p/Bob/Jones", "title": "Bob Jones", "snippet": "Reno, NV"}]
+    def hits():
+        return {h.url: h for h in s.query(db.WebSearchHit).all()}
+    def run(policy):
+        for h in s.query(db.WebSearchHit).all():
+            s.delete(h)
+        s.commit()
+        return ws.run_for_member(s, m, {"web_search": {"max_queries": 1}, "matching": {"unclear_listings": policy}},
+                                 search=lambda q: pages, pause=0)
+    run("ask")
+    H = hits()
+    unclear = [h for u, h in H.items() if "/Jane/" in u]
+    assert unclear and all(h.status == "new" and h.matched_on == "unclear" for h in unclear), \
+        [(h.url, h.status, h.matched_on) for h in H.values()]
+    st = run("skip")
+    assert all(h.status == "dismissed" and h.dismiss_reason == "unclear_skipped"
+               for u, h in hits().items() if "/Jane/" in u), "skip leaves them alone"
+    run("remove_all")
+    assert all(h.status == "added" for u, h in hits().items() if "/Jane/" in u), "remove all queues every one"
+    s.close()
+    # EXPECTED: name-only hits follow the same setting as listings found on the sites themselves.
+
+
 def main():
     ap = argparse.ArgumentParser(description="OpenOptOut test runner")
     ap.add_argument("--tier", type=int, default=4, help="run tiers up to N (1-4)")

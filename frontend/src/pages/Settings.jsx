@@ -2827,6 +2827,93 @@ function SessionPolicySection({ userRole }) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+// ── Unclear matches ──────────────────────────────────────────────────────────
+// Some sites list several people with your name and hide the city and age, so
+// there's no way to tell which one is you. Admins pick what happens; people can
+// pick for themselves if the admin allows it.
+const MATCH_HELP = {
+  ask: 'They go on your Checklist with whatever the site does show, and you tick the ones that are you.',
+  skip: "OpenOptOut leaves them alone and marks the site skipped. Nothing is sent about people who might not be you.",
+  remove_all: 'OpenOptOut asks the site to remove every one (up to 10 per site). This may include other people with the same name.',
+}
+
+function ChoiceList({ name, value, onChange, choices, extra }) {
+  return (
+    <fieldset className="space-y-2">
+      <legend className="sr-only">{name}</legend>
+      {extra}
+      {choices.map(c => (
+        <label key={c.value} className="flex items-start gap-2 cursor-pointer">
+          <input type="radio" name={name} value={c.value} checked={value === c.value}
+            onChange={() => onChange(c.value)} className="mt-1" />
+          <span>
+            <span className="text-slate-200 text-sm">{c.label}</span>
+            <span className="block text-slate-500 text-xs">{MATCH_HELP[c.value]}</span>
+          </span>
+        </label>
+      ))}
+    </fieldset>
+  )
+}
+
+function MatchingSection() {
+  const [m, setM] = useState(null)
+  const [def, setDef] = useState('ask')
+  const [usersChoose, setUsersChoose] = useState(true)
+  const [mine, setMine] = useState('')
+  const [msg, setMsg] = useState('')
+
+  const load = () => api.get('/settings/matching').then(r => {
+    setM(r.data); setDef(r.data.unclear_listings); setUsersChoose(r.data.users_choose); setMine(r.data.mine || '')
+  }).catch(() => setM(false))
+  useEffect(() => { load() }, [])
+  if (!m) return null
+
+  const saveDefault = async () => {
+    setMsg('')
+    try { await api.patch('/settings/matching', { unclear_listings: def, users_choose: usersChoose }); setMsg('Saved.'); load() }
+    catch (e) { setMsg(e.response?.data?.detail || "Couldn't save that.") }
+  }
+  const saveMine = async v => {
+    setMine(v); setMsg('')
+    try { await api.patch('/settings/matching/mine', { unclear_listings: v || null }); setMsg('Saved.'); load() }
+    catch (e) { setMsg(e.response?.data?.detail || "Couldn't save that.") }
+  }
+  const defaultLabel = (m.choices.find(c => c.value === m.unclear_listings) || {}).label
+
+  return (
+    <Section icon={Users} title="When a site shows only a name"
+      description="Some sites list people with your name but hide the city and age, so we can't tell which one is you">
+      {msg && <p role="status" className="text-slate-300 text-sm">{msg}</p>}
+      {m.can_set_default && (
+        <div className="space-y-3">
+          <p className="text-slate-300 text-sm font-medium">For everyone (default)</p>
+          <ChoiceList name="match-default" value={def} onChange={setDef} choices={m.choices} />
+          <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+            <input type="checkbox" checked={usersChoose} onChange={e => setUsersChoose(e.target.checked)} />
+            Let people choose this for themselves
+          </label>
+          <SaveButton onClick={saveDefault} />
+        </div>
+      )}
+      {m.users_choose ? (
+        <div className="space-y-3 pt-2">
+          <p className="text-slate-300 text-sm font-medium">For me and the people I manage</p>
+          <ChoiceList name="match-mine" value={mine} onChange={saveMine} choices={m.choices}
+            extra={
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input type="radio" name="match-mine" value="" checked={mine === ''} onChange={() => saveMine('')} className="mt-1" />
+                <span className="text-slate-200 text-sm">Use the default ({defaultLabel})</span>
+              </label>
+            } />
+        </div>
+      ) : (
+        !m.can_set_default && <p className="text-slate-400 text-sm">Your administrator has set this for everyone: {defaultLabel}.</p>
+      )}
+    </Section>
+  )
+}
+
 export default function Settings() {
   const { user } = useAuth()
   const [settings, setSettings]           = useState(null)
@@ -2882,6 +2969,7 @@ export default function Settings() {
       <EncryptionSection userRole={sectionRole('database.view')}/>
       {/* Never delegated: the plugin-system switch and the danger zone. */}
       <PluginSystemSection userRole={user?.role}/>
+      <MatchingSection />
       <DataSection userRole={user?.role}/>
     </div>
   )

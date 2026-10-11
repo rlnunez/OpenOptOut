@@ -6,13 +6,15 @@ The checklist. See core/checklist.py.
   POST /api/checklist/{req_id}/done      "I've done this" (finished an opt-out by hand)
   POST /api/checklist/{req_id}/removed   "The listing is gone" (overdue or re-check items)
   POST /api/checklist/confirm/{id}/done  "I've confirmed it" (clicked a broker's confirmation link)
+  POST /api/checklist/{req_id}/pick      "These listings are me" (or none) for unclear matches
 
 "Send again" and "check later" use the existing
 /api/requests/{id}/requeue and /api/requests/{id}/snooze.
 """
 
-from typing import Optional
+from typing import List, Optional
 
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -62,6 +64,23 @@ def done(req_id: int, db: Session = Depends(get_db), user: User = Depends(get_cu
         raise HTTPException(400, "This one doesn't need finishing by hand.")
     cl.mark_done(db, r, user.full_name or "a family member")
     return {"ok": True, "message": f"Marked done. OpenOptOut will check {r.broker.name} again in 90 days."}
+
+
+class PickIn(BaseModel):
+    urls: List[str] = []
+
+
+@router.post("/{req_id}/pick")
+def pick(req_id: int, body: PickIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    r = _req(db, user, req_id)
+    if r.status != RequestStatus.needs_manual or not cl.candidates(r):
+        raise HTTPException(400, "There's nothing to choose for this one.")
+    outcome = cl.pick(db, r, body.urls, user.full_name or "a family member")
+    name = r.broker.name if r.broker else "this site"
+    if outcome == "skipped":
+        return {"ok": True, "outcome": outcome, "message": f"Got it. {name} is skipped: none of those were you."}
+    return {"ok": True, "outcome": outcome,
+            "message": f"Thanks. OpenOptOut will ask {name} to remove the listing(s) you picked on its next run."}
 
 
 @router.post("/{req_id}/removed")

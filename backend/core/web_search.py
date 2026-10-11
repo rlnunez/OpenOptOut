@@ -165,6 +165,7 @@ def run_for_member(db, member, cfg: dict, search=None, pause: float = 1.0) -> di
     queries = lf.discovery_queries(member)[: int(ws.get("max_queries") or 12)]
     stats = {"queries": 0, "results": 0, "new": 0, "added": 0, "errors": []}
     now = datetime.utcnow()
+    unclear_cache, per_broker = {}, {}
 
     for i, q in enumerate(queries):
         try:
@@ -217,6 +218,26 @@ def run_for_member(db, member, cfg: dict, search=None, pause: float = 1.0) -> di
                             continue
                 except Exception as e:
                     log.info("re-listing check skipped: %s", e)
+            # A known broker's page that shows only the name: follow the
+            # unclear-matches setting (core/match_policy.py).
+            if broker is not None and strength == "weak" and matched_on == "name":
+                from .match_policy import classify, for_member, MAX_REMOVE_ALL
+                verdict, why = classify(profile, " ".join([r.get("title", ""), r.get("snippet", ""), url]))
+                if verdict == "not_you":
+                    hit.status, hit.dismiss_reason = "dismissed", "ruled_out"
+                elif verdict == "unclear":
+                    hit.matched_on = "unclear"
+                    policy = unclear_cache.setdefault("policy", for_member(db, member, cfg))
+                    if policy == "skip":
+                        hit.status, hit.dismiss_reason = "dismissed", "unclear_skipped"
+                        stats["skipped"] = stats.get("skipped", 0) + 1
+                    elif policy == "remove_all" and per_broker.get(broker.id, 0) < MAX_REMOVE_ALL:
+                        res = lf.add_listing(db, member, url, create_unknown=False, source="web_search")
+                        if res.get("ok"):
+                            per_broker[broker.id] = per_broker.get(broker.id, 0) + 1
+                            hit.status, hit.request_id = "added", res.get("request_id")
+                            stats["added"] += 1
+                continue
             if broker is not None and strength == "strong" and ws.get("auto_add_strong", True):
                 res = lf.add_listing(db, member, url, create_unknown=False, source="web_search")
                 if res.get("ok"):

@@ -75,6 +75,9 @@ def build(db, member_ids: list, now=None) -> dict:
         p = progress[r.member_id]
         st = r.status
         if st == RequestStatus.needs_manual:
+            cands = candidates(r)
+            if cands:
+                item = {**item, "candidates": cands}
             groups["finish"].append(item); p["needs_you"] += 1
         elif r.id in paused and st == RequestStatus.pending:
             groups["captcha"].append({**item, "text": f"{item['broker_name']} asked for a CAPTCHA.",
@@ -125,6 +128,45 @@ def build(db, member_ids: list, now=None) -> dict:
     groups["overdue"].sort(key=lambda i: -i["days_waiting"])
     total = sum(len(v) for k, v in groups.items() if k != "recheck") + len(groups["recheck"])
     return {"groups": groups, "progress": list(progress.values()), "total": total}
+
+
+def candidates(req) -> list:
+    """Possible listings a person needs to choose between (unclear matches), or []."""
+    import json
+    raw = getattr(req, "candidates_enc", None)
+    if not raw:
+        return []
+    try:
+        out = json.loads(raw)
+    except Exception:
+        return []
+    return [{"url": c.get("url", ""), "text": (c.get("text") or "")[:400], "why": c.get("why", "")}
+            for c in out if isinstance(c, dict) and str(c.get("url", "")).startswith(("http://", "https://"))]
+
+
+def pick(db, req, urls: list, who: str, now=None) -> str:
+    """
+    The person chose which possible listings are theirs. Chosen ones are sent
+    on the next run; choosing none marks the site skipped.
+    """
+    import json
+    from ..models.database import RequestStatus
+    now = now or datetime.utcnow()
+    allowed = {c["url"] for c in candidates(req)}
+    chosen = [u for u in dict.fromkeys(urls or []) if u in allowed]
+    req.candidates_enc = None
+    req.updated_at = now
+    if not chosen:
+        req.picked_enc = None
+        req.status = RequestStatus.skipped
+        req.notes = f"{who} said none of the possible listings were theirs, so this site was skipped."
+        db.commit()
+        return "skipped"
+    req.picked_enc = json.dumps(chosen)
+    req.status = RequestStatus.pending
+    req.notes = f"{who} picked {len(chosen)} listing(s); OpenOptOut will ask for them to be removed."
+    db.commit()
+    return "queued"
 
 
 def mark_done(db, req, who: str, recheck_days: int = 90, now=None):

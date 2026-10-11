@@ -8,6 +8,7 @@ const WHY = {
   email: 'shows a saved email address',
   'name+city': 'shows the name and city',
   name: 'shows the name',
+  unclear: 'shows only the name (the site hides the city and age)',
 }
 
 // Results of the server-side web search for one family member: run it, then

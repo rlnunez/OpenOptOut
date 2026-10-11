@@ -44,6 +44,44 @@ function Progress({ p }) {
   )
 }
 
+// "Which of these is you?" for sites that list people by name only.
+function Picker({ item, act }) {
+  const [picked, setPicked] = useState([])
+  const toggle = url => setPicked(p => (p.includes(url) ? p.filter(u => u !== url) : [...p, url]))
+  return (
+    <fieldset className="mt-2 space-y-2">
+      <legend className="text-sm text-slate-200 font-medium">Which of these is {item.member_name}?</legend>
+      <p className="text-xs text-slate-400">The site hides the city and age, so OpenOptOut can't tell. Open each one if you need to look closer.</p>
+      <ul className="space-y-2">
+        {item.candidates.map((c, i) => (
+          <li key={c.url} className="flex items-start gap-2 p-2 rounded-lg border border-slate-700/60 bg-slate-900/40">
+            <input id={`pick-${item.request_id}-${i}`} type="checkbox" className="mt-1"
+              checked={picked.includes(c.url)} onChange={() => toggle(c.url)} />
+            <div className="min-w-0 flex-1">
+              <label htmlFor={`pick-${item.request_id}-${i}`} className="text-sm text-slate-200 cursor-pointer break-words">
+                {c.text || 'No details shown'}
+              </label>
+              <a href={c.url} target="_blank" rel="noopener noreferrer nofollow" referrerPolicy="no-referrer"
+                className="ml-2 inline-flex items-center gap-1 text-xs text-shield-300 underline">
+                <ExternalLink size={11} aria-hidden="true" /> Open<span className="sr-only"> listing {i + 1} in a new tab</span>
+              </a>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="flex gap-2 flex-wrap">
+        <button disabled={!picked.length} onClick={() => act('pick', item, picked)}
+          className={`${btn} bg-shield-600 hover:bg-shield-500 text-white disabled:opacity-40`}>
+          <Send size={13} aria-hidden="true" /> Remove the ones I picked
+        </button>
+        <button onClick={() => act('pick', item, [])} className={`${btn} border border-slate-600 text-slate-200`}>
+          None of these are {item.member_name}
+        </button>
+      </div>
+    </fieldset>
+  )
+}
+
 function Item({ group, item, act }) {
   const open = item.listing_url || item.site
   return (
@@ -54,6 +92,7 @@ function Item({ group, item, act }) {
             : <span className="font-medium">{item.member_name}</span>}
         </div>
         {item.text && <p className="text-sm text-slate-300 mt-0.5 whitespace-pre-line">{item.text}</p>}
+        {group === 'finish' && item.candidates?.length > 0 && <Picker item={item} act={act} />}
       </div>
       <div className="flex gap-2 flex-wrap shrink-0">
         {item.link && (
@@ -79,7 +118,7 @@ function Item({ group, item, act }) {
             <ExternalLink size={13} aria-hidden="true" /> Open site
           </a>
         )}
-        {group === 'finish' && (
+        {group === 'finish' && !item.candidates?.length && (
           <button onClick={() => act('done', item)} className={`${btn} bg-emerald-700 hover:bg-emerald-600 text-white`}>
             <Check size={13} aria-hidden="true" /> I've done this
           </button>
@@ -112,8 +151,9 @@ export default function Checklist() {
   useEffect(() => { api.get('/family').then(r => setMembers(r.data)).catch(() => {}) }, [])
   useEffect(() => { load() }, [load])
 
-  const act = async (kind, item) => {
+  const act = async (kind, item, urls) => {
     try {
+      if (kind === 'pick') { const { data: d } = await api.post(`/checklist/${item.request_id}/pick`, { urls }); setMsg(d.message) }
       if (kind === 'done') { const { data: d } = await api.post(`/checklist/${item.request_id}/done`); setMsg(d.message) }
       else if (kind === 'confirmed') { const { data: d } = await api.post(`/checklist/confirm/${item.confirm_id}/done`); setMsg(d.message) }
       else if (kind === 'removed') { const { data: d } = await api.post(`/checklist/${item.request_id}/removed`); setMsg(d.message) }
