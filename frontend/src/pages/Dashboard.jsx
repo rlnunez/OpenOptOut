@@ -4,6 +4,7 @@ import { RefreshCw, Send, AlertCircle, CheckCircle, Clock, ShieldOff, Activity }
 import { RadialBarChart, RadialBar, ResponsiveContainer, Tooltip } from 'recharts'
 import api from '../api'
 import Badge from '../components/Badge'
+import VariantCoverage from '../components/VariantCoverage'
 import { useAuth, can } from '../hooks/useAuth'
 
 function StatCard({ label, value, icon: Icon, color }) {
@@ -229,6 +230,8 @@ export default function Dashboard() {
         <StatCard label="Pending reply"      value={stats?.pending}       icon={Clock}         color="text-amber-400" />
         <StatCard label="Resistant / failed" value={stats?.resistant}     icon={AlertCircle}   color="text-red-400" />
       </div>
+
+      <VariantCoverage />
 
       {/* Progress + recheck row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
