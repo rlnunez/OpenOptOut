@@ -72,7 +72,7 @@ export default function WorkerFleet() {
     } catch (err) {
       setBanner({
         type: 'error',
-        msg: `Failed to update drain signal for ${workerId}: ${err?.response?.data?.detail || err.message}`,
+        msg: `Couldn't change ${workerId}: ${err?.response?.data?.detail || 'please try again.'}`,
       })
     } finally {
       setActionBusy(null)
@@ -92,7 +92,7 @@ export default function WorkerFleet() {
     } catch (err) {
       setBanner({
         type: 'error',
-        msg: `Failed to deregister worker: ${err?.response?.data?.detail || err.message}`,
+        msg: `Couldn't remove the worker: ${err?.response?.data?.detail || 'please try again.'}`,
       })
     } finally {
       setActionBusy(null)
@@ -112,7 +112,7 @@ export default function WorkerFleet() {
     } catch (err) {
       setBanner({
         type: 'error',
-        msg: `Lease reclamation failed: ${err?.response?.data?.detail || err.message}`,
+        msg: `Couldn't take back its jobs: ${err?.response?.data?.detail || 'please try again.'}`,
       })
     } finally {
       setActionBusy(null)
@@ -267,7 +267,7 @@ export default function WorkerFleet() {
           </div>
         </div>
 
-        {/* Queue Backlog */}
+        {/* Jobs waiting */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs uppercase tracking-wider font-semibold">Queue Backlog</span>

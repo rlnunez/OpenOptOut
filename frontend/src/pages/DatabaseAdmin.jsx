@@ -178,7 +178,7 @@ function MigrationTool() {
               {running && <p className="text-shield-400 animate-pulse">▌</p>}
             </div>
             {status.error && (
-              <p className="text-red-400 text-xs mt-2">Error: {status.error}</p>
+              <p className="text-red-400 text-xs mt-2">Problem: {status.error}</p>
             )}
           </div>
         )}

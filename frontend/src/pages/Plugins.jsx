@@ -35,7 +35,7 @@ function SandboxBanner({ status }) {
         <div>
           <p className="text-amber-300 text-sm font-medium">Plugin system not active</p>
           <p className="text-amber-500/80 text-xs mt-0.5">
-            {status?.reason || 'Enable it in Settings → Plugins, ensure gRPC is installed, and restart.'}
+            {status?.reason || 'Turn it on in Settings → Plugins, then restart OpenOptOut. (The server also needs the gRPC package, which the standard install includes.)'}
           </p>
         </div>
       </div>
@@ -85,8 +85,8 @@ function MonitorBanner({ status }) {
           </p>
           <p className="text-slate-500 text-xs mt-0.5">
             {lockdown
-              ? 'Any single violation auto-disables the offending plugin immediately.'
-              : 'Plugins auto-disable on violation by default. Enable lockdown in Settings for the strictest posture.'}
+              ? "If a plugin breaks a single rule, it's switched off straight away."
+              : "Plugins that break a rule are switched off. For the strictest setting, turn on lockdown in Settings."}
           </p>
         </div>
       </div>
@@ -188,7 +188,7 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
       })
       onEnabled()
     } catch (e) {
-      setError(e.response?.data?.detail || 'Failed to enable plugin')
+      setError(e.response?.data?.detail || "Couldn't turn the plugin on. Please try again.")
     } finally { setSaving(false) }
   }
 

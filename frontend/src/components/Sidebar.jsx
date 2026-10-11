@@ -8,30 +8,32 @@ import {
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
-import { useLanguage } from '../i18n/LanguageContext'
+import { useLanguage, useT } from '../i18n/LanguageContext'
 import { useAccessibility } from '../context/AccessibilityContext'
 import api from '../api'
 import { useState, useEffect } from 'react'
 
 const nav = [
-  { label: 'Dashboard',     to: '/',           icon: LayoutDashboard },
-  { label: 'Checklist',     to: '/checklist',  icon: ListChecks, badgeKey: 'checklist' },
-  { label: 'Broker sites',  to: '/brokers',    icon: Store },
-  { label: 'Find listings', to: '/discovery',  icon: Radar },
-  { label: 'Replies',       to: '/email',      icon: Mail },
-  { label: 'Check again',   to: '/scheduled',  icon: CalendarClock },
-  { label: 'CAPTCHAs',      to: '/captcha',    icon: ShieldAlert },
+  { k: 'nav.dashboard', label: 'Dashboard',     to: '/',           icon: LayoutDashboard },
+  { k: 'nav.checklist', label: 'Checklist',     to: '/checklist',  icon: ListChecks, badgeKey: 'checklist' },
+  { k: 'nav.brokers', label: 'Broker sites',  to: '/brokers',    icon: Store },
+  { k: 'nav.discovery', label: 'Find listings', to: '/discovery',  icon: Radar },
+  { k: 'nav.email_monitor', label: 'Replies',       to: '/email',      icon: Mail },
+  { k: 'nav.scheduled', label: 'Check again',   to: '/scheduled',  icon: CalendarClock },
+  { k: 'nav.captcha', label: 'CAPTCHAs',      to: '/captcha',    icon: ShieldAlert },
 ]
 const setup = [
-  { label: 'Family members', to: '/family',   icon: Users },
-  { label: 'Your details', to: '/identity', icon: ShieldCheck },
-  { label: 'Email inboxes',  to: '/inboxes',  icon: Inbox },
-  { label: 'Freeze credit',  to: '/credit-freeze', icon: Snowflake },
-  { label: 'Settings',       to: '/settings', icon: Settings },
-  { label: 'Help',           to: '/help',     icon: BookOpen },
+  { k: 'nav.family', label: 'Family members', to: '/family',   icon: Users },
+  { k: 'nav.vault', label: 'Your details', to: '/identity', icon: ShieldCheck },
+  { k: 'nav.inboxes', label: 'Email inboxes',  to: '/inboxes',  icon: Inbox },
+  { k: 'nav.credit_freeze', label: 'Freeze credit',  to: '/credit-freeze', icon: Snowflake },
+  { k: 'nav.settings', label: 'Settings',       to: '/settings', icon: Settings },
+  { k: 'nav.help', label: 'Help',           to: '/help',     icon: BookOpen },
 ]
 
-function NavItem({ to, icon: Icon, label, onNavigate, badge, badgeLabel }) {
+function NavItem({ k, to, icon: Icon, label, onNavigate, badge, badgeLabel }) {
+  const t = useT()
+  const text = k ? t(k, label) : label
   return (
     <NavLink to={to} end={to === '/'} onClick={onNavigate}
       className={({ isActive }) =>
@@ -40,7 +42,7 @@ function NavItem({ to, icon: Icon, label, onNavigate, badge, badgeLabel }) {
         }`
       }
     >
-      <Icon size={15} />{label}
+      <Icon size={15} aria-hidden="true" />{text}
       {badge > 0 && (
         <span className="ml-auto text-[11px] font-semibold bg-amber-500 text-slate-950 rounded-full px-1.5 min-w-5 text-center"
           aria-label={badgeLabel ? `${badge} ${badgeLabel}` : `${badge} item${badge === 1 ? '' : 's'} need you`}>{badge}</span>
@@ -99,25 +101,25 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
   // hold them all). Upload plugin shows on its own for managers who can upload
   // but not see the Plugins page.
   const adminLinks = [
-    { to: '/admin',            icon: ShieldAlert, label: 'Admin panel',      perms: ['users.manage'] },
-    { to: '/broker-updates',   icon: Bell,        label: 'Broker updates',   perms: ['brokers.manage'], badge: updatesCount, badgeLabel: 'new broker updates' },
-    { to: '/broker-health',    icon: Activity,    label: 'Broker health',    perms: ['brokers.manage'] },
-    { to: '/broker-priority',  icon: ListOrdered, label: 'Broker priority',  perms: ['brokers.manage'] },
-    { to: '/data-sharing',     icon: Share2,      label: 'Data sharing',     perms: ['brokers.manage'] },
-    { to: '/parent-companies', icon: Building2,   label: 'Parent companies', perms: ['brokers.manage'] },
-    { to: '/state-registries', icon: Landmark,    label: 'State registries', perms: ['brokers.manage'] },
-    { to: '/web-search',       icon: Globe2,      label: 'Web search',       perms: ['settings.system'] },
-    { to: '/branding',         icon: Palette,     label: 'Branding',         perms: ['branding.manage', 'users.registration', 'auth.providers'] },
-    { to: '/translations',     icon: Globe,       label: 'Translations',     perms: ['settings.manage'] },
-    { to: '/reporting',        icon: BarChart2,   label: 'Reporting',        perms: ['reporting.view'] },
-    { to: '/database',         icon: HardDrive,   label: 'Database',         perms: ['database.view'] },
-    ...(user?.role === 'super_admin' ? [{ to: '/backups', icon: DatabaseBackup, label: 'Backups', perms: [] }] : []),
-    { to: '/worker-fleet',     icon: Server,      label: 'Worker fleet',     perms: ['settings.system'] },
-    { to: '/logs',             icon: Terminal,    label: 'System logs',      perms: ['logs.view'] },
-    { to: '/plugins',          icon: Puzzle,      label: 'Plugins',          perms: ['plugins.view'] },
-    ...(!can(user, 'plugins.view') ? [{ to: '/plugin-upload', icon: Upload, label: 'Upload plugin', perms: ['plugins.upload'] }] : []),
-    { to: '/plugin-help',      icon: BookOpen,    label: 'Plugin docs',      perms: ['plugins.view', 'plugins.upload'] },
-    { to: '/brokers/add',      icon: PlusCircle,  label: 'Add brokers',      perms: ['brokers.manage'] },
+    { k: 'nav.admin_panel', to: '/admin',            icon: ShieldAlert, label: 'Admin panel',      perms: ['users.manage'] },
+    { k: 'nav.broker_updates', to: '/broker-updates',   icon: Bell,        label: 'Broker updates',   perms: ['brokers.manage'], badge: updatesCount, badgeLabel: 'new broker updates' },
+    { k: 'nav.broker_health', to: '/broker-health',    icon: Activity,    label: 'Broker health',    perms: ['brokers.manage'] },
+    { k: 'nav.broker_priority', to: '/broker-priority',  icon: ListOrdered, label: 'Broker priority',  perms: ['brokers.manage'] },
+    { k: 'nav.data_sharing', to: '/data-sharing',     icon: Share2,      label: 'Data sharing',     perms: ['brokers.manage'] },
+    { k: 'nav.parent_companies', to: '/parent-companies', icon: Building2,   label: 'Parent companies', perms: ['brokers.manage'] },
+    { k: 'nav.registries', to: '/state-registries', icon: Landmark,    label: 'State registries', perms: ['brokers.manage'] },
+    { k: 'nav.websearch', to: '/web-search',       icon: Globe2,      label: 'Web search',       perms: ['settings.system'] },
+    { k: 'nav.branding', to: '/branding',         icon: Palette,     label: 'Branding',         perms: ['branding.manage', 'users.registration', 'auth.providers'] },
+    { k: 'nav.translations', to: '/translations',     icon: Globe,       label: 'Translations',     perms: ['settings.manage'] },
+    { k: 'nav.reporting', to: '/reporting',        icon: BarChart2,   label: 'Reporting',        perms: ['reporting.view'] },
+    { k: 'nav.database', to: '/database',         icon: HardDrive,   label: 'Database',         perms: ['database.view'] },
+    ...(user?.role === 'super_admin' ? [{ k: 'nav.backups', to: '/backups', icon: DatabaseBackup, label: 'Backups', perms: [] }] : []),
+    { k: 'nav.worker_fleet', to: '/worker-fleet',     icon: Server,      label: 'Worker fleet',     perms: ['settings.system'] },
+    { k: 'nav.logs', to: '/logs',             icon: Terminal,    label: 'System logs',      perms: ['logs.view'] },
+    { k: 'nav.plugins', to: '/plugins',          icon: Puzzle,      label: 'Plugins',          perms: ['plugins.view'] },
+    ...(!can(user, 'plugins.view') ? [{ k: 'nav.plugin_upload', to: '/plugin-upload', icon: Upload, label: 'Add a plugin', perms: ['plugins.upload'] }] : []),
+    { k: 'nav.plugin_docs', to: '/plugin-help',      icon: BookOpen,    label: 'Plugin guide',      perms: ['plugins.view', 'plugins.upload'] },
+    { k: 'nav.add_brokers', to: '/brokers/add',      icon: PlusCircle,  label: 'Add brokers',      perms: ['brokers.manage'] },
   ].filter(n => can(user, ...n.perms)).map(({ perms, ...n }) => n)
 
   const roleColor = { super_admin: 'text-purple-400', manager: 'text-sky-400', parent: 'text-teal-400', member: 'text-slate-400' }[user?.role] ?? 'text-slate-400'

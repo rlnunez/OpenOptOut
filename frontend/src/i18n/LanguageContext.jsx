@@ -132,3 +132,10 @@ export function useLanguage() {
   }
   return ctx
 }
+
+// The translate function, or plain English when there's no LanguageProvider
+// (small shared components use this so they never crash outside one).
+export function useT() {
+  const ctx = useContext(LanguageContext)
+  return ctx ? ctx.t : (key, fallback = '') => fallback
+}

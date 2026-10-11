@@ -130,7 +130,7 @@ def _parse_role(value: str) -> UserRole:
     try:
         return UserRole(value)
     except ValueError:
-        raise HTTPException(400, f"Invalid role. Must be one of: {[r.value for r in UserRole]}")
+        raise HTTPException(400, f"Choose a role: {', '.join(r.value.replace('_', ' ') for r in UserRole)}.")
 
 
 def _default_branch(actor: User, branches: set) -> Optional[int]:
@@ -150,7 +150,7 @@ def _new_user_branch(db: Session, actor: User, branch_id: Optional[int]) -> Opti
     scope = manager_scope(db, actor)
     if scope is None:
         if branch_id is not None and not db.query(Branch).filter(Branch.id == branch_id).first():
-            raise HTTPException(404, "Branch not found")
+            raise HTTPException(404, "That branch is gone. Refresh the page.")
         return branch_id
     branches = scope[1]
     if branch_id is not None:
@@ -210,7 +210,7 @@ def create_user(
     current_user: User = Depends(access.require_permission("users.manage")),
 ):
     if db.query(User).filter(User.email == req.email).first():
-        raise HTTPException(400, "Email already registered")
+        raise HTTPException(400, "An account with that email already exists.")
 
     role = _parse_role(req.role)
     _only_super_admin_touches_privileged(current_user, role)
@@ -243,11 +243,11 @@ def update_user(
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(404, "User not found")
+        raise HTTPException(404, "That account is gone. Refresh the page.")
     _only_super_admin_touches_privileged(current_user, user.role)
     assert_user_in_scope(db, current_user, user)
     if req.role is not None and not current_user.is_super_admin:
-        raise HTTPException(403, "Only a super admin can change roles")
+        raise HTTPException(403, "Only the main administrator can change roles.")
 
     if req.full_name is not None:
         user.full_name = req.full_name
@@ -294,10 +294,10 @@ def delete_user(
     current_user: User = Depends(access.require_permission("users.manage")),
 ):
     if user_id == current_user.id:
-        raise HTTPException(400, "Cannot delete your own account")
+        raise HTTPException(400, "You can't delete your own account.")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(404, "User not found")
+        raise HTTPException(404, "That account is gone. Refresh the page.")
     _only_super_admin_touches_privileged(current_user, user.role)
     assert_user_in_scope(db, current_user, user)
     from ..core.mailboxes import purge_for_user
@@ -336,7 +336,7 @@ def create_grant(
         ProfileAccess.managed_id == req.managed_id,
     ).first()
     if existing:
-        raise HTTPException(400, "Grant already exists — use PATCH to update it")
+        raise HTTPException(400, "This person already has access. Change it instead of adding it again.")
 
     # validate both users exist
     for uid, label in [(req.manager_id, "manager"), (req.managed_id, "managed")]:
@@ -371,7 +371,7 @@ def update_grant(
 ):
     grant = db.query(ProfileAccess).filter(ProfileAccess.id == grant_id).first()
     if not grant:
-        raise HTTPException(404, "Grant not found")
+        raise HTTPException(404, "That access is gone. Refresh the page.")
     _check_grant_allowed(db, current_user, grant.manager_id, grant.managed_id)
     grant.can_view = req.can_view
     grant.can_edit = req.can_edit
@@ -388,7 +388,7 @@ def revoke_grant(
 ):
     grant = db.query(ProfileAccess).filter(ProfileAccess.id == grant_id).first()
     if not grant:
-        raise HTTPException(404, "Grant not found")
+        raise HTTPException(404, "That access is gone. Refresh the page.")
     _check_grant_allowed(db, current_user, grant.manager_id, grant.managed_id)
     db.delete(grant)
     db.commit()
@@ -426,7 +426,7 @@ def set_manager_defaults(req: ManagerDefaultsRequest,
     for permissions a super admin granted or removed for that manager."""
     unknown = set(req.permissions) - set(access.PERMISSIONS)
     if unknown:
-        raise HTTPException(400, f"Unknown permissions: {sorted(unknown)}")
+        raise HTTPException(400, f"These permissions don't exist: {', '.join(sorted(unknown))}")
     return {"defaults": access.save_manager_defaults(req.permissions)}
 
 
@@ -436,12 +436,12 @@ def set_manager_permissions(user_id: int, req: ManagerPermissionsRequest,
                             _: User = Depends(require_super_admin)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(404, "User not found")
+        raise HTTPException(404, "That account is gone. Refresh the page.")
     if not user.is_manager:
-        raise HTTPException(400, "Only managers have permissions to set")
+        raise HTTPException(400, "Only managers have permissions to set. Make this account a manager first.")
     unknown = set(req.permissions) - set(access.PERMISSIONS)
     if unknown:
-        raise HTTPException(400, f"Unknown permissions: {sorted(unknown)}")
+        raise HTTPException(400, f"These permissions don't exist: {', '.join(sorted(unknown))}")
     import json
     wanted, defaults = set(req.permissions), set(access.manager_defaults())
     user.permissions_granted = json.dumps(access.clean(wanted - defaults))
