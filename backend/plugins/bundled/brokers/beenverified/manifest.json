@@ -1,0 +1,12 @@
+{
+  "id": "beenverified",
+  "type": "brokers",
+  "broker_id": "beenverified",
+  "name": "BeenVerified",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Opt-out for BeenVerified (beenverified.com). Searches for the person, then a person picks their listing; BeenVerified's confirmation link is clicked automatically.",
+  "spec_file": "spec.json",
+  "difficulty": "hard",
+  "is_property_broker": false
+}

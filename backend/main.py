@@ -134,12 +134,18 @@ def startup():
     run_institutional_migrations()
     migrate_plugin_upload_grants()   # needs every users column, so after both lists
     seed_property_brokers()
+    # Curated broker opt-out steps that ship with the app.
     try:
-        from .core.i18n import offer_new_builtin_languages
-        offer_new_builtin_languages()
+        from .models.database import SessionLocal
+        from .plugins.broker_addon import sync_builtin_brokers
+        _db = SessionLocal()
+        try:
+            sync_builtin_brokers(_db)
+        finally:
+            _db.close()
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning("Language update skipped: %s", e)
+        logging.getLogger(__name__).error("Built-in broker add-ons not installed: %s", e)
     start_scheduler()
     # Plugin system — process-isolated, sandboxed, opt-in via settings
     try:

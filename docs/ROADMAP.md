@@ -48,6 +48,16 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 26 | Automated ILS demographic ingestion & Identity Vault sync | Complete |
 | 27 | Universal accessibility (a11y) & WCAG 2.2 AAA conformance | Complete |
 | 28 | Multi-container test matrix, mock harness & diagnostic automation | Complete |
+| 29 | Parent-company catalog & broker spec metadata | Complete (#67) |
+| 30 | Family inboxes & one address per opt-out | Complete (#69) |
+| 31 | Find your listings (listing finder) | Complete (#70) |
+| 32 | State broker registries, dead-site detection & California DROP | Complete (#71) |
+| 33 | General web search (SearXNG) | Complete (#72) |
+| 34 | Checklist & per-variant removal report | Complete (#73, #75) |
+| 35 | Broker confirmation links clicked automatically | Complete (#76) |
+| 36 | Curated broker form plugins & honest form results | In Review — live verification pending |
+| 37 | Long tail: privacy-request page finder & OneTrust/TrustArc forms | Planned (next) |
+| 38 | Built-in receive-only inbox | In Design ([`docs/BUILTIN_INBOX.md`](BUILTIN_INBOX.md)) |
 
 ---
 
@@ -578,6 +588,102 @@ plugins/
 - **Verification:** Continuously executed via local development scripts and automated CI workflows.
 
 **Status:** Complete.
+
+---
+
+### 29. Parent-company catalog & broker spec metadata
+**Goal:** One opt-out per company instead of one per front-site, and specs that say what each opt-out legally owes and what it will ask of a person.
+
+- **Parent catalog** (`core/catalog/parent_companies.json`, `core/parent_catalog.py`): StateRecords, CourtRecords, PeopleConnect/Intelius, BeenVerified, Whitepages and Spokeo with their child sites, plus "opting out here also removes you there" cascades. Applied from Parent companies; never overrides an admin's data.
+- **Spec metadata:** `legal_basis`, `statutory_response_days` (gives every request a due date), `search_url` / `listing_pattern`, `one_optout_per_email`, `requires`, `source`, `last_verified`; the `pause_for_human` step; `contact_email` and `listing_url` fields.
+- **Per-broker email opt-outs** send again (fixed send path); no guessed `privacy@` addresses.
+- **Credits:** [`CREDITS.md`](../CREDITS.md), linked from the README.
+
+**Status:** Complete (#67).
+
+---
+
+### 30. Family inboxes & one address per opt-out
+**Goal:** Opt-outs are sent from, and answered at, each person's own inbox; the system inbox only sends notifications.
+
+- Each user connects an inbox (OAuth or app password); a parent can connect several and assign one to each family member.
+- Every opt-out gets its own `+address` (`you+oo<random>@domain`) where the inbox allows it, so replies are matched exactly and addresses that later receive mail from someone else reveal who shared them.
+- Replies are matched by tag, then by tracking key, then (for plain addresses) by the broker's sending domain. Family inboxes are polled with the system inbox.
+- See [`docs/EMAIL_SETUP.md`](EMAIL_SETUP.md).
+
+**Status:** Complete (#69).
+
+---
+
+### 31. Find your listings
+**Goal:** Help people find where they're listed and put each listing into the removal cycle.
+
+- Search links built from every name, phone, address and email in the identity vault (adapted from Opt-Out Desk, MIT); one search per known broker.
+- Paste a listing's address: the broker is worked out from the domain (or its parent or network) and a removal request is created with the listing attached. Unknown sites become checklist items.
+
+**Status:** Complete (#70).
+
+---
+
+### 32. State broker registries, dead-site detection & California DROP
+- California, Vermont, Texas and Oregon registries can be imported. Imported brokers are **off by default**; an admin turns them on after a warning that it can do more harm than good.
+- Brokers whose sites stop answering for 30 days are marked defunct.
+- California's DROP deletion service appears as a checklist item for California residents.
+- See [`docs/STATE_REGISTRIES.md`](STATE_REGISTRIES.md).
+
+**Status:** Complete (#71).
+
+---
+
+### 33. General web search
+- Server-side searches through a self-hosted SearXNG (the only provider). Strong matches on known brokers are added to removals automatically; everything else waits for "That's me" / "Not me". Weekly re-runs.
+- See [`docs/WEB_SEARCH.md`](WEB_SEARCH.md).
+
+**Status:** Complete (#72).
+
+---
+
+### 34. Checklist & per-variant removal report
+- **Checklist page:** everything that needs a person (connect an inbox, finish by hand, confirm a link, CAPTCHAs, "is this you?", overdue brokers, re-checks) with progress per family member.
+- **Per-variant report:** Dashboard card comparing removal of the main details (full name, current address, phone) with every other saved variant.
+
+**Status:** Complete (#73, #75).
+
+---
+
+### 35. Broker confirmation links
+- A reply asking for a click no longer counts as a removal. The link is saved encrypted and clicked after each email check: https only, on the broker's or parent's domain (or a click-tracker that lands there), public addresses only, re-checked at every redirect. A hidden browser presses "Confirm" buttons when needed.
+- Links that can't be clicked go on the checklist. Email plugins return links so message bodies stay in the sandbox.
+
+**Status:** Complete (#76).
+
+---
+
+### 36. Curated broker form plugins & honest form results
+**Goal:** Finish automated form filling: real steps for the big people-search sites, and results that never claim more than happened.
+
+- **Built-in broker plugins** in `backend/plugins/bundled/brokers/`, installed at startup: automated Spokeo, MyLife, BeenVerified and Radaris (selectors from Blake104/OptOut, verified upstream 2026-05); guided Whitepages, FastPeopleSearch, TruePeopleSearch, Nuwber, That's Them, USPhoneBook, SmartBackgroundChecks, SearchPeopleFree, FamilyTreeNow, Cyber Background Checks, Clustal and Social Catfish (steps from BADBOOL), which hand the person a one-time address so replies and confirmation links are still automatic.
+- **Engine:** `type` step for React/MUI inputs, actions inside iframes, `{field}` page addresses, derived fields (`street`, `state_name`, `birth_year`, `phone_digits`), whole-name option matching, invisible reCAPTCHA ignored, Turnstile waited out.
+- **"+" addresses:** a form that calls the email invalid is retried once with the plain address and the broker is remembered.
+- **Honest results:** brokers without steps go on the checklist instead of a best-guess fill (guessing is an admin opt-in and must show a success page); manual brokers are no longer marked "sent"; a submitted form stays "sent" until the broker replies, its link is clicked, or someone checks the listing is gone; missing details become a checklist item naming the field.
+- **Tooling:** `broker-plugins/tools/validate.py` dry-runs every plugin. See [`broker-plugins/README.md`](../broker-plugins/README.md) and [`docs/INTERPRETER.md`](INTERPRETER.md).
+- **Open:** live verification of every plugin; handing a live browser to a person at a pause so they can finish in place instead of starting over.
+
+**Status:** In Review — live verification pending.
+
+---
+
+### 37. Long tail: privacy-request page finder & hosted privacy forms
+**Goal:** Cover brokers no one has written steps for. Find a site's privacy-request page, and fill the hosted forms many companies use (OneTrust, TrustArc) with one shared handler.
+
+**Status:** Planned (next).
+
+---
+
+### 38. Built-in receive-only inbox
+**Goal:** Unique addresses on a family-owned domain for inboxes without `+` addressing. Design: [`docs/BUILTIN_INBOX.md`](BUILTIN_INBOX.md).
+
+**Status:** In Design.
 
 ---
 

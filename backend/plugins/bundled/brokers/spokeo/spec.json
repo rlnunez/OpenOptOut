@@ -1,0 +1,50 @@
+{
+  "broker_id": "spokeo",
+  "name": "Spokeo",
+  "spec_version": "1.0",
+  "method": "form",
+  "opt_out_url": "https://www.spokeo.com/optout",
+  "steps": [
+    {
+      "kind": "navigate",
+      "url": "https://www.spokeo.com/optout",
+      "timeout_ms": 20000
+    },
+    {
+      "kind": "wait_for",
+      "selector": "input[name='url']",
+      "timeout_ms": 15000
+    },
+    {
+      "kind": "fill",
+      "selector": "input[name='url']",
+      "field": "listing_url"
+    },
+    {
+      "kind": "fill",
+      "selector": "input[name='email']",
+      "field": "contact_email"
+    },
+    {
+      "kind": "solve_captcha",
+      "selector": "iframe[src*='recaptcha']"
+    },
+    {
+      "kind": "click",
+      "selector": "button.responsive-button"
+    }
+  ],
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "search_url": "https://www.spokeo.com/{first_name}-{last_name}/{state_name}",
+  "requires": [
+    "listing_url",
+    "email_confirmation"
+  ],
+  "source": "Flow and selectors from Blake104/OptOut (AGPL-3.0) spokeo.yml, verified upstream 2026-05-10; process matches BADBOOL's Spokeo entry.",
+  "notes": "Needs the address of the person's own Spokeo listing (Discovery → Find your listings). Spokeo shows a reCAPTCHA checkbox: with a CAPTCHA solver plugin the flow finishes itself, otherwise it waits in the CAPTCHA queue. Spokeo then emails a confirmation link to the one-time address, which OpenOptOut clicks. Links expire within about a day. FreePeopleDirectory listings are removed through this same page. Spokeo may keep data for paid accounts even after it disappears from free search.",
+  "last_verified": ""
+}

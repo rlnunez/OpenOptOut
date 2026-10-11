@@ -38,6 +38,11 @@ KNOWN_FIELDS = {
     # The web address of the member's own listing on this broker, when someone
     # found it (discovery or "Find your listings"). Several brokers' forms ask for it.
     "listing_url",
+    # Derived formats some forms insist on.
+    "street",         # street line of the address only ("12 Oak St Apt 4")
+    "state_name",     # full state name ("Texas") for dropdowns that list names
+    "birth_year",     # from the member's age (approximate: ±1 year)
+    "phone_digits",   # 10 digits, no punctuation ("5125550100")
 }
 
 # Primitive step kinds an add-on can request in a form flow. The compiler maps
@@ -47,6 +52,7 @@ KNOWN_FIELDS = {
 STEP_KINDS = {
     "navigate",       # go to a URL
     "fill",           # put a member field (or literal) into a form input
+    "type",           # like fill, but key by key, for React/MUI inputs that ignore fill
     "select",         # choose an option in a <select>
     "check",          # tick a checkbox / radio
     "click",          # click a button/element
@@ -128,17 +134,22 @@ class Step:
             return errs
         if self.kind == "navigate" and not self.url:
             errs.append("navigate step requires a url")
-        if self.kind in ("fill", "select") and not (self.field or self.value):
+        if self.kind == "navigate" and self.url:
+            import re as _re
+            for name in _re.findall(r"\{([a-z_]+)\}", self.url):
+                if name not in KNOWN_FIELDS:
+                    errs.append(f"navigate url references unknown field: {{{name}}}")
+        if self.kind in ("fill", "type", "select") and not (self.field or self.value):
             errs.append(f"{self.kind} step requires a field or a value")
-        if self.kind == "fill" and self.field and self.field not in KNOWN_FIELDS:
-            errs.append(f"fill references unknown field: {self.field}")
+        if self.kind in ("fill", "type", "select") and self.field and self.field not in KNOWN_FIELDS:
+            errs.append(f"{self.kind} references unknown field: {self.field}")
         if self.kind == "click_matching" and self.field and self.field not in KNOWN_FIELDS:
             errs.append(f"click_matching references unknown field: {self.field}")
         if self.kind == "click_matching" and not (self.selector or self.text or self.field):
             errs.append("click_matching requires a selector, text, or field")
         if self.kind == "press" and not self.value:
             errs.append("press requires a value (e.g. 'Enter', 'Tab')")
-        if self.kind in ("fill", "select", "check", "click", "wait_for") and not self.selector:
+        if self.kind in ("fill", "type", "select", "check", "click", "wait_for") and not self.selector:
             errs.append(f"{self.kind} step requires a selector")
         if self.kind == "expect_success" and not (self.selector or self.text):
             errs.append("expect_success requires a selector or text to look for")
@@ -193,6 +204,11 @@ class BrokerSpec:
     success_text: str = ""
     # Free-form notes for humans (never executed).
     notes: str = ""
+    # For method "manual": what the person does, in plain words. May name
+    # their details: {full_name}, {contact_email} (the address to give the
+    # broker, so its reply and any confirmation link are handled for them),
+    # {listing_url}, {city}, {state}, ...
+    instructions: str = ""
 
     # ── Metadata (all optional; older specs without these stay valid) ──────
     # Which privacy laws apply, and how many days the broker has to respond.
@@ -208,6 +224,10 @@ class BrokerSpec:
     # The broker accepts only one opt-out per email address, so a second
     # listing for the same person needs a different address.
     one_optout_per_email: bool = False
+    # False when the broker's form refuses addresses with a "+" in them; the
+    # engine then uses the inbox's plain address for contact_email. The engine
+    # also learns this on its own when a form rejects a +address.
+    accepts_plus_addresses: bool = True
     # What the person may have to do (see REQUIREMENTS).
     requires: list[str] = field(default_factory=list)
     # Provenance. Every spec records where its opt-out details came from and
@@ -312,6 +332,7 @@ class BrokerSpec:
             success_selector=d.get("success_selector", ""),
             success_text=d.get("success_text", ""),
             notes=d.get("notes", ""),
+            instructions=d.get("instructions", "") or "",
             legal_basis=[str(x).lower() if isinstance(x, str) else x
                          for x in d.get("legal_basis", [])] if isinstance(d.get("legal_basis", []), list)
                         else d.get("legal_basis"),
@@ -319,6 +340,7 @@ class BrokerSpec:
             search_url=d.get("search_url", ""),
             listing_pattern=d.get("listing_pattern", ""),
             one_optout_per_email=d.get("one_optout_per_email", False),
+            accepts_plus_addresses=d.get("accepts_plus_addresses", True),
             requires=d.get("requires", []),
             source=d.get("source", ""),
             last_verified=d.get("last_verified", "") or "",
@@ -333,8 +355,10 @@ class BrokerSpec:
             "success_selector": self.success_selector, "success_text": self.success_text,
             "notes": self.notes,
         }
+        if self.instructions:
+            out["instructions"] = self.instructions
         for k in ("legal_basis", "statutory_response_days", "search_url", "listing_pattern",
-                  "one_optout_per_email", "requires", "source", "last_verified"):
+                  "one_optout_per_email", "accepts_plus_addresses", "requires", "source", "last_verified"):
             v = getattr(self, k)
             if v not in ("", 0, False, []):
                 out[k] = v

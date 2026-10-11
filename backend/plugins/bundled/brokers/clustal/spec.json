@@ -1,0 +1,20 @@
+{
+  "broker_id": "clustal",
+  "name": "Clustal",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://www.clustal.org/privacy-control",
+  "instructions": "Search clustal.org for {full_name}, open \"view full record\", and copy that page's address (the search result's address won't work). Open clustal.org/privacy-control, paste it, press \"remove my info\", enter {contact_email} and press \"remove my info\" again. Clustal emails a link to finish; OpenOptOut clicks it for you. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "listing_url",
+    "email_confirmation"
+  ],
+  "one_optout_per_email": true,
+  "source": "Process per BADBOOL's Clustal entry (full-record URL, one email per listing, emailed opt-out link).",
+  "last_verified": ""
+}

@@ -43,7 +43,7 @@ export default function WebSearchSettings() {
       <form onSubmit={save} className="space-y-4">
         <div className="p-3 rounded-lg border border-slate-700 bg-slate-900/60">
           <div className="text-slate-200 text-sm font-medium">Search provider: SearXNG (self-hosted, free)</div>
-          <div className="text-slate-400 text-xs mt-0.5">Run your own SearXNG server next to OpenOptOut. In its settings.yml, add <code>json</code> under <code>search: formats:</code>.</div>
+          <div className="text-slate-400 text-xs mt-0.5">OpenOptOut comes with its own private SearXNG at <code>http://searxng:8080</code>. Change the address only to use a different SearXNG server (its settings.yml needs <code>json</code> under <code>search: formats:</code>).</div>
           <label htmlFor="ws-url" className="block text-sm text-slate-300 mt-3 mb-1">SearXNG address</label>
           <input id="ws-url" className={inp} placeholder="http://searxng:8080" value={s.searxng_url} onChange={set('searxng_url')} />
         </div>
@@ -63,7 +63,7 @@ export default function WebSearchSettings() {
         </label>
         <label className="flex items-start gap-2 text-sm text-slate-200">
           <input type="checkbox" checked={s.enabled} onChange={set('enabled')} className="mt-0.5 accent-shield-500" />
-          Turn on web search (I've read the note above)
+          Search the web for family members (turn this off if the note above is a problem for your family)
         </label>
 
         {msg && <p role="status" className="text-sm text-shield-300">{msg}</p>}

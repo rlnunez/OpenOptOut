@@ -20,8 +20,11 @@ removal cycle (listing_finder.add_listing). Everything else waits in a review
 list for the person: "Add to removals" or "Not me". "Not me" is remembered.
 
 Privacy: these searches send the member's identifiers to the provider (and, for
-the engines SearXNG forwards to). That's inherent in web search, so the
-feature is off until an admin turns it on, and the settings say so.
+the engines SearXNG forwards to). That's inherent in web search, and finding
+where people are listed is the point of the system, so it's on by default
+whenever a SearXNG address is available (docker-compose bundles one and sets
+SEARXNG_URL). The settings page explains the trade-off and an admin can turn
+it off.
 """
 
 import hashlib
@@ -34,13 +37,14 @@ from urllib.parse import urlparse
 
 log = logging.getLogger(__name__)
 
-DEFAULTS = {"enabled": False, "provider": "searxng", "searxng_url": "",
-            "max_queries": 12, "weekly": False, "auto_add_strong": True}
+import os
+
+DEFAULTS = {"enabled": True, "provider": "searxng", "searxng_url": "",
+            "max_queries": 12, "weekly": True, "auto_add_strong": True}
 
 PRIVACY_NOTE = ("Web searches send family members' names, phone numbers, addresses and email "
                 "addresses to your SearXNG server, which passes them on to the search engines it "
-                "uses. Only turn this on if the family is "
-                "comfortable with that.")
+                "uses. Turn it off under Admin → Web search if the family isn't comfortable with that.")
 
 # Sites that show up in searches but aren't where a listing lives.
 _SKIP_DOMAINS = {"google.com", "bing.com", "duckduckgo.com", "search.brave.com", "yahoo.com",
@@ -53,8 +57,11 @@ _STREET_ABBR = {"street": "st", "avenue": "ave", "road": "rd", "drive": "dr", "l
 
 
 def settings_of(cfg: dict) -> dict:
-    out = dict(DEFAULTS)
-    out.update((cfg or {}).get("web_search") or {})
+    """Saved settings over the defaults. Until an admin saves an address, the
+    one from SEARXNG_URL (the bundled SearXNG) is used."""
+    out = dict(DEFAULTS, searxng_url=os.getenv("SEARXNG_URL", "").strip())
+    saved = (cfg or {}).get("web_search") or {}
+    out.update({k: v for k, v in saved.items() if not (k == "searxng_url" and not v)})
     return out
 
 

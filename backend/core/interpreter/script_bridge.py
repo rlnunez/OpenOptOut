@@ -135,8 +135,16 @@ def heuristic_spec_for_broker(broker) -> BrokerSpec:
         method="form",
         opt_out_url=opt_out_url,
         steps=steps,
-        notes="Heuristic fallback spec automatically generated for unscripted broker",
+        notes=HEURISTIC_NOTE,
     )
+
+
+HEURISTIC_NOTE = "Heuristic fallback spec automatically generated for unscripted broker"
+
+
+def is_heuristic(spec) -> bool:
+    """True for the best-guess spec used when a broker has no real steps."""
+    return getattr(spec, "notes", "") == HEURISTIC_NOTE
 
 
 def get_or_build_broker_spec(broker, script=None, db=None) -> BrokerSpec:
