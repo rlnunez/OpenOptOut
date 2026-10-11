@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Search, Upload, ExternalLink, ChevronDown, ScanSearch } from 'lucide-react'
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
-import Badge from '../components/Badge'
+import Badge, { plainLabel } from '../components/Badge'
 import PrivacyPagesPanel from '../components/PrivacyPagesPanel'
 
 const STATUS_OPTIONS   = ['', 'compliant', 'resistant', 'inconsistent', 'undetermined']
@@ -73,10 +73,10 @@ export default function Brokers() {
     form.append('file', file)
     try {
       const { data } = await api.post('/brokers/import-csv', form)
-      setImportMsg(`✓ Imported: ${data.added} added, ${data.updated} updated`)
+      setImportMsg(`✓ Done: ${data.added} new sites added, ${data.updated} updated`)
       fetchBrokers()
     } catch {
-      setImportMsg('Import failed — check CSV format')
+      setImportMsg("Couldn't read that file. It needs to be a CSV spreadsheet with the same columns as the broker list.")
     } finally {
       setImporting(false)
     }
@@ -86,8 +86,8 @@ export default function Brokers() {
     <div className="p-4 md:p-6 max-w-6xl">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-white text-xl font-semibold">Brokers</h1>
-          <p className="text-slate-400 text-sm mt-0.5">{brokers.length} brokers loaded</p>
+          <h1 className="text-white text-xl font-semibold">Data broker sites</h1>
+          <p className="text-slate-400 text-sm mt-0.5">{brokers.length} sites that sell or publish personal details</p>
         </div>
         {canManage && <label className={`flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg cursor-pointer transition-colors ${
           importing
@@ -95,7 +95,7 @@ export default function Brokers() {
             : 'text-slate-300 border-slate-700 hover:bg-slate-800'
         }`}>
           <Upload size={13} />
-          {importing ? 'Importing…' : 'Import CSV'}
+          {importing ? 'Importing…' : 'Add sites from a spreadsheet'}
           <input type="file" accept=".csv" className="hidden" onChange={handleImport} disabled={importing} />
         </label>}
       </div>
@@ -113,13 +113,13 @@ export default function Brokers() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search brokers…"
+            placeholder="Search sites…"
             className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-shield-500"
           />
         </div>
-        <Select value={status} onChange={setStatus} options={STATUS_OPTIONS} label="Status" />
-        <Select value={method} onChange={setMethod} options={METHOD_OPTIONS} label="Method" />
-        <Select value={difficulty} onChange={setDifficulty} options={DIFF_OPTIONS} label="Difficulty" />
+        <Select value={status} onChange={setStatus} options={STATUS_OPTIONS} label="Any track record" />
+        <Select value={method} onChange={setMethod} options={METHOD_OPTIONS} label="Any way to ask" />
+        <Select value={difficulty} onChange={setDifficulty} options={DIFF_OPTIONS} label="Any difficulty" />
       </div>
 
       {/* Table */}
@@ -128,13 +128,13 @@ export default function Brokers() {
           <table className="w-full text-sm">
           <thead>
             <tr className="text-slate-500 text-xs border-b border-slate-700/50">
-              <th className="text-left px-4 py-3 font-normal">Broker</th>
-              <th className="text-left px-4 py-3 font-normal">Incogni status</th>
-              <th className="text-left px-4 py-3 font-normal">Method</th>
+              <th className="text-left px-4 py-3 font-normal">Site</th>
+              <th className="text-left px-4 py-3 font-normal">Track record</th>
+              <th className="text-left px-4 py-3 font-normal">How to ask</th>
               <th className="text-left px-4 py-3 font-normal">Difficulty</th>
-              <th className="text-left px-4 py-3 font-normal">Preferred CAPTCHA</th>
+              <th className="text-left px-4 py-3 font-normal">CAPTCHA helper</th>
               <th className="text-left px-4 py-3 font-normal">Last request</th>
-              <th className="text-left px-4 py-3 font-normal">Re-check</th>
+              <th className="text-left px-4 py-3 font-normal">Check again</th>
               <th className="px-4 py-3 font-normal"></th>
             </tr>
           </thead>
@@ -144,7 +144,7 @@ export default function Brokers() {
             )}
             {!loading && brokers.length === 0 && (
               <tr><td colSpan={8} className="px-4 py-8 text-slate-500 text-center">
-                No brokers found. Import the enriched CSV to get started.
+                No sites match. Try clearing the filters above.
               </td></tr>
             )}
             {!loading && brokers.map(b => (
@@ -157,19 +157,20 @@ export default function Brokers() {
                   {canManage ? (
                     <select
                       value={b.captcha_plugin_id || ''}
+                      aria-label={`CAPTCHA helper for ${b.name}`}
                       onChange={e => handleSolverChange(b.id, e.target.value)}
                       className="bg-slate-900 border border-slate-700 rounded-sm px-2 py-1 text-xs text-slate-300 focus:outline-hidden focus:border-shield-500"
                     >
-                      <option value="">Default (Any)</option>
+                      <option value="">Whichever is on</option>
                       {solvers.map(s => (
                         <option key={s.plugin_id} value={s.plugin_id}>
-                          {s.name} {!s.enabled ? '(disabled)' : ''}
+                          {s.name} {!s.enabled ? '(off)' : ''}
                         </option>
                       ))}
                     </select>
                   ) : (
                     <span className="text-xs text-slate-400">
-                      {solvers.find(s => s.plugin_id === b.captcha_plugin_id)?.name || (b.captcha_plugin_id || 'Default')}
+                      {solvers.find(s => s.plugin_id === b.captcha_plugin_id)?.name || (b.captcha_plugin_id || 'Whichever is on')}
                     </span>
                   )}
                 </td>
@@ -179,14 +180,14 @@ export default function Brokers() {
                 <td className="px-4 py-2.5 text-slate-500 text-xs">
                   {b.recheck_after
                     ? new Date(b.recheck_after) < new Date()
-                      ? <span className="text-orange-400">overdue</span>
+                      ? <span className="text-orange-400">now</span>
                       : new Date(b.recheck_after).toLocaleDateString()
                     : '—'}
                 </td>
                 <td className="px-4 py-2.5 flex items-center gap-2">
                   {canManage && (
                     <button onClick={() => findPrivacyPage(b)} className="text-slate-400 hover:text-shield-300"
-                      title="Find this broker's privacy request page" aria-label={`Find ${b.name}'s privacy request page`}>
+                      title="Look on this site for its privacy request page" aria-label={`Find ${b.name}'s privacy request page`}>
                       <ScanSearch size={13} />
                     </button>
                   )}
@@ -196,7 +197,7 @@ export default function Brokers() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-shield-400 hover:text-shield-300 transition-colors"
-                      title="Open opt-out page"
+                      title="Open the opt-out page" aria-label={`Open ${b.name}'s opt-out page`}
                     >
                       <ExternalLink size={13} />
                     </a>
@@ -218,11 +219,12 @@ function Select({ value, onChange, options, label }) {
     <div className="relative min-w-[110px]">
       <select
         value={value}
+        aria-label={label}
         onChange={e => onChange(e.target.value)}
         className="w-full appearance-none bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-7 py-1.5 text-sm text-slate-300 focus:outline-hidden focus:border-shield-500"
       >
         {options.map(o => (
-          <option key={o} value={o}>{o || label}</option>
+          <option key={o} value={o}>{o ? plainLabel(o) : label}</option>
         ))}
       </select>
       <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />

@@ -4,7 +4,7 @@ import {
   Users, ShieldCheck, Settings, LogOut, ShieldAlert,
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
   Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal,
-  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Bell, Share2, Snowflake
+  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Bell, Share2, Snowflake, DatabaseBackup
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
@@ -16,15 +16,15 @@ import { useState, useEffect } from 'react'
 const nav = [
   { label: 'Dashboard',     to: '/',           icon: LayoutDashboard },
   { label: 'Checklist',     to: '/checklist',  icon: ListChecks, badgeKey: 'checklist' },
-  { label: 'Brokers',       to: '/brokers',    icon: Store },
-  { label: 'Discovery',     to: '/discovery',  icon: Radar },
-  { label: 'Email monitor', to: '/email',      icon: Mail },
-  { label: 'Scheduled',     to: '/scheduled',  icon: CalendarClock },
-  { label: 'CAPTCHA queue', to: '/captcha',    icon: ShieldAlert },
+  { label: 'Broker sites',  to: '/brokers',    icon: Store },
+  { label: 'Find listings', to: '/discovery',  icon: Radar },
+  { label: 'Replies',       to: '/email',      icon: Mail },
+  { label: 'Check again',   to: '/scheduled',  icon: CalendarClock },
+  { label: 'CAPTCHAs',      to: '/captcha',    icon: ShieldAlert },
 ]
 const setup = [
   { label: 'Family members', to: '/family',   icon: Users },
-  { label: 'Identity vault', to: '/identity', icon: ShieldCheck },
+  { label: 'Your details', to: '/identity', icon: ShieldCheck },
   { label: 'Email inboxes',  to: '/inboxes',  icon: Inbox },
   { label: 'Freeze credit',  to: '/credit-freeze', icon: Snowflake },
   { label: 'Settings',       to: '/settings', icon: Settings },
@@ -111,6 +111,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
     { to: '/translations',     icon: Globe,       label: 'Translations',     perms: ['settings.manage'] },
     { to: '/reporting',        icon: BarChart2,   label: 'Reporting',        perms: ['reporting.view'] },
     { to: '/database',         icon: HardDrive,   label: 'Database',         perms: ['database.view'] },
+    ...(user?.role === 'super_admin' ? [{ to: '/backups', icon: DatabaseBackup, label: 'Backups', perms: [] }] : []),
     { to: '/worker-fleet',     icon: Server,      label: 'Worker fleet',     perms: ['settings.system'] },
     { to: '/logs',             icon: Terminal,    label: 'System logs',      perms: ['logs.view'] },
     { to: '/plugins',          icon: Puzzle,      label: 'Plugins',          perms: ['plugins.view'] },
@@ -158,7 +159,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
 
         {/* Scrollable body: Contains both nav links and footer controls so nothing is ever clipped */}
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-between">
-          <nav aria-label="Primary navigation" className="flex flex-col gap-0.5 pb-2">
+          <nav aria-label="Main menu" className="flex flex-col gap-0.5 pb-2">
             <p className="text-slate-600 text-xs px-4 mb-1 uppercase tracking-widest">Manage</p>
             {nav.map(n => <NavItem key={n.to} {...n} badge={n.badgeKey === 'checklist' ? checklistCount : 0} onNavigate={handleNavigate} />)}
             <p className="text-slate-600 text-xs px-4 mt-3 mb-1 uppercase tracking-widest">Setup</p>

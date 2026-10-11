@@ -52,9 +52,9 @@ MASTER_DICTIONARY: List[Dict[str, str]] = [
     # ── Navigation & Shell ──────────────────────────────────────────
     {"key": "nav.dashboard", "default_text": "Dashboard", "location": "Navigation / Sidebar", "description": "Sidebar link to main metrics dashboard"},
     {"key": "nav.requests", "default_text": "Removal Requests", "location": "Navigation / Sidebar", "description": "Sidebar link to broker removal requests table"},
-    {"key": "nav.vault", "default_text": "Identity Vault", "location": "Navigation / Sidebar", "description": "Sidebar link to manage personal data identities"},
+    {"key": "nav.vault", "default_text": "Your details", "location": "Navigation / Sidebar", "description": "Sidebar link to manage personal data identities"},
     {"key": "nav.family", "default_text": "Family Members", "location": "Navigation / Sidebar", "description": "Sidebar link to manage protected family profiles"},
-    {"key": "nav.brokers", "default_text": "Data Brokers", "location": "Navigation / Sidebar", "description": "Sidebar link to broker directory and status"},
+    {"key": "nav.brokers", "default_text": "Broker sites", "location": "Navigation / Sidebar", "description": "Sidebar link to broker directory and status"},
     {"key": "nav.settings", "default_text": "Settings", "location": "Navigation / Sidebar", "description": "Sidebar link to platform configuration"},
     {"key": "nav.translations", "default_text": "Translations", "location": "Navigation / Sidebar", "description": "Admin link to in-system translation editor"},
     {"key": "nav.plugins", "default_text": "Plugins", "location": "Navigation / Sidebar", "description": "Sidebar link to plugins and add-on catalog"},

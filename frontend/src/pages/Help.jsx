@@ -15,55 +15,55 @@ const STATIC_DOCS = {
     {
       id: 'how-it-works',
       title: 'How OpenOptOut works',
-      content: `OpenOptOut automates the removal of your personal information from data brokers — companies that collect and sell your name, address, phone number, and other details without your direct consent.
+      content: `Data brokers are companies that collect your name, address, phone number and other details and sell them or post them online. OpenOptOut asks them to take your details down, and keeps checking that they stay down.
 
-**The pipeline has four stages:**
+**It works in four steps:**
 
-1. **Identity vault** — You enter all name variants, email addresses, phone numbers, and past/current addresses for each family member. More variants = better coverage.
+1. **Your details** — For each person in your family, add every name, email, phone number and address they've used, including old ones. The more you add, the more listings we can find.
 
-2. **Discovery** — The system searches data broker sites for listings matching your identity data and logs which sites have your information.
+2. **Find listings** — We search broker sites and the web to see which ones have a page about you.
 
-3. **Opt-out** — For each confirmed listing, OpenOptOut submits a removal request using the broker's opt-out form or sends a formal email request. Every outgoing email includes a unique tracking ID in the subject line.
+3. **Ask for removal** — We fill in each site's opt-out form or send it an email asking it to delete your details. Each email goes out from its own address, so we can tell which site wrote back.
 
-4. **Monitoring** — The email monitor polls your configured inbox for confirmation emails, matches them to your requests using the tracking ID, and marks removals as confirmed. Re-check dates are set automatically so removals are re-verified before brokers can re-list you.`,
+4. **Check replies and check again** — We read the replies, click the confirmation links, and mark a listing as removed once the site confirms it. Later we look again, because many sites put people back after a few months. If your page comes back, we ask again.
+
+Some sites need a person to finish: a CAPTCHA, a phone call, or a letter. Those show up on your **Checklist**.`,
     },
     {
       id: 'email-setup',
       title: 'Setting up your removal email',
-      content: `We recommend creating a **dedicated email address** purely for data removal requests — keep it separate from your personal inbox.
+      content: `We suggest a **separate email address** just for removal requests, apart from your everyday inbox.
 
-**Why a dedicated address?**
-- Brokers often add opt-out requesters to new marketing lists. A dedicated address contains any blowback.
-- All confirmation emails land in one place, making the monitor's job simple.
-- You can see at a glance whether a broker replied.
+**Why a separate address?**
+- Some sites add people who opt out to marketing lists. A separate inbox keeps that mess away from you.
+- Every reply lands in one place, so it's easy to see who answered.
 
-**Recommended setup (OAuth 2.0 — Most Secure):**
-1. Create or use a dedicated mailbox (e.g. 'yourname.removals@gmail.com' or Outlook).
-2. In OpenOptOut Settings → Email (or during the initial Setup Wizard), click **Connect with Google** or **Connect with Microsoft**.
-3. Authorize the requested mail permissions. OAuth uses temporary scoped tokens instead of storing long-lived passwords.
+**Easiest way (Gmail or Outlook):**
+1. Make a new Gmail or Outlook address, for example yourname.removals@gmail.com.
+2. Go to **Email inboxes** and choose **Connect an inbox**.
+3. Pick Google or Microsoft and sign in. You never type your password into OpenOptOut, and you can disconnect at any time.
 
-**Alternative setup (App Passwords / SMTP):**
-If you use Yahoo, Fastmail, or prefer traditional IMAP/SMTP:
-1. Enable 2-Step Verification on the account
-2. Generate an App Password in your provider's security settings (e.g. 'myaccount.google.com/apppasswords')
-3. In OpenOptOut Settings → Email, select your provider preset
-4. Enter your email and paste the App Password (not your primary password) into the password fields
-5. Click "Test connection" — both IMAP and SMTP should show green`,
+**Other email services (Yahoo, Fastmail and others):**
+1. Turn on two-step sign-in for the account.
+2. In the account's security settings, make an **app password** (a separate password just for apps like this one).
+3. Go to **Email inboxes**, choose **Connect an inbox**, pick your service, and paste the app password, not your normal one.
+
+Gmail and Outlook let every opt-out use its own address (like you+oo7f3k2a@gmail.com), which is how we match each reply to the right site.`,
     },
     {
       id: 'recheck-explained',
-      title: 'Re-checks and why they matter',
-      content: `A confirmed removal does not mean permanent removal. Data brokers continuously scrape public records, social media, and other data sources. Most re-list individuals within **30–90 days** of removal.
+      title: 'Why we check again',
+      content: `Getting removed once doesn't mean you stay removed. Broker sites keep collecting public records and other data, and many put people back within **1 to 3 months**.
 
-**How re-checks work:**
-- When a removal is confirmed, a re-check date is set (default 90 days)
-- On the re-check date, the removal is re-queued for re-submission
-- If the broker complies again quickly, the cycle continues automatically
+**How it works:**
+- When a site confirms it removed you, we set a date to check again (90 days unless you change it).
+- On that date we look at the site. If your page is back, we ask for removal again.
+- We also run a weekly web search to spot your details showing up anywhere new.
 
-**Adjusting re-check intervals:**
-Go to Settings → Scheduler → Recheck interval. Resistant brokers (those that frequently re-list) should be set to 30 days. Compliant ones can safely be left at 90.
+**Changing how often we check:**
+Go to **Settings** and change how many days to wait before checking again. Sites that often put people back are worth checking every 30 days.
 
-**The Scheduled page** shows your upcoming and overdue re-checks. You can snooze individual ones (if you've manually verified the listing is still gone) or re-queue them immediately.`,
+**The Check again page** lists what's due now and what's coming up. You can send a request again right away, or push a check later if you've already looked yourself.`,
     },
     {
       id: 'database-scaling',

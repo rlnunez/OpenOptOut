@@ -297,7 +297,7 @@ class ResultIngestionService:
 
                     elif result_env.status == "captcha":
                         req.status = RequestStatus.needs_manual
-                        req.notes = ((req.notes or "") + " [Paused for human CAPTCHA resolution]").strip()
+                        req.notes = ((req.notes or "") + " Stopped at a CAPTCHA (the site asked to prove a person is there).").strip()
 
                         # Route to CaptchaChallenge queue
                         try:

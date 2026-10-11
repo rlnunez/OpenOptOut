@@ -117,7 +117,7 @@ def list_challenges(
         q = q.filter(CaptchaChallenge.status == status)
     if member_id:
         if member_id not in accessible:
-            raise HTTPException(403, "No access to this member")
+            raise HTTPException(403, "You don't have access to this person.")
         q = q.filter(CaptchaChallenge.member_id == member_id)
     if broker_id:
         q = q.filter(CaptchaChallenge.broker_id == broker_id)
@@ -154,7 +154,7 @@ def get_challenge(
     """Fetch details of a single CAPTCHA challenge."""
     c = db.query(CaptchaChallenge).filter(CaptchaChallenge.id == challenge_id).first()
     if not c:
-        raise HTTPException(404, "Challenge not found")
+        raise HTTPException(404, "That CAPTCHA is gone. Refresh the page.")
     assert_can_view(db, current_user, c.member_id)
     return _challenge_to_out(c)
 
@@ -168,16 +168,16 @@ def get_challenge_screenshot(
     """Stream challenge screenshot image."""
     c = db.query(CaptchaChallenge).filter(CaptchaChallenge.id == challenge_id).first()
     if not c:
-        raise HTTPException(404, "Challenge not found")
+        raise HTTPException(404, "That CAPTCHA is gone. Refresh the page.")
     assert_can_view(db, current_user, c.member_id)
 
     if not c.screenshot or not os.path.isfile(c.screenshot):
-        raise HTTPException(404, "Screenshot not available")
+        raise HTTPException(404, "There's no picture of this page.")
 
     # Defense against directory traversal
     real_path = os.path.realpath(c.screenshot)
     if not (real_path.startswith(os.path.realpath(SCREENSHOTS_DIR)) or real_path.startswith("/data/")):
-        raise HTTPException(403, "Access to screenshot path forbidden")
+        raise HTTPException(403, "That picture can't be shown.")
 
     with open(real_path, "rb") as f:
         img_bytes = f.read()
@@ -199,7 +199,7 @@ def resolve_challenge(
     """
     c = db.query(CaptchaChallenge).filter(CaptchaChallenge.id == challenge_id).first()
     if not c:
-        raise HTTPException(404, "Challenge not found")
+        raise HTTPException(404, "That CAPTCHA is gone. Refresh the page.")
     assert_can_view(db, current_user, c.member_id)
 
     c.status = "resolved"
@@ -263,7 +263,7 @@ def dismiss_challenge(
     """Dismiss a challenge without completing removal."""
     c = db.query(CaptchaChallenge).filter(CaptchaChallenge.id == challenge_id).first()
     if not c:
-        raise HTTPException(404, "Challenge not found")
+        raise HTTPException(404, "That CAPTCHA is gone. Refresh the page.")
     assert_can_view(db, current_user, c.member_id)
 
     c.status = "dismissed"
@@ -291,7 +291,7 @@ def retry_challenge(
     """Reset the removal request to pending to attempt automated execution again."""
     c = db.query(CaptchaChallenge).filter(CaptchaChallenge.id == challenge_id).first()
     if not c:
-        raise HTTPException(404, "Challenge not found")
+        raise HTTPException(404, "That CAPTCHA is gone. Refresh the page.")
     assert_can_view(db, current_user, c.member_id)
 
     c.status = "dismissed"

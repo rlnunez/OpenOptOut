@@ -1047,7 +1047,8 @@ async def execute_optout(
                             except Exception:
                                 pass
 
-                        request.notes = f"Paused for human CAPTCHA resolution ({ch.get('type', 'other')})"
+                        request.notes = ("Stopped at a CAPTCHA (the site asked to prove a person is there). "
+                                         "Open it from the CAPTCHAs page and finish the opt-out there")
                         if getattr(interp_res, "contact_email", ""):
                             request.notes += (f". If you finish it on the site yourself, give "
                                               f"{interp_res.contact_email} as the email address, so "

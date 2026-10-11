@@ -31,6 +31,7 @@ from .routers.mailboxes import router as mailboxes_router
 from .routers.listings import router as listings_router
 from .routers.registry import router as registry_router
 from .routers.web_search import router as web_search_router
+from .routers.backups import router as backups_router
 from .routers.privacy_pages import router as privacy_pages_router
 from .routers.broker_updates import router as broker_updates_router
 from .routers.verification import router as verification_router

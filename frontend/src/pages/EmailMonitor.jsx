@@ -161,7 +161,7 @@ export default function EmailMonitor() {
     <div className="p-4 md:p-6 max-w-4xl">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-white text-xl font-semibold">Email monitor</h1>
+          <h1 className="text-white text-xl font-semibold">Replies</h1>
           <p className="text-slate-400 text-sm mt-0.5">
             Replies from data brokers to your family's opt-outs
           </p>

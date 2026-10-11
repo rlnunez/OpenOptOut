@@ -10,11 +10,12 @@ import Badge from '../components/Badge'
 
 function daysLabel(days) {
   if (days === null || days === undefined) return '—'
-  if (days < 0)  return { text: `${Math.abs(days)}d overdue`, cls: 'text-red-400' }
-  if (days === 0) return { text: 'due today',  cls: 'text-orange-400' }
-  if (days <= 7)  return { text: `${days}d`,   cls: 'text-amber-400' }
-  if (days <= 30) return { text: `${days}d`,   cls: 'text-yellow-400' }
-  return               { text: `${days}d`,     cls: 'text-slate-400' }
+  if (days < 0)  return { text: `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} late`, cls: 'text-red-400' }
+  if (days === 0) return { text: 'today',  cls: 'text-orange-400' }
+  const t = `in ${days} day${days === 1 ? '' : 's'}`
+  if (days <= 7)  return { text: t, cls: 'text-amber-400' }
+  if (days <= 30) return { text: t, cls: 'text-yellow-400' }
+  return               { text: t, cls: 'text-slate-400' }
 }
 
 function UrgencyBar({ days }) {
@@ -67,11 +68,11 @@ function RecheckRow({ req, onRequeue, onSnooze }) {
         {req.confirmed_at ? new Date(req.confirmed_at).toLocaleDateString() : '—'}
       </td>
       <td className="px-4 py-3">
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={requeue} disabled={acting} title="Re-queue for opt-out"
+        <div className="flex items-center gap-1">
+          <button onClick={requeue} disabled={acting} title="Send the opt-out again"
             className="flex items-center gap-1 px-2 py-1 text-xs text-shield-400 border border-shield-800 bg-shield-900/20 rounded-sm hover:bg-shield-800/30 transition-colors disabled:opacity-40">
             {acting ? <RefreshCw size={10} className="animate-spin" /> : <RotateCcw size={10} />}
-            Re-queue
+            Send again
           </button>
           <SnoozeMenu reqId={req.id} onSnooze={onSnooze} />
         </div>
@@ -92,7 +93,7 @@ function SnoozeMenu({ reqId, onSnooze }) {
     <div className="relative">
       <button onClick={() => setOpen(o => !o)}
         className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 border border-slate-700 rounded-sm hover:bg-slate-700 transition-colors">
-        <AlarmClock size={10} /> Snooze <ChevronDown size={9} />
+        <AlarmClock size={10} aria-hidden="true" /> Check later <ChevronDown size={9} aria-hidden="true" />
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-10 min-w-28 overflow-hidden">
@@ -100,7 +101,7 @@ function SnoozeMenu({ reqId, onSnooze }) {
             <button key={o.days}
               onClick={() => { onSnooze(reqId, o.days); setOpen(false) }}
               className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
-              +{o.label}
+              In {o.label}
             </button>
           ))}
         </div>
@@ -167,9 +168,9 @@ export default function Scheduled() {
     <div className="p-4 md:p-6 max-w-5xl">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-white text-xl font-semibold">Scheduled re-checks</h1>
+          <h1 className="text-white text-xl font-semibold">Check again</h1>
           <p className="text-slate-400 text-sm mt-0.5">
-            Track confirmed removals that need periodic re-verification
+            Brokers often put people back. These removals are due for another look (OpenOptOut checks most of them automatically).
           </p>
         </div>
         <button onClick={load} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
@@ -179,17 +180,17 @@ export default function Scheduled() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-        <SummaryCard label="Overdue"        value={overdue.length}  icon={AlertTriangle} color="text-red-400" />
-        <SummaryCard label={`Due in ${daysAhead}d`} value={upcoming.length} icon={Clock} color="text-amber-400" />
-        <SummaryCard label="Total confirmed" value={overdue.length + upcoming.length} icon={CheckCircle} color="text-emerald-400" />
+        <SummaryCard label="Due now"        value={overdue.length}  icon={AlertTriangle} color="text-red-400" />
+        <SummaryCard label={`Due in the next ${daysAhead} days`} value={upcoming.length} icon={Clock} color="text-amber-400" />
+        <SummaryCard label="Removals shown" value={overdue.length + upcoming.length} icon={CheckCircle} color="text-emerald-400" />
       </div>
 
       {/* Tabs + filters */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700/50 flex-wrap">
           {[
-            { key: 'overdue',  label: `Overdue (${overdue.length})` },
-            { key: 'upcoming', label: `Upcoming (${upcoming.length})` },
+            { key: 'overdue',  label: `Due now (${overdue.length})` },
+            { key: 'upcoming', label: `Coming up (${upcoming.length})` },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`px-3 py-1.5 text-sm rounded transition-colors ${
@@ -216,7 +217,7 @@ export default function Scheduled() {
           {members.length > 1 && (
             <select value={memberFilter} onChange={e => setMemberFilter(e.target.value)}
               className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-slate-300 focus:outline-hidden">
-              <option value="">All members</option>
+              <option value="">Everyone</option>
               {members.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           )}
@@ -231,7 +232,7 @@ export default function Scheduled() {
           <div className="text-center py-12">
             <CalendarClock size={28} className="text-slate-700 mx-auto mb-2" />
             <p className="text-slate-400 text-sm">
-              {tab === 'overdue' ? 'No overdue re-checks — all clear.' : `No re-checks due in the next ${daysAhead} days.`}
+              {tab === 'overdue' ? 'Nothing is due right now.' : `Nothing is due in the next ${daysAhead} days.`}
             </p>
           </div>
         ) : (
@@ -239,13 +240,13 @@ export default function Scheduled() {
             <table className="w-full text-sm">
             <thead>
               <tr className="text-slate-500 text-xs border-b border-slate-700/50">
-                <th className="text-left px-4 py-3 font-normal">Broker</th>
-                <th className="text-left px-4 py-3 font-normal">Member</th>
+                <th className="text-left px-4 py-3 font-normal">Site</th>
+                <th className="text-left px-4 py-3 font-normal">Person</th>
                 <th className="text-left px-4 py-3 font-normal">
-                  {tab === 'overdue' ? 'Overdue by' : 'Due in'}
+                  {tab === 'overdue' ? 'Late by' : 'Due'}
                 </th>
                 <th className="text-left px-4 py-3 font-normal">Difficulty</th>
-                <th className="text-left px-4 py-3 font-normal">Confirmed</th>
+                <th className="text-left px-4 py-3 font-normal">Removed on</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -263,12 +264,12 @@ export default function Scheduled() {
         <div className="mt-3 flex justify-end">
           <button
             onClick={async () => {
-              if (!confirm(`Re-queue all ${rows.length} overdue removals?`)) return
+              if (!confirm(`Send all ${rows.length} opt-outs that are due again?`)) return
               await Promise.all(rows.map(r => api.post(`/requests/${r.id}/requeue`)))
               load()
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-shield-400 border border-shield-800 bg-shield-900/20 rounded-lg hover:bg-shield-800/30 transition-colors">
-            <RotateCcw size={13} /> Re-queue all overdue
+            <RotateCcw size={13} aria-hidden="true" /> Send all due ones again
           </button>
         </div>
       )}

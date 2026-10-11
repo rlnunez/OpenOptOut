@@ -58,7 +58,7 @@ function Item({ group, item, act }) {
       <div className="flex gap-2 flex-wrap shrink-0">
         {item.link && (
           <Link to={item.link} className={`${btn} bg-shield-600 hover:bg-shield-500 text-white`}>
-            {group === 'inbox' ? 'Connect inbox' : group === 'captcha' ? 'Open CAPTCHA queue' : 'Review'}
+            {group === 'inbox' ? 'Connect inbox' : group === 'captcha' ? 'Open CAPTCHAs' : 'Review'}
           </Link>
         )}
         {group === 'confirm' && item.confirm_url && (
