@@ -693,6 +693,44 @@ class RemovalRequest(Base):
     broker = relationship("Broker", back_populates="requests")
     emails = relationship("EmailLog", back_populates="request")
     captcha_challenges = relationship("CaptchaChallenge", back_populates="request", cascade="all, delete-orphan")
+    events = relationship("RequestEvent", back_populates="request", cascade="all, delete-orphan",
+                          order_by="RequestEvent.at")
+
+
+class RequestEvent(Base):
+    """
+    One step in a removal's history: every change of RemovalRequest.status is
+    recorded here automatically (see the listener below), so the timeline can
+    show when a request was sent, removed, found again and sent again, cycle
+    after cycle, even though the request row itself only keeps the latest dates.
+    """
+    __tablename__ = "request_events"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    request_id = Column(Integer, ForeignKey("removal_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    at         = Column(DateTime, default=datetime.utcnow, index=True)
+    from_status = Column(String(20), nullable=True)
+    to_status   = Column(String(20), nullable=False)
+
+    request = relationship("RemovalRequest", back_populates="events")
+
+
+def _status_value(v):
+    return getattr(v, "value", v)
+
+
+from sqlalchemy import event as _sa_event
+
+
+@_sa_event.listens_for(RemovalRequest.status, "set", active_history=True)
+def _record_status_change(target, value, oldvalue, initiator):
+    new, old = _status_value(value), _status_value(oldvalue)
+    if new is None or new == old:
+        return
+    from sqlalchemy.orm.base import NO_VALUE, NEVER_SET
+    if oldvalue in (NO_VALUE, NEVER_SET):
+        old = None
+    target.events.append(RequestEvent(at=datetime.utcnow(), from_status=old, to_status=new))
 
 
 class EmailLog(Base):

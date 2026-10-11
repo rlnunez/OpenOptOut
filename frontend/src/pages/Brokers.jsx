@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from 'react'
-import { Search, Upload, ExternalLink, ChevronDown, ScanSearch } from 'lucide-react'
+import { Fragment, useEffect, useState, useCallback } from 'react'
+import { Search, Upload, ExternalLink, ChevronDown, ChevronRight, ScanSearch } from 'lucide-react'
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import Badge, { plainLabel } from '../components/Badge'
 import PrivacyPagesPanel from '../components/PrivacyPagesPanel'
+import BrokerTimelines from '../components/RemovalTimeline'
 
 const STATUS_OPTIONS   = ['', 'compliant', 'resistant', 'inconsistent', 'undetermined']
 const METHOD_OPTIONS   = ['', 'form', 'email', 'manual', 'phone']
@@ -22,6 +23,7 @@ export default function Brokers() {
   const [importMsg, setImportMsg] = useState('')
   const [solvers, setSolvers]     = useState([])
   const [ppKey, setPpKey]         = useState(0)
+  const [openId, setOpenId]       = useState(null)   // broker whose history is showing
 
   const findPrivacyPage = async (b) => {
     try {
@@ -148,8 +150,16 @@ export default function Brokers() {
               </td></tr>
             )}
             {!loading && brokers.map(b => (
-              <tr key={b.id} className="border-t border-slate-700/30 hover:bg-slate-700/20 transition-colors">
-                <td className="px-4 py-2.5 text-slate-200 font-medium">{b.name}</td>
+              <Fragment key={b.id}>
+              <tr className="border-t border-slate-700/30 hover:bg-slate-700/20 transition-colors">
+                <td className="px-4 py-2.5 text-slate-200 font-medium">
+                  <button onClick={() => setOpenId(id => id === b.id ? null : b.id)} aria-expanded={openId === b.id}
+                    aria-controls={`hist-${b.id}`} className="flex items-center gap-1 text-left hover:text-white"
+                    title="Show the history of requests to this site">
+                    {openId === b.id ? <ChevronDown size={13} aria-hidden="true" /> : <ChevronRight size={13} aria-hidden="true" />}
+                    {b.name}
+                  </button>
+                </td>
                 <td className="px-4 py-2.5"><Badge value={b.status} /></td>
                 <td className="px-4 py-2.5"><Badge value={b.method} /></td>
                 <td className="px-4 py-2.5"><Badge value={b.difficulty} /></td>
@@ -204,6 +214,12 @@ export default function Brokers() {
                   )}
                 </td>
               </tr>
+              {openId === b.id && (
+                <tr id={`hist-${b.id}`} className="bg-slate-800/60">
+                  <td colSpan={8} className="px-4 py-3"><BrokerTimelines brokerId={b.id} /></td>
+                </tr>
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>
