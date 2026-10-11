@@ -710,6 +710,23 @@ class NoticeSent(Base):
     sent_at    = Column(DateTime, default=datetime.utcnow)
 
 
+class AccessLog(Base):
+    """
+    Staff viewing, exporting or deleting someone else's details (core/privacy_record.py).
+    Names are copied in so the record still reads after an account is deleted.
+    """
+    __tablename__ = "access_log"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    at          = Column(DateTime, default=datetime.utcnow, index=True)
+    actor_id    = Column(Integer, nullable=True, index=True)     # no FK: survives account deletion
+    actor_name  = Column(String, nullable=True)
+    member_id   = Column(Integer, nullable=True, index=True)
+    member_name = Column(String, nullable=True)
+    action      = Column(String(20), nullable=False)             # view | edit | export | delete
+    detail      = Column(String(200), nullable=True)
+
+
 class RequestEvent(Base):
     """
     One step in a removal's history: every change of RemovalRequest.status is

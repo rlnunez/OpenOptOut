@@ -149,5 +149,6 @@
   "status.captcha": "Капча",
   "status.skipped": "Пропущено",
   "nav.backups": "Резервные копии",
-  "nav.deadlines": "Отчёт о сроках"
+  "nav.deadlines": "Отчёт о сроках",
+  "nav.privacy_record": "Журнал обработки данных"
 }

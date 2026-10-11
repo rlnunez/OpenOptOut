@@ -74,6 +74,11 @@ def start_scheduler():
               replace_existing=True, misfire_grace_time=3600,
               next_run_time=datetime.utcnow() + timedelta(minutes=50))
 
+    # Retention: delete old logs and excerpts (Settings → Privacy & data).
+    s.add_job(retention_job, IntervalTrigger(hours=24), id="retention",
+              replace_existing=True, misfire_grace_time=3600,
+              next_run_time=datetime.utcnow() + timedelta(minutes=70))
+
     if not sc.get("enabled", False):
         s.start()
         log.info("Opt-out scheduling disabled — maintenance jobs only")
@@ -874,6 +879,21 @@ def notice_job():
     finally:
         run.finished_at = datetime.utcnow()
         db.commit(); db.close()
+
+
+def retention_job():
+    """Daily: apply the retention schedule to logs (never to people's details)."""
+    db = SessionLocal()
+    try:
+        from .privacy_record import purge, mark_purged
+        stats = purge(db, load_settings())
+        mark_purged(stats)
+        if any(stats.values()):
+            log.info("Retention: %s", stats)
+    except Exception as e:
+        log.error("Retention job error: %s", e)
+    finally:
+        db.close()
 
 
 def recheck_job():

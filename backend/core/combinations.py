@@ -60,6 +60,21 @@ class IdentityCombo:
         if self.email:   parts.append(self.email)
         return " | ".join(parts)
 
+    def masked_label(self) -> str:
+        """
+        For logs and stored labels: enough to tell combinations apart without
+        writing the details in the clear ("J.P. · Austin · •••0134 · 3f9a2c1b").
+        """
+        import hashlib, re
+        bits = [".".join(w[0].upper() for w in (self.name or "").split() if w) + "."]
+        if self.city: bits.append(self.city)
+        if self.phone:
+            d = re.sub(r"\D", "", self.phone)
+            bits.append("•••" + d[-4:])
+        if self.email: bits.append("•••@" + self.email.split("@")[-1])
+        bits.append(hashlib.sha256(self.label().encode()).hexdigest()[:8])
+        return " · ".join(bits)
+
     def as_dict(self) -> dict:
         return {k: v for k, v in {
             "name": self.name, "address": self.address,

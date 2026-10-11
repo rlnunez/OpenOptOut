@@ -149,5 +149,6 @@
   "status.captcha": "验证码",
   "status.skipped": "已跳过",
   "nav.backups": "备份",
-  "nav.deadlines": "期限报告"
+  "nav.deadlines": "期限报告",
+  "nav.privacy_record": "隐私记录"
 }

@@ -821,7 +821,44 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
 // ── Data section ──────────────────────────────────────────────────────────────
 function DataSection({ userRole }) {
   const [resetting, setResetting] = useState(false)
+  const [msg, setMsg]             = useState('')
+  const [log, setLog]             = useState(null)
+  const [days, setDays]           = useState('')
+  const [confirmText, setConfirmText] = useState('')
+  const [deleting, setDeleting]   = useState(false)
   const isAdmin = userRole === 'super_admin'
+
+  useEffect(() => {
+    api.get('/privacy/my-access-log').then(r => setLog(r.data)).catch(() => setLog([]))
+    if (isAdmin) api.get('/settings').then(r => setDays(String(r.data?.privacy?.auto_purge_logs_days ?? 365))).catch(() => {})
+  }, [isAdmin])
+
+  const exportMine = async () => {
+    try {
+      const r = await api.get('/privacy/export', { responseType: 'blob' })
+      const url = URL.createObjectURL(r.data)
+      const a = document.createElement('a'); a.href = url; a.download = 'openoptout-my-data.json'; a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch { setMsg("Couldn't download your data. Please try again.") }
+  }
+
+  const saveDays = async () => {
+    setMsg('')
+    try { await api.patch('/settings/privacy', { auto_purge_logs_days: parseInt(days, 10) }); setMsg('Saved.') }
+    catch (e) { setMsg(e.response?.data?.detail || "Couldn't save that.") }
+  }
+
+  const deleteMe = async () => {
+    setDeleting(true); setMsg('')
+    try {
+      await api.delete('/privacy/me', { data: { confirm: confirmText } })
+      localStorage.removeItem('token')
+      window.location.href = '/login'
+    } catch (e) {
+      setMsg(e.response?.data?.detail || "Couldn't delete your account.")
+      setDeleting(false)
+    }
+  }
 
   const resetRequests = async () => {
     if (!confirm('Delete ALL removal request history? Family data stays. Cannot be undone.')) return
@@ -830,20 +867,70 @@ function DataSection({ userRole }) {
     finally { setResetting(false) }
   }
 
+  const row = 'flex flex-wrap items-center justify-between gap-2 py-3 border-b border-slate-700/50'
   return (
-    <Section icon={Database} title="Privacy & data" description="Export your data or manage retention">
-      <div className="flex items-center justify-between py-2 border-b border-slate-700/50">
+    <Section icon={Database} title="Privacy & data" description="Get a copy of your data, see who looked at it, or delete it">
+      {msg && <p role="status" className="text-slate-300 text-sm mb-2">{msg}</p>}
+      <div className={row}>
         <div>
-          <p className="text-slate-200 text-sm">Export all data</p>
-          <p className="text-slate-500 text-xs">Download your family's details and removal history as a file</p>
+          <p className="text-slate-200 text-sm">Download my data</p>
+          <p className="text-slate-500 text-xs">Everything OpenOptOut keeps about you and the people you manage, as a file</p>
         </div>
-        <button onClick={() => window.open('/api/settings/export','_blank')}
+        <button onClick={exportMine}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
-          <Download size={12}/>Export
+          <Download size={12}/>Download
         </button>
       </div>
+
+      <div className="py-3 border-b border-slate-700/50">
+        <p className="text-slate-200 text-sm">Who else has looked at our details</p>
+        <p className="text-slate-500 text-xs mb-2">Staff or admins who viewed, changed, exported or removed your family's details</p>
+        {log === null ? <p className="text-slate-500 text-xs">Loading…</p> :
+          log.length === 0 ? <p className="text-slate-400 text-sm">Nobody outside your family.</p> : (
+          <ul className="text-sm space-y-0.5 max-h-48 overflow-y-auto">
+            {log.map((e, i) => (
+              <li key={i} className="text-slate-300">
+                <span className="text-slate-500">{new Date(e.at).toLocaleString()}</span> · {e.who} {({ view: 'looked at', edit: 'changed', export: 'downloaded', delete: 'removed' })[e.action] || e.action} {e.person}'s {e.detail || 'details'}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {isAdmin && (
-        <div>
+        <div className={row}>
+          <div>
+            <label htmlFor="ret-days" className="text-slate-200 text-sm">Keep logs for</label>
+            <p className="text-slate-500 text-xs">Automation logs, email excerpts, unmatched search results and CAPTCHA pictures older than this are deleted every day. People's details and requests are never deleted by this. <a href="/privacy-record" className="text-shield-300 hover:underline">See the privacy record</a></p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input id="ret-days" type="number" min="30" value={days} onChange={e => setDays(e.target.value)}
+              className="w-24 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-slate-200" />
+            <span className="text-slate-400 text-sm">days</span>
+            <button onClick={saveDays} className="px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700">Save</button>
+          </div>
+        </div>
+      )}
+
+      <div className="py-3 border-b border-slate-700/50">
+        <p className="text-slate-200 text-sm">Delete my account</p>
+        <p className="text-slate-500 text-xs mb-2">
+          Deletes your account and everything about you. People you added who only you manage are deleted too;
+          anyone shared with another parent stays with them. Sites that already removed you stay removed. This can't be undone.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="del-confirm" className="sr-only">Type DELETE to confirm</label>
+          <input id="del-confirm" value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="Type DELETE"
+            className="w-36 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-slate-200" />
+          <button onClick={deleteMe} disabled={deleting || confirmText.trim().toUpperCase() !== 'DELETE'}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-300 border border-red-800 rounded-lg hover:bg-red-900/30 disabled:opacity-40">
+            <Trash2 size={12}/>{deleting ? 'Deleting…' : 'Delete my account'}
+          </button>
+        </div>
+      </div>
+
+      {isAdmin && (
+        <div className="pt-3">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle size={13} className="text-red-400 shrink-0"/>
             <p className="text-red-400 text-xs font-medium uppercase tracking-wide">Danger zone</p>

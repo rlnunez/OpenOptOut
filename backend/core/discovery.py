@@ -313,7 +313,7 @@ async def run_discovery_for_member(member_id: int) -> dict:
                                 break
 
                         except Exception as e:
-                            errors.append(f"{broker.name} / {combo.label()}: {e}")
+                            errors.append(f"{broker.name} / {combo.masked_label()}: {e}")
 
                     db.commit()
 

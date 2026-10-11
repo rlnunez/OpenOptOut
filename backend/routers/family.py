@@ -185,6 +185,8 @@ def remove_member(
         raise HTTPException(400, "You can't remove yourself here.")
     if not _is_dependent(user) and not current_user.is_super_admin:
         raise HTTPException(403, f"{member.full_name} signs in on their own, so only an admin can remove them.")
+    from ..core.privacy_record import log_access
+    log_access(db, current_user, member, "delete", "removed from the family")
     from ..core.people import delete_person
     delete_person(db, user)
     db.commit()
@@ -230,7 +232,9 @@ def list_identities(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    assert_can_view(db, current_user, member_id)
+    member = assert_can_view(db, current_user, member_id)
+    from ..core.privacy_record import log_access
+    log_access(db, current_user, member, "view", "saved details")
     return (
         db.query(Identity)
         .filter(Identity.member_id == member_id)
@@ -246,7 +250,9 @@ def add_identity(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    assert_can_edit(db, current_user, member_id)
+    _m = assert_can_edit(db, current_user, member_id)
+    from ..core.privacy_record import log_access
+    log_access(db, current_user, _m, "edit", "saved details")
 
     # Enforce vault limits — configurable by super admin in Settings
     from ..core.combinations import get_vault_limits
@@ -293,7 +299,9 @@ def update_identity(
     identity = db.query(Identity).filter(Identity.id == identity_id).first()
     if not identity:
         raise HTTPException(404, "That detail is gone. Refresh the page.")
-    assert_can_edit(db, current_user, identity.member_id)
+    _m = assert_can_edit(db, current_user, identity.member_id)
+    from ..core.privacy_record import log_access
+    log_access(db, current_user, _m, "edit", "saved details")
 
     if data.value is not None:
         identity.value = data.value
@@ -324,7 +332,9 @@ def delete_identity(
     identity = db.query(Identity).filter(Identity.id == identity_id).first()
     if not identity:
         raise HTTPException(404, "That detail is gone. Refresh the page.")
-    assert_can_edit(db, current_user, identity.member_id)
+    _m = assert_can_edit(db, current_user, identity.member_id)
+    from ..core.privacy_record import log_access
+    log_access(db, current_user, _m, "edit", "saved details")
     from ..models.database import RequestVariant
     db.query(RequestVariant).filter(RequestVariant.identity_id == identity.id).delete(synchronize_session=False)
     db.delete(identity)

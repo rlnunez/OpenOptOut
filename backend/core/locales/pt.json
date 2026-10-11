@@ -149,5 +149,6 @@
   "status.captcha": "CAPTCHA",
   "status.skipped": "Ignorado",
   "nav.backups": "Backups",
-  "nav.deadlines": "Relatório de prazos"
+  "nav.deadlines": "Relatório de prazos",
+  "nav.privacy_record": "Registro de privacidade"
 }

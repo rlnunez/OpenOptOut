@@ -691,7 +691,7 @@ async def _run_form_via_interpreter(
                               detail="no inbox for this member")
         contact, reason = mbx.issue_contact_address(
             db, mailbox, member, broker=broker, request_key=request.request_key or "",
-            combo_label=combo.label() if combo else "",
+            combo_label=combo.masked_label() if combo else "",
             one_optout_per_email=bool(getattr(spec, "one_optout_per_email", False)),
             allow_plus=_plus_ok(spec, broker))
         if contact is None:
@@ -879,7 +879,7 @@ async def _retry_without_plus(db, request, broker, member, spec, combo, member_f
     contact, reason = (None, mbx.missing_mailbox_instruction(member)) if mailbox is None else \
         mbx.issue_contact_address(
             db, mailbox, member, broker=broker, request_key=request.request_key or "",
-            combo_label=combo.label() if combo else "",
+            combo_label=combo.masked_label() if combo else "",
             one_optout_per_email=bool(getattr(spec, "one_optout_per_email", False)),
             allow_plus=False)
     plain_ok = contact is not None and "+" not in contact.address
@@ -1072,7 +1072,7 @@ async def execute_optout(
                         status=("captcha" if interp_res.needs_captcha
                                 else "needs_manual" if human_pause
                                 else ("success" if ok else "failure")),
-                        detail=f"[interpreter] {combo.label()}: {detail}",
+                        detail=f"[interpreter] {combo.masked_label()}: {detail}",
                         screenshot=screenshot_path,
                         duration_ms=int((time.monotonic() - start) * 1000),
                     ))

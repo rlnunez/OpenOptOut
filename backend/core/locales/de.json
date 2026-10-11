@@ -149,5 +149,6 @@
   "status.captcha": "CAPTCHA",
   "status.skipped": "Übersprungen",
   "nav.backups": "Sicherungen",
-  "nav.deadlines": "Fristenbericht"
+  "nav.deadlines": "Fristenbericht",
+  "nav.privacy_record": "Datenschutz-Verzeichnis"
 }

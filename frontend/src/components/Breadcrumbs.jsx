@@ -30,6 +30,10 @@ export default function Breadcrumbs() {
       '/family': [{ label: t('nav.family', 'Family members'), to: '/family' }],
       '/identity': [{ label: t('nav.vault', 'Your details'), to: '/identity' }],
       '/inboxes': [{ label: t('nav.inboxes', 'Email inboxes'), to: '/inboxes' }],
+      '/privacy-record': [
+        { label: t('nav.admin', 'Admin'), to: '/admin' },
+        { label: t('nav.privacy_record', 'Privacy record'), to: '/privacy-record' },
+      ],
       '/deadlines': [{ label: t('nav.deadlines', 'Deadline report'), to: '/deadlines' }],
       '/credit-freeze': [{ label: t('nav.credit_freeze', 'Freeze credit'), to: '/credit-freeze' }],
       '/checklist': [{ label: t('nav.checklist', 'Checklist'), to: '/checklist' }],

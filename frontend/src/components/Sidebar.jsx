@@ -116,6 +116,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
     { k: 'nav.database', to: '/database',         icon: HardDrive,   label: 'Database',         perms: ['database.view'] },
     ...(user?.role === 'super_admin' ? [{ k: 'nav.backups', to: '/backups', icon: DatabaseBackup, label: 'Backups', perms: [] }] : []),
     { k: 'nav.worker_fleet', to: '/worker-fleet',     icon: Server,      label: 'Worker fleet',     perms: ['settings.system'] },
+    { k: 'nav.privacy_record', to: '/privacy-record', icon: FileLock2, label: 'Privacy record', perms: ['settings.system'] },
     { k: 'nav.logs', to: '/logs',             icon: Terminal,    label: 'System logs',      perms: ['logs.view'] },
     { k: 'nav.plugins', to: '/plugins',          icon: Puzzle,      label: 'Plugins',          perms: ['plugins.view'] },
     ...(!can(user, 'plugins.view') ? [{ k: 'nav.plugin_upload', to: '/plugin-upload', icon: Upload, label: 'Add a plugin', perms: ['plugins.upload'] }] : []),

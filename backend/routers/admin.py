@@ -300,6 +300,10 @@ def delete_user(
         raise HTTPException(404, "That account is gone. Refresh the page.")
     _only_super_admin_touches_privileged(current_user, user.role)
     assert_user_in_scope(db, current_user, user)
+    from ..core.privacy_record import log_access
+    from ..models.database import FamilyMember
+    log_access(db, current_user, db.query(FamilyMember).filter(FamilyMember.user_id == user.id).first(),
+               "delete", "account deleted by an admin")
     from ..core.people import delete_person   # every row about them, not just the account
     delete_person(db, user)
     db.commit()
