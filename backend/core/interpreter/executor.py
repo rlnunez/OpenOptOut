@@ -55,6 +55,11 @@ class ExecResult:
     trace: list[str] = field(default_factory=list)   # human-readable per-step log
     challenge: Optional[dict] = None  # challenge metadata for human/solver path (type, site_key, page_url, etc.)
     human_instruction: str = ""     # what the person must do, when a pause_for_human step stopped the flow
+    # pick_listing outcomes (core/match_policy.py)
+    candidates: list = field(default_factory=list)   # unclear matches for the person to choose from
+    extra_picks: list = field(default_factory=list)  # more listings to remove in separate runs
+    skipped: bool = False           # unclear matches left alone by setting
+    not_listed: bool = False        # the search showed nobody who could be this person
     verified: bool = False          # the page showed the spec's success signal
     email_rejected: bool = False    # the form refused the contact address (e.g. a "+" address)
 
@@ -199,7 +204,8 @@ class PlaywrightExecutor(JobExecutor):
     """
 
     def __init__(self, page=None, email_sender=None, captcha_solver=None,
-                 plugin_form_handler=None, secrets=None):
+                 plugin_form_handler=None, secrets=None, match_profile=None,
+                 unclear_policy="ask", preset_listing_url=None, listing_pattern=""):
         # page: a Playwright Page (async). email_sender: callable(EmailJob)->ok.
         # captcha_solver: callable(challenge_dict) -> result_dict | None, where
         #   result is {"solved": bool, "token": str, "defer_to_human": bool}.
@@ -214,6 +220,12 @@ class PlaywrightExecutor(JobExecutor):
         # The person's saved details: blacked out of any CAPTCHA image and kept
         # out of any page address before either is stored or sent anywhere.
         self.secrets = list(secrets or [])
+        # Picking a listing from search results (pick_listing steps).
+        self.match_profile = match_profile or {}
+        self.unclear_policy = unclear_policy or "ask"
+        self.preset_listing_url = preset_listing_url
+        self.listing_pattern = listing_pattern or ""
+        self._pick_outcome = None
 
     def _target(self):
         """Current interaction target: either an active iframe locator or the main page."""
@@ -371,7 +383,22 @@ class PlaywrightExecutor(JobExecutor):
                 trace.append(f"fill_form plugin takeover failed ({e}); using default steps")
 
         total = len(job.steps)
+        extra_picks = []
         for i, s in enumerate(job.steps):
+            if s.kind == "pick_listing":
+                try:
+                    out = await self._pick_listing(s, trace, i)
+                except Exception as e:
+                    if s.optional:
+                        continue
+                    return ExecResult(ok=False, steps_run=i, steps_total=total, trace=trace,
+                                      detail=f"step {i} (pick_listing) failed: {e}")
+                if out.get("stop") is not None:
+                    r = out["stop"]
+                    r.steps_run, r.steps_total, r.trace = i, total, trace
+                    return r
+                extra_picks = out.get("extra", [])
+                continue
             if s.kind == "pause_for_human":
                 if await self._should_pause_for_human(s):
                     trace.append(f"[{i}] pause_for_human -> {s.text}")
@@ -420,7 +447,7 @@ class PlaywrightExecutor(JobExecutor):
                 return ExecResult(ok=False, steps_run=total, steps_total=total,
                                   detail=f"the broker's page didn't confirm the request ({e})", trace=trace)
         return ExecResult(ok=True, steps_run=total, steps_total=total, verified=verified,
-                          detail="form flow complete", trace=trace)
+                          detail="form flow complete", trace=trace, extra_picks=extra_picks)
 
     async def _email_rejected(self, job) -> bool:
         """Did the form complain about the email address we gave it?"""
@@ -579,6 +606,67 @@ class PlaywrightExecutor(JobExecutor):
 
         trace.append(f"[{i}] {s.kind} {s.selector or s.url}".rstrip())
         return False
+
+    _RESULTS_JS = """
+    ([sel, pattern]) => {
+      let links = [];
+      try { links = sel ? [...document.querySelectorAll(sel)] : [...document.querySelectorAll('a[href]')]; } catch (e) {}
+      if (!sel && pattern) { const rx = new RegExp(pattern, 'i'); links = links.filter(a => rx.test(a.href)); }
+      const seen = new Set(), out = [];
+      for (const a of links) {
+        const href = a.href || (a.closest('a') && a.closest('a').href) || '';
+        if (!href || seen.has(href)) continue;
+        seen.add(href);
+        // The text of this result: grow outwards from the link until we reach
+        // the element that holds this result and no other.
+        let box = a;
+        while (box.parentElement && box.parentElement !== document.body &&
+               [...box.parentElement.querySelectorAll('a[href]')].filter(x => links.includes(x) && x.href !== href).length === 0)
+          box = box.parentElement;
+        out.push({url: href, text: (box.innerText || a.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 600)});
+        if (out.length >= 25) break;
+      }
+      return out;
+    }
+    """
+
+    async def _pick_listing(self, s: JobStep, trace: list, i: int) -> dict:
+        """
+        Pick this person's listing from the site's search results and go to it.
+        Returns {"extra": [more listing urls]} to carry on, or {"stop": ExecResult}.
+        """
+        from ..match_policy import classify, MAX_REMOVE_ALL
+        if self.preset_listing_url:
+            await self.page.goto(self.preset_listing_url, timeout=s.timeout_ms or 20000)
+            await self.page.wait_for_timeout(1500)
+            trace.append(f"[{i}] pick_listing -> the listing chosen earlier")
+            return {"extra": []}
+        found = await self._target().evaluate(self._RESULTS_JS, [s.selector or "", self.listing_pattern])
+        sorted_ = {"yours": [], "unclear": [], "not_you": []}
+        for c in found or []:
+            verdict, why = classify(self.match_profile, c.get("text", ""))
+            sorted_[verdict].append({**c, "verdict": verdict, "why": why})
+        n = {k: len(v) for k, v in sorted_.items()}
+        trace.append(f"[{i}] pick_listing: {n['yours']} yours, {n['unclear']} unclear, {n['not_you']} not you")
+        chosen = [c["url"] for c in sorted_["yours"]]
+        if not chosen and sorted_["unclear"]:
+            policy = self.unclear_policy
+            if policy == "skip":
+                return {"stop": ExecResult(ok=False, skipped=True, candidates=sorted_["unclear"],
+                                           detail=(f"Skipped: {n['unclear']} possible listing(s) show only the name, "
+                                                   f"so OpenOptOut couldn't tell which is you (your setting: skip)."))}
+            if policy == "ask":
+                return {"stop": ExecResult(ok=False, needs_manual=True, candidates=sorted_["unclear"],
+                                           detail="unclear matches: asking the person",
+                                           human_instruction=(f"{n['unclear']} possible listing(s) show only the name. "
+                                                              f"Pick the ones that are you (or none) on the Checklist."))}
+            chosen = [c["url"] for c in sorted_["unclear"][:MAX_REMOVE_ALL]]
+        if not chosen:
+            return {"stop": ExecResult(ok=False, not_listed=True,
+                                       detail="the search shows nobody who could be this person")}
+        await self.page.goto(chosen[0], timeout=s.timeout_ms or 20000)
+        await self.page.wait_for_timeout(1500)
+        return {"extra": chosen[1:]}
 
     async def _should_pause_for_human(self, s: JobStep) -> bool:
         """A pause_for_human step always pauses, unless it names a selector,

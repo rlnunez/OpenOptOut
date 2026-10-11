@@ -952,3 +952,48 @@ def allow_plugin_system(req: PluginDenyRequest, _: User = Depends(require_super_
     return {"denied": False,
             "message": "Plugin system deny lifted. Enable the system and plugins deliberately to resume."}
 
+
+
+# ── Unclear matches (core/match_policy.py) ────────────────────────────────────
+
+class MatchingGlobal(BaseModel):
+    unclear_listings: str
+    users_choose: bool = True
+
+
+class MatchingMine(BaseModel):
+    unclear_listings: Optional[str] = None     # None: use the default
+
+
+@router.get("/matching")
+def get_matching(user: User = Depends(get_current_user)):
+    """What happens when a site shows only a name: the default, and this person's own choice."""
+    from ..core import match_policy as mp
+    from ..core.access import has_permission
+    g = mp.global_settings(load_settings())
+    mine = mp.user_choice(user) if g["users_choose"] else None
+    return {**g, "mine": mine, "effective": mine or g["unclear_listings"],
+            "choices": [{"value": c, "label": mp.LABELS[c]} for c in mp.CHOICES],
+            "can_set_default": has_permission(user, "settings.system")}
+
+
+@router.patch("/matching")
+def save_matching(data: MatchingGlobal, _: User = Depends(require_permission("settings.system"))):
+    from ..core import match_policy as mp
+    try:
+        return mp.save_global(data.unclear_listings, data.users_choose)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.patch("/matching/mine")
+def save_my_matching(data: MatchingMine, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    from ..core import match_policy as mp
+    if not mp.global_settings(load_settings())["users_choose"]:
+        raise HTTPException(403, "Your administrator has set this for everyone.")
+    try:
+        mp.save_user(user, data.unclear_listings)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    db.commit()
+    return {"mine": mp.user_choice(user)}

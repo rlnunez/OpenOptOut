@@ -623,6 +623,7 @@ async def _run_form_via_interpreter(
     db,
     combo: Optional[IdentityCombo] = None,
     captcha_solver_override=None,
+    preset_listing_url: Optional[str] = None,
 ):
     """
     Run a form opt-out through the unified declarative interpreter engine:
@@ -765,9 +766,13 @@ async def _run_form_via_interpreter(
         from .captcha_privacy import member_secrets
         if captcha_solver_override is not None:
             captcha_solver = captcha_solver_override
+        from .listing_finder import _profile as match_profile
+        from .match_policy import for_member as unclear_policy
         executor = PlaywrightExecutor(
             page=page, captcha_solver=captcha_solver, plugin_form_handler=form_handler,
-            secrets=member_secrets(member))
+            secrets=member_secrets(member), match_profile=match_profile(member),
+            unclear_policy=unclear_policy(db, member, cfg), preset_listing_url=preset_listing_url,
+            listing_pattern=getattr(spec, "listing_pattern", "") or "")
         res = await executor.run(job)
         if res.email_rejected and "+" in (job.contact_email or ""):
             res = await _retry_without_plus(db, request, broker, member, spec, combo, member_fields,
@@ -935,6 +940,8 @@ async def execute_optout(
     failures  = 0
     last_error = ""   # captured for broker-health failure classification
     needs_human = ""  # plain-language instruction when a person must finish this
+    skipped_note = ""  # set when this was left alone on purpose (unclear matches, by setting)
+    not_listed_runs = runs = 0
 
     from . import mailboxes as _mbx
     try:
@@ -996,12 +1003,45 @@ async def execute_optout(
                 combos = build_optout_combos(member)
             log.info(f"Form opt-out {broker.name} (member_id={member.id}): {len(combos)} combos (unified declarative interpreter)")
 
-            # Run through unified declarative interpreter engine
-            for combo in combos:
+            # Run through unified declarative interpreter engine. Each item is a
+            # combination and, for sites where a listing is picked from search
+            # results, the listing to go straight to (None = look it up).
+            import json as _json
+            picked = []
+            if request.picked_enc:
+                try:
+                    picked = [u for u in _json.loads(request.picked_enc) if isinstance(u, str)]
+                except Exception:
+                    picked = []
+            work = [(combos[0] if combos else None, u) for u in picked] if picked and combos else \
+                [(c, None) for c in combos]
+            if picked:
+                request.picked_enc = None
+                request.candidates_enc = None
+            done_urls, not_listed_runs, runs = set(u for _, u in work if u), 0, 0
+            while work:
+                combo, preset_url = work.pop(0)
+                runs += 1
                 page = await context.new_page()
                 try:
-                    interp_res = await _run_form_via_interpreter(request, page, cfg, db, combo=combo)
+                    interp_res = await _run_form_via_interpreter(request, page, cfg, db, combo=combo,
+                                                                 preset_listing_url=preset_url)
                     ok = interp_res.ok
+                    # Listing picked from the site's search results (core/match_policy.py)
+                    for u in getattr(interp_res, "extra_picks", None) or []:
+                        if u not in done_urls:
+                            done_urls.add(u)
+                            work.append((combo, u))
+                    if getattr(interp_res, "not_listed", False):
+                        not_listed_runs += 1
+                        continue
+                    if getattr(interp_res, "skipped", False):
+                        skipped_note = interp_res.detail or "skipped"
+                        break
+                    if getattr(interp_res, "candidates", None) and interp_res.needs_manual:
+                        request.candidates_enc = _json.dumps(interp_res.candidates)
+                        needs_human = interp_res.human_instruction
+                        break
                     detail = interp_res.detail or ("ok" if ok else "form flow failed")
                     if ok and interp_res.verified:
                         detail += " (the broker's page confirmed it)"
@@ -1131,6 +1171,14 @@ async def execute_optout(
     elif "captcha" in (last_error or "").lower():
         # Keep in pending status with paused note so operator can resolve challenge
         request.status = RequestStatus.pending
+    elif skipped_note:
+        request.status = RequestStatus.skipped
+        request.notes = skipped_note
+    elif runs and not_listed_runs == runs:
+        # The site's search shows nobody who could be this person.
+        request.status = RequestStatus.skipped
+        request.last_verdict = "not_found"
+        request.notes = f"{broker.name}'s search didn't show anyone who could be {member.full_name}."
     elif needs_human:
         request.status = RequestStatus.needs_manual
         request.notes = needs_human
@@ -1147,8 +1195,8 @@ async def execute_optout(
         from .broker_health import record_success, record_failure
         if successes > 0:
             record_success(db, broker.id)
-        elif needs_human and failures <= 0:
-            pass  # waiting on a person is not a broker malfunction
+        elif (needs_human or skipped_note or (runs and not_listed_runs == runs)) and failures <= 0:
+            pass  # waiting on a person, skipped on purpose, or not listed: not a broker malfunction
         else:
             record_failure(db, broker.id, detail=last_error or "opt-out failed")
     except Exception as e:

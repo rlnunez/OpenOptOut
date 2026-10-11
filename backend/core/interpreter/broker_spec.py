@@ -81,6 +81,10 @@ STEP_KINDS = {
     "solve_captcha",  # hand off to the CAPTCHA layer (roadmap item 4)
     "autofill",       # fill a privacy-request form by its labels (hosted_forms.plan_autofill);
                       # stops for a person when unsure
+    "pick_listing",   # on a page of search results, pick this person's listing and go to it.
+                      # `selector` = each result's link (else links matching the spec's
+                      # listing_pattern). Results showing only the name follow the
+                      # unclear-matches setting (core/match_policy.py).
     "pause_for_human",# stop here; a person finishes the rest (pick a listing,
                       # answer a phone call). With a selector, pause only if it
                       # is on the page. `text` is the plain-language instruction.
