@@ -58,6 +58,11 @@ def start_scheduler():
               replace_existing=True, misfire_grace_time=3600,
               next_run_time=datetime.utcnow() + timedelta(minutes=10))
 
+    # Removal checks: did listings go, and have any come back? Daily, on a budget.
+    s.add_job(verification_job, IntervalTrigger(hours=24), id="verification",
+              replace_existing=True, misfire_grace_time=3600,
+              next_run_time=datetime.utcnow() + timedelta(minutes=20))
+
     if not sc.get("enabled", False):
         s.start()
         log.info("Opt-out scheduling disabled — maintenance jobs only")
@@ -151,7 +156,26 @@ def registry_maintenance_job():
             log.info("Site checks: %d checked, %d unreachable", res["checked"], res["unreachable"])
         except Exception as e:
             log.warning("Site checks failed: %s", e)
+        # Look for privacy-request pages on brokers nobody wrote steps for.
+        try:
+            from .privacy_finder import run_daily as find_privacy_pages
+            pf = find_privacy_pages(db, limit=20)
+            if pf["checked"]:
+                log.info("Privacy-page finder: %d sites checked, %d with a privacy page", pf["checked"], pf["found"])
+        except Exception as e:
+            log.warning("Privacy-page finder failed: %s", e)
         cfg = load_settings()
+        # Email the admins what changed in the broker list (daily or weekly digest).
+        try:
+            from .broker_updates import digest
+            d = digest(db, cfg)
+            if d.get("sent"):
+                cfg = load_settings()
+                cfg["broker_updates_last_digest"] = datetime.utcnow().isoformat() + "Z"
+                with open(SETTINGS_FILE, "w") as f:
+                    json.dump(cfg, f, indent=2)
+        except Exception as e:
+            log.warning("Broker update digest failed: %s", e)
         # Weekly web searches, when an admin turned them on.
         try:
             from .web_search import run_weekly
@@ -231,7 +255,9 @@ def _select_pending_batch(db, cfg, max_this_run: int) -> list:
     """
     sc      = cfg.get("scheduler", {})
     sys_max = sc.get("max_optouts_per_day", 20)
-    dispatch_order = sc.get("dispatch_order", "priority")  # priority | fifo | easy_first
+    # priority | fifo | easy_first | aggregators_first (default: cut off the
+    # sources other brokers copy from before their downstream sites)
+    dispatch_order = sc.get("dispatch_order", "aggregators_first")
 
     sent_today = _count_sent_today(db)
     daily_remaining = max(0, sys_max - sent_today)
@@ -251,7 +277,14 @@ def _select_pending_batch(db, cfg, max_this_run: int) -> list:
     # offenders / highest data exposure first), so a member's most sensitive
     # exposures clear first even when the full opt-out spans many days.
     from .broker_priority import order_pending
-    pending = order_pending(pending, strategy=dispatch_order)
+    upstream = None
+    if dispatch_order == "aggregators_first":
+        try:
+            from .broker_network import upstream_scores
+            upstream = {k: v["score"] for k, v in upstream_scores(db).items()}
+        except Exception as e:
+            log.warning("aggregator scores unavailable, using priority order: %s", e)
+    pending = order_pending(pending, strategy=dispatch_order, upstream=upstream)
 
     batch_ids = []
     for req in pending:
@@ -777,6 +810,25 @@ def _get_html(msg) -> str:
 
 # ── Job 3: recheck scanner ────────────────────────────────────────────────────
 
+def verification_job():
+    """Daily: check whether removals stuck and whether listings came back."""
+    db = SessionLocal()
+    run = SchedulerRun(run_type="verification", status="running")
+    db.add(run); db.commit()
+    try:
+        from .verification import run_daily
+        stats = run_daily(db, load_settings())
+        run.status = "done"
+        if stats["checked"]:
+            log.info("Removal checks: %s", stats)
+    except Exception as e:
+        run.status = "error"; run.errors = json.dumps([str(e)])
+        log.error("Verification job error: %s", e)
+    finally:
+        run.finished_at = datetime.utcnow()
+        db.commit(); db.close()
+
+
 def recheck_job():
     db  = SessionLocal()
     run = SchedulerRun(run_type="recheck", status="running")
@@ -793,7 +845,18 @@ def recheck_job():
             RemovalRequest.recheck_after <= datetime.utcnow(),
         ).all()
 
+        from .verification import verify_request, settings_of as vsettings
+        verify_on = vsettings(cfg)["enabled"]
         for req in overdue:
+            # Look first: a listing that's still gone doesn't need another opt-out.
+            if verify_on:
+                try:
+                    res = verify_request(db, req, cfg)
+                    if res["verdict"] in ("gone", "not_found") or res["action"].startswith("resend"):
+                        queued += 1 if res["action"].startswith("resend") else 0
+                        continue
+                except Exception as ve:
+                    log.info("check before re-send failed for request %s: %s", req.id, ve)
             req.status = RequestStatus.pending
             req.confirmed_at = None; req.sent_at = None
             queued += 1

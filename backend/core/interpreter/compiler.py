@@ -253,6 +253,9 @@ def compile_job(spec: BrokerSpec, member_fields: dict, member_id: str) -> Job:
             if not text:
                 text = "" if resolved is None else str(resolved)
 
+        if s.kind == "autofill" and not value:
+            from .hosted_forms import autofill_values
+            value = autofill_values(member_fields)
         if s.kind == "pause_for_human" and "{" in text:
             # Instructions may name the person's details, e.g. the address to
             # give the broker ({contact_email}) or their listing ({listing_url}).

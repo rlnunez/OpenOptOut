@@ -95,6 +95,10 @@ class ExecResult:
         )
 
 
+class NeedsPerson(Exception):
+    """A step decided a person should take over (e.g. autofill wasn't sure)."""
+
+
 class JobExecutor:
     """Interface. Subclasses implement run(job) -> ExecResult."""
 
@@ -173,6 +177,13 @@ class DryRunExecutor(JobExecutor):
             return f"[{i}] expect_success {s.selector or s.text!r}"
         if s.kind == "pause_for_human":
             return f"[{i}] pause_for_human if {s.selector} present -> {s.text}"
+        if s.kind == "autofill":
+            import json as _json
+            try:
+                keys = sorted(_json.loads(s.value or "{}"))
+            except ValueError:
+                keys = []
+            return f"[{i}] autofill form by its labels ({', '.join(keys)})"
         return f"[{i}] {s.kind}"
 
 
@@ -210,6 +221,50 @@ class PlaywrightExecutor(JobExecutor):
         (Locators work the same on a Page and a FrameLocator, which has no
         fill()/click() of its own.)"""
         return self._target().locator(selector).first
+
+    _DESCRIBE_JS = """(els) => els.map((el, i) => {
+        const visible = !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)
+                        && getComputedStyle(el).visibility !== 'hidden';
+        const txt = (n) => (n ? (n.innerText || n.textContent || '') : '').replace(/\\s+/g, ' ').trim();
+        let label = '';
+        if (el.id) { const l = document.querySelector('label[for="' + CSS.escape(el.id) + '"]'); if (l) label = txt(l); }
+        if (!label) { const l = el.closest('label'); if (l) label = txt(l); }
+        if (!label && el.getAttribute('aria-labelledby')) {
+            label = el.getAttribute('aria-labelledby').split(/\\s+/).map(id => txt(document.getElementById(id))).join(' ');
+        }
+        const fs = el.closest('fieldset'); const legend = fs ? txt(fs.querySelector('legend')) : '';
+        const grp = el.closest('[role=radiogroup], [role=group]');
+        const groupLabel = legend || (grp ? (grp.getAttribute('aria-label') || txt(grp.querySelector('label, legend, h3, h4, p'))) : '');
+        const opts = el.tagName === 'SELECT' ? Array.from(el.options).map(o => ({value: o.value, label: txt(o)})) : [];
+        return {i, visible, tag: el.tagName.toLowerCase(), type: (el.type || '').toLowerCase(), name: el.name || '',
+                id: el.id || '', label: label.slice(0, 200), aria: el.getAttribute('aria-label') || '',
+                placeholder: el.getAttribute('placeholder') || '', autocomplete: el.getAttribute('autocomplete') || '',
+                required: !!(el.required || el.getAttribute('aria-required') === 'true'),
+                value: el.type === 'radio' || el.type === 'checkbox' ? (el.value || '') : '',
+                group: el.type === 'radio' || el.type === 'checkbox' ? (el.name || '') : '',
+                group_label: groupLabel.slice(0, 200), options: opts};
+    })"""
+
+    async def _autofill(self, s, trace, i):
+        """Fill a privacy-request form by reading its labels (see hosted_forms)."""
+        import json as _json
+        from .hosted_forms import plan_autofill
+        controls = self._target().locator("input, select, textarea")
+        desc = await controls.evaluate_all(self._DESCRIBE_JS)
+        desc = [d for d in desc if d.get("visible")]
+        values = _json.loads(s.value or "{}")
+        plan = plan_autofill(desc, values)
+        if not plan["ok"]:
+            raise NeedsPerson(plan["why"])
+        for a in plan["actions"]:
+            loc = controls.nth(a["i"])
+            if a["op"] == "fill":
+                await loc.fill(a["value"], timeout=8000)
+            elif a["op"] == "select":
+                await loc.select_option(a["value"], timeout=8000)
+            elif a["op"] == "check":
+                await loc.check(timeout=8000, force=True)
+        trace.append(f"[{i}] autofill: {', '.join(plan['mapped'])}")
 
     async def _turnstile_passed(self, wait_ms: int = 15000) -> bool:
         """Cloudflare Turnstile usually passes by itself; give it a moment."""
@@ -328,6 +383,16 @@ class PlaywrightExecutor(JobExecutor):
                     return ExecResult(ok=False, steps_run=i, steps_total=total,
                                       needs_captcha=True, detail="paused for CAPTCHA",
                                       trace=trace, challenge=getattr(self, "last_challenge", None))
+            except NeedsPerson as e:
+                trace.append(f"[{i}] {s.kind}: needs a person ({e})")
+                site = getattr(self.page, "url", "") if isinstance(getattr(self.page, "url", ""), str) else ""
+                return ExecResult(ok=False, steps_run=i, steps_total=total, needs_manual=True, trace=trace,
+                                  detail=f"form needs a person: {e}",
+                                  human_instruction=(f"OpenOptOut found {job.broker_name}'s privacy request form"
+                                                     + (f" at {site}" if site else "")
+                                                     + f" but didn't fill it in, because {e}. Fill it in "
+                                                     f"yourself, asking for your data to be deleted, then press "
+                                                     f"\"I've done this\"."))
             except Exception as e:
                 if s.optional:
                     trace.append(f"[{i}] {s.kind} optional-failed: {e}")
@@ -419,6 +484,9 @@ class PlaywrightExecutor(JobExecutor):
 
         elif s.kind == "fill":
             await self._loc(s.selector).fill(s.value, timeout=s.timeout_ms or 8000)
+
+        elif s.kind == "autofill":
+            await self._autofill(s, trace, i)
 
         elif s.kind == "type":
             # Key by key: React/MUI inputs ignore a programmatic fill.

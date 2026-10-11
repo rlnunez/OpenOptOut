@@ -420,6 +420,64 @@ class RequestVariant(Base):
     created_at  = Column(DateTime, default=datetime.utcnow)
 
 
+class PrivacyPage(Base):
+    """
+    Something the privacy-page finder found on a broker's own website
+    (core/privacy_finder.py): a hosted privacy-request form (OneTrust,
+    TrustArc...), the company's own request form, an opt-out page, its
+    privacy policy, or a privacy email address. Forms are filled by
+    core/interpreter/hosted_forms.py; email addresses are only used after an
+    admin approves them.
+    """
+    __tablename__ = "privacy_pages"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    broker_id  = Column(Integer, ForeignKey("brokers.id", ondelete="CASCADE"), nullable=False, index=True)
+    url        = Column(String(1000), nullable=False)      # or "mailto:address" for an email
+    kind       = Column(String(30), nullable=False)        # see privacy_finder.KINDS
+    label      = Column(String(300), nullable=True)        # link text or page title
+    score      = Column(Integer, default=0)
+    status     = Column(String(20), default="active", index=True)   # active | dismissed | approved
+    found_at   = Column(DateTime, default=datetime.utcnow)
+
+
+class BrokerUpdate(Base):
+    """
+    Something an administrator should know about a broker: it was turned off
+    after repeated failures, its site disappeared or came back, new brokers
+    were found, a registry dropped one. Shown on the Broker updates page with
+    a sidebar badge, and sent to super administrators as an email digest.
+    """
+    __tablename__ = "broker_updates"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    kind       = Column(String(30), nullable=False, index=True)    # see broker_updates.KINDS
+    broker_id  = Column(Integer, ForeignKey("brokers.id", ondelete="CASCADE"), nullable=True, index=True)
+    title      = Column(String(300), nullable=False)
+    detail     = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    read_at    = Column(DateTime, nullable=True)
+    emailed_at = Column(DateTime, nullable=True)
+
+
+class VerificationCheck(Base):
+    """
+    One automatic check of whether a removal stuck: the listing page, the
+    broker's own search, or a web search, looked at after an opt-out
+    (core/verification.py). `verdict` is gone | listed | not_found | blocked |
+    unknown. `evidence` is the page that showed it (no personal details).
+    """
+    __tablename__ = "verification_checks"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    request_id = Column(Integer, ForeignKey("removal_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    checked_at = Column(DateTime, default=datetime.utcnow, index=True)
+    method     = Column(String(20), nullable=False)       # listing_url | broker_search | web_search
+    verdict    = Column(String(20), nullable=False, index=True)
+    evidence   = Column(String(1000), nullable=True)
+    detail     = Column(String(500), nullable=True)
+
+
 class ConfirmationLink(Base):
     """
     A broker emailed back asking the person to click a link before it will
@@ -555,6 +613,8 @@ class Broker(Base):
     # Learned when this broker's form refused a "+" address; from then on its
     # forms get the inbox's plain address (replies are matched by sender).
     rejects_plus_addresses = Column(Boolean, default=False, nullable=True)
+    # When the privacy-page finder last looked at this broker's website.
+    privacy_checked_at     = Column(DateTime, nullable=True)
 
     requests = relationship("RemovalRequest", back_populates="broker")
     health   = relationship("BrokerHealth", back_populates="broker", uselist=False)
@@ -619,6 +679,9 @@ class RemovalRequest(Base):
     confirmed_at  = Column(DateTime)
     recheck_after = Column(DateTime)
     listing_url   = Column(String)
+    # Latest automatic check of whether the listing is still up (see VerificationCheck).
+    last_checked_at = Column(DateTime, nullable=True)
+    last_verdict    = Column(String(20), nullable=True)
     notes         = Column(Text)
     created_at    = Column(DateTime, default=datetime.utcnow)
     updated_at    = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

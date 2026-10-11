@@ -55,9 +55,11 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 33 | General web search (SearXNG) | Complete (#72) |
 | 34 | Checklist & per-variant removal report | Complete (#73, #75) |
 | 35 | Broker confirmation links clicked automatically | Complete (#76) |
-| 36 | Curated broker form plugins & honest form results | In Review — live verification pending |
-| 37 | Long tail: privacy-request page finder & OneTrust/TrustArc forms | Planned (next) |
+| 36 | Curated broker form plugins & honest form results | Complete (#77) — live verification pending |
+| 37 | Long tail: privacy-request page finder & OneTrust/TrustArc forms | Complete (#79) — live verification pending |
 | 38 | Built-in receive-only inbox | In Design ([`docs/BUILTIN_INBOX.md`](BUILTIN_INBOX.md)) |
+| 39 | Automated removal verification & re-listing monitor | In Review — live verification pending |
+| 40 | Data-sharing detection & aggregator-first targeting | In Review |
 
 ---
 
@@ -669,14 +671,19 @@ plugins/
 - **Tooling:** `broker-plugins/tools/validate.py` dry-runs every plugin. See [`broker-plugins/README.md`](../broker-plugins/README.md) and [`docs/INTERPRETER.md`](INTERPRETER.md).
 - **Open:** live verification of every plugin; handing a live browser to a person at a pause so they can finish in place instead of starting over.
 
-**Status:** In Review — live verification pending.
+**Status:** Complete (#77) — live verification pending.
 
 ---
 
 ### 37. Long tail: privacy-request page finder & hosted privacy forms
 **Goal:** Cover brokers no one has written steps for. Find a site's privacy-request page, and fill the hosted forms many companies use (OneTrust, TrustArc) with one shared handler.
 
-**Status:** Planned (next).
+- **Privacy-page finder** (`core/privacy_finder.py`): reads a broker's own website (no personal data sent, at most 8 public pages) for hosted OneTrust/TrustArc forms, in-house request forms, opt-out pages, policies and privacy email addresses. Daily for 20 brokers without steps (30-day recheck), immediately for sites from pasted listings, or on demand from the Brokers page.
+- **Label-driven form filler** (`autofill` step, `interpreter/hosted_forms.py`): picks delete / do-not-sell and "myself", fills name, one-time email and address, ticks certifications, never marketing boxes; refuses ID/SSN/DOB fields, forms without a name and email box, and request types without deletion — those go on the checklist with the page.
+- Found forms become the broker's opt-out steps after plugins and admin scripts; their verification emails are clicked via item 35. Found email addresses are used only after an admin approves them.
+- See [`docs/PRIVACY_PAGES.md`](PRIVACY_PAGES.md).
+
+**Status:** Complete (#79) — live verification pending.
 
 ---
 
@@ -684,6 +691,24 @@ plugins/
 **Goal:** Unique addresses on a family-owned domain for inboxes without `+` addressing. Design: [`docs/BUILTIN_INBOX.md`](BUILTIN_INBOX.md).
 
 **Status:** In Design.
+
+---
+
+### 39. Automated removal verification & re-listing monitor
+**Goal:** Know that removals stuck, and catch listings that come back.
+
+- `core/verification.py` checks each removal through the listing page, the broker's own search (`search_url` / `listing_pattern`) or a site-restricted web search confirmed by visiting the page.
+- Verdicts: gone, still up, not found, couldn't check. Sent + gone → removed; removed + still up → sent again ("came back").
+- Runs daily within a budget, before every scheduled re-send, and whenever the weekly web search finds a page on a broker someone was removed from.
+- Dashboard *Removal checks* card. See [`docs/VERIFICATION.md`](VERIFICATION.md).
+
+**Status:** In Review — live verification pending.
+### 40. Data-sharing detection & aggregator-first targeting
+- **Sharing:** opt-out addresses that receive mail from a company they were never given to become "given to → came from" edges (possible / likely / strong by how many distinct addresses), excluding the broker's own family. Admin → Data sharing.
+- **Targeting:** brokers weighted by known wholesalers (`catalog/aggregators.json`), cascades, family size and observed sharing; new default dispatch order "aggregators first".
+- See [`docs/DATA_SHARING.md`](DATA_SHARING.md).
+
+**Status:** In Review.
 
 ---
 

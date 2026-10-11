@@ -627,6 +627,19 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
             </Field>
           </div>
 
+          {/* ── Which brokers go first ── */}
+          <div className="border-t border-slate-700/50 pt-4">
+            <label htmlFor="dispatch-order" className="text-slate-400 text-xs font-medium mb-2 block">Which brokers go first each day</label>
+            <select id="dispatch-order" value={form.dispatch_order ?? 'aggregators_first'}
+              onChange={e => setForm(f => ({...f, dispatch_order: e.target.value}))} className={inp}>
+              <option value="aggregators_first">Aggregators first: brokers that feed other brokers (recommended)</option>
+              <option value="priority">By priority (Broker priority page)</option>
+              <option value="fifo">Oldest requests first</option>
+              <option value="easy_first">Easiest first (quick wins)</option>
+            </select>
+            <p className="text-slate-500 text-xs mt-1">See which brokers count as aggregators under Admin → Data sharing.</p>
+          </div>
+
           {/* ── Job spread mode ── */}
           <div className="border-t border-slate-700/50 pt-4">
             <p className="text-slate-400 text-xs font-medium mb-2">How to spread opt-out jobs</p>

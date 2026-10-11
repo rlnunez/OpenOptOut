@@ -4,7 +4,7 @@ import {
   Users, ShieldCheck, Settings, LogOut, ShieldAlert,
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
   Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal,
-  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks
+  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Bell, Share2
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
@@ -30,7 +30,7 @@ const setup = [
   { label: 'Help',           to: '/help',     icon: BookOpen },
 ]
 
-function NavItem({ to, icon: Icon, label, onNavigate, badge }) {
+function NavItem({ to, icon: Icon, label, onNavigate, badge, badgeLabel }) {
   return (
     <NavLink to={to} end={to === '/'} onClick={onNavigate}
       className={({ isActive }) =>
@@ -42,7 +42,7 @@ function NavItem({ to, icon: Icon, label, onNavigate, badge }) {
       <Icon size={15} />{label}
       {badge > 0 && (
         <span className="ml-auto text-[11px] font-semibold bg-amber-500 text-slate-950 rounded-full px-1.5 min-w-5 text-center"
-          aria-label={`${badge} item${badge === 1 ? '' : 's'} need you`}>{badge}</span>
+          aria-label={badgeLabel ? `${badge} ${badgeLabel}` : `${badge} item${badge === 1 ? '' : 's'} need you`}>{badge}</span>
       )}
     </NavLink>
   )
@@ -64,6 +64,16 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
   const [versionInfo, setVersionInfo] = useState(null)
   const [copiedVersion, setCopiedVersion] = useState(false)
   const [checklistCount, setChecklistCount] = useState(0)
+  const [updatesCount, setUpdatesCount] = useState(0)
+  const seesUpdates = can(user, 'brokers.manage')
+  useEffect(() => {
+    if (!seesUpdates) return
+    const get = () => api.get('/broker-updates/count').then(r => setUpdatesCount(r.data.count || 0)).catch(() => {})
+    get()
+    const t = setInterval(get, 300000)
+    window.addEventListener('broker-updates-read', get)
+    return () => { clearInterval(t); window.removeEventListener('broker-updates-read', get) }
+  }, [seesUpdates])
   useEffect(() => {
     const get = () => api.get('/checklist/count').then(r => setChecklistCount(r.data.count || 0)).catch(() => {})
     get()
@@ -89,8 +99,10 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
   // but not see the Plugins page.
   const adminLinks = [
     { to: '/admin',            icon: ShieldAlert, label: 'Admin panel',      perms: ['users.manage'] },
+    { to: '/broker-updates',   icon: Bell,        label: 'Broker updates',   perms: ['brokers.manage'], badge: updatesCount, badgeLabel: 'new broker updates' },
     { to: '/broker-health',    icon: Activity,    label: 'Broker health',    perms: ['brokers.manage'] },
     { to: '/broker-priority',  icon: ListOrdered, label: 'Broker priority',  perms: ['brokers.manage'] },
+    { to: '/data-sharing',     icon: Share2,      label: 'Data sharing',     perms: ['brokers.manage'] },
     { to: '/parent-companies', icon: Building2,   label: 'Parent companies', perms: ['brokers.manage'] },
     { to: '/state-registries', icon: Landmark,    label: 'State registries', perms: ['brokers.manage'] },
     { to: '/web-search',       icon: Globe2,      label: 'Web search',       perms: ['settings.system'] },

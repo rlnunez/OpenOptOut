@@ -7523,6 +7523,430 @@ def t_forms_builtin():
     s.close()
 
 
+# ── Long tail: privacy-request pages and hosted forms ─────────────────────────
+
+_PP_HOME = """<html><head><title>PeopleFind</title></head><body>
+<a href="/about">About</a> <a href="/terms">Terms</a>
+<a href="/privacy-policy">Privacy Policy</a>
+<a href="https://privacyportal.onetrust.com/webform/abc-123/def-456">Do Not Sell or Share My Personal Information</a>
+<a href="https://www.facebook.com/peoplefind">Facebook</a>
+<a href="mailto:privacy@peoplefind.example">privacy@peoplefind.example</a>
+<a href="mailto:sales@peoplefind.example">Sales</a></body></html>"""
+_PP_POLICY = """<html><head><title>Privacy Policy</title></head><body><h1>Privacy Policy</h1>
+To opt out, write to optout@peoplefind.example or visit
+<a href="https://evil.example/optout">our partner</a>.</body></html>"""
+_PP_FORM_SITE = """<html><head><title>Remove my info</title></head><body><h1>Privacy request</h1>
+<form><label>Email<input type="email" name="email"></label> Request deletion of your listing.</form></body></html>"""
+
+
+def _pp_fetch(pages):
+    calls = []
+    def fetch(url, domain):
+        calls.append(url)
+        key = url.rstrip("/")
+        for k, v in pages.items():
+            if key == k.rstrip("/"):
+                return url, 200, v
+        return url, 404, ""
+    fetch.calls = calls
+    return fetch
+
+
+@test(1, "privacy_finder.reads_a_website",
+      "The finder spots hosted OneTrust/TrustArc forms, in-house request forms, opt-out pages and privacy emails, and only fetches the broker's own site.")
+def t_pp_find():
+    pf = _imp("core.privacy_finder")
+    assert pf.hosted_kind("https://privacyportal.onetrust.com/webform/a/b") == "hosted_onetrust"
+    assert pf.hosted_kind("https://submit-irm.trustarc.com/services/validation/123") == "hosted_trustarc"
+    assert pf.hosted_kind("https://www.onetrust.com/products/") == "", "the vendor's marketing site isn't a form"
+    fetch = _pp_fetch({"https://peoplefind.example": _PP_HOME,
+                       "https://peoplefind.example/privacy-policy": _PP_POLICY})
+    res = pf.find("peoplefind.example", fetch=fetch)
+    kinds = [(f["kind"], f["url"]) for f in res["findings"]]
+    assert kinds[0] == ("hosted_onetrust", "https://privacyportal.onetrust.com/webform/abc-123/def-456"), kinds
+    emails = {f["url"] for f in res["findings"] if f["kind"] == "email"}
+    assert emails == {"mailto:privacy@peoplefind.example", "mailto:optout@peoplefind.example"}, emails
+    assert not any("evil.example" in u or "facebook" in u for u in fetch.calls), fetch.calls
+    assert len(fetch.calls) <= pf.MAX_FETCHES
+    # A site with its own request form, found through a well-known address.
+    fetch2 = _pp_fetch({"https://formsite.example": "<html><body>Hello</body></html>",
+                        "https://formsite.example/opt-out": _PP_FORM_SITE})
+    res2 = pf.find("formsite.example", fetch=fetch2)
+    assert res2["findings"][0]["kind"] == "request_form", res2
+
+
+@test(1, "hosted_forms.plans_fill_by_label",
+      "The form filler picks delete/do-not-sell and 'myself', fills name and the one-time email, and refuses what it shouldn't touch.")
+def t_hf_plan():
+    hf = _imp("core.interpreter.hosted_forms")
+    V = {"first_name": "Jane", "last_name": "Doe", "contact_email": "jane+oo1@gmail.com", "state": "TX",
+         "state_name": "Texas", "request_text": "Please delete my data."}
+    def c(i, **kw):
+        d = {"i": i, "tag": "input", "type": "text", "name": "", "id": "", "label": "", "aria": "",
+             "placeholder": "", "autocomplete": "", "required": False, "group": "", "group_label": "",
+             "value": "", "options": []}
+        d.update(kw); return d
+    form = [
+        c(0, type="radio", group="who", group_label="I am submitting as", label="Myself", value="self", required=True),
+        c(1, type="radio", group="who", group_label="I am submitting as", label="An authorized agent", value="agent"),
+        c(2, type="checkbox", group="rt", group_label="Request type", label="Access my information"),
+        c(3, type="checkbox", group="rt", group_label="Request type", label="Delete my information"),
+        c(4, label="First name", required=True), c(5, label="Last name", required=True),
+        c(6, type="email", label="Email address", required=True),
+        c(7, tag="select", type="select-one", label="State", options=[{"value": "", "label": "Pick"}, {"value": "KS", "label": "Kansas"}, {"value": "TX", "label": "Texas"}]),
+        c(8, type="checkbox", name="news", label="Send me offers and updates"),
+        c(9, type="checkbox", name="cert", label="I declare under penalty of perjury that I am the consumer", required=True),
+        c(10, tag="textarea", type="textarea", label="Additional details"),
+    ]
+    plan = hf.plan_autofill(form, V)
+    by = {a["i"]: a for a in plan["actions"]}
+    assert plan["ok"], plan["why"]
+    assert 0 in by and 1 not in by and 3 in by and 2 not in by and 9 in by and 8 not in by, by
+    assert by[6]["value"] == "jane+oo1@gmail.com" and by[7]["value"] == "TX" and by[10]["value"] == "Please delete my data."
+    # Only access/correct options: not something we'd submit.
+    no_delete = [c(0, type="radio", group="rt", group_label="Type of request", label="Access my data"),
+                 c(1, type="radio", group="rt", group_label="Type of request", label="Correct my data"),
+                 c(2, label="Full name"), c(3, type="email", label="Email")]
+    assert "deletion" in hf.plan_autofill(no_delete, V)["why"]
+    newsletter = [c(0, type="email", label="Email")]
+    assert not hf.plan_autofill(newsletter, V)["ok"], "a lone email box is a newsletter, not a privacy form"
+    needs_ssn = [c(0, label="Full name"), c(1, type="email", label="Email"), c(2, label="Last 4 of SSN", required=True)]
+    assert "never fill" in hf.plan_autofill(needs_ssn, V)["why"]
+    # Spec built for a found page fills the form and expects a confirmation email.
+    class B: id, name = 7, "PeopleFind"
+    class P: url, kind = "https://privacyportal.onetrust.com/webform/a/b", "hosted_onetrust"
+    spec = hf.spec_for_page(B(), P())
+    assert spec.validate() == [] and any(st.kind == "autofill" for st in spec.steps)
+    assert "email_confirmation" in spec.requires and hf.is_found_form(spec)
+    job = _imp("core.interpreter").compile_job(spec, dict(V, full_name="Jane Doe"), "1")
+    payload = __import__("json").loads(next(st for st in job.steps if st.kind == "autofill").value)
+    assert payload["contact_email"] == "jane+oo1@gmail.com" and "delete" in payload["request_text"].lower()
+
+
+@test(2, "hosted_forms.fills_a_real_page",
+      "In a real browser, the form filler completes a OneTrust-style form and stops on one that wants an ID number.")
+def t_hf_browser():
+    import asyncio
+    try:
+        from playwright.async_api import async_playwright
+    except Exception as e:
+        raise Skip(f"playwright missing: {e}")
+    ci = _imp("core.interpreter")
+    good = """<form><fieldset><legend>Request type</legend>
+<label><input type=checkbox name=rt value=access> Access my personal information</label>
+<label><input type=checkbox name=rt value=delete> Delete my personal information</label></fieldset>
+<label for=fn>First Name *</label><input id=fn required><label for=ln>Last Name *</label><input id=ln required>
+<label for=em>Email *</label><input id=em type=email required>
+<label><input type=checkbox id=news name=news> Send me news and offers</label>
+<label><input type=checkbox id=cert name=cert required> I certify that the information is true</label>
+<button type=submit onclick="event.preventDefault();window.sent=JSON.stringify(Array.from(document.querySelectorAll('input')).map(e=>[e.id||e.value,e.type==='checkbox'?e.checked:e.value]));document.body.innerHTML='<p>Your request has been received.</p>'">Submit</button></form>"""
+    bad = """<form><h2>Delete my data</h2><label for=n>Full name</label><input id=n required>
+<label for=e>Email</label><input id=e type=email required><label for=d>Driver's license number</label><input id=d required>
+<button type=submit>Submit</button></form>"""
+    spec = ci.BrokerSpec(broker_id="x", name="PeopleFind", method="form", opt_out_url="https://x.example",
+                         steps=[ci.Step(kind="autofill"),
+                                ci.Step(kind="click_matching", selector="button, input[type=submit]", text="Submit"),
+                                ci.Step(kind="expect_success", text="received", optional=True)])
+    fields = {"first_name": "Jane", "last_name": "Doe", "full_name": "Jane Doe", "contact_email": "jane+oo1@gmail.com"}
+
+    async def go(html):
+        async with async_playwright() as p:
+            try:
+                b = await p.chromium.launch()
+            except Exception as e:
+                raise Skip(f"no browser: {e}")
+            try:
+                pg = await b.new_page()
+                await pg.set_content(html)
+                job = ci.compile_job(spec, fields, "1")
+                job.steps = [st for st in job.steps if st.kind != "navigate"]
+                r = await ci.PlaywrightExecutor(page=pg).run(job)
+                sent = await pg.evaluate("() => window.sent || ''")
+                return r, sent
+            finally:
+                await b.close()
+    r, sent = asyncio.run(go(good))
+    assert r.ok and r.verified, r.detail
+    vals = dict(__import__("json").loads(sent))
+    assert vals["delete"] is True and vals["access"] is False and vals["em"] == "jane+oo1@gmail.com", vals
+    assert vals["cert"] is True and vals["news"] is False, "certify yes, marketing never"
+    r2, _ = asyncio.run(go(bad))
+    assert r2.needs_manual and "never fill" in r2.human_instruction and "PeopleFind" in r2.human_instruction
+
+
+@test(2, "privacy_finder.used_by_opt_outs",
+      "Found forms become the broker's opt-out steps; new sites from pasted listings are checked and moved to automated; emails need approval.")
+def t_pp_used():
+    db, s = _memory_db()
+    pf = _imp("core.privacy_finder")
+    sb = _imp("core.interpreter.script_bridge")
+    lf = _imp("core.listing_finder")
+    oe = _imp("core.optout_engine")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    res = lf.add_listing(s, pm, "https://peoplefind.example/person/pat-parent")
+    b = s.query(db.Broker).filter_by(id=res["broker_id"]).one()
+    req = s.query(db.RemovalRequest).filter_by(id=res["request_id"]).one()
+    assert req.status == db.RequestStatus.needs_manual
+    fetch = _pp_fetch({"https://peoplefind.example": _PP_HOME,
+                       "https://peoplefind.example/privacy-policy": _PP_POLICY})
+    out = pf.check_new_site(s, b, fetch=fetch)
+    s.refresh(b); s.refresh(req)
+    assert out["used"] == "hosted_onetrust" and b.method == db.OptOutMethod.form and req.status == db.RequestStatus.pending
+    spec = sb.get_or_build_broker_spec(b, db=s)
+    assert spec.opt_out_url.startswith("https://privacyportal.onetrust.com/") and any(st.kind == "autofill" for st in spec.steps)
+    # The verification link a OneTrust form sends is allowed to be clicked.
+    cl = _imp("core.confirm_links")
+    assert "onetrust.com" in cl.allowed_domains(s, req)
+    # Emails: found, not used until approved.
+    assert oe.resolve_optout_address(b, s) is None
+    em = s.query(db.PrivacyPage).filter_by(broker_id=b.id, kind="email", url="mailto:privacy@peoplefind.example").one()
+    pf.approve_email(s, em, "Pat")
+    assert oe.resolve_optout_address(b, s) == "privacy@peoplefind.example"
+    # Dismissed results stay dismissed when the site is checked again.
+    form = s.query(db.PrivacyPage).filter_by(broker_id=b.id, kind="hosted_onetrust").one()
+    form.status = "dismissed"; s.commit()
+    pf.run_for_broker(s, b, fetch=fetch)
+    s.refresh(form)
+    assert form.status == "dismissed" and pf.best(s, b, pf.FILLABLE) is None
+    # Brokers that already have steps aren't checked.
+    b.plugin_id = "something"; b.privacy_checked_at = None; s.commit()
+    assert b not in pf.needs_check(s)
+# ── Broker update notifications ───────────────────────────────────────────────
+
+@test(2, "broker_updates.recorded_and_emailed",
+      "Brokers turned off, sites gone or back, registry changes and new sites become admin updates; a digest emails them once.")
+def t_broker_updates():
+    from datetime import datetime, timedelta
+    db, s = _memory_db()
+    bu = _imp("core.broker_updates")
+    bh = _imp("core.broker_health")
+    rs = _imp("core.registry_sync")
+    lf = _imp("core.listing_finder")
+    b = db.Broker(name="FailCo", opt_out_url="https://failco.example", enabled=True)
+    g = db.Broker(name="GoneCo", opt_out_url="https://goneco.example", enabled=True)
+    s.add_all([b, g]); s.commit()
+    for _ in range(bh.AUTO_DISABLE_THRESHOLD):
+        bh.record_failure(s, b.id, "selector not found: #submit")
+    kinds = [u["kind"] for u in bu.listing(s)]
+    assert kinds.count("auto_disabled") == 1, kinds
+    now = datetime.utcnow()
+    bh.record_probe(s, g.id, False, "getaddrinfo failed", now=now - timedelta(days=31))
+    bh.record_probe(s, g.id, False, "getaddrinfo failed", now=now)
+    bh.record_probe(s, g.id, True, now=now + timedelta(hours=1))
+    kinds = [u["kind"] for u in bu.listing(s)]
+    assert "defunct" in kinds and "back_online" in kinds, kinds
+    rows = [{"name": "New Data LLC", "domain": "newdata.example", "email": "", "opt_out_url": ""},
+            {"name": "FailCo", "domain": "failco.example", "email": "privacy@failco.example", "opt_out_url": ""}]
+    rs.apply(s, "VT", rows)
+    ups = bu.listing(s)
+    assert any(u["kind"] == "new_brokers" and "1 new broker" in u["title"] for u in ups), ups
+    assert any(u["kind"] == "contact_changed" and u["broker_id"] == b.id for u in ups)
+    P, C, pm, cm, boxes = _family(db, s)
+    lf.add_listing(s, pm, "https://unknownpeople.example/p/pat")
+    assert any(u["kind"] == "new_site" and "unknownpeople.example" in u["title"] for u in bu.listing(s))
+    assert all("Pat" not in (u["title"] + (u["detail"] or "")) for u in bu.listing(s)), "no family details"
+    # Same thing about the same broker isn't repeated within a week.
+    n = len(bu.listing(s))
+    bu.record(s, "auto_disabled", "again", broker_id=b.id); s.commit()
+    assert len(bu.listing(s)) == n
+    # Digest: one email with everything, then nothing until the next one is due.
+    sent = []
+    send = lambda subj, body, db_: (sent.append((subj, body)) or {"sent": True})
+    r = bu.digest(s, {}, send=send)
+    assert r["sent"] and len(sent) == 1 and "need attention" in sent[0][0] and "FailCo" in sent[0][1], (r, sent)
+    assert bu.digest(s, {}, send=send)["reason"] == "nothing new"
+    bu.record(s, "new_site", "Another site", broker_id=None); s.commit()
+    recent = {"broker_updates_last_digest": datetime.utcnow().isoformat() + "Z"}
+    assert bu.digest(s, recent, send=send)["reason"] == "not due"
+    assert bu.digest(s, {"broker_updates": {"email_digest": "off"}}, send=send)["reason"] == "off"
+    assert bu.unread_count(s) == len(bu.listing(s))
+    bu.mark_read(s)
+    assert bu.unread_count(s) == 0
+# ── Automated removal verification ────────────────────────────────────────────
+
+def _vf_member(db, s):
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    s.add_all([db.Identity(member_id=pm.id, kind="name", value="Pat Parent", is_primary=True),
+               db.Identity(member_id=pm.id, kind="address", value="12 Oak St, Austin, TX 78701", is_primary=True),
+               db.Identity(member_id=pm.id, kind="phone", value="512-555-0100", is_primary=True)])
+    s.commit()
+    return pm
+
+
+@test(2, "verification.checks_and_acts",
+      "Removal checks read the listing page, the broker's search and web search, confirm removals that stuck, and re-send ones that came back.")
+def t_verification():
+    from datetime import datetime, timedelta
+    db, s = _memory_db()
+    vf = _imp("core.verification")
+    R = db.RequestStatus
+    pm = _vf_member(db, s)
+    b = db.Broker(name="PeopleFind", opt_out_url="https://www.peoplefind.example/optout")
+    s.add(b); s.flush()
+    now = datetime.utcnow()
+    listing = "https://www.peoplefind.example/p/pat-parent-austin"
+    req = db.RemovalRequest(member_id=pm.id, broker_id=b.id, status=R.sent, listing_url=listing,
+                            sent_at=now - timedelta(days=10), request_key="rk-v")
+    s.add(req); s.commit()
+    pages = {}
+    calls = []
+    def fetch(url, domain):
+        calls.append(url)
+        return pages.get(url, (url, 404, ""))
+    # 1. The listing page is gone: a sent request becomes confirmed.
+    r = vf.verify_request(s, req, {}, fetch=fetch)
+    s.refresh(req)
+    assert r["verdict"] == "gone" and r["action"] == "confirmed" and req.status == R.confirmed and req.last_verdict == "gone"
+    # 2. A month later it's back with their city: re-sent, noted as come back.
+    pages[listing] = (listing, 200, "<h1>Pat Parent, 45</h1><p>Lives in Austin, TX. Phone (512) 555-0100</p>")
+    r = vf.verify_request(s, req, {}, fetch=fetch)
+    s.refresh(req)
+    assert r["verdict"] == "listed" and r["action"] == "resend_reappeared" and req.status == R.pending
+    assert "came back" in req.notes
+    # 3. A removal page that says "removed" counts as gone, even with a 200.
+    req.status, req.sent_at = R.sent, now - timedelta(days=10); s.commit()
+    pages[listing] = (listing, 200, "<p>This profile has been removed at the owner's request.</p>")
+    assert vf.verify_request(s, req, {}, fetch=fetch)["verdict"] == "gone"
+    # 4. A robot wall is "blocked", and changes nothing.
+    req.status = R.confirmed; s.commit()
+    pages[listing] = (listing, 403, "")
+    r = vf.verify_request(s, req, {}, fetch=fetch, search=lambda q: [])
+    s.refresh(req)
+    assert r["verdict"] in ("blocked", "not_found") and req.status == R.confirmed, r
+    # 5. Broker search with a listing pattern, when there's no listing URL.
+    ci = _imp("core.interpreter")
+    spec = ci.BrokerSpec.from_dict({"broker_id": "pf", "name": "PeopleFind", "method": "manual",
+                                    "search_url": "https://www.peoplefind.example/search/{first_name}-{last_name}/{state}",
+                                    "listing_pattern": r"/p/[a-z-]+"})
+    real = vf._spec
+    vf._spec = lambda db_, broker: spec
+    try:
+        req2 = db.RemovalRequest(member_id=pm.id, broker_id=b.id, status=R.confirmed,
+                                 confirmed_at=now - timedelta(days=40), request_key="rk-v2")
+        s.add(req2); s.commit()
+        search_url = "https://www.peoplefind.example/search/Pat-Parent/TX"
+        pages[search_url] = (search_url, 200, '<div><a href="/p/pat-parent-dallas">Pat Parent</a> Dallas, TX</div>'
+                                              '<div><a href="/p/pat-parent-austin2">Pat Parent</a> Austin, TX, age 45</div>'
+                                              '<a href="/about">About</a>')
+        r = vf.verify_request(s, req2, {}, fetch=fetch)
+        s.refresh(req2)
+        assert r["verdict"] == "listed" and r["method"] == "broker_search" and req2.listing_url.endswith("/p/pat-parent-austin2"), r
+        assert req2.status == R.pending
+        pages[search_url] = (search_url, 200, '<div><a href="/p/pat-parent-dallas">Pat Parent</a> Dallas, TX</div>')
+        req2.status, req2.listing_url = R.confirmed, None; s.commit()
+        r = vf.verify_request(s, req2, {}, fetch=fetch)
+        assert r["verdict"] == "not_found", "a namesake in another city isn't them"
+    finally:
+        vf._spec = real
+    # 6. Web search: a hit counts only if the page still shows them.
+    req3 = db.RemovalRequest(member_id=pm.id, broker_id=b.id, status=R.confirmed, request_key="rk-v3")
+    s.add(req3); s.commit()
+    hit_url = "https://www.peoplefind.example/p/pat-parent-x"
+    searches = []
+    def search(q):
+        searches.append(q)
+        return [{"url": hit_url, "title": "Pat Parent - Austin, TX", "snippet": "Pat Parent, 45, Austin"},
+                {"url": "https://elsewhere.example/pat", "title": "Pat Parent", "snippet": ""}]
+    pages[hit_url] = (hit_url, 404, "")
+    r = vf.verify_request(s, req3, {}, fetch=fetch, search=search)
+    assert r["verdict"] == "not_found" and searches[0].startswith("site:peoplefind.example"), (r, searches)
+    assert not any("elsewhere.example" in c for c in calls), "only the broker's own pages are visited"
+    pages[hit_url] = (hit_url, 200, "<h1>Pat Parent</h1> Austin TX 512-555-0100")
+    r = vf.verify_request(s, req3, {}, fetch=fetch, search=search)
+    assert r["verdict"] == "listed" and r["method"] == "web_search"
+    s.close()
+
+
+@test(2, "verification.schedule_and_web_search",
+      "Daily checks pick sent and confirmed removals on a budget; the weekly web search re-checks brokers someone was removed from.")
+def t_verification_schedule():
+    from datetime import datetime, timedelta
+    db, s = _memory_db()
+    vf = _imp("core.verification")
+    R = db.RequestStatus
+    pm = _vf_member(db, s)
+    now = datetime.utcnow()
+    bs = [db.Broker(name=f"B{i}", opt_out_url=f"https://b{i}.example") for i in range(3)]
+    s.add_all(bs); s.flush()
+    fresh = db.RemovalRequest(member_id=pm.id, broker_id=bs[0].id, status=R.sent, sent_at=now - timedelta(days=2))
+    old_sent = db.RemovalRequest(member_id=pm.id, broker_id=bs[0].id, status=R.sent, sent_at=now - timedelta(days=9))
+    conf_recent = db.RemovalRequest(member_id=pm.id, broker_id=bs[1].id, status=R.confirmed,
+                                    last_checked_at=now - timedelta(days=3), recheck_after=now + timedelta(days=60))
+    conf_due = db.RemovalRequest(member_id=pm.id, broker_id=bs[2].id, status=R.confirmed,
+                                 last_checked_at=now - timedelta(days=3), recheck_after=now - timedelta(days=1))
+    s.add_all([fresh, old_sent, conf_recent, conf_due]); s.commit()
+    ids = {r.id for r in vf.due(s, {}, now=now)}
+    assert ids == {old_sent.id, conf_due.id}, ids
+    assert len(vf.due(s, {"verification": {"per_day": 1}}, now=now)) == 1
+    st = vf.run_daily(s, {"verification": {"enabled": False}})
+    assert st["checked"] == 0
+    st = vf.run_daily(s, {}, fetch=lambda u, d: (u, 404, ""), search=lambda q: [], pause=0)
+    assert st["checked"] == 2, st
+    # Weekly web search finds a page on a broker this person was removed from.
+    ws = _imp("core.web_search")
+    conf_recent.listing_url = None; s.commit()
+    page = "https://b1.example/people/pat-parent"
+    real_fetcher = vf.fetcher
+    vf.fetcher = lambda cfg: (lambda u, d: (u, 200, "<h1>Pat Parent</h1> 12 Oak St, Austin TX") if u == page else (u, 404, ""))
+    try:
+        res = ws.run_for_member(s, pm, {"web_search": {"enabled": True, "searxng_url": "http://x"}},
+                                search=lambda q: [{"url": page, "title": "Pat Parent, Austin TX", "snippet": "12 Oak St"}],
+                                pause=0)
+    finally:
+        vf.fetcher = real_fetcher
+    s.refresh(conf_recent)
+    assert res.get("relisted") == 1 and conf_recent.status == R.pending and conf_recent.listing_url == page, res
+    assert s.query(db.RemovalRequest).filter_by(member_id=pm.id, broker_id=bs[1].id).count() == 1, "no duplicate request"
+    summ = vf.summary(s, [pm.id])
+    assert summ["counts"]["listed"] >= 1 and summ["recent"]
+# ── Data sharing signals and aggregator-first targeting ───────────────────────
+
+@test(2, "broker_network.sharing_and_aggregators_first",
+      "Opt-out addresses that receive mail from other companies become sharing edges; aggregators and sharers are sent first.")
+def t_broker_network():
+    db, s = _memory_db()
+    bn = _imp("core.broker_network")
+    bp = _imp("core.broker_priority")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    parent = db.ParentCompany(name="FamilyCo", website="https://familyco.example")
+    s.add(parent); s.flush()
+    a = db.Broker(name="LeakyPeople", opt_out_url="https://leakypeople.example/optout", priority=3)
+    sib = db.Broker(name="FamilyCo Phones", opt_out_url="https://familyphones.example", parent_company_id=parent.id, priority=3)
+    sib2 = db.Broker(name="FamilyCo Records", opt_out_url="https://familyrecords.example", parent_company_id=parent.id, priority=3)
+    buyer = db.Broker(name="BuyerSearch", opt_out_url="https://buyersearch.example", priority=3)
+    acx = db.Broker(name="Acxiom", opt_out_url="https://www.acxiom.com/optout", priority=2)
+    plain = db.Broker(name="PlainSite", opt_out_url="https://plainsite.example", priority=5)
+    s.add_all([a, sib, sib2, buyer, acx, plain]); s.flush()
+    def ca(broker, member, senders, tag):
+        s.add(db.ContactAddress(tag=tag, address=f"pat+{tag}@gmail.com", address_hash=tag, mailbox_id=boxes["parent"].id,
+                                member_id=member.id, broker_id=broker.id, unexpected_senders=senders))
+    ca(a, pm, "mail.buyersearch.example,promo.gmail.com", "oo1")
+    ca(a, cm, "buyersearch.example", "oo2")
+    ca(sib, pm, "familyrecords.example,deals.example", "oo3")   # its own sibling never counts
+    s.commit()
+    edges = bn.sharing_edges(s)
+    by = {(e["from_name"], e["to_domain"]): e for e in edges}
+    e = by[("LeakyPeople", "buyersearch.example")]
+    assert e["addresses"] == 2 and e["members"] == 2 and e["confidence"] == "likely" and e["to_broker_id"] == buyer.id, e
+    assert ("FamilyCo Phones", "familyrecords.example") not in by, "a sibling site isn't a third party"
+    assert by[("FamilyCo Phones", "deals.example")]["confidence"] == "possible"
+    assert by[("LeakyPeople", "gmail.com")]["confidence"] == "unknown_sender"
+    sc = bn.upstream_scores(s, edges)
+    assert sc[acx.id]["score"] >= 8 and "wholesaler" in sc[acx.id]["reasons"][0]
+    assert sc[a.id]["score"] > 0 and any("BuyerSearch" in r for r in sc[a.id]["reasons"])
+    assert sc[sib.id]["score"] > 0 and plain.id not in sc
+    # Aggregators-first: Acxiom (priority 2) goes before PlainSite (priority 5).
+    reqs = [db.RemovalRequest(member_id=pm.id, broker_id=b.id, status=db.RequestStatus.pending) for b in (plain, acx, a, buyer)]
+    s.add_all(reqs); s.commit()
+    up = {k: v["score"] for k, v in sc.items()}
+    order = [r.broker.name for r in bp.order_pending(reqs, "aggregators_first", up)]
+    assert order[0] == "Acxiom" and order.index("LeakyPeople") < order.index("PlainSite"), order
+    assert bp.order_pending(reqs, "priority")[0].broker.name == "PlainSite", "priority order unchanged"
+    rank = bn.ranking(s)
+    assert rank[0]["broker_name"] == "Acxiom" and all(r["score"] > 0 for r in rank)
+    s.close()
+
+
 # ── Family inboxes and per-opt-out addresses ──────────────────────────────────
 
 def _family(db, s, parent_inbox=None, child_inbox=None, child_plus="verified", parent_plus="verified"):
