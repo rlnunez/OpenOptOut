@@ -67,7 +67,7 @@ def require_plugin_uploader(
         return current_user
     from ..core.settings_store import load_settings
     if load_settings().get("plugins", {}).get("denied", False):
-        raise HTTPException(403, "The plugin system is currently denied by a super admin")
+        raise HTTPException(403, "Plugins are turned off by the main administrator.")
     return current_user
 
 
@@ -97,7 +97,7 @@ def _extracted_bundle(file: UploadFile):
     """Save an uploaded zip, check it, extract it to a temp dir, and yield
     (plugin_dir, manifest, manifest_errors). The temp dir is removed after."""
     if not (file.filename or "").lower().endswith(".zip"):
-        raise HTTPException(400, "Plugin bundle must be a .zip file")
+        raise HTTPException(400, "Plugins are uploaded as a .zip file.")
     with tempfile.TemporaryDirectory() as tmp:
         zpath = os.path.join(tmp, "bundle.zip")
         size = 0
@@ -122,7 +122,7 @@ def _extracted_bundle(file: UploadFile):
                         raise HTTPException(400, problem)
                 z.extractall(extract_dir)
         except zipfile.BadZipFile:
-            raise HTTPException(400, "Invalid zip file")
+            raise HTTPException(400, "That .zip file couldn't be opened.")
 
         # Find manifest.json: the shallowest one (at the root, or inside a single
         # top-level folder, which is how most zip tools package a directory).
@@ -133,11 +133,11 @@ def _extracted_bundle(file: UploadFile):
                 manifest_dir = root
                 break
         if not manifest_dir:
-            raise HTTPException(400, "No manifest.json found in bundle")
+            raise HTTPException(400, "That .zip has no manifest.json, so it isn't a plugin.")
         try:
             manifest = layout.read_manifest(manifest_dir)
         except Exception:
-            raise HTTPException(400, "manifest.json could not be read or is invalid JSON")
+            raise HTTPException(400, "The plugin's manifest.json couldn't be read.")
         yield manifest_dir, manifest, manifest.validate()
 
 
@@ -344,7 +344,7 @@ def install_plugin(path: str, db: Session = Depends(get_db),
                                  "from disk; upload anything else as a .zip")
 
     if not os.path.isfile(manifest_path):
-        raise HTTPException(404, "manifest.json not found at that path")
+        raise HTTPException(404, "There's no manifest.json in that folder.")
 
     m = layout.read_manifest(plugin_dir_real)
     errors = m.validate()
@@ -514,7 +514,7 @@ def enable_plugin(plugin_id: str, req: EnableRequest, db: Session = Depends(get_
     """
     row = db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == plugin_id).first()
     if not row:
-        raise HTTPException(404, "Plugin not installed")
+        raise HTTPException(404, "That plugin isn't installed.")
 
     manifest = PluginManifest.from_dict(json.loads(row.manifest_json))
     requested = set(manifest.permissions)
@@ -641,7 +641,7 @@ def enable_plugin(plugin_id: str, req: EnableRequest, db: Session = Depends(get_
         except Exception:
             raise HTTPException(500, "Enabled but failed to launch. Check server logs.")
     else:
-        raise HTTPException(503, "Plugin manager not running — enable the plugin system and restart")
+        raise HTTPException(503, "Plugins aren't running. Turn them on in Settings, then restart OpenOptOut.")
 
     if manifest.effective_type == "brokers":
         from ..plugins.broker_addon import sync_broker_from_addon
@@ -655,7 +655,7 @@ def disable_plugin(plugin_id: str, db: Session = Depends(get_db),
                    current: User = Depends(require_super_admin)):
     row = db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == plugin_id).first()
     if not row:
-        raise HTTPException(404, "Plugin not installed")
+        raise HTTPException(404, "That plugin isn't installed.")
     row.enabled = False
     row.status = "stopped"
     manifest_type = ""
@@ -681,7 +681,7 @@ def uninstall_plugin(plugin_id: str, remove_files: bool = False,
                      current: User = Depends(require_super_admin)):
     row = db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == plugin_id).first()
     if not row:
-        raise HTTPException(404, "Plugin not installed")
+        raise HTTPException(404, "That plugin isn't installed.")
 
     manifest_type = ""
     try:
@@ -774,7 +774,7 @@ def plugin_doc(doc: str, _: User = Depends(require_permission("plugins.view"))):
     """
     fname = _PLUGIN_DOC_FILES.get(doc)
     if not fname:
-        raise HTTPException(404, "Unknown plugin doc")
+        raise HTTPException(404, "That guide doesn't exist.")
     # Docs ship inside the plugins package: backend/plugins/docs/<file>.md
     docs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "plugins", "docs")
     path = os.path.join(docs_dir, fname)

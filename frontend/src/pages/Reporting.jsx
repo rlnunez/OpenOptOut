@@ -70,7 +70,7 @@ export default function Reporting() {
 
   const exportCSV = () => {
     const rows = [
-      ['Member', 'Total', 'Confirmed', 'Pending', 'Failed', 'Rate'],
+      ['Person', 'Total', 'Removed', 'Waiting', "Didn't work", 'Removed %'],
       ...perMember.map(m => [m.member, m.total, m.confirmed, m.pending, m.failed, `${m.rate}%`]),
     ]
     const csv  = rows.map(r => r.join(',')).join('\n')
@@ -185,12 +185,12 @@ export default function Reporting() {
               <table className="w-full text-sm">
               <thead>
                 <tr className="text-slate-500 text-xs border-b border-slate-700/30">
-                  <th className="text-left px-4 py-2 font-normal">Member</th>
+                  <th className="text-left px-4 py-2 font-normal">Person</th>
                   <th className="text-left px-4 py-2 font-normal">Total</th>
-                  <th className="text-left px-4 py-2 font-normal">Confirmed</th>
-                  <th className="text-left px-4 py-2 font-normal">Pending</th>
-                  <th className="text-left px-4 py-2 font-normal">Failed</th>
-                  <th className="text-left px-4 py-2 font-normal">Rate</th>
+                  <th className="text-left px-4 py-2 font-normal">Removed</th>
+                  <th className="text-left px-4 py-2 font-normal">Waiting</th>
+                  <th className="text-left px-4 py-2 font-normal">Didn't work</th>
+                  <th className="text-left px-4 py-2 font-normal">Removed %</th>
                 </tr>
               </thead>
               <tbody>

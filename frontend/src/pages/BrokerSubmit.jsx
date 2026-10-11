@@ -80,7 +80,7 @@ function AddBrokerForm({ onAdded }) {
       setForm({ name: '', opt_out_url: '', method: 'form', difficulty: 'medium', status: 'compliant', notes: '' })
       onAdded(data)
     } catch (err) {
-      setError(err.response?.data?.detail ?? 'Failed to add broker')
+      setError(err.response?.data?.detail ?? "Couldn't add the site. Check the details and try again.")
     } finally { setSaving(false) }
   }
 
@@ -181,7 +181,7 @@ function JsonUpload({ onImported }) {
       setResult(data)
       onImported()
     } catch (err) {
-      setError(err.response?.data?.detail ?? 'Import failed — check JSON format')
+      setError(err.response?.data?.detail ?? "Couldn't read that file. It needs to be a broker list exported from OpenOptOut (a .json file).")
     } finally {
       setLoading(false)
       e.target.value = ''

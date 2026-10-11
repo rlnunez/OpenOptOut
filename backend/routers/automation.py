@@ -220,7 +220,7 @@ def upsert_script(
     _: User = Depends(require_permission("brokers.automation")),
 ):
     broker = db.query(Broker).filter(Broker.id == broker_id).first()
-    if not broker: raise HTTPException(404, "Broker not found")
+    if not broker: raise HTTPException(404, "That site is gone. Refresh the page.")
 
     s = db.query(BrokerScript).filter(BrokerScript.broker_id == broker_id).first()
     if not s:

@@ -90,7 +90,7 @@ export default function Translations() {
       }
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (e) {
-      alert('Failed to save translations: ' + (e.response?.data?.detail || e.message))
+      alert("Couldn't save the translations: " + (e.response?.data?.detail || 'please try again.'))
     } finally {
       setSaving(false)
     }
@@ -102,7 +102,7 @@ export default function Translations() {
       await api.put(`/i18n/languages/${code}/toggle`, { enabled: !currentEnabled })
       await refreshLanguages()
     } catch (e) {
-      alert(e.response?.data?.detail || 'Failed to toggle language')
+      alert(e.response?.data?.detail || "Couldn't turn that language on or off. Please try again.")
     }
   }
 
@@ -129,7 +129,7 @@ export default function Translations() {
       setNewNativeName('')
       setNewIsRTL(false)
     } catch (err) {
-      setAddError(err.response?.data?.detail || 'Failed to add language')
+      setAddError(err.response?.data?.detail || "Couldn't add the language. Please try again.")
     }
   }
 

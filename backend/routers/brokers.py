@@ -209,7 +209,7 @@ def get_broker(
 ):
     b = db.query(Broker).filter(Broker.id == broker_id).first()
     if not b:
-        raise HTTPException(404, "Broker not found")
+        raise HTTPException(404, "That site is gone. Refresh the page.")
     return b
 
 
@@ -222,7 +222,7 @@ def update_broker(
 ):
     b = db.query(Broker).filter(Broker.id == broker_id).first()
     if not b:
-        raise HTTPException(404, "Broker not found")
+        raise HTTPException(404, "That site is gone. Refresh the page.")
     for field, val in data.model_dump(exclude_none=True).items():
         setattr(b, field, val)
     db.commit()
@@ -249,7 +249,7 @@ def set_broker_captcha_solver(
     """
     b = db.query(Broker).filter(Broker.id == broker_id).first()
     if not b:
-        raise HTTPException(404, "Broker not found")
+        raise HTTPException(404, "That site is gone. Refresh the page.")
     b.captcha_plugin_id = data.captcha_plugin_id.strip() if data.captcha_plugin_id else None
     db.commit()
     db.refresh(b)
@@ -336,11 +336,11 @@ def create_broker(
 ):
     """Add a single broker via form."""
     if not data.name or not data.name.strip():
-        raise HTTPException(400, "Broker name cannot be empty")
+        raise HTTPException(400, "Give the site a name.")
     from ..core.auth import require_super_admin
     existing = db.query(Broker).filter(Broker.name.ilike(data.name.strip())).first()
     if existing:
-        raise HTTPException(400, f"Broker '{data.name}' already exists (id={existing.id})")
+        raise HTTPException(400, f"There's already a site called '{data.name}'.")
 
     def safe_enum(val, enum_cls, default):
         try:
@@ -372,7 +372,7 @@ def delete_broker(
 ):
     b = db.query(Broker).filter(Broker.id == broker_id).first()
     if not b:
-        raise HTTPException(404, "Broker not found")
+        raise HTTPException(404, "That site is gone. Refresh the page.")
     has_requests = db.query(RemovalRequest).filter(RemovalRequest.broker_id == broker_id).first()
     if has_requests:
         raise HTTPException(400, "Cannot delete broker with existing removal requests. Disable it instead.")
@@ -403,11 +403,11 @@ def import_json_brokers(
     try:
         data = _json.loads(content)
     except Exception:
-        raise HTTPException(400, "Invalid JSON")
+        raise HTTPException(400, "That file isn't a readable broker list (.json).")
 
     rows = data if isinstance(data, list) else data.get("brokers", [])
     if not rows:
-        raise HTTPException(400, "No broker entries found in JSON")
+        raise HTTPException(400, "That file has no sites in it.")
 
     def safe_enum(val, enum_cls, default):
         try:
@@ -530,7 +530,7 @@ def get_broker_health(
     from ..models.database import BrokerHealth
     broker = db.query(Broker).filter(Broker.id == broker_id).first()
     if not broker:
-        raise HTTPException(404, "Broker not found")
+        raise HTTPException(404, "That site is gone. Refresh the page.")
     h = db.query(BrokerHealth).filter(BrokerHealth.broker_id == broker_id).first()
     return _health_out(broker, h)
 
@@ -547,7 +547,7 @@ def disable_broker(
     from ..models.database import BrokerHealth
     broker = db.query(Broker).filter(Broker.id == broker_id).first()
     if not broker:
-        raise HTTPException(404, "Broker not found")
+        raise HTTPException(404, "That site is gone. Refresh the page.")
     _health_disable(db, broker_id, reason=f"manually disabled by {user.email}")
     db.refresh(broker)
     h = db.query(BrokerHealth).filter(BrokerHealth.broker_id == broker_id).first()
@@ -569,7 +569,7 @@ def enable_broker(
     from ..models.database import BrokerHealth
     broker = db.query(Broker).filter(Broker.id == broker_id).first()
     if not broker:
-        raise HTTPException(404, "Broker not found")
+        raise HTTPException(404, "That site is gone. Refresh the page.")
     _health_re_enable(db, broker_id)
     db.refresh(broker)
     h = db.query(BrokerHealth).filter(BrokerHealth.broker_id == broker_id).first()
@@ -624,10 +624,10 @@ def set_broker_priority(broker_id: int, body: PrioritySet,
     """Manually set one broker's priority (marks source = manual)."""
     _require_admin(user)
     if not (1 <= body.priority <= 5):
-        raise HTTPException(400, "priority must be 1..5")
+        raise HTTPException(400, "Priority has to be from 1 to 5.")
     b = db.query(Broker).filter(Broker.id == broker_id).first()
     if not b:
-        raise HTTPException(404, "Broker not found")
+        raise HTTPException(404, "That site is gone. Refresh the page.")
     b.priority = body.priority
     b.priority_source = "manual"
     db.commit(); db.refresh(b)
@@ -641,7 +641,7 @@ def bulk_set_priority(body: BulkPrioritySet,
     """Manually set priority on a bulk-selected set of brokers (source = manual)."""
     _require_admin(user)
     if not (1 <= body.priority <= 5):
-        raise HTTPException(400, "priority must be 1..5")
+        raise HTTPException(400, "Priority has to be from 1 to 5.")
     rows = db.query(Broker).filter(Broker.id.in_(body.broker_ids)).all()
     for b in rows:
         b.priority = body.priority
@@ -663,7 +663,7 @@ def preview_priority_rule(rule: RuleModel,
     r = _rule_from_model(rule)
     errs = r.validate()
     if errs:
-        raise HTTPException(400, f"invalid rule: {errs}")
+        raise HTTPException(400, f"That rule doesn't work: {'; '.join(errs) if isinstance(errs, list) else errs}")
     brokers = db.query(Broker).all()
     pv = _bp.preview_rule(r, brokers)
     return {
@@ -687,7 +687,7 @@ def apply_priority_rule(rule: RuleModel,
     r = _rule_from_model(rule)
     errs = r.validate()
     if errs:
-        raise HTTPException(400, f"invalid rule: {errs}")
+        raise HTTPException(400, f"That rule doesn't work: {'; '.join(errs) if isinstance(errs, list) else errs}")
     brokers = db.query(Broker).all()
     changed = _bp.apply_rule(r, brokers)
     db.commit()
@@ -702,7 +702,7 @@ def reset_broker_priority(broker_id: int,
     _require_admin(user)
     b = db.query(Broker).filter(Broker.id == broker_id).first()
     if not b:
-        raise HTTPException(404, "Broker not found")
+        raise HTTPException(404, "That site is gone. Refresh the page.")
     _bp.reset_to_default(b)
     db.commit(); db.refresh(b)
     return b

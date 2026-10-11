@@ -9053,6 +9053,23 @@ def t_plain_language_family_pages():
     assert not hits, "Technical words on family pages:\n  " + "\n  ".join(hits)
 
 
+@test(1, "i18n.full_coverage",
+      "Every built-in language translates every dictionary key, and every menu label has a key.")
+def t_i18n_full_coverage():
+    import re, pathlib
+    i18n = _imp("core.i18n")
+    keys = {e["key"] for e in i18n.MASTER_DICTIONARY}
+    missing = {code: sorted(keys - set(msgs)) for code, msgs in i18n.BUILTIN_TRANSLATIONS.items()}
+    missing = {c: m for c, m in missing.items() if m}
+    assert not missing, f"untranslated keys: {missing}"
+    side = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "src" / "components" / "Sidebar.jsx"
+    if side.exists():
+        used = set(re.findall(r"k: '(nav\.[a-z_]+)'", side.read_text()))
+        assert used and not (used - keys), f"menu keys missing from the dictionary: {sorted(used - keys)}"
+    # EXPECTED: switching language changes every menu item and status label.
+    # IF THIS FAILS: part of the screen stays in English for that language.
+
+
 def main():
     ap = argparse.ArgumentParser(description="OpenOptOut test runner")
     ap.add_argument("--tier", type=int, default=4, help="run tiers up to N (1-4)")

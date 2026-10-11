@@ -38,11 +38,11 @@ export default function Breadcrumbs() {
       '/help': [{ label: t('nav.help', 'Help'), to: '/help' }],
       '/admin': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.admin_panel', 'Admin Panel'), to: '/admin' },
+        { label: t('nav.admin_panel', 'Admin panel'), to: '/admin' },
       ],
       '/branding': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.branding', 'Branding & Consortia'), to: '/branding' },
+        { label: t('nav.branding', 'Branding'), to: '/branding' },
       ],
       '/translations': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
@@ -54,7 +54,7 @@ export default function Breadcrumbs() {
       ],
       '/database': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.database', 'Database Admin'), to: '/database' },
+        { label: t('nav.database', 'Database'), to: '/database' },
       ],
       '/plugins': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
@@ -72,23 +72,23 @@ export default function Breadcrumbs() {
       ],
       '/broker-health': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.broker_health', 'Broker Health'), to: '/broker-health' },
+        { label: t('nav.broker_health', 'Broker health'), to: '/broker-health' },
       ],
       '/broker-priority': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.broker_priority', 'Broker Priority'), to: '/broker-priority' },
+        { label: t('nav.broker_priority', 'Broker priority'), to: '/broker-priority' },
       ],
       '/parent-companies': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.parent_companies', 'Parent Companies'), to: '/parent-companies' },
+        { label: t('nav.parent_companies', 'Parent companies'), to: '/parent-companies' },
       ],
       '/logs': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.logs', 'System Logs'), to: '/logs' },
+        { label: t('nav.logs', 'System logs'), to: '/logs' },
       ],
       '/worker-fleet': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.worker_fleet', 'Worker Fleet'), to: '/worker-fleet' },
+        { label: t('nav.worker_fleet', 'Worker fleet'), to: '/worker-fleet' },
       ],
     }
 

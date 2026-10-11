@@ -218,7 +218,7 @@ def needs_setup(db: Session = Depends(get_db)):
              dependencies=[Depends(rate_limit.limit("register", 10))])
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == req.email).first():
-        raise HTTPException(400, "Email already registered")
+        raise HTTPException(400, "An account with that email already exists.")
     role = _check_registration_allowed(req.email, req.invite_code, db)
     if not req.password and role != UserRole.super_admin:
         raise HTTPException(400, "Password is required")
@@ -621,7 +621,7 @@ def create_invite_code(
     try:
         role = UserRole(data.role or "parent")
     except ValueError:
-        raise HTTPException(400, f"Invalid role. Must be one of: {[r.value for r in UserRole]}")
+        raise HTTPException(400, f"Choose a role: {', '.join(r.value.replace('_', ' ') for r in UserRole)}.")
     if role in (UserRole.super_admin, UserRole.manager) and not current_user.is_super_admin:
         raise HTTPException(403, "Only a super admin can create invite codes for super admin "
                                  "or manager accounts")

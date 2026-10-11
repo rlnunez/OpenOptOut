@@ -53,7 +53,7 @@ function CreateUserModal({ onClose, onCreated, isSuper }) {
       const { data } = await api.post('/admin/users', payload)
       onCreated(data); onClose()
     } catch (err) {
-      setError(err.response?.data?.detail ?? 'Failed to create user')
+      setError(err.response?.data?.detail ?? "Couldn't create the account. Check the details and try again.")
     } finally { setSaving(false) }
   }
 
@@ -143,7 +143,7 @@ function GrantModal({ users, onClose, onGranted }) {
       })
       onGranted(data); onClose()
     } catch (err) {
-      setError(err.response?.data?.detail ?? 'Failed to create grant')
+      setError(err.response?.data?.detail ?? "Couldn't give that access. Please try again.")
     } finally { setSaving(false) }
   }
 

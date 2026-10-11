@@ -10,7 +10,7 @@ const HONOR = {
   partial: { label: 'Partial',         icon: AlertTriangle, cls: 'text-amber-400' },
   ignores: { label: 'Ignores',         icon: XCircle,      cls: 'text-red-400' },
   bounces: { label: 'Email bounces',   icon: XCircle,      cls: 'text-red-400' },
-  unknown: { label: 'Unknown',         icon: HelpCircle,   cls: 'text-slate-500' },
+  unknown: { label: 'Not known yet',         icon: HelpCircle,   cls: 'text-slate-500' },
 }
 
 export default function ParentCompanies() {
@@ -432,7 +432,7 @@ function TestBrokerPanel({ onChanged }) {
             <div>To: {result.to}{result.cc?.length ? ` (cc ${result.cc.join(', ')})` : ''}</div>
             <div>Subject: {result.subject}</div>
             <div>Identity: {result.identity}</div>
-            {!result.ok && result.error && <div>Error: {result.error}</div>}
+            {!result.ok && result.error && <div>Problem: {result.error}</div>}
           </div>
         </div>
       )}

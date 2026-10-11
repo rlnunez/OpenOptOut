@@ -460,11 +460,11 @@ def save_vault_limits(
     _: User = Depends(require_permission("settings.system")),
 ):
     # Sanity caps — prevent absurd values that would generate millions of combos
-    if data.max_names               > 20:  raise HTTPException(400, "max_names cannot exceed 20")
-    if data.max_addresses           > 30:  raise HTTPException(400, "max_addresses cannot exceed 30")
-    if data.max_phones              > 20:  raise HTTPException(400, "max_phones cannot exceed 20")
-    if data.max_emails              > 20:  raise HTTPException(400, "max_emails cannot exceed 20")
-    if data.max_children_per_parent < 0:   raise HTTPException(400, "max_children_per_parent cannot be negative")
+    if data.max_names               > 20:  raise HTTPException(400, "Names can go up to 20 per person.")
+    if data.max_addresses           > 30:  raise HTTPException(400, "Addresses can go up to 30 per person.")
+    if data.max_phones              > 20:  raise HTTPException(400, "Phone numbers can go up to 20 per person.")
+    if data.max_emails              > 20:  raise HTTPException(400, "Email addresses can go up to 20 per person.")
+    if data.max_children_per_parent < 0:   raise HTTPException(400, "The number of children per parent can't be below 0.")
 
     s = load_settings()
     s["vault_limits"] = data.model_dump()
@@ -916,7 +916,7 @@ def allow_plugin_system(req: PluginDenyRequest, _: User = Depends(require_super_
     plugin deliberately afterward.
     """
     if not req.confirm:
-        raise HTTPException(400, "Re-allowing the plugin system requires confirm=true")
+        raise HTTPException(400, "Confirm that you want to allow plugins again.")
     s = load_settings()
     p = s.setdefault("plugins", {})
     p["denied"] = False

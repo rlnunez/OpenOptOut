@@ -307,7 +307,7 @@ export default function SystemLogs() {
           </div>
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
             <Shield size={12} />
-            <span>Credentials & PII auto-redacted</span>
+            <span>Passwords and personal details are hidden automatically</span>
           </div>
         </div>
 

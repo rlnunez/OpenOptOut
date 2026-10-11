@@ -34,7 +34,7 @@ export default function BrokerPriority() {
     try {
       await api.patch(`/brokers/${broker.broker_id ?? broker.id}/priority`, { priority })
       load()
-    } catch { setMsg('Failed to set priority') }
+    } catch { setMsg("Couldn't change the priority. Please try again.") }
   }
 
   const toggleSelect = (id) => {
@@ -94,7 +94,7 @@ export default function BrokerPriority() {
         (r.data.rules_found?.length ? `, ${r.data.rules_found.length} rule(s) found — open Rules to review/run them` : ''))
       load()
     } catch (err) {
-      setMsg('Import failed: ' + (err.response?.data?.detail || err.message))
+      setMsg("Couldn't import that file: " + (err.response?.data?.detail || 'check it is the right format.'))
     } finally { e.target.value = '' }
   }
 
