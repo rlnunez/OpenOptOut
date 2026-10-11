@@ -1,0 +1,4 @@
+{
+ "description": "إلغاء موجَّه لدى TruePeopleSearch. يتبع شخص الخطوات في قائمة المهام؛ ويوفّر OpenOptOut عنوان بريد إلكتروني لمرة واحدة وينقر أي رابط تأكيد.",
+ "instructions": "افتح truepeoplesearch.com/removal. أدخل {full_name} ومدينتك وولايتك ({city}، {state}) و{contact_email} عنوانًا للبريد، ثم حُلّ الـ CAPTCHA. إذا ظهر سجلك، اضغط الزر لحذفه. ينقر OpenOptOut أي رابط تأكيد يُرسل إلى ذلك العنوان. ثم اضغط «لقد أنجزت هذا»."
+}

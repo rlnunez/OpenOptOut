@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer CallerSmart, which lists folk by phone number. One opt-out covers every saved phone number.",
+ "instructions": "Open https://www.callersmart.com/data. Fer each of these numbers, enter the number an' {contact_email}, finish the robot check, then type the 6-digit code CallerSmart texts or calls to that phone: {all_phones}. Then smash \"I've done this\"."
+}

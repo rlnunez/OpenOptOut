@@ -17,9 +17,11 @@ Design choices per project direction:
     family of listings.
   - Firm, rights-asserting wording. NOT legal advice and not a lawyer's letter —
     but strong, clear language that cites the applicable rights where known and
-    makes an unambiguous demand. Wording is a starting point meant to be
-    reviewed and strengthened by someone with legal expertise (see the note at
-    the bottom of the composed email and docs).
+    makes an unambiguous demand. The wording lives in core/legal_templates/,
+    one letter per law (CCPA, general US, GDPR, UK GDPR, LGPD, PIPEDA), each
+    marked as a draft until a lawyer has reviewed it.
+  - The letter is chosen by the parent company's jurisdiction and written in
+    its legal language, never in the family's interface language.
 
 The composer is pure/text-only and takes plain data, so it's fully testable
 without a database or mail server. The email-method engine fills the To/subject/
@@ -50,23 +52,9 @@ class ComposedEmail:
     cc: list
     subject: str
     body: str
-
-
-def _age_line(ids: Identifiers) -> str:
-    if ids.age:
-        # Give a small range around the age rather than a precise DOB.
-        return f"Approximate age: {ids.age} (±1 year)"
-    if ids.age_range:
-        return f"Approximate age range: {ids.age_range}"
-    return ""
-
-
-def _bullet_list(label: str, items: list) -> str:
-    items = [str(i).strip() for i in items if str(i).strip()]
-    if not items:
-        return ""
-    lines = "\n".join(f"  - {i}" for i in items)
-    return f"{label}:\n{lines}\n"
+    language: str = "en"          # the language the letter is written in
+    template_id: str = ""         # which letter (core/legal_templates/<id>.json)
+    review_status: str = "draft"  # "draft" until a lawyer has reviewed the letter
 
 
 def _normalize_sites(child_sites):
@@ -93,9 +81,10 @@ def compose_optout_email(
     to_address: str,
     child_sites: list,
     cc: Optional[list] = None,
-    locale: str = "en",
+    locale: str = "",
     state: str = "",
     request_key: str = "",
+    jurisdiction: str = "US",
 ) -> ComposedEmail:
     """
     Compose the opt-out email for one parent company.
@@ -105,116 +94,27 @@ def compose_optout_email(
         ({"name": "Site", "url": "https://.../profile/123"} or ("Site", url)).
         When a URL is present (found automatically by discovery), it is cited so
         the broker can locate the exact record — much stronger than name-matching.
-    state: the requester's US state (2-letter), used to name the applicable law.
+    jurisdiction: where the parent company is ("US", "FR", "BR", ...). Picks the
+        law the letter cites (core/legal_letters.py).
+    locale: the parent's LEGAL language — the language its privacy team must
+        be written to in — not the family's interface language. Empty means the
+        usual language for the jurisdiction. A language with no letter for that
+        law falls back to the letter's own language, with no note added.
+    state: the requester's US state (2-letter). For a US parent it decides
+        between the CCPA letter (California) and the general US letter.
     request_key: optional UUID tracking key. When provided, embedded in the
         subject line and body so incoming replies can be matched automatically.
-
-    locale is accepted for future localization; only 'en' is templated here.
     """
-    key_tag = f" [{request_key}]" if request_key else ""
-    subject = f"Data removal request — {ids.full_name or 'record removal'}{key_tag}"
-
-    # Identifier block
-    id_block = ""
-    if ids.full_name:
-        id_block += f"Full name: {ids.full_name}\n"
-    id_block += _bullet_list("Name variants / other names", ids.name_variants)
-    id_block += _bullet_list("Email addresses", ids.emails)
-    id_block += _bullet_list("Phone numbers", ids.phones)
-    id_block += _bullet_list("Addresses (current and prior)", ids.addresses)
-    age = _age_line(ids)
-    if age:
-        id_block += age + "\n"
-    if ids.city_state:
-        id_block += f"General location: {ids.city_state}\n"
-    if id_block:
-        id_block += "\n"
-
-    # Child-site enumeration, with discovered profile URLs where available.
-    sites = _normalize_sites(child_sites)
-    if sites:
-        lines = []
-        for name, url in sites:
-            if name and url:
-                lines.append(f"  - {name}: {url}")
-            elif url:
-                lines.append(f"  - {url}")
-            else:
-                lines.append(f"  - {name}")
-        site_lines = "\n".join(lines)
-        has_urls = any(url for _, url in sites)
-        url_note = (" Direct links to my records are included where known."
-                    if has_urls else "")
-        sites_block = (
-            f"This request applies to {parent_name} and to ALL of the following "
-            f"websites, brands, and affiliated properties operated by or "
-            f"associated with {parent_name}.{url_note}\n{site_lines}\n\n"
-        )
-    else:
-        sites_block = (
-            f"This request applies to {parent_name} and to all websites, brands, "
-            f"and affiliated properties operated by or associated with "
-            f"{parent_name}.\n\n"
-        )
-
-    # Law citation: CCPA named + general applicable-law catch-all. (CCPA governs
-    # California residents; the general clause covers everyone else. This is
-    # deliberately forceful but not a precise per-state claim — see the caveat in
-    # docs; a lawyer should refine the specific statutes cited.)
-    law_line = (
-        "I am exercising my rights under applicable privacy and data-protection "
-        "laws, including the California Consumer Privacy Act (CCPA) and any other "
-        "applicable state privacy laws, including any right to deletion, to opt "
-        "out of the sale or sharing of personal information, and to have my "
-        "information suppressed from public-facing listings. This request covers "
-        "all affiliated and successor properties under common ownership or "
-        "operation."
-    )
-    if state:
-        law_line = (
-            f"As a resident of {state}, I am exercising my rights under applicable "
-            "privacy and data-protection laws, including the California Consumer "
-            "Privacy Act (CCPA) where applicable and any other applicable state "
-            "privacy laws, including any right to deletion, to opt out of the sale "
-            "or sharing of personal information, and to have my information "
-            "suppressed from public-facing listings. This request covers all "
-            "affiliated and successor properties under common ownership or operation."
-        )
-
-    ref_line = (
-        f"Reference ID (include in all correspondence): {request_key}\n\n"
-        if request_key else ""
-    )
-
-    body = (
-        f"To the Privacy / Data Protection team at {parent_name},\n\n"
-        f"I am writing to request the removal and deletion of my personal information from "
-        f"your records and services, and to opt out of any sale, licensing, or sharing of that information.\n\n"
-        f"{sites_block}"
-        f"Please remove all records matching the following identifiers:\n\n"
-        f"{id_block}"
-        f"I am requesting that you:\n"
-        f"  1. Delete and suppress all personal information associated with the identifiers above from {parent_name} and every property listed above.\n"
-        f"  2. Do not sell, license, share, or otherwise disclose this information to any third party.\n"
-        f"  3. Do not re-create, re-acquire, or re-list this information from other sources following this request.\n"
-        f"  4. Confirm in writing, to the sending email address, once the removal has been completed, and identify any records you were unable to remove and why.\n\n"
-        f"{law_line}\n\n"
-        f"Please treat this as a formal request and respond within the timeframe required by applicable law. "
-        f"If you require anything further from me to locate these records, reply to this email and I will provide what is reasonably necessary — "
-        f"though I ask that you not require the creation of an account or the submission of additional sensitive information (such as a full date of birth or government ID).\n\n"
-        f"{ref_line}"
-        f"Thank you for your prompt attention.\n\n"
-        f"Sincerely,\n"
-        f"{ids.full_name or '[Requester]'}\n"
-    )
-
-    if locale and locale != "en":
-        body = (f"[Note: a localized ({locale}) template is not yet available; "
-                f"this request is in English.]\n\n") + body
-
+    from .legal_letters import compose_letter
+    letter = compose_letter(
+        ids, parent_name, jurisdiction=jurisdiction or "US", legal_language=locale or "",
+        residence_state=state, sites=_normalize_sites(child_sites), request_key=request_key)
     return ComposedEmail(
         to=to_address,
         cc=list(cc or []),
-        subject=subject,
-        body=body,
+        subject=letter.subject,
+        body=letter.body,
+        language=letter.language,
+        template_id=letter.template_id,
+        review_status=letter.review_status,
     )

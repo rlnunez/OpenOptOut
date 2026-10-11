@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour FastPeopleSearch. Une personne suit les étapes de la liste ; OpenOptOut fournit une adresse e-mail à usage unique et clique sur les liens de confirmation.",
+ "instructions": "Cherchez {full_name} sur fastpeoplesearch.com. Si vous y figurez, ouvrez fastpeoplesearch.com/optout et suivez les étapes pour supprimer votre fiche ; vous devrez peut-être résoudre un CAPTCHA. Si une adresse e-mail est demandée, utilisez {contact_email}, pour qu'OpenOptOut puisse cliquer sur les liens de confirmation à votre place. Puis appuyez sur « C'est fait »."
+}

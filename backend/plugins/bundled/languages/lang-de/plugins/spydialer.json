@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei Spy Dialer, das Personen nach Telefonnummer auflistet. Ein Widerspruch gilt für alle gespeicherten Nummern.",
+ "instructions": "Öffne https://www.spydialer.com/ und klick unten auf „Do Not Sell Or Share My Personal Information“. Drück Start, wähl deinen Bundesstaat, schließ die Roboterprüfung ab und trag dann {full_name}, deine Adresse, jede dieser Nummern ({all_phones}) und {email} ein. Drück „Opt-Out My Info“ und warte auf „Your submitted data has been blocked from future sharing“. Drück dann „Ich habe das erledigt“."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa Spy Dialer, na naglilista ng mga tao ayon sa numero ng telepono. Saklaw ng isang opt-out ang lahat ng naka-save na numero.",
+ "instructions": "Buksan ang https://www.spydialer.com/ at i-click ang \"Do Not Sell Or Share My Personal Information\" sa ibaba. Pindutin ang Start, piliin ang estado mo, tapusin ang robot check, tapos idagdag ang {full_name}, ang address mo, ang bawat isa sa mga numerong ito ({all_phones}) at ang {email}. Pindutin ang \"Opt-Out My Info\" at hintayin ang \"Your submitted data has been blocked from future sharing\". Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

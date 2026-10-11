@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de NumLookup, que publica a las personas por número de teléfono. Una sola baja cubre todos los números guardados.",
+ "instructions": "Abre https://www.numlookup.com/opt_out, escribe uno de estos números, completa la verificación de robot y elige eliminar tu información: {all_phones}. Elige enviar la solicitud de eliminación a mano (no necesitas cuenta) y rellena {full_name}, {contact_email} y el número. Puede que el formulario pida un documento con foto. Puedes tapar todo salvo tu nombre y tu foto. Después pulsa «Ya lo hice»."
+}

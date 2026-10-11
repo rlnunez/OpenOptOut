@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de FamilyTreeNow. Una persona sigue los pasos de la lista; OpenOptOut aporta una dirección de correo de un solo uso y hace clic en cualquier enlace de confirmación.",
+ "instructions": "Busca {full_name} en familytreenow.com. Si apareces, abre familytreenow.com/optout y sigue los pasos para eliminar tu registro; usa {contact_email} si te pide una dirección de correo. Después pulsa «Ya lo hice»."
+}

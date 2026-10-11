@@ -1,0 +1,3 @@
+{
+ "description": "Sends CAPTCHAs to a solving service ye have an account with (2Captcha, Anti-Captcha, CapSolver or CapMonster Cloud). It never sees personal details: only the site's CAPTCHA key an' a cleaned page address, or a cropped picture of the puzzle with every form field an' saved detail blacked out. The account key be set on the CAPTCHAs page an' given to this plugin only while it solves. If the service can't solve it, a sailor can."
+}

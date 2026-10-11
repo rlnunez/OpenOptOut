@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription de BeenVerified (beenverified.com). Recherche la personne, puis quelqu'un choisit sa fiche ; le lien de confirmation de BeenVerified est cliqué automatiquement.",
+ "steps.7.text": "BeenVerified vous demande de choisir votre fiche. Allez sur beenverified.com/svc/optout/search, cherchez {full_name} dans {state_name}, cliquez sur votre propre fiche et résolvez le CAPTCHA. Sur le formulaire de suppression, répondez « No » à la question sur le compte, vérifiez vos informations et saisissez {contact_email} comme adresse e-mail. BeenVerified accepte une désinscription par adresse e-mail, et celle-ci ne sert qu'à cette désinscription. OpenOptOut cliquera sur le lien de confirmation que BeenVerified y enverra."
+}

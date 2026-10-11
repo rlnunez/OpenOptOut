@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de USPhoneBook. Una persona sigue los pasos de la lista; OpenOptOut aporta una dirección de correo de un solo uso y hace clic en cualquier enlace de confirmación.",
+ "instructions": "Busca tu número de teléfono en usphonebook.com. Si apareces, abre usphonebook.com/opt-out y sigue los pasos, usando {contact_email} donde pida un correo. Si la página de baja se queda colgada, escribe a support+optout@usphonebook.com y pide que te eliminen. Después pulsa «Ya lo hice»."
+}

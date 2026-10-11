@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription de Radaris (radaris.com). Remplit automatiquement la recherche par nom, puis laisse une personne choisir la fiche et confirmer.",
+ "steps.7.text": "Radaris vous demande de terminer vous-même. Allez sur radaris.com/control-privacy, cherchez {full_name} et votre ville, cliquez sur votre propre profil, puis appuyez sur le bouton bleu « Start Removing ». Saisissez {contact_email} comme adresse e-mail et envoyez. Radaris envoie un lien à cette adresse ; OpenOptOut clique dessus pour vous."
+}

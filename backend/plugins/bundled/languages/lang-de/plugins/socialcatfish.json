@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei Social Catfish. Eine Person folgt den Schritten der Checkliste; OpenOptOut stellt eine Einmal-E-Mail-Adresse bereit und klickt Bestätigungslinks an.",
+ "instructions": "Such auf socialcatfish.com und notier die Adresse jeder Seite, die dich zeigt. Öffne socialcatfish.com/opt-out, scroll zum Abschnitt zum Entfernen von Seiten, E-Mails, Telefonnummern und Adressen und beantrage nur, was dort schon angezeigt wird. Gib {contact_email} als deine E-Mail an; Social Catfish schickt einen Bestätigungslink, den OpenOptOut für dich anklickt. Drück dann „Ich habe das erledigt“."
+}

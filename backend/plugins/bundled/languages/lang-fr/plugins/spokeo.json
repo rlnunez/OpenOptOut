@@ -1,0 +1,3 @@
+{
+ "description": "Désinscription de Spokeo (spokeo.com). Remplit automatiquement l'adresse de la fiche et un e-mail à usage unique ; le reCAPTCHA de Spokeo part vers un service de résolution ou la file des CAPTCHA."
+}

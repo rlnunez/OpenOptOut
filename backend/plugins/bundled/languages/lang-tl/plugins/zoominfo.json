@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa ZoomInfo, na naglilista ng mga tao ayon sa email address. Saklaw ng isang opt-out ang lahat ng naka-save na address.",
+ "instructions": "Buksan ang https://privacy.zoominfo.com/, hanapin ang {full_name} kasama ang employer mo, piliin ang listing at hilinging alisin ito. Mag-verify gamit ang bawat email sa trabaho na itatanong ng ZoomInfo. Ang mga naka-save mong address: {all_emails}. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

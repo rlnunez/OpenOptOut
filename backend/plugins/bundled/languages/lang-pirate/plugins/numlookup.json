@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer NumLookup, which lists folk by phone number. One opt-out covers every saved phone number.",
+ "instructions": "Open https://www.numlookup.com/opt_out, enter one of these numbers, finish the robot check an' choose to remove yer information: {all_phones}. Choose to send a removal request by hand (ye don't need an account) an' fill in {full_name}, {contact_email} an' the number. The form may ask fer a photo ID. Ye can black out everything on it except yer name an' photo. Then smash \"I've done this\"."
+}

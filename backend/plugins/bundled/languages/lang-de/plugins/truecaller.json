@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei Truecaller, das Personen nach Telefonnummer auflistet. Ein Widerspruch gilt für alle gespeicherten Nummern.",
+ "instructions": "Truecaller zeigt deinen Namen Leuten, die du anrufst. Öffne https://www.truecaller.com/unlisting und lass jede dieser Nummern einzeln mit Ländervorwahl austragen: {all_phones}. Schließ für jede die Roboterprüfung ab. Wenn du die Truecaller-App selbst nutzt, deaktivier zuerst dein Konto in der App und deinstallier sie dann, sonst hält das Austragen nicht. Drück dann „Ich habe das erledigt“."
+}

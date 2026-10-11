@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer SearchPeopleFree. A sailor follows the steps on the checklist; OpenOptOut hands over a one-time email address an' clicks any confirmation link.",
+ "instructions": "Search searchpeoplefree.com by name, phone number, address an' email; folk be often listed more than once. Fer each record, use searchpeoplefree.com/opt-out, giving {contact_email} as the email address. Then smash \"I've done this\"."
+}

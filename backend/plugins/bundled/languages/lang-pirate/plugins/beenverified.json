@@ -1,0 +1,4 @@
+{
+ "description": "Opt-out fer BeenVerified (beenverified.com). Searches fer the sailor, then a sailor picks their listing; BeenVerified's confirmation link be clicked automatically.",
+ "steps.7.text": "BeenVerified needs ye to pick yer listing. Go to beenverified.com/svc/optout/search, search fer {full_name} in {state_name}, click, matey, yer own record an' solve the CAPTCHA. On the removal form choose \"No\" fer having an account, check yer details, an' enter {contact_email} as the email address. BeenVerified allows one opt-out per email address, an' this one be only fer this opt-out. OpenOptOut will click, matey, the confirmation link BeenVerified emails to it."
+}

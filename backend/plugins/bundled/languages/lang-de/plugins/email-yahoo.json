@@ -1,0 +1,3 @@
+{
+ "description": "Referenz-Plugin für E-Mail-Anbieter, das BEIDE Übertragungswege in einem Plugin zeigt: OAuth 2.0 (bevorzugt) und SMTP/IMAP mit App-Passwort (Ausweichlösung). Der Modus richtet sich nach den gespeicherten Zugangsdaten. Als Vorlage für hybride Anbieter oder um zu sehen, wie SMTP/IMAP und OAuth jeweils funktionieren. Vertrauenswürdige E-Mail-Anbieter-Klasse; der Host prüft auf versteckte Empfänger und erzwingt beim Senden den Empfänger."
+}

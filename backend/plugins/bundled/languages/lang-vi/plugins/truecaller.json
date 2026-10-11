@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho Truecaller, trang liệt kê người theo số điện thoại. Một lần gỡ áp dụng cho mọi số đã lưu.",
+ "instructions": "Truecaller hiển thị tên bạn cho người bạn gọi. Mở https://www.truecaller.com/unlisting và gỡ từng số sau, mỗi lần một số, kèm mã quốc gia: {all_phones}. Hoàn tất bước kiểm tra robot cho từng số. Nếu chính bạn dùng ứng dụng Truecaller, hãy hủy kích hoạt tài khoản trong ứng dụng trước rồi gỡ cài đặt, nếu không việc gỡ số sẽ không giữ được. Sau đó bấm \"Tôi đã làm xong\"."
+}

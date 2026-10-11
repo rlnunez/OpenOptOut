@@ -1,0 +1,17 @@
+{
+  "id": "generic",
+  "title": "Other countries — applicable data-protection law",
+  "law": "Whatever data-protection law applies where the broker is",
+  "legal_basis": [],
+  "jurisdictions": [],
+  "deadline_days": 30,
+  "default_language": "en",
+  "review_status": "draft",
+  "review_note": "Draft wording, not reviewed by a lawyer. Used for brokers in a country with no letter of its own here. It names no statute, so it is weaker than a letter that cites the local law; add a letter for the country (and its language) when brokers there are added.",
+  "languages": {
+    "en": {
+      "subject": "Request to delete my personal data — {full_name}{ref_tag}",
+      "body": "To the Privacy / Data Protection team at {broker},\n\nI am writing to request the deletion of my personal data from your records and services, and to object to any further collection, publication, sale, or sharing of it.\n\n{scope}\n\n{property_note}\n\nPlease delete all records matching ANY of the following identifiers — every record, not only the most recent or primary one:\n\n{identifiers}\n\nI am asking you to:\n  1. Delete all personal data associated with the identifiers above from {broker} and every property listed above.\n  2. Stop disclosing, selling, or licensing this data to any third party, and tell those you shared it with to delete it too.\n  3. Not collect or publish this data again from other sources.\n  4. Confirm in writing, to the sending email address, once this is done.\n\nI am exercising every right the data-protection law that applies to you gives me, including any right to deletion and to object to processing. Please respond within the time that law requires, and in any case within 30 days. If you need more information to locate my records, tell me what is reasonably necessary; please do not require me to create an account or send identity documents.\n\n{reference}\n\nSincerely,\n{full_name}\n"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Social Catfish 的引导式退出。由一个人按清单步骤操作；OpenOptOut 提供一次性电子邮件地址，并自动点击确认链接。",
+ "instructions": "在 socialcatfish.com 搜索，记下每个显示你信息的页面地址。打开 socialcatfish.com/opt-out，滚动到删除页面、邮箱、电话号码和地址的部分，只申请删除它已经显示的内容。邮箱填写 {contact_email}；Social Catfish 会发送确认链接，OpenOptOut 会替你点击。然后点击“我已完成”。"
+}

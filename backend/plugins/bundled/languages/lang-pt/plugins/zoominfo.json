@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no ZoomInfo, que lista pessoas por endereço de e-mail. Uma exclusão cobre todos os endereços salvos.",
+ "instructions": "Abra https://privacy.zoominfo.com/, procure {full_name} com seu empregador, escolha o cadastro e peça a remoção. Confirme com cada e-mail de trabalho que o ZoomInfo pedir. Seus endereços salvos: {all_emails}. Depois toque em \"Já fiz isso\"."
+}

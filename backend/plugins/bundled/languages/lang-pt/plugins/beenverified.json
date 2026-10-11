@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão no BeenVerified (beenverified.com). Busca a pessoa e depois alguém escolhe o próprio cadastro; o link de confirmação do BeenVerified é clicado automaticamente.",
+ "steps.7.text": "O BeenVerified precisa que você escolha seu cadastro. Acesse beenverified.com/svc/optout/search, busque {full_name} em {state_name}, clique no seu próprio registro e resolva o CAPTCHA. No formulário de remoção, escolha \"No\" para ter conta, confira seus dados e digite {contact_email} como endereço de e-mail. O BeenVerified permite uma exclusão por endereço de e-mail, e este serve só para esta exclusão. O OpenOptOut vai clicar no link de confirmação que o BeenVerified mandar para ele."
+}

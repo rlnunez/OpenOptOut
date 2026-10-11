@@ -1,0 +1,4 @@
+{
+ "description": "Пошаговый отказ для SmartBackgroundChecks. Человек выполняет шаги из списка; OpenOptOut выдаёт одноразовый адрес почты и сам нажимает ссылки подтверждения.",
+ "instructions": "Найдите {full_name} на smartbackgroundchecks.com. Если вы там есть, откройте smartbackgroundchecks.com/optout и удалите запись, указывая {contact_email}, где спрашивают почту. Обычно это удаляет вас и из PeopleFinders. Затем нажмите «Я это сделал(а)»."
+}

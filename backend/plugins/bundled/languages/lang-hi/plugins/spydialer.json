@@ -1,0 +1,4 @@
+{
+ "description": "Spy Dialer के लिए निर्देशित ऑप्ट-आउट, जो लोगों को फ़ोन नंबर से दिखाता है। एक ऑप्ट-आउट सभी सहेजे गए नंबरों पर लागू होता है।",
+ "instructions": "https://www.spydialer.com/ खोलें और सबसे नीचे \"Do Not Sell Or Share My Personal Information\" पर क्लिक करें। Start दबाएँ, अपना राज्य चुनें, रोबोट जाँच पूरी करें, फिर {full_name}, अपना पता, इनमें से हर नंबर ({all_phones}) और {email} जोड़ें। \"Opt-Out My Info\" दबाएँ और \"Your submitted data has been blocked from future sharing\" आने तक रुकें। फिर \"मैंने यह कर लिया\" दबाएँ।"
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei ReversePhoneLookup.com, das Personen nach Telefonnummer auflistet. Ein Widerspruch gilt für alle gespeicherten Nummern.",
+ "instructions": "Öffne https://www.reversephonelookup.com/ und klick unten auf „Do Not Sell or Share My Personal Information“. Gib {contact_email} und eine dieser Nummern ein (nur Ziffern, falls es Fehler gibt): {all_phones}. Schließ die Roboterprüfung ab und sende ab; wir klicken den Bestätigungslink aus der E-Mail an. Wiederhol das für jede Nummer und drück dann „Ich habe das erledigt“."
+}

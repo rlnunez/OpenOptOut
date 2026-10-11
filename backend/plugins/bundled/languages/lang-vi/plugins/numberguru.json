@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho NumberGuru, trang liệt kê người theo số điện thoại. Một lần gỡ áp dụng cho mọi số đã lưu.",
+ "instructions": "Tìm trên https://www.numberguru.com/ từng số sau: {all_phones}. Trên bất kỳ trang nào có bạn, dùng liên kết \"Remove This Listing\" hoặc \"Opt Out\" và cung cấp {contact_email} làm email của bạn. Sau đó bấm \"Tôi đã làm xong\"."
+}

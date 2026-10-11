@@ -1,0 +1,4 @@
+{
+ "description": "Whitepages 的引导式退出。由一个人按清单步骤操作；OpenOptOut 提供一次性电子邮件地址，并自动点击确认链接。",
+ "instructions": "Whitepages 通过电话确认，所以这一项需要你亲自完成。打开 whitepages.com/suppression-requests，粘贴 {listing_url}，点击 Next，再点击“Remove Me”。选择一个原因，点击 Next，输入 Whitepages 为你显示的电话号码。接听自动来电并输入它给出的验证码。当页面显示已收到你的请求时，点击“我已完成”。"
+}

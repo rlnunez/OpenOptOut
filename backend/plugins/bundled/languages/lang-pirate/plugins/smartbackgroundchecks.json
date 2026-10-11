@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer SmartBackgroundChecks. A sailor follows the steps on the checklist; OpenOptOut hands over a one-time email address an' clicks any confirmation link.",
+ "instructions": "Search smartbackgroundchecks.com fer {full_name}. If ye be listed, open smartbackgroundchecks.com/optout an' remove yer record, using {contact_email} where it asks fer an email. This usually removes ye from PeopleFinders too. Then smash \"I've done this\"."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour Clustal. Une personne suit les étapes de la liste ; OpenOptOut fournit une adresse e-mail à usage unique et clique sur les liens de confirmation.",
+ "instructions": "Cherchez {full_name} sur clustal.org, ouvrez « view full record » et copiez l'adresse de cette page (celle du résultat de recherche ne fonctionne pas). Ouvrez clustal.org/privacy-control, collez-la, appuyez sur « remove my info », saisissez {contact_email} et appuyez de nouveau sur « remove my info ». Clustal envoie un lien pour terminer ; OpenOptOut clique dessus pour vous. Puis appuyez sur « C'est fait »."
+}

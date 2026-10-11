@@ -137,6 +137,12 @@ export default function ParentCompanies() {
                         ? <span className="inline-flex items-center gap-1"><Mail size={11} /> {p.optout_email}</span>
                         : <span className="text-amber-400/80 inline-flex items-center gap-1"><AlertTriangle size={11} />{" "}{tx("no opt-out email set")}</span>}
                       <span>· {txn(p.child_count, "{n} child site", "{n} child sites")}</span>
+                      {p.letter?.id && (
+                        <span title={tx("Opt-out letters follow the company's country and are written in its legal language, not the language you use the app in.")}>
+                          · {tx("Letter: {law} in {language}", { law: letterName(p.letter.id), language: (p.letter.language || '').toUpperCase() })}
+                          {p.letter.review_status !== 'reviewed' && <span className="text-amber-400/80">{" "}{tx("(draft wording, not yet checked by a lawyer)")}</span>}
+                        </span>
+                      )}
                       {p.emails_sent > 0 && (
                         <span>{tx("· {emails_confirmed}/{emails_sent} confirmed", { emails_confirmed: p.emails_confirmed, emails_sent: p.emails_sent })}
                           {p.confirm_rate != null ? ` (${p.confirm_rate}%)` : ''}</span>
@@ -175,11 +181,24 @@ export default function ParentCompanies() {
   )
 }
 
+function letterName(id) {
+  switch (id) {
+    case 'ccpa': return tx("California privacy law (CCPA)")
+    case 'us': return tx("US state privacy laws")
+    case 'gdpr': return tx("EU privacy law (GDPR)")
+    case 'uk_gdpr': return tx("UK privacy law (UK GDPR)")
+    case 'lgpd': return tx("Brazil privacy law (LGPD)")
+    case 'pipeda': return tx("Canada privacy law (PIPEDA)")
+    default: return tx("general privacy law")
+  }
+}
+
 function EditModal({ parent, onClose, onSaved }) {
   const isNew = !parent.id
   const [form, setForm] = useState({
     name: parent.name || '', optout_email: parent.optout_email || '',
-    cc_emails: parent.cc_emails || '', locale: parent.locale || 'en',
+    cc_emails: parent.cc_emails || '', locale: parent.locale || '',
+    jurisdiction: parent.jurisdiction || '',
     website: parent.website || '', notes: parent.notes || '',
   })
   const [saving, setSaving] = useState(false)
@@ -216,10 +235,14 @@ function EditModal({ parent, onClose, onSaved }) {
           {field(tx("Company name"), 'name', tx("e.g. PeopleConnect"))}
           {field(tx("Opt-out email"), 'optout_email', 'privacy@company.com')}
           {field(tx("CC emails (comma-separated)"), 'cc_emails', 'dpo@company.com')}
+          {field(tx("Website"), 'website', 'company.com')}
           <div className="grid grid-cols-2 gap-3">
-            {field(tx("Locale"), 'locale', 'en')}
-            {field(tx("Website"), 'website', 'company.com')}
+            {field(tx("Country"), 'jurisdiction', 'US')}
+            {field(tx("Letter language"), 'locale', tx("automatic"))}
           </div>
+          <p className="text-slate-500 text-xs">
+            {tx("The country decides which privacy law the opt-out letter cites (US, GB, FR, BR, CA, or EU). The letter is written in the company's language — French for a French company — not the language you use here. Leave the language blank to use the usual one for the country.")}
+          </p>
           <div>
             <label className="text-slate-400 text-xs block mb-1">{tx("Notes")}</label>
             <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}

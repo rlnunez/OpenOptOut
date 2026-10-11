@@ -396,15 +396,19 @@ To ensure operational stability and maintain continuous testability without disr
 - **Right-to-Left (RTL) Support (Complete):** Dynamic layout mirroring (`html[dir="rtl"]` in `index.css`) detecting RTL scripts (Arabic, Hebrew, Persian, Urdu), mirroring navigation sidebars, form layouts, and modals while preserving left-to-right (`ltr`) direction for email addresses, URLs, phone numbers, and code blocks.
 - **Onboarding Tutorial & User Preferences (Complete):** Guided 4-step welcome walkthrough (`components/UserWelcomeModal.jsx`) allowing users to choose their language with instant UI preview, populate their Identity Vault PII for automated opt-outs, review email communications, and complete an orientation tour. User language preference and tutorial completion persist in user profile settings (`preferred_language`, `tutorial_completed`).
 - **Data-Only Language Packs (Complete):** Scanned and loaded from `<plugins_root>/languages/` as data-only bundles (`manifest.json` + `messages.json`) requiring 0 permissions and zero subprocess overhead.
-- **Universal Plugin Localization Standard (In Design):**
-  - **Per-Plugin String Bundles:** Plugins declare an optional `locales/<code>.json` directory and `default_locale` in `manifest.json`. User-facing checklist instructions, error messages, and descriptions use string keys rather than hardcoded text.
-  - **Five-Tier Resolution Chain:** Admin overrides → Language pack messages → Plugin matching locale → Plugin default locale → English default.
-  - **Cross-Plugin Translations via Language Packs:** Translators can localize third-party plugins without modifying them by including `plugins/<plugin_id>.json` tables inside community language packs.
-- **Legal Request Language vs. UI Interface Language Decoupling (In Design):**
-  - **Jurisdictional Decoupling:** Decouples patron UI preference from statutory opt-out email text. While patron screens render in their chosen language (e.g., Vietnamese or Spanish), opt-out emails sent to US brokers under CCPA are formatted in English to satisfy US corporate legal requirements.
-  - **Broker Specification Alignment:** `BrokerSpec` explicitly declares `jurisdiction` and `legal_language` (e.g., `US`/`en` for US CCPA, `FR`/`fr` for French CNIL/GDPR, `BR`/`pt-BR` for Brazil LGPD), driving template compilation in `core/optout_email_template.py`.
+- **Universal Plugin Localization Standard (Complete):**
+  - **Per-Plugin String Bundles:** Plugins may carry `locales/<code>.json` and declare `default_locale` and `locales` in `manifest.json`. Text is looked up by key (`description`, `instructions`, `steps.<i>.text`, or a spec's own `{"$t": key, "default": text}`). Installation checks every declared file exists, is flat key → text JSON and keeps the original `{placeholders}`.
+  - **Five-Tier Resolution Chain:** Admin overrides → language pack → plugin's matching locale → plugin's default locale → the text as written (`plugins/plugin_i18n.py`). `pt-BR` falls back to `pt`.
+  - **Cross-Plugin Translations via Language Packs:** `<pack>/plugins/<plugin_id>.json`. The 12 built-in packs translate all 47 built-in plugins (descriptions, checklist instructions, hand-off steps); `scripts/plugin_texts.py --check` lists gaps. Translations are machine quality.
+  - **Where it shows:** Plugins page descriptions in the viewer's language; checklist instructions and "finish this yourself" steps in the member's language. Text a form step matches on the broker's page is never translated.
+- **Legal Request Language vs. UI Interface Language Decoupling (Complete):**
+  - **Jurisdictional Decoupling:** The letter a broker gets depends on the broker's jurisdiction and legal language, never the family's interface language. A US broker gets English; a French broker gets French under the GDPR. The "[Note: a localized template is not yet available]" prefix is gone.
+  - **Broker Specification Alignment:** `BrokerSpec` declares `jurisdiction`, `legal_language` and `email_templates` per language, with defaults from `legal_basis` (`gdpr` → EU, `lgpd` → BR/pt-BR, ...). `lgpd` is a known law. Parent companies get a Country and Letter language on the Parent companies page.
+  - **Letters (drafts, need lawyer review):** `core/legal_templates/` — CCPA (California residents), general US, GDPR (en, fr, de, es, it, nl, pt), UK GDPR, LGPD (pt-BR, en), PIPEDA (en, fr), and a law-neutral letter for other countries. Each is marked `review_status: "draft"` with a note on what to check.
 
-**Status:** Complete (Universal plugin localization standard & legal decoupling in design).
+**Still open:** a lawyer's review of every letter, and native-speaker review of the non-English letters and plugin translations; the Help and Plugin guide documents and text the server builds (checklist reasons, Privacy Record rows) are still English.
+
+**Status:** Complete; reviews outstanding (above).
 
 ---
 

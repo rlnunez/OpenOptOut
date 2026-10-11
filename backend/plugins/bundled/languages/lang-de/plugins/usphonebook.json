@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei USPhoneBook. Eine Person folgt den Schritten der Checkliste; OpenOptOut stellt eine Einmal-E-Mail-Adresse bereit und klickt Bestätigungslinks an.",
+ "instructions": "Such deine Telefonnummer auf usphonebook.com. Wenn du dort stehst, öffne usphonebook.com/opt-out und folg den Schritten; nimm {contact_email}, wo nach einer E-Mail gefragt wird. Wenn die Widerspruchsseite hängt, schreib an support+optout@usphonebook.com und bitte um Löschung. Drück dann „Ich habe das erledigt“."
+}

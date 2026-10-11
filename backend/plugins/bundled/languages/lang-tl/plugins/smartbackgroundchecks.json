@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa SmartBackgroundChecks. Sinusunod ng isang tao ang mga hakbang sa checklist; nagbibigay ang OpenOptOut ng pang-isahang email address at kini-click nito ang anumang confirmation link.",
+ "instructions": "Hanapin ang {full_name} sa smartbackgroundchecks.com. Kung nakalista ka, buksan ang smartbackgroundchecks.com/optout at alisin ang record mo, gamit ang {contact_email} kung saan humihingi ng email. Kadalasan, inaalis ka rin nito sa PeopleFinders. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

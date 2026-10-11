@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer Hunter, which lists folk by email address. One opt-out covers every saved email address.",
+ "instructions": "Hunter shows folk's work email addresses. Open https://hunter.io/ an' click, matey, \"Do Not Sell My Info\" at the bottom. Fer each of these addresses, claim it, open the link Hunter sends to it, then smash \"Delete my information\": {all_emails}. Then smash \"I've done this\"."
+}

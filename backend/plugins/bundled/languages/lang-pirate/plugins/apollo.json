@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer Apollo.io, which lists folk by email address. One opt-out covers every saved email address.",
+ "instructions": "Apollo files folk by work email. Open https://www.apollo.io/privacy-policy/remove, enter each of these addresses (one at a time), finish the robot check, an' open the link Apollo sends to that address: {all_emails}. Then smash \"I've done this\"."
+}

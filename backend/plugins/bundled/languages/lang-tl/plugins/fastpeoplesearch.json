@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa FastPeopleSearch. Sinusunod ng isang tao ang mga hakbang sa checklist; nagbibigay ang OpenOptOut ng pang-isahang email address at kini-click nito ang anumang confirmation link.",
+ "instructions": "Hanapin ang {full_name} sa fastpeoplesearch.com. Kung nakalista ka, buksan ang fastpeoplesearch.com/optout at sundin ang mga hakbang para alisin ang record mo; baka kailangan mong sagutan ang CAPTCHA. Kung humingi ito ng email address, gamitin ang {contact_email}, para ma-click ng OpenOptOut ang anumang confirmation link para sa iyo. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

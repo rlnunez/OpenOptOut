@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei Cyber Background Checks. Eine Person folgt den Schritten der Checkliste; OpenOptOut stellt eine Einmal-E-Mail-Adresse bereit und klickt Bestätigungslinks an.",
+ "instructions": "Such auf cyberbackgroundchecks.com nach {full_name}. Wenn du dort stehst, öffne cyberbackgroundchecks.com/removal und lösch den Eintrag; gib {contact_email} als E-Mail-Adresse an. Drück dann „Ich habe das erledigt“."
+}

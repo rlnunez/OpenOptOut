@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no Apollo.io, que lista pessoas por endereço de e-mail. Uma exclusão cobre todos os endereços salvos.",
+ "instructions": "O Apollo cadastra pessoas pelo e-mail de trabalho. Abra https://www.apollo.io/privacy-policy/remove, digite cada um destes endereços (um de cada vez), conclua a verificação de robô e abra o link que o Apollo envia para esse endereço: {all_emails}. Depois toque em \"Já fiz isso\"."
+}

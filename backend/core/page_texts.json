@@ -44,6 +44,12 @@
    ]
   },
   {
+   "text": "(draft wording, not yet checked by a lawyer)",
+   "where": [
+    "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
    "text": "(full name, current address, phone)",
    "where": [
     "components/VariantCoverage.jsx"
@@ -1548,6 +1554,12 @@
    ]
   },
   {
+   "text": "automatic",
+   "where": [
+    "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
    "text": "Automatic backups",
    "where": [
     "pages/Backups.jsx"
@@ -1771,6 +1783,12 @@
    "text": "Branding (optional)",
    "where": [
     "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Brazil privacy law (LGPD)",
+   "where": [
+    "pages/ParentCompanies.jsx"
    ]
   },
   {
@@ -2008,6 +2026,12 @@
    ]
   },
   {
+   "text": "California privacy law (CCPA)",
+   "where": [
+    "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
    "text": "California, Vermont, Texas and Oregon require data brokers to register. Importing these lists keeps OpenOptOut's broker list up to date. New brokers from a registry start <0>turned off</0>. A family member who finds a listing about themselves on one of them still gets an opt-out for it.",
    "where": [
     "pages/StateRegistries.jsx"
@@ -2035,6 +2059,12 @@
    "text": "Can't tell who",
    "where": [
     "pages/BrokerNetwork.jsx"
+   ]
+  },
+  {
+   "text": "Canada privacy law (PIPEDA)",
+   "where": [
+    "pages/ParentCompanies.jsx"
    ]
   },
   {
@@ -3416,6 +3446,12 @@
    "text": "Couldn't use that code:",
    "where": [
     "pages/CaptchaQueue.jsx"
+   ]
+  },
+  {
+   "text": "Country",
+   "where": [
+    "pages/ParentCompanies.jsx"
    ]
   },
   {
@@ -4950,6 +4986,12 @@
    ]
   },
   {
+   "text": "EU privacy law (GDPR)",
+   "where": [
+    "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
    "text": "Event types it expects to receive:",
    "where": [
     "pages/Plugins.jsx"
@@ -5570,6 +5612,12 @@
    "text": "General",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "general privacy law",
+   "where": [
+    "pages/ParentCompanies.jsx"
    ]
   },
   {
@@ -6741,6 +6789,18 @@
    ]
   },
   {
+   "text": "Letter language",
+   "where": [
+    "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
+   "text": "Letter: {law} in {language}",
+   "where": [
+    "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
    "text": "Library / Branch",
    "where": [
     "pages/Branding.jsx"
@@ -6938,12 +6998,6 @@
    "text": "Local Accounts Scope Notice",
    "where": [
     "pages/Settings.jsx"
-   ]
-  },
-  {
-   "text": "Locale",
-   "where": [
-    "pages/ParentCompanies.jsx"
    ]
   },
   {
@@ -8755,6 +8809,12 @@
    "text": "Opt-out Engine",
    "where": [
     "pages/SystemLogs.jsx"
+   ]
+  },
+  {
+   "text": "Opt-out letters follow the company's country and are written in its legal language, not the language you use the app in.",
+   "where": [
+    "pages/ParentCompanies.jsx"
    ]
   },
   {
@@ -12599,6 +12659,12 @@
    ]
   },
   {
+   "text": "The country decides which privacy law the opt-out letter cites (US, GB, FR, BR, CA, or EU). The letter is written in the company's language — French for a French company — not the language you use here. Leave the language blank to use the usual one for the country.",
+   "where": [
+    "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
    "text": "The daily cap of {v} is divided into small batches sent every",
    "where": [
     "pages/Settings.jsx"
@@ -13249,6 +13315,12 @@
    ]
   },
   {
+   "text": "UK privacy law (UK GDPR)",
+   "where": [
+    "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
    "text": "Understanding the removal pipeline",
    "where": [
     "pages/Help.jsx"
@@ -13380,6 +13452,12 @@
    "text": "Uptime aggregated",
    "where": [
     "pages/WorkerFleet.jsx"
+   ]
+  },
+  {
+   "text": "US state privacy laws",
+   "where": [
+    "pages/ParentCompanies.jsx"
    ]
   },
   {

@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour USPhoneBook. Une personne suit les étapes de la liste ; OpenOptOut fournit une adresse e-mail à usage unique et clique sur les liens de confirmation.",
+ "instructions": "Cherchez votre numéro de téléphone sur usphonebook.com. Si vous y figurez, ouvrez usphonebook.com/opt-out et suivez les étapes, en utilisant {contact_email} quand un e-mail est demandé. Si la page de désinscription se bloque, écrivez à support+optout@usphonebook.com pour demander à être retiré(e). Puis appuyez sur « C'est fait »."
+}

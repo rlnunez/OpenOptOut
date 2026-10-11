@@ -1,0 +1,3 @@
+{
+ "description": "Sends opt-out emails an' reads confirmations via Microsoft Graph using OAuth 2.0. Trusted email-provider class; host inspects fer hidden recipients an' enforces the recipient at send time."
+}

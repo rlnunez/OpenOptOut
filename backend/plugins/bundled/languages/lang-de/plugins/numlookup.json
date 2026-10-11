@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei NumLookup, das Personen nach Telefonnummer auflistet. Ein Widerspruch gilt für alle gespeicherten Nummern.",
+ "instructions": "Öffne https://www.numlookup.com/opt_out, gib eine dieser Nummern ein, schließ die Roboterprüfung ab und wähl, deine Daten zu entfernen: {all_phones}. Wähl, den Löschantrag von Hand zu senden (ein Konto brauchst du nicht), und trag {full_name}, {contact_email} und die Nummer ein. Das Formular kann einen Lichtbildausweis verlangen. Du kannst darauf alles außer Name und Foto schwärzen. Drück dann „Ich habe das erledigt“."
+}

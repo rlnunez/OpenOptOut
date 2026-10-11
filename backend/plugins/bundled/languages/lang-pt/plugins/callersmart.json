@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no CallerSmart, que lista pessoas por número de telefone. Uma exclusão cobre todos os números salvos.",
+ "instructions": "Abra https://www.callersmart.com/data. Para cada um destes números, digite o número e {contact_email}, conclua a verificação de robô e digite o código de 6 dígitos que o CallerSmart manda por SMS ou ligação para esse telefone: {all_phones}. Depois toque em \"Já fiz isso\"."
+}

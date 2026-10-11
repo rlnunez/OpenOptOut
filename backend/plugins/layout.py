@@ -124,8 +124,18 @@ def _inspect(plugin_dir: str, folder_type: Optional[str]) -> FoundPlugin:
         manifest = read_manifest(plugin_dir)
     except Exception as e:
         return FoundPlugin(plugin_dir, folder_type, None, [f"unreadable manifest.json: {e}"])
-    errors = manifest.validate() + placement_errors(manifest, folder_type)
+    errors = manifest.validate() + placement_errors(manifest, folder_type) \
+        + locale_errors(plugin_dir, manifest)
     return FoundPlugin(plugin_dir, folder_type, manifest, errors)
+
+
+def locale_errors(plugin_dir: str, manifest: PluginManifest) -> list[str]:
+    """Problems with the plugin's locales/ translations (see plugin_i18n)."""
+    from .plugin_i18n import locale_errors as _errs
+    try:
+        return _errs(plugin_dir, manifest)
+    except Exception as e:
+        return [f"locales/ couldn't be checked: {e}"]
 
 
 def scan(root: str) -> list[FoundPlugin]:

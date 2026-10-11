@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de Truecaller, que publica a las personas por número de teléfono. Una sola baja cubre todos los números guardados.",
+ "instructions": "Truecaller muestra tu nombre a las personas a las que llamas. Abre https://www.truecaller.com/unlisting y da de baja cada uno de estos números, de uno en uno, con el prefijo del país: {all_phones}. Completa la verificación de robot en cada uno. Si tú mismo usas la app de Truecaller, desactiva primero tu cuenta en la app y luego desinstálala, o la baja no se mantendrá. Después pulsa «Ya lo hice»."
+}

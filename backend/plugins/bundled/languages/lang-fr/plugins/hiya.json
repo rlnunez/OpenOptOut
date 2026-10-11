@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour Hiya, qui répertorie les gens par numéro de téléphone. Une seule désinscription couvre tous les numéros enregistrés.",
+ "instructions": "Hiya fournit l'identification de l'appelant à de nombreux téléphones Samsung et applis d'opérateurs. Ouvrez le formulaire de Hiya sur https://hiyahelp.zendesk.com/hc/en-us/requests/new?ticket_form_id=33394399463699 et demandez à Hiya de retirer le nom affiché pour chacun de ces numéros : {all_phones}. Utilisez {contact_email} comme e-mail. Puis appuyez sur « C'est fait »."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa Lusha, na naglilista ng mga tao ayon sa email address. Saklaw ng isang opt-out ang lahat ng naka-save na address.",
+ "instructions": "Buksan ang https://www.lusha.com/privacy-center/request-removal/ at magpadala ng removal request para kay {full_name} kasama ang bawat isa sa mga address at numerong ito: {all_emails}; {all_phones}. Gamitin ang {contact_email} para sa mga sagot. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa Hunter, na naglilista ng mga tao ayon sa email address. Saklaw ng isang opt-out ang lahat ng naka-save na address.",
+ "instructions": "Ipinapakita ng Hunter ang mga email address sa trabaho ng mga tao. Buksan ang https://hunter.io/ at i-click ang \"Do Not Sell My Info\" sa ibaba. Para sa bawat isa sa mga address na ito, i-claim ito, buksan ang link na ipinapadala ng Hunter dito, tapos pindutin ang \"Delete my information\": {all_emails}. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

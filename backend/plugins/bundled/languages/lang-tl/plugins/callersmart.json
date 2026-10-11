@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa CallerSmart, na naglilista ng mga tao ayon sa numero ng telepono. Saklaw ng isang opt-out ang lahat ng naka-save na numero.",
+ "instructions": "Buksan ang https://www.callersmart.com/data. Para sa bawat isa sa mga numerong ito, ilagay ang numero at ang {contact_email}, tapusin ang robot check, tapos i-type ang 6-digit na code na ite-text o itatawag ng CallerSmart sa teleponong iyon: {all_phones}. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no FastPeopleSearch. Uma pessoa segue os passos da lista; o OpenOptOut fornece um endereço de e-mail de uso único e clica em qualquer link de confirmação.",
+ "instructions": "Busque {full_name} no fastpeoplesearch.com. Se você aparecer, abra fastpeoplesearch.com/optout e siga os passos para remover seu registro; talvez seja preciso resolver um CAPTCHA. Se pedir um endereço de e-mail, use {contact_email}, para que o OpenOptOut possa clicar em qualquer link de confirmação por você. Depois toque em \"Já fiz isso\"."
+}

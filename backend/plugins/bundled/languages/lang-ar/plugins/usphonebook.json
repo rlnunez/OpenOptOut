@@ -1,0 +1,4 @@
+{
+ "description": "إلغاء موجَّه لدى USPhoneBook. يتبع شخص الخطوات في قائمة المهام؛ ويوفّر OpenOptOut عنوان بريد إلكتروني لمرة واحدة وينقر أي رابط تأكيد.",
+ "instructions": "ابحث عن رقم هاتفك في usphonebook.com. إن كنت مدرجًا، افتح usphonebook.com/opt-out واتبع الخطوات، واستخدم {contact_email} حيث يُطلب بريد. إذا علقت صفحة الإلغاء، راسل support+optout@usphonebook.com واطلب إزالتك. ثم اضغط «لقد أنجزت هذا»."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no Social Catfish. Uma pessoa segue os passos da lista; o OpenOptOut fornece um endereço de e-mail de uso único e clica em qualquer link de confirmação.",
+ "instructions": "Busque no socialcatfish.com e anote o endereço de cada página que mostra você. Abra socialcatfish.com/opt-out, role até a seção para remover páginas, e-mails, telefones e endereços, e peça só o que já aparece. Informe {contact_email} como seu e-mail; o Social Catfish envia um link de confirmação que o OpenOptOut clica por você. Depois toque em \"Já fiz isso\"."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho FamilyTreeNow. Một người làm theo các bước trong danh sách; OpenOptOut cung cấp địa chỉ email dùng một lần và tự bấm mọi liên kết xác nhận.",
+ "instructions": "Tìm {full_name} trên familytreenow.com. Nếu có tên bạn, mở familytreenow.com/optout và làm theo các bước để xóa hồ sơ, dùng {contact_email} nếu trang hỏi địa chỉ email. Sau đó bấm \"Tôi đã làm xong\"."
+}

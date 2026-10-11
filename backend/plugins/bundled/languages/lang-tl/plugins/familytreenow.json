@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa FamilyTreeNow. Sinusunod ng isang tao ang mga hakbang sa checklist; nagbibigay ang OpenOptOut ng pang-isahang email address at kini-click nito ang anumang confirmation link.",
+ "instructions": "Hanapin ang {full_name} sa familytreenow.com. Kung nakalista ka, buksan ang familytreenow.com/optout at sundin ang mga hakbang para alisin ang record mo, gamit ang {contact_email} kung humingi ito ng email address. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

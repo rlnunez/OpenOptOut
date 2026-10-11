@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei Nuwber. Eine Person folgt den Schritten der Checkliste; OpenOptOut stellt eine Einmal-E-Mail-Adresse bereit und klickt Bestätigungslinks an.",
+ "instructions": "Such deine Seite auf nuwber.com (Suche nach {full_name} und Filter nach {state} helfen) und kopier ihre Adresse. Öffne nuwber.com/removal/link, füg sie ein und gib {contact_email} als E-Mail-Adresse ein. Nuwber schickt einen Bestätigungslink; OpenOptOut klickt ihn für dich an. Drück dann „Ich habe das erledigt“. Wenn das Formular die Adresse nicht annimmt, schreib an support@nuwber.com mit einem Screenshot deines Eintrags und bitte um Löschung."
+}

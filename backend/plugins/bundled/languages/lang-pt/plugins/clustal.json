@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no Clustal. Uma pessoa segue os passos da lista; o OpenOptOut fornece um endereço de e-mail de uso único e clica em qualquer link de confirmação.",
+ "instructions": "Busque {full_name} no clustal.org, abra \"view full record\" e copie o endereço dessa página (o endereço do resultado da busca não funciona). Abra clustal.org/privacy-control, cole, toque em \"remove my info\", digite {contact_email} e toque em \"remove my info\" de novo. O Clustal envia um link para concluir; o OpenOptOut clica nele por você. Depois toque em \"Já fiz isso\"."
+}

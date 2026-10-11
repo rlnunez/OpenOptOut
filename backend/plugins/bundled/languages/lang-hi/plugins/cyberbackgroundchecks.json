@@ -1,0 +1,4 @@
+{
+ "description": "Cyber Background Checks के लिए निर्देशित ऑप्ट-आउट। एक व्यक्ति चेकलिस्ट के कदम पूरे करता है; OpenOptOut एक बार इस्तेमाल होने वाला ईमेल पता देता है और पुष्टि के लिंक पर खुद क्लिक करता है।",
+ "instructions": "cyberbackgroundchecks.com पर {full_name} खोजें। अगर आप दिखते हैं, तो cyberbackgroundchecks.com/removal खोलें और ईमेल पते में {contact_email} देकर रिकॉर्ड हटाएँ। फिर \"मैंने यह कर लिया\" दबाएँ।"
+}

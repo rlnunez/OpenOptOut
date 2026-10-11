@@ -1,0 +1,3 @@
+{
+ "description": "将 CAPTCHA 发送到你有账户的解题服务（2Captcha、Anti-Captcha、CapSolver 或 CapMonster Cloud）。它永远看不到个人信息：只看到网站的 CAPTCHA 密钥和清理过的页面地址，或者一张裁剪过的题目图片，其中每个表单字段和已保存的信息都已涂黑。账户密钥在 CAPTCHA 页面设置，只在解题时交给此插件。如果服务解不出来，可以由人来解。"
+}

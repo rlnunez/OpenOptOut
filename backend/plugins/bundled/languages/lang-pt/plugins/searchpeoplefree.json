@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no SearchPeopleFree. Uma pessoa segue os passos da lista; o OpenOptOut fornece um endereço de e-mail de uso único e clica em qualquer link de confirmação.",
+ "instructions": "Busque no searchpeoplefree.com por nome, telefone, endereço e e-mail; é comum aparecer mais de uma vez. Para cada registro, use searchpeoplefree.com/opt-out, informando {contact_email} como endereço de e-mail. Depois toque em \"Já fiz isso\"."
+}

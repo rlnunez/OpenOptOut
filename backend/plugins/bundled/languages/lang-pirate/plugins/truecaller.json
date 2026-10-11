@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer Truecaller, which lists folk by phone number. One opt-out covers every saved phone number.",
+ "instructions": "Truecaller shows yer name to folk ye call. Open https://www.truecaller.com/unlisting an' unlist each of these numbers, one at a time, with the country code: {all_phones}. Finish the robot check fer each. If ye use the Truecaller app yourself, deactivate yer account in the app first, then uninstall it, or the unlisting won't stick. Then smash \"I've done this\"."
+}

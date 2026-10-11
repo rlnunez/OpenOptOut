@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa ReversePhoneLookup.com, na naglilista ng mga tao ayon sa numero ng telepono. Saklaw ng isang opt-out ang lahat ng naka-save na numero.",
+ "instructions": "Buksan ang https://www.reversephonelookup.com/ at i-click ang \"Do Not Sell or Share My Personal Information\" sa ibaba. Ilagay ang {contact_email} at isa sa mga numerong ito (mga digit lang kung magreklamo): {all_phones}. Tapusin ang robot check at i-submit; kami ang magki-click sa confirmation link na ie-email nito. Ulitin para sa bawat numero, tapos pindutin ang \"Nagawa ko na ito\"."
+}

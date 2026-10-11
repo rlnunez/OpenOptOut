@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho Hunter, trang liệt kê người theo địa chỉ email. Một lần gỡ áp dụng cho mọi địa chỉ đã lưu.",
+ "instructions": "Hunter hiển thị địa chỉ email công việc của mọi người. Mở https://hunter.io/ và bấm \"Do Not Sell My Info\" ở cuối trang. Với mỗi địa chỉ sau, hãy xác nhận quyền sở hữu, mở liên kết Hunter gửi tới đó, rồi bấm \"Delete my information\": {all_emails}. Sau đó bấm \"Tôi đã làm xong\"."
+}

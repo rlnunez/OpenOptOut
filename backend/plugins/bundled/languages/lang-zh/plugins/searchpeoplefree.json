@@ -1,0 +1,4 @@
+{
+ "description": "SearchPeopleFree 的引导式退出。由一个人按清单步骤操作；OpenOptOut 提供一次性电子邮件地址，并自动点击确认链接。",
+ "instructions": "在 searchpeoplefree.com 按姓名、电话、地址和邮箱分别搜索；同一个人常常出现多次。对每条记录，使用 searchpeoplefree.com/opt-out，电子邮件地址填写 {contact_email}。然后点击“我已完成”。"
+}

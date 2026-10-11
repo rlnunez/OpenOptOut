@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei FastPeopleSearch. Eine Person folgt den Schritten der Checkliste; OpenOptOut stellt eine Einmal-E-Mail-Adresse bereit und klickt Bestätigungslinks an.",
+ "instructions": "Such auf fastpeoplesearch.com nach {full_name}. Wenn du dort stehst, öffne fastpeoplesearch.com/optout und folg den Schritten zum Löschen deines Eintrags; eventuell musst du ein CAPTCHA lösen. Wenn nach einer E-Mail-Adresse gefragt wird, nimm {contact_email}, damit OpenOptOut Bestätigungslinks für dich anklicken kann. Drück dann „Ich habe das erledigt“."
+}

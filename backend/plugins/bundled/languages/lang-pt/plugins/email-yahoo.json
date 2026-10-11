@@ -1,0 +1,3 @@
+{
+ "description": "Plugin de referência de provedor de e-mail que mostra OS DOIS transportes em um só plugin: OAuth 2.0 (preferido) e SMTP/IMAP com senha de app (alternativa). O modo é escolhido pelas credenciais salvas. Use como modelo para provedores híbridos ou para ver como SMTP/IMAP e OAuth funcionam. Classe confiável de provedor de e-mail; o sistema inspeciona em busca de destinatários ocultos e impõe o destinatário no envio."
+}

@@ -1,0 +1,3 @@
+{
+ "description": "Provedor de e-mail independente de servidor: envia por SMTP e lê confirmações por IMAP em QUALQUER servidor que o operador configurar (host, porta, TLS). Use para e-mail próprio ou local, ou qualquer provedor sem plugin dedicado. Nenhum servidor é fixo no código — o host e a porta SMTP/IMAP vêm das configurações salvas da conta. Classe confiável de provedor de e-mail; o sistema inspeciona em busca de destinatários ocultos e impõe o destinatário no envio."
+}

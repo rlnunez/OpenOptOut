@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de Spy Dialer, que publica a las personas por número de teléfono. Una sola baja cubre todos los números guardados.",
+ "instructions": "Abre https://www.spydialer.com/ y haz clic en «Do Not Sell Or Share My Personal Information» al final de la página. Pulsa Start, elige tu estado, completa la verificación de robot y añade {full_name}, tu dirección, cada uno de estos números ({all_phones}) y {email}. Pulsa «Opt-Out My Info» y espera a ver «Your submitted data has been blocked from future sharing». Después pulsa «Ya lo hice»."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Hunter 的引导式退出，该网站按电子邮件地址列出个人信息。一次退出即可涵盖所有已保存的地址。",
+ "instructions": "Hunter 会显示个人的工作邮箱。打开 https://hunter.io/，点击页面底部的“Do Not Sell My Info”。对以下每个地址，先认领它，打开 Hunter 发到该地址的链接，然后点击“Delete my information”：{all_emails}。然后点击“我已完成”。"
+}

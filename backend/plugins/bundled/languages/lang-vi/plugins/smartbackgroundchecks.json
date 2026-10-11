@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho SmartBackgroundChecks. Một người làm theo các bước trong danh sách; OpenOptOut cung cấp địa chỉ email dùng một lần và tự bấm mọi liên kết xác nhận.",
+ "instructions": "Tìm {full_name} trên smartbackgroundchecks.com. Nếu có tên bạn, mở smartbackgroundchecks.com/optout và xóa hồ sơ, dùng {contact_email} ở chỗ hỏi email. Việc này thường cũng gỡ bạn khỏi PeopleFinders. Sau đó bấm \"Tôi đã làm xong\"."
+}

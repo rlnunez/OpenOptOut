@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei Lusha, das Personen nach E-Mail-Adresse auflistet. Ein Widerspruch gilt für alle gespeicherten Adressen.",
+ "instructions": "Öffne https://www.lusha.com/privacy-center/request-removal/ und stell einen Löschantrag für {full_name} mit jeder dieser Adressen und Nummern: {all_emails}; {all_phones}. Nimm {contact_email} für Antworten. Drück dann „Ich habe das erledigt“."
+}

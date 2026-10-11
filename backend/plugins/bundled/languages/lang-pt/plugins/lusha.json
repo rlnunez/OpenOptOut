@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no Lusha, que lista pessoas por endereço de e-mail. Uma exclusão cobre todos os endereços salvos.",
+ "instructions": "Abra https://www.lusha.com/privacy-center/request-removal/ e envie um pedido de remoção para {full_name} com cada um destes endereços e números: {all_emails}; {all_phones}. Use {contact_email} para respostas. Depois toque em \"Já fiz isso\"."
+}

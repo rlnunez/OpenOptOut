@@ -138,7 +138,7 @@ def _extracted_bundle(file: UploadFile):
             manifest = layout.read_manifest(manifest_dir)
         except Exception:
             raise HTTPException(400, "The plugin's manifest.json couldn't be read.")
-        yield manifest_dir, manifest, manifest.validate()
+        yield manifest_dir, manifest, manifest.validate() + layout.locale_errors(manifest_dir, manifest)
 
 
 def _email_inspection(manifest: PluginManifest, plugin_dir: str):
@@ -249,6 +249,18 @@ def plugin_types(_: User = Depends(require_permission("plugins.view", "plugins.u
     ]
 
 
+def _description(m: PluginManifest, description, plugin_dir, user) -> str:
+    """The plugin's description in the viewer's language, when someone has
+    translated it (the plugin itself, a language pack, or an admin)."""
+    from ..plugins.plugin_i18n import describe
+    lang = getattr(user, "preferred_language", None) or "en"
+    try:
+        return describe(m.id, description or "", lang, plugin_dir or "", m.default_locale)
+    except Exception as e:
+        log.debug("description lookup failed for %s: %s", m.id, e)
+        return description or ""
+
+
 @router.get("/status")
 def plugin_system_status(_: User = Depends(require_permission("plugins.view"))):
     mgr = get_manager()
@@ -258,7 +270,7 @@ def plugin_system_status(_: User = Depends(require_permission("plugins.view"))):
 
 
 @router.get("")
-def list_plugins(db: Session = Depends(get_db), _: User = Depends(require_permission("plugins.view"))):
+def list_plugins(db: Session = Depends(get_db), user: User = Depends(require_permission("plugins.view"))):
     rows = db.query(InstalledPlugin).order_by(InstalledPlugin.installed_at.desc()).all()
     out = []
     for r in rows:
@@ -267,7 +279,8 @@ def list_plugins(db: Session = Depends(get_db), _: User = Depends(require_permis
         out.append(PluginOut(
             plugin_id=r.plugin_id, name=r.name, version=r.version, author=r.author,
             install_path=r.install_path or "", **_type_info(m),
-            description=r.description, enabled=r.enabled, status=r.status,
+            description=_description(m, r.description, r.install_path, user),
+            enabled=r.enabled, status=r.status,
             permissions_requested=manifest.get("permissions", []),
             permissions_granted=json.loads(r.granted_permissions or "[]"),
             hooks=manifest.get("hooks", []),
@@ -283,7 +296,7 @@ def list_plugins(db: Session = Depends(get_db), _: User = Depends(require_permis
 
 
 @router.get("/available")
-def available_plugins(db: Session = Depends(get_db), _: User = Depends(require_permission("plugins.view"))):
+def available_plugins(db: Session = Depends(get_db), user: User = Depends(require_permission("plugins.view"))):
     """Plugins present on disk (in any type folder) that aren't yet registered."""
     registered = {r.plugin_id for r in db.query(InstalledPlugin.plugin_id).all()}
     available = []
@@ -296,7 +309,7 @@ def available_plugins(db: Session = Depends(get_db), _: User = Depends(require_p
             continue
         available.append({
             "plugin_id": m.id, "name": m.name, "version": m.version,
-            "author": m.author, "description": m.description,
+            "author": m.author, "description": _description(m, m.description, f.path, user),
             "permissions": m.permissions, "hooks": m.hooks,
             "path": f.path, **_type_info(m),
             "folder": f.folder_type, "legacy_location": f.legacy_location,
@@ -347,7 +360,7 @@ def install_plugin(path: str, db: Session = Depends(get_db),
         raise HTTPException(404, "There's no manifest.json in that folder.")
 
     m = layout.read_manifest(plugin_dir_real)
-    errors = m.validate()
+    errors = m.validate() + layout.locale_errors(plugin_dir_real, m)
     if errors:
         raise HTTPException(400, f"Invalid manifest: {'; '.join(errors)}")
 

@@ -1,0 +1,3 @@
+{
+ "description": "Envía correos de baja y lee las confirmaciones mediante la API de Gmail con OAuth 2.0. Plugin de referencia de proveedor de correo. Clase de confianza: envía identificadores de los miembros a Gmail, por lo que declara read_pii + network; el sistema lo inspecciona en busca de destinatarios ocultos e impone el destinatario real al enviar."
+}

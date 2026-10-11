@@ -356,6 +356,8 @@ INSTITUTIONAL_MIGRATIONS = [
      "ALTER TABLE brokers ADD COLUMN is_test BOOLEAN DEFAULT 0"),
     ("Add is_test column to parent_companies",
      "ALTER TABLE parent_companies ADD COLUMN is_test BOOLEAN DEFAULT 0"),
+    ("Add jurisdiction column to parent_companies (opt-out letter law)",
+     "ALTER TABLE parent_companies ADD COLUMN jurisdiction VARCHAR(12)"),
     ("Add dob (encrypted date of birth) to family_members",
      "ALTER TABLE family_members ADD COLUMN dob VARCHAR"),
     ("Add optout_prefs to users (unclear matches)",

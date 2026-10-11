@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no Hiya, que lista pessoas por número de telefone. Uma exclusão cobre todos os números salvos.",
+ "instructions": "O Hiya fornece identificação de chamadas para muitos celulares Samsung e apps de operadoras. Abra o formulário do Hiya em https://hiyahelp.zendesk.com/hc/en-us/requests/new?ticket_form_id=33394399463699 e peça para remover o nome exibido de cada um destes números: {all_phones}. Use {contact_email} como seu e-mail. Depois toque em \"Já fiz isso\"."
+}

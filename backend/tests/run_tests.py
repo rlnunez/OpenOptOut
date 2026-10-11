@@ -9748,6 +9748,207 @@ def t_page_texts():
     # IF THIS FAILS: a screen would show English, or a translation would drop a value or a link.
 
 
+@test(1, "i18n.plugin_text_lookup_order",
+      "Plugin text is looked up admin override → language pack → the plugin's locales/<lang> → its default locale → the text as written, trying pt-BR then pt.")
+def t_plugin_text_order():
+    import json, tempfile
+    pi = _imp("plugins.plugin_i18n")
+    d = tempfile.mkdtemp()
+    os.makedirs(os.path.join(d, "locales"))
+    json.dump({"id": "demo", "default_locale": "fr"}, open(os.path.join(d, "manifest.json"), "w"))
+    json.dump({"instructions": "PLUGIN-ES", "only_plugin": "P-ES"}, open(os.path.join(d, "locales", "es.json"), "w"))
+    json.dump({"instructions": "PLUGIN-FR", "fr_only": "P-FR"}, open(os.path.join(d, "locales", "fr.json"), "w"))
+    json.dump({"instructions": "PLUGIN-PT"}, open(os.path.join(d, "locales", "pt.json"), "w"))
+    real_over, real_pack = pi._overrides, pi.pack_table
+    over, pack = {}, {}
+    pi._overrides = lambda lang: over.get(lang, {})
+    pi.pack_table = lambda lang, pid: pack.get(lang, {})
+    try:
+        txt = lambda key, lang: pi.plugin_text("demo", key, lang, "AS-WRITTEN", d)
+        assert txt("instructions", "es") == "PLUGIN-ES"                      # 3. plugin locale
+        pack["es"] = {"instructions": "PACK-ES"}
+        assert txt("instructions", "es") == "PACK-ES"                        # 2. pack beats plugin
+        over["es"] = {"plugin:demo:instructions": "ADMIN-ES"}
+        assert txt("instructions", "es") == "ADMIN-ES"                       # 1. admin beats all
+        assert txt("only_plugin", "es") == "P-ES"
+        assert txt("fr_only", "de") == "P-FR", "missing language should fall back to the default locale"
+        assert txt("nowhere", "de") == "AS-WRITTEN"                          # 5. as written
+        assert txt("instructions", "pt-BR") == "PLUGIN-PT", "pt-BR should fall back to pt"
+        assert txt("instructions", "PT_br") == "PLUGIN-PT"
+    finally:
+        pi._overrides, pi.pack_table = real_over, real_pack
+    # IF THIS FAILS: a plugin's own translation, a language pack's or an admin's fix would be ignored.
+
+
+@test(1, "plugins.locales_validated",
+      "A plugin's locales/ files must exist for every declared language, be flat key → text JSON, and keep the original {placeholders}.")
+def t_plugin_locales_valid():
+    import json, tempfile
+    pi = _imp("plugins.plugin_i18n")
+    PluginManifest = _imp("plugins.permissions").PluginManifest
+    d = tempfile.mkdtemp()
+    os.makedirs(os.path.join(d, "locales"))
+    m = PluginManifest.from_dict({"id": "demo", "name": "Demo", "version": "1", "author": "a",
+                                  "type": "brokers", "description": "Hi {full_name}",
+                                  "locales": ["fr", "de"], "default_locale": "en"})
+    json.dump({"broker_id": "demo", "name": "Demo", "method": "manual",
+               "instructions": "Open {listing_url}"}, open(os.path.join(d, "spec.json"), "w"))
+    json.dump({"instructions": "Ouvrez le lien", "description": "Salut {full_name}"},
+              open(os.path.join(d, "locales", "fr.json"), "w"))
+    errs = pi.locale_errors(d, m)
+    assert any("de.json is missing" in e for e in errs), errs
+    assert any("'instructions'" in e and "listing_url" in e for e in errs), errs
+    assert not any("description" in e for e in errs), errs
+    json.dump({"instructions": "Ouvrez {listing_url}"}, open(os.path.join(d, "locales", "fr.json"), "w"))
+    json.dump({"instructions": ["not", "text"]}, open(os.path.join(d, "locales", "de.json"), "w"))
+    errs = pi.locale_errors(d, m)
+    assert len(errs) == 1 and "values must be text" in errs[0], errs
+    json.dump({"instructions": "Öffne {listing_url}"}, open(os.path.join(d, "locales", "de.json"), "w"))
+    assert pi.locale_errors(d, m) == []
+    assert "default_locale" in m.to_dict() and m.to_dict()["locales"] == ["fr", "de"]
+    bad = PluginManifest.from_dict({"id": "x", "name": "X", "version": "1", "author": "a",
+                                    "locales": ["fr", "not a code"]})
+    assert any("isn't a language code" in e for e in bad.validate())
+    # IF THIS FAILS: a broken translation could drop a person's link or crash the Plugins page.
+
+
+@test(1, "interpreter.spec_jurisdiction_and_text_keys",
+      "Specs take a jurisdiction, a legal language and per-language letters; keyed text ({\"$t\": ...}) loads and saves; LGPD is a known law.")
+def t_spec_jurisdiction():
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    base = {"broker_id": "b", "name": "B", "method": "manual"}
+    s = BrokerSpec.from_dict({**base, "instructions": {"$t": "how_to", "default": "Open {listing_url}"}})
+    assert s.instructions == "Open {listing_url}" and s.text_keys == {"instructions": "how_to"}
+    assert s.to_dict()["instructions"] == {"$t": "how_to", "default": "Open {listing_url}"}
+    assert BrokerSpec.from_dict(s.to_dict()).text_keys == {"instructions": "how_to"}
+    try:
+        BrokerSpec.from_dict({**base, "instructions": {"$t": "", "default": "x"}})
+        raise AssertionError("an empty $t key should be refused")
+    except ValueError:
+        pass
+    # Defaults: US unless a law says otherwise; legal language from the jurisdiction.
+    assert BrokerSpec.from_dict(base).effective_jurisdiction() == "US"
+    assert BrokerSpec.from_dict({**base, "legal_basis": ["ccpa"]}).effective_legal_language() == "en"
+    g = BrokerSpec.from_dict({**base, "legal_basis": ["gdpr"]})
+    assert g.effective_jurisdiction() == "EU" and g.effective_legal_language() == "en"
+    fr = BrokerSpec.from_dict({**base, "jurisdiction": "fr"})
+    assert fr.jurisdiction == "FR" and fr.effective_legal_language() == "fr" and fr.validate() == []
+    br = BrokerSpec.from_dict({**base, "legal_basis": ["lgpd"]})
+    assert br.validate() == [] and br.effective_jurisdiction() == "BR" and br.effective_legal_language() == "pt-BR"
+    own = BrokerSpec.from_dict({**base, "jurisdiction": "DE",
+                                "email_templates": {"de": {"subject": "S {full_name}", "body": "B {identifiers}"}}})
+    assert own.validate() == [] and own.letter_template()["subject"] == "S {full_name}"
+    assert own.letter_template("en") is None
+    assert "email_templates" in own.to_dict() and "jurisdiction" in own.to_dict()
+    for bad, msg in [({"jurisdiction": "Mars"}, "jurisdiction"), ({"legal_language": "english!"}, "legal_language"),
+                     ({"email_templates": {"fr": {"subject": "x"}}}, "email_templates.fr")]:
+        errs = BrokerSpec.from_dict({**base, **bad}).validate()
+        assert any(msg in e for e in errs), (bad, errs)
+    # IF THIS FAILS: add-ons couldn't say where a broker is, or keyed translations would be lost on save.
+
+
+@test(1, "legal.letter_follows_broker_not_interface",
+      "The opt-out letter is chosen by the broker's country and written in its legal language: English CCPA/US letters for US brokers, French GDPR for France, Portuguese LGPD for Brazil — whatever language the family uses.")
+def t_legal_letters():
+    tmpl = _imp("core.optout_email_template")
+    ll = _imp("core.legal_letters")
+    assert ll.template_errors() == [], ll.template_errors()
+    ids = tmpl.Identifiers(full_name="Ana Souza", name_variants=["Ana S."], emails=["ana@example.com"],
+                           phones=["555-0101"], addresses=["1 Rua A"], age_range="30-35")
+    cases = [  # (jurisdiction, letter language asked for, residence, template, language, must contain)
+        ("US", "", "TX", "us", "en", "California Consumer Privacy Act"),
+        ("US", "", "CA", "ccpa", "en", "§ 1798.105"),
+        ("US", "es", "TX", "us", "en", "state privacy laws"),     # no Spanish US letter: English, no note
+        ("FR", "", "", "gdpr", "fr", "article 17 du Règlement général"),
+        ("DE", "", "", "gdpr", "de", "Art. 17 der Datenschutz-Grundverordnung"),
+        ("EU", "", "", "gdpr", "en", "Article 17"),
+        ("GB", "", "", "uk_gdpr", "en", "Information Commissioner"),
+        ("BR", "", "", "lgpd", "pt-BR", "Lei nº 13.709/2018"),
+        ("CA-QC", "", "", "pipeda", "fr", "LPRPDE"),
+        ("AU", "", "", "generic", "en", "data-protection law that applies"),
+    ]
+    for j, lang, res, tid, want_lang, needle in cases:
+        e = tmpl.compose_optout_email(ids, "Acme", "p@acme.example", ["Site A"], jurisdiction=j,
+                                      locale=lang, state=res, request_key="K-1")
+        assert (e.template_id, e.language) == (tid, want_lang), (j, lang, e.template_id, e.language)
+        assert needle in e.body, (j, needle)
+        assert "localized" not in e.body and "[Note" not in e.body, "no 'not yet translated' note"
+        assert "ana@example.com" in e.body and "Site A" in e.body and "30-35" in e.body, j
+        assert "K-1" in e.subject and "K-1" in e.body and e.review_status == "draft"
+        assert not __import__("re").search(r"\{[a-z_]+\}", e.body + e.subject), \
+            f"unfilled placeholder in {tid}/{want_lang}"
+    for t in ll.catalog():
+        assert t["review_status"] == "draft" and len(t["review_note"]) > 40, t["id"]
+    # IF THIS FAILS: a broker could get a letter citing the wrong law, in a language its
+    #   legal team doesn't read, or a translated letter could leave out the identifiers.
+
+
+@test(1, "legal.broker_email_uses_letter",
+      "Per-broker opt-out emails use the broker's legal letter (CCPA for a California resident), or the add-on's own letter in its legal language.")
+def t_legal_broker_email():
+    from types import SimpleNamespace as NS
+    oe = _imp("core.optout_engine")
+    ba = _imp("plugins.broker_addon")
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    member = _fake_member()
+    broker = NS(name="Acme", is_property_broker=False, notes="", plugin_id=None)
+    subject, body = oe._build_exhaustive_email(member, broker, "K-2", None, db=None)
+    assert "CCPA" in body and "jane@example.com" in body and "Jane Public" in body and "K-2" in subject, body
+    assert "§ 1798.105" not in body, "a Texas resident gets the general US letter"
+    real = ba.get_broker_spec_for_broker
+    try:
+        ba.get_broker_spec_for_broker = lambda db, b: BrokerSpec.from_dict(
+            {"broker_id": "acme", "name": "Acme", "method": "email", "jurisdiction": "FR",
+             "email": {"to_address": "dpo@acme.example", "subject_template": "x", "body_template": "x"}})
+        subject, body = oe._build_exhaustive_email(member, broker, "K-3", None, db=object())
+        # The spec's single English template wins over the built-in letter; its
+        # identifiers are labelled in the broker's legal language.
+        assert body.startswith("x") and "Adresses e-mail" in body, body
+        ba.get_broker_spec_for_broker = lambda db, b: BrokerSpec.from_dict(
+            {"broker_id": "acme", "name": "Acme", "method": "manual", "jurisdiction": "FR"})
+        subject, body = oe._build_exhaustive_email(member, broker, "K-4", None, db=object())
+        assert "RGPD" in subject and "article 17" in body and "jane@example.com" in body, body
+        ba.get_broker_spec_for_broker = lambda db, b: BrokerSpec.from_dict(
+            {"broker_id": "acme", "name": "Acme", "method": "manual", "jurisdiction": "FR",
+             "email_templates": {"fr": {"subject": "Suppression {full_name} [{request_key}]",
+                                        "body": "Bonjour {broker},\n{identifiers}"}}})
+        subject, body = oe._build_exhaustive_email(member, broker, "K-5", None, db=object())
+        assert subject == "Suppression Jane Q Public [K-5]" and "Bonjour Acme" in body and "Numéros de téléphone" in body
+    finally:
+        ba.get_broker_spec_for_broker = real
+    # IF THIS FAILS: brokers would get English letters regardless of where they are, or an
+    #   add-on's own wording would be ignored.
+
+
+@test(1, "i18n.plugin_text_translated",
+      "Every built-in language pack translates every built-in plugin's description and instructions; instructions show in the member's language and page-matching text is left alone.")
+def t_plugin_text_translated():
+    import importlib.util, json
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    spec_ = importlib.util.spec_from_file_location("plugin_texts", os.path.join(root, "scripts", "plugin_texts.py"))
+    pt = importlib.util.module_from_spec(spec_); spec_.loader.exec_module(pt)
+    errs = pt.problems()
+    assert not errs, f"{len(errs)} problems, e.g. {errs[:3]}"
+    # IF THIS FAILS: run scripts/plugin_texts.py --check and translate what it lists.
+    pi = _imp("plugins.plugin_i18n")
+    ba = _imp("plugins.broker_addon")
+    d = os.path.join(root, "backend", "plugins", "bundled", "brokers", "beenverified")
+    spec, _ = ba.validate_broker_spec_file(d)
+    spec.plugin_id, spec.plugin_dir = "beenverified", d
+    es = pi.localize_spec(spec, "es")
+    pauses = [i for i, s in enumerate(spec.steps) if s.kind == "pause_for_human"]
+    assert pauses and all(es.steps[i].text != spec.steps[i].text for i in pauses)
+    assert "{contact_email}" in es.steps[pauses[0]].text
+    for i, s in enumerate(spec.steps):
+        if s.kind != "pause_for_human":
+            assert es.steps[i].text == s.text, "text matched on the broker's page must not be translated"
+    assert spec.steps[pauses[0]].text.startswith("BeenVerified needs"), "the original spec must not change"
+    from types import SimpleNamespace as NS
+    assert pi.member_language(NS(user=NS(preferred_language="vi"))) == "vi"
+    # IF THIS FAILS: a family would read checklist steps in English, or the robot would look
+    #   for translated words on an English-language site.
+
+
 @test(1, "matching.classify_unclear_listings",
       "Possible listings are sorted into yours, unclear (only the name shows) and not you (a different name or age).")
 def t_match_classify():

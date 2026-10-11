@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no Spy Dialer, que lista pessoas por número de telefone. Uma exclusão cobre todos os números salvos.",
+ "instructions": "Abra https://www.spydialer.com/ e clique em \"Do Not Sell Or Share My Personal Information\" no rodapé. Toque em Start, escolha seu estado, conclua a verificação de robô e depois adicione {full_name}, seu endereço, cada um destes números ({all_phones}) e {email}. Toque em \"Opt-Out My Info\" e espere aparecer \"Your submitted data has been blocked from future sharing\". Depois toque em \"Já fiz isso\"."
+}

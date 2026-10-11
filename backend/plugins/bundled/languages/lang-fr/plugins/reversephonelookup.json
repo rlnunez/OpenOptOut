@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour ReversePhoneLookup.com, qui répertorie les gens par numéro de téléphone. Une seule désinscription couvre tous les numéros enregistrés.",
+ "instructions": "Ouvrez https://www.reversephonelookup.com/ et cliquez sur « Do Not Sell or Share My Personal Information » en bas de page. Saisissez {contact_email} et l'un de ces numéros (chiffres seulement en cas d'erreur) : {all_phones}. Terminez la vérification anti-robot et envoyez ; nous cliquerons sur le lien de confirmation reçu par e-mail. Recommencez pour chaque numéro, puis appuyez sur « C'est fait »."
+}

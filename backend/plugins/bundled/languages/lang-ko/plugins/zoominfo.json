@@ -1,0 +1,4 @@
+{
+ "description": "이메일 주소로 사람을 게시하는 ZoomInfo의 안내형 거부. 한 번의 거부로 저장된 모든 이메일 주소가 처리됩니다.",
+ "instructions": "https://privacy.zoominfo.com/ 을 열고 직장과 함께 {full_name}을(를) 찾은 뒤, 게시물을 골라 삭제를 요청하세요. ZoomInfo가 묻는 업무용 이메일마다 인증하세요. 저장된 주소: {all_emails}. 그런 다음 \"완료했어요\"를 누르세요."
+}

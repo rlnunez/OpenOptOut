@@ -1,0 +1,3 @@
+{
+ "description": "Gửi email gỡ dữ liệu và đọc thư xác nhận qua Gmail API bằng OAuth 2.0. Một plugin nhà cung cấp email mẫu. Thuộc nhóm tin cậy: plugin gửi thông tin nhận dạng thành viên tới Gmail nên khai báo read_pii + network; hệ thống kiểm tra plugin để tìm người nhận ẩn và buộc dùng đúng người nhận khi gửi."
+}

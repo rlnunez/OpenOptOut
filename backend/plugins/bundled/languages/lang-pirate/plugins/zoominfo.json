@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer ZoomInfo, which lists folk by email address. One opt-out covers every saved email address.",
+ "instructions": "Open https://privacy.zoominfo.com/, look up {full_name} with yer employer, choose the listing an' ask fer it to be removed. Verify with each work email ZoomInfo asks about. Yer saved addresses: {all_emails}. Then smash \"I've done this\"."
+}

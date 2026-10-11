@@ -1,0 +1,4 @@
+{
+ "description": "BeenVerified(beenverified.com) 거부. 사람을 검색한 뒤 본인이 자기 게시물을 고르며, BeenVerified의 확인 링크는 자동으로 눌립니다.",
+ "steps.7.text": "BeenVerified에서는 직접 게시물을 골라야 합니다. beenverified.com/svc/optout/search 로 가서 {state_name}에서 {full_name}을(를) 검색하고, 본인 기록을 누른 뒤 CAPTCHA를 푸세요. 삭제 양식에서 계정 여부는 \"No\"를 고르고, 정보를 확인한 다음 이메일 주소로 {contact_email}을(를) 입력하세요. BeenVerified는 이메일 주소당 한 번만 거부를 허용하며, 이 주소는 이번 거부에만 쓰입니다. BeenVerified가 이 주소로 보내는 확인 링크는 OpenOptOut이 누릅니다."
+}

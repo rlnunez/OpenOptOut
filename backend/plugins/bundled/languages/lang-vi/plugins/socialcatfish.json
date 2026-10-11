@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho Social Catfish. Một người làm theo các bước trong danh sách; OpenOptOut cung cấp địa chỉ email dùng một lần và tự bấm mọi liên kết xác nhận.",
+ "instructions": "Tìm trên socialcatfish.com và ghi lại địa chỉ của mọi trang có bạn. Mở socialcatfish.com/opt-out, cuộn tới phần gỡ trang, email, số điện thoại và địa chỉ, và chỉ yêu cầu gỡ những gì trang đã hiển thị. Cung cấp {contact_email} làm email; Social Catfish gửi một liên kết xác nhận mà OpenOptOut bấm giúp bạn. Sau đó bấm \"Tôi đã làm xong\"."
+}
