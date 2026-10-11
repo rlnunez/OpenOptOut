@@ -231,7 +231,9 @@ def _select_pending_batch(db, cfg, max_this_run: int) -> list:
     """
     sc      = cfg.get("scheduler", {})
     sys_max = sc.get("max_optouts_per_day", 20)
-    dispatch_order = sc.get("dispatch_order", "priority")  # priority | fifo | easy_first
+    # priority | fifo | easy_first | aggregators_first (default: cut off the
+    # sources other brokers copy from before their downstream sites)
+    dispatch_order = sc.get("dispatch_order", "aggregators_first")
 
     sent_today = _count_sent_today(db)
     daily_remaining = max(0, sys_max - sent_today)
@@ -251,7 +253,14 @@ def _select_pending_batch(db, cfg, max_this_run: int) -> list:
     # offenders / highest data exposure first), so a member's most sensitive
     # exposures clear first even when the full opt-out spans many days.
     from .broker_priority import order_pending
-    pending = order_pending(pending, strategy=dispatch_order)
+    upstream = None
+    if dispatch_order == "aggregators_first":
+        try:
+            from .broker_network import upstream_scores
+            upstream = {k: v["score"] for k, v in upstream_scores(db).items()}
+        except Exception as e:
+            log.warning("aggregator scores unavailable, using priority order: %s", e)
+    pending = order_pending(pending, strategy=dispatch_order, upstream=upstream)
 
     batch_ids = []
     for req in pending:

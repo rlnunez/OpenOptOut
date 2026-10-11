@@ -48,6 +48,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 26 | Automated ILS demographic ingestion & Identity Vault sync | Complete |
 | 27 | Universal accessibility (a11y) & WCAG 2.2 AAA conformance | Complete |
 | 28 | Multi-container test matrix, mock harness & diagnostic automation | Complete |
+| 40 | Data-sharing detection & aggregator-first targeting | In Review |
 
 ---
 
@@ -578,6 +579,15 @@ plugins/
 - **Verification:** Continuously executed via local development scripts and automated CI workflows.
 
 **Status:** Complete.
+
+---
+
+### 40. Data-sharing detection & aggregator-first targeting
+- **Sharing:** opt-out addresses that receive mail from a company they were never given to become "given to → came from" edges (possible / likely / strong by how many distinct addresses), excluding the broker's own family. Admin → Data sharing.
+- **Targeting:** brokers weighted by known wholesalers (`catalog/aggregators.json`), cascades, family size and observed sharing; new default dispatch order "aggregators first".
+- See [`docs/DATA_SHARING.md`](DATA_SHARING.md).
+
+**Status:** In Review.
 
 ---
 
