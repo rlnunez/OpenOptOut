@@ -300,13 +300,8 @@ def delete_user(
         raise HTTPException(404, "That account is gone. Refresh the page.")
     _only_super_admin_touches_privileged(current_user, user.role)
     assert_user_in_scope(db, current_user, user)
-    from ..core.mailboxes import purge_for_user
-    purge_for_user(db, user.id)
-    from ..models.database import FamilyMember, WebSearchHit
-    fm = db.query(FamilyMember).filter(FamilyMember.user_id == user.id).first()
-    if fm is not None:   # search results about this person go with them
-        db.query(WebSearchHit).filter(WebSearchHit.member_id == fm.id).delete(synchronize_session=False)
-    db.delete(user)
+    from ..core.people import delete_person   # every row about them, not just the account
+    delete_person(db, user)
     db.commit()
 
 

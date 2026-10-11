@@ -9175,6 +9175,52 @@ esac
     # IF THIS FAILS: the "Other cloud storage" option can't upload, or leaves its config lying around.
 
 
+@test(2, "family.add_and_remove_person",
+      "A parent can add a person (no sign-in, managed by them) and remove them; members and other accounts are protected.")
+def t_family_add_remove():
+    db, s = _memory_db()
+    fam = _imp("routers.family")
+    auth = _imp("core.auth")
+    from fastapi import HTTPException
+    parent = db.User(email="p@x.example", full_name="Pat Parent", role=db.UserRole.parent, hashed_password="x")
+    s.add(parent); s.flush()
+    s.add(db.FamilyMember(user_id=parent.id, full_name="Pat Parent")); s.commit()
+    out = fam.add_member(fam.MemberCreate(full_name=" Kim Kid ", dob="2015-03-02"), db=s, current_user=parent)
+    assert out.full_name == "Kim Kid" and out.dob == "2015-03-02" and out.age is not None and out.can_edit
+    kid = s.query(db.FamilyMember).get(out.id)
+    assert kid.user.role == db.UserRole.member and kid.user.email.endswith(".invalid") and not kid.user.hashed_password
+    assert out.id in auth.get_accessible_member_ids(s, parent), "the parent can see who they added"
+    s.add(db.Identity(member_id=kid.id, kind="phone", value="555-0100"))
+    b = db.Broker(name="B", opt_out_url="https://b.example"); s.add(b); s.flush()
+    rq = db.RemovalRequest(member_id=kid.id, broker_id=b.id, status=db.RequestStatus.sent); s.add(rq); s.flush()
+    s.add_all([db.AutomationLog(request_id=rq.id, member_id=kid.id, action="form_fill", status="success"),
+               db.EmailLog(request_id=rq.id, direction="received"),
+               db.VerificationCheck(request_id=rq.id, method="web_search", verdict="gone"),
+               db.MemberScheduleConfig(member_id=kid.id)])
+    s.commit()
+    child_user = kid.user
+    try:
+        fam.add_member(fam.MemberCreate(full_name="X"), db=s, current_user=child_user)
+        raise AssertionError("a member added someone")
+    except HTTPException as e:
+        assert e.status_code == 403
+    own = s.query(db.FamilyMember).filter_by(user_id=parent.id).first()
+    try:
+        fam.remove_member(own.id, db=s, current_user=parent)
+        raise AssertionError("removed themselves")
+    except HTTPException as e:
+        assert e.status_code == 400
+    fam.remove_member(out.id, db=s, current_user=parent)
+    assert s.query(db.FamilyMember).get(out.id) is None
+    assert s.query(db.Identity).filter_by(member_id=out.id).count() == 0
+    assert s.query(db.RemovalRequest).count() == 0 and s.query(db.EmailLog).count() == 0
+    assert s.query(db.VerificationCheck).count() == 0 and s.query(db.AutomationLog).count() == 0
+    assert s.query(db.ProfileAccess).count() == 0 and s.query(db.User).count() == 1
+    s.close()
+    # EXPECTED: "Add a person" and "Remove" on the Family page work.
+    # IF THIS FAILS: families can't add children or remove people they added.
+
+
 def main():
     ap = argparse.ArgumentParser(description="OpenOptOut test runner")
     ap.add_argument("--tier", type=int, default=4, help="run tiers up to N (1-4)")
