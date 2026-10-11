@@ -4,8 +4,7 @@ import {
   Users, ShieldCheck, Settings, LogOut, ShieldAlert,
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
   Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal,
-  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Bell
-  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Share2
+  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Bell, Share2
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'

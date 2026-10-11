@@ -55,8 +55,8 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 33 | General web search (SearXNG) | Complete (#72) |
 | 34 | Checklist & per-variant removal report | Complete (#73, #75) |
 | 35 | Broker confirmation links clicked automatically | Complete (#76) |
-| 36 | Curated broker form plugins & honest form results | In Review — live verification pending |
-| 37 | Long tail: privacy-request page finder & OneTrust/TrustArc forms | In Review — live verification pending |
+| 36 | Curated broker form plugins & honest form results | Complete (#77) — live verification pending |
+| 37 | Long tail: privacy-request page finder & OneTrust/TrustArc forms | Complete (#79) — live verification pending |
 | 38 | Built-in receive-only inbox | In Design ([`docs/BUILTIN_INBOX.md`](BUILTIN_INBOX.md)) |
 | 39 | Automated removal verification & re-listing monitor | In Review — live verification pending |
 | 40 | Data-sharing detection & aggregator-first targeting | In Review |
@@ -671,7 +671,7 @@ plugins/
 - **Tooling:** `broker-plugins/tools/validate.py` dry-runs every plugin. See [`broker-plugins/README.md`](../broker-plugins/README.md) and [`docs/INTERPRETER.md`](INTERPRETER.md).
 - **Open:** live verification of every plugin; handing a live browser to a person at a pause so they can finish in place instead of starting over.
 
-**Status:** In Review — live verification pending.
+**Status:** Complete (#77) — live verification pending.
 
 ---
 
@@ -683,7 +683,7 @@ plugins/
 - Found forms become the broker's opt-out steps after plugins and admin scripts; their verification emails are clicked via item 35. Found email addresses are used only after an admin approves them.
 - See [`docs/PRIVACY_PAGES.md`](PRIVACY_PAGES.md).
 
-**Status:** In Review — live verification pending.
+**Status:** Complete (#79) — live verification pending.
 
 ---
 
