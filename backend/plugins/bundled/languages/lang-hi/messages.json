@@ -150,5 +150,6 @@
   "status.skipped": "छोड़ दिया",
   "nav.backups": "बैकअप",
   "nav.deadlines": "समय-सीमा रिपोर्ट",
-  "nav.privacy_record": "निजता रिकॉर्ड"
+  "nav.privacy_record": "निजता रिकॉर्ड",
+  "nav.calendar": "कैलेंडर"
 }

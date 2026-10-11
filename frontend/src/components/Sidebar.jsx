@@ -20,6 +20,7 @@ const nav = [
   { k: 'nav.discovery', label: 'Find listings', to: '/discovery',  icon: Radar },
   { k: 'nav.email_monitor', label: 'Replies',       to: '/email',      icon: Mail },
   { k: 'nav.scheduled', label: 'Check again',   to: '/scheduled',  icon: CalendarClock },
+  { k: 'nav.calendar', label: 'Calendar', to: '/calendar', icon: CalendarDays },
   { k: 'nav.captcha', label: 'CAPTCHAs',      to: '/captcha',    icon: ShieldAlert },
   { k: 'nav.deadlines', label: 'Deadline report', to: '/deadlines', icon: Gavel },
 ]

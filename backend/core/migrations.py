@@ -358,6 +358,8 @@ INSTITUTIONAL_MIGRATIONS = [
      "ALTER TABLE parent_companies ADD COLUMN is_test BOOLEAN DEFAULT 0"),
     ("Add dob (encrypted date of birth) to family_members",
      "ALTER TABLE family_members ADD COLUMN dob VARCHAR"),
+    ("Add calendar_token_hash to users (private calendar feed)",
+     "ALTER TABLE users ADD COLUMN calendar_token_hash VARCHAR(64)"),
     ("Add notification_prefs to users (deadline and re-listing notices)",
      "ALTER TABLE users ADD COLUMN notification_prefs TEXT DEFAULT NULL"),
     ("Add auth_source column to users (external/SSO login)",

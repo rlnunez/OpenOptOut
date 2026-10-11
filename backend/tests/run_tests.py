@@ -9355,6 +9355,128 @@ def t_masked_combo():
     assert m != cmb.IdentityCombo(name="Jane Q Public", city="Austin", phone="(512) 555-0199").masked_label()
 
 
+@test(2, "i18n.languages_are_plugins",
+      "Only English lives in core; the other languages are built-in language-pack plugins an admin can turn off.")
+def t_languages_are_plugins():
+    import os, tempfile, pathlib
+    i18n = _imp("core.i18n")
+    lp = _imp("plugins.language_packs")
+    src = pathlib.Path(i18n.__file__).read_text(encoding="utf-8")
+    assert "Bóveda" not in src and "Panel de Control" not in src, "translations are no longer hardcoded"
+    assert set(i18n.BUNDLED_LANGUAGES) == {"es", "fr", "ar", "pirate", "de", "hi", "ko", "pt", "ru", "tl", "vi", "zh"}
+    assert all(p["id"] == f"lang-{c}" for c, p in i18n.BUNDLED_LANGUAGES.items())
+    assert i18n.BUNDLED_LANGUAGES["ar"]["is_rtl"] and "en" in i18n.DEFAULT_ENABLED
+    db, s = _memory_db()
+    root = tempfile.mkdtemp()
+    old = os.environ.get("PLUGINS_DIR"); os.environ["PLUGINS_DIR"] = root
+    try:
+        st = lp.sync_builtin_languages(s)
+        assert st["installed"] == 12, st
+        assert os.path.isfile(os.path.join(root, "languages", "lang-de", "messages.json"))
+        assert lp.sync_builtin_languages(s)["installed"] == 0, "second run changes nothing"
+        rows = {r.plugin_id: r for r in s.query(db.InstalledPlugin).all()}
+        assert rows["lang-de"].status == "data" and rows["lang-de"].enabled
+        de = i18n.get_translations_for_locale("de")
+        assert de["nav.vault"] == "Deine Angaben"
+        # Turned off: German falls back to English and shows as off.
+        i18n._DISABLED_CACHE.update(at=10**12, ids={"lang-de"})
+        assert i18n.get_translations_for_locale("de")["nav.vault"] == "Your details"
+        langs = {l["code"]: l for l in i18n.get_available_languages()}
+        assert langs["de"]["plugin_off"] and not langs["de"]["enabled"] and langs["es"]["built_in"]
+    finally:
+        i18n._DISABLED_CACHE.update(at=0.0, ids=set())
+        if old is None: os.environ.pop("PLUGINS_DIR", None)
+        else: os.environ["PLUGINS_DIR"] = old
+    s.close()
+    # EXPECTED: languages install, update and turn off like any other plugin.
+    # IF THIS FAILS: a language can't be turned off, or translations are stuck in core code.
+
+
+@test(2, "reports.score_and_pdf",
+      "The privacy score weighs sites by priority and keeps daily snapshots; the PDF report renders without personal details.")
+def t_score_and_pdf():
+    import datetime as _dt
+    db, s = _memory_db()
+    ps = _imp("core.privacy_score")
+    rr = _imp("core.removal_report")
+    m = _member_with_vault(db, s)
+    big = db.Broker(name="BigWholesaler", opt_out_url="https://big.example", priority=5)
+    small = db.Broker(name="SmallSite", opt_out_url="https://small.example", priority=1)
+    s.add_all([big, small]); s.flush()
+    R = db.RequestStatus
+    rb = db.RemovalRequest(member_id=m.id, broker_id=big.id, status=R.pending)
+    rs = db.RemovalRequest(member_id=m.id, broker_id=small.id, status=R.pending)
+    s.add_all([rb, rs]); s.commit()
+    assert ps.compute(s, m)["score"] == 0
+    assert ps.snapshot(s, today=_dt.date(2026, 10, 1)) == 1
+    rb.status = R.confirmed; s.commit()
+    c = ps.compute(s, m)
+    assert c["score"] == round(100 * (1 - 1 / 6)) and c["gone"] == 1 and c["exposed"] == 1, c
+    rs.status = R.sent; s.commit()
+    assert ps.compute(s, m)["score"] == round(100 * (1 - 0.5 / 6))
+    rb.last_verdict = "listed"; s.commit()
+    assert ps.site_state(rb) == "exposed", "a removal that came back counts as listed"
+    rb.last_verdict = "gone"; s.commit()
+    ps.snapshot(s, today=_dt.date(2026, 10, 11)); ps.snapshot(s, today=_dt.date(2026, 10, 11))
+    assert s.query(db.PrivacyScoreSnapshot).count() == 2, "one row per person per day"
+    rep = ps.report(s, [m.id])
+    assert rep["family"]["start"] == 0 and rep["family"]["now"] == 92 and len(rep["family"]["history"]) == 2
+    assert ps.report(s, [])["family"]["now"] is None
+    data = rr.gather(s, [m.id])
+    assert [r["site"] for r in data["people"][0]["rows"]] == ["SmallSite", "BigWholesaler"], "still-open sites first"
+    pdf = rr.render(data, title="Removal report: Jane Q Public")
+    assert pdf.startswith(b"%PDF") and len(pdf) > 2000
+    try:
+        from pypdf import PdfReader
+        import io
+        text = "".join(p.extract_text() for p in PdfReader(io.BytesIO(pdf)).pages)
+        assert "BigWholesaler" in text and "Privacy score" in text
+        for secret in ("123 Main", "555-0134", "jane@old.example"):
+            assert secret not in text, secret
+    except ImportError:
+        pass
+    s.close()
+    # EXPECTED: a score that moves as sites remove you, and a PDF of every site's progress.
+    # IF THIS FAILS: the dashboard score is wrong, or the report can't be downloaded or leaks details.
+
+
+@test(2, "calendar.days_off_events_and_feed",
+      "Opt-outs skip days off; the calendar lists runs, checks and legal deadlines; the .ics feed is valid and shows no details.")
+def t_calendar():
+    import datetime as _dt
+    db, s = _memory_db()
+    cal = _imp("core.calendar_plan")
+    m = _member_with_vault(db, s)
+    b = db.Broker(name="Spokeo", opt_out_url="https://www.spokeo.com/optout")
+    s.add(b); s.flush()
+    r = db.RemovalRequest(member_id=m.id, broker_id=b.id, status=db.RequestStatus.confirmed,
+                          recheck_after=_dt.datetime(2026, 10, 20, 2, 0))
+    s.add(r); s.commit()
+    sc = {"enabled": True, "run_time": "02:00", "timezone": "America/Chicago",
+          "run_days": cal.clean_days([0, 2, 4, 9]), "skip_dates": cal.clean_dates(["2026-10-14", "nope"])}
+    assert sc["run_days"] == [0, 2, 4] and sc["skip_dates"] == ["2026-10-14"]
+    assert cal.clean_days(list(range(7))) is None, "every day = no limit"
+    assert cal.run_allowed(sc, _dt.date(2026, 10, 12))[0]                 # Monday
+    assert not cal.run_allowed(sc, _dt.date(2026, 10, 13))[0]             # Tuesday
+    ok, why = cal.run_allowed(sc, _dt.date(2026, 10, 14))                 # Wednesday, but a day off
+    assert not ok and "day off" in why
+    ev = cal.upcoming(s, [m.id], sc, start=_dt.date(2026, 10, 12), days=14)
+    kinds = [(e["date"], e["kind"]) for e in ev]
+    assert ("2026-10-12", "run") in kinds and ("2026-10-14", "skip") in kinds and ("2026-10-13", "run") not in kinds
+    assert ("2026-10-20", "check") in kinds
+    assert any(e["title"] == "Check again: Spokeo (Jane)" for e in ev)
+    ics = cal.to_ics(ev, now=_dt.datetime(2026, 10, 11))
+    assert ics.startswith("BEGIN:VCALENDAR\r\n") and ics.endswith("END:VCALENDAR\r\n")
+    assert "DTSTART;VALUE=DATE:20261020" in ics
+    assert all(len(l.encode()) <= 75 for l in ics.split("\r\n")), "lines folded"
+    for secret in ("Public", "123 Main", "555-0134", "jane@"):
+        assert secret not in ics, secret
+    assert cal.token_hash("abc") != "abc" and len(cal.token_hash("abc")) == 64
+    s.close()
+    # EXPECTED: admins pick opt-out days and holidays; families see what's coming and can subscribe.
+    # IF THIS FAILS: opt-outs go out on days off, or the calendar feed leaks details.
+
+
 def main():
     ap = argparse.ArgumentParser(description="OpenOptOut test runner")
     ap.add_argument("--tier", type=int, default=4, help="run tiers up to N (1-4)")

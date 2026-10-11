@@ -326,7 +326,7 @@ def _select_pending_batch(db, cfg, max_this_run: int) -> list:
     return batch_ids
 
 
-def _run_optout_with_limit(run_type: str, max_this_run: int):
+def _run_optout_with_limit(run_type: str, max_this_run: int, manual: bool = False):
     """
     Core opt-out execution shared by all spread modes.
     Selects a batch (capped at max_this_run), runs it, logs a SchedulerRun.
@@ -346,6 +346,14 @@ def _run_optout_with_limit(run_type: str, max_this_run: int):
             log.info("pause_before_send=True — skipping auto send")
             _finish_run(db, run_id, status="done", sent=0)
             return
+
+        if not manual:   # "Send opt-outs now" ignores the calendar
+            from .calendar_plan import run_allowed, local_today
+            ok, why = run_allowed(sc, local_today(sc))
+            if not ok:
+                log.info("Opt-outs skipped today: %s", why)
+                _finish_run(db, run_id, status="done", sent=0)
+                return
 
         batch_ids = _select_pending_batch(db, cfg, max_this_run)
 
@@ -413,11 +421,11 @@ def _finish_run(db, run_id, status, sent, errors=None):
 
 # ── Mode-specific job entry points ────────────────────────────────────────────
 
-def daily_optout_job():
+def daily_optout_job(manual: bool = False):
     """Burst mode — send up to the full daily cap in one run."""
     cfg = load_settings()
     sys_max = cfg.get("scheduler", {}).get("max_optouts_per_day", 20)
-    _run_optout_with_limit("optout", sys_max)
+    _run_optout_with_limit("optout", sys_max, manual=manual)
 
 
 def windowed_optout_job():
@@ -851,6 +859,11 @@ def verification_job():
     try:
         from .verification import run_daily
         stats = run_daily(db, load_settings())
+        try:   # after the checks, so today's score reflects them
+            from .privacy_score import snapshot
+            snapshot(db)
+        except Exception as se:
+            log.warning("Privacy score snapshot failed: %s", se)
         run.status = "done"
         if stats["checked"]:
             log.info("Removal checks: %s", stats)

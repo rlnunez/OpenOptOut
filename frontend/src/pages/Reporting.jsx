@@ -5,6 +5,7 @@ import {
   CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 import api from '../api'
+import { downloadReport } from '../components/PrivacyScore'
 import { useAuth, can } from '../hooks/useAuth'
 
 function StatCard({ label, value, sub, icon: Icon, color = 'text-slate-300' }) {
@@ -101,6 +102,10 @@ export default function Reporting() {
           </button>
           <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 transition-colors">
             <Download size={13} /> Export CSV
+          </button>
+          <button onClick={() => downloadReport('all').catch(() => alert("Couldn't make the report. Please try again."))}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
+            <Download size={13} /> Removal report (PDF)
           </button>
         </div>
       </div>

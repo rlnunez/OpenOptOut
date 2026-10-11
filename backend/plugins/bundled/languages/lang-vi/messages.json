@@ -150,5 +150,6 @@
   "status.skipped": "Đã bỏ qua",
   "nav.backups": "Sao lưu",
   "nav.deadlines": "Báo cáo thời hạn",
-  "nav.privacy_record": "Hồ sơ quyền riêng tư"
+  "nav.privacy_record": "Hồ sơ quyền riêng tư",
+  "nav.calendar": "Lịch"
 }

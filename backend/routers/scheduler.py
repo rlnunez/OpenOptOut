@@ -115,7 +115,8 @@ def trigger_job(
     if not fn:
         raise HTTPException(400, f"Unknown job. Valid: {list(JOB_MAP)}")
     import threading
-    threading.Thread(target=fn, daemon=True).start()
+    kwargs = {"manual": True} if job_name == "optout" else {}   # a person asked: ignore the calendar
+    threading.Thread(target=fn, kwargs=kwargs, daemon=True).start()
     return {"triggered": job_name, "at": datetime.utcnow().isoformat()}
 
 

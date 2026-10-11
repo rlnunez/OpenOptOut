@@ -512,6 +512,8 @@ def enable_plugin(plugin_id: str, req: EnableRequest, db: Session = Depends(get_
     Enable a plugin, granting the confirmed permissions, and launch it.
     granted_permissions must be a subset of what the manifest requests.
     """
+    from ..core import i18n as _i18n
+    _i18n._DISABLED_CACHE["at"] = 0.0   # language packs: re-read who's turned off
     row = db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == plugin_id).first()
     if not row:
         raise HTTPException(404, "That plugin isn't installed.")
@@ -653,6 +655,8 @@ def enable_plugin(plugin_id: str, req: EnableRequest, db: Session = Depends(get_
 @router.post("/{plugin_id}/disable")
 def disable_plugin(plugin_id: str, db: Session = Depends(get_db),
                    current: User = Depends(require_super_admin)):
+    from ..core import i18n as _i18n
+    _i18n._DISABLED_CACHE["at"] = 0.0   # language packs: re-read who's turned off
     row = db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == plugin_id).first()
     if not row:
         raise HTTPException(404, "That plugin isn't installed.")
