@@ -62,7 +62,7 @@ export function AccessibilityProvider({ children }) {
     const root = document.documentElement
 
     // Remove old theme classes
-    root.classList.remove('theme-light', 'theme-gray', 'theme-dark')
+    root.classList.remove('theme-light', 'theme-gray', 'theme-dark', 'theme-lcars')
     root.classList.add(`theme-${resolvedTheme}`)
 
     // Contrast classes
@@ -124,7 +124,7 @@ export function AccessibilityProvider({ children }) {
       .then(res => {
         if (res.data?.accessibility_settings) {
           const cfg = res.data.accessibility_settings
-          if (cfg.theme && ['light', 'gray', 'dark', 'system'].includes(cfg.theme)) {
+          if (cfg.theme && ['light', 'gray', 'dark', 'system', 'lcars'].includes(cfg.theme)) {
             setThemeState(cfg.theme)
             localStorage.setItem('app_theme', cfg.theme)
           }
@@ -170,7 +170,7 @@ export function AccessibilityProvider({ children }) {
   }, [theme, highContrast, dyslexicFont, fontSize, reducedMotion, enhancedTargets])
 
   const setTheme = (nextTheme) => {
-    if (!['light', 'gray', 'dark', 'system'].includes(nextTheme)) return
+    if (!['light', 'gray', 'dark', 'system', 'lcars'].includes(nextTheme)) return
     setThemeState(nextTheme)
     localStorage.setItem('app_theme', nextTheme)
     persistSettings({ theme: nextTheme })

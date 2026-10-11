@@ -214,12 +214,13 @@ export default function UserWelcomeModal() {
                   <label className="text-xs font-medium text-slate-300">
                     {t('a11y.theme', 'Color Theme')}
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
                     {[
                       { id: 'light', label: t('a11y.theme_light', 'Light'), icon: Sun, desc: 'Crisp white' },
                       { id: 'gray', label: t('a11y.theme_gray', 'Gray'), icon: Sliders, desc: 'Slate neutral' },
                       { id: 'dark', label: t('a11y.theme_dark', 'Dark'), icon: Moon, desc: 'Deep black' },
                       { id: 'system', label: t('a11y.theme_system', 'System'), icon: Laptop, desc: 'Auto match' },
+                      { id: 'lcars', label: t('a11y.theme_lcars', 'LCARS'), icon: Compass, desc: 'Star Trek' },
                     ].map(item => {
                       const Icon = item.icon
                       const isActive = theme === item.id

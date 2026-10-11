@@ -189,6 +189,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
                   <option value="light" className="bg-slate-900 text-white">{t('a11y.theme_light', 'Light')}</option>
                   <option value="gray" className="bg-slate-900 text-white">{t('a11y.theme_gray', 'Gray')}</option>
                   <option value="system" className="bg-slate-900 text-white">{t('a11y.theme_system', 'System')}</option>
+                  <option value="lcars" className="bg-slate-900 text-white">{t('a11y.theme_lcars', 'LCARS')}</option>
                 </select>
               </div>
 

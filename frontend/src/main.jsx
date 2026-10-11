@@ -2,6 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import '@fontsource/opendyslexic/400.css'
 import '@fontsource/opendyslexic/700.css'
+import '@fontsource/antonio/400.css'
+import '@fontsource/antonio/700.css'
 import App from './App'
 import './index.css'
 

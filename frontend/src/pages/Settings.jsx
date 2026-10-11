@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import {
   Palette, Mail, CalendarClock, Database, AlertTriangle, Shield, Bot, Info, Globe, Lock,
   Check, X, RefreshCw, TestTube, Eye, EyeOff, ChevronDown,
-  Download, Trash2, Upload, Sun, Moon, Monitor, Play, Pause,
+  Download, Trash2, Upload, Sun, Moon, Monitor, Compass, Play, Pause,
   Clock, Zap, RotateCcw, Users, Puzzle, Ban, ShieldCheck, Star, Plus,
   Key, Smartphone, Fingerprint, ShieldAlert, Copy
 } from 'lucide-react'
@@ -83,6 +83,7 @@ const THEMES = [
   { value: 'dark', label: 'Dark', icon: Moon },
   { value: 'light', label: 'Light', icon: Sun },
   { value: 'system', label: 'System', icon: Monitor },
+  { value: 'lcars', label: 'LCARS', icon: Compass },
 ]
 const ACCENT_PRESETS = [
   { color: '#6366f1', label: 'Indigo' }, { color: '#0ea5e9', label: 'Sky' },
@@ -131,7 +132,7 @@ function AppearanceSection({ initial, onSaved, userRole }) {
         </Field>
       </div>
       <Field label="Theme">
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {THEMES.map(t => (
             <button key={t.value} onClick={() => setForm(f => ({...f, theme: t.value}))}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border transition-colors ${
