@@ -2192,6 +2192,40 @@ def t_broker_addon_packaging():
             assert "manifest.json" in names and "spec.json" in names, f"zip missing files: {names}"
 
 
+@test(1, "i18n.builtin_languages_complete",
+      "Chinese, Tagalog, Vietnamese, Korean, Portuguese, Hindi, Russian and German ship complete, keep placeholders, and are turned on once for existing installs.")
+def t_i18n_new_languages():
+    import json, tempfile
+    i18n = _imp("core.i18n")
+    ss = _imp("core.settings_store")
+    master = {d["key"]: d["default_text"] for d in i18n.MASTER_DICTIONARY}
+    for code in ("zh", "tl", "vi", "ko", "pt", "hi", "ru", "de"):
+        t = i18n.BUILTIN_TRANSLATIONS.get(code)
+        assert t, f"{code} missing"
+        assert set(t) == set(master), (code, sorted(set(master) - set(t)))
+        for k, en in master.items():
+            for ph in ("{details}",):
+                if ph in en:
+                    assert ph in t[k], (code, k)
+        assert not i18n.is_rtl_language(code)
+        assert code in i18n.DEFAULT_ENABLED
+    old = ss.SETTINGS_FILE
+    path = tempfile.mktemp(suffix=".json")
+    try:
+        with open(path, "w") as f:
+            json.dump({"i18n": {"enabled_languages": ["en", "es"]}}, f)
+        ss.SETTINGS_FILE = path
+        new = i18n.offer_new_builtin_languages()
+        assert "zh" in new and "hi" in new and "fr" not in new, new
+        cfg = json.load(open(path))["i18n"]
+        assert "de" in cfg["enabled_languages"] and "ar" not in cfg["enabled_languages"], "only new ones are added"
+        cfg["enabled_languages"].remove("de")
+        json.dump({"i18n": cfg}, open(path, "w"))
+        assert i18n.offer_new_builtin_languages() == [], "a language an admin turned off stays off"
+    finally:
+        ss.SETTINGS_FILE = old
+
+
 @test(1, "i18n.resolution_and_rtl",
       "i18n engine resolves translations with fallbacks, handles RTL detection, and registers custom overrides.")
 def t_i18n_resolution_and_rtl():

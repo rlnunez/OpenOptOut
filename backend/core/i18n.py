@@ -590,6 +590,37 @@ BUILTIN_TRANSLATIONS = {
     "pirate": BUILTIN_PIRATE,
 }
 
+# More built-in languages ship as JSON (core/locales/<code>.json, key -> text),
+# so adding one is a data change. Missing keys fall back to English.
+LOCALES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "locales")
+
+
+def _load_locale_files() -> Dict[str, Dict[str, str]]:
+    out = {}
+    if not os.path.isdir(LOCALES_DIR):
+        return out
+    known = {d["key"] for d in MASTER_DICTIONARY}
+    for fname in sorted(os.listdir(LOCALES_DIR)):
+        code, ext = os.path.splitext(fname)
+        if ext != ".json":
+            continue
+        try:
+            with open(os.path.join(LOCALES_DIR, fname), encoding="utf-8") as f:
+                data = json.load(f)
+            out[code] = {k: v for k, v in data.items() if k in known and isinstance(v, str) and v}
+        except Exception as e:
+            log.warning("Built-in language %s couldn't be loaded: %s", code, e)
+    return out
+
+
+for _code, _msgs in _load_locale_files().items():
+    BUILTIN_TRANSLATIONS.setdefault(_code, _msgs)
+
+# Languages with built-in translations, offered to every install once (see
+# offer_new_builtin_languages); an admin who turns one off keeps it off.
+DEFAULT_ENABLED = ["en", "es", "ar", "fr", "pirate"] + sorted(
+    c for c in BUILTIN_TRANSLATIONS if c not in ("en", "es", "ar", "fr", "pirate"))
+
 
 def is_rtl_language(lang_code: str) -> bool:
     """Returns True if the language code represents a Right-to-Left script."""
@@ -602,7 +633,7 @@ def get_i18n_settings() -> Dict[str, Any]:
     settings = settings_store.load_settings()
     i18n_cfg = settings.get("i18n", {})
     return {
-        "enabled_languages": i18n_cfg.get("enabled_languages", ["en", "es", "ar", "fr", "pirate"]),
+        "enabled_languages": i18n_cfg.get("enabled_languages", list(DEFAULT_ENABLED)),
         "default_language": i18n_cfg.get("default_language", "en"),
         "custom_languages": i18n_cfg.get("custom_languages", {}),
         "custom_translations": i18n_cfg.get("custom_translations", {}),
@@ -830,3 +861,28 @@ def register_custom_language(code: str, name: str, native_name: str, is_rtl: boo
         "source": "custom",
         "enabled": True,
     }
+
+
+def offer_new_builtin_languages() -> List[str]:
+    """
+    Turn on built-in languages added since this install last looked, once.
+    Called at startup. Languages an admin already turned off stay off, because
+    each code is only ever offered one time.
+    """
+    settings = settings_store.load_settings()
+    i18n_cfg = settings.get("i18n")
+    if not i18n_cfg or "enabled_languages" not in i18n_cfg:
+        return []          # never saved: the defaults already include them
+    offered = set(i18n_cfg.get("builtins_offered") or ["en", "es", "ar", "fr", "pirate"])
+    new = [c for c in DEFAULT_ENABLED if c not in offered]
+    if not new:
+        return []
+    enabled = list(i18n_cfg["enabled_languages"])
+    enabled += [c for c in new if c not in enabled]
+    i18n_cfg["enabled_languages"] = enabled
+    i18n_cfg["builtins_offered"] = sorted(offered | set(new))
+    settings["i18n"] = i18n_cfg
+    with open(settings_store.SETTINGS_FILE, "w", encoding="utf-8") as f:
+        json.dump(settings, f, indent=2)
+    log.info("Turned on newly built-in languages: %s", ", ".join(new))
+    return new

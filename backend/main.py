@@ -134,6 +134,12 @@ def startup():
     run_institutional_migrations()
     migrate_plugin_upload_grants()   # needs every users column, so after both lists
     seed_property_brokers()
+    try:
+        from .core.i18n import offer_new_builtin_languages
+        offer_new_builtin_languages()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Language update skipped: %s", e)
     start_scheduler()
     # Plugin system — process-isolated, sandboxed, opt-in via settings
     try:
