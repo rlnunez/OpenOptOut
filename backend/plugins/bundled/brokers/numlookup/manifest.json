@@ -1,0 +1,12 @@
+{
+  "id": "numlookup",
+  "type": "brokers",
+  "broker_id": "numlookup",
+  "name": "NumLookup",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Guided opt-out for NumLookup, which lists people by phone number. One opt-out covers every saved phone number.",
+  "spec_file": "spec.json",
+  "difficulty": "hard",
+  "is_property_broker": false
+}

@@ -58,6 +58,7 @@ class MemberOut(BaseModel):
     full_name: str
     formal_name: Optional[str] = None
     age: Optional[int] = None
+    dob: Optional[str] = None      # YYYY-MM-DD, only when saved
     created_at: datetime
     identities: List[IdentityOut] = []
     can_edit: bool = True
@@ -70,6 +71,18 @@ class MemberUpdate(BaseModel):
     full_name: Optional[str] = None
     formal_name: Optional[str] = None
     age: Optional[int] = Field(None, ge=0, le=150)
+    dob: Optional[str] = None      # YYYY-MM-DD or MM/DD/YYYY; "" clears it
+
+
+def _member_out(m, can_edit: bool) -> "MemberOut":
+    from ..core.age import current_age, member_dob
+    d = member_dob(m)
+    return MemberOut(
+        id=m.id, user_id=m.user_id, full_name=m.full_name,
+        formal_name=m.formal_name,
+        age=current_age(m), dob=d.isoformat() if d else None, created_at=m.created_at,
+        identities=m.identities, can_edit=can_edit,
+    )
 
 
 # ── Family member endpoints ───────────────────────────────────────────────────
@@ -99,12 +112,7 @@ def list_members(
             ).first()
             can_edit = grant is not None
 
-        result.append(MemberOut(
-            id=m.id, user_id=m.user_id, full_name=m.full_name,
-            formal_name=m.formal_name,
-            age=m.age, created_at=m.created_at,
-            identities=m.identities, can_edit=can_edit,
-        ))
+        result.append(_member_out(m, can_edit))
     return result
 
 
@@ -124,14 +132,20 @@ def update_member(
         member.formal_name = data.formal_name if data.formal_name.strip() else None
     if data.age is not None:
         member.age = data.age
+    if data.dob is not None:
+        from ..core.age import parse_dob, age_on
+        if not data.dob.strip():
+            member.dob = None
+        else:
+            d = parse_dob(data.dob)
+            if d is None:
+                raise HTTPException(400, "That birthday doesn't look right. Use the date picker, "
+                                         "or write it like 1983-04-09.")
+            member.dob = d.isoformat()
+            member.age = age_on(d)
     db.commit()
     db.refresh(member)
-    return MemberOut(
-        id=member.id, user_id=member.user_id, full_name=member.full_name,
-        formal_name=member.formal_name,
-        age=member.age, created_at=member.created_at,
-        identities=member.identities, can_edit=True,
-    )
+    return _member_out(member, True)
 
 
 # ── Identity endpoints ────────────────────────────────────────────────────────
@@ -333,13 +347,11 @@ def decide_ils_import(
         db.add(Identity(member_id=member.id, kind="address", value=str(addr_str).strip(), is_primary=True))
 
     if data.get("birthdate"):
-        try:
-            from ..core.sip2_rules import dob_to_age
-            age = dob_to_age(str(data["birthdate"]))
-            if age is not None:
-                member.age = age
-        except Exception:
-            pass
+        from ..core.age import parse_dob, age_on
+        d = parse_dob(str(data["birthdate"]))
+        if d is not None:
+            member.dob = d.isoformat()
+            member.age = age_on(d)
 
     current_user.pending_ils_import = None
     db.commit()

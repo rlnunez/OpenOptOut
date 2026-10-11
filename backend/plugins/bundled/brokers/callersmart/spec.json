@@ -1,0 +1,20 @@
+{
+  "broker_id": "callersmart",
+  "name": "CallerSmart",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://www.callersmart.com/data",
+  "lookup_by": "phone",
+  "instructions": "Open https://www.callersmart.com/data. For each of these numbers, enter the number and {contact_email}, finish the robot check, then type the 6-digit code CallerSmart texts or calls to that phone: {all_phones}. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "sms_code"
+  ],
+  "notes": "CallerSmart proves you own the number with a code sent to that phone, so whoever has the phone has to finish it. Changes usually show within 3 days.",
+  "source": "Steps per ClearNym's CallerSmart opt-out guide.",
+  "last_verified": ""
+}

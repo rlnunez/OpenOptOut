@@ -1,0 +1,12 @@
+{
+  "id": "rocketreach",
+  "type": "brokers",
+  "broker_id": "rocketreach",
+  "name": "RocketReach",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Automatic opt-out for RocketReach, which lists people by email address. One opt-out covers every saved email address.",
+  "spec_file": "spec.json",
+  "difficulty": "easy",
+  "is_property_broker": false
+}

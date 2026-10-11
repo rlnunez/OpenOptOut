@@ -8890,6 +8890,135 @@ def t_variant_report():
 
 # ── runner ────────────────────────────────────────────────────────────────────
 
+@test(2, "keyed.phone_and_email_optouts",
+      "Sites that file people by phone or email get one opt-out per saved number or address.")
+def t_keyed_optouts():
+    db, s = _memory_db()
+    cmb = _imp("core.combinations")
+    bs = _imp("core.interpreter.broker_spec")
+    mf = _imp("core.interpreter.member_fields")
+    m = _member_with_vault(db, s)
+    s.add(db.Identity(member_id=m.id, kind="phone", value="(214) 555-0199", is_primary=False))
+    s.add(db.Identity(member_id=m.id, kind="email", value="jane@work.example", is_primary=False))
+    s.commit(); s.refresh(m)
+    phones = cmb.build_keyed_optout_combos(m, "phone")
+    assert [c.phone for c in phones] == ["+1 (512) 555-0134", "(214) 555-0199"], phones
+    assert all(c.name == "Jane Q Public" and c.city == "Austin" for c in phones)
+    emails = cmb.build_keyed_optout_combos(m, "email")
+    assert len(emails) == len([i for i in m.identities if i.kind == "email"]) and all(c.email for c in emails)
+    f = mf.resolve(m, phones[1])
+    assert f["phone_digits"] == "2145550199" and f["phone_e164"] == "+12145550199" and f["phone_dashed"] == "214-555-0199"
+    assert "(214) 555-0199" in f["all_phones"] and "jane@work.example" in f["all_emails"]
+    assert mf.phone_e164("+44 20 7946 0958") == "+442079460958"
+    ok = bs.BrokerSpec.from_dict({"broker_id": "x", "name": "X", "method": "manual", "lookup_by": "phone"})
+    assert ok.validate() == [] and ok.to_dict()["lookup_by"] == "phone"
+    bad = bs.BrokerSpec.from_dict({"broker_id": "x", "name": "X", "method": "manual", "lookup_by": "ssn"})
+    assert any("lookup_by" in e for e in bad.validate())
+    assert not any("ssn" in k or "social" in k for k in bs.KNOWN_FIELDS), "never a field for Social Security numbers"
+    eng = _imp("core.optout_engine")
+    msg = eng._missing_key_instruction(type("B", (), {"name": "Truecaller"})(), m, "phone")
+    assert "phone numbers" in msg and "Your details" in msg, msg
+    s.close()
+    # EXPECTED: a caller-ID or email-lookup site gets a request for every saved number/address.
+    # IF THIS FAILS: old numbers and work emails would stay listed on those sites.
+
+
+@test(2, "keyed.verify_each_number",
+      "Checking a phone site searches every saved number and ignores the number the page just echoes back.")
+def t_keyed_verify():
+    db, s = _memory_db()
+    ver = _imp("core.verification")
+    bs = _imp("core.interpreter.broker_spec")
+    m = _member_with_vault(db, s)
+    s.add(db.Identity(member_id=m.id, kind="phone", value="(214) 555-0199", is_primary=False))
+    s.commit(); s.refresh(m)
+    spec = bs.BrokerSpec.from_dict({"broker_id": "p", "name": "P", "method": "manual", "lookup_by": "phone",
+                                    "search_url": "https://p.example/lookup?n={phone_digits}",
+                                    "listing_pattern": "/number/"})
+    profile = ver._profile(m)
+    pages = {}
+    def fetch(url, domain):
+        return url, 200, pages.get(url.split("n=")[-1], "<p>No results</p>")
+    # The page only repeats the searched number under someone else's name: not her.
+    pages["5125550134"] = '<a href="/number/5125550134">512-555-0134</a> Bob Smith, Reno NV'
+    v, d, _ = ver.check_keyed_search(spec, m, profile, "p.example", fetch, "phone")
+    assert v == "gone", (v, d)
+    # The second number shows her name and city: still listed.
+    pages["2145550199"] = '<a href="/number/2145550199">214-555-0199</a> Jane Q Public, Austin TX'
+    v, d, _ = ver.check_keyed_search(spec, m, profile, "p.example", fetch, "phone")
+    assert v == "listed" and "0199" in d, (v, d)
+    s.close()
+    # EXPECTED: one search per saved number; an echoed number alone isn't proof of a listing.
+    # IF THIS FAILS: phone sites would always look "still listed", or a listing on an old number would be missed.
+
+
+@test(2, "age.dob_fields_and_matching",
+      "A saved birthday fills age, birth year and date fields, and an age on a page tells her from a namesake.")
+def t_age_dob():
+    import datetime as _dt
+    db, s = _memory_db()
+    age = _imp("core.age")
+    mf = _imp("core.interpreter.member_fields")
+    ws = _imp("core.web_search")
+    lf = _imp("core.listing_finder")
+    assert age.parse_dob("1983-04-09") == _dt.date(1983, 4, 9)
+    assert age.parse_dob("04/09/1983") == _dt.date(1983, 4, 9) and age.parse_dob("19830409") == _dt.date(1983, 4, 9)
+    assert age.parse_dob("2999-01-01") is None and age.parse_dob("1983-02-30") is None and age.parse_dob("soon") is None
+    assert age.age_on(_dt.date(1983, 4, 9), _dt.date(2026, 4, 8)) == 42
+    assert age.age_on(_dt.date(1983, 4, 9), _dt.date(2026, 4, 9)) == 43
+    assert age.age_range(43) == "40-49"
+    m = _member_with_vault(db, s)
+    m.dob = "1983-04-09"; s.commit(); s.refresh(m)
+    f = mf.resolve(m, today=_dt.date(2026, 10, 11))
+    assert f["age"] == "43" and f["birth_year"] == "1983" and f["dob"] == "04/09/1983"
+    assert f["dob_iso"] == "1983-04-09" and f["birth_month"] == "4" and f["birth_day"] == "9" and f["age_range"] == "40-49"
+    m.dob = None; m.age = 30; s.commit(); s.refresh(m)
+    f = mf.resolve(m, today=_dt.date(2026, 10, 11))
+    assert f["age"] == "30" and f["dob"] is None and f["birth_year"] == "1996"
+    m.dob = "1983-04-09"; s.commit(); s.refresh(m)
+    prof = lf._profile(m)
+    assert set(age.plausible_ages(m)) >= {age.current_age(m)}
+    a = age.current_age(m)
+    assert ws.score(prof, f"Jane Q Public, Age {a}")[0] == "medium"
+    assert ws.score(prof, f"Jane Q Public Austin TX age {a}") == ("strong", "name+city+age")
+    assert ws.score(prof, "Jane Q Public, Age 71")[0] == "weak", "a different age is not her"
+    assert ws.score(prof, "Jane Q Public, born 1983")[0] == "medium"
+    s.close()
+    # EXPECTED: birthday-driven fields and age-aware matching.
+    # IF THIS FAILS: forms that need a birth date stop for a person, or namesakes get mixed up.
+
+
+@test(2, "credit_freeze.letters",
+      "Freeze letters fill in name, address and birthday, never a Social Security number, and children get the parent version.")
+def t_credit_freeze_letters():
+    import datetime as _dt
+    db, s = _memory_db()
+    cf = _imp("core.credit_freeze")
+    parent = _member_with_vault(db, s)
+    parent.dob = "1983-04-09"
+    U = db.User(email="kid@x.example", full_name="Kid Public", role=db.UserRole.member)
+    s.add(U); s.flush()
+    kid = db.FamilyMember(user_id=U.id, full_name="Kid Public", dob="2016-06-01")
+    s.add(kid); s.flush()
+    s.add(db.Identity(member_id=kid.id, kind="address", value="123 Main St, Austin, TX 78701", is_primary=True))
+    s.commit(); s.refresh(kid); s.refresh(parent)
+    a = cf.letters(parent, today=_dt.date(2026, 10, 11))
+    assert a["kind"] == "adult" and len(a["letters"]) == 3
+    tu = {l["key"]: l for l in a["letters"]}["transunion"]
+    assert "P.O. Box 160" in tu["mail_to"] and "April 9, 1983" in tu["letter"] and cf.SSN_BLANK in tu["letter"]
+    k = cf.letters(kid, requester=parent, today=_dt.date(2026, 10, 11))
+    assert k["kind"] == "minor"
+    L = {l["key"]: l for l in k["letters"]}
+    assert "P.O. Box 380" in L["transunion"]["mail_to"] and "Protected Consumer Freeze" in L["transunion"]["letter"]
+    assert "Jane Q Public" in L["equifax"]["letter"] and "Kid Public" in L["equifax"]["letter"] and L["equifax"]["form"]
+    assert any("birth certificate" in x for x in L["experian"]["enclose"])
+    import re as _re
+    for l in a["letters"] + k["letters"]:
+        assert not _re.search(r"\b\d{3}-\d{2}-\d{4}\b", l["letter"]), "no SSN-shaped numbers in letters"
+    s.close()
+    # EXPECTED: printable freeze letters with every blank but the SSN filled in.
+    # IF THIS FAILS: families would have to write freeze letters from scratch, or an SSN could leak into one.
+
 @test(1, "plain_language.family_pages",
       "Pages families use don't show technical words like PII, matrix, OAuth or token.")
 def t_plain_language_family_pages():

@@ -1,0 +1,12 @@
+{
+  "id": "lusha",
+  "type": "brokers",
+  "broker_id": "lusha",
+  "name": "Lusha",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Guided opt-out for Lusha, which lists people by email address. One opt-out covers every saved email address.",
+  "spec_file": "spec.json",
+  "difficulty": "easy",
+  "is_property_broker": false
+}

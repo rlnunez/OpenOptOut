@@ -122,10 +122,17 @@ def score(member_profile: dict, text: str) -> tuple:
             return "strong", "email"
     names = [n.lower() for n in member_profile["names"] if n]
     cities = [p.split(",")[0].strip().lower() for p in member_profile["places"] if p]
+    from .age import age_matches
     for n in names:
         if n in low:
-            if any(c and c in low for c in cities):
+            in_city = any(c and c in low for c in cities)
+            same_age = age_matches(member_profile, text)
+            if in_city and same_age:
+                return "strong", "name+city+age"
+            if in_city:
                 return "medium", "name+city"
+            if same_age:
+                return "medium", "name+age"
             return "weak", "name"
     return "weak", ""
 

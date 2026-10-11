@@ -4,7 +4,7 @@ import {
   Users, ShieldCheck, Settings, LogOut, ShieldAlert,
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
   Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal,
-  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Bell, Share2, DatabaseBackup
+  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Bell, Share2, Snowflake, DatabaseBackup
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
@@ -26,6 +26,7 @@ const setup = [
   { label: 'Family members', to: '/family',   icon: Users },
   { label: 'Your details', to: '/identity', icon: ShieldCheck },
   { label: 'Email inboxes',  to: '/inboxes',  icon: Inbox },
+  { label: 'Freeze credit',  to: '/credit-freeze', icon: Snowflake },
   { label: 'Settings',       to: '/settings', icon: Settings },
   { label: 'Help',           to: '/help',     icon: BookOpen },
 ]

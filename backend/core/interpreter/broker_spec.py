@@ -30,6 +30,10 @@ KNOWN_FIELDS = {
     "first_name", "last_name", "full_name", "formal_name",
     "email", "phone", "address", "city", "state", "zip",
     "age", "dob", "relatives",
+    # Age and birth date in the shapes forms ask for (see core/age.py).
+    # `dob` is MM/DD/YYYY; the rest exist only when a date of birth is saved,
+    # except `age_range` ("40-49") and `birth_year`, which an age alone gives.
+    "dob_iso", "birth_month", "birth_day", "age_range",
     # Where the broker should send its reply/confirmation for THIS submission:
     # a unique +address on the member's inbox when it supports one. Use this,
     # not `email`, for "email address for confirmation" fields. `email` is an
@@ -43,7 +47,17 @@ KNOWN_FIELDS = {
     "state_name",     # full state name ("Texas") for dropdowns that list names
     "birth_year",     # from the member's age (approximate: ±1 year)
     "phone_digits",   # 10 digits, no punctuation ("5125550100")
+    "phone_e164",     # with country code ("+15125550100"), for caller-ID apps
+    "phone_dashed",   # "512-555-0100"
+    "all_phones",     # every saved number, comma-separated (for instructions)
+    "all_emails",     # every saved email address, comma-separated (for instructions)
 }
+
+# What a broker files its records under. Most file people by name. Phone
+# lookup and caller-ID sites file them by phone number, and email-lookup and
+# business contact sites by email address; those get one opt-out per saved
+# number or address instead of the name/address combinations.
+LOOKUP_KEYS = ("", "name", "phone", "email")
 
 # Primitive step kinds an add-on can request in a form flow. The compiler maps
 # these to executable job steps; the executor knows how to perform each. This
@@ -86,6 +100,9 @@ LEGAL_BASES = {
 # them, and they let the engine plan around limits.
 REQUIREMENTS = {
     "email_confirmation",   # broker emails a link that must be clicked
+    "own_inbox_confirmation",  # the link goes to the address being removed (a work
+                            # email, say), so whoever reads that inbox clicks it
+    "sms_code",             # broker texts a code to the number being removed
     "listing_url",          # the URL of the person's own listing is required
     "listing_selection",    # a person must pick their listing from results
     "phone_call",           # broker calls with a code (BADBOOL 📞)
@@ -232,6 +249,8 @@ class BrokerSpec:
     accepts_plus_addresses: bool = True
     # What the person may have to do (see REQUIREMENTS).
     requires: list[str] = field(default_factory=list)
+    # "phone" or "email" for sites that list people by that detail (see LOOKUP_KEYS).
+    lookup_by: str = ""
     # Provenance. Every spec records where its opt-out details came from and
     # the date someone last confirmed the flow works against the live site
     # (YYYY-MM-DD; empty means "never confirmed by us").
@@ -247,6 +266,8 @@ class BrokerSpec:
             errs.append("name is required")
         if self.method not in ("form", "email", "manual"):
             errs.append(f"unknown method: {self.method}")
+        if self.lookup_by not in LOOKUP_KEYS:
+            errs.append(f"lookup_by must be one of {[k for k in LOOKUP_KEYS if k]}")
         if self.spec_version != SPEC_VERSION:
             errs.append(f"unsupported spec_version {self.spec_version} (this core supports {SPEC_VERSION})")
 
@@ -344,6 +365,7 @@ class BrokerSpec:
             one_optout_per_email=d.get("one_optout_per_email", False),
             accepts_plus_addresses=d.get("accepts_plus_addresses", True),
             requires=d.get("requires", []),
+            lookup_by=d.get("lookup_by", "") or "",
             source=d.get("source", ""),
             last_verified=d.get("last_verified", "") or "",
         )
@@ -360,7 +382,8 @@ class BrokerSpec:
         if self.instructions:
             out["instructions"] = self.instructions
         for k in ("legal_basis", "statutory_response_days", "search_url", "listing_pattern",
-                  "one_optout_per_email", "accepts_plus_addresses", "requires", "source", "last_verified"):
+                  "one_optout_per_email", "accepts_plus_addresses", "requires", "lookup_by",
+                  "source", "last_verified"):
             v = getattr(self, k)
             if v not in ("", 0, False, []):
                 out[k] = v

@@ -170,6 +170,58 @@ function MemberSelector({ members, selectedId, onChange }) {
 }
 
 
+// ── Birthday ──────────────────────────────────────────────────────────────────
+
+function BirthdayEditor({ member, onUpdated, masked }) {
+  const [val, setVal]       = useState(member.dob || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError]   = useState('')
+  useEffect(() => { setVal(member.dob || ''); setError('') }, [member.id, member.dob])
+
+  const save = async (next) => {
+    setSaving(true); setError('')
+    try {
+      const { data } = await api.patch(`/family/${member.id}`, { dob: next })
+      onUpdated(data)
+    } catch (e) {
+      setError(e.response?.data?.detail || "Couldn't save the birthday.")
+    } finally { setSaving(false) }
+  }
+
+  const shown = member.dob && masked ? '••/••/' + member.dob.slice(0, 4) : null
+  return (
+    <div className="bg-slate-800 rounded-xl border border-slate-700/50 p-4 mb-4">
+      <label htmlFor="dob" className="text-slate-300 text-sm font-medium">Birthday <span className="text-slate-500 font-normal">(optional)</span></label>
+      <p className="text-slate-500 text-xs mt-0.5 mb-2">
+        Some sites ask for it before they'll remove you, and it helps us tell your listing apart from
+        someone with the same name. It's stored encrypted. Without it we use the age you typed in.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        {shown ? (
+          <span className="text-slate-200 text-sm font-mono">{shown}</span>
+        ) : (
+          <input id="dob" type="date" value={val} max={new Date().toISOString().slice(0, 10)}
+            onChange={e => setVal(e.target.value)}
+            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-hidden focus:border-shield-500" />
+        )}
+        {!shown && val !== (member.dob || '') && (
+          <button onClick={() => save(val)} disabled={saving || !val}
+            className="px-3 py-1.5 bg-shield-600 text-white rounded-lg text-sm hover:bg-shield-700 disabled:opacity-40">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        )}
+        {member.dob && !shown && (
+          <button onClick={() => save('')} disabled={saving}
+            className="px-3 py-1.5 text-slate-400 border border-slate-700 rounded-lg text-sm hover:bg-slate-700">
+            Remove birthday
+          </button>
+        )}
+      </div>
+      {error && <p role="alert" className="text-red-400 text-xs mt-2">{error}</p>}
+    </div>
+  )
+}
+
 // ── Formal name editor ────────────────────────────────────────────────────────
 
 function FormalNameEditor({ member, onUpdated }) {
@@ -609,7 +661,7 @@ export default function IdentityVault() {
               {selectedMember.full_name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
             </div>
             <span className="text-white font-medium">{selectedMember.full_name}</span>
-            {selectedMember.age && <span className="text-slate-500 text-sm">· Age {selectedMember.age}</span>}
+            {selectedMember.age != null && <span className="text-slate-500 text-sm">· Age {selectedMember.age}</span>}
           </div>
 
           <FormalNameEditor
@@ -617,6 +669,11 @@ export default function IdentityVault() {
             onUpdated={m => {
               setMembers(prev => prev.map(x => x.id === m.id ? m : x))
             }}
+          />
+          <BirthdayEditor
+            member={selectedMember}
+            masked={masked}
+            onUpdated={m => setMembers(prev => prev.map(x => x.id === m.id ? m : x))}
           />
           <VaultScore identities={identities} />
           <MatrixPreview stats={stats} memberId={selectedId} />

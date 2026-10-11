@@ -293,6 +293,145 @@ When evaluating a VPN, the things that actually matter for privacy are: an **ind
 **One-line summary:** use *residential proxies* (Bright Data, Oxylabs, Smartproxy/Decodo, IPRoyal, SOAX) for the opt-out automation, and recommend *audited no-logs VPNs* (Mullvad, Proton VPN, IVPN) to individuals for their personal browsing privacy.`,
     },
   ],
+
+  protect: [
+    {
+      id: 'phone-private',
+      title: 'Make your phone number private',
+      content: `Your phone number is one of the main ways data brokers link records together. OpenOptOut handles the sites. Your phone company handles the rest, and only you can change those settings.
+
+**What OpenOptOut does for you:**
+- Searches the web for each saved number.
+- Sends removal requests to caller ID apps (Truecaller, Hiya, Sync.ME, CallApp) and reverse phone lookup sites (Spy Dialer, NumLookup, CallerSmart, ReversePhoneLookup, NumberGuru). Each saved number gets its own request, because these sites list people by number.
+- Checks again later, one search per number, and asks again if a number shows up.
+
+**What to do with your phone company (10 minutes, once):**
+1. **Change or remove the caller ID name.** This is the name people see when you call. Set it to your initials or first name only. See the guide for your carrier below.
+2. **Turn off advertising and data-sharing programs.** Most carriers turn these on by default.
+3. **Limit "CPNI" use.** CPNI is the record of who you call, when, and what plan you have. You can tell the carrier not to use it for marketing.
+4. **Turn on number lock / a port-out PIN.** This stops someone from moving your number to another phone (a SIM swap). It's not about privacy, but you'll be on the same settings page.
+5. **Register on the Do Not Call list** at donotcall.gov. It doesn't remove listings, but it cuts sales calls.
+
+**Hide your number on a single call:** dial *67 before the number (US). Calls to 911 and to toll-free numbers still show your number.
+
+**Hide your number on every call:** iPhone: Settings → Apps → Phone → Show My Caller ID. Android: Phone app → Settings → Calls (or Supplementary services) → Caller ID. If the switch is greyed out, ask your carrier for "per-line caller ID blocking".
+
+**Old landline?** Ask the phone company to make the number "non-published" so it stays out of directories. There may be a monthly fee.`,
+    },
+    {
+      id: 'carrier-verizon',
+      title: 'Verizon, Visible, Total Wireless, Straight Talk and other Verizon brands',
+      content: `Verizon's privacy policy also covers its prepaid brands: **Visible, Total Wireless, Straight Talk, Tracfone, Simple Mobile, Walmart Family Mobile, Net10, Go Smart, Page Plus and SafeLink.**
+
+**Verizon (monthly plans):**
+1. Open **verizonwireless.com/myprivacy**, or in the My Verizon app go to **Edit profile & settings → Privacy preferences**.
+2. Set **Custom Experience** to "Don't use".
+3. Check **Custom Experience Plus** is off.
+4. Set **Business and Marketing Insights** to "Don't use". The account owner can change all lines at once.
+5. On the **CPNI** tab, choose "don't share" for each line, or call 1-800-333-9956.
+6. Prefer the phone? Call 1-866-211-0874 for the advertising and insights programs.
+
+**Caller ID name (Verizon):** My Verizon → Account → My Devices (or Manage Device in the app) → choose the line → **Caller ID** or **Share Name ID** → change the name and save. It can take up to 24 hours to update everywhere.
+
+**Visible, Total Wireless, Straight Talk and the other prepaid brands:** look for **"Your Privacy Choices"** at the bottom of the brand's own website and turn off sale and sharing. The same page lets you opt out of Verizon's identity-verification sharing.
+
+**Fios or Frontier internet at home:** My Verizon → Account → Home → Services → Internet → **Manage online advertising preferences** → "Do Not Participate".`,
+    },
+    {
+      id: 'carrier-att',
+      title: 'AT&T and Cricket',
+      content: `**AT&T:**
+1. Sign in at att.com, click your profile icon, then **Privacy Choices**. In the app: More → Manage Profile → Privacy Choices.
+2. Turn off **"Allow AT&T to share or sell my personal information"**, **Personalized Plus**, **Personalized** and **DNS Error Assist**, then save.
+3. Have AT&T internet or TV too? Repeat for each account.
+4. **CPNI:** use AT&T's CPNI restriction form (you'll need the billing account number and billing ZIP) and tick "Restrict use of my CPNI".
+5. Prefer the phone? Call 866-385-3193 to opt out of sale and sharing.
+
+**Caller ID name (AT&T):** sign in → profile → Settings → expand the line → edit **Caller ID** → save. It can take up to 72 hours. Prepaid lines always show "Wireless Caller".
+
+**Cricket Wireless** (owned by AT&T):
+- Sale, sharing and the "Personalized Program": cricketwireless.com/cmp/ccpa/dnscricket
+- CPNI: cricketwireless.com/legal-info/customer-choices-and-controls-CPNI.html
+- Questions about a request: 1-844-246-1628`,
+    },
+    {
+      id: 'carrier-tmobile',
+      title: 'T-Mobile, Metro, Mint, Ultra and US Cellular',
+      content: `**T-Mobile and Metro by T-Mobile:**
+1. Open the **Privacy Dashboard** at t-mobile.com/privacy-center/dashboard. In the T-Life app: Manage → gear icon → Privacy and policies → Privacy Dashboard.
+2. Turn off **Relevant Ads**, **Analytics and Reporting**, **Profiling** and sale/sharing.
+3. Check **Tailored Offers and Ads** and the old **Personalized Ads and Offers** are off. Both use CPNI only if you agreed, so leaving them off keeps CPNI out of marketing.
+4. Prefer the phone? T-Mobile 1-800-937-8997, Metro 1-888-863-8768, or dial 611.
+
+**Caller ID name (T-Mobile):** T-Life app → Manage → Device Settings → enter a new caller ID name. To keep your name out of caller ID entirely, call customer care.
+
+**Mint Mobile:** click **"Do Not Sell or Share My Personal Information"** at the bottom of mintmobile.com. A browser with Global Privacy Control turned on (Firefox, Brave, DuckDuckGo) opts you out automatically. Mint says it doesn't use CPNI in ways that need your permission.
+
+**Ultra Mobile and US Cellular** are now part of T-Mobile. Look for the "Your Privacy Choices" link on the brand's site, or use the T-Mobile Privacy Dashboard once your account has moved to T-Mobile.`,
+    },
+    {
+      id: 'carrier-others',
+      title: 'Google Fi, Xfinity, Spectrum, Boost and other carriers',
+      content: `Many smaller carriers rent space on a big carrier's network, but **your account, and your privacy settings, are with the company you pay.** Change them there.
+
+**Google Fi:** fi.google.com → Settings → Privacy & security → untick **"Allow CPNI sharing"** (or go to fi.google.com/cpni-opt-out). This isn't in the Fi app, so use a web browser.
+
+**Xfinity Mobile:** sign in at **xfinity.com/privacy/opt-out** to turn everything off in one click, and limit sensitive data at xfinity.com/privacy/requests/choice. Turn on **Number Lock** while you're there.
+
+**Spectrum Mobile:** spectrum.com/policies/your-privacy-rights-opt-out ("Do Not Sell or Share / Opt-Out of Targeted Advertising").
+
+**Boost Mobile:** boostmobile.com/yourprivacychoices, or call 833-502-6678.
+
+**Everyone else** (Consumer Cellular, US Mobile, Tello, Red Pocket, Ting, H2O, Lycamobile, Cox Mobile, Helium and others):
+1. Scroll to the bottom of the carrier's website and click **"Your Privacy Choices"** or **"Do Not Sell or Share My Personal Information"**. Turn everything off.
+2. Turn on **Global Privacy Control** in your browser (built into Firefox, Brave and DuckDuckGo). Many carriers treat it as an opt-out.
+3. Call or chat with customer care and ask them to: **restrict CPNI use for marketing**, **remove or change the caller ID name** on your line, and **add a port-out PIN or number lock**.
+4. Prepaid lines often show only "Wireless Caller" or the city. In that case the name people see comes from caller ID apps, which OpenOptOut handles.
+
+**Which network is my carrier on?** It doesn't change what you need to do, but for reference: Visible, Total, Straight Talk and Cox Mobile use Verizon; Cricket uses AT&T; Metro, Mint, Ultra, Google Fi and Tello use T-Mobile; Xfinity and Spectrum use Verizon plus Wi-Fi; Boost has its own network plus AT&T; US Mobile and Consumer Cellular offer more than one.`,
+    },
+    {
+      id: 'credit-freeze',
+      title: 'Freeze your credit',
+      content: `A credit freeze stops anyone opening new credit in your name. It's **free**, doesn't affect your score, and you can lift it for a day when you need a loan. It's the strongest protection against identity theft, and it works even if your details are already out there.
+
+**Fastest: do it online or by phone (about 10 minutes each):**
+- **Equifax:** equifax.com/personal/credit-report-services/credit-freeze/ · 888-298-0045
+- **Experian:** experian.com/help/credit-freeze/ · 888-397-3742
+- **TransUnion:** transunion.com/credit-freeze · 888-909-8872
+
+Online and phone freezes usually take effect right away. Freeze all three: lenders pick one.
+
+**Prefer mail?** Open **Freeze credit** in the menu. It prints a ready letter for each bureau with your name, address and birthday filled in, the mailing address, and the list of copies to enclose. Mailed freezes take about 3 business days after they arrive.
+
+**OpenOptOut never stores Social Security numbers.** The letters leave a blank to write it in by hand.
+
+**Smaller agencies worth freezing too:** Innovis, NCTUE (phone and utility accounts), ChexSystems (bank accounts) and LexisNexis Risk Solutions (insurance and identity checks). Each has a free freeze. The Freeze credit page lists them.
+
+**Already a victim?** Report it at identitytheft.gov and place a fraud alert. One bureau tells the other two, and an extended alert lasts seven years.`,
+    },
+    {
+      id: 'child-freeze',
+      title: "Freeze your child's credit",
+      content: `Children's Social Security numbers are a favourite target: nobody checks a child's credit, so theft can go unnoticed for years. Since 2018, US law lets a parent or guardian freeze the credit of a child **under 16** for free, even if the child has no credit file yet. The bureau creates a file just to freeze it.
+
+**How:** by mail, to each of the three bureaus. Experian also takes requests online at experian.com/help/minor-request/. Open **Freeze credit**, choose your child and "Child under 16", pick yourself as the parent, and print the three letters.
+
+**Put copies (never originals) of these in each envelope:**
+- The child's birth certificate
+- The child's Social Security card
+- Your government photo ID
+- A utility bill or bank statement showing your name and address
+- If your name isn't on the birth certificate: the court order, guardianship papers or power of attorney
+
+**Where to send them:**
+- **Equifax:** Equifax Information Services LLC, P.O. Box 105788, Atlanta, GA 30348-5788. Include Equifax's Minor Freeze Request form.
+- **Experian:** Experian, P.O. Box 9554, Allen, TX 75013
+- **TransUnion:** TransUnion, P.O. Box 380, Woodlyn, PA 19094. Ask for a "Protected Consumer Freeze".
+
+Each bureau mails a confirmation. **Keep it with the child's papers.** When your child turns 16 they can keep it, lift it, or freeze it themselves (16 and 17 year olds can call the bureaus). Lift it before they apply for a first card, loan or student account.`,
+    },
+  ],
   resistant: [
     {
       id: 'epsilon-guide',
@@ -581,6 +720,7 @@ function NoteModal({ initial, onClose, onSaved }) {
             <select value={form.section} onChange={e => setForm(f => ({...f, section: e.target.value}))}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-hidden">
               <option value="general">General</option>
+              <option value="protect">Phone & credit</option>
               <option value="resistant">Resistant vendors</option>
               <option value="setup">Setup & configuration</option>
             </select>
@@ -663,6 +803,7 @@ export default function Help() {
 
   const TABS = [
     { key: 'docs',      label: 'How it works',          icon: BookOpen },
+    { key: 'protect',   label: 'Phone & credit',        icon: Shield },
     { key: 'resistant', label: 'Resistant vendors',     icon: ShieldAlert },
     { key: 'general',   label: 'Templates & tips',      icon: Lightbulb },
     { key: 'system',    label: 'System & Issue Report', icon: Info },
@@ -712,6 +853,16 @@ export default function Help() {
             isAdmin={isAdmin} onEdit={setEditing} onDelete={deleteNote}
           />
         </>
+      )}
+
+      {/* Phone & credit */}
+      {activeTab === 'protect' && (
+        <DocSection
+          icon={Shield} title="Phone number and credit protection"
+          description="Settings only you can change with your phone company and the credit bureaus"
+          items={[...STATIC_DOCS.protect, ...customBySection('protect')]}
+          isAdmin={isAdmin} onEdit={setEditing} onDelete={deleteNote}
+        />
       )}
 
       {/* Resistant vendors */}

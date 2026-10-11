@@ -1,0 +1,18 @@
+{
+  "broker_id": "numberguru",
+  "name": "NumberGuru",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://www.numberguru.com/",
+  "lookup_by": "phone",
+  "instructions": "Search https://www.numberguru.com/ for each of these numbers: {all_phones}. On any page that shows you, use the \"Remove This Listing\" or \"Opt Out\" link and give {contact_email} as your email. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "NumberGuru is in the same family as BeenVerified and ReversePhone, but its opt-out is separate.",
+  "source": "Per meprism's NumberGuru guide; family relationship per Redact's ReversePhone guide.",
+  "last_verified": ""
+}

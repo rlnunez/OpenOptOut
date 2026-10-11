@@ -1,0 +1,18 @@
+{
+  "broker_id": "lusha",
+  "name": "Lusha",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://www.lusha.com/privacy-center/request-removal/",
+  "lookup_by": "email",
+  "instructions": "Open https://www.lusha.com/privacy-center/request-removal/ and send a removal request for {full_name} with each of these addresses and numbers: {all_emails}; {all_phones}. Use {contact_email} for replies. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "Lusha deletes the details permanently once the form is sent. For several records at once, write to privacy@lusha.com.",
+  "source": "Lusha's help article 'How to remove your details from Lusha'.",
+  "last_verified": ""
+}
