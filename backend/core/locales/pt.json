@@ -148,5 +148,7 @@
   "status.failure": "Não deu certo",
   "status.captcha": "CAPTCHA",
   "status.skipped": "Ignorado",
-  "nav.backups": "Backups"
+  "nav.backups": "Backups",
+  "nav.deadlines": "Relatório de prazos",
+  "nav.privacy_record": "Registro de privacidade"
 }

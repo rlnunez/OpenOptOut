@@ -116,6 +116,82 @@ def list_members(
     return result
 
 
+class MemberCreate(BaseModel):
+    full_name: str = Field(..., min_length=1, max_length=200)
+    age: Optional[int] = Field(None, ge=0, le=150)
+    dob: Optional[str] = None
+
+
+def _is_dependent(u) -> bool:
+    """A profile with no sign-in of its own (a child, or an adult a parent manages)."""
+    from ..models.database import UserRole
+    return u.role == UserRole.member and not u.hashed_password and not getattr(u, "auth_source", None)
+
+
+@family_router.post("", response_model=MemberOut, status_code=201)
+def add_member(
+    data: MemberCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    A parent adds someone to their family: a profile with no sign-in of its
+    own, managed by the parent (and counted against any children limit).
+    """
+    import secrets
+    from ..models.database import ProfileAccess, UserRole
+    if not current_user.is_parent:
+        raise HTTPException(403, "Ask a parent in your family to add people.")
+    name = data.full_name.strip()
+    if not name:
+        raise HTTPException(400, "Type the person's name.")
+    from .admin import _check_children_limit
+    _check_children_limit(db, current_user.id, current_user.id)
+    # Profiles without a sign-in still need a unique address on the account;
+    # this one can never receive mail (.invalid is reserved, RFC 2606).
+    user = User(email=f"member-{secrets.token_hex(8)}@family.invalid", full_name=name,
+                role=UserRole.member, hashed_password=None, branch_id=current_user.branch_id,
+                created_by_id=current_user.id)
+    db.add(user); db.flush()
+    member = FamilyMember(user_id=user.id, full_name=name, age=data.age)
+    if data.dob:
+        from ..core.age import parse_dob, age_on
+        d = parse_dob(data.dob)
+        if d is None:
+            raise HTTPException(400, "That birthday doesn't look right. Use the date picker, "
+                                     "or write it like 1983-04-09.")
+        member.dob, member.age = d.isoformat(), age_on(d)
+    db.add(member)
+    db.add(ProfileAccess(manager_id=current_user.id, managed_id=user.id, can_view=True, can_edit=True,
+                         granted_by=current_user.id))
+    db.commit(); db.refresh(member)
+    return _member_out(member, True)
+
+
+@family_router.delete("/{member_id}", status_code=204)
+def remove_member(
+    member_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Remove someone from the family along with their details and requests.
+    Only profiles without their own sign-in can be removed here; people who
+    sign in themselves are removed by an admin.
+    """
+    member = assert_can_edit(db, current_user, member_id)
+    user = member.user
+    if user is None or user.id == current_user.id:
+        raise HTTPException(400, "You can't remove yourself here.")
+    if not _is_dependent(user) and not current_user.is_super_admin:
+        raise HTTPException(403, f"{member.full_name} signs in on their own, so only an admin can remove them.")
+    from ..core.privacy_record import log_access
+    log_access(db, current_user, member, "delete", "removed from the family")
+    from ..core.people import delete_person
+    delete_person(db, user)
+    db.commit()
+
+
 @family_router.patch("/{member_id}", response_model=MemberOut)
 def update_member(
     member_id: int,
@@ -156,7 +232,9 @@ def list_identities(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    assert_can_view(db, current_user, member_id)
+    member = assert_can_view(db, current_user, member_id)
+    from ..core.privacy_record import log_access
+    log_access(db, current_user, member, "view", "saved details")
     return (
         db.query(Identity)
         .filter(Identity.member_id == member_id)
@@ -172,7 +250,9 @@ def add_identity(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    assert_can_edit(db, current_user, member_id)
+    _m = assert_can_edit(db, current_user, member_id)
+    from ..core.privacy_record import log_access
+    log_access(db, current_user, _m, "edit", "saved details")
 
     # Enforce vault limits — configurable by super admin in Settings
     from ..core.combinations import get_vault_limits
@@ -219,7 +299,9 @@ def update_identity(
     identity = db.query(Identity).filter(Identity.id == identity_id).first()
     if not identity:
         raise HTTPException(404, "That detail is gone. Refresh the page.")
-    assert_can_edit(db, current_user, identity.member_id)
+    _m = assert_can_edit(db, current_user, identity.member_id)
+    from ..core.privacy_record import log_access
+    log_access(db, current_user, _m, "edit", "saved details")
 
     if data.value is not None:
         identity.value = data.value
@@ -250,7 +332,9 @@ def delete_identity(
     identity = db.query(Identity).filter(Identity.id == identity_id).first()
     if not identity:
         raise HTTPException(404, "That detail is gone. Refresh the page.")
-    assert_can_edit(db, current_user, identity.member_id)
+    _m = assert_can_edit(db, current_user, identity.member_id)
+    from ..core.privacy_record import log_access
+    log_access(db, current_user, _m, "edit", "saved details")
     from ..models.database import RequestVariant
     db.query(RequestVariant).filter(RequestVariant.identity_id == identity.id).delete(synchronize_session=False)
     db.delete(identity)

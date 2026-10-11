@@ -358,6 +358,8 @@ INSTITUTIONAL_MIGRATIONS = [
      "ALTER TABLE parent_companies ADD COLUMN is_test BOOLEAN DEFAULT 0"),
     ("Add dob (encrypted date of birth) to family_members",
      "ALTER TABLE family_members ADD COLUMN dob VARCHAR"),
+    ("Add notification_prefs to users (deadline and re-listing notices)",
+     "ALTER TABLE users ADD COLUMN notification_prefs TEXT DEFAULT NULL"),
     ("Add auth_source column to users (external/SSO login)",
      "ALTER TABLE users ADD COLUMN auth_source VARCHAR"),
     ("Allow parent-level email logs (nullable request_id) — Postgres; no-op error on SQLite",

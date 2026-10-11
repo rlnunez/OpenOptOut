@@ -216,6 +216,10 @@ MASTER_DICTIONARY: List[Dict[str, str]] = [
     {"key": "status.skipped", "default_text": "Skipped", "location": "Status labels / Badges", "description": "Status label shown on badges"},
     # ── Added with the plain-language pass ──
     {"key": "nav.backups", "default_text": "Backups", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    # ── Added with the plain-language pass ──
+    {"key": "nav.deadlines", "default_text": "Deadline report", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    # ── Added with the plain-language pass ──
+    {"key": "nav.privacy_record", "default_text": "Privacy record", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
 ]
 
 # Built-in Spanish translations
@@ -376,6 +380,8 @@ BUILTIN_SPANISH = {
     "status.captcha": "CAPTCHA",
     "status.skipped": "Omitido",
     "nav.backups": "Copias de seguridad",
+    "nav.deadlines": "Informe de plazos",
+    "nav.privacy_record": "Registro de privacidad",
 }
 
 # Built-in Arabic translations (RTL Demonstration)
@@ -536,6 +542,8 @@ BUILTIN_ARABIC = {
     "status.captcha": "CAPTCHA",
     "status.skipped": "تم التخطي",
     "nav.backups": "النسخ الاحتياطية",
+    "nav.deadlines": "تقرير المهل",
+    "nav.privacy_record": "سجل الخصوصية",
 }
 
 # Built-in French translations
@@ -694,6 +702,8 @@ BUILTIN_FRENCH = {
     "vault.add_email": "Ajouter une adresse e-mail",
     "vault.add_phone": "Ajouter un numéro de téléphone",
     "nav.backups": "Sauvegardes",
+    "nav.deadlines": "Rapport des délais",
+    "nav.privacy_record": "Registre de confidentialité",
 }
 
 # Built-in Pirate translations (Ahoy, matey!)
@@ -863,6 +873,8 @@ BUILTIN_PIRATE = {
     "status.captcha": "Riddle",
     "status.skipped": "Passed By",
     "nav.backups": "Buried Treasure",
+    "nav.deadlines": "Overdue Scallywags",
+    "nav.privacy_record": "Ship's Secrets Ledger",
 }
 
 BUILTIN_TRANSLATIONS = {

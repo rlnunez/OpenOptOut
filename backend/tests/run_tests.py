@@ -9175,6 +9175,186 @@ esac
     # IF THIS FAILS: the "Other cloud storage" option can't upload, or leaves its config lying around.
 
 
+@test(2, "family.add_and_remove_person",
+      "A parent can add a person (no sign-in, managed by them) and remove them; members and other accounts are protected.")
+def t_family_add_remove():
+    db, s = _memory_db()
+    fam = _imp("routers.family")
+    auth = _imp("core.auth")
+    from fastapi import HTTPException
+    parent = db.User(email="p@x.example", full_name="Pat Parent", role=db.UserRole.parent, hashed_password="x")
+    s.add(parent); s.flush()
+    s.add(db.FamilyMember(user_id=parent.id, full_name="Pat Parent")); s.commit()
+    out = fam.add_member(fam.MemberCreate(full_name=" Kim Kid ", dob="2015-03-02"), db=s, current_user=parent)
+    assert out.full_name == "Kim Kid" and out.dob == "2015-03-02" and out.age is not None and out.can_edit
+    kid = s.query(db.FamilyMember).get(out.id)
+    assert kid.user.role == db.UserRole.member and kid.user.email.endswith(".invalid") and not kid.user.hashed_password
+    assert out.id in auth.get_accessible_member_ids(s, parent), "the parent can see who they added"
+    s.add(db.Identity(member_id=kid.id, kind="phone", value="555-0100"))
+    b = db.Broker(name="B", opt_out_url="https://b.example"); s.add(b); s.flush()
+    rq = db.RemovalRequest(member_id=kid.id, broker_id=b.id, status=db.RequestStatus.sent); s.add(rq); s.flush()
+    s.add_all([db.AutomationLog(request_id=rq.id, member_id=kid.id, action="form_fill", status="success"),
+               db.EmailLog(request_id=rq.id, direction="received"),
+               db.VerificationCheck(request_id=rq.id, method="web_search", verdict="gone"),
+               db.MemberScheduleConfig(member_id=kid.id)])
+    s.commit()
+    child_user = kid.user
+    try:
+        fam.add_member(fam.MemberCreate(full_name="X"), db=s, current_user=child_user)
+        raise AssertionError("a member added someone")
+    except HTTPException as e:
+        assert e.status_code == 403
+    own = s.query(db.FamilyMember).filter_by(user_id=parent.id).first()
+    try:
+        fam.remove_member(own.id, db=s, current_user=parent)
+        raise AssertionError("removed themselves")
+    except HTTPException as e:
+        assert e.status_code == 400
+    fam.remove_member(out.id, db=s, current_user=parent)
+    assert s.query(db.FamilyMember).get(out.id) is None
+    assert s.query(db.Identity).filter_by(member_id=out.id).count() == 0
+    assert s.query(db.RemovalRequest).count() == 0 and s.query(db.EmailLog).count() == 0
+    assert s.query(db.VerificationCheck).count() == 0 and s.query(db.AutomationLog).count() == 0
+    assert s.query(db.ProfileAccess).count() == 0 and s.query(db.User).count() == 1
+    s.close()
+    # EXPECTED: "Add a person" and "Remove" on the Family page work.
+    # IF THIS FAILS: families can't add children or remove people they added.
+@test(2, "compliance.deadlines_scope_and_notices",
+      "The deadline report flags late and relisting sites for the viewer's people only, and opted-in notices go out once.")
+def t_compliance_report():
+    import datetime as _dt, json as _json
+    db, s = _memory_db()
+    cp = _imp("core.compliance")
+    tl = _imp("core.timeline")
+    jane = _member_with_vault(db, s)
+    U2 = db.User(email="other@x.example", full_name="Other Family", role=db.UserRole.parent)
+    s.add(U2); s.flush()
+    other = db.FamilyMember(user_id=U2.id, full_name="Other Family"); s.add(other); s.flush()
+    b = db.Broker(name="SlowSite", opt_out_url="https://slow.example")
+    s.add(b); s.flush()
+    d = lambda day: _dt.datetime(2026, 1, 1) + _dt.timedelta(days=day)
+    R = db.RequestStatus
+    r1 = db.RemovalRequest(member_id=jane.id, broker_id=b.id, status=R.sent)
+    r2 = db.RemovalRequest(member_id=other.id, broker_id=b.id, status=R.sent)
+    s.add_all([r1, r2]); s.commit()
+    for r in (r1, r2):
+        for e in r.events:
+            e.at = d(0)
+        s.add(db.AutomationLog(request_id=r.id, action="form_fill", status="success", created_at=d(0)))
+    s.add(db.VerificationCheck(request_id=r2.id, checked_at=d(10), method="broker_search", verdict="gone"))
+    s.add(db.VerificationCheck(request_id=r2.id, checked_at=d(40), method="broker_search", verdict="listed"))
+    s.commit()
+    orig = tl.build
+    tl.build = lambda db_, req, now=None: (lambda o: (o.update(response_days=45) or [c.update(due_by=(_dt.datetime.fromisoformat(c["sent_at"]) + _dt.timedelta(days=45)).isoformat()) for c in o["cycles"] if c["sent_at"]] and o))(orig(db_, req, now=now))
+    try:
+        mine = cp.report(s, [jane.id], now=d(60))
+        assert [r["person"] for r in mine["rows"]] == ["Jane Q Public"], "only the viewer's people"
+        assert mine["rows"][0]["verdict"] == "overdue" and mine["totals"]["overdue"] == 1
+        theirs = cp.report(s, [other.id], now=d(60))
+        assert theirs["totals"]["relisted"] == 1 and theirs["rows"][0]["verdict"] == "on_time"
+        assert "found_again" in cp.to_csv(theirs).splitlines()[0]
+        assert cp.report(s, [], now=d(60))["rows"] == []
+        # Notices: off by default; once turned on, each problem is emailed once.
+        u = jane.user
+        assert cp.pending_notices(s, u, now=d(60)) == []
+        u.notification_prefs = _json.dumps({"overdue": True, "relisted": True}); s.commit()
+        sent = []
+        st = cp.run_notices(s, {}, send=lambda to, subj, body: sent.append((to, subj, body)) or {"ok": True}, now=d(60))
+        assert st["emails"] == 1 and len(sent) == 1 and "SlowSite" in sent[0][2] and sent[0][0] == "jane@x.example"
+        assert "Other Family" not in sent[0][2], "never about people outside the family"
+        st = cp.run_notices(s, {}, send=lambda *a: sent.append(a) or {"ok": True}, now=d(61))
+        assert st["emails"] == 0 and len(sent) == 1, "not sent twice"
+    finally:
+        tl.build = orig
+    s.close()
+    # EXPECTED: per-viewer deadline report; notices only for opted-in people, once per problem.
+    # IF THIS FAILS: people could see others' requests, miss notices, or get the same email every day.
+
+
+@test(2, "privacy.record_export_log_retention_delete",
+      "The privacy record lists what's kept; exports cover one person; staff access is logged; old logs expire; people can delete themselves.")
+def t_privacy_record():
+    import datetime as _dt, json as _json, tempfile, os
+    db, s = _memory_db()
+    pr = _imp("core.privacy_record")
+    priv = _imp("routers.privacy")
+    fam = _imp("routers.family")
+    from fastapi import HTTPException
+    parent = db.User(email="p@x.example", full_name="Pat Parent", role=db.UserRole.parent, hashed_password="x")
+    staff = db.User(email="s@lib.example", full_name="Sam Staff", role=db.UserRole.super_admin, hashed_password="x")
+    s.add_all([parent, staff]); s.flush()
+    s.add(db.FamilyMember(user_id=parent.id, full_name="Pat Parent"))
+    s.add(db.FamilyMember(user_id=staff.id, full_name="Sam Staff")); s.commit()
+    kid = fam.add_member(fam.MemberCreate(full_name="Kim Kid"), db=s, current_user=parent)
+    s.add(db.Identity(member_id=kid.id, kind="phone", value="512-555-0100"))
+    b = db.Broker(name="B", opt_out_url="https://b.example"); s.add(b); s.flush()
+    rq = db.RemovalRequest(member_id=kid.id, broker_id=b.id, status=db.RequestStatus.sent); s.add(rq); s.flush()
+    old = _dt.datetime.utcnow() - _dt.timedelta(days=400)
+    s.add_all([db.AutomationLog(request_id=rq.id, action="form_fill", status="success", created_at=old),
+               db.AutomationLog(request_id=rq.id, action="form_fill", status="success"),
+               db.EmailLog(request_id=rq.id, direction="received", subject="Removed", body_snippet="Dear Kim", received_at=old)])
+    s.commit()
+
+    rec = pr.record(s, {})
+    keys = {r["key"] for r in rec["inventory"]}
+    assert {"names", "contact", "birthday", "requests", "emails", "logs", "access"} <= keys
+    assert "Social Security numbers" in rec["never_stored"] and rec["counts"]["people"] == 3
+
+    member = s.query(db.FamilyMember).get(kid.id)
+    ex = pr.export_person(s, member)
+    assert ex["person"]["name"] == "Kim Kid" and ex["details"][0]["value"] == "512-555-0100"
+    assert ex["requests"][0]["site"] == "B" and ex["account"]["email"] is None, "placeholder address not shown"
+
+    # A parent looking at their own child isn't logged; staff looking is, once an hour.
+    pr.log_access(s, parent, member, "view")
+    assert s.query(db.AccessLog).count() == 0
+    pr.log_access(s, staff, member, "view"); pr.log_access(s, staff, member, "view")
+    pr.log_access(s, staff, member, "export")
+    assert [a.action for a in s.query(db.AccessLog).order_by(db.AccessLog.id)] == ["view", "export"]
+    mine = priv.my_access_log(db=s, current_user=parent)
+    assert len(mine) == 2 and mine[0]["who"] == "Sam Staff"
+
+    shots = tempfile.mkdtemp(); f = os.path.join(shots, "old.png"); open(f, "w").write("x")
+    os.utime(f, (old.timestamp(), old.timestamp()))
+    st = pr.purge(s, {"privacy": {"auto_purge_logs_days": 365}}, screenshots_dir=shots)
+    assert st["automation_logs"] == 1 and st["email_excerpts"] == 1 and st["screenshot_files"] == 1
+    assert s.query(db.AutomationLog).count() == 1 and s.query(db.EmailLog).one().body_snippet is None
+    assert s.query(db.RemovalRequest).count() == 1 and s.query(db.Identity).count() == 1, "details untouched"
+    assert pr.retention_days({"privacy": {"auto_purge_logs_days": 5}}) == 30, "at least 30 days"
+
+    try:
+        priv.delete_me(priv.DeleteMe(confirm="nope"), db=s, current_user=parent)
+        raise AssertionError("deleted without confirmation")
+    except HTTPException as e:
+        assert e.status_code == 400
+    try:
+        priv.delete_me(priv.DeleteMe(confirm="DELETE"), db=s, current_user=staff)
+        raise AssertionError("deleted the only super admin")
+    except HTTPException as e:
+        assert e.status_code == 400
+    out = priv.delete_me(priv.DeleteMe(confirm="delete"), db=s, current_user=parent)
+    assert out["also_removed"] == ["Kim Kid"]
+    assert s.query(db.User).count() == 1 and s.query(db.FamilyMember).count() == 1
+    assert s.query(db.RemovalRequest).count() == 0 and s.query(db.Identity).count() == 0
+    assert s.query(db.AccessLog).count() == 2, "the access record outlives the account"
+    s.close()
+    # EXPECTED: a complete, honest privacy record and working access/deletion rights.
+    # IF THIS FAILS: an install can't show what it keeps, answer a request, or forget someone.
+
+
+@test(1, "privacy.no_details_in_logs",
+      "Identity combinations are masked before they're written to logs or stored labels.")
+def t_masked_combo():
+    cmb = _imp("core.combinations")
+    c = cmb.IdentityCombo(name="Jane Q Public", address="123 Main St", city="Austin", state="TX",
+                          phone="(512) 555-0134", email="jane@old.example")
+    m = c.masked_label()
+    for secret in ("Jane", "Public", "123 Main", "555-0134", "jane@"):
+        assert secret not in m, (secret, m)
+    assert "J.Q.P." in m and "0134" in m and "old.example" in m
+    assert m != cmb.IdentityCombo(name="Jane Q Public", city="Austin", phone="(512) 555-0199").masked_label()
+
+
 def main():
     ap = argparse.ArgumentParser(description="OpenOptOut test runner")
     ap.add_argument("--tier", type=int, default=4, help="run tiers up to N (1-4)")

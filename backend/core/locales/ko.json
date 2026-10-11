@@ -148,5 +148,7 @@
   "status.failure": "실패",
   "status.captcha": "캡차",
   "status.skipped": "건너뜀",
-  "nav.backups": "백업"
+  "nav.backups": "백업",
+  "nav.deadlines": "기한 보고서",
+  "nav.privacy_record": "개인정보 처리 기록"
 }

@@ -41,6 +41,8 @@ import Login from './pages/Login'
 import SetupWizard from './pages/SetupWizard'
 import Inboxes from './pages/Inboxes'
 import CreditFreeze from './pages/CreditFreeze'
+import DeadlineReport from './pages/DeadlineReport'
+import PrivacyRecord from './pages/PrivacyRecord'
 import StateRegistries from './pages/StateRegistries'
 import WebSearchSettings from './pages/WebSearchSettings'
 import Checklist from './pages/Checklist'
@@ -113,6 +115,8 @@ function Layout() {
             <Route path="/identity"    element={<IdentityVault />} />
             <Route path="/inboxes"     element={<Inboxes />} />
             <Route path="/credit-freeze" element={<CreditFreeze />} />
+            <Route path="/deadlines" element={<DeadlineReport />} />
+            <Route path="/privacy-record" element={<PrivacyRecord />} />
             <Route path="/checklist"   element={<Checklist />} />
             <Route path="/settings"    element={<Settings />} />
             <Route path="/translations" element={<RequirePermission perms={['settings.manage']}><Translations /></RequirePermission>} />

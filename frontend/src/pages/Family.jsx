@@ -5,6 +5,7 @@ import {
   ShieldCheck, AlertCircle, Edit2, Check, X
 } from 'lucide-react'
 import api from '../api'
+import { useAuth } from '../hooks/useAuth'
 
 const KIND_LABELS = { name: 'Names', email: 'Emails', phone: 'Phones', address: 'Addresses' }
 const KIND_COLORS = {
@@ -51,8 +52,8 @@ function AddMemberModal({ onClose, onCreated }) {
       const { data } = await api.post('/family', { full_name: name.trim(), age: age ? parseInt(age) : null })
       onCreated(data)
       onClose()
-    } catch {
-      setError("Couldn't add them. Please try again.")
+    } catch (err) {
+      setError(err.response?.data?.detail || "Couldn't add them. Please try again.")
     } finally {
       setSaving(false)
     }
@@ -145,8 +146,12 @@ function MemberCard({ member, onUpdated, onDeleted, onSelect, selected }) {
 
   const deleteMember = async () => {
     if (!confirm(`Remove ${member.full_name}? Their saved details and opt-out history will be deleted from OpenOptOut.`)) return
-    await api.delete(`/family/${member.id}`)
-    onDeleted(member.id)
+    try {
+      await api.delete(`/family/${member.id}`)
+      onDeleted(member.id)
+    } catch (err) {
+      alert(err.response?.data?.detail || "Couldn't remove them. Please try again.")
+    }
   }
 
   return (
@@ -223,6 +228,9 @@ export default function Family() {
     }).finally(() => setLoading(false))
   }, [])
 
+  const { user } = useAuth()
+  const canAdd = ['parent', 'manager', 'super_admin'].includes(user?.role)
+
   const handleCreated = m => {
     setMembers(prev => [...prev, m])
     setSelected(m)
@@ -246,12 +254,12 @@ export default function Family() {
           <h1 className="text-white text-xl font-semibold">Family members</h1>
           <p className="text-slate-400 text-sm mt-0.5">Everyone you're protecting. Choose a person to add their names, addresses, phone numbers and emails.</p>
         </div>
-        <button
+        {canAdd && <button
           onClick={() => setShowAdd(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 transition-colors"
         >
           <UserPlus size={13} aria-hidden="true" /> Add a person
-        </button>
+        </button>}
       </div>
 
       {loading && <p className="text-slate-500 text-sm">Loading…</p>}

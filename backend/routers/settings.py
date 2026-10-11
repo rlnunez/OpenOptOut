@@ -392,15 +392,22 @@ def save_scheduler(data: SchedulerConfig, _: User = Depends(require_permission("
 
 @router.patch("/privacy")
 def save_privacy(data: PrivacyDataSettings, _: User = Depends(require_permission("settings.system"))):
-    s = load_settings(); s["privacy"] = data.model_dump(); _save(s)
+    s = load_settings()
+    d = data.model_dump()
+    if d.get("auto_purge_logs_days") is not None and d["auto_purge_logs_days"] < 30:
+        raise HTTPException(400, "Keep logs for at least 30 days.")
+    s["privacy"] = {**(s.get("privacy") or {}), **d}   # keeps the last-run record
+    _save(s)
     return s["privacy"]
 
 
 @router.get("/export")
 def export_data(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     from ..models.database import FamilyMember
-    from ..core.auth import get_accessible_member_ids
-    ids     = get_accessible_member_ids(db, current_user)
+    from ..core.compliance import own_member_ids
+    # Your own family only: a manager's export must not include every patron
+    # in their branches (staff use /api/privacy/export/{id} per request).
+    ids     = own_member_ids(db, current_user)
     members = db.query(FamilyMember).filter(FamilyMember.id.in_(ids)).all()
     out = [{
         "full_name":  m.full_name, "age": m.age,
@@ -420,8 +427,17 @@ def export_data(current_user: User = Depends(get_current_user), db: Session = De
 
 @router.delete("/danger/reset-requests", status_code=204)
 def reset_requests(_: User = Depends(require_super_admin), db: Session = Depends(get_db)):
-    from ..models.database import RemovalRequest, EmailLog
-    db.query(EmailLog).delete(); db.query(RemovalRequest).delete(); db.commit()
+    from ..models import database as m
+    # Children first: their rows point at the requests.
+    for model in (m.ConfirmationLink, m.RequestEvent, m.RequestVariant, m.VerificationCheck,
+                  m.CaptchaChallenge, m.EmailLog, m.AutomationLog):
+        db.query(model).delete(synchronize_session=False)
+    if hasattr(m, "NoticeSent"):
+        db.query(m.NoticeSent).delete(synchronize_session=False)
+    db.query(m.WebSearchHit).filter(m.WebSearchHit.request_id.isnot(None)).update(
+        {m.WebSearchHit.request_id: None}, synchronize_session=False)
+    db.query(m.RemovalRequest).delete(synchronize_session=False)
+    db.commit()
 
 
 from datetime import datetime
