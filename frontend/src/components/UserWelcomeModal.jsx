@@ -268,7 +268,7 @@ export default function UserWelcomeModal() {
                 {/* 3. Dyslexia-Friendly Typography (OpenDyslexic) */}
                 <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="space-y-0.5 pr-2">
+                    <div className="space-y-0.5 pe-2">
                       <div className="flex items-center gap-1.5">
                         <BookOpen size={15} className="text-purple-400" />
                         <span className="text-xs font-semibold text-white">{t('a11y.dyslexic_font', 'Dyslexia-Friendly Font (OpenDyslexic)')}</span>
@@ -336,7 +336,7 @@ export default function UserWelcomeModal() {
 
                 {/* 5. Reduced Motion Toggle */}
                 <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
-                  <div className="space-y-0.5 pr-2">
+                  <div className="space-y-0.5 pe-2">
                     <span className="text-xs font-medium text-white">{t('a11y.reduced_motion', 'Reduced Motion')}</span>
                     <p className="text-[11px] text-slate-400">{t('a11y.reduced_motion_desc', 'Disables animations, transitions, and pulsing indicators.')}</p>
                   </div>
@@ -383,7 +383,7 @@ export default function UserWelcomeModal() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 pt-1 pl-8">
+                  <div className="flex items-center gap-2 pt-1 ps-8">
                     <button
                       type="button"
                       onClick={handleImportIls}
@@ -587,7 +587,7 @@ export default function UserWelcomeModal() {
                 onClick={() => setStep(step - 1)}
                 className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
               >
-                {isRTL ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+                <ChevronLeft size={14} aria-hidden="true" />
                 <span>{t('common.back', 'Back')}</span>
               </button>
             )}
@@ -598,7 +598,7 @@ export default function UserWelcomeModal() {
                 className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow-xs"
               >
                 <span>{t('common.next', 'Next')}</span>
-                {isRTL ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+                <ChevronRight size={14} aria-hidden="true" />
               </button>
             ) : (
               <button

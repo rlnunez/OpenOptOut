@@ -62,8 +62,8 @@ export default function PrivacyPagesPanel({ refreshKey }) {
                 <div className="text-sm text-slate-200">
                   <span className="font-medium">{p.broker_name}</span>
                   <span className="text-slate-400"> · {KIND[p.kind] || p.kind}</span>
-                  {p.fillable && <span className="ml-2 text-[11px] text-emerald-300">{tx("filled automatically")}</span>}
-                  {p.status === 'approved' && <span className="ml-2 text-[11px] text-emerald-300">{tx("approved")}</span>}
+                  {p.fillable && <span className="ms-2 text-[11px] text-emerald-300">{tx("filled automatically")}</span>}
+                  {p.status === 'approved' && <span className="ms-2 text-[11px] text-emerald-300">{tx("approved")}</span>}
                 </div>
                 <div className="text-xs text-slate-500 break-all">{p.kind === 'email' ? p.url.replace('mailto:', '') : p.url}</div>
               </div>

@@ -230,13 +230,13 @@ export default function SystemLogs() {
         <div className="flex flex-wrap items-center gap-2">
           {/* Keyword Search */}
           <div className="relative">
-            <Search size={14} className="absolute left-2.5 top-2.5 text-slate-500" />
+            <Search size={14} className="absolute start-2.5 top-2.5 text-slate-500" />
             <input
               type="text"
               placeholder={tx("Search log messages…")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="bg-slate-900 border border-slate-800 text-xs text-white rounded-sm pl-8 pr-3 py-1.5 w-56 focus:outline-hidden focus:border-shield-500 placeholder-slate-500"
+              className="bg-slate-900 border border-slate-800 text-xs text-white rounded-sm ps-8 pe-3 py-1.5 w-56 focus:outline-hidden focus:border-shield-500 placeholder-slate-500"
             />
           </div>
 
@@ -281,11 +281,11 @@ export default function SystemLogs() {
         <div className="flex items-center gap-3 text-xs text-slate-400">
           <span>{logs.length}{" "}{tx("entries shown")}</span>
           {fileInfo && fileInfo.exists && (
-            <span className="hidden sm:inline border-l border-slate-800 pl-3">
+            <span className="hidden sm:inline border-s border-slate-800 ps-3">
               {txr("Disk log: <0/>", [<span className="font-mono text-slate-300">{formatBytes(fileInfo.size_bytes)}</span>])}
             </span>
           )}
-          <label className="flex items-center gap-1.5 cursor-pointer border-l border-slate-800 pl-3">
+          <label className="flex items-center gap-1.5 cursor-pointer border-s border-slate-800 ps-3">
             <input
               type="checkbox"
               checked={autoScroll}
@@ -304,7 +304,7 @@ export default function SystemLogs() {
             <div className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
             <div className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
-            <span className="ml-2 text-slate-400 text-[11px]">{"openoptout-diagnostics.log"}</span>
+            <span className="ms-2 text-slate-400 text-[11px]">{"openoptout-diagnostics.log"}</span>
           </div>
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
             <Shield size={12} />

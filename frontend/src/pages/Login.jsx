@@ -537,7 +537,7 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 relative">
       {/* Quick Accessibility Bar */}
-      <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+      <div className="absolute top-4 end-4 flex items-center gap-2 z-10">
         <button
           type="button"
           onClick={() => setDyslexicFont(!dyslexicFont)}
@@ -1047,7 +1047,7 @@ export default function Login() {
                       type="button"
                       onClick={startMandateTotp}
                       disabled={loading}
-                      className="w-full p-3 bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl text-left transition-colors flex items-center gap-3">
+                      className="w-full p-3 bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl text-start transition-colors flex items-center gap-3">
                       <div className="p-2 bg-shield-500/10 text-shield-400 rounded-lg shrink-0">
                         <Smartphone size={18} />
                       </div>
@@ -1062,7 +1062,7 @@ export default function Login() {
                     <button
                       type="button"
                       onClick={() => setMandateStep('setup_webauthn')}
-                      className="w-full p-3 bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl text-left transition-colors flex items-center gap-3">
+                      className="w-full p-3 bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl text-start transition-colors flex items-center gap-3">
                       <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg shrink-0">
                         <Fingerprint size={18} />
                       </div>

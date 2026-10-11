@@ -64,7 +64,7 @@ function Picker({ item, act }) {
                 {c.text || tx("No details shown")}
               </label>
               <a href={c.url} target="_blank" rel="noopener noreferrer nofollow" referrerPolicy="no-referrer"
-                className="ml-2 inline-flex items-center gap-1 text-xs text-shield-300 underline">
+                className="ms-2 inline-flex items-center gap-1 text-xs text-shield-300 underline">
                 <ExternalLink size={11} aria-hidden="true" />{" "}{tx("Open")}<span className="sr-only">{" "}{tx("listing {v} in a new tab", { v: i + 1 })}</span>
               </a>
             </div>
@@ -207,9 +207,9 @@ export default function Checklist() {
               {data.progress.map(p => <Progress key={p.member_id} p={p} />)}
             </ul>
             <p className="text-xs text-slate-500 mt-2">
-              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-emerald-500 align-middle mr-1" aria-hidden="true" />{tx("Removed")}
-              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-sky-500 align-middle ml-3 mr-1" aria-hidden="true" />{tx("In progress")}
-              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-400 align-middle ml-3 mr-1" aria-hidden="true" />{tx("Needs you")}
+              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-emerald-500 align-middle me-1" aria-hidden="true" />{tx("Removed")}
+              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-sky-500 align-middle ms-3 me-1" aria-hidden="true" />{tx("In progress")}
+              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-400 align-middle ms-3 me-1" aria-hidden="true" />{tx("Needs you")}
             </p>
           </section>
 

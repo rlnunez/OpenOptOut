@@ -191,12 +191,12 @@ export default function Reporting() {
               <table className="w-full text-sm">
               <thead>
                 <tr className="text-slate-500 text-xs border-b border-slate-700/30">
-                  <th className="text-left px-4 py-2 font-normal">{tx("Person")}</th>
-                  <th className="text-left px-4 py-2 font-normal">{tx("Total")}</th>
-                  <th className="text-left px-4 py-2 font-normal">{tx("Removed")}</th>
-                  <th className="text-left px-4 py-2 font-normal">{tx("Waiting")}</th>
-                  <th className="text-left px-4 py-2 font-normal">{tx("Didn't work")}</th>
-                  <th className="text-left px-4 py-2 font-normal">{tx("Removed %")}</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Person")}</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Total")}</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Removed")}</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Waiting")}</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Didn't work")}</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Removed %")}</th>
                 </tr>
               </thead>
               <tbody>

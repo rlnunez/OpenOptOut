@@ -158,7 +158,7 @@ function SimpleMarkdown({ content }) {
         // bullet points
         if (line.startsWith('- ') || line.startsWith('* '))
           return (
-            <div key={i} className="flex gap-2 ml-2">
+            <div key={i} className="flex gap-2 ms-2">
               <span className="text-slate-600 mt-1 shrink-0">•</span>
               <span dangerouslySetInnerHTML={{ __html: renderInline(line.slice(2)) }} />
             </div>
@@ -168,7 +168,7 @@ function SimpleMarkdown({ content }) {
         if (/^\d+\.\s/.test(line)) {
           const [num, ...rest] = line.split('. ')
           return (
-            <div key={i} className="flex gap-2 ml-2">
+            <div key={i} className="flex gap-2 ms-2">
               <span className="text-slate-500 shrink-0 font-mono text-xs mt-0.5">{num}.</span>
               <span dangerouslySetInnerHTML={{ __html: renderInline(rest.join('. ')) }} />
             </div>
@@ -196,7 +196,7 @@ function DocItem({ item, isAdmin, onEdit, onDelete }) {
   return (
     <div className="border border-slate-700/50 rounded-xl overflow-hidden">
       <button onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-800/50 transition-colors text-left">
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-800/50 transition-colors text-start">
         <span className="text-slate-200 text-sm font-medium">{item.title}</span>
         <div className="flex items-center gap-2">
           {isAdmin && item._custom && (

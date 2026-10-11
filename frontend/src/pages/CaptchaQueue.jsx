@@ -163,7 +163,7 @@ export default function CaptchaQueue() {
       {/* Content */}
       {loading ? (
         <div className="p-12 text-center text-slate-500">
-          <RefreshCw className="animate-spin inline-block mr-2" size={16} aria-hidden="true" />{" "}{tx("Loading…")}
+          <RefreshCw className="animate-spin inline-block me-2" size={16} aria-hidden="true" />{" "}{tx("Loading…")}
         </div>
       ) : challenges.length === 0 ? (
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-slate-400">

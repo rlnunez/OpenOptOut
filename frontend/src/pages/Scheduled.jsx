@@ -97,11 +97,11 @@ function SnoozeMenu({ reqId, onSnooze }) {
         <AlarmClock size={10} aria-hidden="true" />{" "}{tx("Check later")}{" "}<ChevronDown size={9} aria-hidden="true" />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-10 min-w-28 overflow-hidden">
+        <div className="absolute end-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-10 min-w-28 overflow-hidden">
           {options.map(o => (
             <button key={o.days}
               onClick={() => { onSnooze(reqId, o.days); setOpen(false) }}
-              className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
+              className="w-full text-start px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
               {tx("In {label}", { label: o.label })}
             </button>
           ))}
@@ -241,13 +241,13 @@ export default function Scheduled() {
             <table className="w-full text-sm">
             <thead>
               <tr className="text-slate-500 text-xs border-b border-slate-700/50">
-                <th className="text-left px-4 py-3 font-normal">{tx("Site")}</th>
-                <th className="text-left px-4 py-3 font-normal">{tx("Person")}</th>
-                <th className="text-left px-4 py-3 font-normal">
+                <th className="text-start px-4 py-3 font-normal">{tx("Site")}</th>
+                <th className="text-start px-4 py-3 font-normal">{tx("Person")}</th>
+                <th className="text-start px-4 py-3 font-normal">
                   {tab === 'overdue' ? tx("Late by") : tx("Due")}
                 </th>
-                <th className="text-left px-4 py-3 font-normal">{tx("Difficulty")}</th>
-                <th className="text-left px-4 py-3 font-normal">{tx("Removed on")}</th>
+                <th className="text-start px-4 py-3 font-normal">{tx("Difficulty")}</th>
+                <th className="text-start px-4 py-3 font-normal">{tx("Removed on")}</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>

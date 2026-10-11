@@ -45,9 +45,9 @@ export default function SolvingSettings() {
         </span>
         {!d.plugin_installed && (
           <button onClick={async () => { try { await api.post('/captcha/solving/install'); setMsg(tx("Added. Now turn it on on the Plugins page.")); load() } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't add it.")) } }}
-            className="ml-2 px-2.5 py-1 text-xs text-slate-200 border border-slate-600 rounded-lg hover:bg-slate-700">{tx("Add the solving plugin")}</button>
+            className="ms-2 px-2.5 py-1 text-xs text-slate-200 border border-slate-600 rounded-lg hover:bg-slate-700">{tx("Add the solving plugin")}</button>
         )}
-        {d.plugin_installed && !d.plugin_enabled && <a href="/plugins" className="ml-2 text-shield-300 text-xs hover:underline">{tx("Open Plugins")}</a>}
+        {d.plugin_installed && !d.plugin_enabled && <a href="/plugins" className="ms-2 text-shield-300 text-xs hover:underline">{tx("Open Plugins")}</a>}
       </p>
       <div className="flex flex-wrap items-end gap-2">
         <div>

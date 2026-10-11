@@ -10055,6 +10055,68 @@ def t_page_texts():
     # IF THIS FAILS: a screen would show English, or a translation would drop a value or a link.
 
 
+def _frontend_src():
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    src = os.path.join(root, "frontend", "src")
+    if not os.path.isdir(src):
+        raise Skip("frontend source not present here")
+    import glob
+    return src, sorted(glob.glob(os.path.join(src, "**", "*.js*"), recursive=True))
+
+
+@test(1, "i18n.rtl_logical_classes",
+      "Screens use start/end spacing and alignment (ms-, pe-, start-, text-start), so right-to-left languages mirror.")
+def t_rtl_logical_classes():
+    import re
+    _, files = _frontend_src()
+    V = r"(?:\d+(?:\.\d+)?|\d+/\d+|px|full|auto|\[[^\]\s'\"`]+\])"
+    rx = re.compile(r"(?<![\w-])(?:[a-z0-9-]+:)*-?(?:(?:m[lr]|p[lr]|left|right)-" + V +
+                    r"|text-(?:left|right)|border-[lr](?:-[\w/-]+)?|rounded-[tb]?[lr](?:-\w+)?)(?![\w/.-])")
+    lit = re.compile(r"'(?:[^'\\\n]|\\.)*'|\"(?:[^\"\\\n]|\\.)*\"|`(?:[^`\\]|\\.)*`")
+    bad = []
+    for f in files:
+        for m in lit.finditer(open(f, encoding="utf-8").read()):
+            bad += [f"{os.path.basename(f)}: {h}" for h in rx.findall(m.group(0))]
+    assert not bad, f"{len(bad)} left/right classes, e.g. {bad[:6]}"
+    # IF THIS FAILS: use the start/end form (ml- -> ms-, pr- -> pe-, left- -> start-,
+    #   text-right -> text-end, border-l -> border-s). It looks the same in English
+    #   and flips for Arabic. Something that must stay on one physical side needs
+    #   a comment and dir="ltr" on the element instead.
+
+
+@test(1, "i18n.rtl_mirrored_icons",
+      "Every arrow-like icon on screen is either mirrored for right-to-left languages or listed as one that keeps its direction.")
+def t_rtl_mirrored_icons():
+    import re
+    src, files = _frontend_src()
+    css = open(os.path.join(src, "index.css"), encoding="utf-8").read()
+    block = re.search(r'html\[dir="rtl"\] :is\(([^)]*)\):not\(\.rtl-keep\)\s*\{\s*scale: -1 1;', css)
+    assert block, "the RTL icon-mirroring rule is missing from index.css"
+    mirrored = set(re.findall(r"\.lucide-([a-z0-9-]+)", block.group(1)))
+    # Point up or down, or contain digits/letters that must not flip.
+    keep = {"arrow-up", "arrow-down", "chevron-up", "chevron-down", "chevrons-up-down",
+            "list-ordered", "refresh-cw", "mouse-pointer-click"}
+    looks = re.compile(r"left|right|arrow|chevron|undo|redo|rotate|send|reply|forward|log-in|log-out|"
+                       r"skip|external|trending|toggle|indent|outdent|move|step|corner|^list")
+    used = set()
+    for f in files:
+        for imp in re.finditer(r"import\s*\{([^}]*)\}\s*from\s*'lucide-react'", open(f, encoding="utf-8").read(), re.S):
+            for n in imp.group(1).split(","):
+                n = n.strip().split(" as ")[0].strip()
+                if n:
+                    used.add(re.sub(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Za-z])(?=[0-9])", "-", n).lower())
+    unsure = sorted(n for n in used if looks.search(n) and n not in mirrored and n not in keep)
+    assert not unsure, f"decide whether these icons flip in right-to-left languages: {unsure}"
+    assert {"chevron-left", "chevron-right", "arrow-left", "arrow-right", "external-link", "send"} <= mirrored
+    for f in files:
+        txt = open(f, encoding="utf-8").read()
+        assert not re.search(r"isRTL\s*\?\s*<(Chevron|Arrow)", txt), \
+            f"{os.path.basename(f)} swaps an arrow by hand; the stylesheet already mirrors it"
+    # IF THIS FAILS: add the icon to the list in frontend/src/index.css if it
+    #   points the reading way (back/next, open, send, undo), or to `keep` above
+    #   if it points up/down or holds text. Don't swap icons in code.
+
+
 @test(1, "i18n.plugin_text_lookup_order",
       "Plugin text is looked up admin override → language pack → the plugin's locales/<lang> → its default locale → the text as written, trying pt-BR then pt.")
 def t_plugin_text_order():

@@ -220,7 +220,7 @@ export default function Translations() {
                   <button
                     onClick={() => handleToggleLanguage(lang.code, lang.enabled)}
                     title={lang.enabled ? tx("Click to disable") : tx("Click to enable")}
-                    className={`px-2 py-1 mr-2 text-[10px] rounded-lg font-medium transition-colors ${
+                    className={`px-2 py-1 me-2 text-[10px] rounded-lg font-medium transition-colors ${
                       lang.enabled
                         ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
                         : 'bg-slate-800 text-slate-500 hover:bg-slate-700'
@@ -238,13 +238,13 @@ export default function Translations() {
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row gap-3 pt-2">
         <div className="relative flex-1">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={tx("Search keys, original text, or translations...")}
-            className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
+            className="w-full ps-10 pe-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
           />
         </div>
 
@@ -340,7 +340,7 @@ export default function Translations() {
                           isDirty
                             ? 'border-blue-500 bg-blue-950/20'
                             : 'border-slate-800 focus:border-slate-700'
-                        } ${isSelectedLangRTL ? 'text-right font-arabic' : 'text-left'}`}
+                        } text-start ${isSelectedLangRTL ? 'font-arabic' : ''}`}
                       />
                     </div>
                   </div>

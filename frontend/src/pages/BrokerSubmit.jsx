@@ -13,7 +13,7 @@ function Field({ label, hint, required, children }) {
   return (
     <div>
       <label className="text-slate-400 text-xs mb-1 block">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+        {label}{required && <span className="text-red-500 ms-0.5">*</span>}
       </label>
       {children}
       {hint && <p className="text-slate-600 text-xs mt-1">{hint}</p>}
@@ -25,10 +25,10 @@ function Select({ value, onChange, options }) {
   return (
     <div className="relative">
       <select value={value} onChange={e => onChange(e.target.value)}
-        className={`${inp} appearance-none pr-7`}>
+        className={`${inp} appearance-none pe-7`}>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
-      <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+      <ChevronDown size={11} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
     </div>
   )
 }
@@ -214,7 +214,7 @@ function JsonUpload({ onImported }) {
             <div className="mt-2">
               <p className="text-amber-400 text-xs font-medium">{result.errors.length}{" "}{tx("errors:")}</p>
               {result.errors.slice(0, 5).map((e, i) => (
-                <p key={i} className="text-amber-300 text-xs ml-2">{e}</p>
+                <p key={i} className="text-amber-300 text-xs ms-2">{e}</p>
               ))}
             </div>
           )}
@@ -236,9 +236,9 @@ function JsonUpload({ onImported }) {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-slate-700 text-slate-500">
-                  <th className="text-left px-3 py-2 font-normal">{tx("Field")}</th>
-                  <th className="text-left px-3 py-2 font-normal">{tx("Required")}</th>
-                  <th className="text-left px-3 py-2 font-normal">{tx("Description")}</th>
+                  <th className="text-start px-3 py-2 font-normal">{tx("Field")}</th>
+                  <th className="text-start px-3 py-2 font-normal">{tx("Required")}</th>
+                  <th className="text-start px-3 py-2 font-normal">{tx("Description")}</th>
                 </tr>
               </thead>
               <tbody>

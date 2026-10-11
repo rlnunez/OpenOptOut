@@ -78,26 +78,26 @@ function CreateUserModal({ onClose, onCreated, isSuper }) {
           <Field label={tx("Role")}>
             <div className="relative">
               <select value={form.role} onChange={e => setForm(f => ({...f, role: e.target.value}))}
-                className={`${input} appearance-none pr-7`}>
+                className={`${input} appearance-none pe-7`}>
                 <option value="member">{tx("member — managed profile, no login")}</option>
                 <option value="parent">{tx("parent — can log in, manages profiles")}</option>
                 {isSuper && <option value="manager">{tx("manager — a parent plus the permissions you grant")}</option>}
                 {isSuper && <option value="super_admin">{tx("super_admin — full access")}</option>}
               </select>
-              <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              <ChevronDown size={11} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
           </Field>
           {(branches.branches.length > 0 || branches.required) && (
             <Field label={tx("Branch")} required={branches.required}>
               <div className="relative">
                 <select value={form.branch_id} onChange={e => setForm(f => ({...f, branch_id: e.target.value}))}
-                  className={`${input} appearance-none pr-7`} required={branches.required}>
+                  className={`${input} appearance-none pe-7`} required={branches.required}>
                   <option value="">{branches.required ? tx("Choose a branch") : tx("No branch")}</option>
                   {branches.branches.map(b => (
                     <option key={b.id} value={b.id}>{b.name}{b.system_name ? ` — ${b.system_name}` : ''}</option>
                   ))}
                 </select>
-                <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                <ChevronDown size={11} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
               </div>
             </Field>
           )}
@@ -202,11 +202,11 @@ function GrantModal({ users, onClose, onGranted }) {
 function UserSelect({ users, value, onChange, placeholder }) {
   return (
     <div className="relative">
-      <select value={value} onChange={e => onChange(e.target.value)} className={`${input} appearance-none pr-7`} required>
+      <select value={value} onChange={e => onChange(e.target.value)} className={`${input} appearance-none pe-7`} required>
         <option value="">{placeholder}</option>
         {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
       </select>
-      <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+      <ChevronDown size={11} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
     </div>
   )
 }
@@ -253,7 +253,7 @@ function EditUserRow({ user, onUpdated, onDeleted, currentUserId, isSuper, onEdi
         {editing ? (
           <div className="relative">
             <select value={role} onChange={e => setRole(e.target.value)}
-              className="bg-slate-700 border border-slate-600 rounded-sm px-2 py-1 text-xs text-slate-200 focus:outline-hidden appearance-none pr-6">
+              className="bg-slate-700 border border-slate-600 rounded-sm px-2 py-1 text-xs text-slate-200 focus:outline-hidden appearance-none pe-6">
               <option value="member">{tx("member")}</option>
               <option value="parent">{tx("parent")}</option>
               <option value="manager">{tx("manager")}</option>
@@ -377,10 +377,10 @@ export default function AdminPanel() {
             <table className="w-full text-sm">
             <thead>
               <tr className="text-slate-500 text-xs border-b border-slate-700/30">
-                <th className="text-left px-4 py-2 font-normal">{tx("Name")}</th>
-                <th className="text-left px-4 py-2 font-normal">{tx("Role")}</th>
-                <th className="text-left px-4 py-2 font-normal">{tx("Login")}</th>
-                <th className="text-left px-4 py-2 font-normal">{tx("Access")}</th>
+                <th className="text-start px-4 py-2 font-normal">{tx("Name")}</th>
+                <th className="text-start px-4 py-2 font-normal">{tx("Role")}</th>
+                <th className="text-start px-4 py-2 font-normal">{tx("Login")}</th>
+                <th className="text-start px-4 py-2 font-normal">{tx("Access")}</th>
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
@@ -419,10 +419,10 @@ export default function AdminPanel() {
               <table className="w-full text-sm">
               <thead>
                 <tr className="text-slate-500 text-xs border-b border-slate-700/30">
-                  <th className="text-left px-4 py-2 font-normal">{tx("Manager")}</th>
-                  <th className="text-left px-4 py-2 font-normal"></th>
-                  <th className="text-left px-4 py-2 font-normal">{tx("Can access profile of")}</th>
-                  <th className="text-left px-4 py-2 font-normal">{tx("Permissions")}</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Manager")}</th>
+                  <th className="text-start px-4 py-2 font-normal"></th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Can access profile of")}</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Permissions")}</th>
                   <th className="px-4 py-2"></th>
                 </tr>
               </thead>
@@ -579,7 +579,7 @@ function Field({ label, required, children }) {
   return (
     <div>
       <label className="text-slate-400 text-xs mb-1 block">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+        {label}{required && <span className="text-red-500 ms-0.5">*</span>}
       </label>
       {children}
     </div>

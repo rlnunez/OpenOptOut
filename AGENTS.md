@@ -41,6 +41,7 @@ python3 scripts/extract_page_texts.py         # after changing any on-screen phr
 - **Keep OAuth refresh working.** Never put keys in code. Secrets are stored encrypted (`oauth_engine._encrypt`) and handed only to the code that needs them.
 - **CAPTCHA images sent anywhere must have personal details blacked out** (`core/captcha_privacy.py`).
 - **Plain language and accessibility.** Write UI text a non-technical person understands. Give every control a label, keep keyboard access, and don't rely on colour alone.
+- **Right-to-left works.** Use start/end Tailwind classes (`ms-`, `pe-`, `start-`, `text-end`, `border-s`), never `ml-`/`pr-`/`left-`/`text-right`. Arrow-like icons are mirrored by the list in `frontend/src/index.css`; add new ones there instead of swapping icons by hand. The tests `i18n.rtl_logical_classes` and `i18n.rtl_mirrored_icons` enforce this.
 - **Every new on-screen phrase is translated.** Run the extractor, then add the phrase to `texts.json` in all 12 packs. The test `i18n.page_texts_current` enforces this.
 - **Database changes are additive.** Add a model (created automatically) or an `ALTER TABLE ... ADD COLUMN` migration. Never drop or rename.
 - **Be honest about limits.** If something is untested against a live site or needs a lawyer, say so. Don't claim it works.

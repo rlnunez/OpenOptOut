@@ -103,7 +103,7 @@ export default function SpecHelpers() {
             {label}
           </button>
         ))}
-        <button onClick={load} className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
+        <button onClick={load} className="ms-auto flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
           <RefreshCw size={13} aria-hidden="true" />{" "}{tx("Refresh")}
         </button>
       </div>
@@ -277,16 +277,16 @@ function StartBox({ onStarted, settings }) {
       <div className="flex gap-2 mt-2 flex-wrap items-start">
         <div className="relative">
           <label className="sr-only" htmlFor="broker-q">{tx("Broker")}</label>
-          <Search size={13} className="absolute left-2.5 top-2.5 text-slate-500" aria-hidden="true" />
+          <Search size={13} className="absolute start-2.5 top-2.5 text-slate-500" aria-hidden="true" />
           <input id="broker-q" value={q} onChange={e => { setQ(e.target.value); setBroker(null) }}
             placeholder={tx("Find a broker")} autoComplete="off"
-            className="pl-8 pr-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 w-64" />
+            className="ps-8 pe-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 w-64" />
           {results.length > 0 && (
             <ul className="absolute z-10 mt-1 w-64 bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
               {results.map(b => (
                 <li key={b.id}>
                   <button onClick={() => { setBroker(b); setQ(b.name); setResults([]) }}
-                    className="w-full text-left px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800">{b.name}</button>
+                    className="w-full text-start px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800">{b.name}</button>
                 </li>
               ))}
             </ul>

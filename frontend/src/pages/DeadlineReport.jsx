@@ -92,23 +92,23 @@ export default function DeadlineReport() {
             <h2 id="h-sites" className="text-white font-medium mb-2">{tx("By site")}</h2>
             {rep.sites.length === 0 ? <p className="text-slate-400 text-sm">{tx("Nothing has been sent yet.")}</p> : (
               <table className="w-full text-sm">
-                <thead><tr className="text-slate-400 text-xs text-left">
-                  <th scope="col" className="py-1 pr-3 font-normal">{tx("Site")}</th>
-                  <th scope="col" className="py-1 pr-3 font-normal">{tx("Days allowed")}</th>
-                  <th scope="col" className="py-1 pr-3 font-normal">{tx("Requests")}</th>
-                  <th scope="col" className="py-1 pr-3 font-normal">{tx("Past due")}</th>
-                  <th scope="col" className="py-1 pr-3 font-normal">{tx("Late")}</th>
-                  <th scope="col" className="py-1 pr-3 font-normal">{tx("Put back")}</th>
+                <thead><tr className="text-slate-400 text-xs text-start">
+                  <th scope="col" className="py-1 pe-3 font-normal">{tx("Site")}</th>
+                  <th scope="col" className="py-1 pe-3 font-normal">{tx("Days allowed")}</th>
+                  <th scope="col" className="py-1 pe-3 font-normal">{tx("Requests")}</th>
+                  <th scope="col" className="py-1 pe-3 font-normal">{tx("Past due")}</th>
+                  <th scope="col" className="py-1 pe-3 font-normal">{tx("Late")}</th>
+                  <th scope="col" className="py-1 pe-3 font-normal">{tx("Put back")}</th>
                   <th scope="col" className="py-1 font-normal">{tx("Usual days to remove")}</th>
                 </tr></thead>
                 <tbody>{rep.sites.map(s => (
                   <tr key={s.site} className="border-t border-slate-700/40">
-                    <th scope="row" className="py-1.5 pr-3 text-left text-slate-200 font-normal">{s.site}</th>
-                    <td className="py-1.5 pr-3 text-slate-300">{s.response_days || '—'}</td>
-                    <td className="py-1.5 pr-3 text-slate-300">{s.rounds}</td>
-                    <td className={`py-1.5 pr-3 ${s.overdue ? 'text-red-300' : 'text-slate-500'}`}>{s.overdue}</td>
-                    <td className={`py-1.5 pr-3 ${s.late ? 'text-amber-300' : 'text-slate-500'}`}>{s.late}</td>
-                    <td className={`py-1.5 pr-3 ${s.relisted ? 'text-amber-300' : 'text-slate-500'}`}>{s.relisted}</td>
+                    <th scope="row" className="py-1.5 pe-3 text-start text-slate-200 font-normal">{s.site}</th>
+                    <td className="py-1.5 pe-3 text-slate-300">{s.response_days || '—'}</td>
+                    <td className="py-1.5 pe-3 text-slate-300">{s.rounds}</td>
+                    <td className={`py-1.5 pe-3 ${s.overdue ? 'text-red-300' : 'text-slate-500'}`}>{s.overdue}</td>
+                    <td className={`py-1.5 pe-3 ${s.late ? 'text-amber-300' : 'text-slate-500'}`}>{s.late}</td>
+                    <td className={`py-1.5 pe-3 ${s.relisted ? 'text-amber-300' : 'text-slate-500'}`}>{s.relisted}</td>
                     <td className="py-1.5 text-slate-300">{s.median_days_to_remove ?? '—'}</td>
                   </tr>))}</tbody>
               </table>
@@ -127,20 +127,20 @@ export default function DeadlineReport() {
             </div>
             {rows.length === 0 ? <p className="text-slate-400 text-sm">{problemsOnly ? tx("No problems. Every site has answered on time so far.") : tx("Nothing yet.")}</p> : (
               <table className="w-full text-sm">
-                <thead><tr className="text-slate-400 text-xs text-left">
-                  {[tx("Site"), tx("Person"), tx("Sent"), tx("Due"), tx("Replied"), tx("Removed"), tx("Found again"), tx("Result")].map(h => <th key={h} scope="col" className="py-1 pr-3 font-normal">{h}</th>)}
+                <thead><tr className="text-slate-400 text-xs text-start">
+                  {[tx("Site"), tx("Person"), tx("Sent"), tx("Due"), tx("Replied"), tx("Removed"), tx("Found again"), tx("Result")].map(h => <th key={h} scope="col" className="py-1 pe-3 font-normal">{h}</th>)}
                 </tr></thead>
                 <tbody>{rows.map(r => {
                   const [label, cls] = VERDICT[r.verdict] || [r.verdict, 'text-slate-300']
                   return (
                     <tr key={`${r.request_id}-${r.round}`} className="border-t border-slate-700/40">
-                      <td className="py-1.5 pr-3 text-slate-200">{r.site}{r.round > 1 ? <span className="text-slate-500">{" "}{tx("(round {round})", { round: r.round })}</span> : ''}</td>
-                      <td className="py-1.5 pr-3 text-slate-300">{r.person}</td>
-                      <td className="py-1.5 pr-3 text-slate-300">{fmt(r.sent)}</td>
-                      <td className="py-1.5 pr-3 text-slate-300">{fmt(r.due)}</td>
-                      <td className="py-1.5 pr-3 text-slate-300">{fmt(r.replied)}</td>
-                      <td className="py-1.5 pr-3 text-slate-300">{fmt(r.removed)}</td>
-                      <td className={`py-1.5 pr-3 ${r.found_again ? 'text-amber-300' : 'text-slate-500'}`}>{fmt(r.found_again)}</td>
+                      <td className="py-1.5 pe-3 text-slate-200">{r.site}{r.round > 1 ? <span className="text-slate-500">{" "}{tx("(round {round})", { round: r.round })}</span> : ''}</td>
+                      <td className="py-1.5 pe-3 text-slate-300">{r.person}</td>
+                      <td className="py-1.5 pe-3 text-slate-300">{fmt(r.sent)}</td>
+                      <td className="py-1.5 pe-3 text-slate-300">{fmt(r.due)}</td>
+                      <td className="py-1.5 pe-3 text-slate-300">{fmt(r.replied)}</td>
+                      <td className="py-1.5 pe-3 text-slate-300">{fmt(r.removed)}</td>
+                      <td className={`py-1.5 pe-3 ${r.found_again ? 'text-amber-300' : 'text-slate-500'}`}>{fmt(r.found_again)}</td>
                       <td className={`py-1.5 ${cls}`}>{label}</td>
                     </tr>)
                 })}</tbody>

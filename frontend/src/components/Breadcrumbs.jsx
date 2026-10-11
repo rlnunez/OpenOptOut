@@ -5,7 +5,7 @@ import { useLanguage } from '../i18n/LanguageContext'
 
 export default function Breadcrumbs() {
   const location = useLocation()
-  const { t, isRTL } = useLanguage()
+  const { t } = useLanguage()
 
   const pathname = location.pathname
 
@@ -132,7 +132,7 @@ export default function Breadcrumbs() {
             <li key={crumb.to + idx} className="flex items-center gap-1.5">
               {idx > 0 && (
                 <span aria-hidden="true" className="text-slate-600 select-none">
-                  {isRTL ? <ChevronRight size={12} className="rotate-180" /> : <ChevronRight size={12} />}
+                  <ChevronRight size={12} />
                 </span>
               )}
               {isLast ? (

@@ -12,11 +12,11 @@ function MemberSelect({ members, value, onChange }) {
   return (
     <div className="relative">
       <select value={value ?? ''} onChange={e => onChange(parseInt(e.target.value) || null)}
-        className="appearance-none bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-200 focus:outline-hidden focus:border-shield-500 min-w-48">
+        className="appearance-none bg-slate-800 border border-slate-700 rounded-lg ps-3 pe-8 py-2 text-sm text-slate-200 focus:outline-hidden focus:border-shield-500 min-w-48">
         <option value="">{tx("Choose a person…")}</option>
         {members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
       </select>
-      <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+      <ChevronDown size={11} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
     </div>
   )
 }
@@ -185,17 +185,17 @@ export default function Discovery() {
               <p className="text-amber-300 text-sm">
                 {txn(foundCount, "{n} site has a listing for {name}. An opt-out was added for it and will be sent automatically.", "{n} sites have a listing for {name}. Opt-outs were added for each one, and will be sent automatically.", { name: selectedMember.full_name })}
               </p>
-              <a href="/brokers" className="text-amber-400 text-xs hover:underline shrink-0 ml-3">{tx("See them →")}</a>
+              <a href="/brokers" className="text-amber-400 text-xs hover:underline shrink-0 ms-3">{tx("See them →")}</a>
             </div>
           )}
 
           {/* Filters + search */}
           <div className="flex items-center gap-2 mb-4">
             <div className="relative flex-1 max-w-xs">
-              <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Search size={12} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input value={searchTerm} onChange={e => setSearch(e.target.value)}
                 placeholder={tx("Find a site…")} aria-label={tx("Find a site")}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500" />
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg ps-8 pe-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500" />
             </div>
             <div className="flex gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700/50">
               {[
@@ -217,11 +217,11 @@ export default function Discovery() {
               <table className="w-full text-sm">
               <thead>
                 <tr className="text-slate-500 text-xs border-b border-slate-700/50">
-                  <th className="text-left px-4 py-3 font-normal">{tx("Site")}</th>
-                  <th className="text-left px-4 py-3 font-normal">{tx("Result")}</th>
-                  <th className="text-left px-4 py-3 font-normal">{tx("How we know")}</th>
-                  <th className="text-left px-4 py-3 font-normal">{tx("Their page")}</th>
-                  <th className="text-left px-4 py-3 font-normal">{tx("Checked")}</th>
+                  <th className="text-start px-4 py-3 font-normal">{tx("Site")}</th>
+                  <th className="text-start px-4 py-3 font-normal">{tx("Result")}</th>
+                  <th className="text-start px-4 py-3 font-normal">{tx("How we know")}</th>
+                  <th className="text-start px-4 py-3 font-normal">{tx("Their page")}</th>
+                  <th className="text-start px-4 py-3 font-normal">{tx("Checked")}</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>

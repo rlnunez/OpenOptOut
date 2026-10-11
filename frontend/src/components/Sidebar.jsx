@@ -48,7 +48,7 @@ function NavItem({ k, to, icon: Icon, label, onNavigate, badge, badgeLabel }) {
     >
       <Icon size={15} aria-hidden="true" />{text}
       {badge > 0 && (
-        <span className="ml-auto text-[11px] font-semibold bg-amber-500 text-slate-950 rounded-full px-1.5 min-w-5 text-center"
+        <span className="ms-auto text-[11px] font-semibold bg-amber-500 text-slate-950 rounded-full px-1.5 min-w-5 text-center"
           aria-label={badgeLabel ? `${badge} ${badgeLabel}` : txn(badge, "{n} item needs you", "{n} items need you")}>{badge}</span>
       )}
     </NavLink>
@@ -143,9 +143,9 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
       <aside
         aria-label={tx("Main sidebar")}
         className={`bg-slate-900 flex flex-col py-4 w-64 md:w-52 shrink-0 h-screen z-40
-          fixed inset-y-0 left-0 transform transition-transform duration-200 ease-in-out
-          md:sticky md:top-0 md:translate-x-0
-          ${open ? 'translate-x-0' : '-translate-x-full'}`}
+          fixed inset-y-0 start-0 transform transition-transform duration-200 ease-in-out
+          md:sticky md:top-0 md:translate-x-0 md:rtl:translate-x-0
+          ${open ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full'}`}
       >
         <div className="px-4 mb-4 flex items-start justify-between shrink-0">
           <div className="min-w-0">
@@ -155,12 +155,12 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
               ) : (
                 <ShieldCheck size={18} className="text-shield-500 shrink-0" />
               )}
-              <span className="text-white font-semibold text-sm truncate">{systemName}</span>
+              <span dir="auto" className="text-white font-semibold text-sm truncate">{systemName}</span>
             </div>
-            {branding?.tagline && <p className="text-slate-500 text-xs mt-0.5 truncate">{branding.tagline}</p>}
+            {branding?.tagline && <p dir="auto" className="text-slate-500 text-xs mt-0.5 truncate">{branding.tagline}</p>}
           </div>
           {/* Close button — mobile only */}
-          <button onClick={onClose} className="md:hidden text-slate-500 hover:text-white p-1 -mr-1" aria-label={tx("Close menu")}>
+          <button onClick={onClose} className="md:hidden text-slate-500 hover:text-white p-1 -me-1" aria-label={tx("Close menu")}>
             <X size={18} />
           </button>
         </div>
@@ -184,7 +184,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
             {(user?.role === 'parent' || user?.role === 'manager') && (
               <div className="mx-2 mt-2 px-3 py-2.5 bg-slate-800 rounded-lg border border-slate-700/50">
                 <p className="text-slate-500 text-xs mb-2">{tx("Dashboard view")}</p>
-                <button onClick={toggleView} disabled={toggling} className="flex items-center gap-2 w-full text-left">
+                <button onClick={toggleView} disabled={toggling} className="flex items-center gap-2 w-full text-start">
                   {user.unified_view ? <ToggleRight size={16} className="text-shield-400 shrink-0" /> : <ToggleLeft size={16} className="text-slate-600 shrink-0" />}
                   <span className="text-slate-300 text-xs">{user.unified_view ? tx("All managed profiles") : tx("My profile only")}</span>
                 </button>
@@ -201,7 +201,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="bg-transparent text-white text-xs border-0 focus:ring-0 cursor-pointer pr-1 truncate max-w-[110px]"
+                  className="bg-transparent text-white text-xs border-0 focus:ring-0 cursor-pointer pe-1 truncate max-w-[110px]"
                 >
                   {availableLanguages.map(l => (
                     <option key={l.code} value={l.code} className="bg-slate-900 text-white">
@@ -220,7 +220,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
                 <select
                   value={theme}
                   onChange={(e) => setTheme(e.target.value)}
-                  className="bg-transparent text-white text-xs border-0 focus:ring-0 cursor-pointer pr-1 truncate max-w-[110px]"
+                  className="bg-transparent text-white text-xs border-0 focus:ring-0 cursor-pointer pe-1 truncate max-w-[110px]"
                 >
                   <option value="dark" className="bg-slate-900 text-white">{t('a11y.theme_dark', 'Dark')}</option>
                   <option value="light" className="bg-slate-900 text-white">{t('a11y.theme_light', 'Light')}</option>

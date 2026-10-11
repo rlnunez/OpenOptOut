@@ -14,7 +14,9 @@ function Trend({ history }) {
   const [hover, setHover] = useState(null)
   if (history.length < 2) return null
   const W = 280, H = 64, P = 6
-  const xs = i => P + (i * (W - 2 * P)) / (history.length - 1)
+  // Time runs the reading way: left to right, or right to left in RTL languages.
+  const rtl = typeof document !== 'undefined' && document.documentElement.dir === 'rtl'
+  const xs = i => { const x = P + (i * (W - 2 * P)) / (history.length - 1); return rtl ? W - x : x }
   const ys = v => H - P - (v / 100) * (H - 2 * P)
   const pts = history.map((h, i) => [xs(i), ys(h.score)])
   const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')
@@ -69,7 +71,7 @@ export default function PrivacyScore() {
           {change != null && (
             <p className="text-slate-300 text-sm">
               {tx("Started at {start} on {fmtDay}", { start: f.start, fmtDay: fmtDay(f.start_day) })}
-              {change !== 0 && <span className={change > 0 ? 'text-emerald-300' : 'text-amber-300'}> · {change > 0 ? 'up' : 'down'} {Math.abs(change)}</span>}
+              {change !== 0 && <span className={change > 0 ? 'text-emerald-300' : 'text-amber-300'}> · {change > 0 ? tx("up {n}", { n: Math.abs(change) }) : tx("down {n}", { n: Math.abs(change) })}</span>}
             </p>
           )}
         </div>

@@ -82,7 +82,7 @@ function SourceCard({ src, onDone, setMsg }) {
         <div>
           <label htmlFor={fileId} className="block text-xs text-slate-400 mb-1">{tx("Upload the registry file (CSV")}{''}{" "}{tx("or Excel)")}</label>
           <input id={fileId} type="file" accept=".csv,.txt,.xlsx" onChange={e => { setFile(e.target.files?.[0] || null); setPreview(null) }}
-            className="block w-full text-sm text-slate-300 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-slate-700 file:text-slate-100" />
+            className="block w-full text-sm text-slate-300 file:me-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-slate-700 file:text-slate-100" />
         </div>
         <div>
           <label htmlFor={`reg-url-${src.state}`} className="block text-xs text-slate-400 mb-1">
@@ -233,7 +233,7 @@ export default function StateRegistries() {
 
         <div className="overflow-x-auto rounded-lg border border-slate-700/60">
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-slate-400 border-b border-slate-800">
+            <thead><tr className="text-start text-slate-400 border-b border-slate-800">
               <th scope="col" className="p-2 w-8"><span className="sr-only">{tx("Select")}</span></th>
               <th scope="col" className="p-2 font-medium">{tx("Broker")}</th>
               <th scope="col" className="p-2 font-medium">{tx("Registered in")}</th>

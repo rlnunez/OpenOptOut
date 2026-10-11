@@ -194,7 +194,7 @@ export default function WorkerFleet() {
           <span>{banner.msg}</span>
           <button
             onClick={() => setBanner(null)}
-            className="text-xs opacity-70 hover:opacity-100 ml-4 underline"
+            className="text-xs opacity-70 hover:opacity-100 ms-4 underline"
           >
             {tx("Dismiss")}
           </button>
@@ -381,20 +381,20 @@ export default function WorkerFleet() {
           </div>
 
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <input
               type="text"
               placeholder={tx("Search worker ID or host...")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg pl-8 pr-3 py-1.5 w-full sm:w-60 focus:outline-hidden focus:border-shield-500"
+              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg ps-8 pe-3 py-1.5 w-full sm:w-60 focus:outline-hidden focus:border-shield-500"
             />
           </div>
         </div>
 
         {/* Table Content */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-start text-xs">
             <thead className="bg-slate-950/60 text-slate-400 font-semibold border-b border-slate-800">
               <tr>
                 <th className="py-3 px-4">{tx("Worker Node")}</th>
@@ -403,7 +403,7 @@ export default function WorkerFleet() {
                 <th className="py-3 px-4">{tx("Throughput")}</th>
                 <th className="py-3 px-4">{tx("Host Telemetry")}</th>
                 <th className="py-3 px-4">{tx("Uptime & Heartbeat")}</th>
-                <th className="py-3 px-4 text-right">{tx("Actions")}</th>
+                <th className="py-3 px-4 text-end">{tx("Actions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
@@ -494,7 +494,7 @@ export default function WorkerFleet() {
                       <td className="py-3 px-4">
                         <span className="text-emerald-400 font-medium">{w.jobs_completed || 0}{" "}{tx("ok")}</span>
                         {w.jobs_failed > 0 && (
-                          <span className="text-red-400 ml-2">{w.jobs_failed}{" "}{tx("failed")}</span>
+                          <span className="text-red-400 ms-2">{w.jobs_failed}{" "}{tx("failed")}</span>
                         )}
                       </td>
 
@@ -525,7 +525,7 @@ export default function WorkerFleet() {
                       </td>
 
                       {/* Actions */}
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-4 text-end">
                         <div className="flex items-center justify-end gap-2">
                           {!isOffline && (
                             <button

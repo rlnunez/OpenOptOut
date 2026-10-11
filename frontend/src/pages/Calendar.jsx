@@ -100,7 +100,7 @@ export default function Calendar() {
                 className={`bg-slate-900 min-h-24 p-1.5 ${inMonth ? '' : 'opacity-40'} ${k === today ? 'ring-1 ring-inset ring-shield-500' : ''}`}>
                 <p className="text-slate-400 text-xs mb-1">{d.getDate()}</p>
                 {evs.slice(0, 3).map((e, i) => (
-                  <p key={i} title={e.title} className={`text-[11px] leading-tight px-1 py-0.5 mb-0.5 rounded border truncate ${KIND[e.kind].cls}`}>
+                  <p key={i} title={e.title} dir="auto" className={`text-[11px] leading-tight px-1 py-0.5 mb-0.5 rounded border truncate ${KIND[e.kind].cls}`}>
                     {e.kind === 'run' ? tx("Opt-outs {time}", { time: e.time }) : e.title}</p>
                 ))}
                 {evs.length > 3 && <p className="text-[11px] text-slate-400">{tx("+{v} more", { v: evs.length - 3 })}</p>}
@@ -165,7 +165,7 @@ export default function Calendar() {
           </div>
           {data.skip_dates?.length > 0 && (
             <ul className="flex flex-wrap gap-2 mt-3">{data.skip_dates.map(d => (
-              <li key={d} className="flex items-center gap-1 text-sm text-slate-200 bg-slate-900 border border-slate-700 rounded-lg pl-2 pr-1 py-0.5">
+              <li key={d} className="flex items-center gap-1 text-sm text-slate-200 bg-slate-900 border border-slate-700 rounded-lg ps-2 pe-1 py-0.5">
                 {nice(d)}
                 <button onClick={() => saveSchedule({ skip_dates: data.skip_dates.filter(x => x !== d) })} aria-label={tx("Remove day off {nice}", { nice: nice(d) })}
                   className="p-0.5 text-slate-400 hover:text-white"><X size={12} /></button>

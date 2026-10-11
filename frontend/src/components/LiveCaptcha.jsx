@@ -124,7 +124,7 @@ export default function LiveCaptcha({ challenge, onClose, onFinished, base, titl
                   className="px-2.5 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 flex items-center gap-1">
                   {k === 'Enter' && <CornerDownLeft size={12} aria-hidden="true" />}{label}</button>
               ))}
-              <button onClick={solved} className="ml-auto px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-500">
+              <button onClick={solved} className="ms-auto px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-500">
                 {doneLabel}
               </button>
             </div>

@@ -69,9 +69,9 @@ function PasswordField({ label, hint, value, onChange, isSet }) {
       <div className="relative">
         <input type={show ? 'text' : 'password'} value={value} onChange={e => onChange(e.target.value)}
           placeholder={isSet ? tx("••••••••  (blank = keep current)") : tx("Enter password…")}
-          className={`${inp} pr-9`} />
+          className={`${inp} pe-9`} />
         <button type="button" onClick={() => setShow(s => !s)}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+          className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
           {show ? <EyeOff size={13} /> : <Eye size={13} />}
         </button>
       </div>
@@ -151,7 +151,7 @@ function AppearanceSection({ initial, onSaved, userRole }) {
               className={`w-7 h-7 rounded-full border-2 transition-all ${form.accent_color === p.color ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`}
               style={{ background: p.color }} />
           ))}
-          <div className="flex items-center gap-1.5 ml-1">
+          <div className="flex items-center gap-1.5 ms-1">
             <input type="color" value={form.accent_color ?? '#6366f1'} onChange={e => setForm(f => ({...f, accent_color: e.target.value}))}
               className="w-7 h-7 rounded-sm cursor-pointer bg-transparent border-0" />
             <span className="text-slate-500 text-xs font-mono">{form.accent_color}</span>
@@ -511,7 +511,7 @@ function EmailSection({ initial, userRole }) {
             <div className={`px-3 py-2.5 rounded-lg border text-sm ${testResult.connected ? 'bg-emerald-900/20 border-emerald-800 text-emerald-300' : 'bg-red-900/20 border-red-800 text-red-300'}`}>
               {testResult.connected ? <span className="flex items-center gap-1.5"><Check size={13}/>{tx("IMAP and SMTP connected successfully")}</span> : (
                 <div><p className="flex items-center gap-1.5 mb-1"><X size={13}/>{tx("Connection failed")}</p>
-                  {testResult.errors?.map((e,i) => <p key={i} className="text-xs opacity-80 ml-4">{e}</p>)}</div>
+                  {testResult.errors?.map((e,i) => <p key={i} className="text-xs opacity-80 ms-4">{e}</p>)}</div>
               )}
             </div>
           )}
@@ -590,7 +590,7 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
             <label className="flex items-center gap-2 cursor-pointer">
               <div onClick={() => setForm(f => ({...f, enabled: !f.enabled}))}
                 className={`w-10 h-5 rounded-full transition-colors cursor-pointer relative ${form.enabled ? 'bg-shield-600' : 'bg-slate-700'}`}>
-                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.enabled ? 'translate-x-5' : 'translate-x-0.5'}`}/>
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.enabled ? 'translate-x-5 rtl:-translate-x-5' : 'translate-x-0.5 rtl:-translate-x-0.5'}`}/>
               </div>
               <span className="text-slate-300 text-sm">{form.enabled ? tx("Scheduler enabled") : tx("Scheduler disabled")}</span>
             </label>
@@ -604,10 +604,10 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
             <Field label={tx("Timezone")}>
               <div className="relative">
                 <select value={form.timezone ?? 'America/Chicago'} onChange={e => setForm(f=>({...f,timezone:e.target.value}))}
-                  className={`${inp} appearance-none pr-7`}>
+                  className={`${inp} appearance-none pe-7`}>
                   {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
                 </select>
-                <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"/>
+                <ChevronDown size={11} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"/>
               </div>
             </Field>
           </div>
@@ -647,7 +647,7 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
                 { v: 'distributed', label: tx("Distributed"), desc: tx("Small batches across 24 hours") },
               ].map(m => (
                 <button key={m.v} onClick={() => setForm(f => ({...f, spread_mode: m.v}))}
-                  className={`flex flex-col items-start px-3 py-2.5 rounded-lg border text-left transition-colors ${
+                  className={`flex flex-col items-start px-3 py-2.5 rounded-lg border text-start transition-colors ${
                     (form.spread_mode ?? 'burst') === m.v ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700 hover:border-slate-600'
                   }`}>
                   <span className={`text-sm font-medium ${(form.spread_mode ?? 'burst') === m.v ? 'text-shield-300' : 'text-slate-300'}`}>{m.label}</span>
@@ -793,7 +793,7 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
                       value={mc.max_optouts_per_day ?? ''}
                       onChange={e => updateMemberLimit(mc.member_id, 'max_optouts_per_day', e.target.value ? parseInt(e.target.value) : 0)}
                       placeholder={tx("{effective_limit} (default)", { effective_limit: mc.effective_limit })}
-                      className="w-20 bg-transparent text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden text-right"/>
+                      className="w-20 bg-transparent text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden text-end"/>
                     <span className="text-slate-600 text-xs">{tx("/day")}</span>
                   </div>
                 </div>
@@ -933,7 +933,7 @@ function DataSection({ userRole }) {
               <p className="text-slate-500 text-xs">{tx("Deletes all opt-out requests and email logs. Family data kept.")}</p>
             </div>
             <button onClick={resetRequests} disabled={resetting}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-400 border border-red-800 rounded-lg hover:bg-red-900/30 transition-colors disabled:opacity-40 ml-3 shrink-0">
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-400 border border-red-800 rounded-lg hover:bg-red-900/30 transition-colors disabled:opacity-40 ms-3 shrink-0">
               <Trash2 size={12}/>{resetting ? tx("Resetting…") : tx("Reset")}
             </button>
           </div>
@@ -1016,7 +1016,7 @@ function VaultLimitsSection({ initial, userRole, onSaved }) {
                           : f.color.includes('emerald') ? '#10b981' : '#3b82f6'
                       }} />
                   </div>
-                  <span className="text-slate-600 text-xs w-10 text-right">{tx("max")}{" "}{f.max}</span>
+                  <span className="text-slate-600 text-xs w-10 text-end">{tx("max")}{" "}{f.max}</span>
                 </div>
               </Field>
             ))}
@@ -1149,7 +1149,7 @@ function PluginSystemSection({ userRole }) {
       <label className="flex items-center gap-2 cursor-pointer">
         <div onClick={() => setConfig(c => ({ ...c, enabled: !c.enabled }))}
           className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.enabled ? 'bg-shield-600' : 'bg-slate-700'}`}>
-          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.enabled ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
         </div>
         <span className="text-slate-300 text-sm">{tx("Enable the plugin system")}</span>
       </label>
@@ -1164,7 +1164,7 @@ function PluginSystemSection({ userRole }) {
                 { v: 'file', label: tx("File"),     desc: tx("Store plugin data as JSON files on disk") },
               ].map(o => (
                 <button key={o.v} onClick={() => setConfig(c => ({ ...c, storage_mode: o.v }))}
-                  className={`flex flex-col items-start px-3 py-2.5 rounded-lg border text-left transition-colors ${config.storage_mode === o.v ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700 hover:border-slate-600'}`}>
+                  className={`flex flex-col items-start px-3 py-2.5 rounded-lg border text-start transition-colors ${config.storage_mode === o.v ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700 hover:border-slate-600'}`}>
                   <span className={`text-sm font-medium ${config.storage_mode === o.v ? 'text-shield-300' : 'text-slate-300'}`}>{o.label}</span>
                   <span className="text-slate-500 text-xs">{o.desc}</span>
                 </button>
@@ -1183,7 +1183,7 @@ function PluginSystemSection({ userRole }) {
           <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg border border-slate-700 bg-slate-800/40">
             <div onClick={() => setConfig(c => ({ ...c, lockdown_mode: !c.lockdown_mode }))}
               className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative shrink-0 mt-0.5 ${config.lockdown_mode ? 'bg-amber-600' : 'bg-slate-700'}`}>
-              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.lockdown_mode ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.lockdown_mode ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
             </div>
             <div>
               <p className="text-slate-200 text-sm">{tx("Lockdown mode")}</p>
@@ -1202,7 +1202,7 @@ function PluginSystemSection({ userRole }) {
         </button>
         <SaveButton saving={saving} saved={saved} onClick={save} />
       </div>
-      {config.enabled && <p className="text-slate-600 text-xs text-right">{tx("Restart the server for changes to take effect.")}</p>}
+      {config.enabled && <p className="text-slate-600 text-xs text-end">{tx("Restart the server for changes to take effect.")}</p>}
     </Section>
   )
 }
@@ -1274,7 +1274,7 @@ function EncryptionSection({ userRole }) {
           {!status.db_encryption_enabled && status.sqlcipher_available && status.db_type === 'sqlite' && (
             <div className="bg-slate-900 rounded-lg p-3 text-xs space-y-2">
               <p className="text-slate-400 font-medium">{tx("To enable SQLCipher encryption:")}</p>
-              <ol className="text-slate-500 space-y-1 ml-3">
+              <ol className="text-slate-500 space-y-1 ms-3">
                 <li>{txr("1. Generate a key: <0>openssl rand -hex 32</0>", [<code className="bg-slate-800 px-1.5 rounded-sm text-slate-300" />])}</li>
                 <li>{txr("2. Add to .env: <0>DB_ENCRYPTION_KEY=your-key-here</0>", [<code className="bg-slate-800 px-1.5 rounded-sm text-slate-300" />])}</li>
                 <li>{txr("3. Migrate existing data: <0>docker exec openoptout-api python -m backend.core.encryption migrate</0>", [<code className="bg-slate-800 px-1.5 rounded-sm text-slate-300" />])}</li>
@@ -1350,7 +1350,7 @@ function AutomationSection({ userRole }) {
       <label className="flex items-center gap-2 cursor-pointer">
         <div onClick={() => setConfig(c => ({...c, rotate_user_agents: !c.rotate_user_agents}))}
           className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.rotate_user_agents ? 'bg-shield-600' : 'bg-slate-700'}`}>
-          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.rotate_user_agents ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.rotate_user_agents ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
         </div>
         <span className="text-slate-300 text-sm">{tx("Rotate user agents")}</span>
         <span className="text-slate-600 text-xs">{tx("— each broker gets a randomized browser fingerprint")}</span>
@@ -1478,7 +1478,7 @@ function ProxySection({ userRole }) {
       <label className="flex items-center gap-2 cursor-pointer">
         <div onClick={() => setConfig(c => ({...c, enabled: !c.enabled}))}
           className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.enabled ? 'bg-shield-600' : 'bg-slate-700'}`}>
-          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.enabled ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
         </div>
         <span className="text-slate-300 text-sm">{tx("Enable proxy for automation traffic")}</span>
       </label>
@@ -1489,12 +1489,12 @@ function ProxySection({ userRole }) {
           <Field label={tx("Mode")}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button onClick={() => setConfig(c => ({...c, mode: 'single'}))}
-                className={`flex flex-col items-start px-3 py-2.5 rounded-lg border text-left transition-colors ${config.mode === 'single' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700 hover:border-slate-600'}`}>
+                className={`flex flex-col items-start px-3 py-2.5 rounded-lg border text-start transition-colors ${config.mode === 'single' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700 hover:border-slate-600'}`}>
                 <span className={`text-sm font-medium ${config.mode === 'single' ? 'text-shield-300' : 'text-slate-300'}`}>{tx("Single proxy")}</span>
                 <span className="text-slate-500 text-xs">{tx("One IP for all traffic")}</span>
               </button>
               <button onClick={() => setConfig(c => ({...c, mode: 'pool'}))}
-                className={`flex flex-col items-start px-3 py-2.5 rounded-lg border text-left transition-colors ${config.mode === 'pool' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700 hover:border-slate-600'}`}>
+                className={`flex flex-col items-start px-3 py-2.5 rounded-lg border text-start transition-colors ${config.mode === 'pool' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700 hover:border-slate-600'}`}>
                 <span className={`text-sm font-medium ${config.mode === 'pool' ? 'text-shield-300' : 'text-slate-300'}`}>{tx("Rotating pool")}</span>
                 <span className="text-slate-500 text-xs">{tx("Different IP per broker")}</span>
               </button>
@@ -1510,12 +1510,12 @@ function ProxySection({ userRole }) {
                     host: p.host_hint || c.host, port: p.default_port || c.port,
                     scheme: p.scheme || c.scheme }))
                 }}
-                className={inp + ' appearance-none pr-8'}>
+                className={inp + ' appearance-none pe-8'}>
                 {Object.entries(presets).map(([key, p]) => (
                   <option key={key} value={key}>{p.label}</option>
                 ))}
               </select>
-              <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              <ChevronDown size={12} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
             {preset.note && <p className="text-slate-500 text-xs mt-1.5 bg-slate-900 rounded-lg px-3 py-2">{preset.note}</p>}
           </Field>
@@ -1536,12 +1536,12 @@ function ProxySection({ userRole }) {
               <Field label={tx("Scheme")}>
                 <div className="relative">
                   <select value={config.scheme || 'http'} onChange={e => setConfig(c => ({...c, scheme: e.target.value}))}
-                    className={inp + ' appearance-none pr-7'}>
+                    className={inp + ' appearance-none pe-7'}>
                     <option value="http">{"http"}</option>
                     <option value="https">{"https"}</option>
                     <option value="socks5">{"socks5"}</option>
                   </select>
-                  <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                  <ChevronDown size={11} className="absolute end-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
                 </div>
               </Field>
             </div>
@@ -2195,7 +2195,7 @@ function WebAuthnPolicySection({ userRole }) {
         )}
 
         <div className="overflow-x-auto rounded-lg border border-slate-700/80 bg-slate-900/60 mt-2">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-start text-xs">
             <thead>
               <tr className="border-b border-slate-700/80 text-slate-400 bg-slate-800/50">
                 <th className="py-2.5 px-3 font-medium">{tx("Permissions Group")}</th>
@@ -2341,13 +2341,13 @@ function WebAuthnPolicySection({ userRole }) {
           <select
             value={config.authenticator_attachment || 'any'}
             onChange={e => setConfig(c => ({ ...c, authenticator_attachment: e.target.value }))}
-            className={inp + ' appearance-none pr-7'}
+            className={inp + ' appearance-none pe-7'}
           >
             <option value="any">{tx("Any Authenticator (External Keys + Mac Touch ID + iPhone/Android QR scan) — Recommended")}</option>
             <option value="cross-platform">{tx("External Hardware Keys Only (YubiKey / Titan)")}</option>
             <option value="platform">{tx("Built-in Platform Biometrics Only (Mac Touch ID / Windows Hello)")}</option>
           </select>
-          <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+          <ChevronDown size={11} className="absolute end-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
         </div>
       </Field>
 
@@ -2385,13 +2385,13 @@ function WebAuthnPolicySection({ userRole }) {
           <select
             value={config.user_verification || 'preferred'}
             onChange={e => setConfig(c => ({ ...c, user_verification: e.target.value }))}
-            className={inp + ' appearance-none pr-7'}
+            className={inp + ' appearance-none pe-7'}
           >
             <option value="preferred">{tx("Preferred (PIN / Biometric asked if supported) — Recommended")}</option>
             <option value="required">{tx("Strictly Required (Mandatory PIN or Fingerprint / Touch ID)")}</option>
             <option value="discouraged">{tx("Discouraged (Capacitive presence touch only, no PIN)")}</option>
           </select>
-          <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+          <ChevronDown size={11} className="absolute end-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
         </div>
       </Field>
 
@@ -2426,7 +2426,7 @@ function WebAuthnPolicySection({ userRole }) {
           <div
             onClick={() => setConfig(c => ({ ...c, fips_only: !c.fips_only }))}
             className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.fips_only ? 'bg-purple-600' : 'bg-slate-700'}`}>
-            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.fips_only ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.fips_only ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
           </div>
           <span className="text-slate-300 text-sm font-medium">{tx("Enforce NIST FIPS 140-2 / FIPS 140-3 Validated Keys")}</span>
         </label>
@@ -2534,7 +2534,7 @@ function PasswordlessPolicySection({ userRole }) {
       </div>
 
       {config.enabled && (
-        <div className="space-y-3 pt-2 pl-2">
+        <div className="space-y-3 pt-2 ps-2">
           {/* FIDO2 / WebAuthn Passkeys */}
           <div className="flex items-center justify-between py-1.5">
             <div>

@@ -57,9 +57,9 @@ function PwField({ label, hint, value, onChange, isSet }) {
       <div className="relative">
         <input type={show ? 'text' : 'password'} value={value} onChange={e => onChange(e.target.value)}
           placeholder={isSet ? tx("••••••••  (blank = keep current)") : tx("Enter value…")}
-          className={`${inp} pr-9`} />
+          className={`${inp} pe-9`} />
         <button type="button" onClick={() => setShow(s => !s)}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+          className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
           {show ? <EyeOff size={13} /> : <Eye size={13} />}
         </button>
       </div>
@@ -79,7 +79,7 @@ function ColorPicker({ label, value, onChange }) {
             className={`w-7 h-7 rounded-full border-2 transition-all ${value === c ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`}
             style={{ background: c }} />
         ))}
-        <div className="flex items-center gap-1.5 ml-1">
+        <div className="flex items-center gap-1.5 ms-1">
           <input type="color" value={value} onChange={e => onChange(e.target.value)}
             className="w-7 h-7 rounded-sm cursor-pointer bg-transparent border-0" />
           <span className="text-slate-500 text-xs font-mono">{value}</span>
@@ -258,7 +258,7 @@ function RegistrationSection() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {MODES.map(m => (
             <button key={m.value} onClick={() => setConfig(c => ({...c, mode: m.value}))}
-              className={`flex flex-col items-start px-3 py-2.5 rounded-lg border text-left transition-colors ${
+              className={`flex flex-col items-start px-3 py-2.5 rounded-lg border text-start transition-colors ${
                 config.mode === m.value ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700 hover:border-slate-600'
               }`}>
               <span className={`text-sm font-medium ${config.mode === m.value ? 'text-shield-300' : 'text-slate-300'}`}>{m.label}</span>
@@ -291,11 +291,11 @@ function RegistrationSection() {
             placeholder={tx("Days")} className={`${inp} w-20 text-center`} title={tx("Expires in days (blank=never)")} />
           <div className="relative">
             <select value={newCode.role} onChange={e => setNewCode(n => ({...n, role: e.target.value}))}
-              className={`${inp} appearance-none pr-7 w-28`}>
+              className={`${inp} appearance-none pe-7 w-28`}>
               <option value="parent">{tx("parent")}</option>
               <option value="member">{tx("member")}</option>
             </select>
-            <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+            <ChevronDown size={11} className="absolute end-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
           </div>
           <button onClick={createCode}
             className="flex items-center gap-1 px-3 py-1.5 bg-shield-600 text-white text-sm rounded-lg hover:bg-shield-700 transition-colors">
@@ -435,10 +435,10 @@ function ILSPresetPicker({ config, setConfig }) {
           <ChevronDown size={13} className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
         {open && (
-          <div className="absolute top-full mt-1 left-0 right-0 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-10 overflow-hidden">
+          <div className="absolute top-full mt-1 start-0 end-0 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-10 overflow-hidden">
             {Object.entries(presets).map(([key, p]) => (
               <button key={key} onClick={() => applyPreset(key)}
-                className="w-full text-left px-4 py-2.5 hover:bg-slate-700 transition-colors border-b border-slate-700/50 last:border-0">
+                className="w-full text-start px-4 py-2.5 hover:bg-slate-700 transition-colors border-b border-slate-700/50 last:border-0">
                 <p className="text-slate-200 text-sm">{p.label}</p>
               </button>
             ))}
@@ -618,7 +618,7 @@ function RuleConditionRow({ rule, onChange, onRemove }) {
       <button
         type="button"
         onClick={onRemove}
-        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-sm transition-colors ml-auto"
+        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-sm transition-colors ms-auto"
         title={tx("Remove condition")}
       >
         <Trash2 size={13} />
@@ -699,7 +699,7 @@ function RuleGroupComponent({ group, onChange, onRemove, isRoot = false }) {
         )}
       </div>
 
-      <div className="space-y-2 pl-1">
+      <div className="space-y-2 ps-1">
         {rules.length === 0 ? (
           <p className="text-slate-500 text-xs italic py-1">{tx("No conditions configured in this group yet.")}</p>
         ) : (
@@ -791,7 +791,7 @@ function SIP2EligibilityRuleBuilder({ value, onChange }) {
             onClick={toggleEnabled}
             className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${isEnabled ? 'bg-shield-600' : 'bg-slate-700'}`}
           >
-            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${isEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${isEnabled ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
           </div>
         </label>
       </div>
@@ -907,7 +907,7 @@ function AuthProvidersSection() {
             <span className="text-slate-500 text-xs">{config.ldap_enabled ? tx("Enabled") : tx("Disabled")}</span>
             <div onClick={() => setConfig(c => ({...c, ldap_enabled: !c.ldap_enabled}))}
               className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.ldap_enabled ? 'bg-shield-600' : 'bg-slate-700'}`}>
-              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.ldap_enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.ldap_enabled ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
             </div>
           </label>
         </div>
@@ -1017,7 +1017,7 @@ function AuthProvidersSection() {
             <span className="text-slate-500 text-xs">{config.sip2_enabled ? tx("Enabled") : tx("Disabled")}</span>
             <div onClick={() => setConfig(c => ({...c, sip2_enabled: !c.sip2_enabled}))}
               className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.sip2_enabled ? 'bg-shield-600' : 'bg-slate-700'}`}>
-              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.sip2_enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.sip2_enabled ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
             </div>
           </label>
         </div>
@@ -1045,7 +1045,7 @@ function AuthProvidersSection() {
                                                : (c.sip2_port === 6443 ? 6001 : c.sip2_port),
                   }))}
                     className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.sip2_use_tls ? 'bg-emerald-600' : 'bg-amber-700'}`}>
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.sip2_use_tls ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.sip2_use_tls ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
                   </div>
                 </div>
                 <span className={`text-xs ${config.sip2_use_tls ? 'text-emerald-500' : 'text-amber-500'}`}>
@@ -1147,7 +1147,7 @@ function AuthProvidersSection() {
                     onClick={() => setConfig(c => ({...c, sip2_map_patron_fields: !c.sip2_map_patron_fields}))}
                     className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.sip2_map_patron_fields ? 'bg-shield-600' : 'bg-slate-700'}`}
                   >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.sip2_map_patron_fields ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.sip2_map_patron_fields ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
                   </div>
                 </label>
               </div>
@@ -1171,7 +1171,7 @@ function AuthProvidersSection() {
                         onClick={() => setConfig(c => ({...c, sip2_patron_choice: config.sip2_patron_choice === false}))}
                         className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.sip2_patron_choice !== false ? 'bg-shield-600' : 'bg-slate-700'}`}
                       >
-                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.sip2_patron_choice !== false ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.sip2_patron_choice !== false ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
                       </div>
                     </label>
                   </div>
@@ -1273,7 +1273,7 @@ function OIDCProviderPanel({ provider, onSaved }) {
           <label className="flex items-center gap-2 cursor-pointer">
             <div onClick={() => setForm(f => ({...f, enabled: !f.enabled}))}
               className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${form.enabled ? 'bg-shield-600' : 'bg-slate-700'}`}>
-              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.enabled ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
             </div>
             <span className="text-slate-300 text-sm">{tx("Enable")}{" "}{provider.label}</span>
           </label>
@@ -1300,11 +1300,11 @@ function OIDCProviderPanel({ provider, onSaved }) {
                 <Field label={tx("Default role for new users")}>
                   <div className="relative">
                     <select value={form.default_role || 'parent'} onChange={e => setForm(f => ({...f, default_role: e.target.value}))}
-                      className={`${inp} appearance-none pr-7`}>
+                      className={`${inp} appearance-none pe-7`}>
                       <option value="parent">{tx("parent")}</option>
                       <option value="member">{tx("member")}</option>
                     </select>
-                    <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                    <ChevronDown size={11} className="absolute end-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
                   </div>
                 </Field>
                 <Field label={tx("Allowed email domains")}>

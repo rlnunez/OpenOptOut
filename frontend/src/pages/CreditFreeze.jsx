@@ -45,7 +45,7 @@ function LetterCard({ l, person }) {
         </div>
         <div>
           <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">{tx("Put copies of these in the envelope")}</p>
-          <ul className="list-disc pl-5 text-slate-300 space-y-0.5">{l.enclose.map(x => <li key={x}>{x}</li>)}</ul>
+          <ul className="list-disc ps-5 text-slate-300 space-y-0.5">{l.enclose.map(x => <li key={x}>{x}</li>)}</ul>
         </div>
       </div>
       <div className="flex flex-wrap gap-3 text-sm">
