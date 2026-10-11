@@ -151,5 +151,6 @@
   "nav.backups": "Sicherungen",
   "nav.deadlines": "Fristenbericht",
   "nav.privacy_record": "Datenschutz-Verzeichnis",
-  "nav.calendar": "Kalender"
+  "nav.calendar": "Kalender",
+  "nav.spec_helpers": "Automatische Broker-Schritte"
 }

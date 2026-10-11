@@ -80,6 +80,10 @@ export default function Breadcrumbs() {
         { label: t('nav.admin', 'Admin'), to: '/admin' },
         { label: t('nav.broker_health', 'Broker health'), to: '/broker-health' },
       ],
+      '/spec-helpers': [
+        { label: t('nav.admin', 'Admin'), to: '/admin' },
+        { label: t('nav.spec_helpers', 'Automatic broker steps'), to: '/spec-helpers' },
+      ],
       '/broker-priority': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
         { label: t('nav.broker_priority', 'Broker priority'), to: '/broker-priority' },

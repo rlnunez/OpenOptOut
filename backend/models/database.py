@@ -838,6 +838,50 @@ class CaptchaChallenge(Base):
     resolver = relationship("User")
 
 
+class SpecDraft(Base):
+    """
+    Opt-out steps drafted or repaired automatically (core/spec_drafter.py),
+    by the built-in rules or an AI helper (core/ai_helpers.py).
+
+    kind:   "new"     steps for a broker nobody wrote steps for
+            "repair"  a fix for steps that stopped working
+    status: "queued"            waiting to be drafted (a repair asked for by a failure)
+            "drafting"          being drafted now
+            "failed"            no draft could be made (`reason` says why)
+            "rehearsal_failed"  drafted, but the rehearsal didn't get through the form
+            "ready"             rehearsed; waiting for an admin to approve
+            "applied"           a selector-only fix that applied itself after a passing rehearsal
+            "approved"          an admin approved it
+            "rejected" | "reverted" | "superseded" (the broker's plugin was updated since)
+
+    An "applied" or "approved" draft is used instead of the broker's plugin
+    steps (interpreter/script_bridge.get_or_build_broker_spec) until it is
+    reverted or the plugin's version changes. Nothing here holds a family
+    member's details: drafts are made from public pages and rehearsed with
+    made-up ones.
+    """
+    __tablename__ = "spec_drafts"
+
+    id                 = Column(Integer, primary_key=True, index=True)
+    broker_id          = Column(Integer, ForeignKey("brokers.id"), nullable=False, index=True)
+    kind               = Column(String(10), nullable=False, default="new")
+    status             = Column(String(20), nullable=False, default="queued", index=True)
+    source             = Column(String(80), nullable=True)    # rules | claude | openai | antigravity | local:<id>
+    model              = Column(String(80), nullable=True)
+    spec_json          = Column(Text, nullable=True)          # the drafted BrokerSpec
+    previous_spec_json = Column(Text, nullable=True)          # what it replaces (repairs)
+    base_version       = Column(String(40), nullable=True)    # plugin version it was made against
+    reason             = Column(Text, nullable=True)          # the failure it fixes, or why drafting failed
+    notes              = Column(Text, nullable=True)          # the helper's explanation
+    warnings_json      = Column(Text, nullable=True)          # checks an admin should look at
+    confidence         = Column(String(10), nullable=True)
+    rehearsal_json     = Column(Text, nullable=True)          # {ok, reached, total, detail, trace}
+    screenshot_path    = Column(String, nullable=True)        # the form filled with made-up details
+    created_at         = Column(DateTime, default=datetime.utcnow, index=True)
+    decided_at         = Column(DateTime, nullable=True)
+    decided_by         = Column(String, nullable=True)
+
+
 def init_db():
     Base.metadata.create_all(bind=engine)
 

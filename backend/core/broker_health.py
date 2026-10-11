@@ -109,6 +109,8 @@ def record_failure(db, broker_id: int, detail: str = "") -> bool:
         h.last_failure_detail = (detail or "")[:2000]
 
         just_disabled = False
+        if h.last_failure_reason == FAILURE_FORM_NOT_FOUND:
+            _queue_repair(db, broker_id, h.last_failure_detail)
         if h.last_failure_reason == FAILURE_UNREACHABLE:
             just_disabled = _note_unreachable(db, h, broker_id, h.last_failure_detail) or just_disabled
         else:
@@ -141,6 +143,25 @@ def record_failure(db, broker_id: int, detail: str = "") -> bool:
         log.error("broker_health.record_failure failed for broker %s: %s", broker_id, e)
         db.rollback()
         return False
+
+
+def _queue_repair(db, broker_id: int, detail: str) -> None:
+    """A form step stopped finding its field or button: the page may have
+    changed. Ask core/spec_drafter.py to rehearse and repair the steps (at
+    most once a day per broker), when the admin allows repairs."""
+    try:
+        from .settings_store import load_settings
+        from .ai_helpers import settings_of
+        if not settings_of(load_settings())["repair_broken_steps"]:
+            return
+        from ..models.database import Broker, OptOutMethod
+        broker = db.query(Broker).filter(Broker.id == broker_id).first()
+        if broker is None or broker.method != OptOutMethod.form:
+            return
+        from .spec_drafter import request_repair
+        request_repair(db, broker_id, detail)
+    except Exception as e:
+        log.debug("repair not queued for broker %s: %s", broker_id, e)
 
 
 def re_enable(db, broker_id: int, clear_review: bool = True) -> None:

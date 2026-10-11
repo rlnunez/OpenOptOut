@@ -147,22 +147,49 @@ def is_heuristic(spec) -> bool:
     return getattr(spec, "notes", "") == HEURISTIC_NOTE
 
 
-def get_or_build_broker_spec(broker, script=None, db=None) -> BrokerSpec:
+def _drafted_spec(db, broker, addon):
+    """The applied or approved draft for this broker, as a BrokerSpec, keeping
+    the plugin's translations reachable. None if there isn't one."""
+    try:
+        import json as _json
+        from ..spec_drafter import active_draft, _plugin_version
+        row = active_draft(db, broker, _plugin_version(db, broker))
+        if row is None or not row.spec_json:
+            return None
+        spec = BrokerSpec.from_dict(_json.loads(row.spec_json))
+        if spec.validate():
+            return None
+        if addon is not None:
+            spec.plugin_id, spec.plugin_dir = addon.plugin_id, addon.plugin_dir
+        return spec
+    except Exception as e:
+        log.debug("drafted steps unavailable for %s: %s", getattr(broker, "name", "?"), e)
+        return None
+
+
+def get_or_build_broker_spec(broker, script=None, db=None, use_drafts: bool = True) -> BrokerSpec:
     """
     Resolve the single authoritative BrokerSpec for this broker.
+    0. Steps drafted or repaired automatically that applied themselves or an
+       admin approved (core/spec_drafter.py), unless use_drafts is False.
     1. Checks installed declarative Broker Add-on (Item 1).
     2. Checks compiled BrokerScript selectors (Item 2).
     3. Generates a heuristic BrokerSpec fallback if no explicit rules exist.
     Guaranteed to return a valid BrokerSpec so execution never requires legacy engines.
     """
+    addon = None
     if db is not None:
         try:
             from ...plugins.broker_addon import get_broker_spec_for_broker
-            spec = get_broker_spec_for_broker(db, broker)
-            if spec:
-                return spec
+            addon = get_broker_spec_for_broker(db, broker)
         except Exception:
-            pass
+            addon = None
+        if use_drafts:
+            drafted = _drafted_spec(db, broker, addon)
+            if drafted is not None:
+                return drafted
+        if addon:
+            return addon
 
     if script is not None:
         spec = spec_from_script(broker, script)

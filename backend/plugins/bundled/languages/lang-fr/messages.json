@@ -151,5 +151,6 @@
   "nav.backups": "Sauvegardes",
   "nav.deadlines": "Rapport des délais",
   "nav.privacy_record": "Registre de confidentialité",
-  "nav.calendar": "Calendrier"
+  "nav.calendar": "Calendrier",
+  "nav.spec_helpers": "Étapes automatiques des courtiers"
 }

@@ -726,6 +726,18 @@ plugins/
 
 ---
 
+### 42. Automatic broker steps & AI helpers
+- **Repairs:** a failure classified as "form not found" queues a repair (once a day per broker). The current steps are rehearsed with made-up details; the step that broke is pointed at the field or button with the same meaning on the new page (built-in rules, no AI); an AI helper is asked only if the rules can't fix it.
+- **New brokers:** an AI helper drafts steps from the broker's public opt-out page; drafts always wait for an admin.
+- **Guardrails:** every draft is rehearsed and stops before the final click; only a passing, selector-only repair applies itself (with a notice and Undo); requests to helpers are refused if they contain any saved personal detail; drafts are checked to stay on the broker's site and never type fixed values; a plugin update sets older repairs aside.
+- **Helpers (bring your own key):** Claude (Anthropic API), ChatGPT/Codex models (OpenAI Responses API), Google's Antigravity agent (Gemini Interactions API, preview; read-only page access), and your own model on your network through any OpenAI-compatible server (LM Studio, Ollama, llama.cpp, vLLM…). Order, monthly limit for online helpers, and on/off switches on **Admin → Automatic broker steps**.
+- **Coding agents:** `AGENTS.md`, `CLAUDE.md` and a shared `broker-plugin` skill so Claude Code, Codex and Antigravity write and fix broker plugins to the project's rules.
+- See [`docs/AUTOMATIC_STEPS.md`](AUTOMATIC_STEPS.md).
+
+**Status:** In Review — not yet run against live providers or live broker sites.
+
+---
+
 ## Explicitly Deferred / Open Questions
 
 - Formal declarative-vs-code boundary definition for edge-case broker add-ons (Item 1).
