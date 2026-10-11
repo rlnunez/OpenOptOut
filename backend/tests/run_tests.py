@@ -7711,6 +7711,57 @@ def t_pp_used():
     # Brokers that already have steps aren't checked.
     b.plugin_id = "something"; b.privacy_checked_at = None; s.commit()
     assert b not in pf.needs_check(s)
+# ── Broker update notifications ───────────────────────────────────────────────
+
+@test(2, "broker_updates.recorded_and_emailed",
+      "Brokers turned off, sites gone or back, registry changes and new sites become admin updates; a digest emails them once.")
+def t_broker_updates():
+    from datetime import datetime, timedelta
+    db, s = _memory_db()
+    bu = _imp("core.broker_updates")
+    bh = _imp("core.broker_health")
+    rs = _imp("core.registry_sync")
+    lf = _imp("core.listing_finder")
+    b = db.Broker(name="FailCo", opt_out_url="https://failco.example", enabled=True)
+    g = db.Broker(name="GoneCo", opt_out_url="https://goneco.example", enabled=True)
+    s.add_all([b, g]); s.commit()
+    for _ in range(bh.AUTO_DISABLE_THRESHOLD):
+        bh.record_failure(s, b.id, "selector not found: #submit")
+    kinds = [u["kind"] for u in bu.listing(s)]
+    assert kinds.count("auto_disabled") == 1, kinds
+    now = datetime.utcnow()
+    bh.record_probe(s, g.id, False, "getaddrinfo failed", now=now - timedelta(days=31))
+    bh.record_probe(s, g.id, False, "getaddrinfo failed", now=now)
+    bh.record_probe(s, g.id, True, now=now + timedelta(hours=1))
+    kinds = [u["kind"] for u in bu.listing(s)]
+    assert "defunct" in kinds and "back_online" in kinds, kinds
+    rows = [{"name": "New Data LLC", "domain": "newdata.example", "email": "", "opt_out_url": ""},
+            {"name": "FailCo", "domain": "failco.example", "email": "privacy@failco.example", "opt_out_url": ""}]
+    rs.apply(s, "VT", rows)
+    ups = bu.listing(s)
+    assert any(u["kind"] == "new_brokers" and "1 new broker" in u["title"] for u in ups), ups
+    assert any(u["kind"] == "contact_changed" and u["broker_id"] == b.id for u in ups)
+    P, C, pm, cm, boxes = _family(db, s)
+    lf.add_listing(s, pm, "https://unknownpeople.example/p/pat")
+    assert any(u["kind"] == "new_site" and "unknownpeople.example" in u["title"] for u in bu.listing(s))
+    assert all("Pat" not in (u["title"] + (u["detail"] or "")) for u in bu.listing(s)), "no family details"
+    # Same thing about the same broker isn't repeated within a week.
+    n = len(bu.listing(s))
+    bu.record(s, "auto_disabled", "again", broker_id=b.id); s.commit()
+    assert len(bu.listing(s)) == n
+    # Digest: one email with everything, then nothing until the next one is due.
+    sent = []
+    send = lambda subj, body, db_: (sent.append((subj, body)) or {"sent": True})
+    r = bu.digest(s, {}, send=send)
+    assert r["sent"] and len(sent) == 1 and "need attention" in sent[0][0] and "FailCo" in sent[0][1], (r, sent)
+    assert bu.digest(s, {}, send=send)["reason"] == "nothing new"
+    bu.record(s, "new_site", "Another site", broker_id=None); s.commit()
+    recent = {"broker_updates_last_digest": datetime.utcnow().isoformat() + "Z"}
+    assert bu.digest(s, recent, send=send)["reason"] == "not due"
+    assert bu.digest(s, {"broker_updates": {"email_digest": "off"}}, send=send)["reason"] == "off"
+    assert bu.unread_count(s) == len(bu.listing(s))
+    bu.mark_read(s)
+    assert bu.unread_count(s) == 0
     s.close()
 
 

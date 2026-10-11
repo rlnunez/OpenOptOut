@@ -30,6 +30,7 @@ import PluginUpload from './pages/PluginUpload'
 import PluginHelp from './pages/PluginHelp'
 import SystemLogs from './pages/SystemLogs'
 import BrokerHealth from './pages/BrokerHealth'
+import BrokerUpdates from './pages/BrokerUpdates'
 import BrokerPriority from './pages/BrokerPriority'
 import ParentCompanies from './pages/ParentCompanies'
 import CaptchaQueue from './pages/CaptchaQueue'
@@ -119,6 +120,7 @@ function Layout() {
             <Route path="/plugins"     element={<RequirePermission perms={['plugins.view']}><Plugins /></RequirePermission>} />
             <Route path="/plugin-help" element={<RequirePermission perms={['plugins.view', 'plugins.upload']}><PluginHelp /></RequirePermission>} />
             <Route path="/plugin-upload" element={<RequirePermission perms={['plugins.upload']}><PluginUpload /></RequirePermission>} />
+            <Route path="/broker-updates" element={<RequirePermission perms={['brokers.manage']}><BrokerUpdates /></RequirePermission>} />
             <Route path="/broker-health" element={<RequirePermission perms={['brokers.manage']}><BrokerHealth /></RequirePermission>} />
             <Route path="/web-search" element={<RequirePermission perms={['settings.system']}><WebSearchSettings /></RequirePermission>} />
             <Route path="/state-registries" element={<RequirePermission perms={['brokers.manage']}><StateRegistries /></RequirePermission>} />
