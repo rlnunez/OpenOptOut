@@ -9051,6 +9051,51 @@ def t_plain_language_family_pages():
                 if m:
                     hits.append(f"{rel}:{i} [{m.group(0)}] {c.strip()[:80]}")
     assert not hits, "Technical words on family pages:\n  " + "\n  ".join(hits)
+@test(2, "timeline.rounds",
+      "A request's history groups into rounds: sent, reply, removed, found again, sent again.")
+def t_timeline_rounds():
+    import datetime as _dt
+    db, s = _memory_db()
+    tl = _imp("core.timeline")
+    m = _member_with_vault(db, s)
+    b = db.Broker(name="Spokeo", opt_out_url="https://www.spokeo.com/optout")
+    s.add(b); s.flush()
+    R = db.RequestStatus
+    r = db.RemovalRequest(member_id=m.id, broker_id=b.id, status=R.pending)
+    s.add(r); s.commit()
+    assert [e.to_status for e in r.events] == ["pending"], "status changes are recorded"
+    d = lambda day: _dt.datetime(2026, 1, 1) + _dt.timedelta(days=day)
+    def at(day, *rows):
+        for x in rows:
+            s.add(x)
+        s.flush()
+    s.add(db.AutomationLog(request_id=r.id, action="form_fill", status="success", created_at=d(0)))
+    s.add(db.AutomationLog(request_id=r.id, action="form_fill", status="success", created_at=d(20)))   # follow-up
+    s.add(db.EmailLog(request_id=r.id, direction="received", received_at=d(22)))
+    s.add(db.ConfirmationLink(request_id=r.id, status="clicked", found_at=d(22), clicked_at=d(22)))
+    s.add(db.VerificationCheck(request_id=r.id, checked_at=d(30), method="broker_search", verdict="gone"))
+    s.add(db.VerificationCheck(request_id=r.id, checked_at=d(60), method="broker_search", verdict="gone"))
+    s.add(db.VerificationCheck(request_id=r.id, checked_at=d(120), method="web_search", verdict="listed"))
+    s.add(db.AutomationLog(request_id=r.id, action="form_fill", status="success", created_at=d(121)))
+    s.commit()
+    r.status = R.sent; s.commit()
+    for e in r.events:          # put the status changes on the test's calendar
+        e.at = d(0) if e.to_status == "sent" else d(-1)
+    s.commit()
+    out = tl.build(s, r, now=d(130))
+    c = out["cycles"]
+    assert len(c) == 2, [x["stage"] for x in c]
+    one, two = c
+    assert one["sent_at"].startswith("2026-01-01") and len(one["follow_ups"]) == 1
+    assert one["replied_at"].startswith("2026-01-23") and one["removed_at"].startswith("2026-01-31")
+    assert one["found_again_at"] and one["stage"] == "found_again"
+    assert two["sent_at"] and two["stage"] == "sent"
+    kinds = [e["kind"] for e in two["events"]]
+    assert kinds[0] == "sent_again", kinds
+    assert [s_["key"] for s_ in out["stages"]] == ["sent", "reply", "removed", "watching"]
+    s.close()
+    # EXPECTED: each round shows sent/reply/removed dates, follow-ups, and when the listing came back.
+    # IF THIS FAILS: the progress bar on the Broker sites page would show the wrong dates or merge rounds.
 
 
 def main():
