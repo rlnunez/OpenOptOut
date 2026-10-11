@@ -742,6 +742,14 @@ def enqueue_pending_optouts(
                 "zip": p.get("zip", ""),
             }
 
+            member_fields["listing_url"] = req.listing_url or ""
+            if any(st.field == "listing_url" and not st.optional for st in (spec.steps or [])) \
+                    and not req.listing_url:
+                req.status = RequestStatus.needs_manual
+                req.notes = (f"{broker.name} needs the web address of {member.full_name}'s own listing. "
+                             "Add it under Discovery → Find your listings.")
+                db.commit()
+                continue
             if any(st.field == "contact_email" for st in (spec.steps or [])):
                 from . import mailboxes as mbx
                 import uuid as _uuid
