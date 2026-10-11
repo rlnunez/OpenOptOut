@@ -7427,6 +7427,130 @@ def t_refresh_keeps_settings():
         os.unlink(tmp.name)
 
 
+
+# ── Find your listings ────────────────────────────────────────────────────────
+
+def _member_with_vault(db, s):
+    U = db.User(email="jane@x.example", full_name="Jane Q Public", role=db.UserRole.parent)
+    s.add(U); s.flush()
+    m = db.FamilyMember(user_id=U.id, full_name="Jane Q Public")
+    s.add(m); s.flush()
+    for kind, value, primary in (("name", "Jane Q Public", True), ("name", "Jane Public", False),
+                                 ("phone", "+1 (512) 555-0134", True),
+                                 ("address", "123 Main St, Austin, TX 78701", True),
+                                 ("email", "jane@old.example", True)):
+        s.add(db.Identity(member_id=m.id, kind=kind, value=value, is_primary=primary))
+    s.commit()
+    return m
+
+
+@test(1, "listings.url_checks_and_phone_formats",
+      "Listing URLs are cleaned and unsafe ones refused; phone numbers come out in the formats people-search pages use.")
+def t_listing_url_checks():
+    lf = _imp("core.listing_finder")
+    assert lf.validate_listing_url("radaris.com/p/Jane/Public") == "https://radaris.com/p/Jane/Public"
+    for bad, frag in (("", "Paste"), ("ftp://x.com/a", "web address"), ("http://10.0.0.5/x", "IP"),
+                      ("http://localhost/x", "public"), ("https://www.google.com/search?q=jane", "search results")):
+        try:
+            lf.validate_listing_url(bad)
+            raise AssertionError(f"accepted {bad!r}")
+        except ValueError as e:
+            assert frag in str(e), (bad, str(e))
+    assert lf.phone_variants("+1 (512) 555-0134") == ["(512) 555-0134", "512-555-0134", "512.555.0134", "5125550134"]
+    assert lf.registrable_domain("people.radaris.com") == "radaris.com"
+    assert lf.registrable_domain("a.b.example.co.uk") == "example.co.uk"
+
+
+@test(2, "listings.search_plan_uses_every_variant",
+      "Web searches cover each name, phone format, address and email once, with working search links.")
+def t_listing_plan():
+    db, s = _memory_db()
+    lf = _imp("core.listing_finder")
+    m = _member_with_vault(db, s)
+    s.add_all([db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy"),
+               db.Broker(name="Spokeo.com", opt_out_url="https://www.spokeo.com/optout"),
+               db.Broker(name="Off.com", opt_out_url="https://off.com/x", enabled=False)])
+    s.commit()
+    plan = lf.search_plan(s, m)
+    qs = [q["query"] for q in plan["queries"]]
+    assert len(qs) == len(set(qs)), "duplicate searches"
+    for needle in ('"(512) 555-0134"', '"512-555-0134"', '"123 Main St"', '"Jane Public" "Austin, TX"',
+                   '"Jane Q Public" "possible relatives"', '"jane@old.example"'):
+        assert needle in qs, f"missing {needle}: {qs}"
+    link = plan["queries"][0]["links"]["google"]
+    assert link.startswith("https://www.google.com/search?q=%22"), link
+    names = {b["broker_name"] for b in plan["brokers"]}
+    assert names == {"Radaris", "Spokeo.com"}, names
+    assert all("site%3A" in b["search_url"] for b in plan["brokers"])
+    s.close()
+
+
+@test(2, "listings.url_to_broker",
+      "A listing URL resolves to its broker by domain, subdomain, parent company or network of state sites.")
+def t_listing_resolve():
+    db, s = _memory_db()
+    lf = _imp("core.listing_finder")
+    pc = _imp("core.parent_catalog")
+    s.add_all([db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy"),
+               db.Broker(name="Intelius.com", opt_out_url="https://suppression.peopleconnect.us/login"),
+               db.Broker(name="Staterecords.org", opt_out_url="https://staterecords.org/optout")])
+    s.commit()
+    pc.apply_catalog(s)
+    r = lf.resolve_broker(s, "https://people.radaris.com/p/Jane/Public/")
+    assert r["broker"].name == "Radaris" and r["match"] == "subdomain", r
+    r = lf.resolve_broker(s, "https://www.instantcheckmate.com/people/jane-public/")
+    assert r["broker"].name == "Intelius.com" and r["match"] == "parent" and "PeopleConnect" in r["note"], r
+    r = lf.resolve_broker(s, "https://texasarrests.org/jane-public")
+    assert r["broker"].name == "Staterecords.org", r
+    r = lf.resolve_broker(s, "https://brand-new-broker.example/people/jane")
+    assert r["broker"] is None and r["domain"] == "brand-new-broker.example"
+    s.close()
+
+
+@test(2, "listings.add_to_removal_cycle",
+      "Adding a listing creates a pending request with its URL, reuses an open one, and turns unknown sites into checklist items.")
+def t_listing_add():
+    db, s = _memory_db()
+    lf = _imp("core.listing_finder")
+    m = _member_with_vault(db, s)
+    b = db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy")
+    s.add(b); s.commit()
+    r1 = lf.add_listing(s, m, "https://radaris.com/p/Jane/Public/")
+    req = s.query(db.RemovalRequest).get(r1["request_id"])
+    assert r1["state"] == "added" and req.status == db.RequestStatus.pending
+    assert req.listing_url == "https://radaris.com/p/Jane/Public/" and req.request_key
+    r2 = lf.add_listing(s, m, "https://radaris.com/p/Jane/Public/2")
+    assert r2["state"] == "already_open" and r2["request_id"] == r1["request_id"]
+    s.refresh(req)
+    assert "Public/2" in (req.notes or ""), "second listing should be kept"
+    req.status = db.RequestStatus.confirmed; s.commit()
+    r3 = lf.add_listing(s, m, "https://radaris.com/p/Jane/Public/")
+    assert r3["state"] == "added" and r3["request_id"] != r1["request_id"], "listing came back: new request"
+    r4 = lf.add_listing(s, m, "https://www.brand-new-broker.example/people/jane")
+    nb = s.query(db.Broker).get(r4["broker_id"])
+    nreq = s.query(db.RemovalRequest).get(r4["request_id"])
+    assert r4["state"] == "new_broker" and nb.name == "brand-new-broker.example"
+    assert nb.method == db.OptOutMethod.manual and lf.UNKNOWN_BROKER_NOTE in nb.notes
+    assert nreq.status == db.RequestStatus.needs_manual and "brand-new-broker.example" in nreq.notes
+    found = s.query(db.DiscoveryResult).filter(db.DiscoveryResult.source == "manual").count()
+    assert found == 4, found
+    s.close()
+    # EXPECTED: every pasted listing ends up in the removal cycle or on the checklist.
+    # IF THIS FAILS: listings people find by hand get lost.
+
+
+@test(1, "interpreter.listing_url_field",
+      "Broker specs can fill a form box with the member's own listing address.")
+def t_listing_url_field():
+    ci = _imp("core.interpreter")
+    spec = ci.BrokerSpec.from_dict({"broker_id": "s", "name": "S", "method": "form",
+                                    "opt_out_url": "https://s.example/optout",
+                                    "steps": [{"kind": "fill", "selector": "input[name=url]", "field": "listing_url"}]})
+    assert spec.validate() == []
+    job = ci.compile_job(spec, {"listing_url": "https://s.example/p/jane"}, member_id="1")
+    assert [st.value for st in job.steps if st.kind == "fill"] == ["https://s.example/p/jane"]
+
+
 # ── runner ────────────────────────────────────────────────────────────────────
 
 def main():

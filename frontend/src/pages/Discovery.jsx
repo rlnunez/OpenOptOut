@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import api from '../api'
 import Badge from '../components/Badge'
+import FindListings from '../components/FindListings'
 
 function MemberSelect({ members, value, onChange }) {
   return (
@@ -34,8 +35,10 @@ function DiscoveryRow({ result }) {
       <td className="px-4 py-3">
         {result.source && (
           <span className={`text-xs px-2 py-0.5 rounded border ${
-            result.source === 'google' ? 'text-blue-400 border-blue-800 bg-blue-900/20' : 'text-purple-400 border-purple-800 bg-purple-900/20'
-          }`}>{result.source}</span>
+            result.source === 'google' ? 'text-blue-400 border-blue-800 bg-blue-900/20'
+              : result.source === 'manual' ? 'text-emerald-400 border-emerald-800 bg-emerald-900/20'
+              : 'text-purple-400 border-purple-800 bg-purple-900/20'
+          }`}>{result.source === 'manual' ? 'added by you' : result.source}</span>
         )}
       </td>
       <td className="px-4 py-3 max-w-64">
@@ -138,6 +141,9 @@ export default function Discovery() {
           </button>
         </div>
       </div>
+
+      <FindListings memberId={selectedId} memberName={selectedMember?.full_name}
+        onAdded={() => api.get(`/automation/discover/${selectedId}`).then(r => setResults(r.data))} />
 
       {scanning && (
         <div className="mb-4 px-4 py-3 bg-shield-900/20 border border-shield-800 rounded-xl">

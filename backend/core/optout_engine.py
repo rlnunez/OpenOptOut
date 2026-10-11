@@ -660,6 +660,17 @@ async def _run_form_via_interpreter(
             "zip": p.get("zip", ""),
         }
 
+    # Brokers whose form needs the member's own listing address.
+    if any(s.field == "listing_url" and not s.optional for s in (spec.steps or [])):
+        if not request.listing_url:
+            from .interpreter.executor import ExecResult
+            return ExecResult(
+                ok=False, needs_manual=True, detail="listing address needed",
+                human_instruction=(f"{broker.name} needs the web address of {member.full_name}'s own "
+                                   f"listing. Open Discovery → Find your listings, search {broker.name}, "
+                                   f"and paste the address of the page that shows the listing."))
+    member_fields["listing_url"] = request.listing_url or ""
+
     # The address the broker should write back to for THIS submission.
     # Issued only when the spec asks for it, so no unused addresses pile up.
     if any(s.field == "contact_email" for s in (spec.steps or [])):
