@@ -6,7 +6,6 @@ const inp = 'w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 te
 
 export default function WebSearchSettings() {
   const [s, setS] = useState(null)
-  const [braveKey, setBraveKey] = useState('')
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -17,11 +16,10 @@ export default function WebSearchSettings() {
   const save = async (e) => {
     e.preventDefault(); setBusy(true); setMsg('')
     try {
-      const body = { enabled: s.enabled, provider: s.provider, searxng_url: s.searxng_url,
+      const body = { enabled: s.enabled, provider: 'searxng', searxng_url: s.searxng_url,
         max_queries: Number(s.max_queries) || 12, weekly: s.weekly, auto_add_strong: s.auto_add_strong }
-      if (braveKey) body.brave_key = braveKey
       await api.put('/web-search/settings', body)
-      setMsg('Saved.'); setBraveKey('')
+      setMsg('Saved.')
       const r = await api.get('/web-search/settings'); setS(r.data)
     } catch (err) { setMsg(err.response?.data?.detail || "Couldn't save.") }
     finally { setBusy(false) }
@@ -43,39 +41,12 @@ export default function WebSearchSettings() {
       </div>
 
       <form onSubmit={save} className="space-y-4">
-        <fieldset>
-          <legend className="text-sm text-slate-300 mb-2">Search provider</legend>
-          <div className="space-y-2">
-            <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer ${s.provider === 'searxng' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700'}`}>
-              <input type="radio" name="provider" value="searxng" checked={s.provider === 'searxng'} onChange={set('provider')} className="mt-1 accent-shield-500" />
-              <div>
-                <div className="text-slate-200 text-sm font-medium">SearXNG (self-hosted, free)</div>
-                <div className="text-slate-400 text-xs">Run your own SearXNG server. In its settings.yml, add <code>json</code> under <code>search: formats:</code>.</div>
-              </div>
-            </label>
-            <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer ${s.provider === 'brave' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-700'}`}>
-              <input type="radio" name="provider" value="brave" checked={s.provider === 'brave'} onChange={set('provider')} className="mt-1 accent-shield-500" />
-              <div>
-                <div className="text-slate-200 text-sm font-medium">Brave Search API (paid per search)</div>
-                <div className="text-slate-400 text-xs">Needs an API key from Brave. Each person uses up to the number of searches set below per run.</div>
-              </div>
-            </label>
-          </div>
-        </fieldset>
-
-        {s.provider === 'searxng' && (
-          <div>
-            <label htmlFor="ws-url" className="block text-sm text-slate-300 mb-1">SearXNG address</label>
-            <input id="ws-url" className={inp} placeholder="http://searxng:8080" value={s.searxng_url} onChange={set('searxng_url')} />
-          </div>
-        )}
-        {s.provider === 'brave' && (
-          <div>
-            <label htmlFor="ws-key" className="block text-sm text-slate-300 mb-1">Brave API key {s.brave_key_set && <span className="text-emerald-400">(saved)</span>}</label>
-            <input id="ws-key" type="password" autoComplete="off" className={inp} placeholder={s.brave_key_set ? 'Leave blank to keep the saved key' : ''}
-              value={braveKey} onChange={e => setBraveKey(e.target.value)} />
-          </div>
-        )}
+        <div className="p-3 rounded-lg border border-slate-700 bg-slate-900/60">
+          <div className="text-slate-200 text-sm font-medium">Search provider: SearXNG (self-hosted, free)</div>
+          <div className="text-slate-400 text-xs mt-0.5">Run your own SearXNG server next to OpenOptOut. In its settings.yml, add <code>json</code> under <code>search: formats:</code>.</div>
+          <label htmlFor="ws-url" className="block text-sm text-slate-300 mt-3 mb-1">SearXNG address</label>
+          <input id="ws-url" className={inp} placeholder="http://searxng:8080" value={s.searxng_url} onChange={set('searxng_url')} />
+        </div>
 
         <div>
           <label htmlFor="ws-max" className="block text-sm text-slate-300 mb-1">Searches per person per run</label>

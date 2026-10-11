@@ -41,7 +41,7 @@ def _save(cfg: dict):
 def get_settings(_=Depends(_admin)):
     ws = wsm.settings_of(load_settings())
     return {"enabled": ws["enabled"], "provider": ws["provider"], "searxng_url": ws["searxng_url"],
-            "brave_key_set": bool(ws["brave_key_enc"]), "max_queries": ws["max_queries"],
+            "max_queries": ws["max_queries"],
             "weekly": ws["weekly"], "auto_add_strong": ws["auto_add_strong"],
             "privacy_note": wsm.PRIVACY_NOTE}
 
@@ -50,7 +50,6 @@ class SettingsIn(BaseModel):
     enabled: bool = False
     provider: str = ""
     searxng_url: str = ""
-    brave_key: Optional[str] = None      # None = keep the saved key; "" = clear it
     max_queries: int = 12
     weekly: bool = False
     auto_add_strong: bool = True
@@ -58,21 +57,19 @@ class SettingsIn(BaseModel):
 
 @router.put("/settings")
 def put_settings(body: SettingsIn, _=Depends(_admin)):
-    if body.provider not in ("", "searxng", "brave"):
-        raise HTTPException(400, "Choose SearXNG or Brave Search.")
+    if body.provider not in ("", "searxng"):
+        raise HTTPException(400, "SearXNG is the only supported search provider.")
     url = body.searxng_url.strip()
     if url and not url.startswith(("https://", "http://")):
         raise HTTPException(400, "The SearXNG address should start with https:// (or http:// on your own network).")
     cfg = load_settings()
     ws = wsm.settings_of(cfg)
-    ws.update(enabled=body.enabled, provider=body.provider, searxng_url=url,
+    ws.update(enabled=body.enabled, provider="searxng", searxng_url=url,
               max_queries=max(1, min(int(body.max_queries or 12), 40)),
               weekly=body.weekly, auto_add_strong=body.auto_add_strong)
-    if body.brave_key is not None:
-        from ..core.oauth_engine import _encrypt
-        ws["brave_key_enc"] = _encrypt(body.brave_key.strip()) if body.brave_key.strip() else ""
+    ws.pop("brave_key_enc", None)   # no longer supported; don't keep a stored key
     if ws["enabled"] and not wsm.configured(ws):
-        raise HTTPException(400, "Fill in the SearXNG address or the Brave API key before turning this on.")
+        raise HTTPException(400, "Fill in the SearXNG address before turning this on.")
     cfg["web_search"] = ws
     _save(cfg)
     return {"ok": True}

@@ -7774,9 +7774,9 @@ def t_ws_run():
     res = ws.add_hit(s, H["unknownpeople.example"], m)
     assert res["state"] == "new_broker" and H["unknownpeople.example"].status == "added"
     def broken(q):
-        raise RuntimeError("Brave Search rejected the API key.")
+        raise RuntimeError("SearXNG refused the request. Add `json` to search.formats in its settings.yml.")
     st3 = ws.run_for_member(s, m, {"web_search": {"max_queries": 5}}, search=broken, pause=0)
-    assert st3["queries"] == 0 and len(st3["errors"]) == 1, "stop after a key/limit error"
+    assert st3["queries"] == 0 and len(st3["errors"]) == 1, "stop when the provider refuses"
     s.close()
     # EXPECTED: no person-less additions except strong matches on known brokers.
     # IF THIS FAILS: wrong people's pages could be sent opt-outs, or real listings missed.

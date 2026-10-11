@@ -5,11 +5,8 @@ what it finds.
 The searches are the same ones "Find your listings" offers as links
 (core/listing_finder.discovery_queries) — exact phone numbers, exact street
 addresses, exact emails, name + city, people-search phrases — run through a
-search provider the admin chose:
-
-  - "searxng": a SearXNG instance (self-hosted, open source). Needs `json` in
-    its settings.yml search.formats.
-  - "brave":   the Brave Search API (paid per query, API key).
+SearXNG instance the admin runs (self-hosted, open source; needs `json` in its
+settings.yml search.formats). SearXNG is the only supported provider.
 
 Each result is sorted by how sure we are that it's about this person:
 
@@ -23,7 +20,7 @@ removal cycle (listing_finder.add_listing). Everything else waits in a review
 list for the person: "Add to removals" or "Not me". "Not me" is remembered.
 
 Privacy: these searches send the member's identifiers to the provider (and, for
-SearXNG, to the engines it forwards to). That's inherent in web search, so the
+the engines SearXNG forwards to). That's inherent in web search, so the
 feature is off until an admin turns it on, and the settings say so.
 """
 
@@ -37,12 +34,12 @@ from urllib.parse import urlparse
 
 log = logging.getLogger(__name__)
 
-DEFAULTS = {"enabled": False, "provider": "", "searxng_url": "", "brave_key_enc": "",
+DEFAULTS = {"enabled": False, "provider": "searxng", "searxng_url": "",
             "max_queries": 12, "weekly": False, "auto_add_strong": True}
 
 PRIVACY_NOTE = ("Web searches send family members' names, phone numbers, addresses and email "
-                "addresses to the search provider you choose (a SearXNG server also passes them "
-                "on to the search engines it uses). Only turn this on if the family is "
+                "addresses to your SearXNG server, which passes them on to the search engines it "
+                "uses. Only turn this on if the family is "
                 "comfortable with that.")
 
 # Sites that show up in searches but aren't where a listing lives.
@@ -62,9 +59,7 @@ def settings_of(cfg: dict) -> dict:
 
 
 def configured(ws: dict) -> bool:
-    return bool(ws.get("enabled") and (
-        (ws.get("provider") == "searxng" and ws.get("searxng_url")) or
-        (ws.get("provider") == "brave" and ws.get("brave_key_enc"))))
+    return bool(ws.get("enabled") and ws.get("provider", "searxng") == "searxng" and ws.get("searxng_url"))
 
 
 # ── Providers ─────────────────────────────────────────────────────────────────
@@ -82,26 +77,7 @@ def _searxng(ws: dict, query: str) -> list:
             for x in (r.json().get("results") or [])]
 
 
-def _brave(ws: dict, query: str) -> list:
-    import requests
-    from .oauth_engine import _decrypt
-    r = requests.get("https://api.search.brave.com/res/v1/web/search",
-                     params={"q": query, "count": 20}, timeout=20,
-                     headers={"Accept": "application/json",
-                              "X-Subscription-Token": _decrypt(ws["brave_key_enc"])})
-    if r.status_code in (401, 403):
-        raise RuntimeError("Brave Search rejected the API key.")
-    if r.status_code == 429:
-        raise RuntimeError("Brave Search rate limit or monthly limit reached.")
-    r.raise_for_status()
-    out = []
-    for x in ((r.json().get("web") or {}).get("results") or []):
-        snippet = x.get("description") or " ".join(x.get("extra_snippets") or [])
-        out.append({"url": x.get("url", ""), "title": x.get("title", ""), "snippet": snippet})
-    return out
-
-
-PROVIDERS = {"searxng": _searxng, "brave": _brave}
+PROVIDERS = {"searxng": _searxng}
 
 
 # ── Matching ──────────────────────────────────────────────────────────────────
@@ -182,7 +158,7 @@ def run_for_member(db, member, cfg: dict, search=None, pause: float = 1.0) -> di
         except Exception as e:
             stats["errors"].append(str(e))
             log.warning("Web search failed (%s): %s", q["label"], e)
-            if "rejected" in str(e) or "limit" in str(e) or "refused" in str(e):
+            if "refused" in str(e) or "limit" in str(e):
                 break
             continue
         stats["queries"] += 1
