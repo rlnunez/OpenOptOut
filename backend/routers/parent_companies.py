@@ -172,6 +172,24 @@ def unassign_children(body: AssignIn, db: Session = Depends(get_db),
     return {"unassigned": len(rows)}
 
 
+@router.post("/apply-catalog")
+def apply_parent_catalog(dry_run: bool = Query(True),
+                         include_unverified_emails: bool = Query(False),
+                         db: Session = Depends(get_db),
+                         user: User = Depends(get_current_user)):
+    """
+    Create the built-in parent companies (PeopleConnect/Intelius, BeenVerified,
+    Whitepages, Spokeo, and the StateRecords/CourtRecords networks) and group
+    matching brokers under them. Previews by default (dry_run=true); pass
+    dry_run=false to apply. Never overwrites admin edits or moves a broker that
+    is already grouped elsewhere.
+    """
+    _admin(user)
+    from ..core.parent_catalog import apply_catalog
+    return apply_catalog(db, dry_run=dry_run,
+                         include_unverified_emails=include_unverified_emails)
+
+
 @router.get("/unassigned/brokers", response_model=List[ChildBroker])
 def list_unassigned(search: Optional[str] = Query(None),
                     db: Session = Depends(get_db), user: User = Depends(get_current_user)):

@@ -7018,6 +7018,238 @@ def t_routes():
     #   though the app booted.
 
 
+# ── Email send path, spec metadata, human pause, parent catalog ───────────────
+
+def _fake_member():
+    from types import SimpleNamespace as NS
+    ids = [NS(kind="name", value="Jane Q Public", is_primary=True),
+           NS(kind="name", value="Jane Public", is_primary=False),
+           NS(kind="email", value="jane@example.com", is_primary=True),
+           NS(kind="phone", value="555-0100", is_primary=True),
+           NS(kind="address", value="1 Main St, Austin, TX 78701", is_primary=True)]
+    return NS(id=7, full_name="Jane Q Public", formal_name=None, identities=ids)
+
+
+@test(2, "email.template_rendering_is_safe",
+      "Opt-out email templates accept spec-style and legacy placeholders, and unknown ones don't crash.")
+def t_email_template_safe():
+    oe = _imp("core.optout_engine")
+    fields = {"full_name": "Jane Q Public", "name": "Jane Q Public", "broker": "Acme",
+              "request_key": "K1", "identifiers": "NAME VARIANTS:\n  - Jane"}
+    out = oe.render_template("Remove {full_name} from {broker} [{request_key}] {mystery} {{x}}", fields)
+    assert "Jane Q Public" in out and "Acme" in out and "K1" in out, out
+    assert "{mystery}" in out, "unknown placeholder should be left as written, not raise"
+    # EXPECTED: known placeholders filled, unknown left alone.
+    # IF THIS FAILS: one odd placeholder in an add-on template breaks every send
+    #   for that broker (the old .format() behaviour).
+
+
+@test(2, "email.no_guessed_address",
+      "A broker with no recorded opt-out address gets None — never a guessed privacy@ address.")
+def t_email_no_guess():
+    from types import SimpleNamespace as NS
+    oe = _imp("core.optout_engine")
+    assert oe.resolve_optout_address(NS(name="Acme.com", notes="", plugin_id=None), None) is None
+    got = oe.resolve_optout_address(NS(name="Acme.com", notes="Email removals@acme.example", plugin_id=None), None)
+    assert got == "removals@acme.example", got
+    # EXPECTED: only an address someone recorded is used.
+    # IF THIS FAILS: member PII could be emailed to an unverified address.
+
+
+@test(2, "email.per_broker_send_uses_unified_transport",
+      "send_opt_out_email goes through email_send.send_email (OAuth provider or SMTP) with no NameError.")
+def t_email_unified_transport():
+    from types import SimpleNamespace as NS
+    oe = _imp("core.optout_engine")
+    es = _imp("core.email_send")
+    calls = []
+    orig = es.send_email
+    es.send_email = lambda cfg, **kw: calls.append(kw) or {"ok": True, "via": "provider"}
+
+    class FakeDB:
+        def __init__(self): self.added = []
+        def add(self, x): self.added.append(x)
+        def commit(self): pass
+        def rollback(self): pass
+        def query(self, *a):            # no installed add-on for this broker
+            class Q:
+                def filter(self, *a, **k): return self
+                def first(self): return None
+            return Q()
+    try:
+        broker = NS(name="Acme.com", notes="opt-out: privacy@acme.example", plugin_id=None,
+                    is_property_broker=False)
+        db = FakeDB()
+        ok = oe.send_opt_out_email(_fake_member(), broker, "KEY1", None,
+                                   {"email": {"provider": "gmail"}}, db)
+    finally:
+        es.send_email = orig
+    assert ok, "send should report success"
+    assert calls and calls[0]["to"] == ["privacy@acme.example"], calls
+    body = calls[0]["body"]
+    assert "Jane Public" in body and "KEY1" in body, "identifiers / reference missing from body"
+    assert db.added, "sent email should be logged"
+    # EXPECTED: one call to the unified sender, to the recorded address, with every variant.
+    # IF THIS FAILS: per-broker email opt-outs can't send (the old path crashed on
+    #   undefined from_name/from_email and ignored OAuth accounts).
+
+
+@test(1, "interpreter.spec_metadata_fields",
+      "BrokerSpec accepts legal basis, response days, verification, requirement and provenance fields, and rejects bad values.")
+def t_spec_metadata():
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    from datetime import date
+    good = BrokerSpec.from_dict({
+        "broker_id": "x", "name": "X", "method": "manual",
+        "legal_basis": ["CCPA", "gdpr"], "statutory_response_days": 45,
+        "search_url": "https://x.example/search?n={first_name}", "listing_pattern": r"/people/[A-Za-z-]+",
+        "one_optout_per_email": True, "requires": ["email_confirmation", "listing_selection"],
+        "source": "test", "last_verified": "2026-05-12",
+    })
+    assert good.validate() == [], good.validate()
+    assert good.can_verify() and good.response_due(date(2026, 1, 1)) == date(2026, 2, 15)
+    rt = BrokerSpec.from_dict(good.to_dict())
+    assert rt.requires == good.requires and rt.one_optout_per_email, "fields lost in round trip"
+    bad = BrokerSpec.from_dict({"broker_id": "x", "name": "X", "method": "manual",
+                                "legal_basis": ["made_up"], "requires": ["telepathy"],
+                                "listing_pattern": "(", "last_verified": "last May",
+                                "statutory_response_days": 900})
+    errs = " | ".join(bad.validate())
+    for frag in ("legal_basis", "requires", "regular expression", "search_url", "YYYY-MM-DD", "365"):
+        assert frag in errs, f"expected an error mentioning {frag!r}: {errs}"
+    legacy = BrokerSpec.from_dict({"broker_id": "y", "name": "Y", "method": "manual"})
+    assert legacy.validate() == [] and not legacy.can_verify()
+    # EXPECTED: new optional fields validate; old specs without them stay valid.
+    # IF THIS FAILS: deadline tracking, verification or checklist labels get bad data,
+    #   or existing add-ons stop installing.
+
+
+@test(1, "interpreter.pause_for_human",
+      "A pause_for_human step stops the flow and returns the plain-language instruction.")
+def t_pause_for_human():
+    import asyncio
+    ci = _imp("core.interpreter")
+    spec = ci.BrokerSpec.from_dict({
+        "broker_id": "p", "name": "P", "method": "form", "opt_out_url": "https://p.example",
+        "steps": [{"kind": "fill", "selector": "#n", "field": "full_name"},
+                  {"kind": "pause_for_human", "text": "Click your own profile, then Start Removing."},
+                  {"kind": "click", "selector": "#go"}]})
+    assert spec.validate() == []
+    nope = ci.BrokerSpec.from_dict({"broker_id": "p", "name": "P", "method": "form",
+                                    "opt_out_url": "https://p.example",
+                                    "steps": [{"kind": "pause_for_human"}]})
+    assert any("pause_for_human requires text" in e for e in nope.validate())
+    job = ci.compile_job(spec, {"full_name": "Jane"}, member_id="1")
+    r = ci.DryRunExecutor().run(job)
+    assert r.needs_manual and not r.ok and "Start Removing" in r.human_instruction, r
+
+    class FakePage:
+        url = "https://p.example"
+        def __init__(self, present): self.present = present; self.clicked = []
+        async def goto(self, *a, **k): pass
+        async def wait_for_timeout(self, *a): pass
+        async def fill(self, *a, **k): pass
+        async def click(self, sel, **k): self.clicked.append(sel)
+        async def query_selector(self, sel):
+            return object() if (self.present and sel == ".results") else None
+
+    cond = ci.compile_job(ci.BrokerSpec.from_dict({
+        "broker_id": "p", "name": "P", "method": "form", "opt_out_url": "https://p.example",
+        "steps": [{"kind": "pause_for_human", "selector": ".results", "text": "Pick your listing from the results."},
+                  {"kind": "click", "selector": "#go"}]}), {}, member_id="1")
+    page = FakePage(present=False)
+    r1 = asyncio.run(ci.PlaywrightExecutor(page=page).run(cond))
+    assert r1.ok and "#go" in page.clicked, "conditional pause should be skipped when element absent"
+    page2 = FakePage(present=True)
+    r2 = asyncio.run(ci.PlaywrightExecutor(page=page2).run(cond))
+    assert r2.needs_manual and not page2.clicked, "should pause before clicking when element present"
+    # EXPECTED: unconditional pauses always stop; selector pauses stop only when it's on the page.
+    # IF THIS FAILS: flows that need a person either crash or skip the human step.
+
+
+@test(1, "parent.catalog_matching_rules",
+      "Catalog matching: exact domains, brand names only without a TLD, and network suffixes.")
+def t_parent_catalog_matching():
+    pc = _imp("core.parent_catalog")
+    cat = pc.load_catalog()
+    by = {p["name"]: p for p in cat["parents"]}
+    ic = by["PeopleConnect (Intelius)"]
+    m = lambda n, e: pc.matches_child(n, e["children"], e.get("child_suffixes", []))
+    assert m("Instant Checkmate", ic) and m("TruthFinder.com", ic) and m("https://www.zabasearch.com/", ic)
+    assert not m("Publicrecords.us", ic) and not m("Publicrecords.info", ic), "different TLD must not match"
+    sr, cr = by["StateRecords.org network"], by["CourtRecords.us network"]
+    assert m("Texasarrests.org", sr) and m("Texasarrestrecords.org", sr) and m("Staterecords.org", sr)
+    assert not m("Texasarrestwarrants.org", sr) and not m("Courtrec.com", cr)
+    assert m("Massachusetsscourtrecords.us", cr)
+    for p in cat["parents"]:
+        assert p.get("source"), f"{p['name']} has no source"
+    assert pc.cascades_for("SmartBackgroundChecks.com", cat), "cascade lookup failed"
+    # EXPECTED: the right sites are grouped and look-alikes are not.
+    # IF THIS FAILS: a parent email could list (and a family could be told they're
+    #   covered on) sites the parent doesn't run.
+
+
+@test(2, "parent.catalog_apply_is_safe_and_idempotent",
+      "Applying the catalog creates parents, groups brokers, holds unverified emails, and never overrides admins.")
+def t_parent_catalog_apply():
+    db, s = _memory_db()
+    pc = _imp("core.parent_catalog")
+    mine = db.ParentCompany(name="My Own Parent")
+    s.add(mine); s.commit()
+    s.add_all([db.Broker(name="Texasarrests.org"), db.Broker(name="Truthfinder.com"),
+               db.Broker(name="Spokeo.com"), db.Broker(name="Publicrecords.us"),
+               db.Broker(name="Zabasearch.com", parent_company_id=mine.id),
+               db.Broker(name="Ohiocourtrecords.us", is_test=True)])
+    s.commit()
+
+    preview = pc.apply_catalog(s, dry_run=True)
+    assert s.query(db.ParentCompany).count() == 1, "dry run must not write"
+    assert preview["assigned_count"] == 3, preview
+
+    rep = pc.apply_catalog(s)
+    P = {p.name: p for p in s.query(db.ParentCompany).all()}
+    assert P["StateRecords.org network"].optout_email == "privacy@staterecords.org"
+    assert not P["Spokeo"].optout_email, "unverified email must not be applied by default"
+    assert "optout@spokeo.com" in (P["Spokeo"].notes or ""), "held email should be noted for review"
+    B = {b.name: b for b in s.query(db.Broker).all()}
+    assert B["Texasarrests.org"].parent_company_id == P["StateRecords.org network"].id
+    assert B["Truthfinder.com"].parent_company_id == P["PeopleConnect (Intelius)"].id
+    assert B["Publicrecords.us"].parent_company_id is None
+    assert B["Zabasearch.com"].parent_company_id == mine.id, "admin grouping must not be moved"
+    assert any(c["broker"] == "Zabasearch.com" for c in rep["conflicts"])
+    assert B["Ohiocourtrecords.us"].parent_company_id is None, "test brokers are left alone"
+
+    P["Spokeo"].website = "https://admin-set.example"; s.commit()
+    rep2 = pc.apply_catalog(s, include_unverified_emails=True)
+    s.refresh(P["Spokeo"])
+    assert P["Spokeo"].website == "https://admin-set.example", "admin edit overwritten"
+    assert P["Spokeo"].optout_email == "optout@spokeo.com", "opt-in should fill an empty email"
+    assert rep2["assigned_count"] == 0 and not rep2["parents_created"], "second run should be a no-op"
+    s.close()
+    # EXPECTED: safe, repeatable grouping; unverified emails held unless opted in.
+    # IF THIS FAILS: re-running the catalog could clobber admin work or email
+    #   member PII to an address nobody confirmed.
+
+
+@test(1, "broker_plugins.repo_plugins_validate",
+      "Every plugin in broker-plugins/ passes the app's validators and the repo rules.")
+def t_broker_plugins_validate():
+    import importlib.util, io, contextlib
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    path = os.path.join(root, "broker-plugins", "tools", "validate.py")
+    if not os.path.isfile(path):
+        raise Skip("broker-plugins/ not present in this checkout")
+    spec = importlib.util.spec_from_file_location("bp_validate", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        rc = mod.main([])
+    assert rc == 0, out.getvalue()
+    # EXPECTED: all broker plugins valid.
+    # IF THIS FAILS: a plugin in the repo would be rejected on upload; the output says why.
+
+
 # ── runner ────────────────────────────────────────────────────────────────────
 
 def main():
