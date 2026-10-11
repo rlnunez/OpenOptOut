@@ -237,6 +237,8 @@ def delete_identity(
     if not identity:
         raise HTTPException(404, "Identity not found")
     assert_can_edit(db, current_user, identity.member_id)
+    from ..models.database import RequestVariant
+    db.query(RequestVariant).filter(RequestVariant.identity_id == identity.id).delete(synchronize_session=False)
     db.delete(identity)
     db.commit()
 

@@ -483,7 +483,10 @@ def dispatch_parent_optout(
         recheck_dt = datetime.utcnow() + timedelta(days=recheck_days)
         now = datetime.utcnow()
 
+        from .variant_report import record as _record_variants, identities_in_email
+        email_ids = identities_in_email(member, limit=10)   # the parent email lists up to 10 of each
         for req in pending_requests:
+            _record_variants(db, req.id, email_ids)
             req.status = RequestStatus.sent
             req.sent_at = now
             req.request_key = key
@@ -804,8 +807,12 @@ async def execute_optout(
         elif broker.method == OptOutMethod.email:
             # Single exhaustive email covering all variants
             ok = send_opt_out_email(member, broker, key, script, cfg, db)
-            if ok: successes += 1
-            else:  failures  += 1
+            if ok:
+                successes += 1
+                from .variant_report import record as _record_variants, identities_in_email
+                _record_variants(db, request.id, identities_in_email(member))
+            else:
+                failures  += 1
 
             db.add(AutomationLog(
                 request_id=request.id, member_id=member.id, broker_id=broker.id,
@@ -830,8 +837,12 @@ async def execute_optout(
                     interp_res = await _run_form_via_interpreter(request, page, cfg, db, combo=combo)
                     ok = interp_res.ok
                     detail = interp_res.detail or ("ok" if ok else "form flow failed")
-                    if ok: successes += 1
-                    else:  failures  += 1
+                    if ok:
+                        successes += 1
+                        from .variant_report import record as _record_variants, identities_for_combo
+                        _record_variants(db, request.id, identities_for_combo(member, combo))
+                    else:
+                        failures  += 1
 
                     screenshot_path = None
                     if interp_res.needs_captcha:

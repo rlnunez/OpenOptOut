@@ -404,6 +404,22 @@ class WebSearchHit(Base):
     last_seen_at = Column(DateTime, default=datetime.utcnow)
 
 
+class RequestVariant(Base):
+    """
+    Which saved details (identity-vault entries) a removal request actually
+    sent to the broker: every variant for email opt-outs, the submitted
+    combination for each form submission. Drives the per-variant removal
+    report ("main details" vs other variants).
+    """
+    __tablename__ = "request_variants"
+    __table_args__ = (UniqueConstraint("request_id", "identity_id", name="uq_request_variant"),)
+
+    id          = Column(Integer, primary_key=True, index=True)
+    request_id  = Column(Integer, ForeignKey("removal_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    identity_id = Column(Integer, ForeignKey("identities.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at  = Column(DateTime, default=datetime.utcnow)
+
+
 class Identity(Base):
     """PII variants for a family member: name spellings, emails, phones, addresses."""
     __tablename__ = "identities"

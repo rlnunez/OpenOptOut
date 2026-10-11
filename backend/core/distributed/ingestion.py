@@ -282,6 +282,14 @@ class ResultIngestionService:
                             req.status = RequestStatus.needs_manual
                         else:
                             req.status = RequestStatus.submitted
+                            # Distributed jobs submit the member's first (primary) value
+                            # of each kind; record those for the per-variant report.
+                            try:
+                                from ..variant_report import record, identities_in_email
+                                if getattr(req, "member", None) is not None:
+                                    record(db, req.id, identities_in_email(req.member, limit=1))
+                            except Exception:
+                                pass
                         req.sent_at = datetime.utcnow()
 
                         # Broker health success update

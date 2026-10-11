@@ -7829,6 +7829,58 @@ def t_checklist():
     s.close()
 
 
+
+# ── Per-variant removal report ────────────────────────────────────────────────
+
+@test(2, "variants.tracking_and_report",
+      "Requests record which saved details they sent; the report splits main details from other variants.")
+def t_variant_report():
+    db, s = _memory_db()
+    vr = _imp("core.variant_report")
+    cmb = _imp("core.combinations")
+    m = _member_with_vault(db, s)           # Jane Q Public / Jane Public, 123 Main St, one phone, one email
+    s.add(db.Identity(member_id=m.id, kind="address", value="9 Old Rd, Dallas, TX 75201", is_primary=False))
+    s.add(db.Identity(member_id=m.id, kind="phone", value="(214) 555-0199", is_primary=False))
+    s.commit(); s.refresh(m)
+    I = {(i.kind, i.value): i.id for i in m.identities}
+    main = vr.main_identity_ids(m)
+    assert main == {I[("name", "Jane Q Public")], I[("address", "123 Main St, Austin, TX 78701")],
+                    I[("phone", "+1 (512) 555-0134")]}, main
+
+    combo = cmb.IdentityCombo(name="Jane Public", address="9 Old Rd", city="Dallas", state="TX",
+                              phone="(214) 555-0199", email=None)
+    assert set(vr.identities_for_combo(m, combo)) == {I[("name", "Jane Public")], I[("address", "9 Old Rd, Dallas, TX 75201")],
+                                                      I[("phone", "(214) 555-0199")]}
+    assert len(vr.identities_in_email(m)) == 7, "an email lists every saved detail"
+
+    B = [db.Broker(name=f"B{i}", opt_out_url=f"https://b{i}.example") for i in range(4)]
+    s.add_all(B); s.flush()
+    R = db.RequestStatus
+    a = db.RemovalRequest(member_id=m.id, broker_id=B[0].id, status=R.confirmed)   # every detail, removed
+    b = db.RemovalRequest(member_id=m.id, broker_id=B[1].id, status=R.sent)        # main only, waiting
+    c = db.RemovalRequest(member_id=m.id, broker_id=B[2].id, status=R.pending)     # not sent: not counted
+    d = db.RemovalRequest(member_id=m.id, broker_id=B[3].id, status=R.confirmed)   # older, nothing recorded
+    s.add_all([a, b, c, d]); s.flush()
+    sent_all = [i for i in vr.identities_in_email(m) if i != I[("phone", "(214) 555-0199")]]
+    assert vr.record(s, a.id, sent_all) == 6 and vr.record(s, a.id, sent_all) == 0, "recording is idempotent"
+    vr.record(s, b.id, main)
+    vr.record(s, c.id, [I[("name", "Jane Public")]])
+    s.commit()
+
+    rep = vr.member_report(s, m)
+    assert rep["main"] == {"sent": 6, "removed": 3, "count": 3, "never_sent": 0, "percent_removed": 50}, rep["main"]
+    assert rep["variants"] == {"sent": 3, "removed": 3, "count": 4, "never_sent": 1, "percent_removed": 100}, rep["variants"]
+    assert rep["untracked_requests"] == 1
+    labels = {d["label"]: d for d in rep["details"]}
+    assert "••• 0134" in labels and labels["••• 0199"]["brokers_sent"] == 0, "phones are masked"
+    assert "j•••@old.example" in labels
+    fam = vr.family_report(s, [m.id])
+    assert fam["family"]["main"]["percent_removed"] == 50 and fam["untracked_requests"] == 1
+    s.close()
+    # EXPECTED: removal coverage reported separately for main details and other variants.
+    # IF THIS FAILS: the dashboard would overstate (or hide) how far removal has reached.
+
+
 # ── runner ────────────────────────────────────────────────────────────────────
 
 def main():
