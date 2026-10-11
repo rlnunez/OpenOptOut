@@ -67,6 +67,8 @@ SERVER_TEXTS = [
     ("backend/core/spec_drafter.py", "REHEARSAL_TEXTS", None),
     ("backend/core/spec_drafter.py", "WARNING_TEXTS", None),
     ("backend/core/ai_helpers.py", "PROVIDERS", "key_help"),
+    ("backend/core/live_captcha.py", "STATES", None),
+    ("backend/core/live_captcha.py", "PROBLEMS", None),
 ]
 
 

@@ -593,6 +593,7 @@ async def _run_form_via_interpreter(
     combo: Optional[IdentityCombo] = None,
     captcha_solver_override=None,
     preset_listing_url: Optional[str] = None,
+    person_hook_override=None,
 ):
     """
     Run a form opt-out through the unified declarative interpreter engine:
@@ -741,7 +742,8 @@ async def _run_form_via_interpreter(
             page=page, captcha_solver=captcha_solver, plugin_form_handler=form_handler,
             secrets=member_secrets(member), match_profile=match_profile(member),
             unclear_policy=unclear_policy(db, member, cfg), preset_listing_url=preset_listing_url,
-            listing_pattern=getattr(spec, "listing_pattern", "") or "")
+            listing_pattern=getattr(spec, "listing_pattern", "") or "",
+            person_hook=person_hook_override)
         res = await executor.run(job)
         if res.email_rejected and "+" in (job.contact_email or ""):
             res = await _retry_without_plus(db, request, broker, member, spec, combo, member_fields,
@@ -918,6 +920,7 @@ async def execute_optout(
     failures  = 0
     last_error = ""   # captured for broker-health failure classification
     needs_human = ""  # plain-language instruction when a person must finish this
+    handoff = None    # where a person can pick the flow up live (JSON, stored encrypted)
     skipped_note = ""  # set when this was left alone on purpose (unclear matches, by setting)
     not_listed_runs = runs = 0
 
@@ -1094,6 +1097,12 @@ async def execute_optout(
                         needs_human = interp_res.human_instruction or (
                             f"Finish the opt-out for {broker.name} yourself"
                             + (f" at {broker.opt_out_url}" if broker.opt_out_url else "") + ".")
+                        if getattr(interp_res, "pause_step", -1) >= 0:
+                            # Where a person can pick this up on a live page
+                            # (core/live_captcha.py), with the same details.
+                            handoff = __import__("json").dumps({
+                                "combo": combo.as_dict(), "step": interp_res.pause_step,
+                                "kind": interp_res.pause_kind})
 
                     db.add(AutomationLog(
                         request_id=request.id, member_id=member.id, broker_id=broker.id,
@@ -1162,6 +1171,8 @@ async def execute_optout(
         request.notes = needs_human
     else:
         request.status = RequestStatus.failed
+    # Only a form flow a person took over can be picked up live.
+    request.handoff_enc = handoff if request.status == RequestStatus.needs_manual else None
 
     request.request_key = key
     request.updated_at  = datetime.utcnow()

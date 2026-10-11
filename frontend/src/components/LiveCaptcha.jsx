@@ -3,33 +3,41 @@ import { X, MousePointerClick, CheckCircle2, Loader2, CornerDownLeft } from 'luc
 import api from '../api'
 import { tx } from '../i18n/tx'
 
-// Solve a CAPTCHA in the real page. OpenOptOut runs the opt-out again in its
-// own browser up to the CAPTCHA, shows the page here, and passes your clicks
-// and typing to it. When you're done, the opt-out finishes by itself.
+// Finish something in the real page: solve a CAPTCHA, or do a step only a
+// person can do (pick your listing, enter a code, answer a question).
+// OpenOptOut runs the opt-out again in its own browser up to that point, shows
+// the page here, and passes your clicks and typing to it. When you're done,
+// the opt-out finishes by itself.
+//
+// For a CAPTCHA pass `challenge`; for a step pass `base` (`/live-steps/<id>`)
+// and `title`.
 
 const W = 1280, H = 800
 
-export default function LiveCaptcha({ challenge, onClose, onFinished }) {
+export default function LiveCaptcha({ challenge, onClose, onFinished, base, title }) {
   const [st, setSt] = useState(null)
   const [frame, setFrame] = useState('')
   const [text, setText] = useState('')
   const [err, setErr] = useState('')
   const imgRef = useRef(null)
-  const id = challenge.id
+  const path = base || `/captcha/challenges/${challenge.id}/live`
+  const id = path
   const live = st?.active
+  const donePath = base ? 'done' : 'solved'
+  const doneLabel = st?.prompt_kind && st.prompt_kind !== 'captcha' ? tx("I've done this step") : tx("I've solved it")
 
   const poll = useCallback(async () => {
     try {
-      const { data } = await api.get(`/captcha/challenges/${id}/live`)
+      const { data } = await api.get(path)
       setSt(data)
       if (data.state === 'done' || data.state === 'needs_you') onFinished?.()
     } catch (e) { setErr(e.response?.data?.detail || tx("Couldn't reach the live page.")) }
-  }, [id, onFinished])
+  }, [path, onFinished])
 
   useEffect(() => {
-    api.post(`/captcha/challenges/${id}/live`).then(r => setSt(r.data))
+    api.post(path).then(r => setSt(r.data))
       .catch(e => setErr(e.response?.data?.detail || tx("Couldn't start the live page.")))
-  }, [id])
+  }, [path])
 
   useEffect(() => {
     if (st && !st.active) return
@@ -42,7 +50,7 @@ export default function LiveCaptcha({ challenge, onClose, onFinished }) {
     let stop = false, url = ''
     const tick = async () => {
       try {
-        const r = await api.get(`/captcha/challenges/${id}/live/frame`, { responseType: 'blob' })
+        const r = await api.get(`${path}/frame`, { responseType: 'blob' })
         if (r.status === 200 && r.data.size) {
           const next = URL.createObjectURL(r.data)
           setFrame(prev => { if (prev) URL.revokeObjectURL(prev); return next }); url = next
@@ -56,7 +64,7 @@ export default function LiveCaptcha({ challenge, onClose, onFinished }) {
 
   const send = async ev => {
     setErr('')
-    try { await api.post(`/captcha/challenges/${id}/live/input`, ev) }
+    try { await api.post(`${path}/input`, ev) }
     catch (e) { setErr(e.response?.data?.detail || tx("That didn't reach the page.")) }
   }
   const click = e => {
@@ -64,28 +72,35 @@ export default function LiveCaptcha({ challenge, onClose, onFinished }) {
     send({ type: 'click', x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H })
   }
   const solved = async () => {
-    try { await api.post(`/captcha/challenges/${id}/live/solved`); poll() }
+    try { await api.post(`${path}/${donePath}`); poll() }
     catch (e) { setErr(e.response?.data?.detail || tx("Couldn't continue.")) }
   }
-  const stop = async () => { try { await api.delete(`/captcha/challenges/${id}/live`) } catch { /* closing anyway */ } onClose() }
+  const stop = async () => { try { await api.delete(path) } catch { /* closing anyway */ } onClose() }
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 md:p-6" role="dialog" aria-modal="true" aria-labelledby="live-h">
       <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-6xl max-h-[96vh] overflow-y-auto p-4">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
-            <h2 id="live-h" className="text-white font-semibold">{tx("Solve it here: {broker_name} for", { broker_name: challenge.broker_name })}{" "}{challenge.member_name}</h2>
+            <h2 id="live-h" className="text-white font-semibold">
+              {title || <>{tx("Solve it here: {broker_name} for", { broker_name: challenge.broker_name })}{" "}{challenge.member_name}</>}
+            </h2>
             <p className="text-slate-300 text-sm mt-0.5 flex items-center gap-1.5" role="status">
               {live && !st?.can_interact && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
               {st?.state === 'done' && <CheckCircle2 size={14} className="text-emerald-400" aria-hidden="true" />}
-              {st?.message || tx("Starting…")}
+              {st?.message ? tx(st.message) : tx("Starting…")}
             </p>
-            {st?.detail && !st?.active && <p className="text-slate-500 text-xs mt-0.5">{st.detail}</p>}
+            {st?.detail && !st?.active && <p className="text-slate-500 text-xs mt-0.5">{tx(st.detail)}</p>}
           </div>
           <button onClick={st?.active ? stop : onClose} aria-label={tx("Close")} className="p-1.5 text-slate-400 hover:text-white"><X size={18} /></button>
         </div>
         {err && <p role="alert" className="text-red-400 text-sm mb-2">{err}</p>}
 
+        {st?.can_interact && st?.prompt && (
+          <div className="mb-3 px-3 py-2 rounded-lg border border-sky-800 bg-sky-950/40 text-sky-100 text-sm whitespace-pre-line">
+            {st.prompt}
+          </div>
+        )}
         {st?.can_interact && (
           <>
             <div className="relative border border-slate-700 rounded-lg overflow-hidden bg-black">
@@ -110,7 +125,7 @@ export default function LiveCaptcha({ challenge, onClose, onFinished }) {
                   {k === 'Enter' && <CornerDownLeft size={12} aria-hidden="true" />}{label}</button>
               ))}
               <button onClick={solved} className="ml-auto px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-500">
-                {tx("I've solved it")}
+                {doneLabel}
               </button>
             </div>
           </>
@@ -118,7 +133,7 @@ export default function LiveCaptcha({ challenge, onClose, onFinished }) {
         {!st?.active && st && (
           <div className="flex gap-2 mt-2">
             {(st.state === 'failed' || st.state === 'timed_out') &&
-              <button onClick={() => { setSt(null); api.post(`/captcha/challenges/${id}/live`).then(r => setSt(r.data)).catch(e => setErr(e.response?.data?.detail || tx("Couldn't start again."))) }}
+              <button onClick={() => { setSt(null); api.post(path).then(r => setSt(r.data)).catch(e => setErr(e.response?.data?.detail || tx("Couldn't start again."))) }}
                 className="px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700">{tx("Try again")}</button>}
             <button onClick={onClose} className="px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">{tx("Close")}</button>
           </div>

@@ -368,6 +368,8 @@ INSTITUTIONAL_MIGRATIONS = [
      "ALTER TABLE removal_requests ADD COLUMN picked_enc TEXT"),
     ("Add 'skipped' request status — PostgreSQL enum; no-op error on SQLite",
      "ALTER TYPE requeststatus ADD VALUE IF NOT EXISTS 'skipped'"),
+    ("Add handoff_enc to removal_requests (live hand-off for person steps)",
+     "ALTER TABLE removal_requests ADD COLUMN handoff_enc TEXT"),
     ("Add combo_enc to captcha_challenges (live hand-off)",
      "ALTER TABLE captcha_challenges ADD COLUMN combo_enc TEXT"),
     ("Add calendar_token_hash to users (private calendar feed)",

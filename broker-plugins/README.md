@@ -43,7 +43,7 @@ None of these has been run against the live site by OpenOptOut yet (`last_verifi
 - Bump `manifest.version` on every change.
 - Use the field `contact_email` for "where should we send your confirmation" boxes (and in guided `instructions`). It fills in a unique address for that one opt-out (`jane+oo7f3k2a9@gmail.com` on inboxes that allow it), so the reply is matched to its request. Use `email` only when the form wants an address to remove.
 - Use the field `listing_url` for boxes that ask for the address of the person's own listing (Spokeo, Clustal, National Public Data…). It's filled from a listing found by Discovery or pasted under **Find your listings**; if there isn't one yet, the opt-out goes on the checklist asking for it.
-- Any point where a person has to take over (pick a listing, answer a phone call) is a `pause_for_human` step whose `text` tells them, in plain words, exactly what to do.
+- Any point where a person has to take over (pick a listing, answer a phone call) is a `pause_for_human` step whose `text` tells them, in plain words, exactly what to do. The person can do it on the Checklist with **Do it here**: OpenOptOut fills the form again up to that step, shows them the live page, and carries on with the steps after it once they press "I've done this step". So write the text for someone looking at the page ("Enter the 6-digit code the site texted you"), and put any steps that should run afterwards (a final click, `expect_success`) after the pause.
 - Don't copy another project's wording. Facts (URLs, selectors, which fields a form needs) are fine; credit the source in `source` and in [CREDITS.md](../CREDITS.md).
 
 ## Spec fields beyond the steps

@@ -62,6 +62,11 @@ class ExecResult:
     not_listed: bool = False        # the search showed nobody who could be this person
     verified: bool = False          # the page showed the spec's success signal
     email_rejected: bool = False    # the form refused the contact address (e.g. a "+" address)
+    # Where a person took over in a form flow, so they can pick it up live
+    # (core/live_captcha.py): the step index and "pause" (a pause_for_human
+    # step) or "form" (a form OpenOptOut wasn't sure how to fill). -1 = none.
+    pause_step: int = -1
+    pause_kind: str = ""
 
     def to_dict(self) -> dict:
         d = {
@@ -81,6 +86,8 @@ class ExecResult:
             d["verified"] = True
         if self.email_rejected:
             d["email_rejected"] = True
+        if self.pause_step >= 0:
+            d["pause_step"], d["pause_kind"] = self.pause_step, self.pause_kind
         return d
 
     @classmethod
@@ -97,6 +104,8 @@ class ExecResult:
             human_instruction=str(d.get("human_instruction", "")),
             verified=bool(d.get("verified", False)),
             email_rejected=bool(d.get("email_rejected", False)),
+            pause_step=int(d.get("pause_step", -1)),
+            pause_kind=str(d.get("pause_kind", "")),
         )
 
 
@@ -205,7 +214,7 @@ class PlaywrightExecutor(JobExecutor):
 
     def __init__(self, page=None, email_sender=None, captcha_solver=None,
                  plugin_form_handler=None, secrets=None, match_profile=None,
-                 unclear_policy="ask", preset_listing_url=None, listing_pattern=""):
+                 unclear_policy="ask", preset_listing_url=None, listing_pattern="", person_hook=None):
         # page: a Playwright Page (async). email_sender: callable(EmailJob)->ok.
         # captcha_solver: callable(challenge_dict) -> result_dict | None, where
         #   result is {"solved": bool, "token": str, "defer_to_human": bool}.
@@ -226,6 +235,11 @@ class PlaywrightExecutor(JobExecutor):
         self.preset_listing_url = preset_listing_url
         self.listing_pattern = listing_pattern or ""
         self._pick_outcome = None
+        # A person on a live page (core/live_captcha.py): called at a
+        # pause_for_human step, or when a form needs filling by hand, with
+        # {"kind", "text", "step"}; returns True once they've done it, and the
+        # flow carries on from the same page. Without it, the flow stops there.
+        self.person_hook = person_hook
 
     def _target(self):
         """Current interaction target: either an active iframe locator or the main page."""
@@ -402,9 +416,14 @@ class PlaywrightExecutor(JobExecutor):
             if s.kind == "pause_for_human":
                 if await self._should_pause_for_human(s):
                     trace.append(f"[{i}] pause_for_human -> {s.text}")
+                    if self.person_hook is not None and \
+                            await self._maybe_await(self.person_hook({"kind": "pause", "text": s.text, "step": i})):
+                        trace.append(f"[{i}] done by a person on the live page")
+                        continue
                     return ExecResult(ok=False, steps_run=i, steps_total=total,
                                       needs_manual=True, human_instruction=s.text,
-                                      detail="paused for a person to finish", trace=trace)
+                                      detail="paused for a person to finish", trace=trace,
+                                      pause_step=i, pause_kind="pause")
                 trace.append(f"[{i}] pause_for_human skipped ({s.selector} not on page)")
                 continue
             try:
@@ -415,8 +434,16 @@ class PlaywrightExecutor(JobExecutor):
                                       trace=trace, challenge=getattr(self, "last_challenge", None))
             except NeedsPerson as e:
                 trace.append(f"[{i}] {s.kind}: needs a person ({e})")
+                if self.person_hook is not None and await self._maybe_await(self.person_hook({
+                        "kind": "form", "step": i,
+                        "text": (f"OpenOptOut didn't fill in this form, because {e}. Fill in what's missing "
+                                 f"in the page below, asking for your data to be deleted, then press "
+                                 f"\"I've done this step\". OpenOptOut sends it.")})):
+                    trace.append(f"[{i}] form finished by a person on the live page")
+                    continue
                 site = getattr(self.page, "url", "") if isinstance(getattr(self.page, "url", ""), str) else ""
                 return ExecResult(ok=False, steps_run=i, steps_total=total, needs_manual=True, trace=trace,
+                                  pause_step=i, pause_kind="form",
                                   detail=f"form needs a person: {e}",
                                   human_instruction=(f"OpenOptOut found {job.broker_name}'s privacy request form"
                                                      + (f" at {site}" if site else "")
