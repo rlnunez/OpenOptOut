@@ -4,9 +4,14 @@ import api from '../api'
 const AccessibilityContext = createContext(null)
 
 export function AccessibilityProvider({ children }) {
-  // Theme state: 'light' | 'gray' | 'dark' | 'system'
+  // Theme state: 'light' | 'gray' | 'dark' | 'system' | 'space'
   const [theme, setThemeState] = useState(() => {
-    return localStorage.getItem('app_theme') || 'dark'
+    const saved = localStorage.getItem('app_theme')
+    if (saved === 'lcars') {
+      localStorage.setItem('app_theme', 'space')
+      return 'space'
+    }
+    return saved || 'dark'
   })
 
   // System OS color scheme listener
@@ -62,7 +67,7 @@ export function AccessibilityProvider({ children }) {
     const root = document.documentElement
 
     // Remove old theme classes
-    root.classList.remove('theme-light', 'theme-gray', 'theme-dark', 'theme-lcars')
+    root.classList.remove('theme-light', 'theme-gray', 'theme-dark', 'theme-space', 'theme-lcars')
     root.classList.add(`theme-${resolvedTheme}`)
 
     // Contrast classes
@@ -124,9 +129,12 @@ export function AccessibilityProvider({ children }) {
       .then(res => {
         if (res.data?.accessibility_settings) {
           const cfg = res.data.accessibility_settings
-          if (cfg.theme && ['light', 'gray', 'dark', 'system', 'lcars'].includes(cfg.theme)) {
-            setThemeState(cfg.theme)
-            localStorage.setItem('app_theme', cfg.theme)
+          if (cfg.theme) {
+            const normalized = cfg.theme === 'lcars' ? 'space' : cfg.theme
+            if (['light', 'gray', 'dark', 'system', 'space'].includes(normalized)) {
+              setThemeState(normalized)
+              localStorage.setItem('app_theme', normalized)
+            }
           }
           if (typeof cfg.high_contrast === 'boolean') {
             setHighContrastState(cfg.high_contrast)
@@ -170,11 +178,12 @@ export function AccessibilityProvider({ children }) {
   }, [theme, highContrast, dyslexicFont, fontSize, reducedMotion, enhancedTargets])
 
   const setTheme = (nextTheme) => {
-    if (!['light', 'gray', 'dark', 'system', 'lcars'].includes(nextTheme)) return
-    setThemeState(nextTheme)
-    localStorage.setItem('app_theme', nextTheme)
-    persistSettings({ theme: nextTheme })
-    announce(`Theme switched to ${nextTheme}`)
+    const target = nextTheme === 'lcars' ? 'space' : nextTheme
+    if (!['light', 'gray', 'dark', 'system', 'space'].includes(target)) return
+    setThemeState(target)
+    localStorage.setItem('app_theme', target)
+    persistSettings({ theme: target })
+    announce(`Theme switched to ${target === 'space' ? 'Space Explorer' : target}`)
   }
 
   const setFontSize = (size) => {

@@ -83,7 +83,7 @@ const THEMES = [
   { value: 'dark', label: 'Dark', icon: Moon },
   { value: 'light', label: 'Light', icon: Sun },
   { value: 'system', label: 'System', icon: Monitor },
-  { value: 'lcars', label: 'LCARS', icon: Compass },
+  { value: 'space', label: 'Space Explorer', icon: Compass },
 ]
 const ACCENT_PRESETS = [
   { color: '#6366f1', label: 'Indigo' }, { color: '#0ea5e9', label: 'Sky' },

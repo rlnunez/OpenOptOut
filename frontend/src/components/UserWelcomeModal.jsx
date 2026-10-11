@@ -220,7 +220,7 @@ export default function UserWelcomeModal() {
                       { id: 'gray', label: t('a11y.theme_gray', 'Gray'), icon: Sliders, desc: 'Slate neutral' },
                       { id: 'dark', label: t('a11y.theme_dark', 'Dark'), icon: Moon, desc: 'Deep black' },
                       { id: 'system', label: t('a11y.theme_system', 'System'), icon: Laptop, desc: 'Auto match' },
-                      { id: 'lcars', label: t('a11y.theme_lcars', 'LCARS'), icon: Compass, desc: 'Star Trek' },
+                      { id: 'space', label: t('a11y.theme_space', 'Space Explorer'), icon: Compass, desc: 'Deep space' },
                     ].map(item => {
                       const Icon = item.icon
                       const isActive = theme === item.id
