@@ -78,6 +78,8 @@ def build(db, member_ids: list, now=None) -> dict:
             cands = candidates(r)
             if cands:
                 item = {**item, "candidates": cands}
+            if getattr(r, "handoff_enc", None):
+                item = {**item, "live": True}   # "Do it here": pick it up on the live page
             groups["finish"].append(item); p["needs_you"] += 1
         elif r.id in paused and st == RequestStatus.pending:
             groups["captcha"].append({**item, "text": f"{item['broker_name']} asked for a CAPTCHA.",

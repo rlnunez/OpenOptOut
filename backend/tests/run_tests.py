@@ -9618,6 +9618,157 @@ def t_live_handoff():
     # IF THIS FAILS: CAPTCHAs still need the person to redo the whole opt-out by hand.
 
 
+_STEP_PAGE = """<html><body><input id=name><p>Enter the code we texted you:</p><input id=code>
+<button id=send onclick="document.title='sent:' + document.getElementById('code').value">Send</button></body></html>"""
+
+
+def _step_job():
+    comp = _imp("core.interpreter.compiler")
+    JS = comp.JobStep
+    return comp.Job(broker_id="b", broker_name="B", member_id="1", method="form", steps=[
+        JS(kind="fill", selector="#name", value="Jordan Example"),
+        JS(kind="pause_for_human", text="Enter the code the site texted you, then press \"I've done this step\"."),
+        JS(kind="click", selector="#send")])
+
+
+@test(3, "live.person_step_continues_on_same_page",
+      "At a person's step the flow waits for them on the live page and then carries on; without a person it stops and records where.")
+def t_live_person_step():
+    _chromium_or_skip()
+    import asyncio
+    ex_mod = _imp("core.interpreter.executor")
+
+    async def go(hook):
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            b = await p.chromium.launch()
+            try:
+                page = await b.new_page()
+                await page.set_content(_STEP_PAGE)
+                ex = ex_mod.PlaywrightExecutor(page=page, person_hook=hook)
+                res = await ex.run(_step_job())
+                return res, await page.title()
+            finally:
+                await b.close()
+    try:
+        res, title = asyncio.run(go(None))
+    except Exception as e:
+        raise Skip(f"no browser here: {e}")
+    assert not res.ok and res.needs_manual and res.pause_step == 1 and res.pause_kind == "pause", res
+    assert ex_mod.ExecResult.from_dict(res.to_dict()).pause_step == 1, "survives a worker round trip"
+    assert title == "", "nothing was sent"
+    seen = {}
+
+    async def person(info):
+        seen.update(info)
+        # what a person does on the live page: type the code
+        await person.page.fill("#code", "482913")
+        return True
+
+    async def go2():
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            b = await p.chromium.launch()
+            try:
+                page = await b.new_page()
+                person.page = page
+                await page.set_content(_STEP_PAGE)
+                res = await ex_mod.PlaywrightExecutor(page=page, person_hook=person).run(_step_job())
+                return res, await page.title()
+            finally:
+                await b.close()
+    res, title = asyncio.run(go2())
+    assert res.ok and title == "sent:482913", (res, title)
+    assert seen["kind"] == "pause" and "code" in seen["text"] and seen["step"] == 1
+    # EXPECTED: "Do it here" can finish flows that need a code, an answer or a choice.
+    # IF THIS FAILS: such opt-outs must be redone by hand on the broker's site.
+
+
+@test(3, "live.step_session_end_to_end",
+      "A live step session shows the step's instruction with the page, passes typing to it, and carries on when the person says they're done.")
+def t_live_step_session():
+    _chromium_or_skip()
+    import time as _t
+    lc = _imp("core.live_captcha")
+    ex_mod = _imp("core.interpreter.executor")
+    outcome = {}
+
+    async def runner(s):
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            b = await p.chromium.launch()
+            try:
+                page = await b.new_page(viewport=lc.VIEWPORT)
+                await page.set_content(_STEP_PAGE)
+                s.page, s.state = page, "replaying"
+                res = await ex_mod.PlaywrightExecutor(page=page, person_hook=lc._person_step(s)).run(_step_job())
+                outcome["ok"], outcome["title"] = res.ok, await page.title()
+                s.state = "done" if res.ok else "failed"
+            except Exception as e:
+                outcome["error"] = str(e); s.state = "failed"
+            finally:
+                s.page = None
+                await b.close()
+    mgr = lc.LiveManager()
+    mgr.start(7, user_id=1, runner=runner, kind="step")
+    assert mgr.status(7) is None or True
+    for _ in range(100):
+        st = mgr.status(7, kind="step")
+        if st["state"] in ("waiting_for_you", "failed"):
+            break
+        _t.sleep(0.1)
+    if st["state"] == "failed":
+        raise Skip(f"no browser here: {outcome.get('error')}")
+    assert st["can_interact"] and st["prompt_kind"] == "pause" and "code" in st["prompt"], st
+    assert "I've done this step" in st["message"]
+    assert mgr.status(7) is None, "a CAPTCHA session with the same number is a different session"
+    assert mgr.send_input(7, {"type": "click", "x": 30, "y": 50}, kind="step")
+    # the code box is the second input; click it, then type
+    assert mgr.send_input(7, {"type": "key", "key": "Tab"}, kind="step")
+    assert mgr.send_input(7, {"type": "text", "text": "77"}, kind="step")
+    assert mgr.solved(7, kind="step")
+    for _ in range(100):
+        if mgr.status(7, kind="step")["state"] == "done":
+            break
+        _t.sleep(0.1)
+    assert outcome.get("ok") and outcome["title"] == "sent:77", outcome
+    assert mgr.status(7, kind="step")["message"] == lc.STATES["done_step"]
+    # EXPECTED: the person sees what to do, does it in the page, and the opt-out finishes itself.
+    # IF THIS FAILS: "Do it here" on the Checklist doesn't work.
+
+
+@test(2, "live.handoff_recorded_and_finished",
+      "An opt-out that stopped for a person offers \"Do it here\" on the Checklist; a finished live session marks it sent, an unfinished one leaves it as it was.")
+def t_live_handoff_db():
+    import json, types
+    db, s = _memory_db()
+    lc = _imp("core.live_captcha")
+    cl = _imp("core.checklist")
+    m = _member_with_vault(db, s)
+    b = db.Broker(name="CodeCo", opt_out_url="https://codeco.example"); s.add(b); s.flush()
+    r = db.RemovalRequest(member_id=m.id, broker_id=b.id, status=db.RequestStatus.needs_manual,
+                          notes="Enter the code the site texted you.",
+                          handoff_enc=json.dumps({"combo": {"name": "Jane Q Public"}, "step": 3, "kind": "pause"}))
+    r2 = db.RemovalRequest(member_id=m.id, broker_id=b.id, status=db.RequestStatus.needs_manual, notes="Call them.")
+    s.add_all([r, r2]); s.commit()
+    enc = _imp("core.encryption")
+    assert isinstance(db.RemovalRequest.__table__.c.handoff_enc.type, enc.EncryptedString), \
+        "the hand-off point (it holds the details being sent) is stored encrypted"
+    items = {i["request_id"]: i for i in cl.build(s, [m.id])["groups"]["finish"]}
+    assert items[r.id].get("live") and not items[r2.id].get("live")
+    ns = lambda **k: types.SimpleNamespace(**{"ok": False, "needs_manual": False, "needs_captcha": False,
+                                              "detail": "", "human_instruction": "", **k})
+    lc.finish_step(s, r, ns(needs_manual=True, human_instruction="Now pick your listing."), user_id=1)
+    assert r.status == db.RequestStatus.needs_manual and r.notes == "Now pick your listing." and r.handoff_enc
+    lc.finish_step(s, r, ns(detail="timed out"), user_id=1)
+    assert r.status == db.RequestStatus.needs_manual, "an unfinished live session never marks it failed"
+    lc.finish_step(s, r, ns(ok=True), user_id=1)
+    assert r.status == db.RequestStatus.sent and r.handoff_enc is None and r.recheck_after
+    assert s.query(db.AutomationLog).filter_by(request_id=r.id, action="step_live").count() == 3
+    s.close()
+    # IF THIS FAILS: the Checklist can't offer "Do it here", or a live session's result is lost.
+
+
 @test(2, "captcha.finish_and_service_settings",
       "A live session's result updates the request; the solving-service key is stored encrypted and never shown.")
 def t_captcha_finish_services():

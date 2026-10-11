@@ -66,7 +66,7 @@ If `opt_out_url` is set and the steps don't begin with a `navigate`, the compile
 | `solve_captcha` | hand off to the CAPTCHA layer (roadmap item 4) | `selector` |
 | `type` | like `fill`, but key by key, for React/Material UI inputs that ignore a programmatic fill | `selector`, `field` or `value` |
 | `autofill` | fill a privacy-request form by reading its labels; stops for a person when unsure (see [PRIVACY_PAGES.md](PRIVACY_PAGES.md)) | nothing — values come from the member |
-| `pause_for_human` | stop here; a person finishes. With a `selector`, only when that element is on the page | `text` (may use `{field}` placeholders) |
+| `pause_for_human` | stop here for a person. With a `selector`, only when that element is on the page. On the Checklist, **Do it here** replays the flow to this step on a live page (core/live_captcha.py, kind "step"); after the person does it, the flow continues with the next step | `text` (may use `{field}` placeholders) |
 
 Steps run against the current page, or the iframe chosen with `frame` (every action works inside iframes). `click_matching` prefers an element whose whole text matches (so "Kansas" never picks "Arkansas"). A `navigate` URL may contain `{field}` placeholders: values are slugged in the path (`Jane-Doe`) and percent-encoded in the query; a missing value stops the job at compile time.
 

@@ -700,6 +700,10 @@ class RemovalRequest(Base):
     candidates_enc  = Column(EncryptedText, nullable=True)
     picked_enc      = Column(EncryptedText, nullable=True)
     notes         = Column(Text)
+    # Where a person can pick up a form flow that stopped for them (a
+    # pause_for_human step, or a form OpenOptOut wasn't sure how to fill), to
+    # finish it on a live page: {"combo", "step", "kind"}. Encrypted.
+    handoff_enc   = Column(EncryptedText, nullable=True)
     created_at    = Column(DateTime, default=datetime.utcnow)
     updated_at    = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

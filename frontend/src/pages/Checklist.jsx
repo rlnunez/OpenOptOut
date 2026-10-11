@@ -2,10 +2,11 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ListChecks, Inbox, Hand, ShieldAlert, Search, Clock, RotateCcw,
-  ExternalLink, Check, Send, CheckCircle2, MailCheck
+  ExternalLink, Check, Send, CheckCircle2, MailCheck, MousePointerClick
 } from 'lucide-react'
 import api from '../api'
 import { tx } from '../i18n/tx'
+import LiveCaptcha from '../components/LiveCaptcha'
 
 const btn = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm'
 
@@ -83,8 +84,9 @@ function Picker({ item, act }) {
   )
 }
 
-function Item({ group, item, act }) {
+function Item({ group, item, act, reload }) {
   const open = item.listing_url || item.site
+  const [live, setLive] = useState(false)
   return (
     <li className="py-3 flex items-start justify-between gap-3 flex-wrap">
       <div className="min-w-0 flex-1">
@@ -118,6 +120,17 @@ function Item({ group, item, act }) {
             aria-label={tx("Open {broker_name} in a new tab", { broker_name: item.broker_name })}>
             <ExternalLink size={13} aria-hidden="true" />{" "}{tx("Open site")}
           </a>
+        )}
+        {group === 'finish' && item.live && !item.candidates?.length && (
+          <button onClick={() => setLive(true)} className={`${btn} bg-shield-600 hover:bg-shield-500 text-white`}
+            title={tx("OpenOptOut opens the site, fills in the form again up to this step, and shows you the page here. You do the step; OpenOptOut finishes the rest.")}>
+            <MousePointerClick size={13} aria-hidden="true" />{" "}{tx("Do it here")}
+          </button>
+        )}
+        {live && (
+          <LiveCaptcha base={`/live-steps/${item.request_id}`}
+            title={tx("Do it here: {broker_name} for {member_name}", { broker_name: item.broker_name, member_name: item.member_name })}
+            onClose={() => { setLive(false); reload?.() }} onFinished={() => reload?.()} />
         )}
         {group === 'finish' && !item.candidates?.length && (
           <button onClick={() => act('done', item)} className={`${btn} bg-emerald-700 hover:bg-emerald-600 text-white`}>
@@ -214,7 +227,7 @@ export default function Checklist() {
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">{intro}</p>
               <ul className="divide-y divide-slate-700/40 mt-1">
-                {g[key].map((item, i) => <Item key={`${key}-${item.request_id || item.member_id}-${i}`} group={key} item={item} act={act} />)}
+                {g[key].map((item, i) => <Item key={`${key}-${item.request_id || item.member_id}-${i}`} group={key} item={item} act={act} reload={load} />)}
               </ul>
             </section>
           ))}

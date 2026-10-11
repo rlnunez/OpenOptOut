@@ -4283,6 +4283,18 @@
    ]
   },
   {
+   "text": "Do it here",
+   "where": [
+    "pages/Checklist.jsx"
+   ]
+  },
+  {
+   "text": "Do it here: {broker_name} for {member_name}",
+   "where": [
+    "pages/Checklist.jsx"
+   ]
+  },
+  {
    "text": "Do it online",
    "where": [
     "pages/CreditFreeze.jsx"
@@ -4345,6 +4357,18 @@
     "pages/EmailMonitor.jsx",
     "pages/ParentCompanies.jsx",
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Done. OpenOptOut finished the opt-out.",
+   "where": [
+    "server: live_captcha.py"
+   ]
+  },
+  {
+   "text": "Done. The opt-out was sent.",
+   "where": [
+    "server: live_captcha.py"
    ]
   },
   {
@@ -5491,6 +5515,18 @@
    ]
   },
   {
+   "text": "Filling in the opt-out form again, up to the CAPTCHA…",
+   "where": [
+    "server: live_captcha.py"
+   ]
+  },
+  {
+   "text": "Filling in the opt-out form again, up to the step that needs you…",
+   "where": [
+    "server: live_captcha.py"
+   ]
+  },
+  {
    "text": "Filter brokers",
    "where": [
     "pages/BrokerPriority.jsx"
@@ -6329,6 +6365,12 @@
    "text": "I've done this",
    "where": [
     "pages/Checklist.jsx"
+   ]
+  },
+  {
+   "text": "I've done this step",
+   "where": [
+    "components/LiveCaptcha.jsx"
    ]
   },
   {
@@ -9000,6 +9042,12 @@
    ]
   },
   {
+   "text": "Opening the site…",
+   "where": [
+    "server: live_captcha.py"
+   ]
+  },
+  {
    "text": "OpenOptOut asks the site to remove every one (up to 10 per site). This may include other people with the same name.",
    "where": [
     "pages/Settings.jsx"
@@ -9045,6 +9093,12 @@
    "text": "OpenOptOut looks at each site again after an opt-out, and every month after that, to make sure the listing stayed gone. If it's back, the opt-out is sent again.",
    "where": [
     "components/RemovalChecks.jsx"
+   ]
+  },
+  {
+   "text": "OpenOptOut opens the site, fills in the form again up to this step, and shows you the page here. You do the step; OpenOptOut finishes the rest.",
+   "where": [
+    "pages/Checklist.jsx"
    ]
   },
   {
@@ -12336,6 +12390,12 @@
    ]
   },
   {
+   "text": "Something went wrong on the server. An administrator can check the System logs.",
+   "where": [
+    "server: live_captcha.py"
+   ]
+  },
+  {
    "text": "Something went wrong reading the registry.",
    "where": [
     "pages/StateRegistries.jsx"
@@ -12668,6 +12728,12 @@
    "text": "stopped here",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Stopped.",
+   "where": [
+    "server: live_captcha.py"
    ]
   },
   {
@@ -13019,6 +13085,12 @@
    ]
   },
   {
+   "text": "Thanks! Finishing the opt-out…",
+   "where": [
+    "server: live_captcha.py"
+   ]
+  },
+  {
    "text": "That backup code didn't work. Each one works only once.",
    "where": [
     "pages/Login.jsx"
@@ -13047,6 +13119,12 @@
    "text": "That didn't work.",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "That didn't work. You can try again, or finish it on the site yourself.",
+   "where": [
+    "server: live_captcha.py"
    ]
   },
   {
@@ -13164,9 +13242,21 @@
    ]
   },
   {
+   "text": "The server's browser isn't installed. An administrator can check the System logs.",
+   "where": [
+    "server: live_captcha.py"
+   ]
+  },
+  {
    "text": "the service",
    "where": [
     "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "The session closed after 10 minutes without an answer. You can start it again.",
+   "where": [
+    "server: live_captcha.py"
    ]
   },
   {
@@ -13176,9 +13266,27 @@
    ]
   },
   {
+   "text": "The site couldn't be reached.",
+   "where": [
+    "server: live_captcha.py"
+   ]
+  },
+  {
    "text": "The site hides the city and age, so OpenOptOut can't tell. Open each one if you need to look closer.",
    "where": [
     "pages/Checklist.jsx"
+   ]
+  },
+  {
+   "text": "The site needs something else from you. It's on your Checklist.",
+   "where": [
+    "server: live_captcha.py"
+   ]
+  },
+  {
+   "text": "The site took too long to answer.",
+   "where": [
+    "server: live_captcha.py"
    ]
   },
   {
@@ -14930,6 +15038,18 @@
    "text": "Your phone number is one of the main ways data brokers link records together. OpenOptOut handles the sites. Your phone company handles the rest, and only you can change those settings.\n\n**What OpenOptOut does for you:**\n- Searches the web for each saved number.\n- Sends removal requests to caller ID apps (Truecaller, Hiya, Sync.ME, CallApp) and reverse phone lookup sites (Spy Dialer, NumLookup, CallerSmart, ReversePhoneLookup, NumberGuru). Each saved number gets its own request, because these sites list people by number.\n- Checks again later, one search per number, and asks again if a number shows up.\n\n**What to do with your phone company (10 minutes, once):**\n1. **Change or remove the caller ID name.** This is the name people see when you call. Set it to your initials or first name only. See the guide for your carrier below.\n2. **Turn off advertising and data-sharing programs.** Most carriers turn these on by default.\n3. **Limit \"CPNI\" use.** CPNI is the record of who you call, when, and what plan you have. You can tell the carrier not to use it for marketing.\n4. **Turn on number lock / a port-out PIN.** This stops someone from moving your number to another phone (a SIM swap). It's not about privacy, but you'll be on the same settings page.\n5. **Register on the Do Not Call list** at donotcall.gov. It doesn't remove listings, but it cuts sales calls.\n\n**Hide your number on a single call:** dial *67 before the number (US). Calls to 911 and to toll-free numbers still show your number.\n\n**Hide your number on every call:** iPhone: Settings → Apps → Phone → Show My Caller ID. Android: Phone app → Settings → Calls (or Supplementary services) → Caller ID. If the switch is greyed out, ask your carrier for \"per-line caller ID blocking\".\n\n**Old landline?** Ask the phone company to make the number \"non-published\" so it stays out of directories. There may be a monthly fee.",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "Your turn: do the step below in the page, then press \"I've done this step\".",
+   "where": [
+    "server: live_captcha.py"
+   ]
+  },
+  {
+   "text": "Your turn: solve the CAPTCHA in the picture below, then press \"I've solved it\".",
+   "where": [
+    "server: live_captcha.py"
    ]
   },
   {
