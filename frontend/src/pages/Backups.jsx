@@ -13,14 +13,17 @@ const FIELDS = {
        ['region', 'Region (e.g. us-east-1; "auto" for some services)'], ['bucket', 'Bucket'], ['prefix', 'Folder in the bucket (optional)'],
        ['access_key', 'Access key'], ['secret_key', 'Secret key', 'password']],
   gdrive: [], onedrive: [], dropbox: [],
+  rclone: [['remote', 'Remote name (the name in [brackets] in rclone.conf)'], ['path', 'Folder (optional)'],
+           ['rclone_config', "The remote's settings, pasted from rclone.conf", 'textarea']],
 }
 const HELP = {
-  folder: 'A folder on this server, or a network drive mounted into it (NFS or SMB).',
+  folder: 'A folder on this server, or a network drive mounted into it (NFS or SMB). On a Windows or Mac server, this can also be the folder a desktop app syncs, such as Proton Drive, so the backups go to that cloud without signing in here.',
   sftp: 'Any server you can reach with SFTP. Its identity is remembered the first time, so a different server can\'t pretend to be it.',
   s3: 'Amazon S3, Google Cloud Storage (with HMAC keys), Backblaze B2, Wasabi, MinIO and other S3-compatible storage.',
   gdrive: 'Saves into an "OpenOptOut backups" folder. OpenOptOut can only see files it made there.',
   onedrive: "Saves into OpenOptOut's own app folder in OneDrive.",
   dropbox: "Saves into OpenOptOut's own app folder in Dropbox.",
+  rclone: 'Proton Drive, Box, pCloud, MEGA, iCloud Drive, Nextcloud and many more, through rclone. Run "rclone config" on any computer to set up the remote, then paste its section of rclone.conf here. It is stored encrypted. For Proton Drive, this uses rclone\'s unofficial connection, which needs your Proton password and can break when Proton changes things.',
 }
 
 export default function Backups() {

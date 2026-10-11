@@ -9115,6 +9115,66 @@ def t_i18n_full_coverage():
     # IF THIS FAILS: part of the screen stays in English for that language.
 
 
+@test(2, "backup.rclone_destination",
+      "The rclone option uploads, lists and deletes through rclone with a private temp config, and checks its inputs.")
+def t_backup_rclone():
+    import os, stat, tempfile, shutil as _sh
+    bk = _imp("core.backup")
+    oe = _imp("core.oauth_engine")
+    work = tempfile.mkdtemp()
+    store, bindir = os.path.join(work, "store"), os.path.join(work, "bin")
+    os.makedirs(store); os.makedirs(bindir)
+    log = os.path.join(work, "calls")
+    fake = os.path.join(bindir, "rclone")
+    with open(fake, "w") as f:
+        f.write(f"""#!/bin/sh
+# fake rclone: --config FILE ... CMD ARGS ; remote "r:dir/name" maps to {store}/dir/name
+conf="$2"; [ -f "$conf" ] || exit 9
+perm=$(stat -c %a "$conf"); echo "$perm $*" >> {log}
+shift 2; while [ "${{1#--}}" != "$1" ]; do shift 2; done
+cmd="$1"; shift
+loc() {{ p="${{1#*:}}"; echo "{store}/$p"; }}
+case "$cmd" in
+  copyto) mkdir -p "$(dirname "$(loc "$2")")"; cp "$1" "$(loc "$2")";;
+  lsf) d="$(loc "$2")"; ls -1 "$d" 2>/dev/null;;
+  deletefile) rm "$(loc "$1")";;
+  *) echo "unknown $cmd" >&2; exit 3;;
+esac
+""")
+    os.chmod(fake, stat.S_IRWXU)
+    old = os.environ.get("PATH", "")
+    os.environ["PATH"] = bindir + os.pathsep + old
+    try:
+        conf = {"kind": "rclone", "remote": "proton", "path": "oo/backups",
+                "config_enc": oe._encrypt("[proton]\ntype = protondrive\n")}
+        d = bk.destination(conf, {})
+        d.test()                                   # write, list, delete a test file
+        src = os.path.join(work, "b.oobackup"); open(src, "wb").write(b"x")
+        d.upload(src, bk.PREFIX + "2026.oobackup")
+        assert d.names() == [bk.PREFIX + "2026.oobackup"]
+        d.delete(bk.PREFIX + "2026.oobackup")
+        assert d.names() == []
+        calls = open(log).read().splitlines()
+        assert calls and all(c.startswith("600 ") for c in calls), "config file is private"
+        assert not [n for n in os.listdir(tempfile.gettempdir()) if n.startswith("oo-rclone-")], "temp config removed"
+        for bad in ({"remote": "pro ton"}, {"remote": "proton", "path": "../etc"}):
+            try:
+                bk.destination({**conf, **bad}, {}).names()
+                raise AssertionError(f"accepted {bad}")
+            except RuntimeError:
+                pass
+        try:
+            bk.destination({**conf, "config_enc": ""}, {}).names()
+            raise AssertionError("ran without a config")
+        except RuntimeError as e:
+            assert "rclone.conf" in str(e)
+    finally:
+        os.environ["PATH"] = old
+        _sh.rmtree(work, ignore_errors=True)
+    # EXPECTED: backups reach any rclone remote (Proton Drive, Box, pCloud...).
+    # IF THIS FAILS: the "Other cloud storage" option can't upload, or leaves its config lying around.
+
+
 def main():
     ap = argparse.ArgumentParser(description="OpenOptOut test runner")
     ap.add_argument("--tier", type=int, default=4, help="run tiers up to N (1-4)")

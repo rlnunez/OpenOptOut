@@ -35,15 +35,18 @@ router = APIRouter(prefix="/api/backups", tags=["backups"])
 _RUN = {"running": False}
 _LOCK = threading.Lock()
 
-SECRET_FIELDS = {"password": "password_enc", "private_key": "private_key_enc", "secret_key": "secret_enc"}
+SECRET_FIELDS = {"password": "password_enc", "private_key": "private_key_enc", "secret_key": "secret_enc",
+                 "rclone_config": "config_enc"}
 PUBLIC_FIELDS = {
     "folder": ("path",),
     "sftp": ("host", "port", "username", "path", "host_key"),
     "s3": ("endpoint", "region", "bucket", "prefix", "access_key"),
     "gdrive": (), "onedrive": (), "dropbox": (),
+    "rclone": ("remote", "path"),
 }
 LABELS = {"folder": "Folder or network drive", "sftp": "SFTP server", "s3": "S3-compatible storage",
-          "gdrive": "Google Drive", "onedrive": "OneDrive", "dropbox": "Dropbox"}
+          "gdrive": "Google Drive", "onedrive": "OneDrive", "dropbox": "Dropbox",
+          "rclone": "Other cloud storage (rclone)"}
 
 
 def _save(cfg):
@@ -146,6 +149,8 @@ class DestIn(BaseModel):
     prefix: Optional[str] = None
     access_key: Optional[str] = None
     secret_key: Optional[str] = None
+    remote: Optional[str] = None
+    rclone_config: Optional[str] = None
 
 
 def _apply(d: dict, body: DestIn):
@@ -166,6 +171,8 @@ def _apply(d: dict, body: DestIn):
         raise HTTPException(400, "Enter the server address and user name.")
     if body.kind == "s3" and not (d.get("bucket") and d.get("access_key") and d.get("secret_enc")):
         raise HTTPException(400, "Enter the bucket, access key and secret key.")
+    if body.kind == "rclone" and not (d.get("remote") and d.get("config_enc")):
+        raise HTTPException(400, "Enter the remote's name and paste its settings from rclone.conf.")
 
 
 @router.post("/destinations")
