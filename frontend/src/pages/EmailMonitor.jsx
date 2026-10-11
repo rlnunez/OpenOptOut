@@ -32,7 +32,7 @@ function EmailRow({ log }) {
     <div className="border-t border-slate-700/30">
       <button
         onClick={() => setExpanded(e => !e)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700/20 transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700/20 transition-colors text-start"
       >
         <span className={`shrink-0 ${matched ? 'text-emerald-400' : log.direction === 'sent' ? 'text-blue-400' : 'text-slate-600'}`}>
           {log.direction === 'sent' ? <Mail size={13} /> : matched ? <Check size={13} /> : <AlertCircle size={13} />}
@@ -59,7 +59,7 @@ function EmailRow({ log }) {
         </div>
       </button>
       {expanded && log.body_snippet && (
-        <div className="px-4 pb-3 ml-7">
+        <div className="px-4 pb-3 ms-7">
           <pre className="text-slate-500 text-xs font-mono whitespace-pre-wrap bg-slate-900 rounded-lg p-3 border border-slate-700 max-h-32 overflow-y-auto">
             {log.body_snippet}
           </pre>
@@ -83,10 +83,10 @@ function PollHistory({ history }) {
         <table className="w-full text-xs">
         <thead>
           <tr className="text-slate-600 border-b border-slate-700/30">
-            <th className="text-left px-4 py-2 font-normal">{tx("Time")}</th>
-            <th className="text-left px-4 py-2 font-normal">{tx("Result")}</th>
-            <th className="text-left px-4 py-2 font-normal">{tx("Replies found")}</th>
-            <th className="text-left px-4 py-2 font-normal">{tx("Took")}</th>
+            <th className="text-start px-4 py-2 font-normal">{tx("Time")}</th>
+            <th className="text-start px-4 py-2 font-normal">{tx("Result")}</th>
+            <th className="text-start px-4 py-2 font-normal">{tx("Replies found")}</th>
+            <th className="text-start px-4 py-2 font-normal">{tx("Took")}</th>
           </tr>
         </thead>
         <tbody>

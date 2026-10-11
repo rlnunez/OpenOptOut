@@ -66,8 +66,8 @@ function TableRow({ table }) {
           {open ? <ChevronDown size={12} className="text-slate-500" /> : <ChevronRight size={12} className="text-slate-500" />}
           {table.name}
         </td>
-        <td className="px-4 py-2.5 text-slate-300 text-sm text-right">{table.row_count?.toLocaleString() ?? '—'}</td>
-        <td className="px-4 py-2.5 text-slate-500 text-sm text-right">{size ?? '—'}</td>
+        <td className="px-4 py-2.5 text-slate-300 text-sm text-end">{table.row_count?.toLocaleString() ?? '—'}</td>
+        <td className="px-4 py-2.5 text-slate-500 text-sm text-end">{size ?? '—'}</td>
       </tr>
       {open && (
         <tr className="bg-slate-900/30">
@@ -262,7 +262,7 @@ function ConnectionConfig({ readOnly = false }) {
       <label className="flex items-center gap-2 cursor-pointer">
         <div onClick={() => setConfig(c => ({...c, enabled: !c.enabled}))}
           className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.enabled ? 'bg-shield-600' : 'bg-slate-700'}`}>
-          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.enabled ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
         </div>
         <span className="text-slate-300 text-sm">{tx("Use structured connection config (instead of DATABASE_URL)")}</span>
       </label>
@@ -274,12 +274,12 @@ function ConnectionConfig({ readOnly = false }) {
             <label className="text-slate-400 text-xs mb-1 block">{tx("Authentication method")}</label>
             <div className="relative">
               <select value={config.auth_method} onChange={e => setConfig(c => ({...c, auth_method: e.target.value}))}
-                className={inp + ' appearance-none pr-8'}>
+                className={inp + ' appearance-none pe-8'}>
                 {Object.entries(methods).map(([key, m]) => (
                   <option key={key} value={key}>{m.label}</option>
                 ))}
               </select>
-              <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              <ChevronDown size={12} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
             {method.note && (
               <p className="text-slate-500 text-xs mt-1.5 bg-slate-900 rounded-lg px-3 py-2">{method.note}</p>
@@ -298,7 +298,7 @@ function ConnectionConfig({ readOnly = false }) {
           <Field label={tx("SSL mode")} hint={tx("verify-full is strongest; requires a CA certificate")}>
             <div className="relative">
               <select value={config.sslmode} onChange={e => setConfig(c => ({...c, sslmode: e.target.value}))}
-                className={inp + ' appearance-none pr-8'}>
+                className={inp + ' appearance-none pe-8'}>
                 <option value="disable">{tx("disable — no encryption (not recommended)")}</option>
                 <option value="allow">{tx("allow")}</option>
                 <option value="prefer">{tx("prefer")}</option>
@@ -306,7 +306,7 @@ function ConnectionConfig({ readOnly = false }) {
                 <option value="verify-ca">{tx("verify-ca — encrypt + verify CA")}</option>
                 <option value="verify-full">{tx("verify-full — encrypt + verify CA + hostname")}</option>
               </select>
-              <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              <ChevronDown size={12} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
           </Field>
 
@@ -400,9 +400,9 @@ function ConnectionConfig({ readOnly = false }) {
               {saving ? tx("Saving…") : tx("Save config")}
             </button>
           </div>
-          <p className="text-slate-600 text-xs text-right">{tx("Restart the container for changes to take effect.")}</p>
+          <p className="text-slate-600 text-xs text-end">{tx("Restart the container for changes to take effect.")}</p>
           </>}
-          {readOnly && <p className="text-slate-600 text-xs text-right">{tx("Only a super admin can test or change the connection.")}</p>}
+          {readOnly && <p className="text-slate-600 text-xs text-end">{tx("Only a super admin can test or change the connection.")}</p>}
         </>
       )}
     </div>
@@ -522,9 +522,9 @@ export default function DatabaseAdmin() {
                 <table className="w-full text-sm">
                 <thead>
                   <tr className="text-slate-500 text-xs border-b border-slate-700/50">
-                    <th className="text-left px-4 py-3 font-normal">{tx("Table")}</th>
-                    <th className="text-right px-4 py-3 font-normal">{tx("Rows")}</th>
-                    <th className="text-right px-4 py-3 font-normal">{tx("Size")}</th>
+                    <th className="text-start px-4 py-3 font-normal">{tx("Table")}</th>
+                    <th className="text-end px-4 py-3 font-normal">{tx("Rows")}</th>
+                    <th className="text-end px-4 py-3 font-normal">{tx("Size")}</th>
                   </tr>
                 </thead>
                 <tbody>

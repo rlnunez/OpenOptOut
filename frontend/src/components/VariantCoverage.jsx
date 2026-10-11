@@ -50,7 +50,7 @@ export default function VariantCoverage() {
           {data.members.map(m => (
             <li key={m.member_id} className="py-2">
               <button type="button" onClick={() => setOpen(open === m.member_id ? null : m.member_id)}
-                aria-expanded={open === m.member_id} className="w-full flex items-center justify-between gap-2 text-left">
+                aria-expanded={open === m.member_id} className="w-full flex items-center justify-between gap-2 text-start">
                 <span className="flex items-center gap-1.5 text-sm text-slate-200">
                   {open === m.member_id ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
                   {m.member_name}
@@ -63,19 +63,19 @@ export default function VariantCoverage() {
               {open === m.member_id && (
                 <div className="overflow-x-auto mt-2">
                   <table className="w-full text-xs">
-                    <thead><tr className="text-left text-slate-500">
-                      <th scope="col" className="py-1 pr-2 font-medium">{tx("Detail")}</th>
-                      <th scope="col" className="py-1 pr-2 font-medium">{tx("Type")}</th>
-                      <th scope="col" className="py-1 pr-2 font-medium text-right">{tx("Sent to")}</th>
-                      <th scope="col" className="py-1 font-medium text-right">{tx("Removed at")}</th>
+                    <thead><tr className="text-start text-slate-500">
+                      <th scope="col" className="py-1 pe-2 font-medium">{tx("Detail")}</th>
+                      <th scope="col" className="py-1 pe-2 font-medium">{tx("Type")}</th>
+                      <th scope="col" className="py-1 pe-2 font-medium text-end">{tx("Sent to")}</th>
+                      <th scope="col" className="py-1 font-medium text-end">{tx("Removed at")}</th>
                     </tr></thead>
                     <tbody>
                       {m.details.map(d => (
                         <tr key={d.identity_id} className="border-t border-slate-700/30">
-                          <td className="py-1 pr-2 text-slate-200">{d.label}{d.group === 'main' && <span className="ml-1.5 text-[10px] text-shield-300">{tx("main")}</span>}</td>
-                          <td className="py-1 pr-2 text-slate-400">{KIND[d.kind] || d.kind}</td>
-                          <td className="py-1 pr-2 text-right text-slate-300">{d.brokers_sent}</td>
-                          <td className={`py-1 text-right ${d.brokers_sent && d.brokers_removed === d.brokers_sent ? 'text-emerald-300' : 'text-slate-300'}`}>{d.brokers_removed}</td>
+                          <td className="py-1 pe-2 text-slate-200">{d.label}{d.group === 'main' && <span className="ms-1.5 text-[10px] text-shield-300">{tx("main")}</span>}</td>
+                          <td className="py-1 pe-2 text-slate-400">{KIND[d.kind] || d.kind}</td>
+                          <td className="py-1 pe-2 text-end text-slate-300">{d.brokers_sent}</td>
+                          <td className={`py-1 text-end ${d.brokers_sent && d.brokers_removed === d.brokers_sent ? 'text-emerald-300' : 'text-slate-300'}`}>{d.brokers_removed}</td>
                         </tr>
                       ))}
                     </tbody>

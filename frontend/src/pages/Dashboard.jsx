@@ -286,7 +286,7 @@ export default function Dashboard() {
             <div className="space-y-2">
               {recheck.slice(0, 5).map(r => (
                 <div key={r.id} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-300 truncate mr-2">{r.broker_name}</span>
+                  <span className="text-slate-300 truncate me-2">{r.broker_name}</span>
                   <span className="text-orange-400 text-xs shrink-0">
                     {r.recheck_after
                       ? new Date(r.recheck_after) < new Date()
@@ -326,11 +326,11 @@ function RecentRequests() {
       <table className="w-full text-sm">
       <thead>
         <tr className="text-slate-500 text-xs">
-          <th className="text-left px-4 py-2 font-normal">{tx("Site")}</th>
-          <th className="text-left px-4 py-2 font-normal">{tx("Person")}</th>
-          <th className="text-left px-4 py-2 font-normal">{tx("Where it's at")}</th>
-          <th className="text-left px-4 py-2 font-normal">{tx("How")}</th>
-          <th className="text-left px-4 py-2 font-normal">{tx("Check again")}</th>
+          <th className="text-start px-4 py-2 font-normal">{tx("Site")}</th>
+          <th className="text-start px-4 py-2 font-normal">{tx("Person")}</th>
+          <th className="text-start px-4 py-2 font-normal">{tx("Where it's at")}</th>
+          <th className="text-start px-4 py-2 font-normal">{tx("How")}</th>
+          <th className="text-start px-4 py-2 font-normal">{tx("Check again")}</th>
         </tr>
       </thead>
       <tbody>

@@ -144,7 +144,7 @@ function mdToHtml(md) {
         i++
       }
       const thead = headers.map(c =>
-        `<th class="text-left px-3 py-1.5 border-b border-slate-700 text-slate-300 font-medium">${renderInline(escapeHtml(c))}</th>`).join('')
+        `<th class="text-start px-3 py-1.5 border-b border-slate-700 text-slate-300 font-medium">${renderInline(escapeHtml(c))}</th>`).join('')
       const tbody = rows.map(r =>
         `<tr>${r.map(c => `<td class="px-3 py-1.5 border-b border-slate-800 text-slate-400 align-top">${renderInline(escapeHtml(c))}</td>`).join('')}</tr>`).join('')
       out.push(`<div class="my-3 overflow-x-auto"><table class="w-full text-xs border-collapse"><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div>`)
@@ -159,7 +159,7 @@ function mdToHtml(md) {
         quote.push(escapeHtml(lines[i].replace(/^>\s?/, '')))
         i++
       }
-      out.push(`<blockquote class="my-3 pl-3 border-l-2 border-shield-700 text-slate-400 text-sm italic">${renderInline(quote.join(' '))}</blockquote>`)
+      out.push(`<blockquote class="my-3 ps-3 border-s-2 border-shield-700 text-slate-400 text-sm italic">${renderInline(quote.join(' '))}</blockquote>`)
       continue
     }
 
@@ -170,12 +170,12 @@ function mdToHtml(md) {
       const items = []
       while (i < lines.length && /^\s*([-*+]|\d+\.)\s+/.test(lines[i])) {
         const item = lines[i].replace(/^\s*([-*+]|\d+\.)\s+/, '')
-        items.push(`<li class="text-slate-300 text-sm my-0.5 ml-1">${renderInline(escapeHtml(item))}</li>`)
+        items.push(`<li class="text-slate-300 text-sm my-0.5 ms-1">${renderInline(escapeHtml(item))}</li>`)
         i++
       }
       const tag = ordered ? 'ol' : 'ul'
       const listCls = ordered ? 'list-decimal' : 'list-disc'
-      out.push(`<${tag} class="${listCls} pl-5 my-2 space-y-0.5">${items.join('')}</${tag}>`)
+      out.push(`<${tag} class="${listCls} ps-5 my-2 space-y-0.5">${items.join('')}</${tag}>`)
       continue
     }
 

@@ -86,10 +86,10 @@ export default function BrokerHealth() {
             {t.label}
           </button>
         ))}
-        <div className="relative ml-auto">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+        <div className="relative ms-auto">
+          <Search size={13} className="absolute start-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={tx("Filter by name")}
-            className="pl-8 pr-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 w-44" />
+            className="ps-8 pe-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 w-44" />
         </div>
       </div>
 
@@ -112,11 +112,11 @@ export default function BrokerHealth() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-slate-500 text-xs border-b border-slate-700/50">
-                  <th className="text-left px-4 py-3 font-normal">{tx("Broker")}</th>
-                  <th className="text-left px-4 py-3 font-normal">{tx("State")}</th>
-                  <th className="text-left px-4 py-3 font-normal">{tx("Last failure")}</th>
-                  <th className="text-left px-4 py-3 font-normal">{tx("Success rate")}</th>
-                  <th className="text-right px-4 py-3 font-normal">{tx("Action")}</th>
+                  <th className="text-start px-4 py-3 font-normal">{tx("Broker")}</th>
+                  <th className="text-start px-4 py-3 font-normal">{tx("State")}</th>
+                  <th className="text-start px-4 py-3 font-normal">{tx("Last failure")}</th>
+                  <th className="text-start px-4 py-3 font-normal">{tx("Success rate")}</th>
+                  <th className="text-end px-4 py-3 font-normal">{tx("Action")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -183,7 +183,7 @@ export default function BrokerHealth() {
                           {tx("{total_successes}/{total_attempts} ok", { total_successes: r.total_successes, total_attempts: r.total_attempts })}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-end">
                         <button
                           onClick={() => toggle(r, !r.enabled)}
                           disabled={busy === r.broker_id}

@@ -112,12 +112,12 @@ export default function Brokers() {
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-4">
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search size={13} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder={tx("Search sites…")}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-shield-500"
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg ps-8 pe-3 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-shield-500"
           />
         </div>
         <Select value={status} onChange={setStatus} options={STATUS_OPTIONS} label={tx("Any track record")} />
@@ -131,13 +131,13 @@ export default function Brokers() {
           <table className="w-full text-sm">
           <thead>
             <tr className="text-slate-500 text-xs border-b border-slate-700/50">
-              <th className="text-left px-4 py-3 font-normal">{tx("Site")}</th>
-              <th className="text-left px-4 py-3 font-normal">{tx("Track record")}</th>
-              <th className="text-left px-4 py-3 font-normal">{tx("How to ask")}</th>
-              <th className="text-left px-4 py-3 font-normal">{tx("Difficulty")}</th>
-              <th className="text-left px-4 py-3 font-normal">{tx("CAPTCHA helper")}</th>
-              <th className="text-left px-4 py-3 font-normal">{tx("Last request")}</th>
-              <th className="text-left px-4 py-3 font-normal">{tx("Check again")}</th>
+              <th className="text-start px-4 py-3 font-normal">{tx("Site")}</th>
+              <th className="text-start px-4 py-3 font-normal">{tx("Track record")}</th>
+              <th className="text-start px-4 py-3 font-normal">{tx("How to ask")}</th>
+              <th className="text-start px-4 py-3 font-normal">{tx("Difficulty")}</th>
+              <th className="text-start px-4 py-3 font-normal">{tx("CAPTCHA helper")}</th>
+              <th className="text-start px-4 py-3 font-normal">{tx("Last request")}</th>
+              <th className="text-start px-4 py-3 font-normal">{tx("Check again")}</th>
               <th className="px-4 py-3 font-normal"></th>
             </tr>
           </thead>
@@ -155,7 +155,7 @@ export default function Brokers() {
               <tr className="border-t border-slate-700/30 hover:bg-slate-700/20 transition-colors">
                 <td className="px-4 py-2.5 text-slate-200 font-medium">
                   <button onClick={() => setOpenId(id => id === b.id ? null : b.id)} aria-expanded={openId === b.id}
-                    aria-controls={`hist-${b.id}`} className="flex items-center gap-1 text-left hover:text-white"
+                    aria-controls={`hist-${b.id}`} className="flex items-center gap-1 text-start hover:text-white"
                     title={tx("Show the history of requests to this site")}>
                     {openId === b.id ? <ChevronDown size={13} aria-hidden="true" /> : <ChevronRight size={13} aria-hidden="true" />}
                     {b.name}
@@ -238,13 +238,13 @@ function Select({ value, onChange, options, label }) {
         value={value}
         aria-label={label}
         onChange={e => onChange(e.target.value)}
-        className="w-full appearance-none bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-7 py-1.5 text-sm text-slate-300 focus:outline-hidden focus:border-shield-500"
+        className="w-full appearance-none bg-slate-800 border border-slate-700 rounded-lg ps-3 pe-7 py-1.5 text-sm text-slate-300 focus:outline-hidden focus:border-shield-500"
       >
         {options.map(o => (
           <option key={o} value={o}>{o ? plainLabel(o) : label}</option>
         ))}
       </select>
-      <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+      <ChevronDown size={11} className="absolute end-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
     </div>
   )
 }

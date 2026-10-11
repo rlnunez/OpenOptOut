@@ -57,7 +57,7 @@ function MatrixPreview({ stats, memberId }) {
       <div className="flex items-center gap-2 mb-3">
         <Grid3X3 size={13} className="text-shield-400" />
         <p className="text-slate-300 text-sm font-medium">{tx("How many searches this adds up to")}</p>
-        <span className="text-slate-600 text-xs ml-auto">
+        <span className="text-slate-600 text-xs ms-auto">
           {tx("Each site gets searched once for every mix of your details")}
         </span>
       </div>
@@ -160,11 +160,11 @@ function MemberSelector({ members, selectedId, onChange }) {
   return (
     <div className="relative">
       <select value={selectedId ?? ''} onChange={e => onChange(parseInt(e.target.value))}
-        className="appearance-none bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-200 focus:outline-hidden focus:border-shield-500 min-w-48">
+        className="appearance-none bg-slate-800 border border-slate-700 rounded-lg ps-3 pe-8 py-2 text-sm text-slate-200 focus:outline-hidden focus:border-shield-500 min-w-48">
         <option value="" disabled>{tx("Choose a person…")}</option>
         {members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
       </select>
-      <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+      <ChevronDown size={12} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
     </div>
   )
 }

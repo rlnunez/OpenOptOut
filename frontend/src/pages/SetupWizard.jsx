@@ -130,7 +130,7 @@ function DatabaseStep({ onNext, onSkip, busy, setError }) {
           </div>
         </label>
         {kind === 'postgres' && (
-          <div className="grid grid-cols-2 gap-2 pl-2 pt-1">
+          <div className="grid grid-cols-2 gap-2 ps-2 pt-1">
             <input className={inp} placeholder={tx("Host (e.g. db.internal)")} value={pg.host} onChange={e => setPg({ ...pg, host: e.target.value })} />
             <input className={inp} placeholder={tx("Port")} value={pg.port} onChange={e => setPg({ ...pg, port: +e.target.value || 5432 })} />
             <input className={inp} placeholder={tx("Database name")} value={pg.database} onChange={e => setPg({ ...pg, database: e.target.value })} />
@@ -447,7 +447,7 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
           </label>
           {/* Follow-up questions sit OUTSIDE the label above: nested labels are invalid HTML and make screen readers announce this whole panel as one option. */}
           {mode === 'managed' && (
-            <div className="mt-3 space-y-3 sm:pl-7">
+            <div className="mt-3 space-y-3 sm:ps-7">
               <input className={inp} placeholder={tx("Domain, if you know it yet (e.g. privacy.yourlibrary.org) — optional")}
                 aria-label={tx("Domain (optional)")} value={domain} onChange={e => setDomain(e.target.value)} />
               <fieldset className="space-y-2">
@@ -485,7 +485,7 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
                     <summary className="text-slate-400 text-xs cursor-pointer select-none py-1 hover:text-slate-200">{tx("Advanced")}</summary>
                     <div className="mt-2">
                       <SubChoice name="certificate" value="incommon" current={certificate} onChange={setCertificate}
-                        title={<>{txr("InCommon (CERTInext) <0>Beta · untested</0>", [<span className="ml-1 inline-block whitespace-nowrap text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded-sm bg-amber-900/60 text-amber-200 align-middle" />])}</>}>
+                        title={<>{txr("InCommon (CERTInext) <0>Beta · untested</0>", [<span className="ms-1 inline-block whitespace-nowrap text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded-sm bg-amber-900/60 text-amber-200 align-middle" />])}</>}>
                         {tx("Mostly for universities and research institutions in InCommon, which get free certificates through CERTInext. Setup will ask for the ACME key ID, HMAC key and server address from your campus IT, and won't continue without them, so have them ready.")}
                       </SubChoice>
                     </div>
@@ -569,9 +569,9 @@ function HexColorField({ label, value, onChange, placeholder = '#4f46e5' }) {
       {label && <p className="text-slate-400 text-xs mb-1">{label}</p>}
       <div className="relative">
         <button type="button" onClick={() => colorRef.current?.click()}
-          className="absolute left-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-sm border border-slate-600"
+          className="absolute start-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-sm border border-slate-600"
           style={{ background: swatchColor }} title={tx("Pick a color")} />
-        <input className={`${inp} pl-9 font-mono`} placeholder={placeholder}
+        <input className={`${inp} ps-9 font-mono`} placeholder={placeholder}
           value={value} onChange={e => onChange(e.target.value)} />
         {/* Visually hidden but real — native color pickers can't be built from
             scratch, so this is what actually renders the OS/browser picker. */}

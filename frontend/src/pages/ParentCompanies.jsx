@@ -322,9 +322,9 @@ function ManageChildrenModal({ parent, onClose, onChanged }) {
           <div>
             <p className="text-slate-300 text-sm font-medium mb-2">{tx("Add unassigned brokers")}</p>
             <div className="relative mb-2">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Search size={13} className="absolute start-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder={tx("Search brokers")}
-                className="pl-8 pr-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 w-full" />
+                className="ps-8 pe-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 w-full" />
             </div>
             <div className="space-y-1 max-h-56 overflow-y-auto">
               {loading ? <p className="text-slate-500 text-xs">{tx("Loading…")}</p>

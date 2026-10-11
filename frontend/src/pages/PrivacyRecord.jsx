@@ -79,15 +79,15 @@ export default function PrivacyRecord() {
           <section aria-labelledby="h-inv" className={`${card} overflow-x-auto`}>
             <h2 id="h-inv" className="text-white font-medium mb-2">{tx("What's kept")}</h2>
             <table className="w-full text-sm">
-              <thead><tr className="text-slate-400 text-xs text-left">
-                {[tx("Data"), tx("Why"), tx("How it is protected"), tx("Kept for"), tx("Where")].map(h => <th key={h} scope="col" className="py-1 pr-3 font-normal">{h}</th>)}
+              <thead><tr className="text-slate-400 text-xs text-start">
+                {[tx("Data"), tx("Why"), tx("How it is protected"), tx("Kept for"), tx("Where")].map(h => <th key={h} scope="col" className="py-1 pe-3 font-normal">{h}</th>)}
               </tr></thead>
               <tbody>{rec.inventory.map(r => (
                 <tr key={r.key} className="border-t border-slate-700/40 align-top">
-                  <th scope="row" className="py-1.5 pr-3 text-left text-slate-200 font-normal">{r.what}</th>
-                  <td className="py-1.5 pr-3 text-slate-300">{r.why}</td>
-                  <td className="py-1.5 pr-3 text-slate-300">{tx("Encrypted:")}{" "}{r.encrypted}</td>
-                  <td className="py-1.5 pr-3 text-slate-300">{r.kept}</td>
+                  <th scope="row" className="py-1.5 pe-3 text-start text-slate-200 font-normal">{r.what}</th>
+                  <td className="py-1.5 pe-3 text-slate-300">{r.why}</td>
+                  <td className="py-1.5 pe-3 text-slate-300">{tx("Encrypted:")}{" "}{r.encrypted}</td>
+                  <td className="py-1.5 pe-3 text-slate-300">{r.kept}</td>
                   <td className="py-1.5 text-slate-500 text-xs font-mono">{r.tables.join(', ')}</td>
                 </tr>))}</tbody>
             </table>
@@ -133,15 +133,15 @@ export default function PrivacyRecord() {
             <h2 id="h-log" className="text-white font-medium mb-2">{tx("Who looked at whose details")}</h2>
             {log.length === 0 ? <p className="text-slate-400 text-sm">{tx("Nothing recorded yet. Staff viewing, changing, downloading or removing someone else's details shows up here.")}</p> : (
               <table className="w-full text-sm">
-                <thead><tr className="text-slate-400 text-xs text-left">
-                  {[tx("When"), tx("Who"), tx("Did"), tx("Whose"), tx("What")].map(h => <th key={h} scope="col" className="py-1 pr-3 font-normal">{h}</th>)}
+                <thead><tr className="text-slate-400 text-xs text-start">
+                  {[tx("When"), tx("Who"), tx("Did"), tx("Whose"), tx("What")].map(h => <th key={h} scope="col" className="py-1 pe-3 font-normal">{h}</th>)}
                 </tr></thead>
                 <tbody>{log.map((e, i) => (
                   <tr key={i} className="border-t border-slate-700/40">
-                    <td className="py-1 pr-3 text-slate-400">{fmt(e.at)}</td>
-                    <td className="py-1 pr-3 text-slate-200">{e.who}</td>
-                    <td className="py-1 pr-3 text-slate-300">{({ view: 'viewed', edit: 'changed', export: 'downloaded', delete: 'removed' })[e.action] || e.action}</td>
-                    <td className="py-1 pr-3 text-slate-200">{e.person}</td>
+                    <td className="py-1 pe-3 text-slate-400">{fmt(e.at)}</td>
+                    <td className="py-1 pe-3 text-slate-200">{e.who}</td>
+                    <td className="py-1 pe-3 text-slate-300">{({ view: 'viewed', edit: 'changed', export: 'downloaded', delete: 'removed' })[e.action] || e.action}</td>
+                    <td className="py-1 pe-3 text-slate-200">{e.person}</td>
                     <td className="py-1 text-slate-400">{e.detail}</td>
                   </tr>))}</tbody>
               </table>

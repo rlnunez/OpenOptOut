@@ -66,13 +66,37 @@ body { margin: 0; font-family: 'Inter', system-ui, sans-serif; }
 /* Right-to-Left (RTL) Layout Adaptations */
 html[dir="rtl"] {
   direction: rtl;
-  text-align: right;
+  text-align: start;
 }
 
+/* "start" follows each field's own dir, so a field marked dir="ltr" (an
+   email address, a translation being typed in a left-to-right language)
+   still lines up on the left. */
 html[dir="rtl"] input,
 html[dir="rtl"] textarea,
 html[dir="rtl"] select {
-  text-align: right;
+  text-align: start;
+}
+
+/* Mirror icons that point a way, in right-to-left languages. Arrows, chevrons,
+   "back/next", send, open-in-new, undo and switches point the reading way, so
+   they flip. Icons that don't carry direction (search, clock, checkmarks,
+   media play, the mouse pointer, question marks) stay as they are.
+   `scale` combines with Tailwind's rotate/translate instead of replacing
+   them. Add class "rtl-keep" to an icon that must not flip (a compass arrow,
+   say). The list is checked by the test i18n.rtl_mirrored_icons. */
+html[dir="rtl"] :is(
+  .lucide-arrow-left, .lucide-arrow-right, .lucide-arrow-up-right, .lucide-arrow-up-left,
+  .lucide-arrow-down-right, .lucide-arrow-down-left,
+  .lucide-chevron-left, .lucide-chevron-right, .lucide-chevrons-left, .lucide-chevrons-right,
+  .lucide-corner-down-left, .lucide-corner-down-right, .lucide-corner-up-left, .lucide-corner-up-right,
+  .lucide-external-link, .lucide-log-in, .lucide-log-out, .lucide-send, .lucide-reply, .lucide-forward,
+  .lucide-skip-forward, .lucide-skip-back, .lucide-undo, .lucide-undo-2, .lucide-redo, .lucide-redo-2,
+  .lucide-rotate-ccw, .lucide-rotate-cw, .lucide-list-checks, .lucide-list, .lucide-indent, .lucide-outdent,
+  .lucide-trending-up, .lucide-trending-down, .lucide-toggle-left, .lucide-toggle-right,
+  .lucide-move-left, .lucide-move-right, .lucide-step-back, .lucide-step-forward
+):not(.rtl-keep) {
+  scale: -1 1;
 }
 
 /* Maintain LTR for code, numbers, domains, and tokens in RTL mode */

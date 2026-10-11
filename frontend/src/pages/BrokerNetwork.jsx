@@ -38,7 +38,7 @@ export default function BrokerNetwork() {
         ) : (
           <div className="overflow-x-auto rounded-xl border border-slate-700/60">
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-slate-400 text-xs border-b border-slate-700/60">
+              <thead><tr className="text-start text-slate-400 text-xs border-b border-slate-700/60">
                 <th scope="col" className="px-3 py-2 font-normal">{tx("Given to")}</th>
                 <th scope="col" className="px-3 py-2 font-normal">{tx("Mail came from")}</th>
                 <th scope="col" className="px-3 py-2 font-normal">{tx("Evidence")}</th>
@@ -74,7 +74,7 @@ export default function BrokerNetwork() {
           <ol className="divide-y divide-slate-700/40 rounded-xl border border-slate-700/60">
             {agg.ranking.map((r, i) => (
               <li key={r.broker_id} className="px-3 py-2 flex items-start gap-3">
-                <span className="text-slate-500 text-xs w-6 text-right shrink-0 mt-0.5">{i + 1}</span>
+                <span className="text-slate-500 text-xs w-6 text-end shrink-0 mt-0.5">{i + 1}</span>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm text-slate-200">{r.broker_name}{!r.enabled && <span className="text-xs text-slate-500">{" "}{tx("(turned off)")}</span>}</div>
                   <ul className="text-xs text-slate-400 mt-0.5">{r.reasons.slice(0, 3).map((x, j) => <li key={j}>{x}</li>)}</ul>

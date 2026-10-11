@@ -4384,6 +4384,12 @@
    ]
   },
   {
+   "text": "down {n}",
+   "where": [
+    "components/PrivacyScore.jsx"
+   ]
+  },
+  {
    "text": "Download",
    "where": [
     "pages/Backups.jsx",
@@ -13938,6 +13944,12 @@
    "text": "Unlimited",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "up {n}",
+   "where": [
+    "components/PrivacyScore.jsx"
    ]
   },
   {

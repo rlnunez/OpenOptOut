@@ -140,9 +140,9 @@ export default function BrokerPriority() {
       {/* Bulk bar */}
       <div className="flex items-center gap-2 mt-4 mb-3 flex-wrap">
         <div className="relative">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search size={13} className="absolute start-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={tx("Filter brokers")}
-            className="pl-8 pr-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 w-48" />
+            className="ps-8 pe-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 w-48" />
         </div>
         <button onClick={selected.size ? clearSelection : selectAllVisible}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
@@ -150,7 +150,7 @@ export default function BrokerPriority() {
           {selected.size ? tx("Clear ({size})", { size: selected.size }) : tx("Select all shown")}
         </button>
         {selected.size > 0 && (
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2 ms-auto">
             <span className="text-slate-400 text-xs">{tx("Set {size} to:", { size: selected.size })}</span>
             <select value={bulkPriority} onChange={e => setBulkPriority(+e.target.value)}
               className="bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm px-2 py-1.5">
@@ -173,10 +173,10 @@ export default function BrokerPriority() {
               <thead>
                 <tr className="text-slate-500 text-xs border-b border-slate-700/50">
                   <th className="w-8 px-3 py-3"></th>
-                  <th className="text-left px-4 py-3 font-normal">{tx("Broker")}</th>
-                  <th className="text-left px-4 py-3 font-normal">{tx("Status")}</th>
-                  <th className="text-left px-4 py-3 font-normal">{tx("Priority")}</th>
-                  <th className="text-left px-4 py-3 font-normal">{tx("Source")}</th>
+                  <th className="text-start px-4 py-3 font-normal">{tx("Broker")}</th>
+                  <th className="text-start px-4 py-3 font-normal">{tx("Status")}</th>
+                  <th className="text-start px-4 py-3 font-normal">{tx("Priority")}</th>
+                  <th className="text-start px-4 py-3 font-normal">{tx("Source")}</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -206,7 +206,7 @@ export default function BrokerPriority() {
                           {SOURCE_LABEL[b.priority_source] || 'auto'}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-right">
+                      <td className="px-4 py-2.5 text-end">
                         <button onClick={() => resetOne(b)} title={tx("Reset to default")}
                           className="text-slate-500 hover:text-slate-300"><RotateCcw size={13} /></button>
                       </td>

@@ -263,17 +263,17 @@ export default function Inboxes() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-slate-400 border-b border-slate-800">
-                <th scope="col" className="py-2 pr-3 font-medium">{tx("Family member")}</th>
-                <th scope="col" className="py-2 pr-3 font-medium">{tx("Inbox")}</th>
+              <tr className="text-start text-slate-400 border-b border-slate-800">
+                <th scope="col" className="py-2 pe-3 font-medium">{tx("Family member")}</th>
+                <th scope="col" className="py-2 pe-3 font-medium">{tx("Inbox")}</th>
                 <th scope="col" className="py-2 font-medium">{tx("Opt-outs go through")}</th>
               </tr>
             </thead>
             <tbody>
               {data.members.map(m => (
                 <tr key={m.member_id} className="border-b border-slate-800/60">
-                  <td className="py-2 pr-3 text-slate-200">{m.full_name}</td>
-                  <td className="py-2 pr-3">
+                  <td className="py-2 pe-3 text-slate-200">{m.full_name}</td>
+                  <td className="py-2 pe-3">
                     <label className="sr-only" htmlFor={`assign-${m.member_id}`}>{tx("Inbox for")}{" "}{m.full_name}</label>
                     <select id={`assign-${m.member_id}`} className={inp + ' py-1.5'} value={m.mailbox_id || ''}
                       onChange={e => assign(m.member_id, e.target.value)}>

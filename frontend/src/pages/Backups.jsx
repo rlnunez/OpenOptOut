@@ -187,9 +187,9 @@ export default function Backups() {
                   <span className="text-slate-200">{h.started ? new Date(h.started).toLocaleString() : ''}</span>
                   {h.size && <span className="text-slate-500 text-xs">{(h.size / 1048576).toFixed(1)}{" "}{tx("MB")}</span>}
                 </div>
-                {h.error && <p className="text-xs text-red-300 ml-6">{h.error}</p>}
+                {h.error && <p className="text-xs text-red-300 ms-6">{h.error}</p>}
                 {(h.destinations || []).map((x, j) => (
-                  <p key={j} className={`text-xs ml-6 ${x.ok ? 'text-slate-400' : 'text-red-300'}`}>{x.label}: {x.ok ? 'saved' : x.error}</p>
+                  <p key={j} className={`text-xs ms-6 ${x.ok ? 'text-slate-400' : 'text-red-300'}`}>{x.label}: {x.ok ? 'saved' : x.error}</p>
                 ))}
               </li>
             ))}

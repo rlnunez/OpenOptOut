@@ -97,7 +97,7 @@ function Layout() {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Mobile top bar with hamburger — hidden on md and up */}
         <header role="banner" className="md:hidden flex items-center gap-3 px-4 h-14 bg-slate-900 border-b border-slate-800 shrink-0">
-          <button onClick={() => setDrawerOpen(true)} className="text-slate-300 hover:text-white p-1 -ml-1" aria-label={tx("Open menu")}>
+          <button onClick={() => setDrawerOpen(true)} className="text-slate-300 hover:text-white p-1 -ms-1" aria-label={tx("Open menu")}>
             <Menu size={22} />
           </button>
           <span className="text-white font-semibold text-sm truncate">{systemName}</span>
