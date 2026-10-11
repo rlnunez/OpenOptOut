@@ -328,6 +328,10 @@ def add_listing(db, member, url: str, create_unknown: bool = True, source: str =
         db.add(broker)
         db.flush()
         created = True
+        from .broker_updates import record as _update
+        _update(db, "new_site", f"A family member found a listing on {hit['domain']}, a site OpenOptOut didn't know",
+                "It was added (turned on, opted out by hand for now). Research how to opt out of it, "
+                "or add a broker plugin.", broker_id=broker.id)
 
     db.add(DiscoveryResult(member_id=member.id, broker_id=broker.id, found=True,
                            listing_url=clean, source=source,

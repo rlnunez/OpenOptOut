@@ -152,6 +152,17 @@ def registry_maintenance_job():
         except Exception as e:
             log.warning("Site checks failed: %s", e)
         cfg = load_settings()
+        # Email the admins what changed in the broker list (daily or weekly digest).
+        try:
+            from .broker_updates import digest
+            d = digest(db, cfg)
+            if d.get("sent"):
+                cfg = load_settings()
+                cfg["broker_updates_last_digest"] = datetime.utcnow().isoformat() + "Z"
+                with open(SETTINGS_FILE, "w") as f:
+                    json.dump(cfg, f, indent=2)
+        except Exception as e:
+            log.warning("Broker update digest failed: %s", e)
         # Weekly web searches, when an admin turned them on.
         try:
             from .web_search import run_weekly

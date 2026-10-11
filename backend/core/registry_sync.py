@@ -271,6 +271,8 @@ def apply(db, state: str, rows: list, settings_update=None) -> dict:
     now = datetime.utcnow()
     by_domain = {r["domain"]: r for r in rows}
 
+    from .broker_updates import record as _update
+    label = SOURCES.get(state, {}).get("label", state)
     for m in p["matched"]:
         b = db.query(Broker).get(m["broker_id"])
         st = _states(b) | {state}
@@ -279,6 +281,8 @@ def apply(db, state: str, rows: list, settings_update=None) -> dict:
         r = by_domain.get(m["domain"]) or {}
         if r.get("email") and not b.registry_contact_email:
             b.registry_contact_email = r["email"]
+            _update(db, "contact_changed", f"{b.name} gave the {label} registry a contact address: {r['email']}",
+                    "It isn't used for opt-outs until someone confirms it.", broker_id=b.id, now=now)
 
     for r in p["new"]:
         note = f"Imported from the {SOURCES.get(state, {}).get('label', state)} data broker registry " \
@@ -293,6 +297,17 @@ def apply(db, state: str, rows: list, settings_update=None) -> dict:
             origin="registry", registry_states=state, registry_contact_email=r.get("email") or None,
             registry_last_seen=now,
         ))
+    if p["new"]:
+        names = ", ".join(r["name"] for r in p["new"][:25]) + (" …" if len(p["new"]) > 25 else "")
+        _update(db, "new_brokers",
+                f"{len(p['new'])} new broker{'s' if len(p['new']) != 1 else ''} from the {label} registry",
+                f"They start turned off. {names}", now=now)
+    if p["no_longer_listed"]:
+        gone = p["no_longer_listed"]
+        names = ", ".join(g["broker_name"] for g in gone[:25]) + (" …" if len(gone) > 25 else "")
+        _update(db, "delisted",
+                f"{len(gone)} broker{'s' if len(gone) != 1 else ''} no longer on the {label} registry",
+                f"They may have closed, renamed, or stopped registering: {names}", now=now)
     db.commit()
     if settings_update:
         settings_update(state, p["counts"], now)

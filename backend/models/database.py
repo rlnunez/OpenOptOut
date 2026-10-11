@@ -420,6 +420,25 @@ class RequestVariant(Base):
     created_at  = Column(DateTime, default=datetime.utcnow)
 
 
+class BrokerUpdate(Base):
+    """
+    Something an administrator should know about a broker: it was turned off
+    after repeated failures, its site disappeared or came back, new brokers
+    were found, a registry dropped one. Shown on the Broker updates page with
+    a sidebar badge, and sent to super administrators as an email digest.
+    """
+    __tablename__ = "broker_updates"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    kind       = Column(String(30), nullable=False, index=True)    # see broker_updates.KINDS
+    broker_id  = Column(Integer, ForeignKey("brokers.id", ondelete="CASCADE"), nullable=True, index=True)
+    title      = Column(String(300), nullable=False)
+    detail     = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    read_at    = Column(DateTime, nullable=True)
+    emailed_at = Column(DateTime, nullable=True)
+
+
 class ConfirmationLink(Base):
     """
     A broker emailed back asking the person to click a link before it will

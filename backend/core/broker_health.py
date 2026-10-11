@@ -125,6 +125,12 @@ def record_failure(db, broker_id: int, detail: str = "") -> bool:
                 )
                 h.needs_review = True
                 just_disabled = True
+                from .broker_updates import record as _update
+                _update(db, "auto_disabled",
+                        f"{broker.name} was turned off after {h.consecutive_failures} failed opt-outs in a row",
+                        f"Last problem: {h.last_failure_reason}. {(h.last_failure_detail or '')[:300]} "
+                        f"Check its opt-out steps, then turn it back on under Broker health.",
+                        broker_id=broker_id)
                 log.warning(
                     "Broker %s AUTO-DISABLED after %d consecutive failures (%s)",
                     broker_id, h.consecutive_failures, h.last_failure_reason,
@@ -185,6 +191,11 @@ def _note_unreachable(db, h, broker_id: int, detail: str, now=None) -> bool:
         reason += (". It is still on a state data broker registry, so it may have moved to a new "
                    "address — check the registry entry before removing it.")
     h.auto_disabled_reason = reason
+    from .broker_updates import record as _update
+    _update(db, "defunct",
+            f"{broker.name if broker is not None else 'A broker'}'s website has been unreachable for {days} days",
+            reason + (" It has been turned off." if broker is not None and broker.enabled else ""),
+            broker_id=broker_id, now=now)
     if broker is not None and broker.enabled:
         broker.enabled = False
         h.auto_disabled = True
@@ -210,6 +221,12 @@ def record_probe(db, broker_id: int, reachable: bool, detail: str = "", now=None
                 h.defunct = False
                 h.needs_review = True
                 h.auto_disabled_reason = "This site answers again. Check it, then turn it back on if it's real."
+                from ..models.database import Broker
+                from .broker_updates import record as _update
+                b = db.query(Broker).filter(Broker.id == broker_id).first()
+                _update(db, "back_online", f"{b.name if b else 'A broker'}'s website answers again",
+                        "It stays off until someone checks it's the same company, then turns it back on "
+                        "under Broker health.", broker_id=broker_id, now=now)
         else:
             _note_unreachable(db, h, broker_id, detail, now=now)
         db.commit()
