@@ -1,0 +1,13 @@
+{
+  "id": "lang-fr",
+  "type": "languages",
+  "name": "French language pack",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "French (Français) for every menu, label and message in the OpenOptOut dictionary. Built in; can be turned off or replaced by an admin.",
+  "api_version": "1.0",
+  "language_code": "fr",
+  "language_name": "French",
+  "native_name": "Français",
+  "is_rtl": false
+}

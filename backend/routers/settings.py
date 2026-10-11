@@ -166,6 +166,10 @@ class SchedulerConfig(BaseModel):
     rate_interval_minutes:      Optional[int] = 20
     # distributed mode
     distributed_interval_minutes: Optional[int] = 60
+    # Calendar: which weekdays opt-outs go out (0 = Monday … 6 = Sunday; empty
+    # or missing = every day) and dates to skip, like holidays ("YYYY-MM-DD").
+    run_days:                   Optional[List[int]] = None
+    skip_dates:                 Optional[List[str]] = None
 
 
 class PrivacyDataSettings(BaseModel):
@@ -380,7 +384,15 @@ def test_connection(_: User = Depends(require_permission("email.manage"))):
 
 @router.patch("/scheduler")
 def save_scheduler(data: SchedulerConfig, _: User = Depends(require_permission("scheduler.manage"))):
-    s = load_settings(); s["scheduler"] = data.model_dump(); _save(s)
+    from ..core.calendar_plan import clean_days, clean_dates
+    s = load_settings()
+    new = data.model_dump(exclude_unset=True)
+    if "run_days" in new:
+        new["run_days"] = clean_days(new["run_days"])
+    if "skip_dates" in new:
+        new["skip_dates"] = clean_dates(new["skip_dates"])
+    s["scheduler"] = {**(s.get("scheduler") or {}), **new}   # fields not sent keep their values
+    _save(s)
     # reload live scheduler to pick up changes
     from ..core.scheduler import reload_scheduler
     import threading

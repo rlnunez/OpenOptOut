@@ -9,6 +9,7 @@ Role model:
 """
 
 from sqlalchemy import (
+    Date,
     create_engine, Column, Integer, String, Text,
     DateTime, Boolean, ForeignKey, Enum as SAEnum, UniqueConstraint
 )
@@ -210,6 +211,7 @@ class User(Base):
     tutorial_completed     = Column(Boolean, default=False, nullable=False)
     pending_ils_import     = Column(Text, nullable=True)  # Staged ILS demographic fields waiting for patron confirmation
     notification_prefs = Column(Text, nullable=True)  # JSON: {"overdue": bool, "relisted": bool} (core/compliance.py)
+    calendar_token_hash = Column(String(64), nullable=True, index=True)  # private calendar feed link (hash only)
     accessibility_settings = Column(Text, nullable=True)  # JSON dict: {"high_contrast": bool, "large_text": bool, "reduced_motion": bool}
 
     # Multi-Factor Authentication (TOTP + FIDO2/WebAuthn/YubiKey)
@@ -708,6 +710,20 @@ class NoticeSent(Base):
     kind       = Column(String(20), nullable=False)        # overdue | relisted
     round_key  = Column(String(40), nullable=False)        # the round's send date, or when it was found again
     sent_at    = Column(DateTime, default=datetime.utcnow)
+
+
+class PrivacyScoreSnapshot(Base):
+    """One person's privacy score on one day (core/privacy_score.py). Counts only, nothing personal."""
+    __tablename__ = "privacy_score_snapshots"
+
+    id        = Column(Integer, primary_key=True, index=True)
+    member_id = Column(Integer, ForeignKey("family_members.id", ondelete="CASCADE"), nullable=False, index=True)
+    day       = Column(Date, nullable=False, index=True)
+    score     = Column(Integer, nullable=False)
+    sites     = Column(Integer, nullable=False, default=0)
+    gone      = Column(Integer, nullable=False, default=0)
+    waiting   = Column(Integer, nullable=False, default=0)
+    exposed   = Column(Integer, nullable=False, default=0)
 
 
 class AccessLog(Base):

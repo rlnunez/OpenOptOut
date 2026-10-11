@@ -2387,7 +2387,7 @@ function WebAuthnPolicySection({ userRole }) {
             "Allows both roaming USB/NFC hardware security keys (YubiKey, Titan) and built-in platform authenticators (Apple Touch ID, Windows Hello). Staff on any device can enroll their preferred hardware factor."
           )}
           {config.authenticator_attachment === 'cross-platform' && (
-            descriptions?.authenticator_attachment?.cross-platform ||
+            descriptions?.authenticator_attachment?.['cross-platform'] ||
             "Requires external roaming hardware keys. Restricts built-in platform authenticators like Mac Touch ID. If selected, staff on laptops without a physical USB/NFC key cannot enroll biometrics."
           )}
           {config.authenticator_attachment === 'platform' && (

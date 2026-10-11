@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { RefreshCw, Send, AlertCircle, CheckCircle, Clock, ShieldOff, Activity } from 'lucide-react'
+import { RefreshCw, Send, AlertCircle, CheckCircle, Clock, ShieldOff, Activity, ShieldAlert } from 'lucide-react'
 import { RadialBarChart, RadialBar, ResponsiveContainer, Tooltip } from 'recharts'
 import api from '../api'
 import Badge from '../components/Badge'
 import VariantCoverage from '../components/VariantCoverage'
 import RemovalChecks from '../components/RemovalChecks'
+import PrivacyScore from '../components/PrivacyScore'
 import { useAuth, can } from '../hooks/useAuth'
 
 function StatCard({ label, value, icon: Icon, color }) {
@@ -244,6 +245,7 @@ export default function Dashboard() {
         <StatCard label="Refused or didn't work" value={stats?.resistant} icon={AlertCircle}   color="text-red-400" />
       </div>
 
+      <PrivacyScore />
       <VariantCoverage />
       <RemovalChecks />
 

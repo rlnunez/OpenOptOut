@@ -150,5 +150,6 @@
   "status.skipped": "Ignorado",
   "nav.backups": "Backups",
   "nav.deadlines": "Relatório de prazos",
-  "nav.privacy_record": "Registro de privacidade"
+  "nav.privacy_record": "Registro de privacidade",
+  "nav.calendar": "Calendário"
 }

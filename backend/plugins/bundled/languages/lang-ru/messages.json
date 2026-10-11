@@ -150,5 +150,6 @@
   "status.skipped": "Пропущено",
   "nav.backups": "Резервные копии",
   "nav.deadlines": "Отчёт о сроках",
-  "nav.privacy_record": "Журнал обработки данных"
+  "nav.privacy_record": "Журнал обработки данных",
+  "nav.calendar": "Календарь"
 }

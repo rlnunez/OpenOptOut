@@ -29,7 +29,7 @@ def delete_person(db, user) -> None:
             if hasattr(m, "NoticeSent"):
                 gone(m.NoticeSent, m.NoticeSent.request_id.in_(req_ids))
             gone(m.RemovalRequest, m.RemovalRequest.id.in_(req_ids))
-        for model in (m.Identity, m.ContactAddress, m.DiscoveryResult, m.MemberScheduleConfig,
+        for model in (m.Identity, m.ContactAddress, m.DiscoveryResult, m.MemberScheduleConfig, m.PrivacyScoreSnapshot,
                       m.WebSearchHit, m.CaptchaChallenge, m.AutomationLog):
             gone(model, model.member_id == member.id)
         db.query(m.UsageEvent).filter(m.UsageEvent.member_id == member.id).update(

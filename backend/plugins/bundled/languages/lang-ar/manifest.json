@@ -1,0 +1,13 @@
+{
+  "id": "lang-ar",
+  "type": "languages",
+  "name": "Arabic language pack",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Arabic (العربية) for every menu, label and message in the OpenOptOut dictionary. Built in; can be turned off or replaced by an admin.",
+  "api_version": "1.0",
+  "language_code": "ar",
+  "language_name": "Arabic",
+  "native_name": "العربية",
+  "is_rtl": true
+}

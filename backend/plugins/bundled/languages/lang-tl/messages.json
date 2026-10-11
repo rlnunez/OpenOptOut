@@ -150,5 +150,6 @@
   "status.skipped": "Nilaktawan",
   "nav.backups": "Mga backup",
   "nav.deadlines": "Ulat sa mga deadline",
-  "nav.privacy_record": "Talaan ng privacy"
+  "nav.privacy_record": "Talaan ng privacy",
+  "nav.calendar": "Kalendaryo"
 }
