@@ -1,29 +1,39 @@
 """
-Version reporting — so there's never a question of exactly what code is
-running. Logged clearly at startup and exposed via GET /api/health, so an
-admin comparing "what I deployed" against "what's actually running" (or
-attaching a log to a bug report) always has an unambiguous answer.
+Version reporting — so there's never a question of exactly what code is running.
+Logged clearly at startup and exposed via GET /api/health, so an admin comparing "what I deployed" against "what's actually running" (or attaching a log to a bug report) always has an unambiguous answer.
 
-Two files, kept in sync manually (documented in README): backend/VERSION is
-canonical for the running app (it's what actually ships inside the Docker
-image — the build context is backend/ only, so a repo-root file wouldn't be
-visible to the build); frontend/package.json's own "version" field is the
-frontend's. The repo-root VERSION file exists as a plain, easy-to-find
-reference for anyone looking at the source tree, not for either build.
+The repository root VERSION file is the canonical single source of truth.
+backend/VERSION is a symlink to ../VERSION for container packaging, and get_version() falls back to the root file seamlessly.
 """
 
 import os
 import subprocess
 
-_VERSION_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "VERSION")
+_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_VERSION_FILE = os.path.join(_BACKEND_DIR, "VERSION")
+_ROOT_VERSION_FILE = os.path.join(os.path.dirname(_BACKEND_DIR), "VERSION")
 
 
 def get_version() -> str:
+    env_ver = os.getenv("APP_VERSION", "").strip()
+    if env_ver:
+        return env_ver
     try:
         with open(_VERSION_FILE) as f:
-            return f.read().strip() or "unknown"
+            v = f.read().strip()
+            if v and not v.startswith(".."):
+                return v
     except Exception:
-        return "unknown"
+        pass
+    if _VERSION_FILE == os.path.join(_BACKEND_DIR, "VERSION"):
+        try:
+            with open(_ROOT_VERSION_FILE) as f:
+                v = f.read().strip()
+                if v:
+                    return v
+        except Exception:
+            pass
+    return "unknown"
 
 
 def get_commit() -> str:
