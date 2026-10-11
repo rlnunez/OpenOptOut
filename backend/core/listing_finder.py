@@ -308,7 +308,7 @@ def resolve_broker(db, url: str) -> dict:
 _OPEN_STATUSES = ("pending", "sent", "submitted", "needs_manual", "recheck_due")
 
 
-def add_listing(db, member, url: str, create_unknown: bool = True) -> dict:
+def add_listing(db, member, url: str, create_unknown: bool = True, source: str = "manual") -> dict:
     """
     Record a listing the person found and make sure it's in the removal cycle.
     Returns a result dict with a plain-language `message`.
@@ -330,8 +330,9 @@ def add_listing(db, member, url: str, create_unknown: bool = True) -> dict:
         created = True
 
     db.add(DiscoveryResult(member_id=member.id, broker_id=broker.id, found=True,
-                           listing_url=clean, source="manual",
-                           snippet="Added by a family member", scanned_at=datetime.utcnow()))
+                           listing_url=clean, source=source,
+                           snippet=("Added by a family member" if source == "manual"
+                                    else "Found by web search"), scanned_at=datetime.utcnow()))
 
     open_statuses = [RequestStatus(s) for s in _OPEN_STATUSES if s in RequestStatus.__members__]
     req = db.query(RemovalRequest).filter(
@@ -354,6 +355,17 @@ def add_listing(db, member, url: str, create_unknown: bool = True) -> dict:
         elif clean not in (req.listing_url or "") and clean not in (req.notes or ""):
             req.notes = ((req.notes or "") + f"\nAnother listing: {clean}").strip()
         state = "already_open"
+
+    if not created and broker.method == OptOutMethod.manual and req.status == RequestStatus.pending \
+            and (broker.origin or "curated") != "state_program":
+        # No automated opt-out for this site yet: tell the person what to do.
+        where = broker.opt_out_url or f"https://{hit['domain']}"
+        how = f"Ask {broker.name} to delete your information at {where}"
+        if broker.registry_contact_email:
+            how += (f", or email {broker.registry_contact_email} (the contact address it gave the "
+                    f"state registry)")
+        req.status = RequestStatus.needs_manual
+        req.notes = f"{how}. Include the address of your listing: {clean}"
 
     if created:
         req.status = RequestStatus.needs_manual

@@ -37,6 +37,9 @@ import WorkerFleet from './pages/WorkerFleet'
 import Login from './pages/Login'
 import SetupWizard from './pages/SetupWizard'
 import Inboxes from './pages/Inboxes'
+import StateRegistries from './pages/StateRegistries'
+import WebSearchSettings from './pages/WebSearchSettings'
+import Checklist from './pages/Checklist'
 import InboxPrompt from './components/InboxPrompt'
 
 // Super admins, plus managers holding at least one of these permissions.
@@ -105,6 +108,7 @@ function Layout() {
             <Route path="/family"      element={<Family />} />
             <Route path="/identity"    element={<IdentityVault />} />
             <Route path="/inboxes"     element={<Inboxes />} />
+            <Route path="/checklist"   element={<Checklist />} />
             <Route path="/settings"    element={<Settings />} />
             <Route path="/translations" element={<RequirePermission perms={['settings.manage']}><Translations /></RequirePermission>} />
             <Route path="/help"        element={<Help />} />
@@ -116,6 +120,8 @@ function Layout() {
             <Route path="/plugin-help" element={<RequirePermission perms={['plugins.view', 'plugins.upload']}><PluginHelp /></RequirePermission>} />
             <Route path="/plugin-upload" element={<RequirePermission perms={['plugins.upload']}><PluginUpload /></RequirePermission>} />
             <Route path="/broker-health" element={<RequirePermission perms={['brokers.manage']}><BrokerHealth /></RequirePermission>} />
+            <Route path="/web-search" element={<RequirePermission perms={['settings.system']}><WebSearchSettings /></RequirePermission>} />
+            <Route path="/state-registries" element={<RequirePermission perms={['brokers.manage']}><StateRegistries /></RequirePermission>} />
             <Route path="/broker-priority" element={<RequirePermission perms={['brokers.manage']}><BrokerPriority /></RequirePermission>} />
             <Route path="/parent-companies" element={<RequirePermission perms={['brokers.manage']}><ParentCompanies /></RequirePermission>} />
             <Route path="/captcha" element={<CaptchaQueue />} />

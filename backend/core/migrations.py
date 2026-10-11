@@ -15,6 +15,13 @@ log = logging.getLogger(__name__)
 # so we catch the "duplicate column" error and continue.
 
 MIGRATIONS = [
+    ("Add origin to brokers", "ALTER TABLE brokers ADD COLUMN origin VARCHAR(20) DEFAULT 'curated'"),
+    ("Add registry_states to brokers", "ALTER TABLE brokers ADD COLUMN registry_states VARCHAR(40)"),
+    ("Add registry_contact_email to brokers", "ALTER TABLE brokers ADD COLUMN registry_contact_email VARCHAR"),
+    ("Add registry_last_seen to brokers", "ALTER TABLE brokers ADD COLUMN registry_last_seen TIMESTAMP"),
+    ("Add unreachable_since to broker_health", "ALTER TABLE broker_health ADD COLUMN unreachable_since TIMESTAMP"),
+    ("Add defunct to broker_health", "ALTER TABLE broker_health ADD COLUMN defunct BOOLEAN DEFAULT FALSE"),
+    ("Add last_probe_at to broker_health", "ALTER TABLE broker_health ADD COLUMN last_probe_at TIMESTAMP"),
     (
         "Add mailbox_id to family_members",
         "ALTER TABLE family_members ADD COLUMN mailbox_id INTEGER"

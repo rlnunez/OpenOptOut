@@ -52,6 +52,12 @@ def start_scheduler():
               replace_existing=True, misfire_grace_time=60,
               next_run_time=datetime.utcnow() + timedelta(seconds=15))
 
+    # Broker list upkeep: California DROP checklist items, dead-site checks,
+    # and a monthly refresh of state registries that have a saved address.
+    s.add_job(registry_maintenance_job, IntervalTrigger(hours=24), id="registry_maintenance",
+              replace_existing=True, misfire_grace_time=3600,
+              next_run_time=datetime.utcnow() + timedelta(minutes=10))
+
     if not sc.get("enabled", False):
         s.start()
         log.info("Opt-out scheduling disabled — maintenance jobs only")
@@ -128,6 +134,59 @@ def start_scheduler():
     log.info(f"Scheduler started — spread_mode={spread_mode}, email poll every {poll_mins}m")
 
 
+def registry_maintenance_job():
+    """Daily: DROP checklist items, up to 50 site checks; monthly: registry refresh."""
+    db = SessionLocal()
+    try:
+        from .state_programs import ensure_drop_items
+        from .broker_health import probe_sites
+        from . import registry_sync as rs
+        from .settings_store import SETTINGS_FILE
+        try:
+            ensure_drop_items(db)
+        except Exception as e:
+            log.warning("DROP checklist upkeep failed: %s", e)
+        try:
+            res = probe_sites(db, limit=50)
+            log.info("Site checks: %d checked, %d unreachable", res["checked"], res["unreachable"])
+        except Exception as e:
+            log.warning("Site checks failed: %s", e)
+        cfg = load_settings()
+        # Weekly web searches, when an admin turned them on.
+        try:
+            from .web_search import run_weekly
+            last_ws = cfg.get("web_search_last_weekly")
+            ws_due = True
+            if last_ws:
+                try:
+                    ws_due = datetime.utcnow() - datetime.fromisoformat(last_ws.rstrip("Z")) >= timedelta(days=7)
+                except ValueError:
+                    ws_due = True
+            if ws_due and run_weekly(db, cfg):
+                cfg = load_settings()
+                cfg["web_search_last_weekly"] = datetime.utcnow().isoformat() + "Z"
+                with open(SETTINGS_FILE, "w") as f:
+                    json.dump(cfg, f, indent=2)
+        except Exception as e:
+            log.warning("Weekly web search failed: %s", e)
+        last = cfg.get("registry_last_refresh")
+        due = True
+        if last:
+            try:
+                due = datetime.utcnow() - datetime.fromisoformat(last.rstrip("Z")) >= timedelta(days=30)
+            except ValueError:
+                due = True
+        if due and any(((cfg.get("registry_sources") or {}).get(st) or {}).get("url") for st in rs.SOURCES):
+            rs.refresh_saved_sources(db, cfg)
+            cfg["registry_last_refresh"] = datetime.utcnow().isoformat() + "Z"
+            with open(SETTINGS_FILE, "w") as f:
+                json.dump(cfg, f, indent=2)
+    except Exception as e:
+        log.error("registry maintenance failed: %s", e)
+    finally:
+        db.close()
+
+
 def cert_check_job():
     """Daily: LDAP / SIP2 / SAML certificate checks + milestone emails to admins."""
     try:
@@ -200,7 +259,8 @@ def _select_pending_batch(db, cfg, max_this_run: int) -> list:
             break
         # Skip brokers disabled by an admin or auto-disabled by the health
         # monitor — a broken broker never consumes a member's daily budget.
-        if req.broker and (not req.broker.enabled or getattr(req.broker, "is_test", False)):
+        from .broker_gate import request_allowed
+        if req.broker and not request_allowed(req, db):
             continue
         # Skip requests currently paused for human CAPTCHA resolution (Item 4)
         if req.notes and "Paused for human CAPTCHA" in req.notes:

@@ -4,7 +4,7 @@ import {
   Users, ShieldCheck, Settings, LogOut, ShieldAlert,
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
   Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal,
-  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox
+  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
@@ -15,6 +15,7 @@ import { useState, useEffect } from 'react'
 
 const nav = [
   { label: 'Dashboard',     to: '/',           icon: LayoutDashboard },
+  { label: 'Checklist',     to: '/checklist',  icon: ListChecks, badgeKey: 'checklist' },
   { label: 'Brokers',       to: '/brokers',    icon: Store },
   { label: 'Discovery',     to: '/discovery',  icon: Radar },
   { label: 'Email monitor', to: '/email',      icon: Mail },
@@ -29,7 +30,7 @@ const setup = [
   { label: 'Help',           to: '/help',     icon: BookOpen },
 ]
 
-function NavItem({ to, icon: Icon, label, onNavigate }) {
+function NavItem({ to, icon: Icon, label, onNavigate, badge }) {
   return (
     <NavLink to={to} end={to === '/'} onClick={onNavigate}
       className={({ isActive }) =>
@@ -39,6 +40,10 @@ function NavItem({ to, icon: Icon, label, onNavigate }) {
       }
     >
       <Icon size={15} />{label}
+      {badge > 0 && (
+        <span className="ml-auto text-[11px] font-semibold bg-amber-500 text-slate-950 rounded-full px-1.5 min-w-5 text-center"
+          aria-label={`${badge} item${badge === 1 ? '' : 's'} need you`}>{badge}</span>
+      )}
     </NavLink>
   )
 }
@@ -58,6 +63,13 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
   const [toggling, setToggling]   = useState(false)
   const [versionInfo, setVersionInfo] = useState(null)
   const [copiedVersion, setCopiedVersion] = useState(false)
+  const [checklistCount, setChecklistCount] = useState(0)
+  useEffect(() => {
+    const get = () => api.get('/checklist/count').then(r => setChecklistCount(r.data.count || 0)).catch(() => {})
+    get()
+    const t = setInterval(get, 60000)
+    return () => clearInterval(t)
+  }, [])
 
   useEffect(() => {
     api.get('/health').then(r => setVersionInfo(r.data)).catch(() => {})
@@ -80,6 +92,8 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
     { to: '/broker-health',    icon: Activity,    label: 'Broker health',    perms: ['brokers.manage'] },
     { to: '/broker-priority',  icon: ListOrdered, label: 'Broker priority',  perms: ['brokers.manage'] },
     { to: '/parent-companies', icon: Building2,   label: 'Parent companies', perms: ['brokers.manage'] },
+    { to: '/state-registries', icon: Landmark,    label: 'State registries', perms: ['brokers.manage'] },
+    { to: '/web-search',       icon: Globe2,      label: 'Web search',       perms: ['settings.system'] },
     { to: '/branding',         icon: Palette,     label: 'Branding',         perms: ['branding.manage', 'users.registration', 'auth.providers'] },
     { to: '/translations',     icon: Globe,       label: 'Translations',     perms: ['settings.manage'] },
     { to: '/reporting',        icon: BarChart2,   label: 'Reporting',        perms: ['reporting.view'] },
@@ -133,7 +147,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-between">
           <nav aria-label="Primary navigation" className="flex flex-col gap-0.5 pb-2">
             <p className="text-slate-600 text-xs px-4 mb-1 uppercase tracking-widest">Manage</p>
-            {nav.map(n => <NavItem key={n.to} {...n} onNavigate={handleNavigate} />)}
+            {nav.map(n => <NavItem key={n.to} {...n} badge={n.badgeKey === 'checklist' ? checklistCount : 0} onNavigate={handleNavigate} />)}
             <p className="text-slate-600 text-xs px-4 mt-3 mb-1 uppercase tracking-widest">Setup</p>
             {setup.map(n => <NavItem key={n.to} {...n} onNavigate={handleNavigate} />)}
             {adminLinks.length > 0 && (

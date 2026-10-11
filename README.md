@@ -83,6 +83,8 @@ Comprehensive architectural specifications and deployment guides:
 | [`docs/SSO.md`](docs/SSO.md) | Single sign-on integration: OIDC, SAML 2.0, Active Directory / LDAP, and library card (SIP2/SIP2S) logins |
 | [`docs/DATABASE.md`](docs/DATABASE.md) | PostgreSQL scaling, enterprise auth (mTLS, IAM, Kerberos), SQLite migration, and SQLCipher encryption at rest |
 | [`docs/EMAIL_SETUP.md`](docs/EMAIL_SETUP.md) | System notification inbox vs. family inboxes, one address per opt-out (+addresses), OAuth and app-password setup |
+| [`docs/WEB_SEARCH.md`](docs/WEB_SEARCH.md) | Optional server-side web search for each family member (self-hosted SearXNG), with automatic adds and a review list |
+| [`docs/STATE_REGISTRIES.md`](docs/STATE_REGISTRIES.md) | Importing the CA, VT, TX and OR data broker registries (off by default), dead-site detection, and California DROP |
 | [`docs/BUILTIN_INBOX.md`](docs/BUILTIN_INBOX.md) | Proposal: a built-in receive-only inbox that gives every opt-out its own address on a family-owned domain |
 | [`docs/ROLES.md`](docs/ROLES.md) | Role-based access control (RBAC): Super Admin, Admin, Manager, Parent, and Member permission boundaries |
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Local developer environment setup, Playwright browser dependencies, and unit test execution |

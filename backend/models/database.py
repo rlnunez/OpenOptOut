@@ -377,6 +377,33 @@ class ContactAddress(Base):
     mailbox = relationship("Mailbox")
 
 
+class WebSearchHit(Base):
+    """
+    A page a server-side web search found for a family member. Strong matches
+    on known brokers go straight into the removal cycle; the rest wait here for
+    the person to say "that's me" or "not me". Title and snippet can contain the
+    member's details, so they're encrypted at rest.
+    """
+    __tablename__ = "web_search_hits"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    member_id    = Column(Integer, ForeignKey("family_members.id"), nullable=False, index=True)
+    url          = Column(Text, nullable=False)
+    url_hash     = Column(String(64), nullable=False, index=True)
+    domain       = Column(String, nullable=False, index=True)
+    title        = Column(EncryptedText, nullable=True)
+    snippet      = Column(EncryptedText, nullable=True)
+    query_label  = Column(String, nullable=True)
+    strength     = Column(String(10), nullable=False, default="weak")   # strong | medium | weak
+    matched_on   = Column(String, nullable=True)                         # "phone", "address", "email", "name+city"
+    broker_id    = Column(Integer, ForeignKey("brokers.id"), nullable=True)
+    status       = Column(String(12), nullable=False, default="new")    # new | added | dismissed
+    dismiss_reason = Column(String(20), nullable=True)                   # not_me | not_broker
+    request_id   = Column(Integer, ForeignKey("removal_requests.id"), nullable=True)
+    found_at     = Column(DateTime, default=datetime.utcnow)
+    last_seen_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Identity(Base):
     """PII variants for a family member: name spellings, emails, phones, addresses."""
     __tablename__ = "identities"
@@ -472,6 +499,15 @@ class Broker(Base):
     # Optional installed broker add-on plugin ID providing declarative spec / automation (Roadmap Item 1)
     plugin_id         = Column(String(100), nullable=True, index=True)
 
+    # Where this broker record came from: "curated" (catalog, plugins, admins),
+    # "registry" (imported from a state data-broker registry — off by default),
+    # "listing" (created when someone pasted a listing on an unknown site), or
+    # "state_program" (a government deletion service such as California's DROP).
+    origin                 = Column(String(20), default="curated", nullable=True, index=True)
+    registry_states        = Column(String(40), nullable=True)   # "CA,VT,TX,OR"
+    registry_contact_email = Column(String, nullable=True)       # as registered; not used until confirmed
+    registry_last_seen     = Column(DateTime, nullable=True)
+
     requests = relationship("RemovalRequest", back_populates="broker")
     health   = relationship("BrokerHealth", back_populates="broker", uselist=False)
     parent   = relationship("ParentCompany", back_populates="children")
@@ -503,6 +539,11 @@ class BrokerHealth(Base):
     # Auto-disable bookkeeping. auto_disabled is True when the monitor turned the
     # broker off; needs_review flags it for the admin even if re-enabled.
     auto_disabled        = Column(Boolean, default=False)
+    # Dead-site detection: when the site itself stopped answering (DNS failure,
+    # connection refused, 404/410), as opposed to a form that changed.
+    unreachable_since    = Column(DateTime, nullable=True)
+    defunct              = Column(Boolean, default=False)
+    last_probe_at        = Column(DateTime, nullable=True)
     auto_disabled_at     = Column(DateTime, nullable=True)
     auto_disabled_reason = Column(String, nullable=True)
     needs_review         = Column(Boolean, default=False)
