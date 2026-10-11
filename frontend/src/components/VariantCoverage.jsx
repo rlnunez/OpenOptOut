@@ -41,7 +41,7 @@ export default function VariantCoverage() {
       </h2>
       <div className="grid gap-4 sm:grid-cols-2">
         <Line title="Main details" hint="(full name, current address, phone)" t={f.main} />
-        <Line title="Other variants" hint="(other names, old addresses, numbers, emails)" t={f.variants} />
+        <Line title="Other details" hint="(other names, old addresses, numbers, emails)" t={f.variants} />
       </div>
 
       {data.members.length > 0 && (

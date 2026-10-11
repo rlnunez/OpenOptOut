@@ -8767,6 +8767,40 @@ def t_variant_report():
 
 # ── runner ────────────────────────────────────────────────────────────────────
 
+@test(1, "plain_language.family_pages",
+      "Pages families use don't show technical words like PII, matrix, OAuth or token.")
+def t_plain_language_family_pages():
+    import re, pathlib
+    root = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "src"
+    if not root.exists():
+        raise Skip("frontend source not present")
+    pages = ["pages/IdentityVault.jsx", "pages/Discovery.jsx", "pages/Family.jsx",
+             "pages/Scheduled.jsx", "pages/CaptchaQueue.jsx", "pages/Brokers.jsx",
+             "pages/Inboxes.jsx", "pages/Checklist.jsx", "pages/EmailMonitor.jsx",
+             "pages/Dashboard.jsx", "pages/Login.jsx", "components/Sidebar.jsx",
+             "components/VariantCoverage.jsx", "components/FindListings.jsx"]
+    jargon = re.compile(r"\b(PII|matrix|bots?|OAuth|tokens?|payloads?|endpoints?|specs?|queued?|"
+                        r"cron|regex|webhooks?|Incogni|variants?|enumerat\w*|scrap\w*|SQLCipher|"
+                        r"daemon|null|undefined|invalid|primary|vault|JSON|UUID|exception)\b", re.I)
+    text = re.compile(r">([^<>{}]*[A-Za-z][^<>{}]*)<")
+    lit = re.compile(r"""(['"`])([A-Z][^'"`\n]{6,}?)\1""")
+    hits = []
+    for rel in pages:
+        f = root / rel
+        if not f.exists():
+            continue
+        for i, line in enumerate(f.read_text().splitlines(), 1):
+            if line.strip().startswith(("import", "//", "*", "console.")):
+                continue
+            cands = [m.group(1) for m in text.finditer(line)] + \
+                    [m.group(2) for m in lit.finditer(line) if " " in m.group(2)]
+            for c in cands:
+                m = jargon.search(c)
+                if m:
+                    hits.append(f"{rel}:{i} [{m.group(0)}] {c.strip()[:80]}")
+    assert not hits, "Technical words on family pages:\n  " + "\n  ".join(hits)
+
+
 def main():
     ap = argparse.ArgumentParser(description="OpenOptOut test runner")
     ap.add_argument("--tier", type=int, default=4, help="run tiers up to N (1-4)")

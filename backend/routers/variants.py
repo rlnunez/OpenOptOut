@@ -22,6 +22,6 @@ def report(member_id: Optional[int] = Query(None), db: Session = Depends(get_db)
     ids = get_accessible_member_ids(db, user)
     if member_id is not None:
         if member_id not in ids:
-            raise HTTPException(403, "No access to this family member")
+            raise HTTPException(403, "You don't have access to this person.")
         ids = [member_id]
     return vr.family_report(db, ids)

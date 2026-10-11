@@ -465,7 +465,7 @@ export default function UserWelcomeModal() {
                     disabled={piiSaving || (!fullName && !address)}
                     className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
                   >
-                    {piiSaving ? 'Saving...' : piiSaved ? '✓ Saved to Vault' : 'Save to Vault'}
+                    {piiSaving ? 'Saving...' : piiSaved ? '✓ Saved' : 'Save my details'}
                   </button>
                 </div>
               </div>
@@ -540,7 +540,7 @@ export default function UserWelcomeModal() {
                 <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/50 space-y-1">
                   <div className="flex items-center gap-2 font-medium text-sm text-white">
                     <span className="text-purple-400">🔐</span>
-                    <span>Identity Vault</span>
+                    <span>Your details</span>
                   </div>
                   <p className="text-xs text-slate-400">
                     Add prior addresses, maiden names, and relative records to maximize data scrubbing.

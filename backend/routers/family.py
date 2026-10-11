@@ -173,7 +173,7 @@ def add_identity(
         if current_count >= max_allowed:
             raise HTTPException(
                 status_code=400,
-                detail=f"Maximum {max_allowed} {data.kind}s per member (configurable in Settings → Vault limits)"
+                detail=f"You've added the most allowed for one person ({max_allowed}). An admin can raise this in Settings."
             )
 
     if data.is_primary:
@@ -204,7 +204,7 @@ def update_identity(
 ):
     identity = db.query(Identity).filter(Identity.id == identity_id).first()
     if not identity:
-        raise HTTPException(404, "Identity not found")
+        raise HTTPException(404, "That detail is gone. Refresh the page.")
     assert_can_edit(db, current_user, identity.member_id)
 
     if data.value is not None:
@@ -235,7 +235,7 @@ def delete_identity(
 ):
     identity = db.query(Identity).filter(Identity.id == identity_id).first()
     if not identity:
-        raise HTTPException(404, "Identity not found")
+        raise HTTPException(404, "That detail is gone. Refresh the page.")
     assert_can_edit(db, current_user, identity.member_id)
     from ..models.database import RequestVariant
     db.query(RequestVariant).filter(RequestVariant.identity_id == identity.id).delete(synchronize_session=False)

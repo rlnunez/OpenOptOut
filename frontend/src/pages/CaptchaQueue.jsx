@@ -40,16 +40,16 @@ export default function CaptchaQueue() {
   }, [activeTab])
 
   const handleResolveManual = async (challengeId) => {
-    if (!window.confirm('Mark this opt-out as manually verified and completed on the broker site?')) return
+    if (!window.confirm('Did you finish this opt-out on the broker\'s site yourself? It will be marked as sent.')) return
     setActionInProgress(true)
     try {
       await api.post(`/captcha/challenges/${challengeId}/resolve`, {
         resolution_type: 'manual_completed',
-        notes: 'Operator manually completed opt-out and verified CAPTCHA on site'
+        notes: 'Finished by hand on the broker site'
       })
       loadData()
     } catch (err) {
-      alert('Failed to resolve challenge: ' + (err.response?.data?.detail || err.message))
+      alert("Couldn't save that: " + (err.response?.data?.detail || err.message))
     } finally {
       setActionInProgress(false)
     }
@@ -62,7 +62,7 @@ export default function CaptchaQueue() {
       await api.post(`/captcha/challenges/${resolvingId}/resolve`, {
         resolution_type: 'token',
         token: tokenInput,
-        notes: notesInput || 'Token provided by human operator'
+        notes: notesInput || 'Solved CAPTCHA code pasted in'
       })
       setShowTokenModal(false)
       setResolvingId(null)
@@ -70,21 +70,21 @@ export default function CaptchaQueue() {
       setNotesInput('')
       loadData()
     } catch (err) {
-      alert('Failed to submit solution token: ' + (err.response?.data?.detail || err.message))
+      alert("Couldn't use that code: " + (err.response?.data?.detail || err.message))
     } finally {
       setActionInProgress(false)
     }
   }
 
   const handleDismiss = async (challengeId) => {
-    const reason = window.prompt('Reason for dismissing challenge (optional):', 'Operator dismissed')
+    const reason = window.prompt('Why skip this one? (optional)', 'Not needed')
     if (reason === null) return
     setActionInProgress(true)
     try {
       await api.post(`/captcha/challenges/${challengeId}/dismiss`, { notes: reason })
       loadData()
     } catch (err) {
-      alert('Failed to dismiss challenge: ' + (err.response?.data?.detail || err.message))
+      alert("Couldn't skip it: " + (err.response?.data?.detail || err.message))
     } finally {
       setActionInProgress(false)
     }
@@ -96,7 +96,7 @@ export default function CaptchaQueue() {
       await api.post(`/captcha/challenges/${challengeId}/retry`)
       loadData()
     } catch (err) {
-      alert('Failed to retry challenge: ' + (err.response?.data?.detail || err.message))
+      alert("Couldn't try again: " + (err.response?.data?.detail || err.message))
     } finally {
       setActionInProgress(false)
     }
@@ -109,10 +109,10 @@ export default function CaptchaQueue() {
         <div>
           <div className="flex items-center gap-2">
             <ShieldAlert className="text-amber-400" size={24} />
-            <h1 className="text-white text-xl font-semibold">CAPTCHA & Challenge Queue</h1>
+            <h1 className="text-white text-xl font-semibold">CAPTCHAs</h1>
           </div>
           <p className="text-slate-400 text-sm mt-1">
-            Human-in-the-loop fallback for opt-out requests paused by CAPTCHA walls or verification challenges.
+            Some sites ask to prove a person is there ("I'm not a robot") before they take an opt-out. These are waiting for someone: open the site, finish the opt-out, then press "I finished it".
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -130,9 +130,9 @@ export default function CaptchaQueue() {
       {/* Tabs */}
       <div className="flex gap-2 border-b border-slate-800 pb-3 mb-6">
         {[
-          { key: 'pending', label: 'Pending', count: stats.pending, color: 'text-amber-400' },
-          { key: 'resolved', label: 'Resolved', count: stats.resolved, color: 'text-emerald-400' },
-          { key: 'dismissed', label: 'Dismissed', count: stats.dismissed, color: 'text-slate-400' },
+          { key: 'pending', label: 'Waiting', count: stats.pending, color: 'text-amber-400' },
+          { key: 'resolved', label: 'Done', count: stats.resolved, color: 'text-emerald-400' },
+          { key: 'dismissed', label: 'Skipped', count: stats.dismissed, color: 'text-slate-400' },
           { key: 'all', label: 'All', count: stats.total, color: 'text-sky-400' }
         ].map(tab => (
           <button
@@ -155,16 +155,16 @@ export default function CaptchaQueue() {
       {/* Content */}
       {loading ? (
         <div className="p-12 text-center text-slate-500">
-          <RefreshCw className="animate-spin inline-block mr-2" size={16} /> Loading challenges...
+          <RefreshCw className="animate-spin inline-block mr-2" size={16} aria-hidden="true" /> Loading…
         </div>
       ) : challenges.length === 0 ? (
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-slate-400">
           <CheckCircle className="mx-auto text-emerald-400 mb-3" size={32} />
-          <h3 className="text-white font-medium text-base">No {activeTab !== 'all' ? activeTab : ''} challenges</h3>
+          <h3 className="text-white font-medium text-base">Nothing here</h3>
           <p className="text-slate-500 text-xs mt-1">
             {activeTab === 'pending'
-              ? 'All automated opt-outs are running cleanly without manual intervention.'
-              : `No ${activeTab} challenges recorded.`}
+              ? 'No opt-out is waiting for a CAPTCHA right now.'
+              : 'Nothing in this list yet.'}
           </p>
         </div>
       ) : (
@@ -188,13 +188,13 @@ export default function CaptchaQueue() {
 
                   <p className="text-slate-400 text-xs flex items-center gap-1.5 mt-1">
                     <Clock size={12} className="text-slate-500" />
-                    Detected: {new Date(c.created_at).toLocaleString()}
-                    {c.resolved_at && ` • Resolved: ${new Date(c.resolved_at).toLocaleString()} by ${c.resolved_by_name || 'operator'}`}
+                    Stopped: {new Date(c.created_at).toLocaleString()}
+                    {c.resolved_at && ` • Finished: ${new Date(c.resolved_at).toLocaleString()} by ${c.resolved_by_name || 'an admin'}`}
                   </p>
 
                   {c.notes && (
                     <p className="text-slate-400 text-xs mt-2 bg-slate-950/60 p-2 rounded-sm border border-slate-800">
-                      <strong>Notes:</strong> {c.notes}
+                      <strong>Note:</strong> {c.notes}
                     </p>
                   )}
 
@@ -208,7 +208,7 @@ export default function CaptchaQueue() {
                         className="inline-flex items-center gap-1 text-shield-400 hover:text-shield-300 underline"
                       >
                         <ExternalLink size={12} />
-                        Open broker opt-out form
+                        Open the opt-out page
                       </a>
                     )}
                     {c.site_key && (
@@ -225,10 +225,10 @@ export default function CaptchaQueue() {
                     <button
                       onClick={() => setSelectedShot(`/api/captcha/challenges/${c.id}/screenshot`)}
                       className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors"
-                      title="Inspect challenge screenshot"
+                      title="See what the page showed"
                     >
                       <FileImage size={13} className="text-amber-400" />
-                      View Screenshot
+                      See the page
                     </button>
                   )}
 
@@ -239,7 +239,7 @@ export default function CaptchaQueue() {
                         disabled={actionInProgress}
                         className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-emerald-300 bg-emerald-950/40 border border-emerald-800 hover:bg-emerald-900/60 rounded-lg transition-colors"
                       >
-                        <Check size={12} /> Mark Solved
+                        <Check size={12} aria-hidden="true" /> I finished it
                       </button>
                       <button
                         onClick={() => {
@@ -249,14 +249,14 @@ export default function CaptchaQueue() {
                         disabled={actionInProgress}
                         className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-sky-300 bg-sky-950/40 border border-sky-800 hover:bg-sky-900/60 rounded-lg transition-colors"
                       >
-                        <KeyRound size={12} /> Submit Token
+                        <KeyRound size={12} aria-hidden="true" /> Paste a code (advanced)
                       </button>
                       <button
                         onClick={() => handleDismiss(c.id)}
                         disabled={actionInProgress}
                         className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-400 hover:text-slate-200 border border-slate-800 hover:bg-slate-800 rounded-lg transition-colors"
                       >
-                        <X size={12} /> Dismiss
+                        <X size={12} aria-hidden="true" /> Skip
                       </button>
                     </div>
                   ) : (
@@ -265,7 +265,7 @@ export default function CaptchaQueue() {
                       disabled={actionInProgress}
                       className="flex items-center gap-1 px-2.5 py-1 text-xs text-slate-400 hover:text-white border border-slate-800 hover:bg-slate-800 rounded-lg transition-colors"
                     >
-                      <RotateCcw size={12} /> Re-queue
+                      <RotateCcw size={12} aria-hidden="true" /> Try again
                     </button>
                   )}
                 </div>
@@ -286,7 +286,7 @@ export default function CaptchaQueue() {
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
-              <span className="text-white font-medium text-sm">Challenge Screenshot</span>
+              <span className="text-white font-medium text-sm">What the page showed</span>
               <button
                 onClick={() => setSelectedShot(null)}
                 className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
@@ -297,7 +297,7 @@ export default function CaptchaQueue() {
             <div className="overflow-auto flex-1 text-center">
               <img
                 src={selectedShot}
-                alt="CAPTCHA Challenge"
+                alt="The broker's page, showing a CAPTCHA"
                 className="max-h-[75vh] w-auto inline-block rounded-sm border border-slate-800 shadow-sm"
               />
             </div>
@@ -318,7 +318,7 @@ export default function CaptchaQueue() {
             <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
               <div className="flex items-center gap-2">
                 <KeyRound size={16} className="text-sky-400" />
-                <span className="text-white font-medium text-sm">Provide Solution Token</span>
+                <span className="text-white font-medium text-sm">Paste a solved CAPTCHA code</span>
               </div>
               <button
                 onClick={() => setShowTokenModal(false)}
@@ -328,7 +328,7 @@ export default function CaptchaQueue() {
               </button>
             </div>
             <p className="text-slate-400 text-xs mb-3">
-              Paste the solution response token obtained from a manual browser inspection or external solving service:
+              Only if you have a CAPTCHA answer code (from a solving service or your browser's developer tools). Most people use "I finished it" instead.
             </p>
             <textarea
               rows={4}
@@ -341,7 +341,7 @@ export default function CaptchaQueue() {
               type="text"
               value={notesInput}
               onChange={e => setNotesInput(e.target.value)}
-              placeholder="Optional notes or reference..."
+              placeholder="Note (optional)"
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 mb-4 focus:outline-hidden focus:border-sky-500"
             />
             <div className="flex justify-end gap-2">
@@ -356,7 +356,7 @@ export default function CaptchaQueue() {
                 disabled={!tokenInput.trim() || actionInProgress}
                 className="px-4 py-1.5 text-xs font-medium text-white bg-shield-600 hover:bg-shield-500 disabled:opacity-40 rounded-lg transition-colors"
               >
-                Submit & Resolve
+                Use this code
               </button>
             </div>
           </div>

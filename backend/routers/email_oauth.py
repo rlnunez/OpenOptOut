@@ -109,16 +109,16 @@ def _provider_flow(provider_key: str) -> oe.OAuthFlowDesc:
     }
     flow = builtins.get(provider_key)
     if not flow:
-        raise HTTPException(400, f"No OAuth flow available for provider '{provider_key}' "
-                                 "(the plugin must describe one, or it's app-password only)")
+        raise HTTPException(400, f"'{provider_key}' doesn't offer sign-in from here. "
+                                 "Use an app password for it instead.")
     return flow
 
 
 def _client(settings: dict, provider_key: str) -> oe.OAuthClient:
     store = (settings.get("oauth_clients") or {}).get(provider_key)
     if not store:
-        raise HTTPException(400, f"No OAuth client registered for '{provider_key}'. "
-                                 "Register the client_id/client_secret first.")
+        raise HTTPException(400, f"Sign-in for '{provider_key}' isn't set up yet. "
+                                 "An admin needs to add its app ID and secret in Settings first.")
     return oe.OAuthClient(
         client_id=store.get("client_id", ""),
         client_secret=oe._decrypt(store.get("client_secret_enc", "")),
@@ -168,7 +168,7 @@ def begin(body: BeginIn, db: Session = Depends(get_db),
     flow = _provider_flow(body.provider_key)
     client = _client(s, body.provider_key)
     if not flow.auth_url or not flow.token_url:
-        raise HTTPException(400, "provider did not describe auth/token URLs")
+        raise HTTPException(400, "This email service's plugin is missing its sign-in addresses, so sign-in can't start.")
     url, pending = oe.begin_authorization(flow, client, body.account_ref)
     _PENDING[pending.state] = pending
     return {"authorize_url": url, "state": pending.state}
@@ -320,7 +320,7 @@ def activate_account(account_ref: str, db: Session = Depends(get_db),
     s = load_settings()
     toks = oe.load_tokens(s, account_ref)
     if not toks:
-        raise HTTPException(404, f"No connected account '{account_ref}'")
+        raise HTTPException(404, "That account isn't connected anymore.")
     email = s.setdefault("email", {})
     email["active_account_ref"] = account_ref
     # Keep provider in sync with whichever account is now active — switching
@@ -342,7 +342,7 @@ def disconnect_account(account_ref: str, db: Session = Depends(get_db),
     s = load_settings()
     creds = s.get("email_credentials") or {}
     if account_ref not in creds:
-        raise HTTPException(404, f"No connected account '{account_ref}'")
+        raise HTTPException(404, "That account isn't connected anymore.")
     creds.pop(account_ref, None)
     s["email_credentials"] = creds
     email = s.setdefault("email", {})

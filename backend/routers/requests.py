@@ -103,7 +103,7 @@ def list_requests(
     q = db.query(RemovalRequest).filter(RemovalRequest.member_id.in_(accessible))
     if member_id:
         if member_id not in accessible:
-            raise HTTPException(403, "No access to this member")
+            raise HTTPException(403, "You don't have access to this person.")
         q = q.filter(RemovalRequest.member_id == member_id)
     if status:
         q = q.filter(RemovalRequest.status == status)
@@ -156,7 +156,7 @@ def get_request(
 ):
     req = db.query(RemovalRequest).filter(RemovalRequest.id == req_id).first()
     if not req:
-        raise HTTPException(404, "Request not found")
+        raise HTTPException(404, "That request is gone. Refresh the page.")
     assert_can_view(db, current_user, req.member_id)
     return _to_out(req)
 
@@ -171,12 +171,12 @@ def create_request(
 ):
     accessible = get_accessible_member_ids(db, current_user)
     if data.member_id not in accessible:
-        raise HTTPException(403, "No access to this member")
+        raise HTTPException(403, "You don't have access to this person.")
 
     broker = db.query(Broker).filter(Broker.id == data.broker_id).first()
     member = db.query(FamilyMember).filter(FamilyMember.id == data.member_id).first()
-    if not broker: raise HTTPException(404, "Broker not found")
-    if not member: raise HTTPException(404, "Member not found")
+    if not broker: raise HTTPException(404, "That site is gone. Refresh the page.")
+    if not member: raise HTTPException(404, "That person is gone. Refresh the page.")
 
     req = RemovalRequest(
         member_id=data.member_id,
@@ -202,7 +202,7 @@ def update_request(
     current_user: User = Depends(get_current_user),
 ):
     req = db.query(RemovalRequest).filter(RemovalRequest.id == req_id).first()
-    if not req: raise HTTPException(404, "Request not found")
+    if not req: raise HTTPException(404, "That request is gone. Refresh the page.")
     assert_can_edit(db, current_user, req.member_id)
 
     if data.status:
@@ -229,7 +229,7 @@ def requeue_request(
 ):
     """Reset a confirmed (or overdue) request back to pending so it gets re-sent."""
     req = db.query(RemovalRequest).filter(RemovalRequest.id == req_id).first()
-    if not req: raise HTTPException(404, "Request not found")
+    if not req: raise HTTPException(404, "That request is gone. Refresh the page.")
     assert_can_edit(db, current_user, req.member_id)
 
     req.status       = RequestStatus.pending
@@ -251,7 +251,7 @@ def snooze_request(
 ):
     """Push the recheck_after date forward by N days without changing status."""
     req = db.query(RemovalRequest).filter(RemovalRequest.id == req_id).first()
-    if not req: raise HTTPException(404, "Request not found")
+    if not req: raise HTTPException(404, "That request is gone. Refresh the page.")
     assert_can_edit(db, current_user, req.member_id)
 
     base = max(req.recheck_after or datetime.utcnow(), datetime.utcnow())

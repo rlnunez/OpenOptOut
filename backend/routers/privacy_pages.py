@@ -62,7 +62,7 @@ def _run(broker_id: int):
 def find_now(broker_id: int, db: Session = Depends(get_db), _=Depends(_manage)):
     b = db.query(Broker).filter(Broker.id == broker_id).first()
     if not b:
-        raise HTTPException(404, "That broker is gone.")
+        raise HTTPException(404, "That site is gone.")
     with _LOCK:
         if broker_id in _RUNNING:
             return {"started": False, "running": True}

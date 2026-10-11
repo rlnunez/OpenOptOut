@@ -52,7 +52,7 @@ function AddMemberModal({ onClose, onCreated }) {
       onCreated(data)
       onClose()
     } catch {
-      setError('Failed to add member')
+      setError("Couldn't add them. Please try again.")
     } finally {
       setSaving(false)
     }
@@ -88,7 +88,7 @@ function AddMemberModal({ onClose, onCreated }) {
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose} className="flex-1 py-2 border border-slate-700 rounded-lg text-slate-400 text-sm hover:bg-slate-800 transition-colors">Cancel</button>
             <button type="submit" disabled={saving} className="flex-1 py-2 bg-shield-600 hover:bg-shield-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
-              {saving ? 'Adding…' : 'Add member'}
+              {saving ? 'Adding…' : 'Add person'}
             </button>
           </div>
         </form>
@@ -144,7 +144,7 @@ function MemberCard({ member, onUpdated, onDeleted, onSelect, selected }) {
   const complete = Object.keys(KIND_LABELS).every(k => kindCounts[k] > 0)
 
   const deleteMember = async () => {
-    if (!confirm(`Remove ${member.full_name} and all their data?`)) return
+    if (!confirm(`Remove ${member.full_name}? Their saved details and opt-out history will be deleted from OpenOptOut.`)) return
     await api.delete(`/family/${member.id}`)
     onDeleted(member.id)
   }
@@ -170,7 +170,7 @@ function MemberCard({ member, onUpdated, onDeleted, onSelect, selected }) {
           <button
             onClick={e => { e.stopPropagation(); deleteMember() }}
             className="text-slate-600 hover:text-red-400 transition-colors p-1"
-            title="Remove member"
+            title="Remove this person" aria-label={`Remove ${member.full_name}`}
           >
             <Trash2 size={13} />
           </button>
@@ -196,8 +196,8 @@ function MemberCard({ member, onUpdated, onDeleted, onSelect, selected }) {
         <div className="flex items-center justify-between">
           <div className={`flex items-center gap-1.5 text-xs ${complete ? 'text-emerald-400' : 'text-amber-400'}`}>
             {complete
-              ? <><ShieldCheck size={11} /> Vault complete</>
-              : <><AlertCircle size={11} /> Add more identity data</>
+              ? <><ShieldCheck size={11} aria-hidden="true" /> Details look complete</>
+              : <><AlertCircle size={11} aria-hidden="true" /> Add more details (old addresses, phones…)</>
             }
           </div>
           <ChevronRight size={13} className={`transition-colors ${selected ? 'text-shield-400' : 'text-slate-600'}`} />
@@ -244,13 +244,13 @@ export default function Family() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-white text-xl font-semibold">Family members</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Everyone you're protecting. Click a member to manage their identity data.</p>
+          <p className="text-slate-400 text-sm mt-0.5">Everyone you're protecting. Choose a person to add their names, addresses, phone numbers and emails.</p>
         </div>
         <button
           onClick={() => setShowAdd(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 transition-colors"
         >
-          <UserPlus size={13} /> Add member
+          <UserPlus size={13} aria-hidden="true" /> Add a person
         </button>
       </div>
 
@@ -260,12 +260,12 @@ export default function Family() {
         <div className="text-center py-16 bg-slate-800/50 rounded-xl border border-dashed border-slate-700">
           <Users size={32} className="text-slate-600 mx-auto mb-3" />
           <p className="text-slate-400 text-sm font-medium">No family members yet</p>
-          <p className="text-slate-600 text-xs mt-1 mb-4">Add yourself first, then add family members</p>
+          <p className="text-slate-600 text-xs mt-1 mb-4">Add yourself first, then the rest of your family</p>
           <button
             onClick={() => setShowAdd(true)}
             className="px-4 py-2 bg-shield-600 text-white text-sm rounded-lg hover:bg-shield-700 transition-colors"
           >
-            Add first member
+            Add yourself
           </button>
         </div>
       )}

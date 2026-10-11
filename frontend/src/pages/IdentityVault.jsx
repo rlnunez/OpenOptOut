@@ -15,28 +15,28 @@ const DEFAULT_LIMITS = { name: 4, email: 5, phone: 5, address: 10 }
 
 const KINDS = [
   {
-    key: 'name', label: 'Name variants', icon: User,
+    key: 'name', label: 'Names', icon: User,
     color: 'text-purple-400', bg: 'bg-purple-900/20 border-purple-800/50',
     placeholder: 'e.g. Robert Nunez, Rob Nunez, Bobby Nunez',
-    hint: 'Include maiden names, nicknames, middle name variants, misspellings that appear on broker sites.',
+    hint: 'Add every way your name shows up: maiden names, nicknames, with or without a middle name, and common misspellings.',
   },
   {
     key: 'email', label: 'Email addresses', icon: Mail,
     color: 'text-blue-400', bg: 'bg-blue-900/20 border-blue-800/50',
     placeholder: 'e.g. robert@gmail.com',
-    hint: 'Add all addresses you\'ve ever used — each may appear on different broker sites.',
+    hint: 'Add every email you\'ve ever used. Different sites may list different ones.',
   },
   {
     key: 'phone', label: 'Phone numbers', icon: Phone,
     color: 'text-emerald-400', bg: 'bg-emerald-900/20 border-emerald-800/50',
     placeholder: 'e.g. (713) 555-0142',
-    hint: 'Include current and all past numbers. Especially important if tied to old addresses.',
+    hint: 'Add your current number and any old ones. Old numbers often still show up next to old addresses.',
   },
   {
     key: 'address', label: 'Addresses', icon: MapPin,
     color: 'text-amber-400', bg: 'bg-amber-900/20 border-amber-800/50',
     placeholder: 'e.g. 123 Main St, Houston TX 77001',
-    hint: 'Add current and past addresses going back as far as possible. Format: Street, City, ST ZIP.',
+    hint: 'Add where you live now and where you used to live, as far back as you can. Example: 123 Main St, Houston TX 77001.',
   },
 ]
 
@@ -55,9 +55,9 @@ function MatrixPreview({ stats, memberId }) {
     <div className="bg-slate-900 rounded-xl border border-slate-700/50 p-4 mb-5">
       <div className="flex items-center gap-2 mb-3">
         <Grid3X3 size={13} className="text-shield-400" />
-        <p className="text-slate-300 text-sm font-medium">Combination matrix</p>
+        <p className="text-slate-300 text-sm font-medium">How many searches this adds up to</p>
         <span className="text-slate-600 text-xs ml-auto">
-          How many searches the bot will run per broker
+          Each site gets searched once for every mix of your details
         </span>
       </div>
 
@@ -87,14 +87,14 @@ function MatrixPreview({ stats, memberId }) {
       {/* Matrix sizes */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
         <div className="bg-slate-800 rounded-lg px-3 py-2">
-          <p className="text-slate-500 mb-0.5">Discovery pass (name × address)</p>
+          <p className="text-slate-500 mb-0.5">To find you (each name with each address)</p>
           <p className="text-slate-200 font-semibold text-sm">{discovery_combos} searches</p>
-          <p className="text-slate-600">per broker to find listings</p>
+          <p className="text-slate-600">on each site</p>
         </div>
         <div className="bg-slate-800 rounded-lg px-3 py-2">
-          <p className="text-slate-500 mb-0.5">Opt-out pass (all combinations)</p>
+          <p className="text-slate-500 mb-0.5">To remove you (every mix)</p>
           <p className="text-slate-200 font-semibold text-sm">{optout_combos.toLocaleString()} submissions</p>
-          <p className="text-slate-600">per broker where you're found</p>
+          <p className="text-slate-600">on each site that lists you</p>
         </div>
       </div>
 
@@ -102,8 +102,8 @@ function MatrixPreview({ stats, memberId }) {
         <div className="mt-2 flex items-start gap-1.5 text-amber-400 text-xs">
           <AlertCircle size={11} className="shrink-0 mt-0.5" />
           <span>
-            Large matrix — the bot uses a 1.5s delay between submissions per broker
-            to avoid triggering rate limits.
+            That's a lot of requests. We space them out so the sites don't block us,
+            so this will take a while.
           </span>
         </div>
       )}
@@ -111,22 +111,22 @@ function MatrixPreview({ stats, memberId }) {
       {/* Property records summary */}
       {(stats.deed_addresses > 0 || stats.mortgage_addresses > 0 || stats.has_formal_name) && (
         <div className="mt-3 pt-3 border-t border-slate-700/30">
-          <p className="text-slate-500 text-xs uppercase tracking-wide mb-2">Property records</p>
+          <p className="text-slate-500 text-xs uppercase tracking-wide mb-2">Home ownership records</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
             <div className="bg-slate-800 rounded-lg px-2.5 py-2">
-              <p className="text-slate-500 mb-0.5">Formal name</p>
+              <p className="text-slate-500 mb-0.5">Legal name</p>
               <p className={stats.has_formal_name ? 'text-slate-200 font-medium truncate' : 'text-slate-700 italic'}>
                 {stats.formal_name || 'not set'}
               </p>
             </div>
             <div className="bg-slate-800 rounded-lg px-2.5 py-2">
-              <p className="text-slate-500 mb-0.5">Deed addresses</p>
+              <p className="text-slate-500 mb-0.5">Addresses on deeds</p>
               <p className={stats.deed_addresses > 0 ? 'text-purple-400 font-semibold' : 'text-slate-700'}>
                 {stats.deed_addresses}
               </p>
             </div>
             <div className="bg-slate-800 rounded-lg px-2.5 py-2">
-              <p className="text-slate-500 mb-0.5">Mortgage addresses</p>
+              <p className="text-slate-500 mb-0.5">Addresses on mortgages</p>
               <p className={stats.mortgage_addresses > 0 ? 'text-blue-400 font-semibold' : 'text-slate-700'}>
                 {stats.mortgage_addresses}
               </p>
@@ -134,11 +134,11 @@ function MatrixPreview({ stats, memberId }) {
           </div>
           <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
             <div className="bg-slate-800 rounded-lg px-2.5 py-2">
-              <p className="text-slate-500 mb-0.5">Property discovery</p>
+              <p className="text-slate-500 mb-0.5">Searches to find you</p>
               <p className="text-slate-200 font-semibold">{stats.property_discovery_combos} searches</p>
             </div>
             <div className="bg-slate-800 rounded-lg px-2.5 py-2">
-              <p className="text-slate-500 mb-0.5">Property opt-out</p>
+              <p className="text-slate-500 mb-0.5">Requests to remove you</p>
               <p className="text-slate-200 font-semibold">{stats.property_optout_combos} submissions</p>
             </div>
           </div>
@@ -161,7 +161,7 @@ function MemberSelector({ members, selectedId, onChange }) {
     <div className="relative">
       <select value={selectedId ?? ''} onChange={e => onChange(parseInt(e.target.value))}
         className="appearance-none bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-200 focus:outline-hidden focus:border-shield-500 min-w-48">
-        <option value="" disabled>Select member…</option>
+        <option value="" disabled>Choose a person…</option>
         {members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
       </select>
       <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
@@ -200,8 +200,8 @@ function FormalNameEditor({ member, onUpdated }) {
     <div className="bg-slate-800 rounded-xl border border-slate-700/50 p-4 mb-4">
       <div className="flex items-center gap-2 mb-2">
         <FileText size={13} className="text-shield-400" />
-        <p className="text-slate-300 text-sm font-medium">Formal / legal name</p>
-        <span className="text-slate-600 text-xs">— used for property record searches only · max 1</span>
+        <p className="text-slate-300 text-sm font-medium">Full legal name</p>
+        <span className="text-slate-600 text-xs">— only used to search home ownership records · one per person</span>
       </div>
 
       {editing ? (
@@ -240,8 +240,8 @@ function FormalNameEditor({ member, onUpdated }) {
           ) : (
             <button onClick={() => setEditing(true)}
               className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 text-sm transition-colors">
-              <Plus size={12} /> Add formal name
-              <span className="text-slate-700 text-xs">(name as it appears on deeds and mortgages)</span>
+              <Plus size={12} /> Add full legal name
+              <span className="text-slate-700 text-xs">(your name as it's written on a deed or mortgage)</span>
             </button>
           )}
         </div>
@@ -249,7 +249,7 @@ function FormalNameEditor({ member, onUpdated }) {
 
       {member.formal_name && (
         <p className="text-slate-600 text-xs mt-2">
-          Property record searches will use this name instead of your name variants.
+          Home ownership searches will use this name instead of the names above.
         </p>
       )}
     </div>
@@ -281,7 +281,7 @@ function AddIdentityRow({ kind, memberId, currentCount, maxCount, onAdded }) {
 
   if (atMax) return (
     <p className="text-slate-600 text-xs mt-2 italic">
-      Maximum {limit} {kind}s reached per member.
+      You've added the most allowed for one person ({limit}).
     </p>
   )
 
@@ -291,7 +291,7 @@ function AddIdentityRow({ kind, memberId, currentCount, maxCount, onAdded }) {
         placeholder={cfg.placeholder}
         className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500" />
       <button type="button" onClick={() => setPrimary(p => !p)}
-        title={primary ? 'Primary — used first in opt-outs' : 'Set as primary'}
+        title={primary ? 'Main one — we use this first' : 'Make this the main one'}
         className={`px-2 rounded-lg border transition-colors ${primary ? 'text-amber-400 border-amber-700 bg-amber-900/20' : 'text-slate-600 border-slate-700 hover:text-amber-400'}`}>
         <Star size={13} />
       </button>
@@ -331,7 +331,7 @@ function IdentityRow({ identity, onDeleted, onTogglePrimary, masked }) {
 
   return (
     <div className={`flex items-center gap-2 py-2 px-3 rounded-lg group ${identity.is_primary ? 'bg-slate-700/30' : 'hover:bg-slate-800/50'}`}>
-      {identity.is_primary && <Star size={11} className="text-amber-400 shrink-0" title="Primary" />}
+      {identity.is_primary && <Star size={11} className="text-amber-400 shrink-0" title="Main one" />}
       <span className={`flex-1 text-sm font-mono ${identity.is_primary ? 'text-slate-200' : 'text-slate-400'}`}>
         {masked ? maskedVal(identity.value, identity.kind) : identity.value}
       </span>
@@ -352,7 +352,7 @@ function IdentityRow({ identity, onDeleted, onTogglePrimary, masked }) {
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button onClick={togglePrimary}
           className={`p-1 rounded-sm transition-colors ${identity.is_primary ? 'text-amber-400 hover:text-slate-400' : 'text-slate-600 hover:text-amber-400'}`}
-          title={identity.is_primary ? 'Remove primary' : 'Set as primary'}>
+          title={identity.is_primary ? 'Stop using as main one' : 'Make this the main one'}>
           {identity.is_primary ? <StarOff size={12} /> : <Star size={12} />}
         </button>
         <button onClick={del} disabled={deleting}
@@ -421,7 +421,7 @@ function VaultScore({ identities }) {
   return (
     <div className="bg-slate-800 rounded-xl border border-slate-700/50 p-4 mb-5">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-slate-400 text-xs uppercase tracking-wide">Vault completeness</span>
+        <span className="text-slate-400 text-xs uppercase tracking-wide">How complete this is</span>
         <span className={`text-sm font-semibold ${pct === 100 ? 'text-emerald-400' : 'text-amber-400'}`}>{pct}%</span>
       </div>
       <div className="h-1.5 bg-slate-700 rounded-full mb-3">
@@ -441,12 +441,12 @@ function VaultScore({ identities }) {
       </div>
       {!hasPrimary && pct > 0 && (
         <p className="text-amber-400 text-xs mt-3 flex items-center gap-1">
-          <Star size={10} /> Mark one entry per category as primary — used first in opt-outs.
+          <Star size={10} /> Star one in each group as the main one. We use it first.
         </p>
       )}
       {pct === 100 && hasPrimary && (
         <p className="text-emerald-400 text-xs mt-3 flex items-center gap-1">
-          <ShieldCheck size={10} /> Vault complete — ready to run opt-outs.
+          <ShieldCheck size={10} /> All set. We have enough to start removing listings.
         </p>
       )}
     </div>
@@ -541,8 +541,8 @@ export default function IdentityVault() {
     <div className="p-4 md:p-6 max-w-3xl">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-white text-xl font-semibold">Identity vault</h1>
-          <p className="text-slate-400 text-sm mt-0.5">All PII variants used to find and remove listings</p>
+          <h1 className="text-white text-xl font-semibold">Your details</h1>
+          <p className="text-slate-400 text-sm mt-0.5">Every name, address, phone number and email we use to find and remove your listings</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => setMasked(m => !m)}
@@ -567,7 +567,7 @@ export default function IdentityVault() {
                 {t('ils.import_prompt_title', 'Import details from your library card?')}
               </h4>
               <p className="text-xs text-slate-300 mt-0.5">
-                {t('ils.import_vault_desc', 'Your library account has information available ({details}). Would you like to import it into your Identity Vault, or enter your details manually?', {
+                {t('ils.import_vault_desc', 'Your library account has information available ({details}). Would you like to add it to Your details, or enter your details manually?', {
                   details: [ilsPending.name, ilsPending.address, ilsPending.phone].filter(Boolean).join(', ')
                 })}
               </p>

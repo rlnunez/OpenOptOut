@@ -296,7 +296,7 @@ def _select_pending_batch(db, cfg, max_this_run: int) -> list:
         if req.broker and not request_allowed(req, db):
             continue
         # Skip requests currently paused for human CAPTCHA resolution (Item 4)
-        if req.notes and "Paused for human CAPTCHA" in req.notes:
+        if req.notes and ("Paused for human CAPTCHA" in req.notes or "Stopped at a CAPTCHA" in req.notes):
             continue
         mc = req.member.schedule_config
         if mc and not mc.enabled:
