@@ -13,25 +13,26 @@ import { useLanguage, useT } from '../i18n/LanguageContext'
 import { useAccessibility } from '../context/AccessibilityContext'
 import api from '../api'
 import { useState, useEffect } from 'react'
+import { tx, txn } from '../i18n/tx'
 
 const nav = [
-  { k: 'nav.dashboard', label: 'Dashboard',     to: '/',           icon: LayoutDashboard },
-  { k: 'nav.checklist', label: 'Checklist',     to: '/checklist',  icon: ListChecks, badgeKey: 'checklist' },
-  { k: 'nav.brokers', label: 'Broker sites',  to: '/brokers',    icon: Store },
-  { k: 'nav.discovery', label: 'Find listings', to: '/discovery',  icon: Radar },
-  { k: 'nav.email_monitor', label: 'Replies',       to: '/email',      icon: Mail },
-  { k: 'nav.scheduled', label: 'Check again',   to: '/scheduled',  icon: CalendarClock },
-  { k: 'nav.calendar', label: 'Calendar', to: '/calendar', icon: CalendarDays },
-  { k: 'nav.captcha', label: 'CAPTCHAs',      to: '/captcha',    icon: ShieldAlert },
-  { k: 'nav.deadlines', label: 'Deadline report', to: '/deadlines', icon: Gavel },
+  { k: 'nav.dashboard', label: tx("Dashboard"),     to: '/',           icon: LayoutDashboard },
+  { k: 'nav.checklist', label: tx("Checklist"),     to: '/checklist',  icon: ListChecks, badgeKey: 'checklist' },
+  { k: 'nav.brokers', label: tx("Broker sites"),  to: '/brokers',    icon: Store },
+  { k: 'nav.discovery', label: tx("Find listings"), to: '/discovery',  icon: Radar },
+  { k: 'nav.email_monitor', label: tx("Replies"),       to: '/email',      icon: Mail },
+  { k: 'nav.scheduled', label: tx("Check again"),   to: '/scheduled',  icon: CalendarClock },
+  { k: 'nav.calendar', label: tx("Calendar"), to: '/calendar', icon: CalendarDays },
+  { k: 'nav.captcha', label: tx("CAPTCHAs"),      to: '/captcha',    icon: ShieldAlert },
+  { k: 'nav.deadlines', label: tx("Deadline report"), to: '/deadlines', icon: Gavel },
 ]
 const setup = [
-  { k: 'nav.family', label: 'Family members', to: '/family',   icon: Users },
-  { k: 'nav.vault', label: 'Your details', to: '/identity', icon: ShieldCheck },
-  { k: 'nav.inboxes', label: 'Email inboxes',  to: '/inboxes',  icon: Inbox },
-  { k: 'nav.credit_freeze', label: 'Freeze credit',  to: '/credit-freeze', icon: Snowflake },
-  { k: 'nav.settings', label: 'Settings',       to: '/settings', icon: Settings },
-  { k: 'nav.help', label: 'Help',           to: '/help',     icon: BookOpen },
+  { k: 'nav.family', label: tx("Family members"), to: '/family',   icon: Users },
+  { k: 'nav.vault', label: tx("Your details"), to: '/identity', icon: ShieldCheck },
+  { k: 'nav.inboxes', label: tx("Email inboxes"),  to: '/inboxes',  icon: Inbox },
+  { k: 'nav.credit_freeze', label: tx("Freeze credit"),  to: '/credit-freeze', icon: Snowflake },
+  { k: 'nav.settings', label: tx("Settings"),       to: '/settings', icon: Settings },
+  { k: 'nav.help', label: tx("Help"),           to: '/help',     icon: BookOpen },
 ]
 
 function NavItem({ k, to, icon: Icon, label, onNavigate, badge, badgeLabel }) {
@@ -48,7 +49,7 @@ function NavItem({ k, to, icon: Icon, label, onNavigate, badge, badgeLabel }) {
       <Icon size={15} aria-hidden="true" />{text}
       {badge > 0 && (
         <span className="ml-auto text-[11px] font-semibold bg-amber-500 text-slate-950 rounded-full px-1.5 min-w-5 text-center"
-          aria-label={badgeLabel ? `${badge} ${badgeLabel}` : `${badge} item${badge === 1 ? '' : 's'} need you`}>{badge}</span>
+          aria-label={badgeLabel ? `${badge} ${badgeLabel}` : txn(badge, "{n} item needs you", "{n} items need you")}>{badge}</span>
       )}
     </NavLink>
   )
@@ -104,26 +105,26 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
   // hold them all). Upload plugin shows on its own for managers who can upload
   // but not see the Plugins page.
   const adminLinks = [
-    { k: 'nav.admin_panel', to: '/admin',            icon: ShieldAlert, label: 'Admin panel',      perms: ['users.manage'] },
-    { k: 'nav.broker_updates', to: '/broker-updates',   icon: Bell,        label: 'Broker updates',   perms: ['brokers.manage'], badge: updatesCount, badgeLabel: 'new broker updates' },
-    { k: 'nav.broker_health', to: '/broker-health',    icon: Activity,    label: 'Broker health',    perms: ['brokers.manage'] },
-    { k: 'nav.broker_priority', to: '/broker-priority',  icon: ListOrdered, label: 'Broker priority',  perms: ['brokers.manage'] },
-    { k: 'nav.data_sharing', to: '/data-sharing',     icon: Share2,      label: 'Data sharing',     perms: ['brokers.manage'] },
-    { k: 'nav.parent_companies', to: '/parent-companies', icon: Building2,   label: 'Parent companies', perms: ['brokers.manage'] },
-    { k: 'nav.registries', to: '/state-registries', icon: Landmark,    label: 'State registries', perms: ['brokers.manage'] },
-    { k: 'nav.websearch', to: '/web-search',       icon: Globe2,      label: 'Web search',       perms: ['settings.system'] },
-    { k: 'nav.branding', to: '/branding',         icon: Palette,     label: 'Branding',         perms: ['branding.manage', 'users.registration', 'auth.providers'] },
-    { k: 'nav.translations', to: '/translations',     icon: Globe,       label: 'Translations',     perms: ['settings.manage'] },
-    { k: 'nav.reporting', to: '/reporting',        icon: BarChart2,   label: 'Reporting',        perms: ['reporting.view'] },
-    { k: 'nav.database', to: '/database',         icon: HardDrive,   label: 'Database',         perms: ['database.view'] },
-    ...(user?.role === 'super_admin' ? [{ k: 'nav.backups', to: '/backups', icon: DatabaseBackup, label: 'Backups', perms: [] }] : []),
-    { k: 'nav.worker_fleet', to: '/worker-fleet',     icon: Server,      label: 'Worker fleet',     perms: ['settings.system'] },
-    { k: 'nav.privacy_record', to: '/privacy-record', icon: FileLock2, label: 'Privacy record', perms: ['settings.system'] },
-    { k: 'nav.logs', to: '/logs',             icon: Terminal,    label: 'System logs',      perms: ['logs.view'] },
-    { k: 'nav.plugins', to: '/plugins',          icon: Puzzle,      label: 'Plugins',          perms: ['plugins.view'] },
-    ...(!can(user, 'plugins.view') ? [{ k: 'nav.plugin_upload', to: '/plugin-upload', icon: Upload, label: 'Add a plugin', perms: ['plugins.upload'] }] : []),
-    { k: 'nav.plugin_docs', to: '/plugin-help',      icon: BookOpen,    label: 'Plugin guide',      perms: ['plugins.view', 'plugins.upload'] },
-    { k: 'nav.add_brokers', to: '/brokers/add',      icon: PlusCircle,  label: 'Add brokers',      perms: ['brokers.manage'] },
+    { k: 'nav.admin_panel', to: '/admin',            icon: ShieldAlert, label: tx("Admin panel"),      perms: ['users.manage'] },
+    { k: 'nav.broker_updates', to: '/broker-updates',   icon: Bell,        label: tx("Broker updates"),   perms: ['brokers.manage'], badge: updatesCount, badgeLabel: tx("new broker updates") },
+    { k: 'nav.broker_health', to: '/broker-health',    icon: Activity,    label: tx("Broker health"),    perms: ['brokers.manage'] },
+    { k: 'nav.broker_priority', to: '/broker-priority',  icon: ListOrdered, label: tx("Broker priority"),  perms: ['brokers.manage'] },
+    { k: 'nav.data_sharing', to: '/data-sharing',     icon: Share2,      label: tx("Data sharing"),     perms: ['brokers.manage'] },
+    { k: 'nav.parent_companies', to: '/parent-companies', icon: Building2,   label: tx("Parent companies"), perms: ['brokers.manage'] },
+    { k: 'nav.registries', to: '/state-registries', icon: Landmark,    label: tx("State registries"), perms: ['brokers.manage'] },
+    { k: 'nav.websearch', to: '/web-search',       icon: Globe2,      label: tx("Web search"),       perms: ['settings.system'] },
+    { k: 'nav.branding', to: '/branding',         icon: Palette,     label: tx("Branding"),         perms: ['branding.manage', 'users.registration', 'auth.providers'] },
+    { k: 'nav.translations', to: '/translations',     icon: Globe,       label: tx("Translations"),     perms: ['settings.manage'] },
+    { k: 'nav.reporting', to: '/reporting',        icon: BarChart2,   label: tx("Reporting"),        perms: ['reporting.view'] },
+    { k: 'nav.database', to: '/database',         icon: HardDrive,   label: tx("Database"),         perms: ['database.view'] },
+    ...(user?.role === 'super_admin' ? [{ k: 'nav.backups', to: '/backups', icon: DatabaseBackup, label: tx("Backups"), perms: [] }] : []),
+    { k: 'nav.worker_fleet', to: '/worker-fleet',     icon: Server,      label: tx("Worker fleet"),     perms: ['settings.system'] },
+    { k: 'nav.privacy_record', to: '/privacy-record', icon: FileLock2, label: tx("Privacy record"), perms: ['settings.system'] },
+    { k: 'nav.logs', to: '/logs',             icon: Terminal,    label: tx("System logs"),      perms: ['logs.view'] },
+    { k: 'nav.plugins', to: '/plugins',          icon: Puzzle,      label: tx("Plugins"),          perms: ['plugins.view'] },
+    ...(!can(user, 'plugins.view') ? [{ k: 'nav.plugin_upload', to: '/plugin-upload', icon: Upload, label: tx("Add a plugin"), perms: ['plugins.upload'] }] : []),
+    { k: 'nav.plugin_docs', to: '/plugin-help',      icon: BookOpen,    label: tx("Plugin guide"),      perms: ['plugins.view', 'plugins.upload'] },
+    { k: 'nav.add_brokers', to: '/brokers/add',      icon: PlusCircle,  label: tx("Add brokers"),      perms: ['brokers.manage'] },
   ].filter(n => can(user, ...n.perms)).map(({ perms, ...n }) => n)
 
   const roleColor = { super_admin: 'text-purple-400', manager: 'text-sky-400', parent: 'text-teal-400', member: 'text-slate-400' }[user?.role] ?? 'text-slate-400'
@@ -139,7 +140,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
       )}
 
       <aside
-        aria-label="Main sidebar"
+        aria-label={tx("Main sidebar")}
         className={`bg-slate-900 flex flex-col py-4 w-64 md:w-52 shrink-0 h-screen z-40
           fixed inset-y-0 left-0 transform transition-transform duration-200 ease-in-out
           md:sticky md:top-0 md:translate-x-0
@@ -149,7 +150,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               {branding?.logo_url ? (
-                <img src={branding.logo_url} alt="Logo" className="h-6 object-contain shrink-0" />
+                <img src={branding.logo_url} alt={tx("Logo")} className="h-6 object-contain shrink-0" />
               ) : (
                 <ShieldCheck size={18} className="text-shield-500 shrink-0" />
               )}
@@ -158,21 +159,21 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
             {branding?.tagline && <p className="text-slate-500 text-xs mt-0.5 truncate">{branding.tagline}</p>}
           </div>
           {/* Close button — mobile only */}
-          <button onClick={onClose} className="md:hidden text-slate-500 hover:text-white p-1 -mr-1" aria-label="Close menu">
+          <button onClick={onClose} className="md:hidden text-slate-500 hover:text-white p-1 -mr-1" aria-label={tx("Close menu")}>
             <X size={18} />
           </button>
         </div>
 
         {/* Scrollable body: Contains both nav links and footer controls so nothing is ever clipped */}
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-between">
-          <nav aria-label="Main menu" className="flex flex-col gap-0.5 pb-2">
-            <p className="text-slate-600 text-xs px-4 mb-1 uppercase tracking-widest">Manage</p>
+          <nav aria-label={tx("Main menu")} className="flex flex-col gap-0.5 pb-2">
+            <p className="text-slate-600 text-xs px-4 mb-1 uppercase tracking-widest">{tx("Manage")}</p>
             {nav.map(n => <NavItem key={n.to} {...n} badge={n.badgeKey === 'checklist' ? checklistCount : 0} onNavigate={handleNavigate} />)}
-            <p className="text-slate-600 text-xs px-4 mt-3 mb-1 uppercase tracking-widest">Setup</p>
+            <p className="text-slate-600 text-xs px-4 mt-3 mb-1 uppercase tracking-widest">{tx("Setup")}</p>
             {setup.map(n => <NavItem key={n.to} {...n} onNavigate={handleNavigate} />)}
             {adminLinks.length > 0 && (
               <>
-                <p className="text-slate-600 text-xs px-4 mt-3 mb-1 uppercase tracking-widest">Admin</p>
+                <p className="text-slate-600 text-xs px-4 mt-3 mb-1 uppercase tracking-widest">{tx("Admin")}</p>
                 {adminLinks.map(n => <NavItem key={n.to} {...n} onNavigate={handleNavigate} />)}
               </>
             )}
@@ -181,10 +182,10 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
           <div className="shrink-0 mt-auto">
             {(user?.role === 'parent' || user?.role === 'manager') && (
               <div className="mx-2 mt-2 px-3 py-2.5 bg-slate-800 rounded-lg border border-slate-700/50">
-                <p className="text-slate-500 text-xs mb-2">Dashboard view</p>
+                <p className="text-slate-500 text-xs mb-2">{tx("Dashboard view")}</p>
                 <button onClick={toggleView} disabled={toggling} className="flex items-center gap-2 w-full text-left">
                   {user.unified_view ? <ToggleRight size={16} className="text-shield-400 shrink-0" /> : <ToggleLeft size={16} className="text-slate-600 shrink-0" />}
-                  <span className="text-slate-300 text-xs">{user.unified_view ? 'All managed profiles' : 'My profile only'}</span>
+                  <span className="text-slate-300 text-xs">{user.unified_view ? tx("All managed profiles") : tx("My profile only")}</span>
                 </button>
               </div>
             )}
@@ -287,7 +288,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
 
               <div className="pt-2 mt-1 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500 flex-wrap gap-1.5">
                 <span className="text-slate-600 text-[11px] truncate">
-                  {branding?.show_powered_by ? 'Powered by OpenOptOut' : 'OpenOptOut'}
+                  {branding?.show_powered_by ? tx("Powered by OpenOptOut") : 'OpenOptOut'}
                 </span>
                 {versionInfo?.version && (
                   <button
@@ -299,10 +300,10 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
                       setCopiedVersion(true)
                       setTimeout(() => setCopiedVersion(false), 2000)
                     }}
-                    title="Click to copy version for reporting"
+                    title={tx("Click to copy version for reporting")}
                     className="font-mono text-[11px] text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1 bg-slate-800/80 hover:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700/50 shrink-0"
                   >
-                    <span>v{versionInfo.version}</span>
+                    <span>{"v"}{versionInfo.version}</span>
                     {copiedVersion ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} className="text-slate-500" />}
                   </button>
                 )}

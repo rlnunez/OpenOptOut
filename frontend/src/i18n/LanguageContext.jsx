@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import api from '../api'
+import { activeLanguage } from './tx'
 
 const LanguageContext = createContext(null)
 
@@ -58,6 +59,13 @@ export function LanguageProvider({ children }) {
           const userLang = res.data.preferred_language
           setLanguageState(userLang)
           localStorage.setItem('preferred_language', userLang)
+          // Signed in on a device that was showing another language: reload
+          // once so every screen comes up in theirs.
+          if (userLang !== activeLanguage() && sessionStorage.getItem('lang_reloaded') !== userLang) {
+            sessionStorage.setItem('lang_reloaded', userLang)
+            window.location.reload()
+            return
+          }
           loadTranslations(userLang)
         }
         if (res.data && !res.data.tutorial_completed) {
@@ -74,7 +82,6 @@ export function LanguageProvider({ children }) {
     const target = code.toLowerCase().trim()
     setLanguageState(target)
     localStorage.setItem('preferred_language', target)
-    await loadTranslations(target)
 
     // Save to user profile if logged in
     try {
@@ -82,11 +89,14 @@ export function LanguageProvider({ children }) {
     } catch (e) {
       // Non-fatal if offline/guest
     }
+    // Reload so every screen, including lists built when the page loaded,
+    // comes up in the new language.
+    if (target !== activeLanguage()) window.location.reload()
   }
 
   // Translation function: t('key', 'Fallback message', { param: 'value' })
   const t = (key, fallback = '', vars = {}) => {
-    let str = translations[key] ?? fallback ?? key
+    let str = translations[key] ?? translations[fallback] ?? fallback ?? key
     if (typeof str !== 'string') return String(str)
     if (vars && typeof vars === 'object') {
       Object.entries(vars).forEach(([k, v]) => {

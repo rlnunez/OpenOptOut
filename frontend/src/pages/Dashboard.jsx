@@ -8,6 +8,7 @@ import VariantCoverage from '../components/VariantCoverage'
 import RemovalChecks from '../components/RemovalChecks'
 import PrivacyScore from '../components/PrivacyScore'
 import { useAuth, can } from '../hooks/useAuth'
+import { tx, txn, txr } from '../i18n/tx'
 
 function StatCard({ label, value, icon: Icon, color }) {
   return (
@@ -83,7 +84,7 @@ export default function Dashboard() {
     setHttpsChecking(true)
     api.get('/cert-monitor/https-status')
       .then(r => setHttpsStatus(r.data))
-      .catch(() => setHttpsStatus({ configured: false, level: 'error', message: 'Could not reach the check.' }))
+      .catch(() => setHttpsStatus({ configured: false, level: 'error', message: tx("Could not reach the check.") }))
       .finally(() => setHttpsChecking(false))
   }
   useEffect(() => {
@@ -97,8 +98,8 @@ export default function Dashboard() {
     setRunMsg('')
     try {
       await api.post('/scheduler/trigger/optout')
-      setRunMsg('Sending opt-outs now. This can take a few minutes; the numbers below update as replies come in.')
-    } catch (e) { setRunMsg(e.response?.data?.detail || "Couldn't start sending. Please try again.") }
+      setRunMsg(tx("Sending opt-outs now. This can take a few minutes; the numbers below update as replies come in."))
+    } catch (e) { setRunMsg(e.response?.data?.detail || tx("Couldn't start sending. Please try again.")) }
   }
 
   const progress = stats
@@ -109,16 +110,16 @@ export default function Dashboard() {
     <div className="p-4 md:p-6 max-w-5xl">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-white text-xl font-semibold">Dashboard</h1>
-          <p className="text-slate-400 text-sm mt-0.5">How far your family's information has been removed</p>
+          <h1 className="text-white text-xl font-semibold">{tx("Dashboard")}</h1>
+          <p className="text-slate-400 text-sm mt-0.5">{tx("How far your family's information has been removed")}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Link to="/discovery" className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
-            <RefreshCw size={13} aria-hidden="true" /> Find listings
+            <RefreshCw size={13} aria-hidden="true" />{" "}{tx("Find listings")}
           </Link>
           {can(user, 'scheduler.manage') && (
             <button onClick={sendNow} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 transition-colors">
-              <Send size={13} aria-hidden="true" /> Send opt-outs now
+              <Send size={13} aria-hidden="true" />{" "}{tx("Send opt-outs now")}
             </button>
           )}
         </div>
@@ -130,16 +131,15 @@ export default function Dashboard() {
         <div className="flex items-start gap-3 mb-4 px-4 py-3 rounded-xl border border-amber-800 bg-amber-900/20">
           <AlertCircle size={16} className="text-amber-400 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-amber-200 text-sm font-medium">This site isn't using HTTPS</p>
+            <p className="text-amber-200 text-sm font-medium">{tx("This site isn't using HTTPS")}</p>
             <p className="text-slate-400 text-xs mt-0.5">
-              Passwords cross the network unencrypted, and Google/Microsoft sign-in requires HTTPS.
+              {tx("Passwords cross the network unencrypted, and Google/Microsoft sign-in requires HTTPS.")}
               {reverseProxy === 'native'
-                ? <> On the server, run <code className="text-slate-300">scripts/enable-https-native.sh</code> (Linux) or see the Windows steps in <code className="text-slate-300">docs/NATIVE_INSTALL.md</code>.</>
-                : <> On the server, run <code className="text-slate-300">./scripts/enable-https.sh</code> (Linux/macOS)
-              or <code className="text-slate-300">scripts\enable-https.ps1</code> (Windows) — see docs/HTTPS.md.</>}
+                ? <>{" "}{txr("On the server, run <0>scripts/enable-https-native.sh</0> (Linux) or see the Windows steps in <1>docs/NATIVE_INSTALL.md</1>.", [<code className="text-slate-300" />, <code className="text-slate-300" />])}</>
+                : <>{" "}{txr("On the server, run <0>./scripts/enable-https.sh</0> (Linux/macOS) or <1>scripts\\enable-https.ps1</1> (Windows) — see docs/HTTPS.md.", [<code className="text-slate-300" />, <code className="text-slate-300" />])}</>}
             </p>
           </div>
-          <button onClick={() => setHideHttpWarning(true)} className="text-slate-500 hover:text-slate-300 text-xs shrink-0">Hide</button>
+          <button onClick={() => setHideHttpWarning(true)} className="text-slate-500 hover:text-slate-300 text-xs shrink-0">{tx("Hide")}</button>
         </div>
       )}
 
@@ -164,14 +164,14 @@ export default function Dashboard() {
                 : httpsStatus.level === 'warning' ? 'text-amber-200'
                 : httpsStatus.level === 'error' ? 'text-red-200' : 'text-slate-300'}`}>
               {httpsStatus.configured
-                ? (httpsStatus.level === 'ok' ? 'HTTPS is working' : 'HTTPS setup needs attention')
-                : 'HTTPS setup not finished yet'}
+                ? (httpsStatus.level === 'ok' ? tx("HTTPS is working") : tx("HTTPS setup needs attention"))
+                : tx("HTTPS setup not finished yet")}
             </p>
             <p className="text-slate-400 text-xs mt-0.5">{httpsStatus.message}</p>
           </div>
           <button onClick={checkHttps} disabled={httpsChecking}
             className="text-slate-500 hover:text-slate-300 text-xs shrink-0 disabled:opacity-50">
-            {httpsChecking ? 'Checking…' : 'Check again'}
+            {httpsChecking ? tx("Checking…") : tx("Check again")}
           </button>
         </div>
       )}
@@ -188,7 +188,7 @@ export default function Dashboard() {
             <AlertCircle size={16} className={`${warn ? 'text-amber-400' : 'text-red-400'} shrink-0 mt-0.5`} />
             <div className="flex-1 min-w-0">
               <p className={`${warn ? 'text-amber-200' : 'text-red-200'} text-sm font-medium`}>
-                {a.label} certificate needs attention
+                {tx("{label} certificate needs attention", { label: a.label })}
               </p>
               <p className="text-slate-400 text-xs mt-0.5">{a.message}</p>
             </div>
@@ -203,12 +203,11 @@ export default function Dashboard() {
           <Activity size={16} className="text-amber-400 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-amber-200 text-sm font-medium">
-              {unhealthy.length} broker{unhealthy.length > 1 ? 's' : ''} need{unhealthy.length > 1 ? '' : 's'} review
+              {txn(unhealthy.length, "{n} broker needs review", "{n} brokers need review")}
             </p>
             <p className="text-amber-300/70 text-xs mt-0.5">
               {unhealthy.slice(0, 3).map(b => b.name).join(', ')}
-              {unhealthy.length > 3 ? ` and ${unhealthy.length - 3} more` : ''}: turned off after failing several
-              times in a row, so they don't hold up everyone else. Open to check them.
+              {unhealthy.length > 3 ? tx("and {v} more", { v: unhealthy.length - 3 }) : ''}{tx(": turned off after failing several times in a row, so they don't hold up everyone else. Open to check them.")}
             </p>
           </div>
         </Link>
@@ -221,10 +220,10 @@ export default function Dashboard() {
             <ShieldAlert size={18} className="text-amber-400 shrink-0" />
             <div>
               <p className="text-amber-200 text-sm font-medium">
-                {pendingCaptchas} opt-out{pendingCaptchas === 1 ? ' is' : 's are'} waiting for someone to solve a CAPTCHA
+                {txn(pendingCaptchas, "{n} opt-out is waiting for someone to solve a CAPTCHA", "{n} opt-outs are waiting for someone to solve a CAPTCHA")}
               </p>
               <p className="text-slate-400 text-xs">
-                The site asked to prove a person is there ("I'm not a robot"). Solve it, or finish the opt-out yourself.
+                {tx("The site asked to prove a person is there (\"I'm not a robot\"). Solve it, or finish the opt-out yourself.")}
               </p>
             </div>
           </div>
@@ -232,17 +231,17 @@ export default function Dashboard() {
             to="/captcha"
             className="px-3 py-1.5 text-xs font-medium text-amber-200 bg-amber-900/40 border border-amber-700/60 rounded-lg hover:bg-amber-900/60 transition-colors shrink-0"
           >
-            Open CAPTCHAs →
+            {tx("Open CAPTCHAs →")}
           </Link>
         </div>
       )}
 
       {/* Stats grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Sites we check"     value={stats?.total_brokers} icon={ShieldOff}     color="text-slate-300" />
-        <StatCard label="Removed"            value={stats?.confirmed}     icon={CheckCircle}   color="text-emerald-400" />
-        <StatCard label="Waiting for a reply" value={stats?.pending}      icon={Clock}         color="text-amber-400" />
-        <StatCard label="Refused or didn't work" value={stats?.resistant} icon={AlertCircle}   color="text-red-400" />
+        <StatCard label={tx("Sites we check")}     value={stats?.total_brokers} icon={ShieldOff}     color="text-slate-300" />
+        <StatCard label={tx("Removed")}            value={stats?.confirmed}     icon={CheckCircle}   color="text-emerald-400" />
+        <StatCard label={tx("Waiting for a reply")} value={stats?.pending}      icon={Clock}         color="text-amber-400" />
+        <StatCard label={tx("Refused or didn't work")} value={stats?.resistant} icon={AlertCircle}   color="text-red-400" />
       </div>
 
       <PrivacyScore />
@@ -254,7 +253,7 @@ export default function Dashboard() {
 
         {/* Overall progress */}
         <div className="bg-slate-800 rounded-xl p-4 border border-slate-700/50">
-          <p className="text-slate-400 text-xs uppercase tracking-wide mb-3">Overall progress</p>
+          <p className="text-slate-400 text-xs uppercase tracking-wide mb-3">{tx("Overall progress")}</p>
           <div className="flex flex-wrap items-center gap-4">
             <div className="w-24 h-24">
               <ResponsiveContainer width="100%" height="100%">
@@ -270,9 +269,9 @@ export default function Dashboard() {
             </div>
             <div>
               <p className="text-white text-3xl font-semibold">{progress}%</p>
-              <p className="text-slate-400 text-sm">{stats?.actioned ?? 0} of {stats?.total_brokers ?? 0} sites asked to remove you</p>
+              <p className="text-slate-400 text-sm">{stats?.actioned ?? 0}{" "}{tx("of {v} sites asked to remove you", { v: stats?.total_brokers ?? 0 })}</p>
               {stats?.recheck_due > 0 && (
-                <p className="text-orange-400 text-xs mt-1">{stats.recheck_due} site{stats.recheck_due !== 1 ? 's' : ''} to check again</p>
+                <p className="text-orange-400 text-xs mt-1">{txn(stats.recheck_due, "{n} site to check again", "{n} sites to check again")}</p>
               )}
             </div>
           </div>
@@ -280,9 +279,9 @@ export default function Dashboard() {
 
         {/* Recheck due */}
         <div className="bg-slate-800 rounded-xl p-4 border border-slate-700/50">
-          <p className="text-slate-400 text-xs uppercase tracking-wide mb-3">Coming up: check again</p>
+          <p className="text-slate-400 text-xs uppercase tracking-wide mb-3">{tx("Coming up: check again")}</p>
           {recheck.length === 0 ? (
-            <p className="text-slate-500 text-sm">Nothing to check again yet.</p>
+            <p className="text-slate-500 text-sm">{tx("Nothing to check again yet.")}</p>
           ) : (
             <div className="space-y-2">
               {recheck.slice(0, 5).map(r => (
@@ -292,7 +291,7 @@ export default function Dashboard() {
                     {r.recheck_after
                       ? new Date(r.recheck_after) < new Date()
                         ? 'now'
-                        : `in ${Math.ceil((new Date(r.recheck_after) - new Date()) / 86400000)} days`
+                        : tx("in {n} days", { n: Math.ceil((new Date(r.recheck_after) - new Date()) / 86400000) })
                       : '—'}
                   </span>
                 </div>
@@ -305,8 +304,8 @@ export default function Dashboard() {
       {/* Recent requests table */}
       <div className="bg-slate-800 rounded-xl border border-slate-700/50 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50">
-          <p className="text-slate-300 text-sm font-medium">Recent activity</p>
-          <a href="/brokers" className="text-shield-400 text-xs hover:underline">View all →</a>
+          <p className="text-slate-300 text-sm font-medium">{tx("Recent activity")}</p>
+          <a href="/brokers" className="text-shield-400 text-xs hover:underline">{tx("View all →")}</a>
         </div>
         <RecentRequests />
       </div>
@@ -320,18 +319,18 @@ function RecentRequests() {
     api.get('/requests?limit=8').then(r => setReqs(r.data))
   }, [])
 
-  if (!reqs.length) return <p className="text-slate-500 text-sm p-4">Nothing has been sent yet.</p>
+  if (!reqs.length) return <p className="text-slate-500 text-sm p-4">{tx("Nothing has been sent yet.")}</p>
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
       <thead>
         <tr className="text-slate-500 text-xs">
-          <th className="text-left px-4 py-2 font-normal">Site</th>
-          <th className="text-left px-4 py-2 font-normal">Person</th>
-          <th className="text-left px-4 py-2 font-normal">Where it's at</th>
-          <th className="text-left px-4 py-2 font-normal">How</th>
-          <th className="text-left px-4 py-2 font-normal">Check again</th>
+          <th className="text-left px-4 py-2 font-normal">{tx("Site")}</th>
+          <th className="text-left px-4 py-2 font-normal">{tx("Person")}</th>
+          <th className="text-left px-4 py-2 font-normal">{tx("Where it's at")}</th>
+          <th className="text-left px-4 py-2 font-normal">{tx("How")}</th>
+          <th className="text-left px-4 py-2 font-normal">{tx("Check again")}</th>
         </tr>
       </thead>
       <tbody>

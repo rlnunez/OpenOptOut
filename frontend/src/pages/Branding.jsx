@@ -8,6 +8,7 @@ import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
 import { useLanguage } from '../i18n/LanguageContext'
+import { tx, txr } from '../i18n/tx'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
@@ -44,7 +45,7 @@ function SaveBtn({ saving, saved, onClick }) {
               : 'bg-shield-600 hover:bg-shield-700 text-white disabled:opacity-40'
       }`}>
       {saving ? <RefreshCw size={12} className="animate-spin" /> : saved ? <Check size={12} /> : null}
-      {saving ? 'Saving…' : saved ? 'Saved' : 'Save'}
+      {saving ? tx("Saving…") : saved ? tx("Saved") : tx("Save")}
     </button>
   )
 }
@@ -55,7 +56,7 @@ function PwField({ label, hint, value, onChange, isSet }) {
     <Field label={label} hint={hint}>
       <div className="relative">
         <input type={show ? 'text' : 'password'} value={value} onChange={e => onChange(e.target.value)}
-          placeholder={isSet ? '••••••••  (blank = keep current)' : 'Enter value…'}
+          placeholder={isSet ? tx("••••••••  (blank = keep current)") : tx("Enter value…")}
           className={`${inp} pr-9`} />
         <button type="button" onClick={() => setShow(s => !s)}
           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
@@ -124,31 +125,31 @@ function BrandingSection() {
   }
 
   return (
-    <Section icon={Palette} title="Branding" description="White-label appearance for your organization">
+    <Section icon={Palette} title={tx("Branding")} description={tx("White-label appearance for your organization")}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="System / service name">
+        <Field label={tx("System / service name")}>
           <input value={form.system_name || ''} onChange={e => setForm(f => ({...f, system_name: e.target.value}))}
             placeholder="OpenOptOut" className={inp} />
         </Field>
-        <Field label="Tagline">
+        <Field label={tx("Tagline")}>
           <input value={form.tagline || ''} onChange={e => setForm(f => ({...f, tagline: e.target.value}))}
-            placeholder="Your personal data removal service" className={inp} />
+            placeholder={tx("Your personal data removal service")} className={inp} />
         </Field>
       </div>
 
-      <Field label="Logo" hint="PNG, SVG, or JPEG · shown in sidebar and login page">
+      <Field label={tx("Logo")} hint={tx("PNG, SVG, or JPEG · shown in sidebar and login page")}>
         <div className="flex items-center gap-3">
           {branding.logo_url ? (
-            <img src={`${branding.logo_url}?v=${Date.now()}`} alt="Logo"
+            <img src={`${branding.logo_url}?v=${Date.now()}`} alt={tx("Logo")}
               className="h-10 object-contain border border-slate-700 rounded-sm bg-slate-900 px-2" />
           ) : (
             <div className="h-10 w-20 border border-dashed border-slate-700 rounded-sm flex items-center justify-center text-slate-700 text-xs">
-              No logo
+              {tx("No logo")}
             </div>
           )}
           <button onClick={() => logoRef.current?.click()} disabled={uploading}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-40">
-            <Upload size={11} />{uploading ? 'Uploading…' : 'Upload logo'}
+            <Upload size={11} />{uploading ? tx("Uploading…") : tx("Upload logo")}
           </button>
           {branding.logo_url && (
             <button onClick={deleteLogo} className="text-slate-600 hover:text-red-400 transition-colors">
@@ -160,40 +161,40 @@ function BrandingSection() {
       </Field>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <ColorPicker label="Primary color" value={form.primary_color || '#6366f1'} onChange={v => setForm(f => ({...f, primary_color: v}))} />
-        <ColorPicker label="Accent color"  value={form.accent_color  || '#4f46e5'} onChange={v => setForm(f => ({...f, accent_color: v}))} />
+        <ColorPicker label={tx("Primary color")} value={form.primary_color || '#6366f1'} onChange={v => setForm(f => ({...f, primary_color: v}))} />
+        <ColorPicker label={tx("Accent color")}  value={form.accent_color  || '#4f46e5'} onChange={v => setForm(f => ({...f, accent_color: v}))} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Contact email" hint="Shown to users when they need help">
+        <Field label={tx("Contact email")} hint={tx("Shown to users when they need help")}>
           <input type="email" value={form.contact_email || ''} onChange={e => setForm(f => ({...f, contact_email: e.target.value}))}
             placeholder="privacy@yourlibrary.org" className={inp} />
         </Field>
-        <Field label="Contact phone">
+        <Field label={tx("Contact phone")}>
           <input value={form.contact_phone || ''} onChange={e => setForm(f => ({...f, contact_phone: e.target.value}))}
             placeholder="(555) 000-0000" className={inp} />
         </Field>
       </div>
 
-      <Field label="Support / help URL" hint="Link to your IT helpdesk or knowledge base">
+      <Field label={tx("Support / help URL")} hint={tx("Link to your IT helpdesk or knowledge base")}>
         <input value={form.support_url || ''} onChange={e => setForm(f => ({...f, support_url: e.target.value}))}
           placeholder="https://it.yourlibrary.org/privacy-help" className={inp} />
       </Field>
 
-      <Field label="Login page welcome message" hint="Shown below the system name on the login screen">
+      <Field label={tx("Login page welcome message")} hint={tx("Shown below the system name on the login screen")}>
         <textarea value={form.welcome_message || ''} onChange={e => setForm(f => ({...f, welcome_message: e.target.value}))}
-          rows={2} placeholder="Welcome to the Raleigh Public Library Privacy Protection Service…"
+          rows={2} placeholder={tx("Welcome to the Raleigh Public Library Privacy Protection Service…")}
           className={`${inp} resize-none`} />
       </Field>
 
-      <Field label="Opt-out email footer" hint="Appended to all removal request emails sent on behalf of users">
+      <Field label={tx("Opt-out email footer")} hint={tx("Appended to all removal request emails sent on behalf of users")}>
         <textarea value={form.email_footer || ''} onChange={e => setForm(f => ({...f, email_footer: e.target.value}))}
-          rows={2} placeholder="This request was submitted on your behalf by Raleigh Public Library's privacy protection service."
+          rows={2} placeholder={tx("This request was submitted on your behalf by Raleigh Public Library's privacy protection service.")}
           className={`${inp} resize-none`} />
       </Field>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Terms of service URL" hint="Link shown at registration">
+        <Field label={tx("Terms of service URL")} hint={tx("Link shown at registration")}>
           <input value={form.terms_url || ''} onChange={e => setForm(f => ({...f, terms_url: e.target.value}))}
             placeholder="https://yourlibrary.org/terms" className={inp} />
         </Field>
@@ -202,7 +203,7 @@ function BrandingSection() {
             <input type="checkbox" checked={form.show_powered_by ?? true}
               onChange={e => setForm(f => ({...f, show_powered_by: e.target.checked}))}
               className="w-3.5 h-3.5 rounded-sm accent-shield-500" />
-            <span className="text-slate-300 text-sm">Show "Powered by OpenOptOut" footer</span>
+            <span className="text-slate-300 text-sm">{tx("Show \"Powered by OpenOptOut\" footer")}</span>
           </label>
         </Field>
       </div>
@@ -245,15 +246,15 @@ function RegistrationSection() {
   }
 
   const MODES = [
-    { value: 'open',       label: 'Open',        desc: 'Anyone can register' },
-    { value: 'domain',     label: 'Domain',       desc: 'Only allowed email domains' },
-    { value: 'invite',     label: 'Invite code',  desc: 'Code required to register' },
-    { value: 'admin_only', label: 'Admin only',   desc: 'No self-registration' },
+    { value: 'open',       label: tx("Open"),        desc: tx("Anyone can register") },
+    { value: 'domain',     label: tx("Domain"),       desc: tx("Only allowed email domains") },
+    { value: 'invite',     label: tx("Invite code"),  desc: tx("Code required to register") },
+    { value: 'admin_only', label: tx("Admin only"),   desc: tx("No self-registration") },
   ]
 
   return (
-    <Section icon={Users} title="Registration controls" description="Who can create accounts on this instance">
-      <Field label="Registration mode">
+    <Section icon={Users} title={tx("Registration controls")} description={tx("Who can create accounts on this instance")}>
+      <Field label={tx("Registration mode")}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {MODES.map(m => (
             <button key={m.value} onClick={() => setConfig(c => ({...c, mode: m.value}))}
@@ -268,7 +269,7 @@ function RegistrationSection() {
       </Field>
 
       {config.mode === 'domain' && (
-        <Field label="Allowed email domains" hint="Comma-separated, e.g. library.org, city.gov">
+        <Field label={tx("Allowed email domains")} hint={tx("Comma-separated, e.g. library.org, city.gov")}>
           <input value={config.allowed_domains || ''} onChange={e => setConfig(c => ({...c, allowed_domains: e.target.value}))}
             placeholder="library.org, cityofexample.gov" className={inp} />
         </Field>
@@ -278,27 +279,27 @@ function RegistrationSection() {
 
       {/* Invite codes */}
       <div className="border-t border-slate-700/50 pt-4">
-        <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">Invite codes</p>
+        <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">{tx("Invite codes")}</p>
         <div className="flex gap-2 mb-3 flex-wrap">
           <input value={newCode.note} onChange={e => setNewCode(n => ({...n, note: e.target.value}))}
-            placeholder="Note (e.g. Staff batch Jan 2025)" className={`${inp} flex-1 min-w-32`} />
+            placeholder={tx("Note (e.g. Staff batch Jan 2025)")} className={`${inp} flex-1 min-w-32`} />
           <input type="number" min="1" value={newCode.max_uses}
             onChange={e => setNewCode(n => ({...n, max_uses: parseInt(e.target.value)}))}
-            className={`${inp} w-20 text-center`} title="Max uses" />
+            className={`${inp} w-20 text-center`} title={tx("Max uses")} />
           <input type="number" min="1" value={newCode.expires_days}
             onChange={e => setNewCode(n => ({...n, expires_days: e.target.value}))}
-            placeholder="Days" className={`${inp} w-20 text-center`} title="Expires in days (blank=never)" />
+            placeholder={tx("Days")} className={`${inp} w-20 text-center`} title={tx("Expires in days (blank=never)")} />
           <div className="relative">
             <select value={newCode.role} onChange={e => setNewCode(n => ({...n, role: e.target.value}))}
               className={`${inp} appearance-none pr-7 w-28`}>
-              <option value="parent">parent</option>
-              <option value="member">member</option>
+              <option value="parent">{tx("parent")}</option>
+              <option value="member">{tx("member")}</option>
             </select>
             <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
           </div>
           <button onClick={createCode}
             className="flex items-center gap-1 px-3 py-1.5 bg-shield-600 text-white text-sm rounded-lg hover:bg-shield-700 transition-colors">
-            <Plus size={13} /> Generate
+            <Plus size={13} />{" "}{tx("Generate")}
           </button>
         </div>
 
@@ -307,7 +308,7 @@ function RegistrationSection() {
             {codes.map(c => (
               <div key={c.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg border text-sm ${c.is_active ? 'border-slate-700 bg-slate-900' : 'border-slate-800 opacity-50'}`}>
                 <code className="text-shield-400 font-mono flex-1">{c.code}</code>
-                <span className="text-slate-500 text-xs">{c.uses}/{c.max_uses === 0 ? '∞' : c.max_uses} uses</span>
+                <span className="text-slate-500 text-xs">{c.uses}{tx("/{v} uses", { v: c.max_uses === 0 ? '∞' : c.max_uses })}</span>
                 <span className="text-slate-600 text-xs">{c.role}</span>
                 {c.note && <span className="text-slate-600 text-xs truncate max-w-32">{c.note}</span>}
                 {c.expires_at && <span className="text-slate-600 text-xs">{new Date(c.expires_at).toLocaleDateString()}</span>}
@@ -349,26 +350,26 @@ function BannerSection() {
   }
 
   const SEVERITIES = [
-    { v: 'info',        label: 'Info',        color: 'text-blue-400' },
-    { v: 'warning',     label: 'Warning',     color: 'text-amber-400' },
-    { v: 'maintenance', label: 'Maintenance', color: 'text-orange-400' },
-    { v: 'success',     label: 'Success',     color: 'text-emerald-400' },
+    { v: 'info',        label: tx("Info"),        color: 'text-blue-400' },
+    { v: 'warning',     label: tx("Warning"),     color: 'text-amber-400' },
+    { v: 'maintenance', label: tx("Maintenance"), color: 'text-orange-400' },
+    { v: 'success',     label: tx("Success"),     color: 'text-emerald-400' },
   ]
 
   return (
-    <Section icon={Bell} title="Announcement banner" description="Shown at the top of the dashboard for all users">
+    <Section icon={Bell} title={tx("Announcement banner")} description={tx("Shown at the top of the dashboard for all users")}>
       {banner?.active && (
         <div className="px-3 py-2 bg-blue-900/20 border border-blue-800 rounded-lg text-blue-300 text-sm mb-2">
-          Active: "{banner.message}"
+          {tx("Active: \"{message}\"", { message: banner.message })}
         </div>
       )}
-      <Field label="Message">
+      <Field label={tx("Message")}>
         <input value={form.message} onChange={e => setForm(f => ({...f, message: e.target.value}))}
-          placeholder="System maintenance Saturday 2–4am. Opt-out sending will be paused."
+          placeholder={tx("System maintenance Saturday 2–4am. Opt-out sending will be paused.")}
           className={inp} />
       </Field>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Severity">
+        <Field label={tx("Severity")}>
           <div className="flex gap-2">
             {SEVERITIES.map(s => (
               <button key={s.v} onClick={() => setForm(f => ({...f, severity: s.v}))}
@@ -378,7 +379,7 @@ function BannerSection() {
             ))}
           </div>
         </Field>
-        <Field label="Expires (optional)">
+        <Field label={tx("Expires (optional)")}>
           <input type="datetime-local" value={form.expires_at}
             onChange={e => setForm(f => ({...f, expires_at: e.target.value}))}
             className={inp} />
@@ -387,13 +388,13 @@ function BannerSection() {
       <div className="flex gap-2 justify-end">
         {banner?.active && (
           <button onClick={clear} className="px-3 py-1.5 text-sm text-red-400 border border-red-800 rounded-lg hover:bg-red-900/20 transition-colors">
-            Clear banner
+            {tx("Clear banner")}
           </button>
         )}
         <button onClick={save} disabled={saving || !form.message.trim()}
           className="flex items-center gap-1.5 px-4 py-1.5 bg-shield-600 text-white text-sm rounded-lg hover:bg-shield-700 disabled:opacity-40 transition-colors">
           {saving ? <RefreshCw size={12} className="animate-spin" /> : null}
-          {saving ? 'Saving…' : banner?.active ? 'Update banner' : 'Set banner'}
+          {saving ? tx("Saving…") : banner?.active ? tx("Update banner") : tx("Set banner")}
         </button>
       </div>
     </Section>
@@ -426,11 +427,11 @@ function ILSPresetPicker({ config, setConfig }) {
 
   return (
     <div className="mb-3">
-      <p className="text-slate-400 text-xs mb-1.5">ILS system</p>
+      <p className="text-slate-400 text-xs mb-1.5">{tx("ILS system")}</p>
       <div className="relative">
         <button onClick={() => setOpen(o => !o)}
           className="w-full flex items-center justify-between px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-300 hover:border-slate-600 transition-colors">
-          <span>{selectedPreset?.label || 'Select your ILS (optional)'}</span>
+          <span>{selectedPreset?.label || tx("Select your ILS (optional)")}</span>
           <ChevronDown size={13} className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
         {open && (
@@ -455,33 +456,33 @@ function ILSPresetPicker({ config, setConfig }) {
 
 function formatSingleConditionSummary(cond) {
   if (!cond) return ''
-  const fieldName = cond.field === 'library' ? 'Library / Branch'
+  const fieldName = cond.field === 'library' ? tx("Library / Branch")
     : cond.field === 'age' ? 'Age'
-    : cond.field === 'profile_type' ? 'Patron Profile'
-    : (cond.field ? `SIP2 [${cond.field}]` : 'Field')
+    : cond.field === 'profile_type' ? tx("Patron Profile")
+    : (cond.field ? tx("SIP2 [{field}]", { field: cond.field }) : 'Field')
 
   const op = cond.operator || 'contains'
   const val = Array.isArray(cond.value) ? cond.value.join(' and ') : String(cond.value || '')
 
   if (cond.field === 'age') {
-    if (op === 'between') return `Age between ${Array.isArray(cond.value) ? cond.value.join(' and ') : val}`
-    if (op === 'greater_than') return `Age > ${val}`
-    if (op === 'greater_than_or_equal') return `Age ≥ ${val}`
-    if (op === 'less_than') return `Age < ${val}`
-    if (op === 'less_than_or_equal') return `Age ≤ ${val}`
-    if (op === 'equals') return `Age = ${val}`
+    if (op === 'between') return tx("Age between {v}", { v: Array.isArray(cond.value) ? cond.value.join(' and ') : val })
+    if (op === 'greater_than') return tx("Age > {val}", { val })
+    if (op === 'greater_than_or_equal') return tx("Age ≥ {val}", { val })
+    if (op === 'less_than') return tx("Age < {val}", { val })
+    if (op === 'less_than_or_equal') return tx("Age ≤ {val}", { val })
+    if (op === 'equals') return tx("Age = {val}", { val })
     return `Age ${op} ${val}`
   }
 
-  if (op === 'contains' || op === 'in') return `${fieldName} contains [${val}]`
-  if (op === 'not_in' || op === 'none_of') return `${fieldName} is not in [${val}]`
+  if (op === 'contains' || op === 'in') return tx("{fieldName} contains [{val}]", { fieldName, val })
+  if (op === 'not_in' || op === 'none_of') return tx("{fieldName} is not in [{val}]", { fieldName, val })
   if (op === 'equals') return `${fieldName} = "${val}"`
   if (op === 'not_equals') return `${fieldName} ≠ "${val}"`
   return `${fieldName} ${op} "${val}"`
 }
 
 function formatGroupSummary(group) {
-  if (!group || !Array.isArray(group.rules) || group.rules.length === 0) return 'No conditions configured'
+  if (!group || !Array.isArray(group.rules) || group.rules.length === 0) return tx("No conditions configured")
   const joiner = group.mode === 'any' ? ' OR ' : ' AND '
   const parts = group.rules.map(item => {
     if (item.rules) {
@@ -490,7 +491,7 @@ function formatGroupSummary(group) {
     return formatSingleConditionSummary(item)
   }).filter(Boolean)
 
-  if (parts.length === 0) return 'No conditions configured'
+  if (parts.length === 0) return tx("No conditions configured")
   return parts.join(joiner)
 }
 
@@ -515,10 +516,10 @@ function RuleConditionRow({ rule, onChange, onRemove }) {
         onChange={e => handleFieldChange(e.target.value)}
         className="bg-slate-800 border border-slate-700 rounded-sm px-2 py-1.5 text-slate-200 focus:outline-hidden focus:border-shield-500 font-medium"
       >
-        <option value="library">Library / Branch (AQ, AF, AO)</option>
-        <option value="age">Age (from birthdate PA, PB)</option>
-        <option value="profile_type">Patron Profile Type (PC)</option>
-        <option value="custom">Custom SIP2 Field Code</option>
+        <option value="library">{tx("Library / Branch (AQ, AF, AO)")}</option>
+        <option value="age">{tx("Age (from birthdate PA, PB)")}</option>
+        <option value="profile_type">{tx("Patron Profile Type (PC)")}</option>
+        <option value="custom">{tx("Custom SIP2 Field Code")}</option>
       </select>
 
       {isCustom && (
@@ -527,7 +528,7 @@ function RuleConditionRow({ rule, onChange, onRemove }) {
           maxLength={2}
           value={rule.field || ''}
           onChange={e => onChange({ ...rule, field: e.target.value.toUpperCase() })}
-          placeholder="Code (e.g. AO)"
+          placeholder={tx("Code (e.g. AO)")}
           className="w-20 bg-slate-800 border border-slate-700 rounded-sm px-2 py-1.5 text-slate-200 uppercase font-mono"
         />
       )}
@@ -548,19 +549,19 @@ function RuleConditionRow({ rule, onChange, onRemove }) {
       >
         {isAge ? (
           <>
-            <option value="between">between (min & max)</option>
-            <option value="greater_than_or_equal">greater than or equal (≥)</option>
-            <option value="less_than_or_equal">less than or equal (≤)</option>
-            <option value="greater_than">greater than (&gt;)</option>
-            <option value="less_than">less than (&lt;)</option>
-            <option value="equals">equals (==)</option>
+            <option value="between">{tx("between (min & max)")}</option>
+            <option value="greater_than_or_equal">{tx("greater than or equal (≥)")}</option>
+            <option value="less_than_or_equal">{tx("less than or equal (≤)")}</option>
+            <option value="greater_than">{tx("greater than (>)")}</option>
+            <option value="less_than">{tx("less than (<)")}</option>
+            <option value="equals">{tx("equals (==)")}</option>
           </>
         ) : (
           <>
-            <option value="contains">contains any of (comma-separated)</option>
-            <option value="not_in">is not any of (comma-separated)</option>
-            <option value="equals">exactly equals</option>
-            <option value="not_equals">does not equal</option>
+            <option value="contains">{tx("contains any of (comma-separated)")}</option>
+            <option value="not_in">{tx("is not any of (comma-separated)")}</option>
+            <option value="equals">{tx("exactly equals")}</option>
+            <option value="not_equals">{tx("does not equal")}</option>
           </>
         )}
       </select>
@@ -577,10 +578,10 @@ function RuleConditionRow({ rule, onChange, onRemove }) {
               const maxVal = Array.isArray(rule.value) ? rule.value[1] : 99
               onChange({ ...rule, value: [minVal, maxVal] })
             }}
-            placeholder="Min"
+            placeholder={tx("Min")}
             className="w-16 bg-slate-800 border border-slate-700 rounded-sm px-2 py-1.5 text-slate-200 text-center"
           />
-          <span className="text-slate-500 font-medium">and</span>
+          <span className="text-slate-500 font-medium">{tx("and")}</span>
           <input
             type="number"
             min={0}
@@ -591,7 +592,7 @@ function RuleConditionRow({ rule, onChange, onRemove }) {
               const maxVal = parseInt(e.target.value) || 99
               onChange({ ...rule, value: [minVal, maxVal] })
             }}
-            placeholder="Max"
+            placeholder={tx("Max")}
             className="w-16 bg-slate-800 border border-slate-700 rounded-sm px-2 py-1.5 text-slate-200 text-center"
           />
         </div>
@@ -609,7 +610,7 @@ function RuleConditionRow({ rule, onChange, onRemove }) {
           type="text"
           value={typeof rule.value === 'string' ? rule.value : (Array.isArray(rule.value) ? rule.value.join(', ') : '')}
           onChange={e => onChange({ ...rule, value: e.target.value })}
-          placeholder="e.g. lib1, lib2, lib3"
+          placeholder={tx("e.g. lib1, lib2, lib3")}
           className="flex-1 min-w-[160px] bg-slate-800 border border-slate-700 rounded-sm px-2 py-1.5 text-slate-200 placeholder-slate-600"
         />
       )}
@@ -618,7 +619,7 @@ function RuleConditionRow({ rule, onChange, onRemove }) {
         type="button"
         onClick={onRemove}
         className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-sm transition-colors ml-auto"
-        title="Remove condition"
+        title={tx("Remove condition")}
       >
         <Trash2 size={13} />
       </button>
@@ -663,7 +664,7 @@ function RuleGroupComponent({ group, onChange, onRemove, isRoot = false }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            {isRoot ? 'Match Logic:' : 'Nested Group Logic:'}
+            {isRoot ? tx("Match Logic:") : tx("Nested Group Logic:")}
           </span>
           <div className="inline-flex rounded-lg border border-slate-700 p-0.5 bg-slate-800 text-xs">
             <button
@@ -673,7 +674,7 @@ function RuleGroupComponent({ group, onChange, onRemove, isRoot = false }) {
                 mode === 'all' ? 'bg-shield-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              All must be true (AND)
+              {tx("All must be true (AND)")}
             </button>
             <button
               type="button"
@@ -682,7 +683,7 @@ function RuleGroupComponent({ group, onChange, onRemove, isRoot = false }) {
                 mode === 'any' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              One must be true (OR)
+              {tx("One must be true (OR)")}
             </button>
           </div>
         </div>
@@ -693,14 +694,14 @@ function RuleGroupComponent({ group, onChange, onRemove, isRoot = false }) {
             onClick={onRemove}
             className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded-sm hover:bg-red-900/20 transition-colors"
           >
-            <Trash2 size={12} /> Remove Group
+            <Trash2 size={12} />{" "}{tx("Remove Group")}
           </button>
         )}
       </div>
 
       <div className="space-y-2 pl-1">
         {rules.length === 0 ? (
-          <p className="text-slate-500 text-xs italic py-1">No conditions configured in this group yet.</p>
+          <p className="text-slate-500 text-xs italic py-1">{tx("No conditions configured in this group yet.")}</p>
         ) : (
           rules.map((item, idx) => {
             if (item.rules) {
@@ -732,7 +733,7 @@ function RuleGroupComponent({ group, onChange, onRemove, isRoot = false }) {
           onClick={addCondition}
           className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-shield-300 bg-shield-900/30 border border-shield-700/50 rounded-lg hover:bg-shield-900/50 transition-colors"
         >
-          <Plus size={12} /> Add Condition
+          <Plus size={12} />{" "}{tx("Add Condition")}
         </button>
         {isRoot && (
           <button
@@ -740,7 +741,7 @@ function RuleGroupComponent({ group, onChange, onRemove, isRoot = false }) {
             onClick={addSubGroup}
             className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-indigo-300 bg-indigo-900/20 border border-indigo-700/50 rounded-lg hover:bg-indigo-900/40 transition-colors"
           >
-            <Plus size={12} /> Add Nested Group (AND / OR)
+            <Plus size={12} />{" "}{tx("Add Nested Group (AND / OR)")}
           </button>
         )}
       </div>
@@ -780,12 +781,12 @@ function SIP2EligibilityRuleBuilder({ value, onChange }) {
         <div className="flex items-center gap-2">
           <Filter size={13} className="text-shield-400" />
           <div>
-            <span className="text-slate-200 text-xs font-medium uppercase tracking-wide">Patron Eligibility Rules</span>
-            <p className="text-slate-500 text-xs">Limit ILS authentication by library branch, patron age, or profile type.</p>
+            <span className="text-slate-200 text-xs font-medium uppercase tracking-wide">{tx("Patron Eligibility Rules")}</span>
+            <p className="text-slate-500 text-xs">{tx("Limit ILS authentication by library branch, patron age, or profile type.")}</p>
           </div>
         </div>
         <label className="flex items-center gap-2 cursor-pointer">
-          <span className="text-slate-400 text-xs">{isEnabled ? 'Enforced' : 'Off'}</span>
+          <span className="text-slate-400 text-xs">{isEnabled ? tx("Enforced") : tx("Off")}</span>
           <div
             onClick={toggleEnabled}
             className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${isEnabled ? 'bg-shield-600' : 'bg-slate-700'}`}
@@ -798,8 +799,7 @@ function SIP2EligibilityRuleBuilder({ value, onChange }) {
       {isEnabled && (
         <div className="p-4 space-y-3">
           <p className="text-slate-400 text-xs">
-            Configure conditions patrons must satisfy to sign in. Supports multi-values (e.g. <code className="text-slate-300">lib1, lib2, lib3</code>),
-            calculated ages from patron birthdates (e.g. between 18 and 99), and boolean combinators.
+            {txr("Configure conditions patrons must satisfy to sign in. Supports multi-values (e.g. <0>lib1, lib2, lib3</0>), calculated ages from patron birthdates (e.g. between 18 and 99), and boolean combinators.", [<code className="text-slate-300" />])}
           </p>
 
           <RuleGroupComponent
@@ -810,7 +810,7 @@ function SIP2EligibilityRuleBuilder({ value, onChange }) {
 
           <div className="rounded-lg bg-slate-950 border border-slate-800 p-3">
             <span className="text-[11px] font-semibold uppercase text-slate-500 tracking-wider block mb-1">
-              Active Evaluation Rule:
+              {tx("Active Evaluation Rule:")}
             </span>
             <p className="text-xs font-mono text-emerald-400 wrap-break-word leading-relaxed">
               {summary}
@@ -840,7 +840,7 @@ function AuthProvidersSection() {
     api.get('/auth/oidc/presets').then(r => setPresets(r.data)).catch(() => {})
   }, [])
 
-  if (!config) return <p className="text-slate-500 text-sm">Loading…</p>
+  if (!config) return <p className="text-slate-500 text-sm">{tx("Loading…")}</p>
 
   const saveLdap = async () => {
     setSaving(s => ({...s, ldap: true})); setLdapMsg(null)
@@ -857,7 +857,7 @@ function AuthProvidersSection() {
       })
       setLdapMsg({ ok: true, warnings: r.data.warnings || [] })
     } catch (e) {
-      setLdapMsg({ ok: false, error: e.response?.data?.detail || 'Save failed' })
+      setLdapMsg({ ok: false, error: e.response?.data?.detail || tx("Save failed") })
     } finally { setSaving(s => ({...s, ldap: false})) }
   }
 
@@ -882,7 +882,7 @@ function AuthProvidersSection() {
       })
       setSip2Msg({ ok: true, warnings: r.data.warnings || [] })
     } catch (e) {
-      setSip2Msg({ ok: false, error: e.response?.data?.detail || 'Save failed' })
+      setSip2Msg({ ok: false, error: e.response?.data?.detail || tx("Save failed") })
     } finally { setSaving(s => ({...s, sip2: false})) }
   }
 
@@ -895,16 +895,16 @@ function AuthProvidersSection() {
   }
 
   return (
-    <Section icon={Key} title="Authentication providers" description="Enable SSO and external authentication">
+    <Section icon={Key} title={tx("Authentication providers")} description={tx("Enable SSO and external authentication")}>
       {/* LDAP */}
       <div className="border border-slate-700/50 rounded-xl overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 bg-slate-900/50 border-b border-slate-700/50">
           <div className="flex items-center gap-2">
             <Server size={13} className="text-slate-400" />
-            <span className="text-slate-300 text-sm font-medium">LDAP / Active Directory</span>
+            <span className="text-slate-300 text-sm font-medium">{tx("LDAP / Active Directory")}</span>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
-            <span className="text-slate-500 text-xs">{config.ldap_enabled ? 'Enabled' : 'Disabled'}</span>
+            <span className="text-slate-500 text-xs">{config.ldap_enabled ? tx("Enabled") : tx("Disabled")}</span>
             <div onClick={() => setConfig(c => ({...c, ldap_enabled: !c.ldap_enabled}))}
               className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.ldap_enabled ? 'bg-shield-600' : 'bg-slate-700'}`}>
               <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.ldap_enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
@@ -914,66 +914,66 @@ function AuthProvidersSection() {
         {config.ldap_enabled && (
           <div className="p-4 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Host URL">
+              <Field label={tx("Host URL")}>
                 <input value={config.ldap_host || ''} onChange={e => setConfig(c => ({...c, ldap_host: e.target.value}))}
                   placeholder="ldap://dc.example.com" className={inp} />
               </Field>
-              <Field label="Base DN">
+              <Field label={tx("Base DN")}>
                 <input value={config.ldap_base_dn || ''} onChange={e => setConfig(c => ({...c, ldap_base_dn: e.target.value}))}
                   placeholder="DC=example,DC=com" className={inp} />
               </Field>
-              <Field label="Bind DN (service account)">
+              <Field label={tx("Bind DN (service account)")}>
                 <input value={config.ldap_bind_dn || ''} onChange={e => setConfig(c => ({...c, ldap_bind_dn: e.target.value}))}
                   placeholder="CN=svc,DC=example,DC=com" className={inp} />
               </Field>
-              <PwField label="Bind password" value={config._ldap_pw || ''}
+              <PwField label={tx("Bind password")} value={config._ldap_pw || ''}
                 onChange={v => setConfig(c => ({...c, _ldap_pw: v}))}
                 isSet={config.ldap_password_set} />
-              <Field label="Username attribute">
+              <Field label={tx("Username attribute")}>
                 <input value={config.ldap_user_attr || 'sAMAccountName'} onChange={e => setConfig(c => ({...c, ldap_user_attr: e.target.value}))}
                   placeholder="sAMAccountName" className={inp} />
               </Field>
-              <Field label="Email domain fallback" hint="Used if no email attribute found">
+              <Field label={tx("Email domain fallback")} hint={tx("Used if no email attribute found")}>
                 <input value={config.ldap_email_domain || ''} onChange={e => setConfig(c => ({...c, ldap_email_domain: e.target.value}))}
                   placeholder="example.com" className={inp} />
               </Field>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Connection security">
+              <Field label={tx("Connection security")}>
                 <select value={config.ldap_tls_mode || 'ldaps'}
                   onChange={e => setConfig(c => ({...c, ldap_tls_mode: e.target.value}))} className={inp}>
-                  <option value="ldaps">LDAPS — TLS on port 636 (recommended)</option>
-                  <option value="starttls">StartTLS — upgrade on port 389</option>
-                  <option value="none">None — unencrypted (not recommended)</option>
+                  <option value="ldaps">{tx("LDAPS — TLS on port 636 (recommended)")}</option>
+                  <option value="starttls">{tx("StartTLS — upgrade on port 389")}</option>
+                  <option value="none">{tx("None — unencrypted (not recommended)")}</option>
                 </select>
               </Field>
-              <Field label="Port" hint={`Blank = default (${(config.ldap_tls_mode || 'ldaps') === 'ldaps' ? 636 : 389})`}>
+              <Field label={tx("Port")} hint={tx("Blank = default ({v})", { v: (config.ldap_tls_mode || 'ldaps') === 'ldaps' ? 636 : 389 })}>
                 <input value={config.ldap_port || ''} onChange={e => setConfig(c => ({...c, ldap_port: e.target.value}))}
                   placeholder={(config.ldap_tls_mode || 'ldaps') === 'ldaps' ? '636' : '389'} className={inp} />
               </Field>
             </div>
             {(config.ldap_tls_mode || 'ldaps') === 'none' && (
               <p className="text-amber-400 text-xs">
-                Without encryption, every staff member's password crosses the network in clear text when they sign in.
+                {tx("Without encryption, every staff member's password crosses the network in clear text when they sign in.")}
               </p>
             )}
             {(config.ldap_tls_mode || 'ldaps') !== 'none' && (
-              <Field label="CA certificate (optional)"
-                hint="Needed if your directory's certificate comes from an internal CA (typical for Active Directory) or is self-signed. Paste the CA certificate in PEM format. Certificates are always verified.">
+              <Field label={tx("CA certificate (optional)")}
+                hint={tx("Needed if your directory's certificate comes from an internal CA (typical for Active Directory) or is self-signed. Paste the CA certificate in PEM format. Certificates are always verified.")}>
                 <textarea value={config.ldap_ca_cert_pem || ''} rows={4}
                   onChange={e => setConfig(c => ({...c, ldap_ca_cert_pem: e.target.value}))}
-                  placeholder="-----BEGIN CERTIFICATE-----" className={`${inp} font-mono text-xs`} />
+                  placeholder={"-----BEGIN CERTIFICATE-----"} className={`${inp} font-mono text-xs`} />
               </Field>
             )}
             {testResults.ldap && (
               <div className={`text-xs ${testResults.ldap.connected ? 'text-emerald-400' : 'text-red-400'}`}>
-                <p>{testResults.ldap.connected ? `✓ Connected (${testResults.ldap.tls_mode} — ${testResults.ldap.uri})` : `✗ ${testResults.ldap.error}`}</p>
+                <p>{testResults.ldap.connected ? tx("✓ Connected ({tls_mode} — {uri})", { tls_mode: testResults.ldap.tls_mode, uri: testResults.ldap.uri }) : `✗ ${testResults.ldap.error}`}</p>
                 {testResults.ldap.warning && <p className="text-amber-400">{testResults.ldap.warning}</p>}
               </div>
             )}
             {ldapMsg && (ldapMsg.ok
               ? <div className="text-xs space-y-1">
-                  <p className="text-emerald-400">✓ LDAP settings saved</p>
+                  <p className="text-emerald-400">{tx("✓ LDAP settings saved")}</p>
                   {ldapMsg.warnings.map((w, i) => <p key={i} className="text-amber-400">{w}</p>)}
                 </div>
               : <p className="text-red-400 text-xs">✗ {ldapMsg.error}</p>)}
@@ -983,23 +983,23 @@ function AuthProvidersSection() {
               const color = c.level === 'ok' ? 'text-emerald-400' : c.level === 'warning' ? 'text-amber-400' : 'text-red-400'
               return (
                 <div className="text-xs flex items-start justify-between gap-2">
-                  <p className={color}>Server certificate: {c.message}
-                    {c.checked_at && <span className="text-slate-600"> · checked {new Date(c.checked_at).toLocaleString()}</span>}
+                  <p className={color}>{tx("Server certificate: {message}", { message: c.message })}
+                    {c.checked_at && <span className="text-slate-600">{" "}{tx("· checked")}{" "}{new Date(c.checked_at).toLocaleString()}</span>}
                   </p>
                   <button onClick={() => api.post('/branding/auth-providers/ldap/cert-check').then(r => setLdapCert(r.data))}
-                    className="text-slate-400 hover:text-slate-200 shrink-0">Check now</button>
+                    className="text-slate-400 hover:text-slate-200 shrink-0">{tx("Check now")}</button>
                 </div>
               )
             })()}
             <div className="flex gap-2">
               <button onClick={() => testProvider('ldap')} disabled={testing.ldap}
                 className="flex items-center gap-1 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-40">
-                <TestTube size={12} />{testing.ldap ? 'Testing…' : 'Test connection'}
+                <TestTube size={12} />{testing.ldap ? tx("Testing…") : tx("Test connection")}
               </button>
               <button onClick={saveLdap} disabled={saving.ldap}
                 className="flex items-center gap-1 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 disabled:opacity-40 transition-colors">
                 {saving.ldap ? <RefreshCw size={12} className="animate-spin" /> : null}
-                {saving.ldap ? 'Saving…' : 'Save LDAP'}
+                {saving.ldap ? tx("Saving…") : tx("Save LDAP")}
               </button>
             </div>
           </div>
@@ -1011,10 +1011,10 @@ function AuthProvidersSection() {
         <div className="flex items-center justify-between px-4 py-3 bg-slate-900/50 border-b border-slate-700/50">
           <div className="flex items-center gap-2">
             <CreditCard size={13} className="text-slate-400" />
-            <span className="text-slate-300 text-sm font-medium">SIP2 — Library patron authentication</span>
+            <span className="text-slate-300 text-sm font-medium">{tx("SIP2 — Library patron authentication")}</span>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
-            <span className="text-slate-500 text-xs">{config.sip2_enabled ? 'Enabled' : 'Disabled'}</span>
+            <span className="text-slate-500 text-xs">{config.sip2_enabled ? tx("Enabled") : tx("Disabled")}</span>
             <div onClick={() => setConfig(c => ({...c, sip2_enabled: !c.sip2_enabled}))}
               className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.sip2_enabled ? 'bg-shield-600' : 'bg-slate-700'}`}>
               <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.sip2_enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
@@ -1024,8 +1024,7 @@ function AuthProvidersSection() {
         {config.sip2_enabled && (
           <div className="p-4 space-y-3">
             <p className="text-slate-500 text-xs mb-2">
-              SIP2 authenticates library patrons via barcode + PIN against your ILS.
-              Enable TLS (SIP2S) for any internet-facing deployment.
+              {tx("SIP2 authenticates library patrons via barcode + PIN against your ILS. Enable TLS (SIP2S) for any internet-facing deployment.")}
             </p>
 
             {/* ILS preset picker */}
@@ -1036,7 +1035,7 @@ function AuthProvidersSection() {
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <span className={`text-sm font-medium ${config.sip2_use_tls ? 'text-emerald-300' : 'text-amber-300'}`}>
-                    {config.sip2_use_tls ? 'TLS enabled (SIP2S)' : 'Plain text — TLS disabled'}
+                    {config.sip2_use_tls ? tx("TLS enabled (SIP2S)") : tx("Plain text — TLS disabled")}
                   </span>
                   <div onClick={() => setConfig(c => ({
                     ...c,
@@ -1050,60 +1049,59 @@ function AuthProvidersSection() {
                   </div>
                 </div>
                 <span className={`text-xs ${config.sip2_use_tls ? 'text-emerald-500' : 'text-amber-500'}`}>
-                  {config.sip2_use_tls ? 'Recommended ✓' : 'Not recommended for production'}
+                  {config.sip2_use_tls ? tx("Recommended ✓") : tx("Not recommended for production")}
                 </span>
               </div>
               {!config.sip2_use_tls && (
                 <p className="text-amber-500 text-xs">
-                  Plain SIP2 sends library card numbers and PINs as unencrypted ASCII text.
-                  Enable TLS unless this is an isolated internal network with no internet exposure.
+                  {tx("Plain SIP2 sends library card numbers and PINs as unencrypted ASCII text. Enable TLS unless this is an isolated internal network with no internet exposure.")}
                 </p>
               )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="col-span-2">
-                <Field label="ILS host">
+                <Field label={tx("ILS host")}>
                   <input value={config.sip2_host || ''} onChange={e => setConfig(c => ({...c, sip2_host: e.target.value}))}
                     placeholder="ils.yourlibrary.org" className={inp} />
                 </Field>
               </div>
-              <Field label={`Port (default: ${config.sip2_use_tls ? '6443' : '6001'})`}>
+              <Field label={tx("Port (default: {v})", { v: config.sip2_use_tls ? '6443' : '6001' })}>
                 <input type="number" value={config.sip2_port || (config.sip2_use_tls ? 6443 : 6001)}
                   onChange={e => setConfig(c => ({...c, sip2_port: parseInt(e.target.value)}))}
                   className={inp} />
               </Field>
-              <Field label="Institution ID">
+              <Field label={tx("Institution ID")}>
                 <input value={config.sip2_institution_id || ''} onChange={e => setConfig(c => ({...c, sip2_institution_id: e.target.value}))}
                   placeholder="MYLIBRARY" className={inp} />
               </Field>
-              <Field label="ILS login (optional)">
+              <Field label={tx("ILS login (optional)")}>
                 <input value={config.sip2_ils_login || ''} onChange={e => setConfig(c => ({...c, sip2_ils_login: e.target.value}))}
                   placeholder="sip2user" className={inp} />
               </Field>
-              <PwField label="ILS password" value={config._sip2_pw || ''}
+              <PwField label={tx("ILS password")} value={config._sip2_pw || ''}
                 onChange={v => setConfig(c => ({...c, _sip2_pw: v}))}
                 isSet={config.sip2_password_set} />
-              <Field label="Patron email domain" hint="Used as email surrogate for patron accounts">
+              <Field label={tx("Patron email domain")} hint={tx("Used as email surrogate for patron accounts")}>
                 <input value={config.sip2_email_domain || 'library.local'} onChange={e => setConfig(c => ({...c, sip2_email_domain: e.target.value}))}
                   placeholder="library.local" className={inp} />
               </Field>
-              <Field label="Connection timeout (seconds)">
+              <Field label={tx("Connection timeout (seconds)")}>
                 <input type="number" min="3" max="30" value={config.sip2_timeout || 10}
                   onChange={e => setConfig(c => ({...c, sip2_timeout: parseInt(e.target.value)}))}
                   className={inp} />
               </Field>
-              <Field label="ILS date format" hint="Format used by ILS for dates and birthdates (PA/PB)">
+              <Field label={tx("ILS date format")} hint={tx("Format used by ILS for dates and birthdates (PA/PB)")}>
                 <select
                   value={config.sip2_date_format || 'auto'}
                   onChange={e => setConfig(c => ({...c, sip2_date_format: e.target.value}))}
                   className={inp}
                 >
-                  <option value="auto">Auto-detect (3M SIP2 standard / ISO / US)</option>
-                  <option value="MM/DD/YYYY">Month / Day / Year (US — MM/DD/YYYY)</option>
-                  <option value="DD/MM/YYYY">Day / Month / Year (International — DD/MM/YYYY)</option>
-                  <option value="YYYYMMDD">Standard 3M SIP2 (YYYYMMDD)</option>
-                  <option value="YYYY-MM-DD">ISO 8601 (YYYY-MM-DD)</option>
+                  <option value="auto">{tx("Auto-detect (3M SIP2 standard / ISO / US)")}</option>
+                  <option value="MM/DD/YYYY">{tx("Month / Day / Year (US — MM/DD/YYYY)")}</option>
+                  <option value="DD/MM/YYYY">{tx("Day / Month / Year (International — DD/MM/YYYY)")}</option>
+                  <option value="YYYYMMDD">{tx("Standard 3M SIP2 (YYYYMMDD)")}</option>
+                  <option value="YYYY-MM-DD">{tx("ISO 8601 (YYYY-MM-DD)")}</option>
                 </select>
               </Field>
             </div>
@@ -1111,18 +1109,16 @@ function AuthProvidersSection() {
             {/* TLS certificate options — verification is always on */}
             {config.sip2_use_tls && (
               <div className="bg-slate-900 rounded-lg p-3 space-y-2">
-                <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">TLS certificate</p>
+                <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">{tx("TLS certificate")}</p>
                 <p className="text-slate-500 text-xs">
-                  The ILS certificate is always verified. If it comes from an internal CA or is
-                  self-signed, paste that CA certificate here — don't paste the ILS server's own
-                  certificate, or sign-in will break the next time it renews.
+                  {tx("The ILS certificate is always verified. If it comes from an internal CA or is self-signed, paste that CA certificate here — don't paste the ILS server's own certificate, or sign-in will break the next time it renews.")}
                 </p>
                 <textarea value={config.sip2_ca_cert_pem || ''} rows={4}
                   onChange={e => setConfig(c => ({...c, sip2_ca_cert_pem: e.target.value}))}
-                  placeholder="-----BEGIN CERTIFICATE-----" className={`${inp} font-mono text-xs`} />
+                  placeholder={"-----BEGIN CERTIFICATE-----"} className={`${inp} font-mono text-xs`} />
                 {config.sip2_ca_cert_path && (
                   <p className="text-slate-500 text-xs">
-                    Also using the CA file at <code className="text-slate-300">{config.sip2_ca_cert_path}</code> (legacy setting).
+                    {txr("Also using the CA file at <0/> (legacy setting).", [<code className="text-slate-300">{config.sip2_ca_cert_path}</code>])}
                   </p>
                 )}
               </div>
@@ -1199,12 +1195,12 @@ function AuthProvidersSection() {
               <div className="text-xs space-y-0.5">
                 <p className={testResults.sip2.connected ? 'text-emerald-400' : 'text-red-400'}>
                   {testResults.sip2.connected
-                    ? `✓ Connected to ILS${testResults.sip2.tls ? ' over TLS' : ''}`
+                    ? `✓ Connected to ILS${testResults.sip2.tls ? tx("over TLS") : ''}`
                     : `✗ ${testResults.sip2.error}`}
                 </p>
                 {testResults.sip2.certificate && (
                   <p className={testResults.sip2.certificate.level === 'ok' ? 'text-emerald-400' : 'text-amber-400'}>
-                    Certificate: {testResults.sip2.certificate.message}
+                    {tx("Certificate: {message}", { message: testResults.sip2.certificate.message })}
                   </p>
                 )}
                 {testResults.sip2.warning && <p className="text-amber-400">{testResults.sip2.warning}</p>}
@@ -1213,19 +1209,19 @@ function AuthProvidersSection() {
             )}
             {sip2Msg && (sip2Msg.ok
               ? <div className="text-xs space-y-1">
-                  <p className="text-emerald-400">✓ SIP2 settings saved</p>
+                  <p className="text-emerald-400">{tx("✓ SIP2 settings saved")}</p>
                   {sip2Msg.warnings.map((w, i) => <p key={i} className="text-amber-400">{w}</p>)}
                 </div>
               : <p className="text-red-400 text-xs">✗ {sip2Msg.error}</p>)}
             <div className="flex gap-2">
               <button onClick={() => testProvider('sip2')} disabled={testing.sip2}
                 className="flex items-center gap-1 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-40">
-                <TestTube size={12} />{testing.sip2 ? 'Testing…' : 'Test connection'}
+                <TestTube size={12} />{testing.sip2 ? tx("Testing…") : tx("Test connection")}
               </button>
               <button onClick={saveSip2} disabled={saving.sip2}
                 className="flex items-center gap-1 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 disabled:opacity-40 transition-colors">
                 {saving.sip2 ? <RefreshCw size={12} className="animate-spin" /> : null}
-                {saving.sip2 ? 'Saving…' : 'Save SIP2'}
+                {saving.sip2 ? tx("Saving…") : tx("Save SIP2")}
               </button>
             </div>
           </div>
@@ -1265,7 +1261,7 @@ function OIDCProviderPanel({ provider, onSaved }) {
         <div className="flex items-center gap-2">
           <Globe size={13} className="text-slate-400" />
           <span className="text-slate-300 text-sm font-medium">{provider.label}</span>
-          {provider.enabled && <span className="text-xs text-emerald-400 border border-emerald-800 bg-emerald-900/20 px-1.5 py-0.5 rounded-sm">enabled</span>}
+          {provider.enabled && <span className="text-xs text-emerald-400 border border-emerald-800 bg-emerald-900/20 px-1.5 py-0.5 rounded-sm">{tx("enabled")}</span>}
         </div>
         <ChevronDown size={13} className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
       </div>
@@ -1279,71 +1275,69 @@ function OIDCProviderPanel({ provider, onSaved }) {
               className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${form.enabled ? 'bg-shield-600' : 'bg-slate-700'}`}>
               <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
             </div>
-            <span className="text-slate-300 text-sm">Enable {provider.label}</span>
+            <span className="text-slate-300 text-sm">{tx("Enable")}{" "}{provider.label}</span>
           </label>
           {form.enabled && (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {provider.key === 'microsoft' && (
-                  <Field label="Tenant ID" hint="Your Azure AD directory/tenant ID">
+                  <Field label={tx("Tenant ID")} hint={tx("Your Azure AD directory/tenant ID")}>
                     <input value={form.tenant_id || ''} onChange={e => setForm(f => ({...f, tenant_id: e.target.value}))}
                       placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" className={inp} />
                   </Field>
                 )}
-                <Field label="Discovery URL" hint="Leave blank to use preset">
+                <Field label={tx("Discovery URL")} hint={tx("Leave blank to use preset")}>
                   <input value={form.discovery_url || ''} onChange={e => setForm(f => ({...f, discovery_url: e.target.value}))}
                     placeholder={provider.discovery_url || 'https://...'} className={inp} />
                 </Field>
-                <Field label="Client ID">
+                <Field label={tx("Client ID")}>
                   <input value={form.client_id || ''} onChange={e => setForm(f => ({...f, client_id: e.target.value}))}
-                    placeholder="Client / Application ID" className={inp} />
+                    placeholder={tx("Client / Application ID")} className={inp} />
                 </Field>
-                <PwField label="Client secret" value={form.client_secret || ''}
+                <PwField label={tx("Client secret")} value={form.client_secret || ''}
                   onChange={v => setForm(f => ({...f, client_secret: v}))}
                   isSet={provider.client_secret_set} />
-                <Field label="Default role for new users">
+                <Field label={tx("Default role for new users")}>
                   <div className="relative">
                     <select value={form.default_role || 'parent'} onChange={e => setForm(f => ({...f, default_role: e.target.value}))}
                       className={`${inp} appearance-none pr-7`}>
-                      <option value="parent">parent</option>
-                      <option value="member">member</option>
+                      <option value="parent">{tx("parent")}</option>
+                      <option value="member">{tx("member")}</option>
                     </select>
                     <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
                   </div>
                 </Field>
-                <Field label="Allowed email domains">
+                <Field label={tx("Allowed email domains")}>
                   <input value={form.allowed_domains || ''} onChange={e => setForm(f => ({...f, allowed_domains: e.target.value}))}
                     placeholder="yourlibrary.org" className={inp} />
                 </Field>
-                <Field label="Required groups (optional)">
+                <Field label={tx("Required groups (optional)")}>
                   <input value={form.required_groups || ''} onChange={e => setForm(f => ({...f, required_groups: e.target.value}))}
                     placeholder="library-staff" className={inp} />
                 </Field>
               </div>
               {provider.key === 'google' && !(form.allowed_domains || '').trim() && (
                 <p className="text-amber-400 text-xs">
-                  Without an allowed domain, anyone with any Google account can sign in. Enter your
-                  Workspace domain — personal Google accounts are then rejected, even ones using your domain's address.
+                  {tx("Without an allowed domain, anyone with any Google account can sign in. Enter your Workspace domain — personal Google accounts are then rejected, even ones using your domain's address.")}
                 </p>
               )}
               {provider.key === 'microsoft' && ['common','organizations','consumers'].includes((form.tenant_id || '').trim().toLowerCase()) && !(form.allowed_domains || '').trim() && (
                 <p className="text-amber-400 text-xs">
-                  This tenant setting accepts accounts from any organization. Use your own tenant ID, or set allowed domains.
+                  {tx("This tenant setting accepts accounts from any organization. Use your own tenant ID, or set allowed domains.")}
                 </p>
               )}
               <label className="flex items-center gap-2 text-xs text-slate-400">
                 <input type="checkbox" checked={!!form.auto_provision}
                   onChange={e => setForm(f => ({...f, auto_provision: e.target.checked}))} />
-                Create accounts for new users from this provider even when registration is invite-only or admin-only
+                {tx("Create accounts for new users from this provider even when registration is invite-only or admin-only")}
               </label>
               <p className="text-slate-600 text-xs">
-                Super admin is never granted automatically through sign-in; promote accounts manually.
+                {tx("Super admin is never granted automatically through sign-in; promote accounts manually.")}
               </p>
               <p className="text-slate-600 text-xs">
-                Redirect URI to register with your provider:{' '}
-                <code className="bg-slate-700 px-1.5 rounded-sm text-slate-300">
+                {txr("Redirect URI to register with your provider: <0/>", [<code className="bg-slate-700 px-1.5 rounded-sm text-slate-300">
                   {window.location.origin}/api/auth/oidc/{provider.key}/callback
-                </code>
+                </code>])}
               </p>
             </>
           )}
@@ -1351,7 +1345,7 @@ function OIDCProviderPanel({ provider, onSaved }) {
             <button onClick={save} disabled={saving}
               className="flex items-center gap-1 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 disabled:opacity-40 transition-colors">
               {saving ? <RefreshCw size={12} className="animate-spin" /> : null}
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? tx("Saving…") : tx("Save")}
             </button>
           </div>
         </div>
@@ -1367,7 +1361,7 @@ export default function Branding() {
   if (!can(user, 'branding.manage', 'users.registration', 'auth.providers')) {
     return (
       <div className="p-4 md:p-6">
-        <p className="text-slate-500 text-sm">You don't have access to these settings.</p>
+        <p className="text-slate-500 text-sm">{tx("You don't have access to these settings.")}</p>
       </div>
     )
   }
@@ -1375,8 +1369,8 @@ export default function Branding() {
   return (
     <div className="p-4 md:p-6 max-w-3xl">
       <div className="mb-6">
-        <h1 className="text-white text-xl font-semibold">Branding & institutional settings</h1>
-        <p className="text-slate-400 text-sm mt-0.5">White-label, authentication, and deployment configuration</p>
+        <h1 className="text-white text-xl font-semibold">{tx("Branding & institutional settings")}</h1>
+        <p className="text-slate-400 text-sm mt-0.5">{tx("White-label, authentication, and deployment configuration")}</p>
       </div>
       {can(user, 'branding.manage') && <BrandingSection />}
       {can(user, 'users.registration') && <RegistrationSection />}
@@ -1417,8 +1411,8 @@ function SamlPanel() {
       if (metaMode === 'url') delete body.idp_metadata_xml; else delete body.idp_metadata_url
       if (!body.idp_metadata_xml) delete body.idp_metadata_xml
       const r = await api.put('/auth/saml/config', body)
-      setCfg(r.data); setForm(f => ({ ...f, idp_metadata_xml: '' })); setMsg('Saved.')
-    } catch (e) { setErr(e.response?.data?.detail || 'Save failed') }
+      setCfg(r.data); setForm(f => ({ ...f, idp_metadata_xml: '' })); setMsg(tx("Saved."))
+    } catch (e) { setErr(e.response?.data?.detail || tx("Save failed")) }
     finally { setSaving(false) }
   }
 
@@ -1436,55 +1430,53 @@ function SamlPanel() {
     <div className="border border-slate-700/60 rounded-xl p-4 space-y-3">
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between">
         <span className="text-slate-200 text-sm font-medium flex items-center gap-2">
-          <Key size={14} className="text-shield-400" /> SAML 2.0 single sign-on
-          {cfg.enabled && <span className="text-emerald-400 text-xs">enabled</span>}
+          <Key size={14} className="text-shield-400" />{" "}{tx("SAML 2.0 single sign-on")}
+          {cfg.enabled && <span className="text-emerald-400 text-xs">{tx("enabled")}</span>}
         </span>
         <ChevronDown size={14} className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <>
           <p className="text-slate-500 text-xs">
-            For any SAML identity provider: a home-lab Keycloak or Authentik, a university Shibboleth,
-            Microsoft ADFS or Entra, Okta, and others. Google Workspace and Microsoft 365 can also use
-            the simpler OIDC options below.
+            {tx("For any SAML identity provider: a home-lab Keycloak or Authentik, a university Shibboleth, Microsoft ADFS or Entra, Okta, and others. Google Workspace and Microsoft 365 can also use the simpler OIDC options below.")}
           </p>
 
           <div className="space-y-2">
-            <p className="text-slate-300 text-xs font-medium">1. Register OpenOptOut at your identity provider</p>
-            <Copy label="SP metadata URL (easiest — many IdPs import this directly)" value={cfg.sp.metadata_url} />
-            <Copy label="Entity ID" value={cfg.sp.entity_id} />
-            <Copy label="Assertion Consumer Service (ACS) URL — HTTP-POST" value={cfg.sp.acs_url} />
-            <Field label="Public base URL" hint="Must match how users reach this site, e.g. https://privacy.example.edu. Change this before registering at the IdP.">
+            <p className="text-slate-300 text-xs font-medium">{tx("1. Register OpenOptOut at your identity provider")}</p>
+            <Copy label={tx("SP metadata URL (easiest — many IdPs import this directly)")} value={cfg.sp.metadata_url} />
+            <Copy label={tx("Entity ID")} value={cfg.sp.entity_id} />
+            <Copy label={tx("Assertion Consumer Service (ACS) URL — HTTP-POST")} value={cfg.sp.acs_url} />
+            <Field label={tx("Public base URL")} hint={tx("Must match how users reach this site, e.g. https://privacy.example.edu. Change this before registering at the IdP.")}>
               <input value={form.sp_base_url} onChange={set('sp_base_url')} placeholder={cfg.sp.entity_id.replace('/api/auth/saml/metadata','')} className={inp} />
             </Field>
           </div>
 
           <div className="space-y-2">
-            <p className="text-slate-300 text-xs font-medium">2. Add your identity provider's metadata</p>
+            <p className="text-slate-300 text-xs font-medium">{tx("2. Add your identity provider's metadata")}</p>
             <div className="flex gap-3 text-xs">
-              <label className="flex items-center gap-1 text-slate-400"><input type="radio" checked={metaMode==='url'} onChange={() => setMetaMode('url')} /> From URL</label>
-              <label className="flex items-center gap-1 text-slate-400"><input type="radio" checked={metaMode==='paste'} onChange={() => setMetaMode('paste')} /> Paste XML</label>
+              <label className="flex items-center gap-1 text-slate-400"><input type="radio" checked={metaMode==='url'} onChange={() => setMetaMode('url')} />{" "}{tx("From URL")}</label>
+              <label className="flex items-center gap-1 text-slate-400"><input type="radio" checked={metaMode==='paste'} onChange={() => setMetaMode('paste')} />{" "}{tx("Paste XML")}</label>
             </div>
             {metaMode === 'url' ? (
               <input value={form.idp_metadata_url} onChange={set('idp_metadata_url')} placeholder="https://idp.example.edu/idp/shibboleth" className={inp} />
             ) : (
               <textarea value={form.idp_metadata_xml} onChange={set('idp_metadata_xml')} rows={5}
-                placeholder="<md:EntityDescriptor …>" className={`${inp} font-mono text-xs`} />
+                placeholder={"<md:EntityDescriptor …>"} className={`${inp} font-mono text-xs`} />
             )}
             {cfg.has_idp_metadata && (
-              <p className="text-emerald-400/80 text-xs">Metadata loaded: {(cfg.idp_entity_ids || []).join(', ') || 'no IdP found'}</p>
+              <p className="text-emerald-400/80 text-xs">{tx("Metadata loaded:")}{" "}{(cfg.idp_entity_ids || []).join(', ') || tx("no IdP found")}</p>
             )}
-            {cfg.metadata_error && <p className="text-red-400 text-xs">Stored metadata problem: {cfg.metadata_error}</p>}
+            {cfg.metadata_error && <p className="text-red-400 text-xs">{tx("Stored metadata problem:")}{" "}{cfg.metadata_error}</p>}
             {cfg.signing_cert && cfg.signing_cert.level !== 'none' && (
               <p className={`text-xs ${cfg.signing_cert.level === 'ok' ? 'text-emerald-400/80'
                 : cfg.signing_cert.level === 'warning' ? 'text-amber-400' : 'text-red-400'}`}>
-                IdP signing certificate: {cfg.signing_cert.message}
+                {tx("IdP signing certificate: {message}", { message: cfg.signing_cert.message })}
               </p>
             )}
             {(cfg.idp_entity_ids || []).length > 1 && (
-              <Field label="Which identity provider to use">
+              <Field label={tx("Which identity provider to use")}>
                 <select value={form.idp_entity_id} onChange={set('idp_entity_id')} className={inp}>
-                  <option value="">Choose…</option>
+                  <option value="">{tx("Choose…")}</option>
                   {cfg.idp_entity_ids.map(id => <option key={id} value={id}>{id}</option>)}
                 </select>
               </Field>
@@ -1492,46 +1484,46 @@ function SamlPanel() {
           </div>
 
           <div className="space-y-2">
-            <p className="text-slate-300 text-xs font-medium">3. Who may sign in</p>
+            <p className="text-slate-300 text-xs font-medium">{tx("3. Who may sign in")}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Field label="Allowed email domains" hint="Optional, comma-separated">
+              <Field label={tx("Allowed email domains")} hint={tx("Optional, comma-separated")}>
                 <input value={form.allowed_domains} onChange={set('allowed_domains')} placeholder="example.edu" className={inp} />
               </Field>
-              <Field label="Required groups / affiliations" hint="Optional, any-of — e.g. staff,faculty">
+              <Field label={tx("Required groups / affiliations")} hint={tx("Optional, any-of — e.g. staff,faculty")}>
                 <input value={form.required_groups} onChange={set('required_groups')} placeholder="staff,faculty" className={inp} />
               </Field>
-              <Field label="Role for new users">
+              <Field label={tx("Role for new users")}>
                 <select value={form.default_role} onChange={set('default_role')} className={inp}>
-                  <option value="parent">parent</option>
-                  <option value="member">member</option>
+                  <option value="parent">{tx("parent")}</option>
+                  <option value="member">{tx("member")}</option>
                 </select>
               </Field>
-              <Field label="Login button label">
-                <input value={form.label} onChange={set('label')} placeholder="University SSO" className={inp} />
+              <Field label={tx("Login button label")}>
+                <input value={form.label} onChange={set('label')} placeholder={tx("University SSO")} className={inp} />
               </Field>
             </div>
             <label className="flex items-center gap-2 text-xs text-slate-400">
               <input type="checkbox" checked={!!form.auto_provision} onChange={set('auto_provision')} />
-              Create accounts for new users from this IdP even when registration is invite-only or admin-only
+              {tx("Create accounts for new users from this IdP even when registration is invite-only or admin-only")}
             </label>
             <details className="text-xs text-slate-500">
-              <summary className="cursor-pointer">Attribute names (only if your IdP uses unusual ones)</summary>
+              <summary className="cursor-pointer">{tx("Attribute names (only if your IdP uses unusual ones)")}</summary>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
-                <input value={form.attr_email} onChange={set('attr_email')} placeholder="email attr (default: mail)" className={inp} />
-                <input value={form.attr_name} onChange={set('attr_name')} placeholder="name attr (default: displayName)" className={inp} />
-                <input value={form.attr_groups} onChange={set('attr_groups')} placeholder="groups attr (default: groups/memberOf)" className={inp} />
+                <input value={form.attr_email} onChange={set('attr_email')} placeholder={tx("email attr (default: mail)")} className={inp} />
+                <input value={form.attr_name} onChange={set('attr_name')} placeholder={tx("name attr (default: displayName)")} className={inp} />
+                <input value={form.attr_groups} onChange={set('attr_groups')} placeholder={tx("groups attr (default: groups/memberOf)")} className={inp} />
               </div>
             </details>
-            <p className="text-slate-600 text-xs">Super admin is never granted automatically through sign-in.</p>
+            <p className="text-slate-600 text-xs">{tx("Super admin is never granted automatically through sign-in.")}</p>
           </div>
 
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <label className="flex items-center gap-2 text-sm text-slate-300">
-              <input type="checkbox" checked={!!form.enabled} onChange={set('enabled')} /> Enable SAML sign-in
+              <input type="checkbox" checked={!!form.enabled} onChange={set('enabled')} />{" "}{tx("Enable SAML sign-in")}
             </label>
             <button onClick={save} disabled={saving}
               className="flex items-center gap-1 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 disabled:opacity-40">
-              {saving ? 'Saving…' : 'Save SAML'}
+              {saving ? tx("Saving…") : tx("Save SAML")}
             </button>
           </div>
           {msg && <p className="text-emerald-400 text-xs">{msg}</p>}

@@ -48,6 +48,7 @@ import StateRegistries from './pages/StateRegistries'
 import WebSearchSettings from './pages/WebSearchSettings'
 import Checklist from './pages/Checklist'
 import InboxPrompt from './components/InboxPrompt'
+import { tx } from './i18n/tx'
 
 // Super admins, plus managers holding at least one of these permissions.
 function RequirePermission({ perms, children }) {
@@ -76,7 +77,7 @@ function OIDCCallback() {
       navigate('/login')
     }
   }, [])
-  return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-500">Completing sign in…</p></div>
+  return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-500">{tx("Completing sign in…")}</p></div>
 }
 
 function Layout() {
@@ -95,7 +96,7 @@ function Layout() {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Mobile top bar with hamburger — hidden on md and up */}
         <header role="banner" className="md:hidden flex items-center gap-3 px-4 h-14 bg-slate-900 border-b border-slate-800 shrink-0">
-          <button onClick={() => setDrawerOpen(true)} className="text-slate-300 hover:text-white p-1 -ml-1" aria-label="Open menu">
+          <button onClick={() => setDrawerOpen(true)} className="text-slate-300 hover:text-white p-1 -ml-1" aria-label={tx("Open menu")}>
             <Menu size={22} />
           </button>
           <span className="text-white font-semibold text-sm truncate">{systemName}</span>
@@ -164,11 +165,11 @@ function RequireAuth({ children }) {
     }
   }, [user])
 
-  if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-500 text-sm">Loading…</p></div>
+  if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-500 text-sm">{tx("Loading…")}</p></div>
   if (!user)   return <Navigate to="/login" replace />
   // Fresh install: super admin hasn't finished the setup wizard yet.
   if (user.role === 'super_admin' && wizard === undefined)
-    return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-500 text-sm">Loading…</p></div>
+    return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-500 text-sm">{tx("Loading…")}</p></div>
   if (wizard && !wizard.completed)
     return <SetupWizard onDone={() => setWizard({ ...wizard, completed: true })} />
   return children

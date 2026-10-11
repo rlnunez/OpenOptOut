@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Layers, ChevronDown, ChevronRight } from 'lucide-react'
 import api from '../api'
+import { tx, txn } from '../i18n/tx'
 
 const KIND = { name: 'Name', address: 'Address', phone: 'Phone', email: 'Email' }
 
@@ -17,8 +18,8 @@ function Line({ title, hint, t }) {
         <div className="h-full bg-emerald-500" style={{ width: `${pct || 0}%` }} />
       </div>
       <p className="text-xs text-slate-400 mt-1">
-        {t.sent ? `Removed at ${t.removed} of ${t.sent} brokers they were sent to` : 'Not sent to any broker yet'}
-        {t.never_sent > 0 && t.sent > 0 && ` · ${t.never_sent} not sent anywhere yet`}
+        {t.sent ? tx("Removed at {removed} of {sent} brokers they were sent to", { removed: t.removed, sent: t.sent }) : tx("Not sent to any broker yet")}
+        {t.never_sent > 0 && t.sent > 0 && tx("· {never_sent} not sent anywhere yet", { never_sent: t.never_sent })}
       </p>
     </div>
   )
@@ -37,11 +38,11 @@ export default function VariantCoverage() {
   return (
     <section aria-labelledby="variants-h" className="bg-slate-800 rounded-xl p-4 border border-slate-700/50 mb-6">
       <h2 id="variants-h" className="text-slate-400 text-xs uppercase tracking-wide mb-3 flex items-center gap-1.5">
-        <Layers size={13} aria-hidden="true" /> Removal by detail
+        <Layers size={13} aria-hidden="true" />{" "}{tx("Removal by detail")}
       </h2>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Line title="Main details" hint="(full name, current address, phone)" t={f.main} />
-        <Line title="Other details" hint="(other names, old addresses, numbers, emails)" t={f.variants} />
+        <Line title={tx("Main details")} hint={tx("(full name, current address, phone)")} t={f.main} />
+        <Line title={tx("Other details")} hint={tx("(other names, old addresses, numbers, emails)")} t={f.variants} />
       </div>
 
       {data.members.length > 0 && (
@@ -55,23 +56,23 @@ export default function VariantCoverage() {
                   {m.member_name}
                 </span>
                 <span className="text-xs text-slate-400">
-                  main {m.main.percent_removed === null ? '—' : `${m.main.percent_removed}%`} ·
-                  {' '}variants {m.variants.percent_removed === null ? '—' : `${m.variants.percent_removed}%`}
+                  {tx("main {v} ·", { v: m.main.percent_removed === null ? '—' : `${m.main.percent_removed}%` })}
+                  {' '}{tx("variants {v}", { v: m.variants.percent_removed === null ? '—' : `${m.variants.percent_removed}%` })}
                 </span>
               </button>
               {open === m.member_id && (
                 <div className="overflow-x-auto mt-2">
                   <table className="w-full text-xs">
                     <thead><tr className="text-left text-slate-500">
-                      <th scope="col" className="py-1 pr-2 font-medium">Detail</th>
-                      <th scope="col" className="py-1 pr-2 font-medium">Type</th>
-                      <th scope="col" className="py-1 pr-2 font-medium text-right">Sent to</th>
-                      <th scope="col" className="py-1 font-medium text-right">Removed at</th>
+                      <th scope="col" className="py-1 pr-2 font-medium">{tx("Detail")}</th>
+                      <th scope="col" className="py-1 pr-2 font-medium">{tx("Type")}</th>
+                      <th scope="col" className="py-1 pr-2 font-medium text-right">{tx("Sent to")}</th>
+                      <th scope="col" className="py-1 font-medium text-right">{tx("Removed at")}</th>
                     </tr></thead>
                     <tbody>
                       {m.details.map(d => (
                         <tr key={d.identity_id} className="border-t border-slate-700/30">
-                          <td className="py-1 pr-2 text-slate-200">{d.label}{d.group === 'main' && <span className="ml-1.5 text-[10px] text-shield-300">main</span>}</td>
+                          <td className="py-1 pr-2 text-slate-200">{d.label}{d.group === 'main' && <span className="ml-1.5 text-[10px] text-shield-300">{tx("main")}</span>}</td>
                           <td className="py-1 pr-2 text-slate-400">{KIND[d.kind] || d.kind}</td>
                           <td className="py-1 pr-2 text-right text-slate-300">{d.brokers_sent}</td>
                           <td className={`py-1 text-right ${d.brokers_sent && d.brokers_removed === d.brokers_sent ? 'text-emerald-300' : 'text-slate-300'}`}>{d.brokers_removed}</td>
@@ -81,7 +82,7 @@ export default function VariantCoverage() {
                   </table>
                   {m.untracked_requests > 0 && (
                     <p className="text-xs text-slate-500 mt-1">
-                      {m.untracked_requests} earlier request{m.untracked_requests === 1 ? '' : 's'} didn't record which details {m.untracked_requests === 1 ? 'it' : 'they'} sent, so {m.untracked_requests === 1 ? "it isn't" : "they aren't"} counted here.
+                      {txn(m.untracked_requests, "{n} earlier request didn't record which details it sent, so it isn't counted here.", "{n} earlier requests didn't record which details they sent, so they aren't counted here.")}
                     </p>
                   )}
                 </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Globe, Plus, Check, Save, RotateCcw, Search, Filter, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react'
 import api from '../api'
 import { useLanguage } from '../i18n/LanguageContext'
+import { tx, txr } from '../i18n/tx'
 
 export default function Translations() {
   const { language: currentAppLang, setLanguage: setAppLanguage, allLanguages, refreshLanguages, t } = useLanguage()
@@ -90,7 +91,7 @@ export default function Translations() {
       }
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (e) {
-      alert("Couldn't save the translations: " + (e.response?.data?.detail || 'please try again.'))
+      alert(tx("Couldn't save the translations:") + (e.response?.data?.detail || tx("please try again.")))
     } finally {
       setSaving(false)
     }
@@ -102,7 +103,7 @@ export default function Translations() {
       await api.put(`/i18n/languages/${code}/toggle`, { enabled: !currentEnabled })
       await refreshLanguages()
     } catch (e) {
-      alert(e.response?.data?.detail || "Couldn't turn that language on or off. Please try again.")
+      alert(e.response?.data?.detail || tx("Couldn't turn that language on or off. Please try again."))
     }
   }
 
@@ -111,7 +112,7 @@ export default function Translations() {
     e.preventDefault()
     setAddError('')
     if (!newCode.trim() || !newName.trim()) {
-      setAddError('Language code and English name are required.')
+      setAddError(tx("Language code and English name are required."))
       return
     }
     try {
@@ -129,7 +130,7 @@ export default function Translations() {
       setNewNativeName('')
       setNewIsRTL(false)
     } catch (err) {
-      setAddError(err.response?.data?.detail || "Couldn't add the language. Please try again.")
+      setAddError(err.response?.data?.detail || tx("Couldn't add the language. Please try again."))
     }
   }
 
@@ -172,7 +173,7 @@ export default function Translations() {
             }`}
           >
             <Save size={15} />
-            <span>{saving ? 'Saving...' : saveSuccess ? 'Saved!' : `Save Translations (${dirtyCount})`}</span>
+            <span>{saving ? tx("Saving...") : saveSuccess ? tx("Saved!") : tx("Save Translations ({dirtyCount})", { dirtyCount })}</span>
           </button>
         </div>
       </div>
@@ -180,7 +181,7 @@ export default function Translations() {
       {saveSuccess && (
         <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm flex items-center gap-2 animate-in fade-in">
           <CheckCircle2 size={18} />
-          <span>Translations saved successfully and live on the platform!</span>
+          <span>{tx("Translations saved successfully and live on the platform!")}</span>
         </div>
       )}
 
@@ -209,7 +210,7 @@ export default function Translations() {
                   <span className="text-xs text-slate-400">({lang.code})</span>
                   {lang.is_rtl && (
                     <span className="text-[10px] px-1.5 py-0.2 rounded-sm bg-amber-500/15 text-amber-300 border border-amber-500/20 font-mono">
-                      RTL
+                      {tx("RTL")}
                     </span>
                   )}
                 </button>
@@ -218,14 +219,14 @@ export default function Translations() {
                 {lang.code !== 'en' && (
                   <button
                     onClick={() => handleToggleLanguage(lang.code, lang.enabled)}
-                    title={lang.enabled ? 'Click to disable' : 'Click to enable'}
+                    title={lang.enabled ? tx("Click to disable") : tx("Click to enable")}
                     className={`px-2 py-1 mr-2 text-[10px] rounded-lg font-medium transition-colors ${
                       lang.enabled
                         ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
                         : 'bg-slate-800 text-slate-500 hover:bg-slate-700'
                     }`}
                   >
-                    {lang.enabled ? 'Active' : 'Off'}
+                    {lang.enabled ? tx("Active") : tx("Off")}
                   </button>
                 )}
               </div>
@@ -242,7 +243,7 @@ export default function Translations() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search keys, original text, or translations..."
+            placeholder={tx("Search keys, original text, or translations...")}
             className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
           />
         </div>
@@ -255,7 +256,7 @@ export default function Translations() {
           >
             {locations.map(loc => (
               <option key={loc} value={loc}>
-                {loc === 'all' ? 'All Screen Locations' : loc}
+                {loc === 'all' ? tx("All Screen Locations") : loc}
               </option>
             ))}
           </select>
@@ -267,26 +268,26 @@ export default function Translations() {
         <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-white">
-              Editing: <span className="text-blue-400 capitalize">{activeLangObj.name || selectedLang}</span>
+              {txr("Editing: <0/>", [<span className="text-blue-400 capitalize">{activeLangObj.name || selectedLang}</span>])}
             </span>
             {isSelectedLangRTL && (
               <span className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
-                Right-to-Left (RTL) Input
+                {tx("Right-to-Left (RTL) Input")}
               </span>
             )}
           </div>
           <span className="text-xs text-slate-400">
-            Showing {filteredItems.length} of {dictionary.length} strings
+            {tx("Showing {length} of {length2} strings", { length: filteredItems.length, length2: dictionary.length })}
           </span>
         </div>
 
         {loading ? (
           <div className="p-12 text-center text-slate-500 text-sm">
-            Loading translation keys...
+            {tx("Loading translation keys...")}
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="p-12 text-center text-slate-500 text-sm">
-            No translation keys matched your search or location filter.
+            {tx("No translation keys matched your search or location filter.")}
           </div>
         ) : (
           <div className="divide-y divide-slate-800/80">
@@ -316,7 +317,7 @@ export default function Translations() {
                     {/* Source English */}
                     <div className="p-2.5 bg-slate-950/60 border border-slate-800 rounded-xl">
                       <div className="text-[10px] uppercase font-bold text-slate-500 mb-1">
-                        Source (English)
+                        {tx("Source (English)")}
                       </div>
                       <div className="text-sm text-slate-300 select-all">
                         {item.default_text}
@@ -326,8 +327,8 @@ export default function Translations() {
                     {/* Target Replacement Input */}
                     <div>
                       <div className="flex items-center justify-between text-[10px] uppercase font-bold text-slate-500 mb-1">
-                        <span>{activeLangObj.name} Translation / Override</span>
-                        {isDirty && <span className="text-blue-400">Modified</span>}
+                        <span>{activeLangObj.name}{" "}{tx("Translation / Override")}</span>
+                        {isDirty && <span className="text-blue-400">{tx("Modified")}</span>}
                       </div>
                       <input
                         type="text"
@@ -356,7 +357,7 @@ export default function Translations() {
           <div className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 space-y-4">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <Globe size={18} className="text-blue-400" />
-              <span>Register New Language</span>
+              <span>{tx("Register New Language")}</span>
             </h3>
 
             {addError && (
@@ -368,11 +369,11 @@ export default function Translations() {
             <form onSubmit={handleAddLanguage} className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">
-                  Language Code (ISO 639-1)
+                  {tx("Language Code (ISO 639-1)")}
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. it, pt-br, ja, de"
+                  placeholder={tx("e.g. it, pt-br, ja, de")}
                   value={newCode}
                   onChange={(e) => setNewCode(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-blue-500"
@@ -381,11 +382,11 @@ export default function Translations() {
 
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">
-                  English Name
+                  {tx("English Name")}
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Italian"
+                  placeholder={tx("e.g. Italian")}
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-blue-500"
@@ -394,11 +395,11 @@ export default function Translations() {
 
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">
-                  Native Display Name
+                  {tx("Native Display Name")}
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Italiano"
+                  placeholder={tx("e.g. Italiano")}
                   value={newNativeName}
                   onChange={(e) => setNewNativeName(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-blue-500"
@@ -414,7 +415,7 @@ export default function Translations() {
                   className="rounded-sm border-slate-800 bg-slate-950 text-blue-600 focus:ring-0"
                 />
                 <label htmlFor="newIsRTL" className="text-xs text-slate-300">
-                  Right-to-Left (RTL) Script (e.g. Arabic, Hebrew, Urdu)
+                  {tx("Right-to-Left (RTL) Script (e.g. Arabic, Hebrew, Urdu)")}
                 </label>
               </div>
 
@@ -424,13 +425,13 @@ export default function Translations() {
                   onClick={() => setShowAddModal(false)}
                   className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
                 >
-                  Cancel
+                  {tx("Cancel")}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium"
                 >
-                  Register Language
+                  {tx("Register Language")}
                 </button>
               </div>
             </form>

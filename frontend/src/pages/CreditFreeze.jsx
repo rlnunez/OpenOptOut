@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Snowflake, Printer, Copy, Check, ExternalLink } from 'lucide-react'
 import api from '../api'
+import { tx } from '../i18n/tx'
 
 // Credit freeze letters. Built fresh from the person's saved details each time;
 // Social Security numbers are never asked for or saved — the letter leaves a
@@ -26,34 +27,34 @@ function LetterCard({ l, person }) {
       <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
         <h2 id={`h-${l.key}`} className="text-white font-medium">{l.bureau}</h2>
         <div className="flex gap-2">
-          <button onClick={() => printLetter(`${l.bureau} freeze — ${person}`, l.letter)}
+          <button onClick={() => printLetter(tx("{bureau} freeze — {person}", { bureau: l.bureau, person }), l.letter)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700">
-            <Printer size={13} aria-hidden="true" /> Print letter
+            <Printer size={13} aria-hidden="true" />{" "}{tx("Print letter")}
           </button>
           <button onClick={copy}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-600 rounded-lg hover:bg-slate-700">
-            {copied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />} {copied ? 'Copied' : 'Copy'}
+            {copied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />} {copied ? tx("Copied") : tx("Copy")}
           </button>
         </div>
       </div>
       <p className="text-slate-300 text-sm mb-3">{l.note}</p>
       <div className="grid gap-3 sm:grid-cols-2 text-sm mb-3">
         <div>
-          <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Mail it to</p>
+          <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">{tx("Mail it to")}</p>
           <address className="not-italic text-slate-200">{l.mail_to.map(x => <div key={x}>{x}</div>)}</address>
         </div>
         <div>
-          <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Put copies of these in the envelope</p>
+          <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">{tx("Put copies of these in the envelope")}</p>
           <ul className="list-disc pl-5 text-slate-300 space-y-0.5">{l.enclose.map(x => <li key={x}>{x}</li>)}</ul>
         </div>
       </div>
       <div className="flex flex-wrap gap-3 text-sm">
-        {l.online && <a href={l.online} target="_blank" rel="noopener noreferrer" className="text-shield-300 hover:underline inline-flex items-center gap-1">Do it online <ExternalLink size={12} aria-hidden="true" /></a>}
-        {l.form && <a href={l.form} target="_blank" rel="noopener noreferrer" className="text-shield-300 hover:underline inline-flex items-center gap-1">Their form to include <ExternalLink size={12} aria-hidden="true" /></a>}
-        <span className="text-slate-400">Phone: {l.phone}</span>
+        {l.online && <a href={l.online} target="_blank" rel="noopener noreferrer" className="text-shield-300 hover:underline inline-flex items-center gap-1">{tx("Do it online")}{" "}<ExternalLink size={12} aria-hidden="true" /></a>}
+        {l.form && <a href={l.form} target="_blank" rel="noopener noreferrer" className="text-shield-300 hover:underline inline-flex items-center gap-1">{tx("Their form to include")}{" "}<ExternalLink size={12} aria-hidden="true" /></a>}
+        <span className="text-slate-400">{tx("Phone:")}{" "}{l.phone}</span>
       </div>
       <details className="mt-3">
-        <summary className="text-slate-400 text-sm cursor-pointer">Read the letter</summary>
+        <summary className="text-slate-400 text-sm cursor-pointer">{tx("Read the letter")}</summary>
         <pre className="mt-2 whitespace-pre-wrap text-slate-300 text-sm bg-slate-900 rounded-lg p-3 font-serif">{l.letter}</pre>
       </details>
     </section>
@@ -72,7 +73,7 @@ export default function CreditFreeze() {
     api.get('/family').then(r => {
       setMembers(r.data)
       if (r.data.length) setWho(String(r.data[0].id))
-    }).catch(() => setError("Couldn't load your family. Please refresh the page."))
+    }).catch(() => setError(tx("Couldn't load your family. Please refresh the page.")))
   }, [])
 
   useEffect(() => {
@@ -83,7 +84,7 @@ export default function CreditFreeze() {
     setError('')
     api.get(`/credit-freeze/${who}`, { params })
       .then(r => setData(r.data))
-      .catch(e => setError(e.response?.data?.detail || "Couldn't build the letters."))
+      .catch(e => setError(e.response?.data?.detail || tx("Couldn't build the letters.")))
   }, [who, parent, kind])
 
   const minor = data?.kind === 'minor'
@@ -91,32 +92,30 @@ export default function CreditFreeze() {
 
   return (
     <div className="p-4 md:p-6 max-w-4xl">
-      <h1 className="text-white text-xl font-semibold flex items-center gap-2"><Snowflake size={18} aria-hidden="true" /> Freeze credit</h1>
+      <h1 className="text-white text-xl font-semibold flex items-center gap-2"><Snowflake size={18} aria-hidden="true" />{" "}{tx("Freeze credit")}</h1>
       <p className="text-slate-400 text-sm mt-1 mb-4 max-w-2xl">
-        A credit freeze stops anyone from opening new credit in someone's name. It's free, it doesn't hurt a credit
-        score, and you can lift it any time. Do it with all three bureaus below. Children under 16 can only be
-        frozen by a parent or guardian, by mail, and it's one of the best ways to stop child identity theft.
+        {tx("A credit freeze stops anyone from opening new credit in someone's name. It's free, it doesn't hurt a credit score, and you can lift it any time. Do it with all three bureaus below. Children under 16 can only be frozen by a parent or guardian, by mail, and it's one of the best ways to stop child identity theft.")}
       </p>
 
       <div className="flex flex-wrap gap-3 items-end mb-4">
         <div>
-          <label htmlFor="cf-who" className="block text-slate-300 text-sm mb-1">Who is it for?</label>
+          <label htmlFor="cf-who" className="block text-slate-300 text-sm mb-1">{tx("Who is it for?")}</label>
           <select id="cf-who" className={sel} value={who} onChange={e => { setWho(e.target.value); setKind('') }}>
             {members.map(m => <option key={m.id} value={m.id}>{m.full_name}{m.age != null ? ` (${m.age})` : ''}</option>)}
           </select>
         </div>
         <div>
-          <label htmlFor="cf-kind" className="block text-slate-300 text-sm mb-1">Adult or child?</label>
+          <label htmlFor="cf-kind" className="block text-slate-300 text-sm mb-1">{tx("Adult or child?")}</label>
           <select id="cf-kind" className={sel} value={kind || data?.kind || ''} onChange={e => setKind(e.target.value)}>
-            <option value="adult">Adult (16 or older)</option>
-            <option value="minor">Child under 16</option>
+            <option value="adult">{tx("Adult (16 or older)")}</option>
+            <option value="minor">{tx("Child under 16")}</option>
           </select>
         </div>
         {minor && (
           <div>
-            <label htmlFor="cf-parent" className="block text-slate-300 text-sm mb-1">Parent or guardian sending it</label>
+            <label htmlFor="cf-parent" className="block text-slate-300 text-sm mb-1">{tx("Parent or guardian sending it")}</label>
             <select id="cf-parent" className={sel} value={parent} onChange={e => setParent(e.target.value)}>
-              <option value="">I'll write it in</option>
+              <option value="">{tx("I'll write it in")}</option>
               {members.filter(m => String(m.id) !== who).map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
             </select>
           </div>
@@ -124,8 +123,8 @@ export default function CreditFreeze() {
       </div>
 
       <div className="mb-4 px-3 py-2.5 rounded-lg border border-amber-700/60 bg-amber-950/20 text-amber-200 text-sm" role="note">
-        We never save Social Security numbers. The letters leave a blank. Write the number in by hand after printing.
-        {minor && ' Don\'t have a birthday saved? Add it on Your details, or write it in.'}
+        {tx("We never save Social Security numbers. The letters leave a blank. Write the number in by hand after printing.")}
+        {minor && tx("Don't have a birthday saved? Add it on Your details, or write it in.")}
       </div>
 
       {error && <p role="alert" className="text-red-400 text-sm mb-4">{error}</p>}
@@ -134,13 +133,13 @@ export default function CreditFreeze() {
         <div className="space-y-4">
           {data.letters.map(l => <LetterCard key={l.key} l={l} person={data.person} />)}
           <section aria-labelledby="h-other" className="bg-slate-800 rounded-xl border border-slate-700/50 p-4">
-            <h2 id="h-other" className="text-white font-medium mb-1">Smaller agencies worth freezing too</h2>
-            <p className="text-slate-400 text-sm mb-2">Banks, phone companies and insurers check these. Each is free to freeze.</p>
+            <h2 id="h-other" className="text-white font-medium mb-1">{tx("Smaller agencies worth freezing too")}</h2>
+            <p className="text-slate-400 text-sm mb-2">{tx("Banks, phone companies and insurers check these. Each is free to freeze.")}</p>
             <ul className="space-y-1.5 text-sm">
               {data.other_agencies.map(a => <li key={a.name}><span className="text-slate-200">{a.name}</span> <span className="text-slate-400">— {a.how}</span></li>)}
             </ul>
           </section>
-          <p className="text-slate-500 text-xs">Bureau addresses last checked {data.checked}. Check the bureau's website if a letter comes back.</p>
+          <p className="text-slate-500 text-xs">{tx("Bureau addresses last checked {checked}. Check the bureau's website if a letter comes back.", { checked: data.checked })}</p>
         </div>
       )}
     </div>

@@ -6,8 +6,9 @@ import {
 } from 'lucide-react'
 import api from '../api'
 import { useAuth } from '../hooks/useAuth'
+import { tx, txn, txr } from '../i18n/tx'
 
-const KIND_LABELS = { name: 'Names', email: 'Emails', phone: 'Phones', address: 'Addresses' }
+const KIND_LABELS = { name: tx("Names"), email: tx("Emails"), phone: tx("Phones"), address: tx("Addresses") }
 const KIND_COLORS = {
   name:    'bg-purple-900/40 text-purple-300 border-purple-800',
   email:   'bg-blue-900/40   text-blue-300   border-blue-800',
@@ -53,7 +54,7 @@ function AddMemberModal({ onClose, onCreated }) {
       onCreated(data)
       onClose()
     } catch (err) {
-      setError(err.response?.data?.detail || "Couldn't add them. Please try again.")
+      setError(err.response?.data?.detail || tx("Couldn't add them. Please try again."))
     } finally {
       setSaving(false)
     }
@@ -63,22 +64,22 @@ function AddMemberModal({ onClose, onCreated }) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-white font-semibold">Add family member</h2>
+          <h2 className="text-white font-semibold">{tx("Add family member")}</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><X size={16} /></button>
         </div>
         {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
         <form onSubmit={submit} className="space-y-3">
           <div>
-            <label className="text-slate-400 text-xs mb-1 block">Full name *</label>
+            <label className="text-slate-400 text-xs mb-1 block">{tx("Full name *")}</label>
             <input
               value={name} onChange={e => setName(e.target.value)}
-              placeholder="Jane Smith"
+              placeholder={tx("Jane Smith")}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
               required autoFocus
             />
           </div>
           <div>
-            <label className="text-slate-400 text-xs mb-1 block">Age <span className="text-slate-600">(optional)</span></label>
+            <label className="text-slate-400 text-xs mb-1 block">{txr("Age <0>(optional)</0>", [<span className="text-slate-600" />])}</label>
             <input
               type="number" value={age} onChange={e => setAge(e.target.value)}
               placeholder="42"
@@ -87,9 +88,9 @@ function AddMemberModal({ onClose, onCreated }) {
             />
           </div>
           <div className="flex gap-2 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 py-2 border border-slate-700 rounded-lg text-slate-400 text-sm hover:bg-slate-800 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="flex-1 py-2 border border-slate-700 rounded-lg text-slate-400 text-sm hover:bg-slate-800 transition-colors">{tx("Cancel")}</button>
             <button type="submit" disabled={saving} className="flex-1 py-2 bg-shield-600 hover:bg-shield-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
-              {saving ? 'Adding…' : 'Add person'}
+              {saving ? tx("Adding…") : tx("Add person")}
             </button>
           </div>
         </form>
@@ -145,12 +146,12 @@ function MemberCard({ member, onUpdated, onDeleted, onSelect, selected }) {
   const complete = Object.keys(KIND_LABELS).every(k => kindCounts[k] > 0)
 
   const deleteMember = async () => {
-    if (!confirm(`Remove ${member.full_name}? Their saved details and opt-out history will be deleted from OpenOptOut.`)) return
+    if (!confirm(tx("Remove {full_name}? Their saved details and opt-out history will be deleted from OpenOptOut.", { full_name: member.full_name }))) return
     try {
       await api.delete(`/family/${member.id}`)
       onDeleted(member.id)
     } catch (err) {
-      alert(err.response?.data?.detail || "Couldn't remove them. Please try again.")
+      alert(err.response?.data?.detail || tx("Couldn't remove them. Please try again."))
     }
   }
 
@@ -168,14 +169,14 @@ function MemberCard({ member, onUpdated, onDeleted, onSelect, selected }) {
             <div>
               <EditableName member={member} onUpdated={onUpdated} />
               <p className="text-slate-500 text-xs mt-0.5">
-                {member.age ? `Age ${member.age} · ` : ''}{total} identit{total === 1 ? 'y' : 'ies'}
+                {member.age ? tx("Age {age} · ", { age: member.age }) : ''}{txn(total, "{n} detail", "{n} details")}
               </p>
             </div>
           </div>
           <button
             onClick={e => { e.stopPropagation(); deleteMember() }}
             className="text-slate-600 hover:text-red-400 transition-colors p-1"
-            title="Remove this person" aria-label={`Remove ${member.full_name}`}
+            title={tx("Remove this person")} aria-label={tx("Remove {full_name}", { full_name: member.full_name })}
           >
             <Trash2 size={13} />
           </button>
@@ -192,7 +193,7 @@ function MemberCard({ member, onUpdated, onDeleted, onSelect, selected }) {
                   : 'bg-slate-900 text-slate-600 border-slate-700 opacity-50'
               }`}
             >
-              {kindCounts[kind] ? `${kindCounts[kind]} ${kind}${kindCounts[kind] > 1 ? 's' : ''}` : label}
+              {kindCounts[kind] ? `${label}: ${kindCounts[kind]}` : label}
             </span>
           ))}
         </div>
@@ -201,8 +202,8 @@ function MemberCard({ member, onUpdated, onDeleted, onSelect, selected }) {
         <div className="flex items-center justify-between">
           <div className={`flex items-center gap-1.5 text-xs ${complete ? 'text-emerald-400' : 'text-amber-400'}`}>
             {complete
-              ? <><ShieldCheck size={11} aria-hidden="true" /> Details look complete</>
-              : <><AlertCircle size={11} aria-hidden="true" /> Add more details (old addresses, phones…)</>
+              ? <><ShieldCheck size={11} aria-hidden="true" />{" "}{tx("Details look complete")}</>
+              : <><AlertCircle size={11} aria-hidden="true" />{" "}{tx("Add more details (old addresses, phones…)")}</>
             }
           </div>
           <ChevronRight size={13} className={`transition-colors ${selected ? 'text-shield-400' : 'text-slate-600'}`} />
@@ -251,29 +252,29 @@ export default function Family() {
     <div className="p-4 md:p-6 max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-white text-xl font-semibold">Family members</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Everyone you're protecting. Choose a person to add their names, addresses, phone numbers and emails.</p>
+          <h1 className="text-white text-xl font-semibold">{tx("Family members")}</h1>
+          <p className="text-slate-400 text-sm mt-0.5">{tx("Everyone you're protecting. Choose a person to add their names, addresses, phone numbers and emails.")}</p>
         </div>
         {canAdd && <button
           onClick={() => setShowAdd(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 transition-colors"
         >
-          <UserPlus size={13} aria-hidden="true" /> Add a person
+          <UserPlus size={13} aria-hidden="true" />{" "}{tx("Add a person")}
         </button>}
       </div>
 
-      {loading && <p className="text-slate-500 text-sm">Loading…</p>}
+      {loading && <p className="text-slate-500 text-sm">{tx("Loading…")}</p>}
 
       {!loading && members.length === 0 && (
         <div className="text-center py-16 bg-slate-800/50 rounded-xl border border-dashed border-slate-700">
           <Users size={32} className="text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400 text-sm font-medium">No family members yet</p>
-          <p className="text-slate-600 text-xs mt-1 mb-4">Add yourself first, then the rest of your family</p>
+          <p className="text-slate-400 text-sm font-medium">{tx("No family members yet")}</p>
+          <p className="text-slate-600 text-xs mt-1 mb-4">{tx("Add yourself first, then the rest of your family")}</p>
           <button
             onClick={() => setShowAdd(true)}
             className="px-4 py-2 bg-shield-600 text-white text-sm rounded-lg hover:bg-shield-700 transition-colors"
           >
-            Add yourself
+            {tx("Add yourself")}
           </button>
         </div>
       )}

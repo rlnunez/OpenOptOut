@@ -5,6 +5,7 @@ import {
   AlertTriangle, ExternalLink, Info
 } from 'lucide-react'
 import api from '../api'
+import { tx, txn, txr } from '../i18n/tx'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
@@ -34,24 +35,15 @@ function Select({ value, onChange, options }) {
 
 // ── JSON schema helper ────────────────────────────────────────────────────────
 
-const JSON_SCHEMA = `[
-  {
-    "name": "Example-site.com",
-    "opt_out_url": "https://example-site.com/optout",
-    "method": "form",
-    "difficulty": "medium",
-    "status": "compliant",
-    "notes": "Optional notes about this broker"
-  }
-]`
+const JSON_SCHEMA = "[\n  {\n    \"name\": \"Example-site.com\",\n    \"opt_out_url\": \"https://example-site.com/optout\",\n    \"method\": \"form\",\n    \"difficulty\": \"medium\",\n    \"status\": \"compliant\",\n    \"notes\": \"Optional notes about this broker\"\n  }\n]"
 
 const FIELD_DOCS = [
-  { field: 'name',         required: true,  desc: 'Broker name or domain (unique identifier)' },
-  { field: 'opt_out_url',  required: false, desc: 'Direct URL to the opt-out page or form' },
-  { field: 'method',       required: false, desc: '"form" | "email" | "manual" | "phone"' },
-  { field: 'difficulty',   required: false, desc: '"easy" | "medium" | "hard"' },
-  { field: 'status',       required: false, desc: '"compliant" | "resistant" | "inconsistent" | "undetermined"' },
-  { field: 'notes',        required: false, desc: 'Any notes about the opt-out process' },
+  { field: 'name',         required: true,  desc: tx("Broker name or domain (unique identifier)") },
+  { field: 'opt_out_url',  required: false, desc: tx("Direct URL to the opt-out page or form") },
+  { field: 'method',       required: false, desc: "\"form\" | \"email\" | \"manual\" | \"phone\"" },
+  { field: 'difficulty',   required: false, desc: "\"easy\" | \"medium\" | \"hard\"" },
+  { field: 'status',       required: false, desc: "\"compliant\" | \"resistant\" | \"inconsistent\" | \"undetermined\"" },
+  { field: 'notes',        required: false, desc: tx("Any notes about the opt-out process") },
 ]
 
 // ── Form add ──────────────────────────────────────────────────────────────────
@@ -68,7 +60,7 @@ function AddBrokerForm({ onAdded }) {
 
   const submit = async e => {
     e.preventDefault()
-    if (!form.name.trim()) { setError('Name is required'); return }
+    if (!form.name.trim()) { setError(tx("Name is required")); return }
     setSaving(true); setError(''); setSuccess('')
     try {
       const { data } = await api.post('/brokers', {
@@ -76,11 +68,11 @@ function AddBrokerForm({ onAdded }) {
         opt_out_url: form.opt_out_url || undefined,
         notes: form.notes || undefined,
       })
-      setSuccess(`✓ Added "${data.name}" (id ${data.id})`)
+      setSuccess(tx("✓ Added \"{name}\" (id {id})", { name: data.name, id: data.id }))
       setForm({ name: '', opt_out_url: '', method: 'form', difficulty: 'medium', status: 'compliant', notes: '' })
       onAdded(data)
     } catch (err) {
-      setError(err.response?.data?.detail ?? "Couldn't add the site. Check the details and try again.")
+      setError(err.response?.data?.detail ?? tx("Couldn't add the site. Check the details and try again."))
     } finally { setSaving(false) }
   }
 
@@ -91,43 +83,43 @@ function AddBrokerForm({ onAdded }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="col-span-2">
-          <Field label="Broker name or domain" required hint='e.g. "Spokeo.com" or "Acme Data"'>
+          <Field label={tx("Broker name or domain")} required hint={tx("e.g. \"Spokeo.com\" or \"Acme Data\"")}>
             <input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))}
               placeholder="DataBroker.com" className={inp} autoFocus />
           </Field>
         </div>
 
         <div className="col-span-2">
-          <Field label="Opt-out URL" hint="Direct link to the removal/opt-out page">
+          <Field label={tx("Opt-out URL")} hint={tx("Direct link to the removal/opt-out page")}>
             <input value={form.opt_out_url} onChange={e => setForm(f => ({...f, opt_out_url: e.target.value}))}
               placeholder="https://databroker.com/optout" className={inp} />
           </Field>
         </div>
 
-        <Field label="Method">
+        <Field label={tx("Method")}>
           <Select value={form.method} onChange={v => setForm(f => ({...f, method: v}))} options={[
-            { value: 'form',   label: 'Form — online opt-out form' },
-            { value: 'email',  label: 'Email — send removal request' },
-            { value: 'manual', label: 'Manual — mail / fax / phone' },
-            { value: 'phone',  label: 'Phone — call required' },
+            { value: 'form',   label: tx("Form — online opt-out form") },
+            { value: 'email',  label: tx("Email — send removal request") },
+            { value: 'manual', label: tx("Manual — mail / fax / phone") },
+            { value: 'phone',  label: tx("Phone — call required") },
           ]} />
         </Field>
 
-        <Field label="Difficulty">
+        <Field label={tx("Difficulty")}>
           <Select value={form.difficulty} onChange={v => setForm(f => ({...f, difficulty: v}))} options={[
-            { value: 'easy',   label: 'Easy — quick form, fast compliance' },
-            { value: 'medium', label: 'Medium — verification required' },
-            { value: 'hard',   label: 'Hard — resistant or complex process' },
+            { value: 'easy',   label: tx("Easy — quick form, fast compliance") },
+            { value: 'medium', label: tx("Medium — verification required") },
+            { value: 'hard',   label: tx("Hard — resistant or complex process") },
           ]} />
         </Field>
 
         <div className="col-span-2">
-          <Field label="Compliance status">
+          <Field label={tx("Compliance status")}>
             <Select value={form.status} onChange={v => setForm(f => ({...f, status: v}))} options={[
-              { value: 'compliant',    label: 'Compliant — honors opt-outs reliably' },
-              { value: 'inconsistent', label: 'Inconsistent — sometimes complies' },
-              { value: 'resistant',    label: 'Resistant — frequently ignores requests' },
-              { value: 'undetermined', label: 'Undetermined — not yet tested' },
+              { value: 'compliant',    label: tx("Compliant — honors opt-outs reliably") },
+              { value: 'inconsistent', label: tx("Inconsistent — sometimes complies") },
+              { value: 'resistant',    label: tx("Resistant — frequently ignores requests") },
+              { value: 'undetermined', label: tx("Undetermined — not yet tested") },
             ]} />
           </Field>
         </div>
@@ -137,17 +129,17 @@ function AddBrokerForm({ onAdded }) {
             <input type="checkbox" checked={form.is_property_broker}
               onChange={e => setForm(f => ({...f, is_property_broker: e.target.checked}))}
               className="w-3.5 h-3.5 rounded-sm accent-shield-500" />
-            <span className="text-slate-300 text-sm">Property broker</span>
+            <span className="text-slate-300 text-sm">{tx("Property broker")}</span>
             <span className="text-slate-600 text-xs">
-              — uses formal name + deed/mortgage addresses instead of name variants
+              {tx("— uses formal name + deed/mortgage addresses instead of name variants")}
             </span>
           </label>
         </div>
 
         <div className="col-span-2">
-          <Field label="Notes" hint="Opt-out process details, tips, known issues">
+          <Field label={tx("Notes")} hint={tx("Opt-out process details, tips, known issues")}>
             <textarea value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))}
-              rows={3} placeholder="e.g. Requires email confirmation. Re-lists within 60 days — use 30-day recheck."
+              rows={3} placeholder={tx("e.g. Requires email confirmation. Re-lists within 60 days — use 30-day recheck.")}
               className={`${inp} resize-none`} />
           </Field>
         </div>
@@ -156,7 +148,7 @@ function AddBrokerForm({ onAdded }) {
       <div className="flex justify-end pt-1">
         <button type="submit" disabled={saving}
           className="flex items-center gap-1.5 px-4 py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white rounded-lg text-sm font-medium transition-colors">
-          {saving ? <><span className="animate-spin inline-block w-3 h-3 border border-white/30 border-t-white rounded-full"/>Adding…</> : <><Plus size={13}/>Add broker</>}
+          {saving ? <><span className="animate-spin inline-block w-3 h-3 border border-white/30 border-t-white rounded-full"/>{tx("Adding…")}</> : <><Plus size={13}/>{tx("Add broker")}</>}
         </button>
       </div>
     </form>
@@ -181,7 +173,7 @@ function JsonUpload({ onImported }) {
       setResult(data)
       onImported()
     } catch (err) {
-      setError(err.response?.data?.detail ?? "Couldn't read that file. It needs to be a broker list exported from OpenOptOut (a .json file).")
+      setError(err.response?.data?.detail ?? tx("Couldn't read that file. It needs to be a broker list exported from OpenOptOut (a .json file)."))
     } finally {
       setLoading(false)
       e.target.value = ''
@@ -196,12 +188,12 @@ function JsonUpload({ onImported }) {
         className="border-2 border-dashed border-slate-700 hover:border-shield-600 rounded-xl p-8 text-center cursor-pointer transition-colors group"
       >
         <FileJson size={28} className="text-slate-600 group-hover:text-shield-500 mx-auto mb-2 transition-colors" />
-        <p className="text-slate-400 text-sm">Click to select a JSON file</p>
-        <p className="text-slate-600 text-xs mt-1">or drag and drop</p>
+        <p className="text-slate-400 text-sm">{tx("Click to select a JSON file")}</p>
+        <p className="text-slate-600 text-xs mt-1">{tx("or drag and drop")}</p>
         <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={handleFile} />
       </div>
 
-      {loading && <p className="text-slate-400 text-sm text-center">Importing…</p>}
+      {loading && <p className="text-slate-400 text-sm text-center">{tx("Importing…")}</p>}
 
       {error && (
         <div className="flex items-start gap-2 px-3 py-2.5 bg-red-900/20 border border-red-800 rounded-lg">
@@ -212,15 +204,15 @@ function JsonUpload({ onImported }) {
 
       {result && (
         <div className="px-3 py-3 bg-emerald-900/20 border border-emerald-800 rounded-lg">
-          <p className="text-emerald-400 text-sm font-medium mb-1">Import complete</p>
+          <p className="text-emerald-400 text-sm font-medium mb-1">{tx("Import complete")}</p>
           <div className="flex gap-4 text-xs text-emerald-300">
-            <span><strong>{result.added}</strong> added</span>
-            <span><strong>{result.updated}</strong> updated</span>
-            {result.skipped > 0 && <span><strong>{result.skipped}</strong> skipped</span>}
+            <span>{txr("<0/> added", [<strong>{result.added}</strong>])}</span>
+            <span>{txr("<0/> updated", [<strong>{result.updated}</strong>])}</span>
+            {result.skipped > 0 && <span>{txr("<0/> skipped", [<strong>{result.skipped}</strong>])}</span>}
           </div>
           {result.errors?.length > 0 && (
             <div className="mt-2">
-              <p className="text-amber-400 text-xs font-medium">{result.errors.length} errors:</p>
+              <p className="text-amber-400 text-xs font-medium">{result.errors.length}{" "}{tx("errors:")}</p>
               {result.errors.slice(0, 5).map((e, i) => (
                 <p key={i} className="text-amber-300 text-xs ml-2">{e}</p>
               ))}
@@ -232,7 +224,7 @@ function JsonUpload({ onImported }) {
       {/* Schema toggle */}
       <button onClick={() => setShowSchema(s => !s)}
         className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 text-xs transition-colors">
-        <Info size={11} />{showSchema ? 'Hide' : 'Show'} JSON format reference
+        <Info size={11} />{showSchema ? tx("Hide") : tx("Show")}{" "}{tx("JSON format reference")}
       </button>
 
       {showSchema && (
@@ -244,9 +236,9 @@ function JsonUpload({ onImported }) {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-slate-700 text-slate-500">
-                  <th className="text-left px-3 py-2 font-normal">Field</th>
-                  <th className="text-left px-3 py-2 font-normal">Required</th>
-                  <th className="text-left px-3 py-2 font-normal">Description</th>
+                  <th className="text-left px-3 py-2 font-normal">{tx("Field")}</th>
+                  <th className="text-left px-3 py-2 font-normal">{tx("Required")}</th>
+                  <th className="text-left px-3 py-2 font-normal">{tx("Description")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -261,8 +253,7 @@ function JsonUpload({ onImported }) {
             </table>
           </div>
           <p className="text-slate-600 text-xs">
-            The JSON file can also be wrapped in <code className="bg-slate-800 px-1 rounded-sm">{"{ \"brokers\": [ ... ] }"}</code> for compatibility with export files.
-            Existing brokers are matched by name (case-insensitive) and updated rather than duplicated.
+            {txr("The JSON file can also be wrapped in <0/> for compatibility with export files. Existing brokers are matched by name (case-insensitive) and updated rather than duplicated.", [<code className="bg-slate-800 px-1 rounded-sm">{"{ \"brokers\": [ ... ] }"}</code>])}
           </p>
         </div>
       )}
@@ -281,28 +272,28 @@ export default function BrokerSubmit() {
     <div className="p-4 md:p-6 max-w-3xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-white text-xl font-semibold">Add brokers</h1>
+          <h1 className="text-white text-xl font-semibold">{tx("Add brokers")}</h1>
           <p className="text-slate-400 text-sm mt-0.5">
-            Add a single broker via form or bulk-import from a JSON file
+            {tx("Add a single broker via form or bulk-import from a JSON file")}
           </p>
         </div>
         <button onClick={() => navigate('/brokers')}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
-          <ExternalLink size={13} /> View broker list
+          <ExternalLink size={13} />{" "}{tx("View broker list")}
         </button>
       </div>
 
       {addedCount > 0 && (
         <div className="mb-4 px-3 py-2 bg-emerald-900/20 border border-emerald-800 rounded-lg text-emerald-400 text-sm">
-          {addedCount} broker{addedCount > 1 ? 's' : ''} added this session
+          {txn(addedCount, "{n} broker added this session", "{n} brokers added this session")}
         </div>
       )}
 
       {/* Tab switcher */}
       <div className="flex gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700/50 mb-6 w-fit">
         {[
-          { key: 'form', label: 'Add one', icon: Plus },
-          { key: 'json', label: 'Bulk import JSON', icon: FileJson },
+          { key: 'form', label: tx("Add one"), icon: Plus },
+          { key: 'json', label: tx("Bulk import JSON"), icon: FileJson },
         ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded transition-colors ${
@@ -325,8 +316,7 @@ export default function BrokerSubmit() {
       <div className="mt-4 flex items-start gap-2 px-3 py-2.5 bg-slate-800/50 border border-slate-700/50 rounded-lg">
         <Info size={13} className="text-slate-500 shrink-0 mt-0.5" />
         <p className="text-slate-500 text-xs">
-          If you discover a new data broker not in the default list, consider contributing it back to the open-source project
-          so other users benefit too. Export your broker list from the Brokers page and open a pull request.
+          {tx("If you discover a new data broker not in the default list, consider contributing it back to the open-source project so other users benefit too. Export your broker list from the Brokers page and open a pull request.")}
         </p>
       </div>
     </div>

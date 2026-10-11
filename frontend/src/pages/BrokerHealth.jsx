@@ -4,12 +4,13 @@ import {
   Clock, ShieldAlert, Search
 } from 'lucide-react'
 import api from '../api'
+import { tx } from '../i18n/tx'
 
 const REASON_LABEL = {
-  timeout:        { label: 'Timeouts',        icon: Clock,        cls: 'text-amber-400' },
-  form_not_found: { label: 'Form not found',  icon: XCircle,      cls: 'text-red-400' },
-  captcha:        { label: 'CAPTCHA wall',    icon: ShieldAlert,  cls: 'text-purple-400' },
-  error:          { label: 'Errors',          icon: AlertTriangle,cls: 'text-red-400' },
+  timeout:        { label: tx("Timeouts"),        icon: Clock,        cls: 'text-amber-400' },
+  form_not_found: { label: tx("Form not found"),  icon: XCircle,      cls: 'text-red-400' },
+  captcha:        { label: tx("CAPTCHA wall"),    icon: ShieldAlert,  cls: 'text-purple-400' },
+  error:          { label: tx("Errors"),          icon: AlertTriangle,cls: 'text-red-400' },
 }
 
 function fmtDate(s) {
@@ -59,24 +60,23 @@ export default function BrokerHealth() {
       <div className="flex items-start justify-between mb-1 flex-wrap gap-2">
         <div>
           <h1 className="text-white text-xl font-semibold flex items-center gap-2">
-            <Activity size={20} className="text-shield-500" /> Broker health
+            <Activity size={20} className="text-shield-500" />{" "}{tx("Broker health")}
           </h1>
           <p className="text-slate-400 text-sm mt-0.5">
-            Brokers that have started failing are flagged here and automatically disabled so they
-            don't slow or break your runs. Review, fix the add-on, then re-enable.
+            {tx("Brokers that have started failing are flagged here and automatically disabled so they don't slow or break your runs. Review, fix the add-on, then re-enable.")}
           </p>
         </div>
         <button onClick={load} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
-          <RefreshCw size={13} /> Refresh
+          <RefreshCw size={13} />{" "}{tx("Refresh")}
         </button>
       </div>
 
       {/* Filter tabs */}
       <div className="flex items-center gap-2 mt-4 mb-4 flex-wrap">
         {[
-          { key: 'needs_review', label: `Needs review${needsReviewCount ? ` (${needsReviewCount})` : ''}` },
-          { key: 'disabled',     label: 'All disabled' },
-          { key: 'all',          label: 'All brokers' },
+          { key: 'needs_review', label: tx("Needs review{v}", { v: needsReviewCount ? ` (${needsReviewCount})` : '' }) },
+          { key: 'disabled',     label: tx("All disabled") },
+          { key: 'all',          label: tx("All brokers") },
         ].map(t => (
           <button key={t.key} onClick={() => setFilter(t.key)}
             className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
@@ -88,22 +88,22 @@ export default function BrokerHealth() {
         ))}
         <div className="relative ml-auto">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter by name"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={tx("Filter by name")}
             className="pl-8 pr-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 w-44" />
         </div>
       </div>
 
       {loading ? (
         <div className="flex items-center gap-2 text-slate-500 text-sm py-12 justify-center">
-          <RefreshCw size={14} className="animate-spin" /> Loading broker health…
+          <RefreshCw size={14} className="animate-spin" />{" "}{tx("Loading broker health…")}
         </div>
       ) : visible.length === 0 ? (
         <div className="flex flex-col items-center gap-2 text-slate-500 py-12">
           <CheckCircle2 size={28} className="text-emerald-500/70" />
           <p className="text-sm">
             {filter === 'needs_review'
-              ? 'No brokers need review — everything is running clean.'
-              : 'No brokers match this view.'}
+              ? tx("No brokers need review — everything is running clean.")
+              : tx("No brokers match this view.")}
           </p>
         </div>
       ) : (
@@ -112,11 +112,11 @@ export default function BrokerHealth() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-slate-500 text-xs border-b border-slate-700/50">
-                  <th className="text-left px-4 py-3 font-normal">Broker</th>
-                  <th className="text-left px-4 py-3 font-normal">State</th>
-                  <th className="text-left px-4 py-3 font-normal">Last failure</th>
-                  <th className="text-left px-4 py-3 font-normal">Success rate</th>
-                  <th className="text-right px-4 py-3 font-normal">Action</th>
+                  <th className="text-left px-4 py-3 font-normal">{tx("Broker")}</th>
+                  <th className="text-left px-4 py-3 font-normal">{tx("State")}</th>
+                  <th className="text-left px-4 py-3 font-normal">{tx("Last failure")}</th>
+                  <th className="text-left px-4 py-3 font-normal">{tx("Success rate")}</th>
+                  <th className="text-right px-4 py-3 font-normal">{tx("Action")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -129,19 +129,19 @@ export default function BrokerHealth() {
                         <div className="text-slate-200">{r.name}</div>
                         {r.needs_review && (
                           <span className="inline-flex items-center gap-1 mt-0.5 text-[11px] text-amber-300">
-                            <AlertTriangle size={10} /> flagged for review
+                            <AlertTriangle size={10} />{" "}{tx("flagged for review")}
                           </span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         {r.enabled ? (
                           <span className="inline-flex items-center gap-1.5 text-emerald-300 text-xs">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Enabled
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />{" "}{tx("Enabled")}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 text-red-300 text-xs">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                            {r.auto_disabled ? 'Auto-disabled' : 'Disabled'}
+                            {r.auto_disabled ? tx("Auto-disabled") : tx("Disabled")}
                           </span>
                         )}
                         {!r.enabled && r.auto_disabled_reason && (
@@ -157,17 +157,17 @@ export default function BrokerHealth() {
                               <div className="text-slate-500 text-[11px]">{fmtDate(r.last_failure_at)}</div>
                               {r.last_failure_reason === 'captcha' && (
                                 <div className="text-purple-300/80 text-[10px] mt-0.5">
-                                  Solver: {r.captcha_plugin_id || 'default'}
+                                  {tx("Solver: {v}", { v: r.captcha_plugin_id || 'default' })}
                                 </div>
                               )}
                             </div>
                           </div>
                         ) : (
-                          <span className="text-slate-600 text-xs">none</span>
+                          <span className="text-slate-600 text-xs">{tx("none")}</span>
                         )}
                         {r.consecutive_failures > 0 && (
                           <div className="text-red-400/80 text-[11px] mt-0.5">
-                            {r.consecutive_failures} in a row
+                            {tx("{consecutive_failures} in a row", { consecutive_failures: r.consecutive_failures })}
                           </div>
                         )}
                       </td>
@@ -180,7 +180,7 @@ export default function BrokerHealth() {
                           <span className="text-slate-600 text-xs">—</span>
                         )}
                         <div className="text-slate-500 text-[11px] mt-0.5">
-                          {r.total_successes}/{r.total_attempts} ok
+                          {tx("{total_successes}/{total_attempts} ok", { total_successes: r.total_successes, total_attempts: r.total_attempts })}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -194,7 +194,7 @@ export default function BrokerHealth() {
                           {busy === r.broker_id
                             ? <RefreshCw size={12} className="animate-spin" />
                             : <Power size={12} />}
-                          {r.enabled ? 'Disable' : 'Re-enable'}
+                          {r.enabled ? tx("Disable") : tx("Re-enable")}
                         </button>
                       </td>
                     </tr>

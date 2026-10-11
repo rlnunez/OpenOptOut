@@ -14,6 +14,7 @@ Provides:
 import json
 import logging
 import os
+import re
 from typing import Dict, List, Optional, Any
 
 try:
@@ -232,6 +233,38 @@ MASTER_DICTIONARY: List[Dict[str, str]] = [
 # registered as plugins (plugins/language_packs.py), so an admin can turn one
 # off or replace it like any other plugin.
 
+# ── Page text ────────────────────────────────────────────────────────────────
+# Phrases on the screens are written in English in the frontend, wrapped in
+# tx("..."), and the English text is the key. The list of them is generated
+# from the code (scripts/extract_page_texts.mjs) into page_texts.json; each
+# language pack translates them in texts.json ({english: translation}).
+
+_PLACEHOLDER = re.compile(r"\{(\w+)\}")
+
+
+def _load_page_texts() -> List[Dict[str, Any]]:
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "page_texts.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f).get("texts", [])
+    except (OSError, ValueError):
+        return []
+
+
+PAGE_TEXTS = _load_page_texts()
+PAGE_TEXT_SET = {t["text"] for t in PAGE_TEXTS}
+
+
+def placeholders(text: str) -> set:
+    return set(_PLACEHOLDER.findall(text or ""))
+
+
+def clean_texts(texts: Dict[str, Any]) -> Dict[str, str]:
+    """Only known phrases, and only translations that keep every {placeholder}."""
+    return {k: v for k, v in (texts or {}).items()
+            if k in PAGE_TEXT_SET and isinstance(v, str) and v.strip() and placeholders(v) == placeholders(k)}
+
+
 def _bundled_languages_dir() -> str:
     return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                         "plugins", "bundled", "languages")
@@ -247,6 +280,11 @@ def _read_pack(pkg_path: str) -> Optional[Dict[str, Any]]:
     code = manifest.get("language_code") or manifest.get("id", "").replace("lang-", "").replace("lang_", "")
     if not code:
         return None
+    texts = {}
+    texts_path = os.path.join(pkg_path, "texts.json")
+    if os.path.isfile(texts_path):
+        with open(texts_path, "r", encoding="utf-8") as tf:
+            texts = json.load(tf)
     messages = {}
     for msg_name in ("messages.json", "translations.json"):
         msg_path = os.path.join(pkg_path, msg_name)
@@ -264,6 +302,7 @@ def _read_pack(pkg_path: str) -> Optional[Dict[str, Any]]:
         "version": manifest.get("version", "1.0"),
         "is_rtl": bool(manifest.get("is_rtl", code in RTL_LANGUAGES)),
         "messages": {k: v for k, v in messages.items() if k in known and isinstance(v, str) and v},
+        "texts": clean_texts(texts),
     }
 
 
@@ -450,8 +489,16 @@ def get_available_languages() -> List[Dict[str, Any]]:
 
 
 def get_dictionary() -> List[Dict[str, str]]:
-    """Returns the master UI dictionary with locations and descriptions."""
-    return MASTER_DICTIONARY
+    """
+    Everything translatable, with where it appears: the keyed dictionary
+    (menus, badges, onboarding) and then every phrase on the screens, whose
+    key is its English text.
+    """
+    return MASTER_DICTIONARY + [
+        {"key": t["text"], "default_text": t["text"], "location": "Screen: " + ", ".join(t.get("where", [])[:3]),
+         "description": t.get("note", "")}
+        for t in PAGE_TEXTS
+    ]
 
 
 def get_translations_for_locale(locale: str) -> Dict[str, str]:
@@ -481,11 +528,13 @@ def get_translations_for_locale(locale: str) -> Dict[str, str]:
     pack = _builtin_pack(code, disabled)
     if pack is not None:
         result.update(pack["messages"])
+        result.update(pack.get("texts", {}))
 
     # 3. Installed language packs (an admin's own pack for the same code wins)
     plugin_packs = scan_language_plugins()
-    if code in plugin_packs and plugin_packs[code]["messages"]:
+    if code in plugin_packs:
         result.update(plugin_packs[code]["messages"])
+        result.update(plugin_packs[code].get("texts", {}))
 
     # 4. In-system custom translations / overrides (highest precedence)
     result.update(custom_overrides)

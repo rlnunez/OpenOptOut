@@ -1,11 +1,12 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import api from '../api'
+import { tx } from '../i18n/tx'
 
 const BrandingContext = createContext(null)
 
 const DEFAULTS = {
   system_name:     'OpenOptOut',
-  tagline:         'Your personal data removal service',
+  tagline:         tx("Your personal data removal service"),
   primary_color:   '#6366f1',
   accent_color:    '#4f46e5',
   logo_url:        null,

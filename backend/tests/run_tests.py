@@ -9722,6 +9722,32 @@ def t_frontend_names():
     # IF THIS FAILS: add the missing import; the listed screen would crash for everyone who opens it.
 
 
+@test(1, "i18n.page_texts_current",
+      "The list of on-screen phrases matches the screens, and every bundled language translates all of them with the same {placeholders} and <0> tags.")
+def t_page_texts():
+    import json, re, subprocess, sys as _sys
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    r = subprocess.run([_sys.executable, "scripts/extract_page_texts.py", "--check"], cwd=root,
+                       capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, (r.stdout + r.stderr)[-1500:]
+    # IF THIS FAILS: run scripts/extract_page_texts.py, then translate the new phrases in each language pack.
+    master = [t["text"] for t in json.load(open(os.path.join(root, "backend", "core", "page_texts.json")))["texts"]]
+    ph = re.compile(r"\{(\w+)\}")
+    tag = re.compile(r"</?\d+/?>")
+    packs = os.path.join(root, "backend", "plugins", "bundled", "languages")
+    for d in sorted(os.listdir(packs)):
+        p = os.path.join(packs, d, "texts.json")
+        if not os.path.exists(p):
+            continue
+        texts = json.load(open(p, encoding="utf-8"))
+        missing = [k for k in master if k not in texts]
+        assert not missing, f"{d}: {len(missing)} phrases untranslated, e.g. {missing[:3]}"
+        for k, v in texts.items():
+            assert set(ph.findall(k)) == set(ph.findall(v)), f"{d}: placeholders differ in {k[:60]!r}"
+            assert sorted(tag.findall(k)) == sorted(tag.findall(v)), f"{d}: tags differ in {k[:60]!r}"
+    # IF THIS FAILS: a screen would show English, or a translation would drop a value or a link.
+
+
 @test(1, "matching.classify_unclear_listings",
       "Possible listings are sorted into yours, unclear (only the name shows) and not you (a different name or age).")
 def t_match_classify():

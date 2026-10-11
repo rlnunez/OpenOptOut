@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Gauge, FileDown } from 'lucide-react'
 import api from '../api'
+import { tx } from '../i18n/tx'
 
 // Privacy score: how much of the family's known exposure has been cleaned up
 // (0–100), where it started, and a daily trend line. Single series, so the
@@ -21,7 +22,7 @@ function Trend({ history }) {
   return (
     <div className="relative mt-2">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-16" role="img"
-        aria-label={`Score went from ${history[0].score} on ${fmtDay(history[0].day)} to ${history[history.length - 1].score} on ${fmtDay(history[history.length - 1].day)}`}
+        aria-label={tx("Score went from {score} on {fmtDay} to {score2} on {fmtDay2}", { score: history[0].score, fmtDay: fmtDay(history[0].day), score2: history[history.length - 1].score, fmtDay2: fmtDay(history[history.length - 1].day) })}
         onMouseLeave={() => setHover(null)}>
         <line x1={P} x2={W - P} y1={ys(50)} y2={ys(50)} stroke="currentColor" className="text-slate-700" strokeWidth="1" strokeDasharray="2 3" />
         <path d={d} fill="none" stroke="var(--color-shield-400)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
@@ -62,29 +63,29 @@ export default function PrivacyScore() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 id="score-h" className="text-slate-400 text-xs uppercase tracking-wide flex items-center gap-1.5">
-            <Gauge size={13} aria-hidden="true" /> Privacy score
+            <Gauge size={13} aria-hidden="true" />{" "}{tx("Privacy score")}
           </h2>
           <p className="mt-1"><span className="text-white text-4xl font-semibold">{f.now}</span><span className="text-slate-400 text-sm"> / 100</span></p>
           {change != null && (
             <p className="text-slate-300 text-sm">
-              Started at {f.start} on {fmtDay(f.start_day)}
+              {tx("Started at {start} on {fmtDay}", { start: f.start, fmtDay: fmtDay(f.start_day) })}
               {change !== 0 && <span className={change > 0 ? 'text-emerald-300' : 'text-amber-300'}> · {change > 0 ? 'up' : 'down'} {Math.abs(change)}</span>}
             </p>
           )}
         </div>
         <dl className="grid grid-cols-3 gap-4 text-sm">
-          <div><dt className="text-slate-400 text-xs">Still listed</dt><dd className="text-white text-lg">{f.exposed_now}</dd></div>
-          <div><dt className="text-slate-400 text-xs">Sites</dt><dd className="text-white text-lg">{f.sites_now}</dd></div>
-          {f.exposed_start != null && <div><dt className="text-slate-400 text-xs">Listed at start</dt><dd className="text-white text-lg">{f.exposed_start}</dd></div>}
+          <div><dt className="text-slate-400 text-xs">{tx("Still listed")}</dt><dd className="text-white text-lg">{f.exposed_now}</dd></div>
+          <div><dt className="text-slate-400 text-xs">{tx("Sites")}</dt><dd className="text-white text-lg">{f.sites_now}</dd></div>
+          {f.exposed_start != null && <div><dt className="text-slate-400 text-xs">{tx("Listed at start")}</dt><dd className="text-white text-lg">{f.exposed_start}</dd></div>}
         </dl>
       </div>
       <Trend history={f.history} />
       <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
-        <p className="text-slate-500 text-xs">100 means none of the sites we know about still show your family. Bigger sites count for more.</p>
+        <p className="text-slate-500 text-xs">{tx("100 means none of the sites we know about still show your family. Bigger sites count for more.")}</p>
         <button onClick={async () => { setBusy(true); try { await downloadReport() } catch { /* shown by the button state */ } finally { setBusy(false) } }}
           disabled={busy}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-200 border border-slate-600 rounded-lg hover:bg-slate-700 disabled:opacity-50">
-          <FileDown size={13} aria-hidden="true" /> {busy ? 'Making the report…' : 'Download full report (PDF)'}
+          <FileDown size={13} aria-hidden="true" /> {busy ? tx("Making the report…") : tx("Download full report (PDF)")}
         </button>
       </div>
     </section>

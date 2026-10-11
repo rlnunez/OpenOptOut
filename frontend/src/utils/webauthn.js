@@ -1,3 +1,4 @@
+import { tx } from '../i18n/tx'
 /**
  * WebAuthn / FIDO2 Browser Utilities
  * Supports:
@@ -55,7 +56,7 @@ export async function isPlatformAuthenticatorAvailable() {
  */
 export async function performWebAuthnRegister(options) {
   if (!isWebAuthnSupported()) {
-    throw new Error('WebAuthn / Security Keys are not supported in this browser or context.')
+    throw new Error(tx("WebAuthn / Security Keys are not supported in this browser or context."))
   }
 
   // Deep clone and transform binary fields
@@ -77,7 +78,7 @@ export async function performWebAuthnRegister(options) {
 
   const credential = await navigator.credentials.create({ publicKey })
   if (!credential) {
-    throw new Error('Credential creation was cancelled or returned empty.')
+    throw new Error(tx("Credential creation was cancelled or returned empty."))
   }
 
   const response = credential.response
@@ -101,7 +102,7 @@ export async function performWebAuthnRegister(options) {
  */
 export async function performWebAuthnAuthenticate(options) {
   if (!isWebAuthnSupported()) {
-    throw new Error('WebAuthn / Security Keys are not supported in this browser or context.')
+    throw new Error(tx("WebAuthn / Security Keys are not supported in this browser or context."))
   }
 
   const publicKey = {
@@ -118,7 +119,7 @@ export async function performWebAuthnAuthenticate(options) {
 
   const assertion = await navigator.credentials.get({ publicKey })
   if (!assertion) {
-    throw new Error('Authentication assertion was cancelled or returned empty.')
+    throw new Error(tx("Authentication assertion was cancelled or returned empty."))
   }
 
   const response = assertion.response
