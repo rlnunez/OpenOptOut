@@ -285,6 +285,156 @@ def t_builtin_email_providers():
     #   hardcoded recipient the trust model would reject.
 
 
+def _yahoo_plugin():
+    import importlib.util, sys, pathlib, json
+    here = pathlib.Path(__file__).resolve().parents[1]
+    d = here / "plugins" / "bundled" / "email" / "email-yahoo"
+    sys.path.insert(0, str(here / "plugins" / "sdk"))
+    try:
+        spec = importlib.util.spec_from_file_location("yahoo_plugin_under_test", d / "plugin.py")
+        mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+    except Exception as e:
+        raise Skip(f"plugin SDK not importable here: {e}")
+    finally:
+        sys.path.pop(0)
+    mod.plugin.get_email_credentials = lambda ref: {"access_token": "tok-" + ref, "token_type": "Bearer"}
+    return mod, json.loads((d / "manifest.json").read_text())
+
+
+@test(1, "email_providers.yahoo_oauth_only",
+      "Yahoo is sign-in only: its manifest reaches only Yahoo's IMAP/SMTP, and it signs in with the token.")
+def t_yahoo_oauth_only():
+    mod, mani = _yahoo_plugin()
+    m = mod.plugin.manifest
+    assert mani["version"] == m["version"] == "2.0.0"
+    assert sorted(mani["outbound_domains"]) == sorted(m["outbound_domains"]) == \
+        ["imap.mail.yahoo.com", "smtp.mail.yahoo.com"], "only Yahoo's mail servers"
+    assert set(mani["methods"]) == set(m["methods"]) and "email.get_credentials" in mani["methods"]
+    info = mod.plugin._email_info
+    assert info["auth_type"] == "oauth" and info["oauth_scopes"] == "mail-r mail-w"
+    src = open(mod.__file__).read()
+    assert "app_password" not in src and "smtp_password" not in src, "no app-password mode"
+    assert mod.oauthbearer("jordan@example.invalid", "T", "imap.mail.yahoo.com", 993) == \
+        "n,a=jordan@example.invalid,\x01host=imap.mail.yahoo.com\x01port=993\x01auth=Bearer T\x01\x01"
+    assert mod.xoauth2("jordan@example.invalid", "T") == "user=jordan@example.invalid\x01auth=Bearer T\x01\x01"
+    flow = _imp("routers.email_oauth")._provider_flow("yahoo")
+    assert flow.scopes == "mail-r mail-w", "the built-in Yahoo sign-in must ask to read mail too"
+    assert "yahoo" not in _imp("routers.settings").PRESETS, "no Yahoo app-password preset"
+
+
+@test(1, "email_providers.yahoo_reads_links_over_imap",
+      "Yahoo reads confirmation links over IMAP with the token, without marking mail read.")
+def t_yahoo_list():
+    mod, _ = _yahoo_plugin()
+    raw = (b"From: Brokr <privacy@broker.example>\r\nTo: jordan@example.invalid\r\n"
+           b"Subject: Confirm your request\r\nDate: Sat, 10 Oct 2026 12:00:00 +0000\r\n"
+           b"Message-ID: <m1@broker.example>\r\nContent-Type: text/plain\r\n\r\n"
+           b"Click https://broker.example/confirm?t=abc to confirm.\r\n")
+    old = (b"From: x@old.example\r\nTo: jordan@example.invalid\r\nSubject: old\r\n"
+           b"Date: Mon, 01 Jan 2024 00:00:00 +0000\r\nMessage-ID: <m0@old.example>\r\n\r\nhi\r\n")
+    calls = []
+
+    class FakeIMAP:
+        capabilities = (b"IMAP4REV1", b"AUTH=OAUTHBEARER", b"AUTH=XOAUTH2")
+        def authenticate(self, mech, cb):
+            calls.append(("auth", mech, cb(b"").decode())); return ("OK", [b""])
+        def select(self, box, readonly=False):
+            calls.append(("select", box, readonly)); return ("OK", [b"2"])
+        def search(self, charset, crit): return ("OK", [b"1 2"])
+        def fetch(self, i, what):
+            calls.append(("fetch", i, what))
+            body = raw if i == b"2" else old
+            if what == "(BODY.PEEK[HEADER])":
+                body = body.split(b"\r\n\r\n")[0] + b"\r\n\r\n"
+            return ("OK", [(b"x", body)])
+        def logout(self): calls.append(("logout",))
+
+    mod._imap = lambda *a, **k: FakeIMAP()
+    r = mod.list_messages({"account_ref": "fam1", "max_results": 10, "since_ts": 1700000000 + 86400 * 365,
+                           "include_links": True, "links_if_to_contains": "",
+                           "account_address": "jordan@example.invalid"})
+    assert r["ok"] and r["links_supported"], r
+    assert [x["message_id"] for x in r["messages"]] == ["m1@broker.example"], "older mail skipped"
+    assert [l["url"] for l in r["messages"][0]["links"]] == ["https://broker.example/confirm?t=abc"]
+    assert ("select", "INBOX", True) in calls, "opened read-only"
+    assert all("PEEK" in c[2] for c in calls if c[0] == "fetch"), "bodies read with PEEK so they stay unread"
+    auth = [c for c in calls if c[0] == "auth"][0]
+    assert auth[1] == "OAUTHBEARER" and "a=jordan@example.invalid" in auth[2] and "Bearer tok-fam1" in auth[2]
+    # No address from the host: a plain error, nothing fetched.
+    calls.clear()
+    r = mod.list_messages({"account_ref": "fam1", "account_address": ""})
+    assert not r["ok"] and "Yahoo address" in r["error"] and not calls
+
+
+@test(1, "email_providers.yahoo_sends_with_token",
+      "Yahoo sends over SMTP with the token, only to the host's recipients, and needs the account address.")
+def t_yahoo_send():
+    mod, _ = _yahoo_plugin()
+    seen = {}
+
+    class FakeSMTP:
+        esmtp_features = {"auth": "PLAIN LOGIN XOAUTH2 OAUTHBEARER"}
+        def __init__(self, host, port, timeout=None): seen["host"] = (host, port)
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def ehlo(self): pass
+        def auth(self, mech, cb, initial_response_ok=True): seen["auth"] = (mech, cb())
+        def sendmail(self, frm, rcpts, msg): seen["mail"] = (frm, list(rcpts), msg)
+
+    real = mod.smtplib.SMTP_SSL          # the shared smtplib module: put it back
+    mod.smtplib.SMTP_SSL = FakeSMTP
+    try:
+        r = mod.send({"account_ref": "fam1", "to": ["privacy@broker.example"], "cc": [],
+                      "subject": "Opt-out", "body": "Please remove.",
+                      "meta": {"account_address": "jordan@example.invalid", "reply_to": "jordan@example.invalid"}})
+    finally:
+        mod.smtplib.SMTP_SSL = real
+    assert r["ok"] and r["sent_to"] == ["privacy@broker.example"], r
+    assert seen["host"] == ("smtp.mail.yahoo.com", 465)
+    assert seen["auth"][0] == "OAUTHBEARER" and "Bearer tok-fam1" in seen["auth"][1]
+    assert seen["mail"][0] == "jordan@example.invalid" and seen["mail"][1] == ["privacy@broker.example"]
+    r = mod.send({"account_ref": "fam1", "to": ["privacy@broker.example"], "meta": {}})
+    assert not r["ok"] and "Yahoo address" in r["error"]
+
+
+@test(1, "email_providers.account_address_passed_to_plugins",
+      "The host tells email-provider plugins which address they sign in to, for reading and sending.")
+def t_account_address_passed():
+    import types
+    mgr_mod = _imp("plugins.manager")
+    if not mgr_mod._load_grpc():
+        raise Skip("gRPC stubs not built here")
+    pb = mgr_mod._pb
+    got = {}
+
+    class Stub:
+        def EmailProviderInfo(self, req, timeout=None): return types.SimpleNamespace(provider_key="yahoo")
+        def EmailProviderList(self, req, timeout=None):
+            got["list"] = req; return pb.EmailProviderListResponse(ok=True)
+        def EmailProviderSend(self, req, timeout=None):
+            got["send"] = req; return pb.EmailProviderSendResponse(ok=True, sent_to=list(req.to))
+
+    m = object.__new__(mgr_mod.PluginManager)
+    m.running = {"email-yahoo": types.SimpleNamespace(
+        manifest=types.SimpleNamespace(hooks=["email_provider"], timeout_seconds=5), stub=Stub())}
+    m.dispatch_email_list("yahoo", "fam1", account_address="jordan@example.invalid")
+    assert got["list"].account_address == "jordan@example.invalid"
+
+    es = _imp("core.email_send")
+    plugins_pkg = _imp("plugins")
+    old_gm, old_ref = plugins_pkg.get_manager, es._refresh_if_needed
+    plugins_pkg.get_manager = lambda: m
+    es._refresh_if_needed = lambda *a, **k: True
+    try:
+        r = es.send_email({"email": {"provider": "yahoo"}}, to=["privacy@broker.example"], cc=[],
+                          subject="s", body="b", account_ref="fam1", from_address="jordan@example.invalid")
+    finally:
+        plugins_pkg.get_manager, es._refresh_if_needed = old_gm, old_ref
+    assert r.get("ok"), r
+    assert dict(got["send"].meta).get("account_address") == "jordan@example.invalid"
+    assert list(got["send"].to) == ["privacy@broker.example"], "the address is not added as a recipient"
+
+
 @test(1, "permissions.wildcard_outbound_scoped_to_email",
       "Wildcard outbound_domains is allowed for email providers (operator-defined host) but not others.")
 def t_wildcard_scope():

@@ -78,6 +78,10 @@ def send_email(cfg: dict, to: list, cc: list, subject: str, body: str,
     Returns {"ok": bool, "via": "provider"|"smtp", "error": str, "sent_to": [...]}.
     """
     meta = {"reply_to": reply_to} if reply_to else {}
+    if from_address:
+        # The mailbox the token signs in to (Yahoo needs it for IMAP/SMTP
+        # sign-in). Not a recipient: the host enforces to/cc only.
+        meta["account_address"] = from_address
     email_cfg = cfg.get("email", {})
     provider = email_cfg.get("provider", "")
     provider_note = ""   # why the provider path didn't work, if it didn't — carried

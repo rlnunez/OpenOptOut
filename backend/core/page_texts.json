@@ -13979,12 +13979,6 @@
    ]
   },
   {
-   "text": "Use a Yahoo App Password",
-   "where": [
-    "pages/Settings.jsx"
-   ]
-  },
-  {
    "text": "Use backup code",
    "where": [
     "pages/Login.jsx"
@@ -14387,7 +14381,7 @@
    ]
   },
   {
-   "text": "We suggest a **separate email address** just for removal requests, apart from your everyday inbox.\n\n**Why a separate address?**\n- Some sites add people who opt out to marketing lists. A separate inbox keeps that mess away from you.\n- Every reply lands in one place, so it's easy to see who answered.\n\n**Easiest way (Gmail or Outlook):**\n1. Make a new Gmail or Outlook address, for example yourname.removals@gmail.com.\n2. Go to **Email inboxes** and choose **Connect an inbox**.\n3. Pick Google or Microsoft and sign in. You never type your password into OpenOptOut, and you can disconnect at any time.\n\n**Other email services (Yahoo, Fastmail and others):**\n1. Turn on two-step sign-in for the account.\n2. In the account's security settings, make an **app password** (a separate password just for apps like this one).\n3. Go to **Email inboxes**, choose **Connect an inbox**, pick your service, and paste the app password, not your normal one.\n\nGmail and Outlook let every opt-out use its own address (like you+oo7f3k2a@gmail.com), which is how we match each reply to the right site.",
+   "text": "We suggest a **separate email address** just for removal requests, apart from your everyday inbox.\n\n**Why a separate address?**\n- Some sites add people who opt out to marketing lists. A separate inbox keeps that mess away from you.\n- Every reply lands in one place, so it's easy to see who answered.\n\n**Easiest way (Gmail, Outlook or Yahoo):**\n1. Make a new Gmail, Outlook or Yahoo address, for example yourname.removals@gmail.com.\n2. Go to **Email inboxes** and choose **Connect an inbox**.\n3. Pick Google, Microsoft or Yahoo and sign in. You never type your password into OpenOptOut, and you can disconnect at any time.\n\n**Other email services (Fastmail and others):**\n1. Turn on two-step sign-in for the account.\n2. In the account's security settings, make an **app password** (a separate password just for apps like this one).\n3. Go to **Email inboxes**, choose **Connect an inbox**, pick your service, and paste the app password, not your normal one.\n\nGmail and Outlook let every opt-out use its own address (like you+oo7f3k2a@gmail.com), which is how we match each reply to the right site.",
    "where": [
     "pages/Help.jsx"
    ]
@@ -14809,7 +14803,7 @@
    ]
   },
   {
-   "text": "Yahoo (sign in, or app password)",
+   "text": "Yahoo Mail (sign in with Yahoo)",
    "where": [
     "pages/SetupWizard.jsx"
    ]

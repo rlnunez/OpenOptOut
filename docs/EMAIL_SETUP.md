@@ -60,6 +60,7 @@ Supported for Gmail / Google Workspace, Outlook / Microsoft 365 and Yahoo. Regis
 
 - Gmail scopes: `gmail.send` and `gmail.readonly`
 - Outlook scopes: `Mail.Send`, `Mail.Read`, `offline_access`
+- Yahoo scopes: `mail-r` and `mail-w`. Yahoo must approve each app for these before mail works: request it with Yahoo's developer access form after creating the app. Until then, signing in works but sending and reading are refused. Yahoo has no mail web API for outside apps, so OpenOptOut uses Yahoo's IMAP and SMTP servers with the sign-in token. Yahoo is sign-in only; there is no app-password option for it. A Yahoo inbox connected with an earlier version asked only for `mail-w`; connect it again so replies can be read.
 
 ### App password / SMTP
 
@@ -106,8 +107,8 @@ Administrators can turn automatic clicking (and the button-pressing browser) off
 | Inbox | Links read |
 |---|---|
 | Gmail (OAuth), Outlook / Microsoft 365 (OAuth) | Yes, from replies to +addresses |
-| App-password / IMAP inboxes, including Yahoo over IMAP | Yes |
-| Yahoo (OAuth) | Not yet: these replies go on the checklist |
+| Yahoo (OAuth) | Yes, read over IMAP with the sign-in token |
+| App-password / IMAP inboxes | Yes |
 | Third-party email plugins that predate this feature | No: these replies go on the checklist |
 
 For +address inboxes, only messages sent to an OpenOptOut +address are opened to look for links. Inboxes without +addresses have every recent message checked. In both cases the message body stays inside the email plugin's sandbox, and only the links leave it.

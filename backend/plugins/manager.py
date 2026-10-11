@@ -990,7 +990,8 @@ class PluginManager:
 
     def dispatch_email_list(self, provider_key: str, account_ref: str,
                             max_results: int = 50, since_ts: int = 0,
-                            include_links: bool = False, links_if_to_contains: str = "") -> Optional[dict]:
+                            include_links: bool = False, links_if_to_contains: str = "",
+                            account_address: str = "") -> Optional[dict]:
         """
         Ask the matching email-provider plugin for recent inbound messages
         (headers and a short snippet, never full bodies). With include_links
@@ -1012,7 +1013,8 @@ class PluginManager:
                                                max_results=int(max_results),
                                                since_ts=int(since_ts),
                                                include_links=bool(include_links),
-                                               links_if_to_contains=links_if_to_contains or "")
+                                               links_if_to_contains=links_if_to_contains or "",
+                                               account_address=account_address or "")
             try:
                 resp = rp.stub.EmailProviderList(req, timeout=rp.manifest.timeout_seconds)
             except Exception as e:

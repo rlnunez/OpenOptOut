@@ -58,11 +58,6 @@ PRESETS = {
         "smtp_host": "smtp.office365.com",   "smtp_port": 587, "smtp_tls": True,
         "note": "For highest security, connect via OAuth above. If using SMTP, works with Outlook.com, Hotmail, and Microsoft 365. If you have 2FA enabled, create an App Password at account.microsoft.com/security.",
     },
-    "yahoo": {
-        "imap_host": "imap.mail.yahoo.com",  "imap_port": 993, "imap_ssl": True,
-        "smtp_host": "smtp.mail.yahoo.com",  "smtp_port": 587, "smtp_tls": True,
-        "note": "Yahoo requires an App Password. Go to myaccount.yahoo.com → Security → Generate app password. Select 'Other app' and name it OpenOptOut.",
-    },
     "fastmail": {
         "imap_host": "imap.fastmail.com",    "imap_port": 993, "imap_ssl": True,
         "smtp_host": "smtp.fastmail.com",    "smtp_port": 587, "smtp_tls": True,

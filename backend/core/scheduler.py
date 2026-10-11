@@ -702,7 +702,8 @@ def _poll_member_mailboxes(db, cfg: dict) -> tuple:
                                               max_results=50, since_ts=int(since.timestamp()),
                                               include_links=True,
                                               links_if_to_contains=("+" + mbx.TAG_PREFIX)
-                                              if mbx.uses_plus(mb) else "")
+                                              if mbx.uses_plus(mb) else "",
+                                              account_address=mbx.base_address(mb.address))
                 if res is None:
                     continue
                 if not res.get("ok"):
