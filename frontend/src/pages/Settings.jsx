@@ -314,7 +314,6 @@ function ConnectedAccounts({ currentProvider, onChanged }) {
 const EMAIL_PRESETS = [
   { key: 'gmail',      label: 'Gmail' },
   { key: 'outlook',    label: 'Outlook' },
-  { key: 'yahoo',      label: 'Yahoo' },
   { key: 'fastmail',   label: 'Fastmail' },
   { key: 'protonmail', label: 'ProtonMail' },
   { key: 'custom',     label: tx("Custom") },
@@ -475,7 +474,7 @@ function EmailSection({ initial, userRole }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               <Field label={tx("Username / email")}><input value={form.imap_user ?? ''} onChange={e => setForm(f=>({...f,imap_user:e.target.value}))} placeholder="removals@example.com" className={inp}/></Field>
               <PasswordField label={tx("Password / App Password")} value={imapPw} onChange={setImapPw} isSet={initial.imap_password_set}
-                hint={form.preset === 'gmail' ? tx("Use a Gmail App Password") : form.preset === 'yahoo' ? tx("Use a Yahoo App Password") : undefined} />
+                hint={form.preset === 'gmail' ? tx("Use a Gmail App Password") : undefined} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               <Field label={tx("Folder")}><input value={form.imap_folder ?? 'INBOX'} onChange={e => setForm(f=>({...f,imap_folder:e.target.value}))} placeholder="INBOX" className={inp}/></Field>

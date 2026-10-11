@@ -230,7 +230,7 @@ function EmailStep({ onNext, onSkip, onBack, busy, setError }) {
         <option value="">{tx("Choose a provider…")}</option>
         <option value="gmail">{tx("Gmail / Google Workspace (sign in with Google)")}</option>
         <option value="outlook">{tx("Outlook / Microsoft 365 (sign in with Microsoft)")}</option>
-        <option value="yahoo">{tx("Yahoo (sign in, or app password)")}</option>
+        <option value="yahoo">{tx("Yahoo Mail (sign in with Yahoo)")}</option>
         <option value="smtp">{tx("Other mail server (SMTP / IMAP)")}</option>
         <option value="proton">{tx("Proton Mail (via Proton Bridge)")}</option>
         {uploaded.map(u => (

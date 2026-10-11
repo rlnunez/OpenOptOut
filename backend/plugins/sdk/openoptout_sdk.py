@@ -715,7 +715,8 @@ class _PluginServicer:
         req = {"account_ref": request.account_ref,
                "max_results": request.max_results, "since_ts": request.since_ts,
                "include_links": bool(getattr(request, "include_links", False)),
-               "links_if_to_contains": getattr(request, "links_if_to_contains", "")}
+               "links_if_to_contains": getattr(request, "links_if_to_contains", ""),
+               "account_address": getattr(request, "account_address", "")}
         try:
             r = fn(req) or {}
         except Exception as e:

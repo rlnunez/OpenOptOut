@@ -466,6 +466,9 @@ message EmailProviderListRequest {
   // When set, only read bodies of messages whose To/Delivered-To contains
   // this text (e.g. "+oo" for OpenOptOut's tagged addresses).
   string links_if_to_contains = 6;
+  // The address of the mailbox account_ref signs in to. Providers that sign
+  // in over IMAP with a token (Yahoo) need it; it is never a recipient.
+  string account_address = 7;
 }
 message MessageLink {
   string url  = 1;
