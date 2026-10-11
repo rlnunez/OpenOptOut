@@ -58,6 +58,11 @@ def start_scheduler():
               replace_existing=True, misfire_grace_time=3600,
               next_run_time=datetime.utcnow() + timedelta(minutes=10))
 
+    # Encrypted backups: checked hourly, run when due (daily or weekly at the set hour).
+    s.add_job(backup_job, IntervalTrigger(hours=1), id="backup",
+              replace_existing=True, misfire_grace_time=3600,
+              next_run_time=datetime.utcnow() + timedelta(minutes=5))
+
     # Removal checks: did listings go, and have any come back? Daily, on a budget.
     s.add_job(verification_job, IntervalTrigger(hours=24), id="verification",
               replace_existing=True, misfire_grace_time=3600,
@@ -809,6 +814,23 @@ def _get_html(msg) -> str:
 
 
 # ── Job 3: recheck scanner ────────────────────────────────────────────────────
+
+def backup_job():
+    """Hourly: make an encrypted backup when one is due."""
+    try:
+        from .backup import due
+        if not due(load_settings()):
+            return
+        from ..routers.backups import _run_backup, _RUN, _LOCK
+        with _LOCK:
+            if _RUN["running"]:
+                return
+            _RUN["running"] = True
+        _run_backup()
+        log.info("Scheduled backup finished")
+    except Exception as e:
+        log.error("Backup job error: %s", e)
+
 
 def verification_job():
     """Daily: check whether removals stuck and whether listings came back."""

@@ -7947,6 +7947,129 @@ def t_broker_network():
     s.close()
 
 
+# ── Encrypted backups ─────────────────────────────────────────────────────────
+
+@test(1, "backups.encryption",
+      "Backups are AES-GCM encrypted with a scrypt-derived key; a wrong passphrase, a cut-short file or a changed byte is refused.")
+def t_backup_crypto():
+    import tempfile
+    bk = _imp("core.backup")
+    bk.SCRYPT = {"n": 2 ** 12, "r": 8, "p": 1}          # fast for the test
+    bk.FRAME, old_frame = 1024, bk.FRAME
+    try:
+        d = tempfile.mkdtemp(prefix="oobk-t-")
+        src, enc, out = (os.path.join(d, n) for n in ("plain", "enc", "out"))
+        data = os.urandom(5000)
+        open(src, "wb").write(data)
+        bk.encrypt_file(src, enc, "correct horse battery")
+        raw = open(enc, "rb").read()
+        assert raw.startswith(bk.MAGIC) and data[:64] not in raw
+        bk.decrypt_file(enc, out, "correct horse battery")
+        assert open(out, "rb").read() == data
+        for bad, why in ((lambda r: r, "wrong"),):
+            try:
+                bk.decrypt_file(enc, out, "wrong passphrase!!")
+                raise AssertionError("wrong passphrase accepted")
+            except ValueError as e:
+                assert "passphrase" in str(e)
+        open(enc + ".cut", "wb").write(raw[:-1100])
+        try:
+            bk.decrypt_file(enc + ".cut", out, "correct horse battery"); raise AssertionError("truncation accepted")
+        except ValueError:
+            pass
+        flipped = bytearray(raw); flipped[-20] ^= 1
+        open(enc + ".flip", "wb").write(bytes(flipped))
+        try:
+            bk.decrypt_file(enc + ".flip", out, "correct horse battery"); raise AssertionError("change accepted")
+        except ValueError:
+            pass
+        try:
+            bk.encrypt_file(src, enc, "short"); raise AssertionError("short passphrase accepted")
+        except ValueError:
+            pass
+    finally:
+        bk.FRAME = old_frame
+
+
+@test(2, "backups.run_keep_verify_restore",
+      "A backup is kept locally and copied to a folder destination, old copies are pruned, it verifies, and restore unpacks it.")
+def t_backup_run():
+    import tempfile, tarfile, json as _json
+    from datetime import datetime, timedelta
+    bk = _imp("core.backup")
+    oe = _imp("core.oauth_engine")
+    bk.SCRYPT = {"n": 2 ** 12, "r": 8, "p": 1}
+    root = tempfile.mkdtemp(prefix="oobk-r-")
+    local, remote, restore_to = (os.path.join(root, n) for n in ("local", "remote", "restored"))
+
+    def bundle(work, cfg):
+        stage = os.path.join(work, "openoptout-backup")
+        os.makedirs(stage)
+        open(os.path.join(stage, "database.sqlite"), "wb").write(b"SQLCIPHER-PAGES")
+        _json.dump({"parts": [{"part": "database"}, {"part": "settings"}], "created": "now"},
+                   open(os.path.join(stage, "manifest.json"), "w"))
+        _json.dump({"x": 1}, open(os.path.join(stage, "settings.json"), "w"))
+        out = os.path.join(work, "b.tar.gz")
+        with tarfile.open(out, "w:gz") as t:
+            t.add(stage, arcname="openoptout-backup")
+        return out
+    cfg = {"backups": {"keep": 2, "passphrase_enc": oe._encrypt("a long backup passphrase"),
+                       "destinations": [{"id": "f1", "kind": "folder", "path": remote, "label": "NAS"}]}}
+    assert bk.run_backup({"backups": {}}, bundle=bundle, local_dir=local)["error"].startswith("Set a backup passphrase")
+    t0 = datetime(2026, 10, 1, 3, 0)
+    names = []
+    for i in range(3):
+        r = bk.run_backup(cfg, now=t0 + timedelta(days=i), bundle=bundle, local_dir=local)
+        assert r["ok"] and r["destinations"][0]["ok"], r
+        names.append(r["name"])
+    assert sorted(os.listdir(local)) == names[1:], os.listdir(local)
+    assert bk.FolderDest(cfg["backups"]["destinations"][0], cfg).names() == names[1:]
+    info = bk.verify_file(os.path.join(local, names[-1]), "a long backup passphrase")
+    assert [p["part"] for p in info["manifest"]["parts"]] == ["database", "settings"]
+    m = bk.restore(os.path.join(local, names[-1]), "a long backup passphrase", restore_to)
+    assert open(os.path.join(restore_to, "database.sqlite"), "rb").read() == b"SQLCIPHER-PAGES" and m["parts"]
+    bk.FolderDest({"path": remote}, {}).test()
+    bad = {"backups": dict(cfg["backups"], destinations=[{"id": "x", "kind": "folder", "path": "relative/path"}])}
+    r = bk.run_backup(bad, now=t0 + timedelta(days=9), bundle=bundle, local_dir=local)
+    assert not r["ok"] and "full path" in r["destinations"][0]["error"]
+    # Schedule
+    on = {"backups": {"enabled": True, "passphrase_enc": "x", "hour": 3, "schedule": "daily"}}
+    assert bk.due(on, now=datetime(2026, 10, 2, 4))
+    assert not bk.due(on, now=datetime(2026, 10, 2, 2)), "waits for the hour"
+    assert not bk.due(dict(on, backups_last_run="2026-10-02T03:05:00Z"), now=datetime(2026, 10, 2, 9))
+    assert not bk.due({"backups": {"enabled": True}}, now=datetime(2026, 10, 2, 4)), "no passphrase, no backup"
+
+
+@test(1, "backups.s3_signing",
+      "S3-compatible uploads are signed with AWS Signature V4 and go only to https storage addresses.")
+def t_backup_s3():
+    bk = _imp("core.backup")
+    oe = _imp("core.oauth_engine")
+    import requests as _rq
+    seen = {}
+    class R:
+        status_code, text = 200, "<ListBucketResult><Key>backups/openoptout-backup-1.oobackup</Key></ListBucketResult>"
+    real = _rq.request
+    _rq.request = lambda method, url, headers=None, data=None, timeout=None: (seen.update(m=method, url=url, h=headers) or R())
+    try:
+        d = bk.S3Dest({"kind": "s3", "endpoint": "https://storage.googleapis.com", "region": "auto", "bucket": "fam",
+                       "prefix": "backups", "access_key": "GOOG1EXAMPLE", "secret_enc": oe._encrypt("secret")}, {})
+        assert d.names() == ["openoptout-backup-1.oobackup"]
+        assert seen["url"].startswith("https://storage.googleapis.com/fam?") and "list-type=2" in seen["url"]
+        auth = seen["h"]["Authorization"]
+        assert auth.startswith("AWS4-HMAC-SHA256 Credential=GOOG1EXAMPLE/") and "/auto/s3/aws4_request" in auth and "Signature=" in auth
+        d.delete("openoptout-backup-1.oobackup")
+        assert seen["m"] == "DELETE" and seen["url"].endswith("/fam/backups/openoptout-backup-1.oobackup")
+        try:
+            bk.S3Dest({"endpoint": "http://plain.example", "bucket": "b", "access_key": "a",
+                       "secret_enc": oe._encrypt("s")}, {}).names()
+            raise AssertionError("plain http accepted")
+        except RuntimeError as e:
+            assert "https" in str(e)
+    finally:
+        _rq.request = real
+
+
 # ── Family inboxes and per-opt-out addresses ──────────────────────────────────
 
 def _family(db, s, parent_inbox=None, child_inbox=None, child_plus="verified", parent_plus="verified"):

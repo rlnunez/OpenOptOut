@@ -204,6 +204,8 @@ def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(Non
 
     pending = _PENDING.pop(state)
     s = load_settings()
+    if pending.account_ref.startswith("bkp-"):
+        return _finish_backup_storage(pending, code, s)
     flow = _provider_flow(pending.provider_key)
     client = _client(s, pending.provider_key)
     try:
@@ -232,6 +234,29 @@ def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(Non
     return _html_resp(
         "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;"
         "padding:2rem'><h2>✓ Email account connected</h2>"
+        "<p>You can close this window and return to OpenOptOut.</p></body></html>")
+
+
+def _finish_backup_storage(pending, code: str, s: dict) -> HTMLResponse:
+    """Google Drive / OneDrive / Dropbox connected for backups (routers/backups.py)."""
+    from ..core import backup as bk
+    kind = pending.provider_key.replace("backup-", "", 1)
+    if kind not in bk.CLOUD:
+        return _html_resp("<p>Unknown storage service.</p>", status_code=400)
+    try:
+        client = _client(s, bk.CLOUD[kind]["client_key"])
+        tokens = oe.exchange_code(bk.cloud_flow(kind), client, pending, code)
+    except Exception:
+        return _html_resp("<p>Couldn't finish connecting the storage account. Please try again.</p>", status_code=400)
+    oe.store_tokens(s, pending.account_ref, tokens)
+    for d in (s.get("backups") or {}).get("destinations", []):
+        if f"bkp-{d.get('id')}" == pending.account_ref:
+            d["account_ref"] = pending.account_ref
+            d["connected"] = True
+    _save(s)
+    return _html_resp(
+        "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;"
+        "padding:2rem'><h2>✓ Backup storage connected</h2>"
         "<p>You can close this window and return to OpenOptOut.</p></body></html>")
 
 

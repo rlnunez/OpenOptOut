@@ -4,7 +4,7 @@ import {
   Users, ShieldCheck, Settings, LogOut, ShieldAlert,
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
   Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal,
-  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Bell, Share2
+  Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Bell, Share2, DatabaseBackup
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
@@ -110,6 +110,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
     { to: '/translations',     icon: Globe,       label: 'Translations',     perms: ['settings.manage'] },
     { to: '/reporting',        icon: BarChart2,   label: 'Reporting',        perms: ['reporting.view'] },
     { to: '/database',         icon: HardDrive,   label: 'Database',         perms: ['database.view'] },
+    ...(user?.role === 'super_admin' ? [{ to: '/backups', icon: DatabaseBackup, label: 'Backups', perms: [] }] : []),
     { to: '/worker-fleet',     icon: Server,      label: 'Worker fleet',     perms: ['settings.system'] },
     { to: '/logs',             icon: Terminal,    label: 'System logs',      perms: ['logs.view'] },
     { to: '/plugins',          icon: Puzzle,      label: 'Plugins',          perms: ['plugins.view'] },
