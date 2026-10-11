@@ -60,6 +60,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 38 | Built-in receive-only inbox | In Design ([`docs/BUILTIN_INBOX.md`](BUILTIN_INBOX.md)) |
 | 39 | Automated removal verification & re-listing monitor | In Review — live verification pending |
 | 40 | Data-sharing detection & aggregator-first targeting | In Review |
+| 41 | Encrypted backups to local, network, SFTP and cloud storage | In Review |
 
 ---
 
@@ -707,6 +708,15 @@ plugins/
 - **Sharing:** opt-out addresses that receive mail from a company they were never given to become "given to → came from" edges (possible / likely / strong by how many distinct addresses), excluding the broker's own family. Admin → Data sharing.
 - **Targeting:** brokers weighted by known wholesalers (`catalog/aggregators.json`), cascades, family size and observed sharing; new default dispatch order "aggregators first".
 - See [`docs/DATA_SHARING.md`](DATA_SHARING.md).
+
+**Status:** In Review.
+
+---
+
+### 41. Encrypted backups
+- Database (consistent SQLite copy or `pg_dump`), settings, installed plugins and the keys, in one file encrypted with AES-256-GCM under a scrypt-derived passphrase key; authenticated frames refuse truncated or altered files.
+- Destinations: local folder / mounted network drive, SFTP (host key pinned), S3-compatible (Amazon S3, Google Cloud Storage, Backblaze, Wasabi, MinIO), Google Drive, OneDrive, Dropbox; retention per destination; daily or weekly schedule; restore and verify commands.
+- See [`docs/BACKUPS.md`](BACKUPS.md).
 
 **Status:** In Review.
 
