@@ -7782,6 +7782,53 @@ def t_ws_run():
     # IF THIS FAILS: wrong people's pages could be sent opt-outs, or real listings missed.
 
 
+
+# ── Checklist ─────────────────────────────────────────────────────────────────
+
+@test(2, "checklist.groups_and_progress",
+      "The checklist gathers inbox, finish-by-hand, CAPTCHA, review, overdue and re-check items, with per-person progress.")
+def t_checklist():
+    from datetime import datetime, timedelta
+    db, s = _memory_db()
+    cl = _imp("core.checklist")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@yahoo.com", parent_plus="unsupported")
+    b = {n: db.Broker(name=n, opt_out_url=f"https://{n.lower()}.example") for n in ("A", "B", "Cc", "D", "E", "F")}
+    s.add_all(b.values()); s.flush()
+    now = datetime.utcnow()
+    R = db.RequestStatus
+    reqs = [
+        db.RemovalRequest(member_id=pm.id, broker_id=b["A"].id, status=R.needs_manual, notes="Do the thing at A."),
+        db.RemovalRequest(member_id=pm.id, broker_id=b["B"].id, status=R.pending),
+        db.RemovalRequest(member_id=pm.id, broker_id=b["Cc"].id, status=R.sent, sent_at=now - timedelta(days=60)),
+        db.RemovalRequest(member_id=pm.id, broker_id=b["D"].id, status=R.sent, sent_at=now - timedelta(days=10)),
+        db.RemovalRequest(member_id=pm.id, broker_id=b["E"].id, status=R.confirmed, recheck_after=now - timedelta(days=1)),
+        db.RemovalRequest(member_id=cm.id, broker_id=b["F"].id, status=R.confirmed, recheck_after=now + timedelta(days=30)),
+    ]
+    s.add_all(reqs); s.flush()
+    s.add(db.CaptchaChallenge(request_id=reqs[1].id, broker_id=b["B"].id, member_id=pm.id, status="pending"))
+    s.add(db.WebSearchHit(member_id=cm.id, url="https://x.example/kim", url_hash="h1", domain="x.example", status="new"))
+    s.commit()
+    data = cl.build(s, [pm.id, cm.id])
+    g = data["groups"]
+    assert [i["member_name"] for i in g["inbox"]] == ["Kim Kid"], "Kim can't share Pat's Yahoo inbox"
+    assert [i["broker_name"] for i in g["finish"]] == ["A"] and "Do the thing" in g["finish"][0]["text"]
+    assert [i["broker_name"] for i in g["captcha"]] == ["B"]
+    assert [i["broker_name"] for i in g["overdue"]] == ["Cc"] and g["overdue"][0]["days_waiting"] >= 60
+    assert [i["broker_name"] for i in g["recheck"]] == ["E"]
+    assert g["review"][0]["member_name"] == "Kim Kid" and g["review"][0]["count"] == 1
+    P_ = {p["member_name"]: p for p in data["progress"]}
+    assert P_["Pat Parent"] == {"member_id": pm.id, "member_name": "Pat Parent", "removed": 1,
+                                "in_progress": 1, "needs_you": 3, "other": 0}, P_["Pat Parent"]
+    assert P_["Kim Kid"]["removed"] == 1 and P_["Kim Kid"]["needs_you"] == 2
+    cl.mark_done(s, reqs[0], "Pat")
+    assert reqs[0].status == R.sent and reqs[0].recheck_after > now and "Done by Pat" in reqs[0].notes
+    cl.mark_removed(s, reqs[2], "Pat")
+    assert reqs[2].status == R.confirmed and reqs[2].confirmed_at
+    g2 = cl.build(s, [pm.id])["groups"]
+    assert not g2["finish"] and not g2["overdue"]
+    s.close()
+
+
 # ── runner ────────────────────────────────────────────────────────────────────
 
 def main():
