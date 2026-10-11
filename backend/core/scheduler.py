@@ -58,6 +58,11 @@ def start_scheduler():
               replace_existing=True, misfire_grace_time=3600,
               next_run_time=datetime.utcnow() + timedelta(minutes=10))
 
+    # Removal checks: did listings go, and have any come back? Daily, on a budget.
+    s.add_job(verification_job, IntervalTrigger(hours=24), id="verification",
+              replace_existing=True, misfire_grace_time=3600,
+              next_run_time=datetime.utcnow() + timedelta(minutes=20))
+
     if not sc.get("enabled", False):
         s.start()
         log.info("Opt-out scheduling disabled — maintenance jobs only")
@@ -777,6 +782,25 @@ def _get_html(msg) -> str:
 
 # ── Job 3: recheck scanner ────────────────────────────────────────────────────
 
+def verification_job():
+    """Daily: check whether removals stuck and whether listings came back."""
+    db = SessionLocal()
+    run = SchedulerRun(run_type="verification", status="running")
+    db.add(run); db.commit()
+    try:
+        from .verification import run_daily
+        stats = run_daily(db, load_settings())
+        run.status = "done"
+        if stats["checked"]:
+            log.info("Removal checks: %s", stats)
+    except Exception as e:
+        run.status = "error"; run.errors = json.dumps([str(e)])
+        log.error("Verification job error: %s", e)
+    finally:
+        run.finished_at = datetime.utcnow()
+        db.commit(); db.close()
+
+
 def recheck_job():
     db  = SessionLocal()
     run = SchedulerRun(run_type="recheck", status="running")
@@ -793,7 +817,18 @@ def recheck_job():
             RemovalRequest.recheck_after <= datetime.utcnow(),
         ).all()
 
+        from .verification import verify_request, settings_of as vsettings
+        verify_on = vsettings(cfg)["enabled"]
         for req in overdue:
+            # Look first: a listing that's still gone doesn't need another opt-out.
+            if verify_on:
+                try:
+                    res = verify_request(db, req, cfg)
+                    if res["verdict"] in ("gone", "not_found") or res["action"].startswith("resend"):
+                        queued += 1 if res["action"].startswith("resend") else 0
+                        continue
+                except Exception as ve:
+                    log.info("check before re-send failed for request %s: %s", req.id, ve)
             req.status = RequestStatus.pending
             req.confirmed_at = None; req.sent_at = None
             queued += 1

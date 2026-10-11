@@ -420,6 +420,24 @@ class RequestVariant(Base):
     created_at  = Column(DateTime, default=datetime.utcnow)
 
 
+class VerificationCheck(Base):
+    """
+    One automatic check of whether a removal stuck: the listing page, the
+    broker's own search, or a web search, looked at after an opt-out
+    (core/verification.py). `verdict` is gone | listed | not_found | blocked |
+    unknown. `evidence` is the page that showed it (no personal details).
+    """
+    __tablename__ = "verification_checks"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    request_id = Column(Integer, ForeignKey("removal_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    checked_at = Column(DateTime, default=datetime.utcnow, index=True)
+    method     = Column(String(20), nullable=False)       # listing_url | broker_search | web_search
+    verdict    = Column(String(20), nullable=False, index=True)
+    evidence   = Column(String(1000), nullable=True)
+    detail     = Column(String(500), nullable=True)
+
+
 class ConfirmationLink(Base):
     """
     A broker emailed back asking the person to click a link before it will
@@ -619,6 +637,9 @@ class RemovalRequest(Base):
     confirmed_at  = Column(DateTime)
     recheck_after = Column(DateTime)
     listing_url   = Column(String)
+    # Latest automatic check of whether the listing is still up (see VerificationCheck).
+    last_checked_at = Column(DateTime, nullable=True)
+    last_verdict    = Column(String(20), nullable=True)
     notes         = Column(Text)
     created_at    = Column(DateTime, default=datetime.utcnow)
     updated_at    = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

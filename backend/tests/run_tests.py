@@ -7489,6 +7489,146 @@ def t_forms_builtin():
     s.close()
 
 
+# ── Automated removal verification ────────────────────────────────────────────
+
+def _vf_member(db, s):
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    s.add_all([db.Identity(member_id=pm.id, kind="name", value="Pat Parent", is_primary=True),
+               db.Identity(member_id=pm.id, kind="address", value="12 Oak St, Austin, TX 78701", is_primary=True),
+               db.Identity(member_id=pm.id, kind="phone", value="512-555-0100", is_primary=True)])
+    s.commit()
+    return pm
+
+
+@test(2, "verification.checks_and_acts",
+      "Removal checks read the listing page, the broker's search and web search, confirm removals that stuck, and re-send ones that came back.")
+def t_verification():
+    from datetime import datetime, timedelta
+    db, s = _memory_db()
+    vf = _imp("core.verification")
+    R = db.RequestStatus
+    pm = _vf_member(db, s)
+    b = db.Broker(name="PeopleFind", opt_out_url="https://www.peoplefind.example/optout")
+    s.add(b); s.flush()
+    now = datetime.utcnow()
+    listing = "https://www.peoplefind.example/p/pat-parent-austin"
+    req = db.RemovalRequest(member_id=pm.id, broker_id=b.id, status=R.sent, listing_url=listing,
+                            sent_at=now - timedelta(days=10), request_key="rk-v")
+    s.add(req); s.commit()
+    pages = {}
+    calls = []
+    def fetch(url, domain):
+        calls.append(url)
+        return pages.get(url, (url, 404, ""))
+    # 1. The listing page is gone: a sent request becomes confirmed.
+    r = vf.verify_request(s, req, {}, fetch=fetch)
+    s.refresh(req)
+    assert r["verdict"] == "gone" and r["action"] == "confirmed" and req.status == R.confirmed and req.last_verdict == "gone"
+    # 2. A month later it's back with their city: re-sent, noted as come back.
+    pages[listing] = (listing, 200, "<h1>Pat Parent, 45</h1><p>Lives in Austin, TX. Phone (512) 555-0100</p>")
+    r = vf.verify_request(s, req, {}, fetch=fetch)
+    s.refresh(req)
+    assert r["verdict"] == "listed" and r["action"] == "resend_reappeared" and req.status == R.pending
+    assert "came back" in req.notes
+    # 3. A removal page that says "removed" counts as gone, even with a 200.
+    req.status, req.sent_at = R.sent, now - timedelta(days=10); s.commit()
+    pages[listing] = (listing, 200, "<p>This profile has been removed at the owner's request.</p>")
+    assert vf.verify_request(s, req, {}, fetch=fetch)["verdict"] == "gone"
+    # 4. A robot wall is "blocked", and changes nothing.
+    req.status = R.confirmed; s.commit()
+    pages[listing] = (listing, 403, "")
+    r = vf.verify_request(s, req, {}, fetch=fetch, search=lambda q: [])
+    s.refresh(req)
+    assert r["verdict"] in ("blocked", "not_found") and req.status == R.confirmed, r
+    # 5. Broker search with a listing pattern, when there's no listing URL.
+    ci = _imp("core.interpreter")
+    spec = ci.BrokerSpec.from_dict({"broker_id": "pf", "name": "PeopleFind", "method": "manual",
+                                    "search_url": "https://www.peoplefind.example/search/{first_name}-{last_name}/{state}",
+                                    "listing_pattern": r"/p/[a-z-]+"})
+    real = vf._spec
+    vf._spec = lambda db_, broker: spec
+    try:
+        req2 = db.RemovalRequest(member_id=pm.id, broker_id=b.id, status=R.confirmed,
+                                 confirmed_at=now - timedelta(days=40), request_key="rk-v2")
+        s.add(req2); s.commit()
+        search_url = "https://www.peoplefind.example/search/Pat-Parent/TX"
+        pages[search_url] = (search_url, 200, '<div><a href="/p/pat-parent-dallas">Pat Parent</a> Dallas, TX</div>'
+                                              '<div><a href="/p/pat-parent-austin2">Pat Parent</a> Austin, TX, age 45</div>'
+                                              '<a href="/about">About</a>')
+        r = vf.verify_request(s, req2, {}, fetch=fetch)
+        s.refresh(req2)
+        assert r["verdict"] == "listed" and r["method"] == "broker_search" and req2.listing_url.endswith("/p/pat-parent-austin2"), r
+        assert req2.status == R.pending
+        pages[search_url] = (search_url, 200, '<div><a href="/p/pat-parent-dallas">Pat Parent</a> Dallas, TX</div>')
+        req2.status, req2.listing_url = R.confirmed, None; s.commit()
+        r = vf.verify_request(s, req2, {}, fetch=fetch)
+        assert r["verdict"] == "not_found", "a namesake in another city isn't them"
+    finally:
+        vf._spec = real
+    # 6. Web search: a hit counts only if the page still shows them.
+    req3 = db.RemovalRequest(member_id=pm.id, broker_id=b.id, status=R.confirmed, request_key="rk-v3")
+    s.add(req3); s.commit()
+    hit_url = "https://www.peoplefind.example/p/pat-parent-x"
+    searches = []
+    def search(q):
+        searches.append(q)
+        return [{"url": hit_url, "title": "Pat Parent - Austin, TX", "snippet": "Pat Parent, 45, Austin"},
+                {"url": "https://elsewhere.example/pat", "title": "Pat Parent", "snippet": ""}]
+    pages[hit_url] = (hit_url, 404, "")
+    r = vf.verify_request(s, req3, {}, fetch=fetch, search=search)
+    assert r["verdict"] == "not_found" and searches[0].startswith("site:peoplefind.example"), (r, searches)
+    assert not any("elsewhere.example" in c for c in calls), "only the broker's own pages are visited"
+    pages[hit_url] = (hit_url, 200, "<h1>Pat Parent</h1> Austin TX 512-555-0100")
+    r = vf.verify_request(s, req3, {}, fetch=fetch, search=search)
+    assert r["verdict"] == "listed" and r["method"] == "web_search"
+    s.close()
+
+
+@test(2, "verification.schedule_and_web_search",
+      "Daily checks pick sent and confirmed removals on a budget; the weekly web search re-checks brokers someone was removed from.")
+def t_verification_schedule():
+    from datetime import datetime, timedelta
+    db, s = _memory_db()
+    vf = _imp("core.verification")
+    R = db.RequestStatus
+    pm = _vf_member(db, s)
+    now = datetime.utcnow()
+    bs = [db.Broker(name=f"B{i}", opt_out_url=f"https://b{i}.example") for i in range(3)]
+    s.add_all(bs); s.flush()
+    fresh = db.RemovalRequest(member_id=pm.id, broker_id=bs[0].id, status=R.sent, sent_at=now - timedelta(days=2))
+    old_sent = db.RemovalRequest(member_id=pm.id, broker_id=bs[0].id, status=R.sent, sent_at=now - timedelta(days=9))
+    conf_recent = db.RemovalRequest(member_id=pm.id, broker_id=bs[1].id, status=R.confirmed,
+                                    last_checked_at=now - timedelta(days=3), recheck_after=now + timedelta(days=60))
+    conf_due = db.RemovalRequest(member_id=pm.id, broker_id=bs[2].id, status=R.confirmed,
+                                 last_checked_at=now - timedelta(days=3), recheck_after=now - timedelta(days=1))
+    s.add_all([fresh, old_sent, conf_recent, conf_due]); s.commit()
+    ids = {r.id for r in vf.due(s, {}, now=now)}
+    assert ids == {old_sent.id, conf_due.id}, ids
+    assert len(vf.due(s, {"verification": {"per_day": 1}}, now=now)) == 1
+    st = vf.run_daily(s, {"verification": {"enabled": False}})
+    assert st["checked"] == 0
+    st = vf.run_daily(s, {}, fetch=lambda u, d: (u, 404, ""), search=lambda q: [], pause=0)
+    assert st["checked"] == 2, st
+    # Weekly web search finds a page on a broker this person was removed from.
+    ws = _imp("core.web_search")
+    conf_recent.listing_url = None; s.commit()
+    page = "https://b1.example/people/pat-parent"
+    real_fetcher = vf.fetcher
+    vf.fetcher = lambda cfg: (lambda u, d: (u, 200, "<h1>Pat Parent</h1> 12 Oak St, Austin TX") if u == page else (u, 404, ""))
+    try:
+        res = ws.run_for_member(s, pm, {"web_search": {"enabled": True, "searxng_url": "http://x"}},
+                                search=lambda q: [{"url": page, "title": "Pat Parent, Austin TX", "snippet": "12 Oak St"}],
+                                pause=0)
+    finally:
+        vf.fetcher = real_fetcher
+    s.refresh(conf_recent)
+    assert res.get("relisted") == 1 and conf_recent.status == R.pending and conf_recent.listing_url == page, res
+    assert s.query(db.RemovalRequest).filter_by(member_id=pm.id, broker_id=bs[1].id).count() == 1, "no duplicate request"
+    summ = vf.summary(s, [pm.id])
+    assert summ["counts"]["listed"] >= 1 and summ["recent"]
+    s.close()
+
+
 # ── Family inboxes and per-opt-out addresses ──────────────────────────────────
 
 def _family(db, s, parent_inbox=None, child_inbox=None, child_plus="verified", parent_plus="verified"):

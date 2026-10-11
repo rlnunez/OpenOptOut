@@ -188,6 +188,21 @@ def run_for_member(db, member, cfg: dict, search=None, pause: float = 1.0) -> di
             db.add(hit)
             db.flush()
             stats["new"] += 1
+            # A page on a broker this person was already removed from: check
+            # whether the listing came back (and send the opt-out again if so).
+            if broker is not None and strength in ("strong", "medium"):
+                try:
+                    from .verification import on_web_hit, settings_of as vsettings
+                    if vsettings(cfg)["enabled"]:
+                        vr = on_web_hit(db, member, broker, url, cfg)
+                        if vr is not None:
+                            stats["rechecked"] = stats.get("rechecked", 0) + 1
+                            if vr["action"].startswith("resend"):
+                                hit.status = "added"
+                                stats["relisted"] = stats.get("relisted", 0) + 1
+                            continue
+                except Exception as e:
+                    log.info("re-listing check skipped: %s", e)
             if broker is not None and strength == "strong" and ws.get("auto_add_strong", True):
                 res = lf.add_listing(db, member, url, create_unknown=False, source="web_search")
                 if res.get("ok"):

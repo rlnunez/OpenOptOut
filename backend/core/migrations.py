@@ -20,6 +20,8 @@ MIGRATIONS = [
     ("Add registry_contact_email to brokers", "ALTER TABLE brokers ADD COLUMN registry_contact_email VARCHAR"),
     ("Add registry_last_seen to brokers", "ALTER TABLE brokers ADD COLUMN registry_last_seen TIMESTAMP"),
     ("Add rejects_plus_addresses to brokers", "ALTER TABLE brokers ADD COLUMN rejects_plus_addresses BOOLEAN DEFAULT FALSE"),
+    ("Add last_checked_at to removal_requests", "ALTER TABLE removal_requests ADD COLUMN last_checked_at TIMESTAMP"),
+    ("Add last_verdict to removal_requests", "ALTER TABLE removal_requests ADD COLUMN last_verdict VARCHAR(20)"),
     ("Add unreachable_since to broker_health", "ALTER TABLE broker_health ADD COLUMN unreachable_since TIMESTAMP"),
     ("Add defunct to broker_health", "ALTER TABLE broker_health ADD COLUMN defunct BOOLEAN DEFAULT FALSE"),
     ("Add last_probe_at to broker_health", "ALTER TABLE broker_health ADD COLUMN last_probe_at TIMESTAMP"),
