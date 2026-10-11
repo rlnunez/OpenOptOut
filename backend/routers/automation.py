@@ -28,23 +28,23 @@ class BrokerScriptOut(BaseModel):
     id: int
     broker_id: int
     broker_name: str
-    search_url: Optional[str]
-    name_selector: Optional[str]
-    email_selector: Optional[str]
-    address_selector: Optional[str]
-    city_selector: Optional[str]
-    state_selector: Optional[str]
-    submit_selector: Optional[str]
-    success_selector: Optional[str]
-    success_text: Optional[str]
-    requires_captcha: bool
-    requires_email_confirm: bool
-    extra_steps: Optional[str]
-    email_subject_tpl: Optional[str]
-    email_body_tpl: Optional[str]
-    last_verified: Optional[datetime]
-    verified_working: Optional[bool]
-    notes: Optional[str]
+    search_url: Optional[str] = None
+    name_selector: Optional[str] = None
+    email_selector: Optional[str] = None
+    address_selector: Optional[str] = None
+    city_selector: Optional[str] = None
+    state_selector: Optional[str] = None
+    submit_selector: Optional[str] = None
+    success_selector: Optional[str] = None
+    success_text: Optional[str] = None
+    requires_captcha: bool = False
+    requires_email_confirm: bool = False
+    extra_steps: Optional[str] = None
+    email_subject_tpl: Optional[str] = None
+    email_body_tpl: Optional[str] = None
+    last_verified: Optional[datetime] = None
+    verified_working: Optional[bool] = None
+    notes: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -76,11 +76,11 @@ class DiscoveryResultOut(BaseModel):
     broker_id: int
     broker_name: str
     found: bool
-    listing_url: Optional[str]
-    source: Optional[str]
-    snippet: Optional[str]
+    listing_url: Optional[str] = None
+    source: Optional[str] = None
+    snippet: Optional[str] = None
     scanned_at: datetime
-    scan_error: Optional[str]
+    scan_error: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -88,16 +88,16 @@ class DiscoveryResultOut(BaseModel):
 
 class AutomationLogOut(BaseModel):
     id: int
-    request_id: Optional[int]
-    member_id: Optional[int]
-    broker_id: Optional[int]
-    broker_name: Optional[str]
-    member_name: Optional[str]
-    action: Optional[str]
-    status: Optional[str]
-    detail: Optional[str]
-    screenshot: Optional[str]
-    duration_ms: Optional[int]
+    request_id: Optional[int] = None
+    member_id: Optional[int] = None
+    broker_id: Optional[int] = None
+    broker_name: Optional[str] = None
+    member_name: Optional[str] = None
+    action: Optional[str] = None
+    status: Optional[str] = None
+    detail: Optional[str] = None
+    screenshot: Optional[str] = None
+    duration_ms: Optional[int] = None
     created_at: datetime
 
     class Config:

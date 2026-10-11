@@ -1,6 +1,8 @@
 import os
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import StatementError, IntegrityError
 from .models.database import init_db
 from .routers import auth, brokers, requests as requests_router
 from .routers.family import family_router, identity_router
@@ -57,6 +59,38 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    content_type = response.headers.get("content-type", "")
+    if "text/html" in content_type:
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none';",
+        )
+    return response
+
+
+@app.exception_handler(OverflowError)
+async def overflow_error_handler(request, exc):
+    return JSONResponse(status_code=400, content={"detail": "Value out of range"})
+
+
+@app.exception_handler(StatementError)
+async def statement_error_handler(request, exc):
+    if hasattr(exc, "orig") and (isinstance(exc.orig, OverflowError) or "too large" in str(exc).lower()):
+        return JSONResponse(status_code=400, content={"detail": "Value out of range"})
+    return JSONResponse(status_code=400, content={"detail": "Invalid statement parameters"})
+
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request, exc):
+    return JSONResponse(status_code=400, content={"detail": "Database integrity constraint violated"})
 
 for r in [
     auth.router, brokers.router, requests_router.router,

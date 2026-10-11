@@ -84,7 +84,7 @@ class SIP2ConnectionCreate(BaseModel):
     system_id: Optional[int] = None
     name: str
     host: str
-    port: int = 6001
+    port: int = Field(6001, ge=1, le=65535)
     use_tls: bool = False
     ca_cert_pem: Optional[str] = None
     ca_cert_path: Optional[str] = None
@@ -95,9 +95,9 @@ class SIP2ConnectionCreate(BaseModel):
     branch_field_code: str = "AQ"
     email_domain: str = "library.local"
     default_role: str = "parent"
-    timeout_seconds: int = 10
+    timeout_seconds: int = Field(10, ge=1, le=3600)
     enabled: bool = True
-    priority: int = 10
+    priority: int = Field(10, ge=1, le=100)
     eligibility_rules: Optional[Any] = None
     date_format: str = "auto"
     map_patron_fields: bool = False
@@ -108,10 +108,10 @@ class SIP2ConnectionCreate(BaseModel):
 
 
 class SIP2ConnectionUpdate(BaseModel):
-    system_id: Optional[int] = None
+    system_id: Optional[int] = Field(None, ge=1, le=2147483647)
     name: Optional[str] = None
     host: Optional[str] = None
-    port: Optional[int] = None
+    port: Optional[int] = Field(None, ge=1, le=65535)
     use_tls: Optional[bool] = None
     ca_cert_pem: Optional[str] = None
     ca_cert_path: Optional[str] = None
@@ -122,9 +122,9 @@ class SIP2ConnectionUpdate(BaseModel):
     branch_field_code: Optional[str] = None
     email_domain: Optional[str] = None
     default_role: Optional[str] = None
-    timeout_seconds: Optional[int] = None
+    timeout_seconds: Optional[int] = Field(None, ge=1, le=3600)
     enabled: Optional[bool] = None
-    priority: Optional[int] = None
+    priority: Optional[int] = Field(None, ge=1, le=100)
     eligibility_rules: Optional[Any] = None
     date_format: Optional[str] = None
     map_patron_fields: Optional[bool] = None
@@ -780,8 +780,8 @@ def set_manager_scopes(
 
 @router.get("/patrons/unassigned")
 def list_unassigned_patrons(
-    limit: int = 100,
-    offset: int = 0,
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0, le=1000000),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("members.override_branch")),
 ):

@@ -6,7 +6,7 @@ Scheduler API endpoints:
   GET/PATCH /api/scheduler/member/{member_id} — per-member config (parent can edit own family)
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
@@ -49,12 +49,12 @@ class RunOut(BaseModel):
     id: int
     run_type: str
     started_at: datetime
-    finished_at: Optional[datetime]
+    finished_at: Optional[datetime] = None
     optouts_sent: int
     emails_matched: int
     rechecks_queued: int
     status: str
-    errors: Optional[str]
+    errors: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -63,11 +63,11 @@ class RunOut(BaseModel):
 class MemberConfigOut(BaseModel):
     member_id: int
     member_name: str
-    max_optouts_per_day: Optional[int]
+    max_optouts_per_day: Optional[int] = None
     effective_limit: int          # resolved: member override or system default
     enabled: bool
-    from_display_name: Optional[str]
-    notes: Optional[str]
+    from_display_name: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class MemberConfigUpdate(BaseModel):
@@ -129,7 +129,7 @@ def reload(_: User = Depends(require_permission("scheduler.manage"))):
 
 @router.get("/runs", response_model=List[RunOut])
 def list_runs(
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=1000),
     run_type: Optional[str] = None,
     db: Session = Depends(get_db),
     _: User = Depends(require_permission("scheduler.manage")),

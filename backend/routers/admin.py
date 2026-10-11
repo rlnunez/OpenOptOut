@@ -84,7 +84,7 @@ class AccessGrantOut(BaseModel):
     managed_name: str
     can_view: bool
     can_edit: bool
-    max_children_override: Optional[int]
+    max_children_override: Optional[int] = None
     granted_at: datetime
     children_count: int = 0       # how many member profiles this manager currently manages
 

@@ -45,11 +45,19 @@ def _base(cfg: dict, request: Request) -> str:
 
 def _error_page(message: str, status: int = 400) -> HTMLResponse:
     login = os.getenv("FRONTEND_URL", "").rstrip("/") + "/login"
-    return HTMLResponse(status_code=status, content=(
-        "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;"
-        "padding:2rem;max-width:40rem'><h2>Sign-in didn't complete</h2>"
-        f"<p>{html.escape(message)}</p><p><a style='color:#818cf8' href='{html.escape(login)}'>"
-        "Back to sign in</a></p></body></html>"))
+    return HTMLResponse(
+        status_code=status,
+        content=(
+            "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;"
+            "padding:2rem;max-width:40rem'><h2>Sign-in didn't complete</h2>"
+            f"<p>{html.escape(message)}</p><p><a style='color:#818cf8' href='{html.escape(login)}'>"
+            "Back to sign in</a></p></body></html>"
+        ),
+        headers={
+            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none';",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 # ── Public ────────────────────────────────────────────────────────────────────
@@ -58,7 +66,11 @@ def _error_page(message: str, status: int = 400) -> HTMLResponse:
 def metadata(request: Request):
     cfg = _cfg()
     xml = saml_sp.sp_metadata_xml(cfg, _base(cfg, request))
-    return Response(content=xml, media_type="application/samlmetadata+xml")
+    return Response(
+        content=xml,
+        media_type="application/samlmetadata+xml",
+        headers={"X-Content-Type-Options": "nosniff"},
+    )
 
 
 @router.get("/login", dependencies=[Depends(rate_limit.limit("sso", 30))])
@@ -81,9 +93,11 @@ def acs(request: Request, SAMLResponse: str = Form(""), db: Session = Depends(ge
         result = saml_sp.consume_response(cfg, _base(cfg, request), SAMLResponse)
         token = _resolve_external_user(result, db)["access_token"]
     except saml_sp.SamlError:
-        return _error_page("SAML sign-in failed. Please contact your administrator.")
+        return _error_page("SAML sign-in failed. Please contact your administrator.", status=400)
     except HTTPException as e:              # denied by the shared sign-in policy
         return _error_page(str(e.detail), status=e.status_code)
+    except Exception:
+        return _error_page("Invalid SAML response.", status=400)
     return _sso_redirect(token)
 
 

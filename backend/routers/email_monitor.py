@@ -19,13 +19,13 @@ router = APIRouter(prefix="/api/email-monitor", tags=["email-monitor"])
 
 class EmailLogOut(BaseModel):
     id: int
-    request_id: Optional[int]
-    direction: Optional[str]
-    subject: Optional[str]
-    body_snippet: Optional[str]
-    matched_key: Optional[str]
-    broker_name: Optional[str]
-    member_name: Optional[str]
+    request_id: Optional[int] = None
+    direction: Optional[str] = None
+    subject: Optional[str] = None
+    body_snippet: Optional[str] = None
+    matched_key: Optional[str] = None
+    broker_name: Optional[str] = None
+    member_name: Optional[str] = None
     received_at: datetime
 
     class Config:
@@ -34,11 +34,11 @@ class EmailLogOut(BaseModel):
 
 class MonitorStatus(BaseModel):
     configured: bool
-    imap_host: Optional[str]
-    imap_user: Optional[str]
+    imap_host: Optional[str] = None
+    imap_user: Optional[str] = None
     poll_interval_minutes: int
-    last_poll: Optional[datetime]
-    last_poll_status: Optional[str]
+    last_poll: Optional[datetime] = None
+    last_poll_status: Optional[str] = None
     total_matched: int
     total_unmatched: int
 
@@ -95,7 +95,7 @@ def monitor_status(
 def list_email_logs(
     direction: Optional[str] = Query(None),
     matched: Optional[bool]  = Query(None),
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=1000),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -135,7 +135,7 @@ def manual_poll(_: User = Depends(require_permission("scheduler.manage"))):
 
 @router.get("/poll-history", response_model=List[dict])
 def poll_history(
-    limit: int = 20,
+    limit: int = Query(20, ge=1, le=1000),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

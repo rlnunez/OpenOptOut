@@ -18,11 +18,11 @@ router = APIRouter(prefix="/api/brokers", tags=["brokers"])
 class BrokerOut(BaseModel):
     id: int
     name: str
-    opt_out_url: Optional[str]
-    method: Optional[str]
-    difficulty: Optional[str]
-    status: Optional[str]
-    notes: Optional[str]
+    opt_out_url: Optional[str] = None
+    method: Optional[str] = None
+    difficulty: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
     date_added: Optional[datetime] = None
     request_count: int = 0
     latest_status: Optional[str] = None
@@ -118,8 +118,8 @@ def list_brokers(
     status: Optional[str] = Query(None),
     method: Optional[str] = Query(None),
     difficulty: Optional[str] = Query(None),
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0, le=1000000),
+    limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -335,6 +335,8 @@ def create_broker(
     _: User = Depends(require_permission("brokers.manage")),
 ):
     """Add a single broker via form."""
+    if not data.name or not data.name.strip():
+        raise HTTPException(400, "Broker name cannot be empty")
     from ..core.auth import require_super_admin
     existing = db.query(Broker).filter(Broker.name.ilike(data.name.strip())).first()
     if existing:
@@ -369,8 +371,16 @@ def delete_broker(
     _: User = Depends(require_permission("brokers.manage")),
 ):
     b = db.query(Broker).filter(Broker.id == broker_id).first()
-    if not b: raise HTTPException(404, "Broker not found")
-    db.delete(b); db.commit()
+    if not b:
+        raise HTTPException(404, "Broker not found")
+    has_requests = db.query(RemovalRequest).filter(RemovalRequest.broker_id == broker_id).first()
+    if has_requests:
+        raise HTTPException(400, "Cannot delete broker with existing removal requests. Disable it instead.")
+    from ..models.database import BrokerHealth, BrokerCoverage
+    db.query(BrokerHealth).filter(BrokerHealth.broker_id == broker_id).delete(synchronize_session=False)
+    db.query(BrokerCoverage).filter(BrokerCoverage.broker_id == broker_id).delete(synchronize_session=False)
+    db.delete(b)
+    db.commit()
 
 
 # ── JSON bulk import ──────────────────────────────────────────────────────────

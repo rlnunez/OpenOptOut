@@ -176,6 +176,17 @@ def begin(body: BeginIn, db: Session = Depends(get_db),
 
 # ── Callback: exchange code, store tokens ─────────────────────────────────────
 
+def _html_resp(content: str, status_code: int = 200) -> HTMLResponse:
+    return HTMLResponse(
+        content=content,
+        status_code=status_code,
+        headers={
+            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none';",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @router.get("/callback", response_class=HTMLResponse)
 def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(None),
              error: Optional[str] = Query(None), db: Session = Depends(get_db)):
@@ -187,9 +198,9 @@ def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(Non
     """
     if error:
         safe_error = html.escape(error, quote=True)
-        return HTMLResponse(f"<p>Authorization failed: {safe_error}</p>", status_code=400)
+        return _html_resp(f"<p>Authorization failed: {safe_error}</p>", status_code=400)
     if not code or not state or state not in _PENDING:
-        return HTMLResponse("<p>Invalid or expired authorization state.</p>", status_code=400)
+        return _html_resp("<p>Invalid or expired authorization state.</p>", status_code=400)
 
     pending = _PENDING.pop(state)
     s = load_settings()
@@ -198,7 +209,7 @@ def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(Non
     try:
         tokens = oe.exchange_code(flow, client, pending, code)
     except Exception:
-        return HTMLResponse("<p>Token exchange failed. Please verify provider settings and try again.</p>", status_code=400)
+        return _html_resp("<p>Token exchange failed. Please verify provider settings and try again.</p>", status_code=400)
 
     oe.store_tokens(s, pending.account_ref, tokens)
     # Keep settings["email"]["provider"] in sync with whichever account is
@@ -214,7 +225,7 @@ def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(Non
     if pending.account_ref == active or not email.get("provider"):
         email["provider"] = pending.provider_key
     _save(s)
-    return HTMLResponse(
+    return _html_resp(
         "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;"
         "padding:2rem'><h2>✓ Email account connected</h2>"
         "<p>You can close this window and return to OpenOptOut.</p></body></html>")

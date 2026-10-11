@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime, timedelta
 import uuid
@@ -24,18 +24,18 @@ class RequestOut(BaseModel):
     member_id: int
     broker_id: int
     broker_name: str
-    broker_opt_out_url: Optional[str]
-    broker_difficulty: Optional[str]
+    broker_opt_out_url: Optional[str] = None
+    broker_difficulty: Optional[str] = None
     member_name: str
     request_key: str
     status: str
-    method_used: Optional[str]
-    sent_at: Optional[datetime]
-    confirmed_at: Optional[datetime]
-    recheck_after: Optional[datetime]
-    days_until_recheck: Optional[int]
-    listing_url: Optional[str]
-    notes: Optional[str]
+    method_used: Optional[str] = None
+    sent_at: Optional[datetime] = None
+    confirmed_at: Optional[datetime] = None
+    recheck_after: Optional[datetime] = None
+    days_until_recheck: Optional[int] = None
+    listing_url: Optional[str] = None
+    notes: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -55,11 +55,11 @@ class UpdateRequest(BaseModel):
     confirmed_at: Optional[datetime] = None
     listing_url: Optional[str] = None
     notes: Optional[str] = None
-    recheck_days: Optional[int] = None
+    recheck_days: Optional[int] = Field(None, ge=1, le=3650)
 
 
 class SnoozeRequest(BaseModel):
-    days: int = 30   # push recheck N days into the future
+    days: int = Field(30, ge=1, le=3650)   # push recheck N days into the future
 
 
 def _to_out(r: RemovalRequest) -> RequestOut:
@@ -94,8 +94,8 @@ def _to_out(r: RemovalRequest) -> RequestOut:
 def list_requests(
     member_id: Optional[int] = Query(None),
     status: Optional[str] = Query(None),
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0, le=1000000),
+    limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -130,7 +130,7 @@ def recheck_due(
 
 @router.get("/recheck-upcoming", response_model=List[RequestOut])
 def recheck_upcoming(
-    days_ahead: int = Query(30),
+    days_ahead: int = Query(30, ge=0, le=3650),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

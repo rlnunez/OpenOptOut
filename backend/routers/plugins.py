@@ -34,7 +34,7 @@ import tempfile
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -187,8 +187,8 @@ class PluginOut(BaseModel):
     type_inferred: bool = False
     data_only: bool = False
     install_path: str = ""
-    author: Optional[str]
-    description: Optional[str]
+    author: Optional[str] = None
+    description: Optional[str] = None
     enabled: bool
     status: str
     permissions_requested: list[str]
@@ -201,7 +201,7 @@ class PluginOut(BaseModel):
     requires_pii_network_exception: bool = False
     pii_network_justification: str = ""
     crash_count: int
-    last_error: Optional[str]
+    last_error: Optional[str] = None
 
     class Config:
         from_attributes = False
@@ -723,7 +723,7 @@ def plugin_audit(plugin_id: str, db: Session = Depends(get_db),
 
 
 @router.get("/violations/all")
-def all_violations(limit: int = 100, db: Session = Depends(get_db),
+def all_violations(limit: int = Query(100, ge=1, le=1000), db: Session = Depends(get_db),
                    _: User = Depends(require_permission("plugins.view"))):
     """Recent security violations across all plugins (for the monitoring dashboard)."""
     from ..plugins.monitor import VIOLATION_TYPES

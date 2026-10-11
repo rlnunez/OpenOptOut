@@ -39,16 +39,16 @@ class ParentIn(BaseModel):
 class ParentOut(BaseModel):
     id: int
     name: str
-    optout_email: Optional[str]
-    cc_emails: Optional[str]
+    optout_email: Optional[str] = None
+    cc_emails: Optional[str] = None
     locale: str
-    website: Optional[str]
-    notes: Optional[str]
+    website: Optional[str] = None
+    notes: Optional[str] = None
     honor_status: str
     emails_sent: int
     emails_confirmed: int
     emails_failed: int
-    confirm_rate: Optional[float]
+    confirm_rate: Optional[float] = None
     child_count: int
 
     class Config:
@@ -84,6 +84,8 @@ def list_parents(db: Session = Depends(get_db), user: User = Depends(get_current
 def create_parent(body: ParentIn, db: Session = Depends(get_db),
                   user: User = Depends(get_current_user)):
     _admin(user)
+    if not body.name or not body.name.strip():
+        raise HTTPException(400, "Parent company name cannot be empty")
     if db.query(ParentCompany).filter(ParentCompany.name.ilike(body.name.strip())).first():
         raise HTTPException(400, f"Parent company '{body.name}' already exists")
     p = ParentCompany(
@@ -98,10 +100,12 @@ def create_parent(body: ParentIn, db: Session = Depends(get_db),
 def update_parent(parent_id: int, body: ParentIn, db: Session = Depends(get_db),
                   user: User = Depends(get_current_user)):
     _admin(user)
+    if not body.name or not body.name.strip():
+        raise HTTPException(400, "Parent company name cannot be empty")
     p = db.query(ParentCompany).filter(ParentCompany.id == parent_id).first()
     if not p:
         raise HTTPException(404, "Parent company not found")
-    p.name = body.name.strip() or p.name
+    p.name = body.name.strip()
     p.optout_email = body.optout_email
     p.cc_emails = body.cc_emails
     p.locale = body.locale or "en"

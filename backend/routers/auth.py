@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, Field
 
 from ..models.database import get_db, User, FamilyMember, UserRole, InviteCode, UsageEvent
 from ..core.auth import (
@@ -584,8 +584,8 @@ def _sso_redirect(token: str) -> RedirectResponse:
 # ── Invite code management ────────────────────────────────────────────────────
 
 class InviteCodeCreate(BaseModel):
-    max_uses: int = 1
-    expires_days: Optional[int] = None
+    max_uses: int = Field(1, ge=1, le=1000000)
+    expires_days: Optional[int] = Field(None, ge=1, le=3650)
     role: str = "parent"
     note: Optional[str] = None
 
@@ -595,9 +595,9 @@ class InviteCodeOut(BaseModel):
     code: str
     max_uses: int
     uses: int
-    expires_at: Optional[datetime]
+    expires_at: Optional[datetime] = None
     role: str
-    note: Optional[str]
+    note: Optional[str] = None
     is_active: bool
     created_at: datetime
 

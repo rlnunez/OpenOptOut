@@ -7,7 +7,7 @@ Super admins bypass all checks. Parents only access explicitly granted profiles.
 import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -57,7 +57,7 @@ class MemberOut(BaseModel):
     user_id: int
     full_name: str
     formal_name: Optional[str] = None
-    age: Optional[int]
+    age: Optional[int] = None
     created_at: datetime
     identities: List[IdentityOut] = []
     can_edit: bool = True
@@ -69,7 +69,7 @@ class MemberOut(BaseModel):
 class MemberUpdate(BaseModel):
     full_name: Optional[str] = None
     formal_name: Optional[str] = None
-    age: Optional[int] = None
+    age: Optional[int] = Field(None, ge=0, le=150)
 
 
 # ── Family member endpoints ───────────────────────────────────────────────────

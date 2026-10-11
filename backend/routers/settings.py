@@ -119,24 +119,24 @@ class EmailConfig(BaseModel):
 
 class EmailConfigOut(BaseModel):
     mode:                 Optional[str] = "shared"
-    preset:               Optional[str]
+    preset:               Optional[str] = None
     provider:             Optional[str] = None    # '' | 'smtp' | 'gmail' | 'outlook' | ... (set via the wizard or an uploaded provider plugin)
     provider_connected:   bool = False             # an OAuth token actually exists for `provider` (account_ref 'default')
-    imap_host:            Optional[str]
-    imap_port:            Optional[int]
-    imap_user:            Optional[str]
-    imap_password_set:    bool
-    imap_ssl:             Optional[bool]
-    imap_folder:          Optional[str]
-    poll_interval_minutes:Optional[int]
-    smtp_host:            Optional[str]
-    smtp_port:            Optional[int]
-    smtp_user:            Optional[str]
-    smtp_password_set:    bool
-    smtp_tls:             Optional[bool]
-    from_name:            Optional[str]
-    from_email:           Optional[str]
-    connected:            bool
+    imap_host:            Optional[str] = None
+    imap_port:            Optional[int] = None
+    imap_user:            Optional[str] = None
+    imap_password_set:    bool = False
+    imap_ssl:             Optional[bool] = None
+    imap_folder:          Optional[str] = None
+    poll_interval_minutes:Optional[int] = None
+    smtp_host:            Optional[str] = None
+    smtp_port:            Optional[int] = None
+    smtp_user:            Optional[str] = None
+    smtp_password_set:    bool = False
+    smtp_tls:             Optional[bool] = None
+    from_name:            Optional[str] = None
+    from_email:           Optional[str] = None
+    connected:            bool = False
     grace_period:         Optional[EmailGracePeriodOut] = None
 
 
