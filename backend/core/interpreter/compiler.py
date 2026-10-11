@@ -101,12 +101,16 @@ class Job:
     email: Optional[EmailJob] = None                     # for email method
     success_selector: str = ""
     success_text: str = ""
+    # The address filled into contact_email fields, so the executor can tell
+    # when a form rejected it (some refuse "+" addresses).
+    contact_email: str = ""
 
     def to_dict(self) -> dict:
         d = {
             "broker_id": self.broker_id, "broker_name": self.broker_name,
             "member_id": self.member_id, "method": self.method,
             "success_selector": self.success_selector, "success_text": self.success_text,
+            "contact_email": self.contact_email,
             "steps": [s.to_dict() if hasattr(s, "to_dict") else vars(s) for s in self.steps],
         }
         if self.email:
@@ -130,6 +134,7 @@ class Job:
             email=email,
             success_selector=str(d.get("success_selector", "")),
             success_text=str(d.get("success_text", "")),
+            contact_email=str(d.get("contact_email", "")),
         )
 
 
@@ -144,6 +149,38 @@ def _render(template: str, fields: dict) -> str:
     for key, val in fields.items():
         out = out.replace("{" + key + "}", str(val if val is not None else ""))
     return out
+
+
+def _slug(v: str) -> str:
+    import re
+    return re.sub(r"[^A-Za-z0-9]+", "-", str(v or "")).strip("-")
+
+
+def _render_url(template: str, fields: dict) -> str:
+    """
+    Fill {field} placeholders in a URL. Values are made URL-safe: slugged
+    (Jane-Doe) in the path, percent-encoded in the query string. A
+    placeholder with no value raises CompileError, so a search page is never
+    opened with half its name missing.
+    """
+    import re
+    from urllib.parse import quote_plus
+    qpos = template.find("?")
+
+    def sub(m):
+        name = m.group(1)
+        val = fields.get(name)
+        if val in (None, ""):
+            raise CompileError(f"member has no value for '{name}' used in a page address")
+        in_query = qpos != -1 and m.start() > qpos
+        return quote_plus(str(val)) if in_query else _slug(val)
+    return re.sub(r"\{([a-z_]+)\}", sub, template)
+
+
+def uses_field(spec: BrokerSpec, name: str) -> bool:
+    """Does any step fill, match or mention this field?"""
+    return any(st.field == name or ("{" + name + "}") in (st.text or "") or ("{" + name + "}") in (st.url or "")
+               for st in (spec.steps or []))
 
 
 def compile_job(spec: BrokerSpec, member_fields: dict, member_id: str) -> Job:
@@ -166,6 +203,7 @@ def compile_job(spec: BrokerSpec, member_fields: dict, member_id: str) -> Job:
         broker_id=spec.broker_id, broker_name=spec.name,
         member_id=member_id, method=spec.method,
         success_selector=spec.success_selector, success_text=spec.success_text,
+        contact_email=str(member_fields.get("contact_email") or ""),
     )
 
     if spec.method == "manual":
@@ -195,7 +233,7 @@ def compile_job(spec: BrokerSpec, member_fields: dict, member_id: str) -> Job:
     for s in spec.steps:
         value = s.value
         text = s.text
-        if s.kind in ("fill", "select") and s.field:
+        if s.kind in ("fill", "type", "select") and s.field:
             if s.field not in KNOWN_FIELDS:
                 raise CompileError(f"step references unknown field: {s.field}")
             resolved = member_fields.get(s.field)
@@ -215,8 +253,15 @@ def compile_job(spec: BrokerSpec, member_fields: dict, member_id: str) -> Job:
             if not text:
                 text = "" if resolved is None else str(resolved)
 
+        if s.kind == "pause_for_human" and "{" in text:
+            # Instructions may name the person's details, e.g. the address to
+            # give the broker ({contact_email}) or their listing ({listing_url}).
+            text = _render(text, {k: v for k, v in member_fields.items() if v})
+        url = s.url
+        if s.kind == "navigate" and "{" in url:
+            url = _render_url(url, member_fields)
         steps.append(JobStep(
-            kind=s.kind, selector=s.selector, value=value, url=s.url,
+            kind=s.kind, selector=s.selector, value=value, url=url,
             text=text, timeout_ms=s.timeout_ms, optional=s.optional,
         ))
 

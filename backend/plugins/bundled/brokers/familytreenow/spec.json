@@ -1,0 +1,17 @@
+{
+  "broker_id": "familytreenow",
+  "name": "FamilyTreeNow",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://www.familytreenow.com/optout",
+  "instructions": "Search familytreenow.com for {full_name}. If you're listed, open familytreenow.com/optout and follow the steps to remove your record, using {contact_email} if it asks for an email address. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "one_optout_per_email": false,
+  "source": "Process per BADBOOL's FamilyTreeNow entry.",
+  "last_verified": ""
+}

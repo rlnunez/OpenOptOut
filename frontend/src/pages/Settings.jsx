@@ -1216,7 +1216,7 @@ function EncryptionSection({ userRole }) {
 // ── Automation / bot-evasion section ──────────────────────────────────────────
 
 function AutomationSection({ userRole }) {
-  const [config, setConfig]   = useState({ rotate_user_agents: true, custom_user_agents: [], inter_submission_delay_seconds: 1.5 })
+  const [config, setConfig]   = useState({ rotate_user_agents: true, custom_user_agents: [], inter_submission_delay_seconds: 1.5, best_guess_forms: false })
   const [builtins, setBuiltins] = useState([])
   const [newUA, setNewUA]     = useState('')
   const [saving, setSaving]   = useState(false)
@@ -1326,6 +1326,15 @@ function AutomationSection({ userRole }) {
           onChange={e => setConfig(c => ({...c, inter_submission_delay_seconds: parseFloat(e.target.value)}))}
           className={inp + ' w-32'} />
       </Field>
+
+      <label className="flex items-start gap-2 text-sm text-slate-300">
+        <input type="checkbox" checked={!!config.best_guess_forms} className="mt-0.5 accent-shield-500"
+          onChange={e => setConfig(c => ({...c, best_guess_forms: e.target.checked}))} />
+        <span>
+          Try a best guess on broker sites OpenOptOut has no steps for
+          <span className="block text-slate-500 text-xs">Off by default. A guess can type someone's details into the wrong box, like a newsletter signup. When it's off, those sites go on the checklist instead. A guess only counts when the site says it received the request.</span>
+        </span>
+      </label>
 
       <div className="flex justify-end">
         <SaveButton saving={saving} saved={saved} onClick={save} />

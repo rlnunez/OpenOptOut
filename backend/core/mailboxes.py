@@ -156,19 +156,20 @@ def missing_mailbox_instruction(member) -> str:
 
 def issue_contact_address(db, mailbox, member, broker=None, parent=None,
                           request_key: str = "", combo_label: str = "",
-                          one_optout_per_email: bool = False):
+                          one_optout_per_email: bool = False, allow_plus: bool = True):
     """
     The address to give a broker for one opt-out. Returns (ContactAddress, None)
     or (None, reason) when the opt-out has to wait for a person.
 
     With a +address inbox every call returns a new, unique address. Without
-    one, the plain address is used — unless the broker allows only one
-    opt-out per email address and that address was already used there.
+    one — or when the broker's form refuses "+" addresses (allow_plus=False)
+    — the plain address is used, unless the broker allows only one opt-out per
+    email address and that address was already used there.
     """
     from ..models.database import ContactAddress
 
     base = base_address(mailbox.address)
-    if uses_plus(mailbox):
+    if uses_plus(mailbox) and allow_plus:
         for _ in range(5):
             tag = new_tag()
             if not db.query(ContactAddress).filter(ContactAddress.tag == tag).first():
@@ -313,6 +314,7 @@ def match_inbound(db, mailbox, to_header: str, from_header: str) -> dict:
     out = {"plus_check": False, "request_keys": [], "unexpected": []}
     tags = tags_in(to_header)
     if not tags:
+        out["request_keys"] = _match_untagged(db, mailbox, to_header, from_header)
         return out
     test_tag = (getattr(mailbox, "plus_test_tag", None) or "").lower()
     if test_tag and test_tag in tags:
@@ -354,6 +356,42 @@ def match_inbound(db, mailbox, to_header: str, from_header: str) -> dict:
             out["request_keys"].append(ca.request_key)
     db.commit()
     return out
+
+
+UNTAGGED_MATCH_DAYS = 60
+
+
+def _match_untagged(db, mailbox, to_header: str, from_header: str) -> list:
+    """
+    Mail to the inbox's plain address (no +tag): it belongs to an opt-out if
+    it comes from a broker that was given this plain address in the last
+    UNTAGGED_MATCH_DAYS days. Used for inboxes without +addresses and for
+    brokers whose forms refuse them.
+    """
+    from ..models.database import ContactAddress, Broker
+    sender = _domain_of(from_header)
+    base = base_address(mailbox.address)
+    if not sender or base.lower() not in (to_header or "").lower():
+        return []
+    since = datetime.utcnow() - timedelta(days=UNTAGGED_MATCH_DAYS)
+    rows = (db.query(ContactAddress)
+              .filter(ContactAddress.mailbox_id == mailbox.id, ContactAddress.tag.is_(None),
+                      ContactAddress.broker_id.isnot(None), ContactAddress.request_key.isnot(None),
+                      ContactAddress.created_at >= since)
+              .order_by(ContactAddress.created_at.desc()).all())
+    keys, brokers = [], {}
+    for ca in rows:
+        if ca.broker_id not in brokers:
+            b = db.query(Broker).filter(Broker.id == ca.broker_id).first()
+            brokers[ca.broker_id] = _broker_domains(b) if b else set()
+        if brokers[ca.broker_id] and _sender_matches(sender, brokers[ca.broker_id]) \
+                and ca.request_key not in keys:
+            ca.inbound_count = (ca.inbound_count or 0) + 1
+            ca.last_inbound_at = datetime.utcnow()
+            keys.append(ca.request_key)
+    if keys:
+        db.commit()
+    return keys
 
 
 def purge_for_user(db, user_id: int) -> None:

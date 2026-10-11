@@ -1072,8 +1072,18 @@ def t_complex_page_actions():
         @property
         def first(self):
             return self
+        async def count(self):
+            return 1
         async def click(self, timeout=None):
             pass
+        async def fill(self, value, timeout=None):
+            pass
+        async def press(self, key, timeout=None):
+            pass
+        async def wait_for(self, state=None, timeout=None):
+            pass
+        async def inner_text(self, timeout=None):
+            return "Search Results"
         async def scroll_into_view_if_needed(self, timeout=None):
             pass
 
@@ -7105,13 +7115,20 @@ def t_pause_for_human():
     r = ci.DryRunExecutor().run(job)
     assert r.needs_manual and not r.ok and "Start Removing" in r.human_instruction, r
 
+    class FakeLoc:
+        def __init__(self, page, sel): self.page, self.sel = page, sel
+        @property
+        def first(self): return self
+        async def fill(self, *a, **k): pass
+        async def click(self, **k): self.page.clicked.append(self.sel)
+        async def inner_text(self, **k): return ""
+
     class FakePage:
         url = "https://p.example"
         def __init__(self, present): self.present = present; self.clicked = []
         async def goto(self, *a, **k): pass
         async def wait_for_timeout(self, *a): pass
-        async def fill(self, *a, **k): pass
-        async def click(self, sel, **k): self.clicked.append(sel)
+        def locator(self, sel): return FakeLoc(self, sel)
         async def query_selector(self, sel):
             return object() if (self.present and sel == ".results") else None
 
@@ -7194,7 +7211,7 @@ def t_parent_catalog_apply():
 
 
 @test(1, "broker_plugins.repo_plugins_validate",
-      "Every plugin in broker-plugins/ passes the app's validators and the repo rules.")
+      "Every built-in broker plugin passes the app's validators, the repo rules and a dry run.")
 def t_broker_plugins_validate():
     import importlib.util, io, contextlib
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -7211,6 +7228,265 @@ def t_broker_plugins_validate():
     # EXPECTED: all broker plugins valid.
     # IF THIS FAILS: a plugin in the repo would be rejected on upload; the output says why.
 
+
+
+# ── Form filling: fields, steps, honest results ───────────────────────────────
+
+class _FormLoc:
+    """Minimal Playwright-locator stand-in for form tests."""
+    def __init__(self, page, sel, texts=None):
+        self.page, self.sel, self.texts = page, sel, texts
+    @property
+    def first(self):
+        return self
+    def filter(self, has_text=None):
+        import re as _re
+        opts = self.page.options.get(self.sel, [])
+        if isinstance(has_text, _re.Pattern):
+            hits = [o for o in opts if has_text.search(o)]
+        else:
+            hits = [o for o in opts if has_text and has_text in o]
+        return _FormLoc(self.page, self.sel, hits)
+    async def count(self):
+        return len(self.texts) if self.texts is not None else 1
+    async def fill(self, value, timeout=None):
+        self.page.values[self.sel] = value
+    async def press_sequentially(self, value, delay=None, timeout=None):
+        self.page.values[self.sel] = value
+    async def click(self, timeout=None):
+        if self.texts is not None:
+            self.page.clicked.append(self.texts[0]); return
+        self.page.clicked.append(self.sel)
+    async def select_option(self, value=None, label=None, timeout=None):
+        self.page.values[self.sel] = value or label
+    async def check(self, timeout=None):
+        pass
+    async def wait_for(self, state=None, timeout=None):
+        pass
+    async def press(self, key, timeout=None):
+        pass
+    async def inner_text(self, timeout=None):
+        return self.page.body()
+
+
+class _FormPage:
+    url = "https://broker.example/optout"
+    def __init__(self, rejects_plus=False, success_text="", options=None):
+        self.values, self.clicked, self.rejects_plus, self.success_text = {}, [], rejects_plus, success_text
+        self.options = options or {}
+    def body(self):
+        if self.rejects_plus and any("+" in str(v) for v in self.values.values()) and "#go" in self.clicked:
+            return "Please enter a valid email address."
+        return self.success_text if "#go" in self.clicked else ""
+    def locator(self, sel):
+        return _FormLoc(self, sel)
+    def get_by_text(self, text, exact=False):
+        return _FormLoc(self, "text=" + text)
+    async def goto(self, url, timeout=None):
+        self.values, self.clicked = {}, []
+    async def wait_for_timeout(self, ms):
+        pass
+    async def query_selector(self, sel):
+        return None
+    async def content(self):
+        return self.body()
+    async def evaluate(self, *a):
+        pass
+
+
+@test(1, "forms.member_fields_and_compile",
+      "Member fields include derived formats; page addresses and person-facing steps are filled in safely.")
+def t_forms_fields():
+    ci = _imp("core.interpreter")
+    mf = _imp("core.interpreter.member_fields")
+    comp = _imp("core.interpreter.compiler")
+    assert mf.state_name("tx") == "Texas" and mf.state_code("New York") == "NY"
+    assert mf.phone_digits("+1 (512) 555-0100") == "5125550100"
+
+    class M:  # a member-like object
+        full_name, formal_name, age = "Mary Ann Smith", "", 40
+        identities = []
+    f = mf.resolve(M(), today=__import__("datetime").date(2026, 10, 10))
+    assert f["first_name"] == "Mary" and f["last_name"] == "Ann Smith" and f["birth_year"] == "1986"
+    assert f["phone"] is None and f["city"] is None, "missing values are None, not empty strings"
+
+    url = comp._render_url("https://x.example/{first_name}-{last_name}/{state_name}?q={full_name}",
+                           {"first_name": "Mary Ann", "last_name": "O'Neil", "state_name": "New York",
+                            "full_name": "Mary Ann O'Neil"})
+    assert url == "https://x.example/Mary-Ann-O-Neil/New-York?q=Mary+Ann+O%27Neil", url
+    try:
+        comp._render_url("https://x.example/{city}", {"city": None})
+        raise AssertionError("an address with a missing value must not compile")
+    except comp.CompileError:
+        pass
+    spec = ci.BrokerSpec.from_dict({
+        "broker_id": "b", "name": "B", "method": "form", "opt_out_url": "https://b.example",
+        "steps": [{"kind": "navigate", "url": "https://b.example/{state}"},
+                  {"kind": "type", "selector": "#e", "field": "contact_email"},
+                  {"kind": "pause_for_human", "text": "Use {contact_email} for {full_name}."}]})
+    assert spec.validate() == [] and comp.uses_field(spec, "contact_email")
+    bad = ci.BrokerSpec.from_dict({"broker_id": "b", "name": "B", "method": "form",
+                                   "steps": [{"kind": "navigate", "url": "https://b.example/{ssn}"}]})
+    assert any("unknown field" in e for e in bad.validate())
+    job = ci.compile_job(spec, {"state": "TX", "contact_email": "a+oo1@x.example", "full_name": "Ann"}, "1")
+    assert job.steps[0].url == "https://b.example/TX" and job.contact_email == "a+oo1@x.example"
+    assert job.steps[2].text == "Use a+oo1@x.example for Ann."
+    r = ci.DryRunExecutor().run(job)
+    assert r.needs_manual and any("type #e" in t for t in r.trace), r.trace
+
+
+@test(1, "forms.executor_reads_the_page",
+      "The executor spots a refused email address, confirms success signals, and picks options by whole name.")
+def t_forms_executor():
+    import asyncio
+    ci = _imp("core.interpreter")
+    spec = ci.BrokerSpec.from_dict({
+        "broker_id": "b", "name": "B", "method": "form", "opt_out_url": "https://b.example",
+        "steps": [{"kind": "fill", "selector": "#email", "field": "contact_email"},
+                  {"kind": "click_matching", "selector": "li", "field": "state_name"},
+                  {"kind": "click", "selector": "#go"},
+                  {"kind": "expect_success", "text": "request received"}]})
+    fields = {"contact_email": "a+oo1@x.example", "state_name": "Kansas"}
+    page = _FormPage(rejects_plus=True, options={"li": ["Arkansas", "Kansas"]})
+    r = asyncio.run(ci.PlaywrightExecutor(page=page).run(ci.compile_job(spec, fields, "1")))
+    assert not r.ok and r.email_rejected, r
+    assert "Kansas" in page.clicked and "Arkansas" not in page.clicked, page.clicked
+    page2 = _FormPage(success_text="Thanks, your request received.", options={"li": ["Kansas"]})
+    r2 = asyncio.run(ci.PlaywrightExecutor(page=page2).run(ci.compile_job(spec, fields, "1")))
+    assert r2.ok and r2.verified and not r2.email_rejected, r2
+
+
+@test(2, "forms.engine_retries_without_plus_and_never_guesses",
+      "A form that refuses +addresses is retried once with the plain address and remembered; sites without steps go to the checklist.")
+def t_forms_engine():
+    import asyncio
+    db, s = _memory_db()
+    oe = _imp("core.optout_engine")
+    sb = _imp("core.interpreter.script_bridge")
+    ci = _imp("core.interpreter")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    b = db.Broker(name="FormCo", opt_out_url="https://formco.example/optout", method=db.OptOutMethod.form)
+    s.add(b); s.flush()
+    req = db.RemovalRequest(member_id=pm.id, broker_id=b.id, request_key="rk-f", status=db.RequestStatus.pending)
+    s.add(req); s.commit()
+    spec = ci.BrokerSpec.from_dict({
+        "broker_id": "formco", "name": "FormCo", "method": "form", "opt_out_url": "https://formco.example/optout",
+        "steps": [{"kind": "fill", "selector": "#email", "field": "contact_email"},
+                  {"kind": "click", "selector": "#go"}]})
+    real = sb.get_or_build_broker_spec
+    try:
+        sb.get_or_build_broker_spec = lambda broker, script=None, db=None: spec
+        page = _FormPage(rejects_plus=True)
+        r = asyncio.run(oe._run_form_via_interpreter(req, page, {}, s))
+        s.refresh(b)
+        assert r.ok and b.rejects_plus_addresses, (r, b.rejects_plus_addresses)
+        assert page.values["#email"] == "pat@gmail.com", page.values
+        sent = s.query(db.ContactAddress).filter_by(broker_id=b.id).all()
+        assert {c.tag is None for c in sent} == {True, False}, "one +address tried, then the plain one"
+        # Next time it goes straight to the plain address.
+        page2 = _FormPage(rejects_plus=True)
+        asyncio.run(oe._run_form_via_interpreter(req, page2, {}, s))
+        assert "+" not in page2.values["#email"]
+    finally:
+        sb.get_or_build_broker_spec = real
+    # No steps for this site: nothing is typed anywhere; it goes on the checklist.
+    b2 = db.Broker(name="Unknown People Search", opt_out_url="https://ups.example/optout", method=db.OptOutMethod.form)
+    s.add(b2); s.flush()
+    req2 = db.RemovalRequest(member_id=pm.id, broker_id=b2.id, status=db.RequestStatus.pending)
+    s.add(req2); s.commit()
+    page3 = _FormPage()
+    r3 = asyncio.run(oe._run_form_via_interpreter(req2, page3, {}, s))
+    assert r3.needs_manual and "doesn't have the steps" in r3.human_instruction and not page3.values
+    s.close()
+
+
+@test(2, "forms.guided_broker_and_reply",
+      "A guided broker goes on the checklist with a one-time address; the broker's reply to it moves the request along.")
+def t_forms_guided():
+    import asyncio
+    db, s = _memory_db()
+    oe = _imp("core.optout_engine")
+    sb = _imp("core.interpreter.script_bridge")
+    ci = _imp("core.interpreter")
+    try:
+        sched = _imp("core.scheduler")
+    except Exception as e:
+        raise Skip(f"scheduler deps missing: {e}")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    b = db.Broker(name="Clustal", opt_out_url="https://www.clustal.org/privacy-control", method=db.OptOutMethod.manual)
+    s.add(b); s.flush()
+    req = db.RemovalRequest(member_id=cm.id, broker_id=b.id, status=db.RequestStatus.pending,
+                            listing_url="https://www.clustal.org/person/kim")
+    s.add(req); s.commit()
+    spec = ci.BrokerSpec.from_dict({"broker_id": "clustal", "name": "Clustal", "method": "manual",
+                                    "opt_out_url": "https://www.clustal.org/privacy-control",
+                                    "instructions": "Paste {listing_url}, then enter {contact_email} for {full_name}."})
+    real = sb.get_or_build_broker_spec
+    try:
+        sb.get_or_build_broker_spec = lambda broker, script=None, db=None: spec
+        asyncio.run(oe.execute_optout(req, None, {}, s))
+    finally:
+        sb.get_or_build_broker_spec = real
+    s.refresh(req)
+    assert req.status == db.RequestStatus.needs_manual, req.status
+    ca = s.query(db.ContactAddress).filter_by(broker_id=b.id).one()
+    assert ca.address in req.notes and "https://www.clustal.org/person/kim" in req.notes and "Kim Kid" in req.notes
+    sched._handle_member_message(s, {}, boxes["parent"], ca.address, "noreply@clustal.org",
+                                 "We received your request", "Your opt-out request has been processed.", links=[])
+    s.refresh(req)
+    assert req.status == db.RequestStatus.confirmed, req.status
+    s.close()
+
+
+@test(2, "forms.untagged_reply_matched_by_sender",
+      "Mail to an inbox's plain address is matched to the broker it was given to, by the sender's domain.")
+def t_forms_untagged():
+    db, s = _memory_db()
+    m = _imp("core.mailboxes")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@yahoo.com", parent_plus="unsupported")
+    b = db.Broker(name="Nuwber", opt_out_url="https://nuwber.com/removal/link")
+    s.add(b); s.commit()
+    ca, _ = m.issue_contact_address(s, boxes["parent"], pm, broker=b, request_key="rk-u")
+    assert ca.tag is None and ca.address == "pat@yahoo.com"
+    hit = m.match_inbound(s, boxes["parent"], "Pat <pat@yahoo.com>", "Nuwber <support@nuwber.com>")
+    assert hit["request_keys"] == ["rk-u"], hit
+    other = m.match_inbound(s, boxes["parent"], "pat@yahoo.com", "deals@shop.example")
+    assert other["request_keys"] == [], other
+    s.close()
+
+
+@test(2, "forms.builtin_brokers_install",
+      "Built-in broker plugins install themselves, create their brokers, stay off when an admin turns them off, and are found for opt-outs.")
+def t_forms_builtin():
+    import tempfile
+    db, s = _memory_db()
+    ba = _imp("plugins.broker_addon")
+    layout = _imp("plugins.layout")
+    shipped = [f for f in layout.scan(layout.BUNDLED_ROOT) if f.valid and f.manifest.effective_type == "brokers"]
+    assert len(shipped) >= 10, len(shipped)
+    old = os.environ.get("PLUGINS_DIR")
+    os.environ["PLUGINS_DIR"] = tempfile.mkdtemp(prefix="oo-plugins-")
+    try:
+        s.add(db.Broker(name="Spokeo", opt_out_url="https://old.example", enabled=False)); s.commit()
+        st = ba.sync_builtin_brokers(s)
+        assert st["installed"] == len(shipped), st
+        spokeo = s.query(db.Broker).filter_by(name="Spokeo").one()
+        assert spokeo.plugin_id == "spokeo" and spokeo.enabled is False, "an admin's existing choice stays"
+        assert spokeo.opt_out_url == "https://www.spokeo.com/optout"
+        nuwber = s.query(db.Broker).filter_by(name="Nuwber").one()
+        assert nuwber.enabled and nuwber.method == db.OptOutMethod.manual
+        spec = ba.get_broker_spec_for_broker(s, spokeo)
+        assert spec and "email_confirmation" in spec.requires
+        row = s.query(db.InstalledPlugin).filter_by(plugin_id="nuwber").one()
+        row.enabled = False; s.commit()
+        st2 = ba.sync_builtin_brokers(s)
+        assert st2["installed"] == 0 and not s.query(db.InstalledPlugin).filter_by(plugin_id="nuwber").one().enabled
+    finally:
+        if old is None:
+            os.environ.pop("PLUGINS_DIR", None)
+        else:
+            os.environ["PLUGINS_DIR"] = old
+    s.close()
 
 
 # ── Family inboxes and per-opt-out addresses ──────────────────────────────────

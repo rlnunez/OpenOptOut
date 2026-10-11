@@ -1,0 +1,121 @@
+{
+  "broker_id": "beenverified",
+  "name": "BeenVerified",
+  "spec_version": "1.0",
+  "method": "form",
+  "opt_out_url": "https://www.beenverified.com/svc/optout/search/",
+  "steps": [
+    {
+      "kind": "navigate",
+      "url": "https://www.beenverified.com/svc/optout/search/",
+      "timeout_ms": 30000
+    },
+    {
+      "kind": "fill",
+      "selector": "input[name='fname']",
+      "field": "first_name"
+    },
+    {
+      "kind": "fill",
+      "selector": "input[name='ln']",
+      "field": "last_name"
+    },
+    {
+      "kind": "click",
+      "selector": "div.MuiSelect-select"
+    },
+    {
+      "kind": "wait_for",
+      "selector": "[role='listbox']",
+      "timeout_ms": 5000
+    },
+    {
+      "kind": "click_matching",
+      "selector": "[role='listbox'] li",
+      "field": "state_name"
+    },
+    {
+      "kind": "click",
+      "selector": "button[aria-label='search-optout-button']"
+    },
+    {
+      "kind": "pause_for_human",
+      "text": "BeenVerified needs you to pick your listing. Go to beenverified.com/svc/optout/search, search for {full_name} in {state_name}, click your own record and solve the CAPTCHA. On the removal form choose \"No\" for having an account, check your details, and enter {contact_email} as the email address. BeenVerified allows one opt-out per email address, and this one is only for this opt-out. OpenOptOut will click the confirmation link BeenVerified emails to it."
+    },
+    {
+      "kind": "wait_for",
+      "selector": "input[id='requestor_email']",
+      "timeout_ms": 120000
+    },
+    {
+      "kind": "click",
+      "selector": "div[aria-labelledby='account_type']"
+    },
+    {
+      "kind": "wait_for",
+      "selector": "[role='listbox']",
+      "timeout_ms": 5000
+    },
+    {
+      "kind": "click_matching",
+      "selector": "[role='listbox'] li",
+      "text": "No"
+    },
+    {
+      "kind": "type",
+      "selector": "input[id='fname']",
+      "field": "first_name"
+    },
+    {
+      "kind": "type",
+      "selector": "input[id='ln']",
+      "field": "last_name"
+    },
+    {
+      "kind": "type",
+      "selector": "input[id='requestor_email']",
+      "field": "contact_email"
+    },
+    {
+      "kind": "type",
+      "selector": "input[id='age']",
+      "field": "age",
+      "optional": true
+    },
+    {
+      "kind": "type",
+      "selector": "input[id='street']",
+      "field": "street",
+      "optional": true
+    },
+    {
+      "kind": "type",
+      "selector": "input[id='city']",
+      "field": "city",
+      "optional": true
+    },
+    {
+      "kind": "type",
+      "selector": "input[id='zip']",
+      "field": "zip",
+      "optional": true
+    },
+    {
+      "kind": "click",
+      "selector": "button[aria-label='continue-button']"
+    }
+  ],
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "one_optout_per_email": true,
+  "requires": [
+    "listing_selection",
+    "email_confirmation"
+  ],
+  "source": "Flow and selectors from Blake104/OptOut (AGPL-3.0) beenverified.yml, verified upstream 2026-05-10; one opt-out per email address and the emailed confirmation link per BADBOOL's BeenVerified entry.",
+  "notes": "BeenVerified shows search results and a CAPTCHA before the removal form, so a person picks the record. The steps after the pause are kept for when the app can hand a live browser to a person and resume. The state picker is a Material UI list (full state names). A separate opt-out exists for property search: beenverified.com/app/optout/address-search. One opt-out also covers PeopleLooker and PeopleSmart.",
+  "last_verified": ""
+}

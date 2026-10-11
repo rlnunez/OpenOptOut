@@ -529,10 +529,18 @@ def _confirm_by_key(db, cfg: dict, key: str, subj: str, body: str, via_label: st
     """
     matching_reqs = db.query(RemovalRequest).filter(
         RemovalRequest.request_key == key,
-        RemovalRequest.status == RequestStatus.sent,
+        RemovalRequest.status.in_([RequestStatus.sent, RequestStatus.submitted,
+                                   RequestStatus.needs_manual]),
     ).all()
     if not matching_reqs:
         return 0
+    now_ = datetime.utcnow()
+    for req in matching_reqs:
+        if req.status != RequestStatus.sent:
+            # The broker wrote back, so it was sent — whether by the worker
+            # fleet or by a person following a checklist item.
+            req.status = RequestStatus.sent
+            req.sent_at = req.sent_at or now_
     try:
         from . import confirm_links as cl
         if cl.handle_reply(db, matching_reqs, subj, body, links or [], sender=sender,
@@ -836,26 +844,8 @@ def enqueue_pending_optouts(
 
             spec = get_or_build_broker_spec(broker, script=script, db=db)
 
-            # Resolve member fields
-            def first(kind):
-                vals = _get_values(member, kind, 1)
-                return vals[0] if vals else ""
-
-            raw_addr = first("address")
-            p = _parse_address(raw_addr) if raw_addr else {"address": "", "city": "", "state": "", "zip": ""}
-            parts = (member.full_name or "").split()
-            member_fields = {
-                "full_name": member.full_name or first("name"),
-                "formal_name": getattr(member, "formal_name", "") or member.full_name or "",
-                "first_name": parts[0] if parts else "",
-                "last_name": " ".join(parts[1:]) if len(parts) > 1 else "",
-                "email": first("email"),
-                "phone": first("phone"),
-                "address": p.get("address") or raw_addr,
-                "city": p.get("city", ""),
-                "state": p.get("state", ""),
-                "zip": p.get("zip", ""),
-            }
+            from .interpreter.member_fields import resolve as resolve_fields
+            member_fields = resolve_fields(member)
 
             member_fields["listing_url"] = req.listing_url or ""
             if any(st.field == "listing_url" and not st.optional for st in (spec.steps or [])) \
@@ -865,7 +855,8 @@ def enqueue_pending_optouts(
                              "Add it under Discovery → Find your listings.")
                 db.commit()
                 continue
-            if any(st.field == "contact_email" for st in (spec.steps or [])):
+            from .interpreter.compiler import uses_field
+            if uses_field(spec, "contact_email"):
                 from . import mailboxes as mbx
                 import uuid as _uuid
                 if not req.request_key:
@@ -874,7 +865,9 @@ def enqueue_pending_optouts(
                 contact, reason = (None, mbx.missing_mailbox_instruction(member)) if mailbox is None \
                     else mbx.issue_contact_address(
                         db, mailbox, member, broker=broker, request_key=req.request_key,
-                        one_optout_per_email=bool(getattr(spec, "one_optout_per_email", False)))
+                        one_optout_per_email=bool(getattr(spec, "one_optout_per_email", False)),
+                        allow_plus=bool(getattr(spec, "accepts_plus_addresses", True))
+                        and not bool(getattr(broker, "rejects_plus_addresses", False)))
                 if contact is None:
                     req.status = RequestStatus.needs_manual
                     req.notes = reason

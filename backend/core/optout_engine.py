@@ -602,6 +602,20 @@ def process_pending_parent_company_optouts(
 
 # ── Declarative Interpreter Form Fill ──────────────────────────────────────────
 
+FIELD_LABELS = {
+    "phone": "phone number", "phone_digits": "phone number", "address": "street address",
+    "street": "street address", "zip": "ZIP code", "state": "state", "state_name": "state",
+    "city": "city", "age": "age", "birth_year": "age", "dob": "date of birth",
+    "first_name": "first name", "last_name": "last name", "email": "email address",
+}
+
+
+def _missing_field(msg: str) -> str:
+    import re
+    m = re.search(r"no value for (?:required field )?'([a-z_]+)'", msg)
+    return m.group(1) if m else ""
+
+
 async def _run_form_via_interpreter(
     request: RemovalRequest,
     page_or_context,
@@ -625,44 +639,20 @@ async def _run_form_via_interpreter(
 
     # Resolve authoritative spec (add-on -> script bridge -> heuristic fallback)
     spec = get_or_build_broker_spec(broker, script=script, db=db)
+    from .interpreter.script_bridge import is_heuristic
+    if is_heuristic(spec) and not cfg.get("automation", {}).get("best_guess_forms", False):
+        # No real steps for this site. Guessing could type the person's details
+        # into the wrong form (a newsletter box, a search bar), so a person does it.
+        from .interpreter.executor import ExecResult
+        return ExecResult(ok=False, needs_manual=True, detail="no opt-out steps for this broker yet",
+                          human_instruction=(
+                              f"OpenOptOut doesn't have the steps for {broker.name}'s opt-out form yet. "
+                              + (f"Open {broker.opt_out_url}, " if broker.opt_out_url else f"Find {broker.name}'s opt-out page, ")
+                              + f"fill it in for {member.full_name}, then press \"I've done this\"."))
 
-    # Resolve member fields:
-    def first(kind):
-        vals = _get_values(member, kind, 1)
-        return vals[0] if vals else ""
-
-    if combo:
-        parts = (combo.name or "").split()
-        first_name = parts[0] if parts else ""
-        last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
-        member_fields = {
-            "full_name": combo.name or member.full_name or "",
-            "formal_name": getattr(member, "formal_name", "") or combo.name or member.full_name or "",
-            "first_name": first_name,
-            "last_name": last_name,
-            "email": combo.email or first("email"),
-            "phone": combo.phone or first("phone"),
-            "address": combo.address or "",
-            "city": combo.city or "",
-            "state": combo.state or "",
-            "zip": combo.zip or "",
-        }
-    else:
-        raw_addr = first("address")
-        p = _parse_address(raw_addr) if raw_addr else {"address": "", "city": "", "state": "", "zip": ""}
-        parts = (member.full_name or "").split()
-        member_fields = {
-            "full_name": member.full_name or first("name"),
-            "formal_name": getattr(member, "formal_name", "") or member.full_name or "",
-            "first_name": parts[0] if parts else "",
-            "last_name": " ".join(parts[1:]) if len(parts) > 1 else "",
-            "email": first("email"),
-            "phone": first("phone"),
-            "address": p.get("address") or raw_addr,
-            "city": p.get("city", ""),
-            "state": p.get("state", ""),
-            "zip": p.get("zip", ""),
-        }
+    # Resolve member fields (names, address parts, derived formats).
+    from .interpreter.member_fields import resolve as resolve_fields
+    member_fields = resolve_fields(member, combo)
 
     # Brokers whose form needs the member's own listing address.
     if any(s.field == "listing_url" and not s.optional for s in (spec.steps or [])):
@@ -677,7 +667,8 @@ async def _run_form_via_interpreter(
 
     # The address the broker should write back to for THIS submission.
     # Issued only when the spec asks for it, so no unused addresses pile up.
-    if any(s.field == "contact_email" for s in (spec.steps or [])):
+    from .interpreter.compiler import uses_field
+    if uses_field(spec, "contact_email"):
         from . import mailboxes as mbx
         mailbox = mbx.resolve_mailbox(db, member)
         if mailbox is None:
@@ -688,7 +679,8 @@ async def _run_form_via_interpreter(
         contact, reason = mbx.issue_contact_address(
             db, mailbox, member, broker=broker, request_key=request.request_key or "",
             combo_label=combo.label() if combo else "",
-            one_optout_per_email=bool(getattr(spec, "one_optout_per_email", False)))
+            one_optout_per_email=bool(getattr(spec, "one_optout_per_email", False)),
+            allow_plus=_plus_ok(spec, broker))
         if contact is None:
             from .interpreter.executor import ExecResult
             return ExecResult(ok=False, needs_manual=True, human_instruction=reason,
@@ -696,7 +688,18 @@ async def _run_form_via_interpreter(
         member_fields["contact_email"] = contact.address
         db.commit()
 
-    job = compile_job(spec, member_fields, member_id=str(member.id))
+    from .interpreter.compiler import CompileError
+    try:
+        job = compile_job(spec, member_fields, member_id=str(member.id))
+    except CompileError as e:
+        from .interpreter.executor import ExecResult
+        missing = _missing_field(str(e))
+        if missing:
+            return ExecResult(ok=False, needs_manual=True, detail=f"missing {missing}",
+                              human_instruction=(f"{broker.name}'s form needs {member.full_name}'s "
+                                                 f"{FIELD_LABELS.get(missing, missing.replace('_', ' '))}. "
+                                                 f"Add it in the Identity vault and OpenOptOut will try again."))
+        raise
 
     # Wire the plugin manager's dispatchers into the executor so the CAPTCHA
     # solver + fill_form takeover hooks fire.
@@ -746,10 +749,119 @@ async def _run_form_via_interpreter(
         executor = PlaywrightExecutor(
             page=page, captcha_solver=captcha_solver, plugin_form_handler=form_handler)
         res = await executor.run(job)
+        if res.email_rejected and "+" in (job.contact_email or ""):
+            res = await _retry_without_plus(db, request, broker, member, spec, combo, member_fields,
+                                            page, captcha_solver, form_handler, res)
+        if res.ok and is_heuristic(spec) and not res.verified:
+            # A best guess only counts when the site says it worked.
+            try:
+                body = await page.locator("body").inner_text(timeout=3000)
+            except Exception:
+                body = ""
+            if GENERIC_SUCCESS.search(body or ""):
+                res.verified = True
+            else:
+                from .interpreter.executor import ExecResult
+                return ExecResult(ok=False, needs_manual=True, trace=res.trace,
+                                  detail="best-guess fill: no sign it worked",
+                                  human_instruction=(
+                                      f"OpenOptOut tried {broker.name}'s form but couldn't tell whether it "
+                                      f"went through. Open {broker.opt_out_url or broker.name}, check or "
+                                      f"finish the opt-out for {member.full_name}, then press \"I've done this\"."))
+        res.contact_email = job.contact_email
         return res
     finally:
         if should_close and page:
             await page.close()
+
+
+GENERIC_SUCCESS = re.compile(
+    r"(request|submission|opt[- ]?out|removal)[^.\n]{0,40}(received|submitted|processed|complete|successful)|"
+    r"(has|have) been (received|submitted|removed|processed)|thank you for your (request|submission)",
+    re.I)
+
+
+def _manual_instruction(request, broker, member, cfg, db) -> str:
+    """Plain-language steps for an opt-out only a person can do."""
+    from .interpreter.script_bridge import get_or_build_broker_spec, is_heuristic
+    from .interpreter.member_fields import resolve as resolve_fields
+    from .interpreter.compiler import _render
+    spec = None
+    try:
+        script = db.query(BrokerScript).filter(BrokerScript.broker_id == broker.id).first()
+        spec = get_or_build_broker_spec(broker, script=script, db=db)
+    except Exception as e:
+        log.debug("no spec for manual broker %s: %s", broker.name, e)
+    text = (getattr(spec, "instructions", "") or "") if spec is not None and not is_heuristic(spec) else ""
+    if not text:
+        where = f"at {broker.opt_out_url}" if broker.opt_out_url else f"on {broker.name}'s website"
+        how = "by phone" if broker.method == OptOutMethod.phone else where
+        return (f"Opt {member.full_name} out of {broker.name} {how}, then press \"I've done this\"."
+                + (f"\n{broker.notes.strip()}" if (broker.notes or "").strip() else ""))
+    fields = {k: v for k, v in resolve_fields(member).items() if v}
+    if request.listing_url:
+        fields["listing_url"] = request.listing_url
+    if "{contact_email}" in text:
+        from . import mailboxes as mbx
+        mailbox = mbx.resolve_mailbox(db, member)
+        if mailbox is not None:
+            contact, _ = mbx.issue_contact_address(
+                db, mailbox, member, broker=broker, request_key=request.request_key or "",
+                one_optout_per_email=bool(getattr(spec, "one_optout_per_email", False)),
+                allow_plus=_plus_ok(spec, broker))
+            if contact is not None:
+                fields["contact_email"] = contact.address
+                db.commit()
+        fields.setdefault("contact_email", "your email address")
+    if "{listing_url}" in text and "listing_url" not in fields:
+        fields["listing_url"] = "the address of your listing (find it under Discovery → Find your listings)"
+    return _render(text, fields)
+
+
+def _plus_ok(spec, broker) -> bool:
+    """May this broker's forms be given a +address?"""
+    return bool(getattr(spec, "accepts_plus_addresses", True)) and \
+        not bool(getattr(broker, "rejects_plus_addresses", False))
+
+
+async def _retry_without_plus(db, request, broker, member, spec, combo, member_fields,
+                              page, captcha_solver, form_handler, first_result):
+    """
+    The form refused a +address. Remember that for this broker, then try once
+    more with the inbox's plain address (replies to it are matched by sender).
+    """
+    from .interpreter import compile_job, PlaywrightExecutor
+    from .interpreter.executor import ExecResult
+    from . import mailboxes as mbx
+    broker.rejects_plus_addresses = True
+    db.commit()
+    log.info("%s refused a +address; retrying with the plain address", broker.name)
+    mailbox = mbx.resolve_mailbox(db, member)
+    contact, reason = (None, mbx.missing_mailbox_instruction(member)) if mailbox is None else \
+        mbx.issue_contact_address(
+            db, mailbox, member, broker=broker, request_key=request.request_key or "",
+            combo_label=combo.label() if combo else "",
+            one_optout_per_email=bool(getattr(spec, "one_optout_per_email", False)),
+            allow_plus=False)
+    plain_ok = contact is not None and "+" not in contact.address
+    if not plain_ok:
+        return ExecResult(ok=False, needs_manual=True, detail="form refused the +address",
+                          trace=first_result.trace,
+                          human_instruction=reason or (
+                              f"{broker.name}'s form won't accept email addresses with a \"+\" in them. "
+                              f"Finish this opt-out at {broker.opt_out_url or broker.name} using a plain email address."))
+    db.commit()
+    fields = dict(member_fields, contact_email=contact.address)
+    job = compile_job(spec, fields, member_id=str(member.id))
+    res = await PlaywrightExecutor(page=page, captcha_solver=captcha_solver,
+                                   plugin_form_handler=form_handler).run(job)
+    if res.email_rejected:
+        return ExecResult(ok=False, needs_manual=True, detail="form refused the email address",
+                          trace=res.trace,
+                          human_instruction=(f"{broker.name}'s form didn't accept {contact.address}. "
+                                             f"Finish this opt-out at {broker.opt_out_url or broker.name} "
+                                             f"with another email address."))
+    return res
 
 
 async def execute_optout(
@@ -837,6 +949,8 @@ async def execute_optout(
                     interp_res = await _run_form_via_interpreter(request, page, cfg, db, combo=combo)
                     ok = interp_res.ok
                     detail = interp_res.detail or ("ok" if ok else "form flow failed")
+                    if ok and interp_res.verified:
+                        detail += " (the broker's page confirmed it)"
                     if ok:
                         successes += 1
                         from .variant_report import record as _record_variants, identities_for_combo
@@ -888,6 +1002,10 @@ async def execute_optout(
                                 pass
 
                         request.notes = f"Paused for human CAPTCHA resolution ({ch.get('type', 'other')})"
+                        if getattr(interp_res, "contact_email", ""):
+                            request.notes += (f". If you finish it on the site yourself, give "
+                                              f"{interp_res.contact_email} as the email address, so "
+                                              f"OpenOptOut can match the reply and click any confirmation link.")
 
                     # A spec's pause_for_human step: the flow reached a point
                     # only a person can do (pick their listing, answer a phone
@@ -926,11 +1044,13 @@ async def execute_optout(
                     await page.close()
 
         elif broker.method in (OptOutMethod.manual, OptOutMethod.phone):
-            successes = 1
+            # Nothing was sent: a person has to do this one. It goes on the
+            # checklist with the steps, instead of being counted as sent.
+            needs_human = _manual_instruction(request, broker, member, cfg, db)
             db.add(AutomationLog(
                 request_id=request.id, member_id=member.id, broker_id=broker.id,
-                action="manual_queue", status="success",
-                detail=f"Queued for manual action ({broker.method})",
+                action="manual_queue", status="needs_manual",
+                detail=f"Needs a person ({broker.method})",
                 duration_ms=0,
             ))
 
@@ -945,6 +1065,10 @@ async def execute_optout(
         request.sent_at   = datetime.utcnow()
         recheck_days      = cfg.get("scheduler", {}).get("recheck_interval_days", 90)
         request.recheck_after = datetime.utcnow() + timedelta(days=recheck_days)
+        # A form stays "sent" even when the broker's page said "received":
+        # that's an accepted request, not a removal. It becomes confirmed when
+        # the broker writes back, its confirmation link is clicked, or a person
+        # checks the listing is gone.
     elif "captcha" in (last_error or "").lower():
         # Keep in pending status with paused note so operator can resolve challenge
         request.status = RequestStatus.pending
