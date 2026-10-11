@@ -219,18 +219,18 @@ function EmailStep({ onNext, onSkip, onBack, busy, setError }) {
       </div>
 
       {/* Transport */}
-      <p className="text-slate-300 text-sm font-medium mb-2">Email provider / transport</p>
+      <p className="text-slate-300 text-sm font-medium mb-2">Email service</p>
       <div className="px-3 py-2 rounded-lg border border-slate-700 bg-slate-800/40 mb-2">
-        <p className="text-slate-400 text-xs flex items-start gap-1.5"><Shield size={12} className="text-shield-400 shrink-0 mt-0.5" /> <span><strong className="text-slate-300">OAuth is recommended</strong> where available (Gmail, Outlook, Yahoo) — it's more secure and won't break as providers tighten SMTP. Use SMTP/app-password only if your provider or self-hosted setup requires it.</span></p>
+        <p className="text-slate-400 text-xs flex items-start gap-1.5"><Shield size={12} className="text-shield-400 shrink-0 mt-0.5" /> <span><strong className="text-slate-300">Use "sign in with Google / Microsoft / Yahoo" when you can.</strong> It's safer than storing a password and keeps working when providers change their rules. Use a mail server with an app password only if your service doesn't offer sign-in.</span></p>
       </div>
       <select className={inp} value={provider} onChange={e => {
         if (e.target.value === 'proton') { chooseProton() } else { setProvider(e.target.value) }
       }}>
         <option value="">Choose a provider…</option>
-        <option value="gmail">Gmail / Google Workspace (OAuth)</option>
-        <option value="outlook">Outlook / Microsoft 365 (OAuth)</option>
-        <option value="yahoo">Yahoo (OAuth or app-password)</option>
-        <option value="smtp">Generic SMTP / IMAP (self-hosted / on-prem)</option>
+        <option value="gmail">Gmail / Google Workspace (sign in with Google)</option>
+        <option value="outlook">Outlook / Microsoft 365 (sign in with Microsoft)</option>
+        <option value="yahoo">Yahoo (sign in, or app password)</option>
+        <option value="smtp">Other mail server (SMTP / IMAP)</option>
         <option value="proton">Proton Mail (via Proton Bridge)</option>
         {uploaded.map(u => (
           <option key={u.plugin_id} value={u.plugin_id}>{u.name} (uploaded)</option>
@@ -245,7 +245,7 @@ function EmailStep({ onNext, onSkip, onBack, busy, setError }) {
           inspected for hidden recipients before it's trusted, then installed and selectable here.
         </p>
         <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-200 border border-slate-600 rounded-lg hover:bg-slate-800 cursor-pointer">
-          {uploading ? 'Uploading…' : 'Upload provider plugin (.zip)'}
+          {uploading ? 'Uploading…' : 'Add an email service plugin (.zip)'}
           <input type="file" accept=".zip" className="hidden" onChange={uploadProvider} disabled={uploading} />
         </label>
         {uploadMsg && <p className="text-emerald-300/90 text-xs mt-1.5">{uploadMsg}</p>}
@@ -358,7 +358,7 @@ function ConnectOAuth({ provider, setError }) {
 
   return (
     <div className="mt-2 px-3 py-3 rounded-lg border border-slate-700 bg-slate-800/40">
-      <p className="text-slate-300 text-xs font-medium mb-1">Connect this account (OAuth)</p>
+      <p className="text-slate-300 text-xs font-medium mb-1">Set up sign-in for this service</p>
       <p className="text-slate-400 text-xs mb-2">
         Register your OAuth app's credentials, then grant access. The client secret is stored
         encrypted on this server and never shared with plugins. You create these in the provider's

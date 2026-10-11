@@ -96,7 +96,7 @@ export default function FindListings({ memberId, memberName, onAdded }) {
             <Toggle k="web">Search the web ({plan.queries.length})</Toggle>
             {open.web && (
               plan.queries.length === 0
-                ? <p className="text-slate-400 text-sm mt-2">Add names, phone numbers or addresses in the Identity vault to get searches here.</p>
+                ? <p className="text-slate-400 text-sm mt-2">Add names, phone numbers or addresses on the Your details page to get searches here.</p>
                 : <ul className="mt-2 divide-y divide-slate-700/40">
                     {plan.queries.map(q => (
                       <li key={q.query} className="py-2 flex items-start justify-between gap-3 flex-wrap">

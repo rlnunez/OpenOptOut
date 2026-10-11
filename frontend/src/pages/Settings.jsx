@@ -241,12 +241,12 @@ function ConnectedAccounts({ currentProvider, onChanged }) {
 
   return (
     <div>
-      <p className="text-slate-400 text-xs font-medium mb-2 uppercase tracking-wide">Connected accounts (OAuth)</p>
+      <p className="text-slate-400 text-xs font-medium mb-2 uppercase tracking-wide">Accounts you've signed in with</p>
       {error && <div className="mb-2 px-3 py-2 rounded-lg border border-red-800 bg-red-900/20 text-red-300 text-xs">{error}</div>}
       {loading ? (
         <p className="text-slate-500 text-xs">Loading…</p>
       ) : accounts.length === 0 ? (
-        <p className="text-slate-500 text-xs mb-2">No OAuth account connected yet — connect one below (recommended for highest security), or configure SMTP/App Password below.</p>
+        <p className="text-slate-500 text-xs mb-2">Nothing signed in yet. Signing in with Google or Microsoft below is the safest choice. You can also use a mail server and app password further down.</p>
       ) : (
         <div className="space-y-1.5 mb-2">
           {accounts.map(a => (
@@ -258,7 +258,7 @@ function ConnectedAccounts({ currentProvider, onChanged }) {
                   : <span className="w-[13px] shrink-0" />}
                 <span className="text-slate-200 text-sm capitalize truncate">{a.provider_key}</span>
                 <span className="text-slate-500 text-xs truncate">({a.account_ref})</span>
-                {a.expired && <span className="text-amber-400 text-xs shrink-0">token expired — will refresh on use</span>}
+                {a.expired && <span className="text-amber-400 text-xs shrink-0">sign-in needs renewing (happens automatically next time)</span>}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {!a.active && (
@@ -729,12 +729,12 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.pause_before_send ?? true} onChange={e => setForm(f=>({...f,pause_before_send:e.target.checked}))} className="w-3.5 h-3.5 rounded-sm accent-shield-500"/>
               <span className="text-slate-300 text-sm">Pause before sending</span>
-              <span className="text-slate-600 text-xs">— queue opt-outs but require manual trigger to fire</span>
+              <span className="text-slate-600 text-xs">— get opt-outs ready, but wait for you to press Send</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.auto_recheck ?? true} onChange={e => setForm(f=>({...f,auto_recheck:e.target.checked}))} className="w-3.5 h-3.5 rounded-sm accent-shield-500"/>
-              <span className="text-slate-300 text-sm">Auto re-queue expired removals</span>
-              <span className="text-slate-600 text-xs">— re-submit opt-out when recheck date passes</span>
+              <span className="text-slate-300 text-sm">Ask again automatically</span>
+              <span className="text-slate-600 text-xs">— send the request again when its check-again date arrives</span>
             </label>
           </div>
 
@@ -835,7 +835,7 @@ function DataSection({ userRole }) {
       <div className="flex items-center justify-between py-2 border-b border-slate-700/50">
         <div>
           <p className="text-slate-200 text-sm">Export all data</p>
-          <p className="text-slate-500 text-xs">Download family data and removal history as JSON</p>
+          <p className="text-slate-500 text-xs">Download your family's details and removal history as a file</p>
         </div>
         <button onClick={() => window.open('/api/settings/export','_blank')}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
@@ -890,7 +890,7 @@ function VaultLimitsSection({ initial, userRole, onSaved }) {
   }
 
   const FIELDS = [
-    { key: 'max_names',     label: 'Name variants',   color: 'text-purple-400', max: 20,
+    { key: 'max_names',     label: 'Names',   color: 'text-purple-400', max: 20,
       hint: 'e.g. Robert Nunez, Rob Nunez, R. Nunez, Roberto Nunez' },
     { key: 'max_addresses', label: 'Past addresses',  color: 'text-amber-400',  max: 30,
       hint: 'Every address increases discovery and opt-out coverage significantly' },
@@ -904,8 +904,8 @@ function VaultLimitsSection({ initial, userRole, onSaved }) {
   const childrenLimit = form.max_children_per_parent ?? 0
 
   return (
-    <Section icon={Shield} title="Vault limits"
-      description="Maximum identity entries per family member — affects combination matrix size"
+    <Section icon={Shield} title="How many details each person can add"
+      description="More details find more listings, but each one adds searches"
       adminOnly userRole={userRole}>
       {!isAdmin ? (
         <div className="space-y-2">
@@ -966,22 +966,22 @@ function VaultLimitsSection({ initial, userRole, onSaved }) {
 
           {/* Matrix size preview */}
           <div className="bg-slate-900 rounded-lg px-4 py-3 border border-slate-700/50">
-            <p className="text-slate-500 text-xs uppercase tracking-wide mb-2">Resulting matrix size per broker</p>
+            <p className="text-slate-500 text-xs uppercase tracking-wide mb-2">Searches this adds up to, per site</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div>
-                <p className="text-slate-400 text-xs">Discovery pass <span className="text-slate-600">(name × address)</span></p>
+                <p className="text-slate-400 text-xs">To find someone <span className="text-slate-600">(each name with each address)</span></p>
                 <p className="text-slate-200 font-semibold">{discoveryPerBroker.toLocaleString()} searches</p>
               </div>
               <div>
-                <p className="text-slate-400 text-xs">Opt-out pass <span className="text-slate-600">(all combinations)</span></p>
+                <p className="text-slate-400 text-xs">To remove someone <span className="text-slate-600">(every mix)</span></p>
                 <p className="text-slate-200 font-semibold">{optoutPerBroker.toLocaleString()} submissions</p>
               </div>
             </div>
             {optoutPerBroker > 500 && (
               <p className="text-amber-400 text-xs mt-2 flex items-center gap-1">
                 <AlertTriangle size={11} />
-                Large matrix — the bot uses a 1.5s inter-submission delay to avoid rate limiting.
-                At {optoutPerBroker} combinations × 420 brokers this will take significant time.
+                That's a lot of requests. We space them out so sites don't block us,
+                so {optoutPerBroker} requests on every site will take a long time.
               </p>
             )}
           </div>
@@ -1178,7 +1178,7 @@ function EncryptionSection({ userRole }) {
             />
             <StatusPill
               ok={status.field_encryption_enabled}
-              label="Field-level PII encryption"
+              label="Personal details encrypted"
               sub={status.field_encryption_enabled
                 ? "Names, addresses, phones, emails encrypted before DB write"
                 : "Set FIELD_ENCRYPTION_KEY in .env to enable (falls back to SECRET_KEY)"}
@@ -1263,7 +1263,7 @@ function AutomationSection({ userRole }) {
   if (!isAdmin) return null
 
   return (
-    <Section icon={Bot} title="Automation & bot evasion"
+    <Section icon={Bot} title="How we fill in forms"
       description="User-agent rotation and submission timing to reduce blocking"
       adminOnly userRole={userRole}>
 
@@ -1333,7 +1333,7 @@ function AutomationSection({ userRole }) {
       )}
 
       <Field label="Delay between submissions (seconds)"
-        hint="Pause between each form submission per broker. Higher = slower but less bot-like.">
+        hint="Pause between each form submission per broker. Longer is slower, but sites are less likely to block us.">
         <input type="number" min="0.5" max="30" step="0.5"
           value={config.inter_submission_delay_seconds}
           onChange={e => setConfig(c => ({...c, inter_submission_delay_seconds: parseFloat(e.target.value)}))}
@@ -1559,7 +1559,7 @@ function MfaAccountSection({ user }) {
 
   // WebAuthn register
   const [showAddKey, setShowAddKey] = useState(false)
-  const [keyName, setKeyName] = useState('Primary Security Key')
+  const [keyName, setKeyName] = useState('My security key')
   const [keySubmitting, setKeySubmitting] = useState(false)
 
   // Backup codes modal
@@ -1612,7 +1612,7 @@ function MfaAccountSection({ user }) {
       }
       loadStatus()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid verification code')
+      setError(err.response?.data?.detail || "That code didn't work. Codes change every 30 seconds, so use the newest one.")
     } finally {
       setTotpSubmitting(false)
     }
@@ -1642,10 +1642,10 @@ function MfaAccountSection({ user }) {
       const credential = await performWebAuthnRegister(optData.options)
       const { data: regData } = await api.post('/auth/mfa/webauthn/register', {
         credential,
-        key_name: keyName.trim() || 'Primary Security Key',
+        key_name: keyName.trim() || 'My security key',
       })
       setShowAddKey(false)
-      setKeyName('Primary Security Key')
+      setKeyName('My security key')
       setSuccess('Security key registered successfully!')
       if (regData.backup_codes?.length) {
         setBackupCodesList(regData.backup_codes)
@@ -1962,7 +1962,7 @@ function MfaAccountSection({ user }) {
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
-                onClick={() => { setShowAddKey(false); setKeyName('Primary Security Key') }}
+                onClick={() => { setShowAddKey(false); setKeyName('My security key') }}
                 className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">
                 Cancel
               </button>
@@ -2660,7 +2660,7 @@ function SessionPolicySection({ userRole }) {
                 />
                 <span className="text-xs text-slate-400 shrink-0">hours</span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-1">Default token expiration when Remember Me is unchecked.</p>
+              <p className="text-[11px] text-slate-500 mt-1">How long people stay signed in if they don't tick "Remember me".</p>
             </div>
 
             {/* Remember Me Allowed */}
@@ -2723,7 +2723,7 @@ function SessionPolicySection({ userRole }) {
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
                   {curRoleCfg.remember_me_mode === 'extend_session'
-                    ? 'How long the signed token remains active on this device.'
+                    ? 'How long you stay signed in on this device.'
                     : 'Institutional recommendation for device credential cache.'}
                 </p>
               </div>

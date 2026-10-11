@@ -215,7 +215,7 @@ def get_current_user(
 ) -> User:
     exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Your sign-in has expired. Please sign in again.",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
@@ -260,13 +260,13 @@ def get_current_user_optional(
 
 def require_super_admin(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_super_admin:
-        raise HTTPException(status_code=403, detail="Super admin access required")
+        raise HTTPException(status_code=403, detail="Only the main administrator can do this.")
     return current_user
 
 
 def require_parent(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_parent:
-        raise HTTPException(status_code=403, detail="Parent or admin access required")
+        raise HTTPException(status_code=403, detail="Only a parent or an admin can do this.")
     return current_user
 
 
@@ -381,7 +381,7 @@ def assert_can_view(db: Session, user: User, member_id: int) -> FamilyMember:
     """Raise 403 if user cannot view this family member. Returns the member."""
     member = db.query(FamilyMember).filter(FamilyMember.id == member_id).first()
     if not member:
-        raise HTTPException(404, "Profile not found")
+        raise HTTPException(404, "That person is gone. Refresh the page.")
 
     if user.is_super_admin or _has(user, "consortium.cross_system"):
         return member

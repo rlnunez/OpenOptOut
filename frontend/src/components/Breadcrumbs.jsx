@@ -18,17 +18,17 @@ export default function Breadcrumbs() {
     }
 
     const segments = {
-      '/brokers': [{ label: t('nav.brokers', 'Data Brokers'), to: '/brokers' }],
+      '/brokers': [{ label: t('nav.brokers', 'Broker sites'), to: '/brokers' }],
       '/brokers/add': [
-        { label: t('nav.brokers', 'Data Brokers'), to: '/brokers' },
-        { label: t('common.add_broker', 'Add Broker'), to: '/brokers/add' },
+        { label: t('nav.brokers', 'Broker sites'), to: '/brokers' },
+        { label: t('common.add_broker', 'Add a site'), to: '/brokers/add' },
       ],
-      '/email': [{ label: t('nav.email_monitor', 'Email Monitor'), to: '/email' }],
-      '/scheduled': [{ label: t('nav.scheduled', 'Scheduled Tasks'), to: '/scheduled' }],
-      '/discovery': [{ label: t('nav.discovery', 'Discovery'), to: '/discovery' }],
-      '/captcha': [{ label: t('nav.captcha', 'CAPTCHA Queue'), to: '/captcha' }],
-      '/family': [{ label: t('nav.family', 'Family Members'), to: '/family' }],
-      '/identity': [{ label: t('nav.vault', 'Identity Vault'), to: '/identity' }],
+      '/email': [{ label: t('nav.email_monitor', 'Replies'), to: '/email' }],
+      '/scheduled': [{ label: t('nav.scheduled', 'Check again'), to: '/scheduled' }],
+      '/discovery': [{ label: t('nav.discovery', 'Find listings'), to: '/discovery' }],
+      '/captcha': [{ label: t('nav.captcha', 'CAPTCHAs'), to: '/captcha' }],
+      '/family': [{ label: t('nav.family', 'Family members'), to: '/family' }],
+      '/identity': [{ label: t('nav.vault', 'Your details'), to: '/identity' }],
       '/inboxes': [{ label: t('nav.inboxes', 'Email inboxes'), to: '/inboxes' }],
       '/checklist': [{ label: t('nav.checklist', 'Checklist'), to: '/checklist' }],
       '/web-search': [{ label: t('nav.websearch', 'Web search'), to: '/web-search' }],
@@ -62,12 +62,12 @@ export default function Breadcrumbs() {
       '/plugin-upload': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
         { label: t('nav.plugins', 'Plugins'), to: '/plugins' },
-        { label: t('nav.plugin_upload', 'Upload Plugin'), to: '/plugin-upload' },
+        { label: t('nav.plugin_upload', 'Add a plugin'), to: '/plugin-upload' },
       ],
       '/plugin-help': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
         { label: t('nav.plugins', 'Plugins'), to: '/plugins' },
-        { label: t('nav.plugin_docs', 'Plugin Documentation'), to: '/plugin-help' },
+        { label: t('nav.plugin_docs', 'Plugin guide'), to: '/plugin-help' },
       ],
       '/broker-health': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },

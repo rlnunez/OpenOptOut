@@ -57,7 +57,7 @@ export default function Login() {
   const [mandateStep, setMandateStep]         = useState('intro') // 'intro' | 'setup_totp' | 'setup_webauthn' | 'show_codes'
   const [mandateTotpData, setMandateTotpData] = useState(null)
   const [mandateTotpCode, setMandateTotpCode] = useState('')
-  const [mandateKeyName, setMandateKeyName]   = useState('Primary Security Key')
+  const [mandateKeyName, setMandateKeyName]   = useState('My security key')
   const [backupCodes, setBackupCodes]         = useState([])
   const [pendingToken, setPendingToken]       = useState(null)
   const [copiedCodes, setCopiedCodes]         = useState(false)
@@ -68,7 +68,7 @@ export default function Login() {
   const [setupMfaMode, setSetupMfaMode]         = useState('choose')  // 'choose' | 'totp' | 'webauthn' | 'codes'
   const [setupTotpData, setSetupTotpData]       = useState(null)
   const [setupTotpCode, setSetupTotpCode]       = useState('')
-  const [setupKeyName, setSetupKeyName]         = useState('Primary Security Key')
+  const [setupKeyName, setSetupKeyName]         = useState('My security key')
   const [setupBackupCodes, setSetupBackupCodes] = useState([])
   const [setupCopiedCodes, setSetupCopiedCodes] = useState(false)
   const [setupCopiedSecret, setSetupCopiedSecret] = useState(false)
@@ -174,7 +174,7 @@ export default function Login() {
       navigate('/')
     } catch (err) {
       // 429 = too many failed attempts; the server says how long to wait
-      setError(err.response?.status === 429 ? err.response.data.detail : 'Invalid email or password')
+      setError(err.response?.status === 429 ? err.response.data.detail : "That email and password don't match. Check them and try again.")
     } finally {
       setLoading(false)
     }
@@ -201,7 +201,7 @@ export default function Login() {
       await completeMfaLogin(loginRes.access_token)
       navigate('/')
     } catch (err) {
-      const msg = err.response?.data?.detail || err.message || 'Passkey authentication failed.'
+      const msg = err.response?.data?.detail || err.message || "Couldn't sign in with your passkey. Try again, or use your password."
       setError(msg)
     } finally {
       setLoading(false)
@@ -211,7 +211,7 @@ export default function Login() {
   const handleRequestMagicLink = async e => {
     if (e) e.preventDefault()
     if (!email.trim()) {
-      setError('Please enter your email address to receive a sign-in code.')
+      setError('Type your email address and we will send you a sign-in code.')
       return
     }
     setError('')
@@ -221,13 +221,13 @@ export default function Login() {
         email: email.trim(),
       })
       setMagicLinkToken(data.token || '')
-      setMagicLinkMessage(data.message || 'A 6-digit sign-in code has been sent to your email.')
+      setMagicLinkMessage(data.message || 'We sent a 6-digit sign-in code to your email.')
       if (data.fallback_code) {
         setMagicLinkCode(data.fallback_code)
       }
       setStaffAuthMode('magic_link_verify')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to send sign-in code.')
+      setError(err.response?.data?.detail || "Couldn't send the sign-in code. Please try again in a minute.")
     } finally {
       setLoading(false)
     }
@@ -236,7 +236,7 @@ export default function Login() {
   const handleVerifyMagicLink = async e => {
     if (e) e.preventDefault()
     if (!magicLinkCode.trim()) {
-      setError('Please enter the 6-digit verification code.')
+      setError('Type the 6-digit code from the email.')
       return
     }
     setError('')
@@ -253,7 +253,7 @@ export default function Login() {
       await completeMfaLogin(data.access_token)
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid or expired sign-in code.')
+      setError(err.response?.data?.detail || "That code didn't work. It may be mistyped or too old. Ask for a new one.")
     } finally {
       setLoading(false)
     }
@@ -267,7 +267,7 @@ export default function Login() {
       localStorage.setItem('token', data.access_token)
       window.location.href = '/'
     } catch (err) {
-      setError(err.response?.data?.detail ?? 'Library card authentication failed')
+      setError(err.response?.data?.detail ?? "Couldn't sign in with that library card. Check the number and PIN.")
     } finally { setLoading(false) }
   }
 
@@ -279,7 +279,7 @@ export default function Login() {
   const submitSetup = async e => {
     e.preventDefault(); setError('')
     if (password.length < 8) { setError('Use a password of at least 8 characters'); return }
-    if (password !== setupConfirm) { setError('Passwords do not match'); return }
+    if (password !== setupConfirm) { setError("The two passwords don't match."); return }
     setLoading(true)
     try {
       await api.post('/auth/register', { email, full_name: setupName, password })
@@ -302,7 +302,7 @@ export default function Login() {
       setSetupStep('mfa')
       setSetupMfaMode('choose')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Could not create the administrator account')
+      setError(err.response?.data?.detail || "Couldn't create the admin account. Please try again.")
     } finally { setLoading(false) }
   }
 
@@ -314,7 +314,7 @@ export default function Login() {
       setSetupTotpData(data)
       setSetupMfaMode('totp')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to initialize authenticator app setup.')
+      setError(err.response?.data?.detail || "Couldn't start setting up the code app. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -333,7 +333,7 @@ export default function Login() {
       setSetupBackupCodes(data.backup_codes || setupTotpData?.backup_codes || [])
       setSetupMfaMode('codes')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid verification code. Please check your app.')
+      setError(err.response?.data?.detail || "That code didn't work. Codes change every 30 seconds, so use the newest one.")
     } finally {
       setLoading(false)
     }
@@ -346,15 +346,15 @@ export default function Login() {
       const credential = await performWebAuthnRegister(optData.options)
       const { data: regData } = await api.post('/auth/mfa/webauthn/register', {
         credential,
-        name: setupKeyName.trim() || 'Primary Security Key',
+        name: setupKeyName.trim() || 'My security key',
       })
       setSetupBackupCodes(regData.backup_codes || [])
       setSetupMfaMode('codes')
     } catch (err) {
       if (err.name === 'NotAllowedError') {
-        setError('Security key interaction was cancelled or timed out.')
+        setError('The security key step was cancelled or took too long. Try again.')
       } else {
-        setError(err.response?.data?.detail || err.message || 'Failed to register security key.')
+        setError(err.response?.data?.detail || err.message || "Couldn't add the security key. Please try again.")
       }
     } finally {
       setWebauthnLoading(false)
@@ -394,7 +394,7 @@ export default function Login() {
       await completeMfaLogin(data.access_token)
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid authenticator code')
+      setError(err.response?.data?.detail || "That code didn't work. Codes change every 30 seconds, so use the newest one.")
     } finally {
       setLoading(false)
     }
@@ -412,7 +412,7 @@ export default function Login() {
       await completeMfaLogin(data.access_token)
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid or already-used backup recovery code')
+      setError(err.response?.data?.detail || "That backup code didn't work. Each one works only once.")
     } finally {
       setLoading(false)
     }
@@ -433,9 +433,9 @@ export default function Login() {
       navigate('/')
     } catch (err) {
       if (err.name === 'NotAllowedError') {
-        setError('Security key interaction was cancelled or timed out.')
+        setError('The security key step was cancelled or took too long. Try again.')
       } else {
-        setError(err.response?.data?.detail || err.message || 'Security key authentication failed.')
+        setError(err.response?.data?.detail || err.message || "Couldn't sign in with the security key. Try again, or use another way.")
       }
     } finally {
       setWebauthnLoading(false)
@@ -452,7 +452,7 @@ export default function Login() {
       setMandateTotpData(data)
       setMandateStep('setup_totp')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to initialize authenticator setup.')
+      setError(err.response?.data?.detail || "Couldn't start setting up the code app. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -472,7 +472,7 @@ export default function Login() {
       setPendingToken(data.access_token)
       setMandateStep('show_codes')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid verification code. Please check your app.')
+      setError(err.response?.data?.detail || "That code didn't work. Codes change every 30 seconds, so use the newest one.")
     } finally {
       setLoading(false)
     }
@@ -487,7 +487,7 @@ export default function Login() {
       const credential = await performWebAuthnRegister(optData.options)
       const { data: regData } = await api.post('/auth/mfa/webauthn/register', {
         credential,
-        key_name: mandateKeyName || 'Primary Security Key'
+        key_name: mandateKeyName || 'My security key'
       }, {
         headers: { 'X-MFA-Ticket': mfaMandate.ticket }
       })
@@ -496,9 +496,9 @@ export default function Login() {
       setMandateStep('show_codes')
     } catch (err) {
       if (err.name === 'NotAllowedError') {
-        setError('Security key registration was cancelled or timed out.')
+        setError('The security key step was cancelled or took too long. Try again.')
       } else {
-        setError(err.response?.data?.detail || err.message || 'Failed to register security key.')
+        setError(err.response?.data?.detail || err.message || "Couldn't add the security key. Please try again.")
       }
     } finally {
       setWebauthnLoading(false)
@@ -843,7 +843,7 @@ export default function Login() {
                         <label className="text-[11px] font-medium text-slate-400 block mb-1">Key or Device Label</label>
                         <input
                           className={inp}
-                          placeholder="e.g. Primary YubiKey, Mac Touch ID"
+                          placeholder="e.g. My YubiKey, or Mac fingerprint"
                           value={setupKeyName}
                           onChange={e => setSetupKeyName(e.target.value)}
                         />
@@ -961,7 +961,7 @@ export default function Login() {
                     disabled={webauthnLoading}
                     className="w-full py-2.5 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
                     {webauthnLoading ? <RefreshCw size={14} className="animate-spin" /> : <Fingerprint size={14} />}
-                    {webauthnLoading ? 'Waiting for touch or phone scan…' : 'Use Security Key / Touch ID / Phone'}
+                    {webauthnLoading ? 'Waiting for touch or phone scan…' : 'Use a security key, fingerprint or phone'}
                   </button>
                 </div>
               )}
@@ -987,7 +987,7 @@ export default function Login() {
                     type="submit"
                     disabled={loading || totpCode.trim().length < 6}
                     className="w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
-                    {loading ? 'Verifying…' : 'Verify Code'}
+                    {loading ? 'Verifying…' : 'Check code'}
                   </button>
                 </form>
               )}
@@ -1010,7 +1010,7 @@ export default function Login() {
                     type="submit"
                     disabled={loading || !backupCode.trim()}
                     className="w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
-                    {loading ? 'Verifying…' : 'Verify Recovery Code'}
+                    {loading ? 'Verifying…' : 'Use backup code'}
                   </button>
                 </form>
               )}
@@ -1120,7 +1120,7 @@ export default function Login() {
                       type="submit"
                       disabled={loading || mandateTotpCode.trim().length < 6}
                       className="w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
-                      {loading ? 'Activating…' : 'Confirm & Activate'}
+                      {loading ? 'Activating…' : 'Turn it on'}
                     </button>
                   </form>
 
@@ -1142,7 +1142,7 @@ export default function Login() {
                       type="text"
                       value={mandateKeyName}
                       onChange={e => setMandateKeyName(e.target.value)}
-                      placeholder="e.g. Primary YubiKey / Mac Touch ID"
+                      placeholder="e.g. My YubiKey, or Mac fingerprint"
                       className={inp}
                     />
                   </div>
@@ -1161,7 +1161,7 @@ export default function Login() {
                     disabled={webauthnLoading}
                     className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
                     {webauthnLoading ? <RefreshCw size={14} className="animate-spin" /> : <Fingerprint size={14} />}
-                    {webauthnLoading ? 'Waiting for touch or phone scan…' : 'Register Key / Touch ID / Phone'}
+                    {webauthnLoading ? 'Waiting for touch or phone scan…' : 'Add a security key, fingerprint or phone'}
                   </button>
 
                   <button
@@ -1196,7 +1196,7 @@ export default function Login() {
                     onClick={copyCodes}
                     className="w-full py-1.5 border border-slate-700 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors">
                     {copiedCodes ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-                    {copiedCodes ? 'Codes Copied to Clipboard' : 'Copy All Recovery Codes'}
+                    {copiedCodes ? 'Codes copied' : 'Copy all backup codes'}
                   </button>
 
                   <button
