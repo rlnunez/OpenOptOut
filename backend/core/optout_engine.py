@@ -100,25 +100,30 @@ def _build_exhaustive_email(
     addon_spec = get_broker_spec_for_broker(db, broker) if db else None
     addon_email = addon_spec.email if addon_spec else None
 
-    if addon_email and addon_email.subject_template:
-        subject = addon_email.subject_template.format(
-            name=primary_name, request_key=request_key, broker=broker.name
-        )
-    elif script and script.email_subject_tpl:
-        subject = script.email_subject_tpl.format(
-            name=primary_name, request_key=request_key, broker=broker.name
-        )
+    # Every identifier we hold, as one block. Custom templates can place it with
+    # {identifiers}; if a custom body leaves it out, it is appended, because a
+    # broker can't find (or remove) the records without it.
+    identifiers_block = _identifier_block(names, addresses, phones, emails)
+    tpl_fields = _template_fields(
+        member, primary_name, request_key, broker.name,
+        addresses, phones, emails, identifiers_block,
+    )
+
+    custom_subject = (addon_email.subject_template if addon_email and addon_email.subject_template
+                      else (script.email_subject_tpl if script and script.email_subject_tpl else ""))
+    custom_body = (addon_email.body_template if addon_email and addon_email.body_template
+                   else (script.email_body_tpl if script and script.email_body_tpl else ""))
+
+    if custom_subject:
+        subject = render_template(custom_subject, tpl_fields)
     else:
         subject = f"Personal Data Removal Request — {primary_name} [Ref: {request_key}]"
 
-    if addon_email and addon_email.body_template:
-        body = addon_email.body_template.format(
-            name=primary_name, request_key=request_key, broker=broker.name
-        )
-    elif script and script.email_body_tpl:
-        body = script.email_body_tpl.format(
-            name=primary_name, request_key=request_key, broker=broker.name
-        )
+    if custom_body:
+        body = render_template(custom_body, tpl_fields)
+        if "{identifiers}" not in custom_body:
+            body = body.rstrip() + "\n\nPlease remove all records matching any of these identifiers:\n\n" \
+                + identifiers_block + "\n"
     else:
         name_block    = "\n".join(f"  - {n}" for n in names)
         address_block = "\n".join(f"  - {a}" for a in addresses)
@@ -184,6 +189,73 @@ def _extract_email_from_notes(notes: Optional[str]) -> Optional[str]:
     return m.group(0) if m else None
 
 
+def _identifier_block(names, addresses, phones, emails) -> str:
+    """Plain-text list of every identifier, grouped, for opt-out emails."""
+    def section(title, values):
+        lines = "\n".join(f"  - {v}" for v in values if v) or "  (none provided)"
+        return f"{title}:\n{lines}"
+    return "\n\n".join([
+        section("NAME VARIANTS", names),
+        section("ADDRESSES (current and historical)", addresses),
+        section("PHONE NUMBERS", phones),
+        section("EMAIL ADDRESSES", emails),
+    ])
+
+
+def _template_fields(member, primary_name, request_key, broker_name,
+                     addresses, phones, emails, identifiers_block) -> dict:
+    """
+    Values a custom opt-out email template may use. This is the same vocabulary
+    the declarative spec compiler uses ({full_name}, {email}, ...) plus the
+    legacy names older templates use ({name}, {broker}, {request_key}).
+    Exact date of birth is deliberately not offered.
+    """
+    parts = (primary_name or "").split()
+    return {
+        "name": primary_name or "",
+        "full_name": primary_name or "",
+        "formal_name": getattr(member, "formal_name", None) or primary_name or "",
+        "first_name": parts[0] if parts else "",
+        "last_name": " ".join(parts[1:]) if len(parts) > 1 else "",
+        "email": emails[0] if emails else "",
+        "phone": phones[0] if phones else "",
+        "address": addresses[0] if addresses else "",
+        "broker": broker_name or "",
+        "request_key": request_key or "",
+        "identifiers": identifiers_block,
+    }
+
+
+def render_template(template: str, fields: dict) -> str:
+    """
+    Fill {placeholders} from `fields`. Unknown placeholders are left as written
+    instead of raising, so one unexpected placeholder in an add-on template can
+    no longer make every send for that broker fail. Literal braces are safe.
+    """
+    def sub(m):
+        key = m.group(1)
+        return str(fields[key]) if key in fields and fields[key] is not None else m.group(0)
+    return re.sub(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}", sub, template or "")
+
+
+def resolve_optout_address(broker: Broker, db=None) -> Optional[str]:
+    """
+    The broker's opt-out email address, from a source someone recorded:
+    the installed add-on's spec first, then an address written in the broker's
+    notes. Returns None when neither exists.
+
+    There is deliberately no guessed fallback (the old code tried
+    privacy@<name>.com): sending a member's full identifier list to an address
+    nobody has verified can hand that data to the wrong party.
+    """
+    from ..plugins.broker_addon import get_broker_spec_for_broker
+    addon_spec = get_broker_spec_for_broker(db, broker) if db else None
+    addon_email = addon_spec.email if addon_spec else None
+    if addon_email and addon_email.to_address:
+        return addon_email.to_address
+    return _extract_email_from_notes(broker.notes)
+
+
 def send_opt_out_email(
     member: FamilyMember,
     broker: Broker,
@@ -192,57 +264,52 @@ def send_opt_out_email(
     cfg: dict,
     db,
 ) -> bool:
-    ec         = cfg.get("email", {})
-    smtp_host  = ec.get("smtp_host")
-    smtp_port  = ec.get("smtp_port", 587)
-    smtp_user  = ec.get("smtp_user")
-    from ..plugins.broker_addon import get_broker_spec_for_broker
-    addon_spec = get_broker_spec_for_broker(db, broker) if db else None
-    addon_email = addon_spec.email if addon_spec else None
+    """
+    Send one exhaustive opt-out email to a single broker.
 
-    to_email = (addon_email.to_address if addon_email and addon_email.to_address else None) or \
-        _extract_email_from_notes(broker.notes) or \
-        f"privacy@{broker.name.lower().replace(' ','').rstrip('.com')}.com"
-
-    if not smtp_host or not ec.get("smtp_password_enc"):
-        log.error("SMTP not configured")
+    Goes through core.email_send.send_email, the same transport-agnostic path
+    parent-company emails use: a connected OAuth account (Gmail/Outlook/Yahoo
+    provider plugin, with token refresh) when one is configured, otherwise
+    direct SMTP. Returns True only if the send succeeded.
+    """
+    to_email = resolve_optout_address(broker, db)
+    if not to_email:
+        log.error("No verified opt-out email address for %s; not sending", broker.name)
         return False
 
     subject, body = _build_exhaustive_email(member, broker, request_key, script, db=db)
 
-    msg             = MIMEMultipart("alternative")
-    msg["Subject"]  = subject
-    msg["From"]     = f"{from_name} <{from_email}>"
-    msg["To"]       = to_email
-    msg["Reply-To"] = from_email
-    msg.attach(MIMEText(body, "plain"))
-
-    from .memory_hygiene import ephemeral_secret
+    from .email_send import send_email
+    from ..routers.email_oauth import active_account_ref
+    ec = cfg.get("email", {})
     try:
-        ctx = ssl.create_default_context()
-        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-        with smtplib.SMTP(smtp_host, smtp_port) as s:
-            if ec.get("smtp_tls", True):
-                s.starttls(context=ctx)
-            with ephemeral_secret(ec.get("smtp_password_enc")) as smtp_pw:
-                if not smtp_pw:
-                    log.error("SMTP password could not be decrypted")
-                    return False
-                s.login(smtp_user, smtp_pw)
-            s.sendmail(from_email, [to_email], msg.as_string())
+        result = send_email(
+            cfg, to=[to_email], cc=[], subject=subject, body=body,
+            account_ref=active_account_ref(cfg),
+            from_address=ec.get("from_address", ""),
+        )
+    except Exception as e:
+        log.error("Email send failed for %s: %s", broker.name, type(e).__name__)
+        return False
 
+    if not result.get("ok"):
+        log.error("Email send failed for %s via %s: %s", broker.name,
+                  result.get("via", "?"), result.get("error") or "unknown error")
+        return False
+
+    try:
         db.add(EmailLog(
             request_id=None, direction="sent",
             subject=subject, body_snippet=body[:500],
             matched_key=request_key,
         ))
         db.commit()
-        log.info(f"Email opt-out sent: {broker.name} (member_id={member.id})")
-        return True
-
     except Exception as e:
-        log.error(f"SMTP send failed for {broker.name}: {e}")
-        return False
+        db.rollback()
+        log.warning("Email to %s sent but log write failed (%s); continuing", broker.name, e)
+    log.info("Email opt-out sent via %s: %s (member_id=%s)",
+             result.get("via", "?"), broker.name, member.id)
+    return True
 
 
 def _member_identifiers(member):
@@ -646,9 +713,24 @@ async def execute_optout(
     successes = 0
     failures  = 0
     last_error = ""   # captured for broker-health failure classification
+    needs_human = ""  # plain-language instruction when a person must finish this
 
     try:
-        if broker.method == OptOutMethod.email:
+        if broker.method == OptOutMethod.email and not resolve_optout_address(broker, db):
+            # No recorded address to send to. This is missing data, not a broken
+            # broker, so it goes on the checklist instead of counting as a failure.
+            needs_human = (f"We don't have a confirmed opt-out email address for {broker.name}. "
+                           f"Find it on their privacy page"
+                           + (f" ({broker.opt_out_url})" if broker.opt_out_url else "")
+                           + " and add it to this broker, or send the request yourself.")
+            db.add(AutomationLog(
+                request_id=request.id, member_id=member.id, broker_id=broker.id,
+                action="email_send", status="needs_manual",
+                detail="No verified opt-out email address on record",
+                duration_ms=0,
+            ))
+
+        elif broker.method == OptOutMethod.email:
             # Single exhaustive email covering all variants
             ok = send_opt_out_email(member, broker, key, script, cfg, db)
             if ok: successes += 1
@@ -725,10 +807,24 @@ async def execute_optout(
 
                         request.notes = f"Paused for human CAPTCHA resolution ({ch.get('type', 'other')})"
 
+                    # A spec's pause_for_human step: the flow reached a point
+                    # only a person can do (pick their listing, answer a phone
+                    # call). Not a failure — it becomes a checklist item.
+                    human_pause = (interp_res.needs_manual and not ok
+                                   and not interp_res.needs_captcha)
+                    if human_pause:
+                        failures -= 1
+                        needs_human = interp_res.human_instruction or (
+                            f"Finish the opt-out for {broker.name} yourself"
+                            + (f" at {broker.opt_out_url}" if broker.opt_out_url else "") + ".")
+
                     db.add(AutomationLog(
                         request_id=request.id, member_id=member.id, broker_id=broker.id,
-                        action="captcha_blocked" if interp_res.needs_captcha else "form_fill",
-                        status="captcha" if interp_res.needs_captcha else ("success" if ok else "failure"),
+                        action=("captcha_blocked" if interp_res.needs_captcha
+                                else "human_step" if human_pause else "form_fill"),
+                        status=("captcha" if interp_res.needs_captcha
+                                else "needs_manual" if human_pause
+                                else ("success" if ok else "failure")),
                         detail=f"[interpreter] {combo.label()}: {detail}",
                         screenshot=screenshot_path,
                         duration_ms=int((time.monotonic() - start) * 1000),
@@ -737,6 +833,9 @@ async def execute_optout(
 
                     if interp_res.needs_captcha:
                         log.warning(f"CAPTCHA on {broker.name} — pausing execution for human")
+                        break
+                    if human_pause:
+                        log.info("%s needs a person to finish — added to checklist", broker.name)
                         break
 
                     delay = cfg.get("automation", {}).get("inter_submission_delay_seconds", 1.5)
@@ -767,6 +866,9 @@ async def execute_optout(
     elif "captcha" in (last_error or "").lower():
         # Keep in pending status with paused note so operator can resolve challenge
         request.status = RequestStatus.pending
+    elif needs_human:
+        request.status = RequestStatus.needs_manual
+        request.notes = needs_human
     else:
         request.status = RequestStatus.failed
 
@@ -780,6 +882,8 @@ async def execute_optout(
         from .broker_health import record_success, record_failure
         if successes > 0:
             record_success(db, broker.id)
+        elif needs_human and failures <= 0:
+            pass  # waiting on a person is not a broker malfunction
         else:
             record_failure(db, broker.id, detail=last_error or "opt-out failed")
     except Exception as e:

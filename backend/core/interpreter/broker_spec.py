@@ -51,6 +51,32 @@ STEP_KINDS = {
     "submit",         # submit the form
     "expect_success", # assert a success signal (selector/text) to confirm the opt-out
     "solve_captcha",  # hand off to the CAPTCHA layer (roadmap item 4)
+    "pause_for_human",# stop here; a person finishes the rest (pick a listing,
+                      # answer a phone call). With a selector, pause only if it
+                      # is on the page. `text` is the plain-language instruction.
+}
+
+# Privacy laws a spec may cite in `legal_basis`. Used for deadline tracking and
+# for choosing which statute an opt-out request cites.
+LEGAL_BASES = {
+    "ccpa", "cpra",           # California
+    "gdpr", "uk_gdpr",        # EU / UK
+    "vcdpa", "cpa", "ctdpa", "ucpa", "tdpsa", "ocpa", "mcdpa",  # other US states
+    "pipeda",                 # Canada
+}
+
+# What a person may have to do or provide for this broker. These become
+# checklist labels, so a family can see up front what each opt-out will ask of
+# them, and they let the engine plan around limits.
+REQUIREMENTS = {
+    "email_confirmation",   # broker emails a link that must be clicked
+    "listing_url",          # the URL of the person's own listing is required
+    "listing_selection",    # a person must pick their listing from results
+    "phone_call",           # broker calls with a code (BADBOOL 📞)
+    "government_id",        # ID upload (BADBOOL 🎫) — redact the number
+    "account",              # an account must be created
+    "payment",              # access or removal costs money (BADBOOL 💰)
+    "postal_mail",          # request must be mailed or faxed
 }
 
 
@@ -108,6 +134,8 @@ class Step:
             errs.append(f"{self.kind} step requires a selector")
         if self.kind == "expect_success" and not (self.selector or self.text):
             errs.append("expect_success requires a selector or text to look for")
+        if self.kind == "pause_for_human" and not self.text:
+            errs.append("pause_for_human requires text: the instruction shown to the person")
         if self.timeout_ms < 0 or self.timeout_ms > 120_000:
             errs.append("timeout_ms out of range (0–120000)")
         return errs
@@ -158,6 +186,28 @@ class BrokerSpec:
     # Free-form notes for humans (never executed).
     notes: str = ""
 
+    # ── Metadata (all optional; older specs without these stay valid) ──────
+    # Which privacy laws apply, and how many days the broker has to respond.
+    # Together these give a "response due" date for each request.
+    legal_basis: list[str] = field(default_factory=list)
+    statutory_response_days: int = 0          # 0 = unknown
+    # Where a member's listing can be searched, for checking removal later.
+    # `{first_name}`, `{last_name}`, `{state}`, `{city}` are filled in.
+    # `listing_pattern` is a regular expression a listing page or result
+    # link matches; together they let verification say "still listed".
+    search_url: str = ""
+    listing_pattern: str = ""
+    # The broker accepts only one opt-out per email address, so a second
+    # listing for the same person needs a different address.
+    one_optout_per_email: bool = False
+    # What the person may have to do (see REQUIREMENTS).
+    requires: list[str] = field(default_factory=list)
+    # Provenance. Every spec records where its opt-out details came from and
+    # the date someone last confirmed the flow works against the live site
+    # (YYYY-MM-DD; empty means "never confirmed by us").
+    source: str = ""
+    last_verified: str = ""
+
     def validate(self) -> list[str]:
         """Return a list of validation errors; empty means the spec is well-formed."""
         errs = []
@@ -184,7 +234,46 @@ class BrokerSpec:
             else:
                 errs.extend(f"email: {e}" for e in self.email.validate())
         # manual method needs nothing more — it just queues for a human.
+
+        for b in self.legal_basis:
+            if b.lower() not in LEGAL_BASES:
+                errs.append(f"unknown legal_basis: {b} (known: {', '.join(sorted(LEGAL_BASES))})")
+        if self.statutory_response_days < 0 or self.statutory_response_days > 365:
+            errs.append("statutory_response_days must be between 0 and 365")
+        for r in self.requires:
+            if r not in REQUIREMENTS:
+                errs.append(f"unknown requires entry: {r} (known: {', '.join(sorted(REQUIREMENTS))})")
+        if self.search_url and not self.search_url.startswith("https://"):
+            errs.append("search_url must start with https://")
+        if self.listing_pattern:
+            import re
+            try:
+                re.compile(self.listing_pattern)
+            except re.error as e:
+                errs.append(f"listing_pattern is not a valid regular expression: {e}")
+            if not self.search_url:
+                errs.append("listing_pattern needs a search_url to check against")
+        if self.last_verified:
+            from datetime import date
+            try:
+                date.fromisoformat(self.last_verified)
+            except ValueError:
+                errs.append("last_verified must be a date written YYYY-MM-DD")
         return errs
+
+    def response_due(self, sent_at):
+        """
+        When the broker's legal response window closes for a request sent at
+        `sent_at` (a date or datetime), or None if the spec doesn't say.
+        """
+        if not self.statutory_response_days or sent_at is None:
+            return None
+        from datetime import timedelta
+        return sent_at + timedelta(days=self.statutory_response_days)
+
+    def can_verify(self) -> bool:
+        """True if removal can be checked automatically by searching the broker."""
+        return bool(self.search_url and self.listing_pattern)
 
     # ---- (de)serialization ----
 
@@ -215,6 +304,16 @@ class BrokerSpec:
             success_selector=d.get("success_selector", ""),
             success_text=d.get("success_text", ""),
             notes=d.get("notes", ""),
+            legal_basis=[str(x).lower() if isinstance(x, str) else x
+                         for x in d.get("legal_basis", [])] if isinstance(d.get("legal_basis", []), list)
+                        else d.get("legal_basis"),
+            statutory_response_days=d.get("statutory_response_days", 0),
+            search_url=d.get("search_url", ""),
+            listing_pattern=d.get("listing_pattern", ""),
+            one_optout_per_email=d.get("one_optout_per_email", False),
+            requires=d.get("requires", []),
+            source=d.get("source", ""),
+            last_verified=d.get("last_verified", "") or "",
         )
         _require_types(spec, "spec")
         return spec
@@ -226,6 +325,11 @@ class BrokerSpec:
             "success_selector": self.success_selector, "success_text": self.success_text,
             "notes": self.notes,
         }
+        for k in ("legal_basis", "statutory_response_days", "search_url", "listing_pattern",
+                  "one_optout_per_email", "requires", "source", "last_verified"):
+            v = getattr(self, k)
+            if v not in ("", 0, False, []):
+                out[k] = v
         if self.method == "form":
             out["steps"] = [
                 {k: getattr(s, k) for k in Step.__dataclass_fields__ if getattr(s, k) not in ("", 0, False)}

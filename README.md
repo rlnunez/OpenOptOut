@@ -94,6 +94,8 @@ Comprehensive architectural specifications and deployment guides:
 | [`docs/MISSION.md`](docs/MISSION.md) | Mission statement, library advocacy notes, and Article VII Library Bill of Rights context |
 | [`docs/LEGISLATION.md`](docs/LEGISLATION.md) | Plain-language advocacy guide and policy principles for comprehensive data-broker legislation |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Comprehensive item-by-item architectural roadmap and implementation status |
+| [`broker-plugins/README.md`](broker-plugins/README.md) | One-folder-per-broker plugins, spec fields, and the validate/package tools |
+| [`CREDITS.md`](CREDITS.md) | The open-source projects and volunteer lists OpenOptOut learns from, and how each is used |
 
 ---
 
@@ -101,7 +103,7 @@ Comprehensive architectural specifications and deployment guides:
 
 We welcome community contributions, particularly:
 - **Security & Architectural Reviews** — Review our sandboxing, cryptography, and auth architecture (see [`CONTRIBUTING.md`](CONTRIBUTING.md)).
-- **Broker Selectors & Plugins** — Map new broker form selectors or build gRPC plugins to expand coverage.
+- **Broker Selectors & Plugins** — Map new broker form selectors or build gRPC plugins to expand coverage (see [`broker-plugins/README.md`](broker-plugins/README.md)).
 - **Accessibility Enhancements** — Verify workflows with screen readers and assistive devices (see [`ACCESSIBILITY.md`](ACCESSIBILITY.md)).
 - **Bug Reports & Test Cases** — Help strengthen reliability across platforms.
 
@@ -114,5 +116,7 @@ All community members and contributors are expected to uphold our [`CODE_OF_COND
 **GNU Affero General Public License v3.0 (AGPL-3.0).** Copyright © 2026 Robert Nunez.
 
 You are free to use, study, modify, and self-host this software. If you run a modified version as a network service, you must make your modified source code available to users of that service. See [`LICENSE`](LICENSE) for the complete license terms.
+
+OpenOptOut builds on the work of volunteers and other open-source projects. See [`CREDITS.md`](CREDITS.md) for who they are and how their work is used.
 
 *Disclaimer: OpenOptOut submits opt-out requests on your behalf but cannot guarantee compliance from third-party data brokers. Re-check your listings periodically. OpenOptOut is not a legal service and does not provide legal advice.*

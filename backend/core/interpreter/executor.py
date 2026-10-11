@@ -34,6 +34,7 @@ class ExecResult:
     needs_manual: bool = False      # broker requires human action
     trace: list[str] = field(default_factory=list)   # human-readable per-step log
     challenge: Optional[dict] = None  # challenge metadata for human/solver path (type, site_key, page_url, etc.)
+    human_instruction: str = ""     # what the person must do, when a pause_for_human step stopped the flow
 
     def to_dict(self) -> dict:
         d = {
@@ -47,6 +48,8 @@ class ExecResult:
         }
         if self.challenge is not None:
             d["challenge"] = dict(self.challenge)
+        if self.human_instruction:
+            d["human_instruction"] = self.human_instruction
         return d
 
     @classmethod
@@ -60,6 +63,7 @@ class ExecResult:
             needs_manual=bool(d.get("needs_manual", False)),
             trace=list(d.get("trace", [])),
             challenge=dict(d["challenge"]) if d.get("challenge") is not None else None,
+            human_instruction=str(d.get("human_instruction", "")),
         )
 
 
@@ -105,6 +109,11 @@ class DryRunExecutor(JobExecutor):
                                   needs_captcha=True,
                                   detail="paused for CAPTCHA (handoff not yet wired)",
                                   trace=trace)
+            if s.kind == "pause_for_human" and not s.selector:
+                trace.append(f"[{i}] pause_for_human -> {s.text}")
+                return ExecResult(ok=False, steps_run=i, steps_total=total,
+                                  needs_manual=True, human_instruction=s.text,
+                                  detail="paused for a person to finish", trace=trace)
             trace.append(self._describe(i, s))
         return ExecResult(ok=True, steps_run=total, steps_total=total,
                           detail="dry run complete — all steps coherent", trace=trace)
@@ -134,6 +143,8 @@ class DryRunExecutor(JobExecutor):
             return f"[{i}] scroll {s.selector or 'window'}"
         if s.kind == "expect_success":
             return f"[{i}] expect_success {s.selector or s.text!r}"
+        if s.kind == "pause_for_human":
+            return f"[{i}] pause_for_human if {s.selector} present -> {s.text}"
         return f"[{i}] {s.kind}"
 
 
@@ -258,6 +269,14 @@ class PlaywrightExecutor(JobExecutor):
 
         total = len(job.steps)
         for i, s in enumerate(job.steps):
+            if s.kind == "pause_for_human":
+                if await self._should_pause_for_human(s):
+                    trace.append(f"[{i}] pause_for_human -> {s.text}")
+                    return ExecResult(ok=False, steps_run=i, steps_total=total,
+                                      needs_manual=True, human_instruction=s.text,
+                                      detail="paused for a person to finish", trace=trace)
+                trace.append(f"[{i}] pause_for_human skipped ({s.selector} not on page)")
+                continue
             try:
                 paused = await self._run_step(s, trace, i)
                 if paused:
@@ -399,6 +418,19 @@ class PlaywrightExecutor(JobExecutor):
 
         trace.append(f"[{i}] {s.kind} {s.selector or s.url}".rstrip())
         return False
+
+    async def _should_pause_for_human(self, s: JobStep) -> bool:
+        """A pause_for_human step always pauses, unless it names a selector,
+        in which case it pauses only when that element is on the page."""
+        if not s.selector:
+            return True
+        try:
+            target = self._target()
+            el = await target.query_selector(s.selector) if hasattr(target, "query_selector") \
+                else await target.locator(s.selector).count()
+            return bool(el)
+        except Exception:
+            return True   # can't tell — safer to hand it to a person
 
     async def _detect_challenge(self, selector: str) -> dict:
         """Gather what we can about the CAPTCHA for the solver hook."""
