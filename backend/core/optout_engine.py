@@ -265,29 +265,34 @@ def send_opt_out_email(
     db,
 ) -> bool:
     """
-    Send one exhaustive opt-out email to a single broker.
+    Send one exhaustive opt-out email to a single broker, FROM the member's own
+    inbox (core/mailboxes.resolve_mailbox), with Reply-To set to this opt-out's
+    own contact address (a unique +address when the inbox supports it). The
+    system inbox is never used for opt-outs.
 
-    Goes through core.email_send.send_email, the same transport-agnostic path
-    parent-company emails use: a connected OAuth account (Gmail/Outlook/Yahoo
-    provider plugin, with token refresh) when one is configured, otherwise
-    direct SMTP. Returns True only if the send succeeded.
+    Goes through core.email_send.send_email (provider plugin with OAuth token
+    refresh, or SMTP for app-password inboxes). Returns True only on success.
     """
+    from . import mailboxes as mbx
     to_email = resolve_optout_address(broker, db)
     if not to_email:
         log.error("No verified opt-out email address for %s; not sending", broker.name)
         return False
+    mailbox = mbx.resolve_mailbox(db, member)
+    if mailbox is None:
+        log.error("No inbox for member_id=%s; not sending %s opt-out", member.id, broker.name)
+        return False
+
+    contact, reason = mbx.issue_contact_address(db, mailbox, member, broker=broker,
+                                                request_key=request_key)
+    if contact is None:
+        log.info("Not sending %s opt-out for member_id=%s: %s", broker.name, member.id, reason)
+        return False
 
     subject, body = _build_exhaustive_email(member, broker, request_key, script, db=db)
-
-    from .email_send import send_email
-    from ..routers.email_oauth import active_account_ref
-    ec = cfg.get("email", {})
     try:
-        result = send_email(
-            cfg, to=[to_email], cc=[], subject=subject, body=body,
-            account_ref=active_account_ref(cfg),
-            from_address=ec.get("from_address", ""),
-        )
+        result = mbx.send_from_mailbox(cfg, mailbox, [to_email], subject, body,
+                                       reply_to=contact.address)
     except Exception as e:
         log.error("Email send failed for %s: %s", broker.name, type(e).__name__)
         return False
@@ -307,8 +312,8 @@ def send_opt_out_email(
     except Exception as e:
         db.rollback()
         log.warning("Email to %s sent but log write failed (%s); continuing", broker.name, e)
-    log.info("Email opt-out sent via %s: %s (member_id=%s)",
-             result.get("via", "?"), broker.name, member.id)
+    log.info("Email opt-out sent via %s from mailbox_id=%s: %s (member_id=%s)",
+             result.get("via", "?"), mailbox.id, broker.name, member.id)
     return True
 
 
@@ -395,14 +400,32 @@ def send_parent_optout_detailed(member, parent, cfg, db, discovered_urls=None,
     detail.update({"cc": list(composed.cc), "subject": subject,
                    "child_sites": len(child_sites)})
 
-    # Transport-agnostic send (provider plugin w/ auto-refresh, or SMTP fallback).
-    from ..routers.email_oauth import active_account_ref
-    result = send_email(
-        cfg, to=[composed.to], cc=list(composed.cc),
-        subject=subject, body=composed.body,
-        account_ref=active_account_ref(cfg),
-        from_address=ec.get("from_address", ""),
-    )
+    # Opt-outs go out from the member's own inbox, with Reply-To set to a
+    # contact address made for this email. Only the admin's test broker may
+    # fall back to the system inbox (it tests the transport, not a family).
+    from . import mailboxes as mbx
+    mailbox = mbx.resolve_mailbox(db, member) if getattr(member, "id", None) else None
+    if mailbox is not None:
+        contact, reason = mbx.issue_contact_address(db, mailbox, member, parent=parent,
+                                                    request_key=request_key)
+        if contact is None:
+            detail.update({"error": reason, "needs_mailbox": True})
+            return detail
+        detail["reply_to"] = contact.address
+        result = mbx.send_from_mailbox(cfg, mailbox, [composed.to], subject, composed.body,
+                                       reply_to=contact.address, cc=list(composed.cc))
+    elif getattr(parent, "is_test", False):
+        from ..routers.email_oauth import active_account_ref
+        result = send_email(
+            cfg, to=[composed.to], cc=list(composed.cc),
+            subject=subject, body=composed.body,
+            account_ref=active_account_ref(cfg),
+            from_address=ec.get("from_address", ""),
+        )
+    else:
+        detail.update({"error": mbx.missing_mailbox_instruction(member), "needs_mailbox": True})
+        log.info("Parent opt-out to %s skipped: member_id=%s has no inbox", parent.name, member.id)
+        return detail   # not a parent failure — nothing was sent
     detail["via"] = result.get("via", "")
     if result.get("ok"):
         detail["ok"] = True
@@ -557,6 +580,8 @@ def process_pending_parent_company_optouts(
                 sent_emails += 1
                 covered_requests += len(req_list)
                 covered_ids.extend([r.id for r in req_list])
+            elif res.get("needs_mailbox"):
+                pass   # left pending; the per-broker pass puts it on the checklist
             else:
                 errors.append(f"Parent '{parent.name}' for {member.full_name}: {res.get('error')}")
         except Exception as e:
@@ -635,6 +660,27 @@ async def _run_form_via_interpreter(
             "zip": p.get("zip", ""),
         }
 
+    # The address the broker should write back to for THIS submission.
+    # Issued only when the spec asks for it, so no unused addresses pile up.
+    if any(s.field == "contact_email" for s in (spec.steps or [])):
+        from . import mailboxes as mbx
+        mailbox = mbx.resolve_mailbox(db, member)
+        if mailbox is None:
+            from .interpreter.executor import ExecResult
+            return ExecResult(ok=False, needs_manual=True,
+                              human_instruction=mbx.missing_mailbox_instruction(member),
+                              detail="no inbox for this member")
+        contact, reason = mbx.issue_contact_address(
+            db, mailbox, member, broker=broker, request_key=request.request_key or "",
+            combo_label=combo.label() if combo else "",
+            one_optout_per_email=bool(getattr(spec, "one_optout_per_email", False)))
+        if contact is None:
+            from .interpreter.executor import ExecResult
+            return ExecResult(ok=False, needs_manual=True, human_instruction=reason,
+                              detail="no unused email address for this broker")
+        member_fields["contact_email"] = contact.address
+        db.commit()
+
     job = compile_job(spec, member_fields, member_id=str(member.id))
 
     # Wire the plugin manager's dispatchers into the executor so the CAPTCHA
@@ -709,14 +755,27 @@ async def execute_optout(
     broker = request.broker
     script = db.query(BrokerScript).filter(BrokerScript.broker_id == broker.id).first()
     key    = request.request_key or str(uuid.uuid4())
+    request.request_key = key   # set now: contact addresses issued below record it
 
     successes = 0
     failures  = 0
     last_error = ""   # captured for broker-health failure classification
     needs_human = ""  # plain-language instruction when a person must finish this
 
+    from . import mailboxes as _mbx
     try:
-        if broker.method == OptOutMethod.email and not resolve_optout_address(broker, db):
+        if broker.method in (OptOutMethod.email, OptOutMethod.form) \
+                and _mbx.resolve_mailbox(db, member) is None:
+            # Opt-outs are sent from, and answered at, the member's own inbox.
+            # Without one there is nowhere for confirmations to go.
+            needs_human = _mbx.missing_mailbox_instruction(member)
+            db.add(AutomationLog(
+                request_id=request.id, member_id=member.id, broker_id=broker.id,
+                action="mailbox_check", status="needs_manual",
+                detail="No connected email inbox for this member", duration_ms=0,
+            ))
+
+        elif broker.method == OptOutMethod.email and not resolve_optout_address(broker, db):
             # No recorded address to send to. This is missing data, not a broken
             # broker, so it goes on the checklist instead of counting as a failure.
             needs_human = (f"We don't have a confirmed opt-out email address for {broker.name}. "

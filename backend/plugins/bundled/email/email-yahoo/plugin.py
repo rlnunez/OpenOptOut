@@ -127,6 +127,9 @@ def _send_oauth(creds, to, cc, req):
     if cc:
         msg["Cc"] = ", ".join(cc)
     msg["Subject"] = req.get("subject", "")
+    reply_to = (req.get("meta") or {}).get("reply_to", "")
+    if reply_to:
+        msg["Reply-To"] = reply_to     # host-supplied; not a recipient
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
     try:
         r = requests.post(
@@ -153,6 +156,9 @@ def _send_smtp(creds, to, cc, req):
     if cc:
         msg["Cc"] = ", ".join(cc)
     msg["Subject"] = req.get("subject", "")
+    reply_to = (req.get("meta") or {}).get("reply_to", "")
+    if reply_to:
+        msg["Reply-To"] = reply_to     # host-supplied; not a recipient
     recipients = to + cc
     try:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=25) as s:
@@ -197,6 +203,7 @@ def _list_oauth(creds, req):
             out.append({
                 "message_id": m.get("id", ""),
                 "from": (m.get("from", {}) or {}).get("email", ""),
+                "to": ", ".join((t or {}).get("email", "") for t in (m.get("to") or [])),
                 "subject": m.get("subject", ""),
                 "snippet": m.get("snippet", ""),
                 "received_ts": int(m.get("receivedDate", 0)),
@@ -230,6 +237,7 @@ def _list_imap(creds, req):
             out.append({
                 "message_id": (hdr.get("Message-ID") or i.decode()).strip("<>"),
                 "from": hdr.get("From", ""),
+                "to": ", ".join(filter(None, [hdr.get("To", ""), hdr.get("Delivered-To", "")])),
                 "subject": hdr.get("Subject", ""),
                 "snippet": "",
                 "received_ts": ts,

@@ -16,6 +16,10 @@ log = logging.getLogger(__name__)
 
 MIGRATIONS = [
     (
+        "Add mailbox_id to family_members",
+        "ALTER TABLE family_members ADD COLUMN mailbox_id INTEGER"
+    ),
+    (
         "Add formal_name to family_members",
         "ALTER TABLE family_members ADD COLUMN formal_name VARCHAR"
     ),

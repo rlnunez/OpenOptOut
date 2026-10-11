@@ -82,7 +82,8 @@ Comprehensive architectural specifications and deployment guides:
 | [`docs/HTTPS.md`](docs/HTTPS.md) | Production HTTPS setup: built-in Caddy/Traefik front door, Cloudflare DNS/Tunnel, InCommon, and reverse proxies |
 | [`docs/SSO.md`](docs/SSO.md) | Single sign-on integration: OIDC, SAML 2.0, Active Directory / LDAP, and library card (SIP2/SIP2S) logins |
 | [`docs/DATABASE.md`](docs/DATABASE.md) | PostgreSQL scaling, enterprise auth (mTLS, IAM, Kerberos), SQLite migration, and SQLCipher encryption at rest |
-| [`docs/EMAIL_SETUP.md`](docs/EMAIL_SETUP.md) | Dedicated removal inbox integration: OAuth 2.0 (Gmail/Outlook), App Passwords, and IMAP/SMTP setup |
+| [`docs/EMAIL_SETUP.md`](docs/EMAIL_SETUP.md) | System notification inbox vs. family inboxes, one address per opt-out (+addresses), OAuth and app-password setup |
+| [`docs/BUILTIN_INBOX.md`](docs/BUILTIN_INBOX.md) | Proposal: a built-in receive-only inbox that gives every opt-out its own address on a family-owned domain |
 | [`docs/ROLES.md`](docs/ROLES.md) | Role-based access control (RBAC): Super Admin, Admin, Manager, Parent, and Member permission boundaries |
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Local developer environment setup, Playwright browser dependencies, and unit test execution |
 | [`docs/NATIVE_INSTALL.md`](docs/NATIVE_INSTALL.md) | Container-free production deployment (systemd + nginx on Linux, Windows Service + IIS on Windows) |

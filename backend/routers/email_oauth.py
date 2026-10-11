@@ -212,6 +212,10 @@ def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(Non
         return _html_resp("<p>Token exchange failed. Please verify provider settings and try again.</p>", status_code=400)
 
     oe.store_tokens(s, pending.account_ref, tokens)
+    if pending.account_ref.startswith("mbx-"):
+        # A family member's own inbox (routers/mailboxes.py), not the system one.
+        _save(s)
+        return _finish_member_inbox(db, pending.account_ref, s)
     # Keep settings["email"]["provider"] in sync with whichever account is
     # actually active — that field is what send_email() checks to decide
     # whether to even ATTEMPT the provider path at all. Without this, an
@@ -229,6 +233,28 @@ def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(Non
         "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;"
         "padding:2rem'><h2>✓ Email account connected</h2>"
         "<p>You can close this window and return to OpenOptOut.</p></body></html>")
+
+
+def _finish_member_inbox(db, account_ref: str, settings: dict) -> HTMLResponse:
+    from ..models.database import Mailbox
+    from ..core import mailboxes as mbx
+    mb = db.query(Mailbox).filter(Mailbox.account_ref == account_ref).first()
+    if not mb:
+        return _html_resp("<p>That inbox was removed before sign-in finished.</p>", status_code=400)
+    mb.status = "connected"
+    mb.status_detail = None
+    db.commit()
+    note = "Opt-outs will be sent from this inbox."
+    if mb.plus_status == "unknown":
+        res = mbx.start_plus_check(db, settings, mb)
+        if res.get("sent"):
+            note = ("We sent a test email to check whether it accepts +addresses; "
+                    "you can delete it when it arrives.")
+    return _html_resp(
+        "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;"
+        "padding:2rem'><h2>✓ Inbox connected</h2>"
+        f"<p>{html.escape(note)}</p><p>You can close this window and return to OpenOptOut.</p>"
+        "</body></html>")
 
 
 # ── Status ────────────────────────────────────────────────────────────────────

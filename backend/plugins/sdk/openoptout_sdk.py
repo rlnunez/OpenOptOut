@@ -663,6 +663,7 @@ class _PluginServicer:
                 message_id=m.get("message_id", ""),
                 subject=m.get("subject", ""), snippet=m.get("snippet", ""),
                 received_ts=int(m.get("received_ts", 0)),
+                to=m.get("to", ""),
             )
             setattr(im, "from", m.get("from", ""))  # 'from' is a Python keyword
             msgs.append(im)

@@ -17,6 +17,7 @@ broker-plugins/
 - `spec.name` matches the broker's name in the app, so installing updates it instead of creating a duplicate.
 - `spec.source` says where the opt-out details came from. `spec.last_verified` is the date someone last ran the flow against the live site (`YYYY-MM-DD`), or empty if nobody has yet.
 - Bump `manifest.version` on every change.
+- Use the field `contact_email` for "where should we send your confirmation" boxes. It fills in a unique address for that one opt-out (`jane+oo7f3k2a9@gmail.com` on inboxes that allow it), so the reply is matched to its request. Use `email` only when the form wants an address to remove.
 - Any point where a person has to take over (pick a listing, answer a phone call) is a `pause_for_human` step whose `text` tells them, in plain words, exactly what to do.
 - Don't copy another project's wording. Facts (URLs, selectors, which fields a form needs) are fine; credit the source in `source` and in [CREDITS.md](../CREDITS.md).
 

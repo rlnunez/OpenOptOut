@@ -97,6 +97,9 @@ def send(req):
     if cc:
         msg["Cc"] = ", ".join(cc)
     msg["Subject"] = req.get("subject", "")
+    reply_to = (req.get("meta") or {}).get("reply_to", "")
+    if reply_to:
+        msg["Reply-To"] = reply_to     # host-supplied; not a recipient
     recipients = to + cc           # explicit list = host-supplied only
 
     try:
@@ -155,6 +158,7 @@ def list_messages(req):
             out.append({
                 "message_id": (hdr.get("Message-ID") or i.decode()).strip("<>"),
                 "from": hdr.get("From", ""),
+                "to": ", ".join(filter(None, [hdr.get("To", ""), hdr.get("Delivered-To", "")])),
                 "subject": hdr.get("Subject", ""),
                 "snippet": "",
                 "received_ts": ts,

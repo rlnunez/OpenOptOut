@@ -980,6 +980,39 @@ class PluginManager:
                     "sent_to": list(resp.sent_to), "error": resp.error, "plugin_id": pid}
         return None
 
+    def dispatch_email_list(self, provider_key: str, account_ref: str,
+                            max_results: int = 50, since_ts: int = 0) -> Optional[dict]:
+        """
+        Ask the matching email-provider plugin for recent inbound messages
+        (headers and a short snippet, never full bodies). Returns
+        {"ok", "messages": [{message_id, from, to, subject, snippet, received_ts}], "error"},
+        or None if no running plugin provides `provider_key`.
+        """
+        for pid, rp in list(self.running.items()):
+            if "email_provider" not in rp.manifest.hooks:
+                continue
+            try:
+                info = rp.stub.EmailProviderInfo(_pb.EmailProviderInfoRequest(),
+                                                 timeout=rp.manifest.timeout_seconds)
+                if info.provider_key != provider_key:
+                    continue
+            except Exception:
+                continue
+            req = _pb.EmailProviderListRequest(account_ref=account_ref,
+                                               max_results=int(max_results),
+                                               since_ts=int(since_ts))
+            try:
+                resp = rp.stub.EmailProviderList(req, timeout=rp.manifest.timeout_seconds)
+            except Exception as e:
+                log.warning("email_list dispatch to %s failed: %s", pid, e)
+                return {"ok": False, "messages": [], "error": str(e)}
+            msgs = [{"message_id": m.message_id, "from": getattr(m, "from"),
+                     "to": getattr(m, "to", ""), "subject": m.subject,
+                     "snippet": m.snippet, "received_ts": m.received_ts}
+                    for m in resp.messages]
+            return {"ok": resp.ok, "messages": msgs, "error": resp.error}
+        return None
+
     def dispatch_parse_email(self, email: dict, tracking_keys: list) -> Optional[dict]:
         for pid, rp in list(self.running.items()):
             if "parse_email" not in rp.manifest.hooks:

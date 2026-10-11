@@ -30,6 +30,11 @@ KNOWN_FIELDS = {
     "first_name", "last_name", "full_name", "formal_name",
     "email", "phone", "address", "city", "state", "zip",
     "age", "dob", "relatives",
+    # Where the broker should send its reply/confirmation for THIS submission:
+    # a unique +address on the member's inbox when it supports one. Use this,
+    # not `email`, for "email address for confirmation" fields. `email` is an
+    # address the member wants removed.
+    "contact_email",
 }
 
 # Primitive step kinds an add-on can request in a form flow. The compiler maps

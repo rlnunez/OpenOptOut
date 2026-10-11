@@ -85,6 +85,9 @@ def send(req):
         },
         "saveToSentItems": True,
     }
+    reply_to = (req.get("meta") or {}).get("reply_to", "")
+    if reply_to:   # host-supplied; not a recipient
+        message["message"]["replyTo"] = [{"emailAddress": {"address": reply_to}}]
     try:
         r = requests.post(f"{_GRAPH}/me/sendMail",
                           headers={"Authorization": f"Bearer {token}",
@@ -111,7 +114,7 @@ def list_messages(req):
     try:
         r = requests.get(
             f"{_GRAPH}/me/messages?$top={top}"
-            f"&$select=id,from,subject,bodyPreview,receivedDateTime",
+            f"&$select=id,from,toRecipients,subject,bodyPreview,receivedDateTime",
             headers={"Authorization": f"Bearer {token}"}, timeout=25)
         if r.status_code != 200:
             return {"ok": False, "error": f"Graph messages {r.status_code}: {r.text[:200]}"}
@@ -125,7 +128,9 @@ def list_messages(req):
                     m.get("receivedDateTime", "").replace("Z", "+00:00")).timestamp())
             except Exception:
                 pass
-            out.append({"message_id": m.get("id", ""), "from": frm,
+            to_list = ", ".join((r.get("emailAddress", {}) or {}).get("address", "")
+                                for r in (m.get("toRecipients") or []))
+            out.append({"message_id": m.get("id", ""), "from": frm, "to": to_list,
                         "subject": m.get("subject", ""),
                         "snippet": m.get("bodyPreview", ""), "received_ts": ts})
         return {"ok": True, "messages": out}

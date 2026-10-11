@@ -300,6 +300,8 @@ def delete_user(
         raise HTTPException(404, "User not found")
     _only_super_admin_touches_privileged(current_user, user.role)
     assert_user_in_scope(db, current_user, user)
+    from ..core.mailboxes import purge_for_user
+    purge_for_user(db, user.id)
     db.delete(user)
     db.commit()
 
