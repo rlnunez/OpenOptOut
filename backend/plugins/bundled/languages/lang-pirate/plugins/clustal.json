@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer Clustal. A sailor follows the steps on the checklist; OpenOptOut hands over a one-time email address an' clicks any confirmation link.",
+ "instructions": "Search clustal.org fer {full_name}, open \"view full record\", an' copy that page's address (the search result's address won't work). Open clustal.org/privacy-control, paste it, smash \"remove my info\", enter {contact_email} an' smash \"remove my info\" again. Clustal emails a link to finish; OpenOptOut clicks it fer ye. Then smash \"I've done this\"."
+}

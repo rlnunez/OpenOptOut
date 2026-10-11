@@ -1,0 +1,4 @@
+{
+ "description": "ReversePhoneLookup.com 的引导式退出，该网站按电话号码列出个人信息。一次退出即可涵盖所有已保存的号码。",
+ "instructions": "打开 https://www.reversephonelookup.com/，点击页面底部的“Do Not Sell or Share My Personal Information”。输入 {contact_email} 和以下号码之一（如果报错，只输入数字）：{all_phones}。完成机器人验证并提交；我们会点击它通过邮件发送的确认链接。对每个号码重复操作，然后点击“我已完成”。"
+}

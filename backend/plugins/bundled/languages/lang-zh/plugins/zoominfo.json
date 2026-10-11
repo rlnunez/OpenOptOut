@@ -1,0 +1,4 @@
+{
+ "description": "ZoomInfo 的引导式退出，该网站按电子邮件地址列出个人信息。一次退出即可涵盖所有已保存的地址。",
+ "instructions": "打开 https://privacy.zoominfo.com/，按你的雇主查找 {full_name}，选择条目并申请删除。用 ZoomInfo 询问的每个工作邮箱进行验证。你保存的地址：{all_emails}。然后点击“我已完成”。"
+}

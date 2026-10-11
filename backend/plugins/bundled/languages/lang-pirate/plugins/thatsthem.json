@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer That's Them. A sailor follows the steps on the checklist; OpenOptOut hands over a one-time email address an' clicks any confirmation link.",
+ "instructions": "Check thatsthem.com fer {full_name}. If ye be listed, open thatsthem.com/optout, fill in yer details as they appear on the listing, an' use {contact_email} as the email address. Don't click, matey, the identity-theft-protection offer on the page: it's a paid product. Then smash \"I've done this\"."
+}

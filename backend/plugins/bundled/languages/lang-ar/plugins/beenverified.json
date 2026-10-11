@@ -1,0 +1,4 @@
+{
+ "description": "إلغاء لدى BeenVerified (beenverified.com). يبحث عن الشخص، ثم يختار شخص صفحته؛ ويُنقر رابط التأكيد من BeenVerified تلقائيًا.",
+ "steps.7.text": "يحتاج BeenVerified أن تختار صفحتك. اذهب إلى beenverified.com/svc/optout/search وابحث عن {full_name} في {state_name}، وانقر سجلك وحُلّ الـ CAPTCHA. في نموذج الإزالة اختر «No» لسؤال الحساب، وراجع بياناتك، وأدخل {contact_email} عنوانًا للبريد. يسمح BeenVerified بإلغاء واحد لكل عنوان بريد، وهذا العنوان مخصص لهذا الإلغاء فقط. سينقر OpenOptOut رابط التأكيد الذي يرسله BeenVerified إليه."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour Whitepages. Une personne suit les étapes de la liste ; OpenOptOut fournit une adresse e-mail à usage unique et clique sur les liens de confirmation.",
+ "instructions": "Whitepages confirme par téléphone, vous devez donc faire celle-ci vous-même. Ouvrez whitepages.com/suppression-requests, collez {listing_url}, appuyez sur Next, puis « Remove Me ». Choisissez un motif, appuyez sur Next et saisissez le numéro de téléphone que Whitepages affiche pour vous. Répondez à l'appel automatique et saisissez le code donné. Quand la page indique que votre demande a été reçue, appuyez sur « C'est fait »."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Пошаговый отказ для Spy Dialer, где люди перечислены по номеру телефона. Один отказ покрывает все сохранённые номера.",
+ "instructions": "Откройте https://www.spydialer.com/ и нажмите «Do Not Sell Or Share My Personal Information» внизу страницы. Нажмите Start, выберите свой штат, пройдите проверку на робота, затем добавьте {full_name}, свой адрес, каждый из этих номеров ({all_phones}) и {email}. Нажмите «Opt-Out My Info» и дождитесь «Your submitted data has been blocked from future sharing». Затем нажмите «Я это сделал(а)»."
+}

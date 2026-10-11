@@ -1,0 +1,4 @@
+{
+ "description": "Clustal 的引导式退出。由一个人按清单步骤操作；OpenOptOut 提供一次性电子邮件地址，并自动点击确认链接。",
+ "instructions": "在 clustal.org 搜索 {full_name}，打开“view full record”，复制该页面的地址（搜索结果的地址无效）。打开 clustal.org/privacy-control，粘贴地址，点击“remove my info”，输入 {contact_email}，再点击一次“remove my info”。Clustal 会发送一个完成链接；OpenOptOut 会替你点击。然后点击“我已完成”。"
+}

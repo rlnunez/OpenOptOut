@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa USPhoneBook. Sinusunod ng isang tao ang mga hakbang sa checklist; nagbibigay ang OpenOptOut ng pang-isahang email address at kini-click nito ang anumang confirmation link.",
+ "instructions": "Hanapin ang numero ng telepono mo sa usphonebook.com. Kung nakalista ka, buksan ang usphonebook.com/opt-out at sundin ang mga hakbang, gamit ang {contact_email} kung saan humihingi ng email. Kung natigil lang ang opt-out page, mag-email sa support+optout@usphonebook.com at hilinging alisin ka. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

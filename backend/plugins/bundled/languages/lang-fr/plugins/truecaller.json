@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour Truecaller, qui répertorie les gens par numéro de téléphone. Une seule désinscription couvre tous les numéros enregistrés.",
+ "instructions": "Truecaller affiche votre nom aux personnes que vous appelez. Ouvrez https://www.truecaller.com/unlisting et retirez chacun de ces numéros, un par un, avec l'indicatif du pays : {all_phones}. Terminez la vérification anti-robot pour chacun. Si vous utilisez vous-même l'appli Truecaller, désactivez d'abord votre compte dans l'appli puis désinstallez-la, sinon le retrait ne tiendra pas. Puis appuyez sur « C'est fait »."
+}

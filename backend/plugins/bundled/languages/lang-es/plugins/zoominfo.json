@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de ZoomInfo, que publica a las personas por dirección de correo. Una sola baja cubre todas las direcciones guardadas.",
+ "instructions": "Abre https://privacy.zoominfo.com/, busca {full_name} con tu empresa, elige la ficha y pide que la eliminen. Verifica con cada correo del trabajo por el que pregunte ZoomInfo. Tus direcciones guardadas: {all_emails}. Después pulsa «Ya lo hice»."
+}

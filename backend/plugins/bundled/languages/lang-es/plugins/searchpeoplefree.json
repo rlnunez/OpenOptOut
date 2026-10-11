@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de SearchPeopleFree. Una persona sigue los pasos de la lista; OpenOptOut aporta una dirección de correo de un solo uso y hace clic en cualquier enlace de confirmación.",
+ "instructions": "Busca en searchpeoplefree.com por nombre, teléfono, dirección y correo; es habitual aparecer más de una vez. Para cada registro, usa searchpeoplefree.com/opt-out y da {contact_email} como dirección de correo. Después pulsa «Ya lo hice»."
+}

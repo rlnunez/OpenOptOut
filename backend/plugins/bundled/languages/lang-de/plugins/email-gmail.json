@@ -1,0 +1,3 @@
+{
+ "description": "Sendet Widerspruchs-E-Mails und liest Bestätigungen über die Gmail-API mit OAuth 2.0. Ein Referenz-Plugin für E-Mail-Anbieter. Vertrauenswürdige Klasse: Es sendet Kennungen der Mitglieder an Gmail und deklariert daher read_pii + network; der Host prüft es auf versteckte Empfänger und erzwingt beim Senden den tatsächlichen Empfänger."
+}

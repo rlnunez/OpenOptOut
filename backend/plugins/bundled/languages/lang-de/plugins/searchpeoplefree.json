@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei SearchPeopleFree. Eine Person folgt den Schritten der Checkliste; OpenOptOut stellt eine Einmal-E-Mail-Adresse bereit und klickt Bestätigungslinks an.",
+ "instructions": "Such auf searchpeoplefree.com nach Name, Telefonnummer, Adresse und E-Mail; Personen stehen dort oft mehrfach. Nutz für jeden Eintrag searchpeoplefree.com/opt-out und gib {contact_email} als E-Mail-Adresse an. Drück dann „Ich habe das erledigt“."
+}

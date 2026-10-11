@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no That's Them. Uma pessoa segue os passos da lista; o OpenOptOut fornece um endereço de e-mail de uso único e clica em qualquer link de confirmação.",
+ "instructions": "Procure {full_name} no thatsthem.com. Se você aparecer, abra thatsthem.com/optout, preencha seus dados como aparecem no cadastro e use {contact_email} como endereço de e-mail. Não clique na oferta de proteção contra roubo de identidade da página: é um produto pago. Depois toque em \"Já fiz isso\"."
+}

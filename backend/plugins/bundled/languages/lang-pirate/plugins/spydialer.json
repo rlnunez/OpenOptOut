@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer Spy Dialer, which lists folk by phone number. One opt-out covers every saved phone number.",
+ "instructions": "Open https://www.spydialer.com/ an' click, matey, \"Do Not Sell Or Share My Personal Information\" at the bottom. Smash Start, choose yer state, finish the robot check, then add {full_name}, yer address, each of these numbers ({all_phones}) an' {email}. Smash \"Opt-Out My Info\" an' wait fer \"Your submitted data has been blocked from future sharing\". Then smash \"I've done this\"."
+}

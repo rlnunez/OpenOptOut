@@ -1,0 +1,3 @@
+{
+ "description": "Gửi email gỡ dữ liệu và đọc thư xác nhận qua Microsoft Graph bằng OAuth 2.0. Thuộc nhóm nhà cung cấp email tin cậy; hệ thống kiểm tra người nhận ẩn và buộc dùng đúng người nhận khi gửi."
+}

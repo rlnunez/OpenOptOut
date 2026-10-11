@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de Cyber Background Checks. Una persona sigue los pasos de la lista; OpenOptOut aporta una dirección de correo de un solo uso y hace clic en cualquier enlace de confirmación.",
+ "instructions": "Busca {full_name} en cyberbackgroundchecks.com. Si apareces, abre cyberbackgroundchecks.com/removal y elimina el registro, dando {contact_email} como dirección de correo. Después pulsa «Ya lo hice»."
+}

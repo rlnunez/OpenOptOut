@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de SmartBackgroundChecks. Una persona sigue los pasos de la lista; OpenOptOut aporta una dirección de correo de un solo uso y hace clic en cualquier enlace de confirmación.",
+ "instructions": "Busca {full_name} en smartbackgroundchecks.com. Si apareces, abre smartbackgroundchecks.com/optout y elimina tu registro, usando {contact_email} donde pida un correo. Normalmente esto también te elimina de PeopleFinders. Después pulsa «Ya lo hice»."
+}

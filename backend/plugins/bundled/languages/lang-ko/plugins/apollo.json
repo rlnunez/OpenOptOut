@@ -1,0 +1,4 @@
+{
+ "description": "이메일 주소로 사람을 게시하는 Apollo.io의 안내형 거부. 한 번의 거부로 저장된 모든 이메일 주소가 처리됩니다.",
+ "instructions": "Apollo는 업무용 이메일로 사람을 등록합니다. https://www.apollo.io/privacy-policy/remove 를 열고 다음 주소를 하나씩 입력한 뒤 로봇 확인을 마치고, Apollo가 그 주소로 보낸 링크를 여세요: {all_emails}. 그런 다음 \"완료했어요\"를 누르세요."
+}

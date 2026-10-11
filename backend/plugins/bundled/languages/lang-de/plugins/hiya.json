@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei Hiya, das Personen nach Telefonnummer auflistet. Ein Widerspruch gilt für alle gespeicherten Nummern.",
+ "instructions": "Hiya liefert die Anruferkennung für viele Samsung-Telefone und Netzbetreiber-Apps. Öffne das Formular von Hiya unter https://hiyahelp.zendesk.com/hc/en-us/requests/new?ticket_form_id=33394399463699 und bitte Hiya, den angezeigten Namen für jede dieser Nummern zu entfernen: {all_phones}. Nimm {contact_email} als deine E-Mail. Drück dann „Ich habe das erledigt“."
+}

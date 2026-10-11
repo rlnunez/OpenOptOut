@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa Social Catfish. Sinusunod ng isang tao ang mga hakbang sa checklist; nagbibigay ang OpenOptOut ng pang-isahang email address at kini-click nito ang anumang confirmation link.",
+ "instructions": "Maghanap sa socialcatfish.com at isulat ang address ng bawat page na nagpapakita sa iyo. Buksan ang socialcatfish.com/opt-out, mag-scroll sa bahagi para sa pag-alis ng mga page, email, numero ng telepono at address, at hilingin lang ang mga bagay na ipinapakita na nito. Ibigay ang {contact_email} bilang email mo; magpapadala ang Social Catfish ng confirmation link na iki-click ng OpenOptOut para sa iyo. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

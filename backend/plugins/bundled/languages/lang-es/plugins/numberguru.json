@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de NumberGuru, que publica a las personas por número de teléfono. Una sola baja cubre todos los números guardados.",
+ "instructions": "Busca en https://www.numberguru.com/ cada uno de estos números: {all_phones}. En cualquier página donde aparezcas, usa el enlace «Remove This Listing» u «Opt Out» y da {contact_email} como tu correo. Después pulsa «Ya lo hice»."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour NumberGuru, qui répertorie les gens par numéro de téléphone. Une seule désinscription couvre tous les numéros enregistrés.",
+ "instructions": "Cherchez sur https://www.numberguru.com/ chacun de ces numéros : {all_phones}. Sur toute page qui vous concerne, utilisez le lien « Remove This Listing » ou « Opt Out » et donnez {contact_email} comme e-mail. Puis appuyez sur « C'est fait »."
+}

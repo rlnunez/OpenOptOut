@@ -1,0 +1,4 @@
+{
+ "description": "이메일 주소로 사람을 게시하는 Lusha의 안내형 거부. 한 번의 거부로 저장된 모든 이메일 주소가 처리됩니다.",
+ "instructions": "https://www.lusha.com/privacy-center/request-removal/ 을 열고 다음 주소와 번호를 모두 넣어 {full_name}의 삭제 요청을 보내세요: {all_emails}; {all_phones}. 답장 주소는 {contact_email}을(를) 쓰세요. 그런 다음 \"완료했어요\"를 누르세요."
+}

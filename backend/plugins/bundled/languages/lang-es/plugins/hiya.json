@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de Hiya, que publica a las personas por número de teléfono. Una sola baja cubre todos los números guardados.",
+ "instructions": "Hiya proporciona el identificador de llamadas a muchos teléfonos Samsung y apps de operadoras. Abre el formulario de Hiya en https://hiyahelp.zendesk.com/hc/en-us/requests/new?ticket_form_id=33394399463699 y pide a Hiya que quite el nombre del identificador de llamadas de cada uno de estos números: {all_phones}. Usa {contact_email} como tu correo. Después pulsa «Ya lo hice»."
+}

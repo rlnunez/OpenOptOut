@@ -1,0 +1,4 @@
+{
+ "description": "إلغاء موجَّه لدى Lusha، الذي يعرض الأشخاص حسب عنوان البريد الإلكتروني. إلغاء واحد يشمل كل العناوين المحفوظة.",
+ "instructions": "افتح https://www.lusha.com/privacy-center/request-removal/ وأرسل طلب إزالة لـ {full_name} مع كل عنوان ورقم من هذه: {all_emails}؛ {all_phones}. استخدم {contact_email} للردود. ثم اضغط «لقد أنجزت هذا»."
+}

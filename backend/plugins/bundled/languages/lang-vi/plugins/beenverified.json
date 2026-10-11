@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu trên BeenVerified (beenverified.com). Tìm người đó, rồi một người chọn hồ sơ của mình; liên kết xác nhận của BeenVerified được bấm tự động.",
+ "steps.7.text": "BeenVerified cần bạn chọn hồ sơ của mình. Vào beenverified.com/svc/optout/search, tìm {full_name} ở {state_name}, bấm vào hồ sơ của chính bạn và giải CAPTCHA. Trong biểu mẫu gỡ bỏ, chọn \"No\" ở câu hỏi có tài khoản, kiểm tra thông tin và nhập {contact_email} làm địa chỉ email. BeenVerified chỉ cho một lần gỡ mỗi địa chỉ email, và địa chỉ này chỉ dùng cho lần gỡ này. OpenOptOut sẽ bấm liên kết xác nhận mà BeenVerified gửi tới đó."
+}

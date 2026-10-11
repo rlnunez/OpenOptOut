@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa SearchPeopleFree. Sinusunod ng isang tao ang mga hakbang sa checklist; nagbibigay ang OpenOptOut ng pang-isahang email address at kini-click nito ang anumang confirmation link.",
+ "instructions": "Maghanap sa searchpeoplefree.com ayon sa pangalan, numero ng telepono, address at email; madalas na higit sa isang beses nakalista ang mga tao. Para sa bawat record, gamitin ang searchpeoplefree.com/opt-out, gamit ang {contact_email} bilang email address. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

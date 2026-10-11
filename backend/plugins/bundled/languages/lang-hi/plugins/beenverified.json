@@ -1,0 +1,4 @@
+{
+ "description": "BeenVerified (beenverified.com) के लिए ऑप्ट-आउट। व्यक्ति को खोजता है, फिर कोई अपनी लिस्टिंग चुनता है; BeenVerified का पुष्टि लिंक अपने-आप क्लिक हो जाता है।",
+ "steps.7.text": "BeenVerified के लिए आपको अपनी लिस्टिंग चुननी होगी। beenverified.com/svc/optout/search पर जाएँ, {state_name} में {full_name} खोजें, अपने रिकॉर्ड पर क्लिक करें और CAPTCHA हल करें। हटाने वाले फ़ॉर्म में खाते के सवाल पर \"No\" चुनें, अपनी जानकारी जाँचें, और ईमेल पते में {contact_email} डालें। BeenVerified हर ईमेल पते से एक ही ऑप्ट-आउट लेता है, और यह पता सिर्फ़ इसी ऑप्ट-आउट के लिए है। BeenVerified उस पर जो पुष्टि लिंक भेजेगा, उस पर OpenOptOut क्लिक करेगा।"
+}

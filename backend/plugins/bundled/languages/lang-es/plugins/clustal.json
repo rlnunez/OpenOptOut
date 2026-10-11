@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de Clustal. Una persona sigue los pasos de la lista; OpenOptOut aporta una dirección de correo de un solo uso y hace clic en cualquier enlace de confirmación.",
+ "instructions": "Busca {full_name} en clustal.org, abre «view full record» y copia la dirección de esa página (la dirección del resultado de búsqueda no sirve). Abre clustal.org/privacy-control, pégala, pulsa «remove my info», escribe {contact_email} y vuelve a pulsar «remove my info». Clustal envía un enlace para terminar; OpenOptOut lo pulsa por ti. Después pulsa «Ya lo hice»."
+}

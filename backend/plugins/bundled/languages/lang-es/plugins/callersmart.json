@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de CallerSmart, que publica a las personas por número de teléfono. Una sola baja cubre todos los números guardados.",
+ "instructions": "Abre https://www.callersmart.com/data. Para cada uno de estos números, escribe el número y {contact_email}, completa la verificación de robot y escribe el código de 6 dígitos que CallerSmart envía por SMS o llamada a ese teléfono: {all_phones}. Después pulsa «Ya lo hice»."
+}

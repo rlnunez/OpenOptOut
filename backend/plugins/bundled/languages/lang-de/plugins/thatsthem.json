@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei That's Them. Eine Person folgt den Schritten der Checkliste; OpenOptOut stellt eine Einmal-E-Mail-Adresse bereit und klickt Bestätigungslinks an.",
+ "instructions": "Such auf thatsthem.com nach {full_name}. Wenn du dort stehst, öffne thatsthem.com/optout, trag deine Angaben so ein, wie sie im Eintrag stehen, und nimm {contact_email} als E-Mail-Adresse. Klick nicht auf das Angebot zum Identitätsschutz auf der Seite: Das ist ein kostenpflichtiges Produkt. Drück dann „Ich habe das erledigt“."
+}

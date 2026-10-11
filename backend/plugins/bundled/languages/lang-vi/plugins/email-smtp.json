@@ -1,0 +1,3 @@
+{
+ "description": "Nhà cung cấp email không gắn với máy chủ cụ thể: gửi qua SMTP và đọc thư xác nhận qua IMAP với BẤT KỲ máy chủ nào người vận hành cấu hình (máy chủ, cổng, TLS). Dùng cho thư tự lưu trữ hoặc nội bộ, hoặc nhà cung cấp nào chưa có plugin riêng. Không có máy chủ nào được viết cứng trong mã — máy chủ và cổng SMTP/IMAP lấy từ cài đặt tài khoản đã lưu. Thuộc nhóm nhà cung cấp email tin cậy; hệ thống kiểm tra người nhận ẩn và buộc dùng đúng người nhận khi gửi."
+}

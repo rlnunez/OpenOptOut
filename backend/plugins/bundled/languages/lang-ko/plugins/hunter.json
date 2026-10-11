@@ -1,0 +1,4 @@
+{
+ "description": "이메일 주소로 사람을 게시하는 Hunter의 안내형 거부. 한 번의 거부로 저장된 모든 이메일 주소가 처리됩니다.",
+ "instructions": "Hunter는 사람들의 업무용 이메일 주소를 보여 줍니다. https://hunter.io/ 를 열고 맨 아래의 \"Do Not Sell My Info\"를 누르세요. 다음 주소마다 소유를 확인하고, Hunter가 그 주소로 보낸 링크를 연 뒤 \"Delete my information\"을 누르세요: {all_emails}. 그런 다음 \"완료했어요\"를 누르세요."
+}

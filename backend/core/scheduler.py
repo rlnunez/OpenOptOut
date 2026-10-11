@@ -1018,7 +1018,9 @@ def enqueue_pending_optouts(
                     continue
                 member_fields["contact_email"] = contact.address
 
-            job = compile_job(spec, member_fields, member_id=str(member.id))
+            from ..plugins.plugin_i18n import member_language
+            job = compile_job(spec, member_fields, member_id=str(member.id),
+                              lang=member_language(member))
             priority = "high" if getattr(broker, "priority", 3) >= 4 else "normal"
 
             env = create_removal_envelope(

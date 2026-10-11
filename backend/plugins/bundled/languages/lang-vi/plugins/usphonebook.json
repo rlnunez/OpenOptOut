@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho USPhoneBook. Một người làm theo các bước trong danh sách; OpenOptOut cung cấp địa chỉ email dùng một lần và tự bấm mọi liên kết xác nhận.",
+ "instructions": "Tra số điện thoại của bạn trên usphonebook.com. Nếu có tên bạn, mở usphonebook.com/opt-out và làm theo các bước, dùng {contact_email} ở chỗ hỏi email. Nếu trang gỡ dữ liệu cứ treo, hãy gửi email tới support+optout@usphonebook.com và yêu cầu gỡ. Sau đó bấm \"Tôi đã làm xong\"."
+}

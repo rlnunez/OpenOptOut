@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei Whitepages. Eine Person folgt den Schritten der Checkliste; OpenOptOut stellt eine Einmal-E-Mail-Adresse bereit und klickt Bestätigungslinks an.",
+ "instructions": "Whitepages bestätigt per Telefon, deshalb musst du das selbst machen. Öffne whitepages.com/suppression-requests, füg {listing_url} ein, drück Next und dann „Remove Me“. Wähl einen Grund, drück Next und gib die Telefonnummer ein, die Whitepages für dich anzeigt. Nimm den automatischen Anruf an und gib den Code ein, den er dir nennt. Wenn die Seite meldet, dass dein Antrag eingegangen ist, drück „Ich habe das erledigt“."
+}

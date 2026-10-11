@@ -1,0 +1,3 @@
+{
+ "description": "계정이 있는 CAPTCHA 풀이 서비스(2Captcha, Anti-Captcha, CapSolver, CapMonster Cloud)로 CAPTCHA를 보냅니다. 개인정보는 절대 보지 않습니다. 사이트의 CAPTCHA 키와 정리된 페이지 주소, 또는 모든 양식 칸과 저장된 정보를 가린 퍼즐 잘라낸 이미지만 받습니다. 계정 키는 CAPTCHA 페이지에서 설정하며, 풀이하는 동안에만 이 플러그인에 전달됩니다. 서비스가 풀지 못하면 사람이 풀 수 있습니다."
+}

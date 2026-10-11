@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa Nuwber. Sinusunod ng isang tao ang mga hakbang sa checklist; nagbibigay ang OpenOptOut ng pang-isahang email address at kini-click nito ang anumang confirmation link.",
+ "instructions": "Hanapin ang page mo sa nuwber.com (makakatulong ang paghahanap ng {full_name} at pag-filter ayon sa {state}) at kopyahin ang address nito. Buksan ang nuwber.com/removal/link, i-paste ito, at ilagay ang {contact_email} bilang email address. Magpapadala ang Nuwber ng link para kumpirmahin; iki-click ito ng OpenOptOut para sa iyo. Pagkatapos, pindutin ang \"Nagawa ko na ito\". Kung ayaw tanggapin ng form ang address, mag-email sa support@nuwber.com kasama ang screenshot ng listing mo at hilinging alisin ka."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa NumberGuru, na naglilista ng mga tao ayon sa numero ng telepono. Saklaw ng isang opt-out ang lahat ng naka-save na numero.",
+ "instructions": "Hanapin sa https://www.numberguru.com/ ang bawat isa sa mga numerong ito: {all_phones}. Sa anumang page na nagpapakita sa iyo, gamitin ang link na \"Remove This Listing\" o \"Opt Out\" at ibigay ang {contact_email} bilang email mo. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

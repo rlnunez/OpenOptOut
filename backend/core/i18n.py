@@ -296,6 +296,9 @@ def _read_pack(pkg_path: str) -> Optional[Dict[str, Any]]:
     return {
         "code": code,
         "id": manifest.get("id", os.path.basename(pkg_path)),
+        # Folder of the pack; plugins/<plugin_id>.json in it translates other
+        # plugins' text (see plugins/plugin_i18n.py).
+        "path": pkg_path,
         "name": manifest.get("language_name") or manifest.get("name", code),
         "native_name": manifest.get("native_name") or manifest.get("language_name") or manifest.get("name", code),
         "author": manifest.get("author", ""),

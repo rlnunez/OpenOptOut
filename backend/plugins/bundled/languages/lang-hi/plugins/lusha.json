@@ -1,0 +1,4 @@
+{
+ "description": "Lusha के लिए निर्देशित ऑप्ट-आउट, जो लोगों को ईमेल पते से दिखाता है। एक ऑप्ट-आउट सभी सहेजे गए पतों पर लागू होता है।",
+ "instructions": "https://www.lusha.com/privacy-center/request-removal/ खोलें और इनमें से हर पते और नंबर के साथ {full_name} के लिए हटाने का अनुरोध भेजें: {all_emails}; {all_phones}। जवाबों के लिए {contact_email} दें। फिर \"मैंने यह कर लिया\" दबाएँ।"
+}

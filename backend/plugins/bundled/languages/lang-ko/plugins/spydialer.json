@@ -1,0 +1,4 @@
+{
+ "description": "전화번호로 사람을 게시하는 Spy Dialer의 안내형 거부. 한 번의 거부로 저장된 모든 전화번호가 처리됩니다.",
+ "instructions": "https://www.spydialer.com/ 을 열고 맨 아래의 \"Do Not Sell Or Share My Personal Information\"을 누르세요. Start를 누르고 사는 주를 고른 뒤 로봇 확인을 마치고, {full_name}, 주소, 다음 번호 각각({all_phones}), {email}을(를) 추가하세요. \"Opt-Out My Info\"를 누르고 \"Your submitted data has been blocked from future sharing\"이 나올 때까지 기다리세요. 그런 다음 \"완료했어요\"를 누르세요."
+}

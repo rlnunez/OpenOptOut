@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour CallerSmart, qui répertorie les gens par numéro de téléphone. Une seule désinscription couvre tous les numéros enregistrés.",
+ "instructions": "Ouvrez https://www.callersmart.com/data. Pour chacun de ces numéros, saisissez le numéro et {contact_email}, terminez la vérification anti-robot, puis tapez le code à 6 chiffres que CallerSmart envoie par SMS ou appel à ce téléphone : {all_phones}. Puis appuyez sur « C'est fait »."
+}

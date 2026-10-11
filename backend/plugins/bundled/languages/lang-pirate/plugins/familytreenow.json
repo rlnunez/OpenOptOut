@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer FamilyTreeNow. A sailor follows the steps on the checklist; OpenOptOut hands over a one-time email address an' clicks any confirmation link.",
+ "instructions": "Search familytreenow.com fer {full_name}. If ye be listed, open familytreenow.com/optout an' follow the steps to remove yer record, using {contact_email} if it asks fer an email address. Then smash \"I've done this\"."
+}

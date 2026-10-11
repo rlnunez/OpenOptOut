@@ -17,6 +17,7 @@ Versioned via `spec_version` so the format can evolve without breaking old
 add-ons.
 """
 
+import re
 from dataclasses import dataclass, field, fields
 from typing import Optional, Any
 
@@ -97,6 +98,29 @@ LEGAL_BASES = {
     "gdpr", "uk_gdpr",        # EU / UK
     "vcdpa", "cpa", "ctdpa", "ucpa", "tdpsa", "ocpa", "mcdpa",  # other US states
     "pipeda",                 # Canada
+    "lgpd",                   # Brazil
+}
+
+# Where a broker is, for choosing which law its opt-out letter cites and the
+# language the letter is written in. "US", "EU", "EEA", "UK", or an ISO 3166
+# country code, optionally with a region ("US-CA", "CA-QC").
+JURISDICTION = re.compile(r"^(EU|EEA|UK|[A-Z]{2}(-[A-Z0-9]{1,3})?)$")
+# A language code for a letter: "en", "fr", "pt-BR".
+LANGUAGE_CODE = re.compile(r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$")
+
+# The jurisdiction a spec is taken to have when it names a law but no
+# jurisdiction. US state laws all mean "US"; the letter for a US broker then
+# depends on where the person lives (core/legal_letters.py).
+BASIS_JURISDICTION = {
+    "gdpr": "EU", "uk_gdpr": "UK", "lgpd": "BR", "pipeda": "CA",
+    "ccpa": "US", "cpra": "US", "vcdpa": "US", "cpa": "US", "ctdpa": "US",
+    "ucpa": "US", "tdpsa": "US", "ocpa": "US", "mcdpa": "US",
+}
+# The language a broker's legal correspondence is in when the spec doesn't
+# say. Anything not listed is English.
+JURISDICTION_LANGUAGE = {
+    "BR": "pt-BR", "FR": "fr", "BE": "fr", "LU": "fr", "MC": "fr", "CA-QC": "fr",
+    "DE": "de", "AT": "de", "LI": "de", "ES": "es", "IT": "it", "NL": "nl", "PT": "pt",
 }
 
 # What a person may have to do or provide for this broker. These become
@@ -116,6 +140,17 @@ REQUIREMENTS = {
     "postal_mail",          # request must be mailed or faxed
 }
 
+
+
+def _keyed_text(v, path: str, keys: dict):
+    """Text written as {"$t": key, "default": text} -> text, remembering the key."""
+    if isinstance(v, dict) and "$t" in v:
+        k, default = v.get("$t"), v.get("default", "")
+        if not isinstance(k, str) or not k.strip() or not isinstance(default, str) or not default:
+            raise ValueError(f'{path}: {{"$t": key, "default": text}} needs a text key and the default text')
+        keys[path] = k.strip()
+        return default
+    return v
 
 
 def _require_types(obj, where: str) -> None:
@@ -260,6 +295,52 @@ class BrokerSpec:
     # (YYYY-MM-DD; empty means "never confirmed by us").
     source: str = ""
     last_verified: str = ""
+    # Where the broker is and the language its legal team reads. They pick the
+    # opt-out letter (CCPA, GDPR, LGPD, ...) and its language — never the
+    # language a family uses the app in. Both may be left out: see
+    # effective_jurisdiction() and effective_legal_language().
+    jurisdiction: str = ""
+    legal_language: str = ""
+    # The broker's own opt-out letter per language: {"fr": {"subject", "body"}}.
+    # The one in the legal language is used before the built-in letter.
+    email_templates: dict = field(default_factory=dict)
+
+    # Set by whatever loaded the spec (not part of spec.json): the plugin it
+    # came from, for looking up its translations, and the keys a spec gave its
+    # translatable text with {"$t": key, "default": text}.
+    plugin_id = ""
+    plugin_dir = ""
+    text_keys = None   # {key path: translation key}; a class attribute, not a field
+
+    def effective_jurisdiction(self) -> str:
+        """The spec's jurisdiction, or one implied by the first law it cites
+        that has one, or "US" (where nearly every listed broker is)."""
+        if self.jurisdiction:
+            return self.jurisdiction.upper()
+        for b in self.legal_basis:
+            j = BASIS_JURISDICTION.get(str(b).lower())
+            if j:
+                return j
+        return "US"
+
+    def effective_legal_language(self) -> str:
+        """The language opt-out letters to this broker are written in."""
+        if self.legal_language:
+            return self.legal_language
+        if self.email and self.email.locale and self.email.locale != "en":
+            return self.email.locale
+        j = self.effective_jurisdiction()
+        return JURISDICTION_LANGUAGE.get(j) or JURISDICTION_LANGUAGE.get(j.split("-")[0]) or "en"
+
+    def letter_template(self, language: str = "") -> Optional[dict]:
+        """This broker's own {"subject", "body"} for `language` (default: its
+        legal language), matching "pt-BR" to "pt" if needed, or None."""
+        want = (language or self.effective_legal_language()).lower()
+        by_lang = {k.lower(): v for k, v in (self.email_templates or {}).items()}
+        for code in (want, want.split("-")[0]):
+            if code in by_lang:
+                return by_lang[code]
+        return None
 
     def validate(self) -> list[str]:
         """Return a list of validation errors; empty means the spec is well-formed."""
@@ -308,6 +389,19 @@ class BrokerSpec:
                 errs.append(f"listing_pattern is not a valid regular expression: {e}")
             if not self.search_url:
                 errs.append("listing_pattern needs a search_url to check against")
+        if self.jurisdiction and not JURISDICTION.match(self.jurisdiction):
+            errs.append("jurisdiction must be US, EU, EEA, UK or a country code like FR or US-CA")
+        if self.legal_language and not LANGUAGE_CODE.match(self.legal_language):
+            errs.append("legal_language must be a language code like en, fr or pt-BR")
+        if not isinstance(self.email_templates, dict):
+            errs.append("email_templates must be an object of language → {subject, body}")
+        else:
+            for code, t in self.email_templates.items():
+                if not isinstance(code, str) or not LANGUAGE_CODE.match(code):
+                    errs.append(f"email_templates: '{code}' isn't a language code")
+                elif not isinstance(t, dict) or not isinstance(t.get("subject"), str) \
+                        or not isinstance(t.get("body"), str) or not t.get("subject") or not t.get("body"):
+                    errs.append(f"email_templates.{code} needs a subject and a body")
         if self.last_verified:
             from datetime import date
             try:
@@ -337,8 +431,10 @@ class BrokerSpec:
         raw_steps = d.get("steps", [])
         if not isinstance(raw_steps, list) or not all(isinstance(s, dict) for s in raw_steps):
             raise ValueError("steps must be a list of objects")
-        steps = [Step(**{k: v for k, v in s.items() if k in Step.__dataclass_fields__})
-                 for s in raw_steps]
+        text_keys: dict = {}
+        steps = [Step(**{k: (_keyed_text(v, f"steps.{i}.text", text_keys) if k == "text" else v)
+                         for k, v in s.items() if k in Step.__dataclass_fields__})
+                 for i, s in enumerate(raw_steps)]
         for i, s in enumerate(steps):
             _require_types(s, f"steps[{i}]")
         email = None
@@ -359,7 +455,7 @@ class BrokerSpec:
             success_selector=d.get("success_selector", ""),
             success_text=d.get("success_text", ""),
             notes=d.get("notes", ""),
-            instructions=d.get("instructions", "") or "",
+            instructions=_keyed_text(d.get("instructions", ""), "instructions", text_keys) or "",
             legal_basis=[str(x).lower() if isinstance(x, str) else x
                          for x in d.get("legal_basis", [])] if isinstance(d.get("legal_basis", []), list)
                         else d.get("legal_basis"),
@@ -372,8 +468,13 @@ class BrokerSpec:
             lookup_by=d.get("lookup_by", "") or "",
             source=d.get("source", ""),
             last_verified=d.get("last_verified", "") or "",
+            jurisdiction=(d.get("jurisdiction", "") or "").upper() if isinstance(d.get("jurisdiction", ""), str)
+                         else d.get("jurisdiction"),
+            legal_language=d.get("legal_language", "") or "",
+            email_templates=d.get("email_templates", {}) or {},
         )
         _require_types(spec, "spec")
+        spec.text_keys = text_keys
         return spec
 
     def to_dict(self) -> dict:
@@ -383,18 +484,23 @@ class BrokerSpec:
             "success_selector": self.success_selector, "success_text": self.success_text,
             "notes": self.notes,
         }
+        keys = self.text_keys or {}
+
+        def keyed(path, text):
+            return {"$t": keys[path], "default": text} if path in keys else text
         if self.instructions:
-            out["instructions"] = self.instructions
+            out["instructions"] = keyed("instructions", self.instructions)
         for k in ("legal_basis", "statutory_response_days", "search_url", "listing_pattern",
                   "one_optout_per_email", "accepts_plus_addresses", "requires", "lookup_by",
-                  "source", "last_verified"):
+                  "source", "last_verified", "jurisdiction", "legal_language", "email_templates"):
             v = getattr(self, k)
-            if v not in ("", 0, False, []):
+            if v not in ("", 0, False, [], {}):
                 out[k] = v
         if self.method == "form":
             out["steps"] = [
-                {k: getattr(s, k) for k in Step.__dataclass_fields__ if getattr(s, k) not in ("", 0, False)}
-                for s in self.steps
+                {k: (keyed(f"steps.{i}.text", getattr(s, k)) if k == "text" else getattr(s, k))
+                 for k in Step.__dataclass_fields__ if getattr(s, k) not in ("", 0, False)}
+                for i, s in enumerate(self.steps)
             ]
         if self.email:
             out["email"] = {k: getattr(self.email, k) for k in EmailSpec.__dataclass_fields__

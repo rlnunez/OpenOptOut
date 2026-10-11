@@ -1,0 +1,4 @@
+{
+ "description": "Truecaller 的引导式退出，该网站按电话号码列出个人信息。一次退出即可涵盖所有已保存的号码。",
+ "instructions": "Truecaller 会向你拨打的人显示你的姓名。打开 https://www.truecaller.com/unlisting，带国家代码逐个注销以下号码：{all_phones}。每个号码都要完成机器人验证。如果你自己在用 Truecaller 应用，请先在应用中停用账户再卸载，否则注销不会生效。然后点击“我已完成”。"
+}

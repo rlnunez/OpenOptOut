@@ -1,0 +1,4 @@
+{
+ "description": "Radaris（radaris.com）的退出。自动填写姓名搜索，然后由人选择条目并确认。",
+ "steps.7.text": "Radaris 这一步需要你来完成。前往 radaris.com/control-privacy，搜索 {full_name} 和你所在的城市，点击你自己的资料，然后点击蓝色的“Start Removing”按钮。填写 {contact_email} 作为电子邮件地址并提交。Radaris 会向该地址发送链接；OpenOptOut 会替你点击。"
+}

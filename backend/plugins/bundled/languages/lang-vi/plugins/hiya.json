@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho Hiya, trang liệt kê người theo số điện thoại. Một lần gỡ áp dụng cho mọi số đã lưu.",
+ "instructions": "Hiya cung cấp tính năng hiển thị người gọi cho nhiều điện thoại Samsung và ứng dụng nhà mạng. Mở biểu mẫu của Hiya tại https://hiyahelp.zendesk.com/hc/en-us/requests/new?ticket_form_id=33394399463699 và yêu cầu Hiya xóa tên hiển thị người gọi của từng số sau: {all_phones}. Dùng {contact_email} làm email của bạn. Sau đó bấm \"Tôi đã làm xong\"."
+}

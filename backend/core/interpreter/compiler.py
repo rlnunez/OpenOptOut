@@ -183,9 +183,13 @@ def uses_field(spec: BrokerSpec, name: str) -> bool:
                for st in (spec.steps or []))
 
 
-def compile_job(spec: BrokerSpec, member_fields: dict, member_id: str) -> Job:
+def compile_job(spec: BrokerSpec, member_fields: dict, member_id: str, lang: str = "") -> Job:
     """
     Compile a BrokerSpec into an executable Job for one member.
+
+    lang: the language of the person who will read any "stop here and do this"
+          instruction (pause_for_human), e.g. the member's own. Text the job
+          looks for on the broker's page is never translated.
 
     member_fields: a dict mapping KNOWN_FIELDS names to that member's values
                    (the engine resolves this from a FamilyMember; the compiler
@@ -198,6 +202,12 @@ def compile_job(spec: BrokerSpec, member_fields: dict, member_id: str) -> Job:
     errs = spec.validate()
     if errs:
         raise CompileError(f"invalid broker spec '{spec.broker_id}': {errs}")
+    if lang:
+        try:
+            from ...plugins.plugin_i18n import localize_spec
+        except (ImportError, ValueError):
+            from plugins.plugin_i18n import localize_spec
+        spec = localize_spec(spec, lang)
 
     job = Job(
         broker_id=spec.broker_id, broker_name=spec.name,

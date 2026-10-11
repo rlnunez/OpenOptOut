@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no ReversePhoneLookup.com, que lista pessoas por número de telefone. Uma exclusão cobre todos os números salvos.",
+ "instructions": "Abra https://www.reversephonelookup.com/ e clique em \"Do Not Sell or Share My Personal Information\" no rodapé. Digite {contact_email} e um destes números (só dígitos, se der erro): {all_phones}. Conclua a verificação de robô e envie; nós clicamos no link de confirmação que chegar por e-mail. Repita para cada número e depois toque em \"Já fiz isso\"."
+}

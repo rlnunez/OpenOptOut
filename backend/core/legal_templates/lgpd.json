@@ -1,0 +1,21 @@
+{
+  "id": "lgpd",
+  "title": "Brazil — LGPD",
+  "law": "Lei Geral de Proteção de Dados Pessoais (Lei nº 13.709/2018)",
+  "legal_basis": ["lgpd"],
+  "jurisdictions": ["BR"],
+  "deadline_days": 15,
+  "default_language": "pt-BR",
+  "review_status": "draft",
+  "review_note": "Draft wording, not reviewed by a lawyer. Provisions cited: art. 18, IV, VI and IX (anonymisation/blocking/elimination, elimination, withdrawal of consent), art. 18 § 6 (telling other processing agents), art. 18 § 1 (complaint to the ANPD), art. 19, II (15 days). The 15-day period in art. 19, II is written for access requests; a Brazilian lawyer should confirm the deadline to cite for elimination requests and the ANPD's current rules. The English version is a courtesy translation; the Portuguese is the letter that is sent.",
+  "languages": {
+    "pt-BR": {
+      "subject": "Solicitação de eliminação de dados pessoais (art. 18 da LGPD) — {full_name}{ref_tag}",
+      "body": "Ao encarregado pelo tratamento de dados pessoais (DPO) da {broker},\n\nNa qualidade de titular dos dados, venho exercer os direitos previstos no art. 18 da Lei Geral de Proteção de Dados Pessoais (Lei nº 13.709/2018 – LGPD), em especial o direito à eliminação dos dados pessoais (art. 18, VI), à anonimização, bloqueio ou eliminação de dados desnecessários, excessivos ou tratados em desconformidade com a lei (art. 18, IV), e à revogação de qualquer consentimento (art. 18, IX).\n\n{scope}\n\n{property_note}\n\nSolicito a eliminação de todos os registros que correspondam a QUALQUER um dos seguintes identificadores:\n\n{identifiers}\n\nSolicito que:\n  1. Eliminem todos os meus dados pessoais da {broker} e de todos os sites listados acima.\n  2. Deixem de compartilhar, vender ou licenciar meus dados a terceiros, e informem imediatamente os agentes de tratamento com os quais os compartilharam, para que repitam a eliminação (art. 18, § 6º).\n  3. Não voltem a coletar ou publicar meus dados a partir de outras fontes.\n  4. Confirmem por escrito, para o endereço de e-mail remetente, que a eliminação foi realizada.\n\nPeço resposta no prazo de 15 (quinze) dias, nos termos do art. 19, II, da LGPD. Caso precisem de alguma informação adicional para me identificar, informem o que for estritamente necessário; peço que não exijam a criação de conta nem o envio de documentos de identidade sem justificativa específica.\n\nNa falta de resposta satisfatória, poderei apresentar petição à Autoridade Nacional de Proteção de Dados (ANPD), nos termos do art. 18, § 1º.\n\n{reference}\n\nAtenciosamente,\n{full_name}\n"
+    },
+    "en": {
+      "subject": "Request to eliminate personal data (LGPD article 18) — {full_name}{ref_tag}",
+      "body": "To the data protection officer (encarregado) at {broker},\n\nAs a data subject, I am exercising my rights under article 18 of Brazil's General Data Protection Law (Lei nº 13.709/2018 – LGPD), in particular the right to have my personal data eliminated (art. 18, VI), to have unnecessary, excessive or unlawfully processed data anonymised, blocked or eliminated (art. 18, IV), and to withdraw any consent (art. 18, IX).\n\n{scope}\n\n{property_note}\n\nPlease eliminate all records matching ANY of the following identifiers:\n\n{identifiers}\n\nI am asking you to:\n  1. Eliminate all my personal data from {broker} and every site listed above.\n  2. Stop sharing, selling or licensing my data to third parties, and immediately tell the processing agents you shared it with so they eliminate it too (art. 18, § 6).\n  3. Not collect or publish my data again from other sources.\n  4. Confirm in writing, to the sending email address, that the elimination has been carried out.\n\nPlease respond within 15 days, as provided in art. 19, II, of the LGPD. If you need more information to identify me, tell me what is strictly necessary; please do not require me to create an account or send identity documents without a specific reason.\n\nIf I do not receive a satisfactory answer, I may petition the National Data Protection Authority (ANPD) under art. 18, § 1.\n\n{reference}\n\nSincerely,\n{full_name}\n"
+    }
+  }
+}

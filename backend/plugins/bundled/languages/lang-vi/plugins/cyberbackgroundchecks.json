@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho Cyber Background Checks. Một người làm theo các bước trong danh sách; OpenOptOut cung cấp địa chỉ email dùng một lần và tự bấm mọi liên kết xác nhận.",
+ "instructions": "Tìm {full_name} trên cyberbackgroundchecks.com. Nếu có tên bạn, mở cyberbackgroundchecks.com/removal và xóa hồ sơ, dùng {contact_email} làm địa chỉ email. Sau đó bấm \"Tôi đã làm xong\"."
+}

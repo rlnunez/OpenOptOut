@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de ReversePhoneLookup.com, que publica a las personas por número de teléfono. Una sola baja cubre todos los números guardados.",
+ "instructions": "Abre https://www.reversephonelookup.com/ y haz clic en «Do Not Sell or Share My Personal Information» al final de la página. Escribe {contact_email} y uno de estos números (solo dígitos si da error): {all_phones}. Completa la verificación de robot y envía; pulsaremos el enlace de confirmación que llegue por correo. Repite con cada número y después pulsa «Ya lo hice»."
+}

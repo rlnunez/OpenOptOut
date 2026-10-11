@@ -1,0 +1,4 @@
+{
+ "description": "TruePeopleSearch 的引导式退出。由一个人按清单步骤操作；OpenOptOut 提供一次性电子邮件地址，并自动点击确认链接。",
+ "instructions": "打开 truepeoplesearch.com/removal。输入 {full_name}、你的城市和州（{city}，{state}），并填写 {contact_email} 作为电子邮件地址，然后完成 CAPTCHA。如果列出了你的记录，点击按钮将其删除。OpenOptOut 会点击发送到该地址的任何确认链接。然后点击“我已完成”。"
+}

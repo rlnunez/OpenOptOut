@@ -97,89 +97,59 @@ def _build_exhaustive_email(
         all_names    = names
 
     from ..plugins.broker_addon import get_broker_spec_for_broker
+    from .optout_email_template import Identifiers
+    from .legal_letters import compose_letter, identifier_block
     addon_spec = get_broker_spec_for_broker(db, broker) if db else None
     addon_email = addon_spec.email if addon_spec else None
+
+    # The letter is chosen by the broker's jurisdiction and written in its
+    # legal language — never the family's interface language.
+    jurisdiction = addon_spec.effective_jurisdiction() if addon_spec else "US"
+    legal_language = addon_spec.effective_legal_language() if addon_spec else "en"
+    residence = _residence_state(member)
+    ids = Identifiers(
+        full_name=primary_name or "",
+        name_variants=[n for n in all_names if n and n != primary_name],
+        emails=list(emails), phones=list(phones), addresses=list(addresses),
+    )
 
     # Every identifier we hold, as one block. Custom templates can place it with
     # {identifiers}; if a custom body leaves it out, it is appended, because a
     # broker can't find (or remove) the records without it.
-    identifiers_block = _identifier_block(names, addresses, phones, emails)
+    identifiers_block = identifier_block(ids, legal_language)
     tpl_fields = _template_fields(
         member, primary_name, request_key, broker.name,
         addresses, phones, emails, identifiers_block,
     )
 
-    custom_subject = (addon_email.subject_template if addon_email and addon_email.subject_template
-                      else (script.email_subject_tpl if script and script.email_subject_tpl else ""))
-    custom_body = (addon_email.body_template if addon_email and addon_email.body_template
-                   else (script.email_body_tpl if script and script.email_body_tpl else ""))
+    # The broker's own letter, in order: one written for its legal language,
+    # then the add-on's single template, then a recorded script's.
+    own = addon_spec.letter_template(legal_language) if addon_spec else None
+    custom_subject = ((own or {}).get("subject")
+                      or (addon_email.subject_template if addon_email and addon_email.subject_template
+                          else (script.email_subject_tpl if script and script.email_subject_tpl else "")))
+    custom_body = ((own or {}).get("body")
+                   or (addon_email.body_template if addon_email and addon_email.body_template
+                       else (script.email_body_tpl if script and script.email_body_tpl else "")))
 
-    if custom_subject:
-        subject = render_template(custom_subject, tpl_fields)
-    else:
-        subject = f"Personal Data Removal Request — {primary_name} [Ref: {request_key}]"
+    prop = None
+    if broker.is_property_broker and member.formal_name:
+        prop = {
+            "formal_name": member.formal_name,
+            "deed": [i.value for i in member.identities if i.kind == "address" and i.is_deed],
+            "mortgage": [i.value for i in member.identities if i.kind == "address" and i.is_mortgage],
+        }
+    letter = compose_letter(ids, broker.name, jurisdiction=jurisdiction,
+                            legal_language=legal_language, residence_state=residence,
+                            request_key=request_key, property_records=prop)
 
+    subject = render_template(custom_subject, tpl_fields) if custom_subject else letter.subject
     if custom_body:
         body = render_template(custom_body, tpl_fields)
         if "{identifiers}" not in custom_body:
-            body = body.rstrip() + "\n\nPlease remove all records matching any of these identifiers:\n\n" \
-                + identifiers_block + "\n"
+            body = body.rstrip() + "\n\n" + identifiers_block + "\n"
     else:
-        name_block    = "\n".join(f"  - {n}" for n in names)
-        address_block = "\n".join(f"  - {a}" for a in addresses)
-        phone_block   = "\n".join(f"  - {p}" for p in phones) if phones else "  (none provided)"
-        email_block   = "\n".join(f"  - {e}" for e in emails) if emails else "  (none provided)"
-
-        prop_note = ""
-        if broker.is_property_broker and member.formal_name:
-            deed_addrs = [i.value for i in member.identities if i.kind == "address" and i.is_deed]
-            mtg_addrs  = [i.value for i in member.identities if i.kind == "address" and i.is_mortgage]
-            prop_note  = f"""
-NOTE — PROPERTY RECORDS REQUEST:
-The legal name recorded on county documents is: {member.formal_name}
-{"Deed address(es): " + ", ".join(deed_addrs) if deed_addrs else ""}
-{"Mortgage address(es): " + ", ".join(mtg_addrs) if mtg_addrs else ""}
-Please remove all property records, deed records, and mortgage records \
-associated with the above name and addresses.
-"""
-
-        body = f"""To Whom It May Concern,
-
-I am writing to request the complete removal of ALL personal information \
-associated with any of the following identifiers from your databases, \
-website, and any affiliated or downstream services.
-{prop_note}
-Please search for and remove records matching ANY of the following:
-
-NAME VARIANTS:
-{name_block}
-
-ADDRESSES (current and historical):
-{address_block}
-
-PHONE NUMBERS:
-{phone_block}
-
-EMAIL ADDRESSES:
-{email_block}
-
-This is a comprehensive removal request covering ALL records associated \
-with the above identifiers, not just the most recent or primary record. \
-Please do not selectively remove only one listing while retaining others.
-
-If you are subject to the California Consumer Privacy Act (CCPA, Cal. Civ. \
-Code § 1798.105), I am exercising my right to deletion. Please confirm \
-complete removal within 45 days as required by law.
-
-If you are subject to GDPR, I am invoking my right to erasure under \
-Article 17. Please confirm within 30 days.
-
-Reference ID (include in all correspondence): {request_key}
-
-Thank you,
-{primary_name}
-"""
-
+        body = letter.body
     return subject, body
 
 
@@ -187,19 +157,6 @@ def _extract_email_from_notes(notes: Optional[str]) -> Optional[str]:
     if not notes: return None
     m = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', notes)
     return m.group(0) if m else None
-
-
-def _identifier_block(names, addresses, phones, emails) -> str:
-    """Plain-text list of every identifier, grouped, for opt-out emails."""
-    def section(title, values):
-        lines = "\n".join(f"  - {v}" for v in values if v) or "  (none provided)"
-        return f"{title}:\n{lines}"
-    return "\n\n".join([
-        section("NAME VARIANTS", names),
-        section("ADDRESSES (current and historical)", addresses),
-        section("PHONE NUMBERS", phones),
-        section("EMAIL ADDRESSES", emails),
-    ])
 
 
 def _template_fields(member, primary_name, request_key, broker_name,
@@ -317,6 +274,17 @@ def send_opt_out_email(
     return True
 
 
+def _residence_state(member) -> str:
+    """The member's US state (two letters) from their primary address, or ""."""
+    try:
+        from .combinations import _get_values, _parse_address
+        addrs = _get_values(member, "address", 1)
+        st = (_parse_address(addrs[0]).get("state") or "") if addrs else ""
+        return st.strip().upper() if len(st.strip()) == 2 else ""
+    except Exception:
+        return ""
+
+
 def _member_identifiers(member):
     """Build the template Identifiers from a member's vault (no exact DOB)."""
     from .combinations import _get_values
@@ -393,7 +361,8 @@ def send_parent_optout_detailed(member, parent, cfg, db, discovered_urls=None,
         ids, parent_name=parent.name, to_address=to_email,
         child_sites=child_sites,
         cc=[e.strip() for e in (parent.cc_emails or "").split(",") if e.strip()],
-        locale=parent.locale or "en", state="",
+        locale=parent.locale or "", state=_residence_state(member),
+        jurisdiction=getattr(parent, "jurisdiction", None) or "US",
         request_key=request_key,
     )
     subject = (subject_prefix or "") + composed.subject
@@ -705,7 +674,7 @@ async def _run_form_via_interpreter(
 
     from .interpreter.compiler import CompileError
     try:
-        job = compile_job(spec, member_fields, member_id=str(member.id))
+        job = compile_job(spec, member_fields, member_id=str(member.id), lang=_member_lang(member))
     except CompileError as e:
         from .interpreter.executor import ExecResult
         missing = _missing_field(str(e))
@@ -806,6 +775,12 @@ GENERIC_SUCCESS = re.compile(
     re.I)
 
 
+def _member_lang(member) -> str:
+    """The language the person handling this member's opt-outs reads."""
+    from ..plugins.plugin_i18n import member_language
+    return member_language(member)
+
+
 def _manual_instruction(request, broker, member, cfg, db) -> str:
     """Plain-language steps for an opt-out only a person can do."""
     from .interpreter.script_bridge import get_or_build_broker_spec, is_heuristic
@@ -817,6 +792,9 @@ def _manual_instruction(request, broker, member, cfg, db) -> str:
         spec = get_or_build_broker_spec(broker, script=script, db=db)
     except Exception as e:
         log.debug("no spec for manual broker %s: %s", broker.name, e)
+    if spec is not None and not is_heuristic(spec):
+        from ..plugins.plugin_i18n import localize_spec
+        spec = localize_spec(spec, _member_lang(member))
     text = (getattr(spec, "instructions", "") or "") if spec is not None and not is_heuristic(spec) else ""
     if not text:
         try:
@@ -903,7 +881,7 @@ async def _retry_without_plus(db, request, broker, member, spec, combo, member_f
                               f"Finish this opt-out at {broker.opt_out_url or broker.name} using a plain email address."))
     db.commit()
     fields = dict(member_fields, contact_email=contact.address)
-    job = compile_job(spec, fields, member_id=str(member.id))
+    job = compile_job(spec, fields, member_id=str(member.id), lang=_member_lang(member))
     from .captcha_privacy import member_secrets
     res = await PlaywrightExecutor(page=page, captcha_solver=captcha_solver,
                                    plugin_form_handler=form_handler, secrets=member_secrets(member)).run(job)

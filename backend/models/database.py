@@ -552,7 +552,12 @@ class ParentCompany(Base):
     # can be CC'd for parents that list multiple privacy contacts.
     optout_email  = Column(String, nullable=True)
     cc_emails     = Column(String, nullable=True)   # comma-separated, optional
-    # Language/locale the opt-out email must be written in for this parent.
+    # Where the parent company is ("US", "FR", "BR", ...): picks the law its
+    # opt-out letter cites (core/legal_letters.py). Empty means "US".
+    jurisdiction  = Column(String(12), nullable=True)
+    # The parent's legal language: the language its opt-out letter is written
+    # in — not the family's interface language. Empty means the usual
+    # language for the jurisdiction.
     locale        = Column(String, default="en")
     website       = Column(String, nullable=True)
     notes         = Column(Text, nullable=True)

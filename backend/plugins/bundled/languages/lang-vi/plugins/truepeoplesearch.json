@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho TruePeopleSearch. Một người làm theo các bước trong danh sách; OpenOptOut cung cấp địa chỉ email dùng một lần và tự bấm mọi liên kết xác nhận.",
+ "instructions": "Mở truepeoplesearch.com/removal. Nhập {full_name}, thành phố và bang của bạn ({city}, {state}) và {contact_email} làm địa chỉ email, rồi giải các CAPTCHA. Nếu hồ sơ của bạn hiện ra, bấm nút để xóa. OpenOptOut bấm mọi liên kết xác nhận gửi tới địa chỉ đó. Sau đó bấm \"Tôi đã làm xong\"."
+}

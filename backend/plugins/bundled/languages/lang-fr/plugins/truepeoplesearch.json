@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour TruePeopleSearch. Une personne suit les étapes de la liste ; OpenOptOut fournit une adresse e-mail à usage unique et clique sur les liens de confirmation.",
+ "instructions": "Ouvrez truepeoplesearch.com/removal. Saisissez {full_name}, votre ville et votre État ({city}, {state}) et {contact_email} comme adresse e-mail, puis résolvez les CAPTCHA. Si votre fiche apparaît, appuyez sur le bouton pour la supprimer. OpenOptOut clique sur tout lien de confirmation envoyé à cette adresse. Puis appuyez sur « C'est fait »."
+}

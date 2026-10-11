@@ -1,0 +1,3 @@
+{
+ "description": "Отказ для Spokeo (spokeo.com). Автоматически заполняет адрес записи и одноразовую почту; reCAPTCHA Spokeo уходит в сервис решения CAPTCHA или в очередь CAPTCHA."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão no Radaris (radaris.com). Preenche a busca por nome automaticamente e depois passa a escolha do cadastro e a confirmação para uma pessoa.",
+ "steps.7.text": "O Radaris precisa que você termine esta. Acesse radaris.com/control-privacy, busque {full_name} e sua cidade, clique no seu próprio perfil e toque no botão azul \"Start Removing\". Digite {contact_email} como endereço de e-mail e envie. O Radaris manda um link para esse endereço; o OpenOptOut clica nele por você."
+}

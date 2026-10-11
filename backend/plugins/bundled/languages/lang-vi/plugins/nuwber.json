@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho Nuwber. Một người làm theo các bước trong danh sách; OpenOptOut cung cấp địa chỉ email dùng một lần và tự bấm mọi liên kết xác nhận.",
+ "instructions": "Tìm trang của bạn trên nuwber.com (tìm {full_name} và lọc theo {state} sẽ dễ hơn) rồi sao chép địa chỉ của trang. Mở nuwber.com/removal/link, dán vào và nhập {contact_email} làm địa chỉ email. Nuwber gửi một liên kết xác nhận; OpenOptOut bấm giúp bạn. Sau đó bấm \"Tôi đã làm xong\". Nếu biểu mẫu không nhận địa chỉ, hãy gửi email tới support@nuwber.com kèm ảnh chụp màn hình hồ sơ và yêu cầu gỡ."
+}

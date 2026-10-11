@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de Apollo.io, que publica a las personas por dirección de correo. Una sola baja cubre todas las direcciones guardadas.",
+ "instructions": "Apollo registra a las personas por su correo del trabajo. Abre https://www.apollo.io/privacy-policy/remove, introduce cada una de estas direcciones (una a una), completa la verificación de robot y abre el enlace que Apollo envía a esa dirección: {all_emails}. Después pulsa «Ya lo hice»."
+}

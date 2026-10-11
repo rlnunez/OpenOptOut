@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa Hiya, na naglilista ng mga tao ayon sa numero ng telepono. Saklaw ng isang opt-out ang lahat ng naka-save na numero.",
+ "instructions": "Nagbibigay ang Hiya ng caller ID sa maraming Samsung phone at app ng carrier. Buksan ang request form ng Hiya sa https://hiyahelp.zendesk.com/hc/en-us/requests/new?ticket_form_id=33394399463699 at hilingin sa Hiya na alisin ang caller ID name ng bawat isa sa mga numerong ito: {all_phones}. Gamitin ang {contact_email} bilang email mo. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

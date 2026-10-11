@@ -1,0 +1,3 @@
+{
+ "description": "Envoie les e-mails de désinscription et lit les confirmations via Microsoft Graph avec OAuth 2.0. Classe de fournisseur e-mail de confiance ; l'hôte l'inspecte à la recherche de destinataires cachés et impose le destinataire à l'envoi."
+}

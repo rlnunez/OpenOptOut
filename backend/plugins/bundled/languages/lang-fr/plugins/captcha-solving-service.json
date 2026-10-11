@@ -1,0 +1,3 @@
+{
+ "description": "Envoie les CAPTCHA à un service de résolution où vous avez un compte (2Captcha, Anti-Captcha, CapSolver ou CapMonster Cloud). Il ne voit jamais de données personnelles : seulement la clé CAPTCHA du site et une adresse de page nettoyée, ou une image recadrée de l'énigme où chaque champ et chaque donnée enregistrée sont masqués. La clé du compte se règle sur la page CAPTCHA et n'est transmise à ce plugin que pendant la résolution. Si le service n'y arrive pas, une personne peut le faire."
+}

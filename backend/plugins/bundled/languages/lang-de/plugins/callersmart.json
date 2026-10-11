@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei CallerSmart, das Personen nach Telefonnummer auflistet. Ein Widerspruch gilt für alle gespeicherten Nummern.",
+ "instructions": "Öffne https://www.callersmart.com/data. Gib für jede dieser Nummern die Nummer und {contact_email} ein, schließ die Roboterprüfung ab und tipp den 6-stelligen Code ein, den CallerSmart per SMS oder Anruf an dieses Telefon schickt: {all_phones}. Drück dann „Ich habe das erledigt“."
+}

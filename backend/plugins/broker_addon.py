@@ -246,6 +246,9 @@ def get_broker_spec_for_broker(db, broker) -> Optional[BrokerSpec]:
         spec_filename = manifest_data.get("spec_file") or DEFAULT_SPEC_FILE
         spec, errors = validate_broker_spec_file(plugin_row.install_path, spec_filename)
         if spec:
+            # So its instructions can be shown in each person's language.
+            spec.plugin_id = plugin_row.plugin_id
+            spec.plugin_dir = plugin_row.install_path
             return spec
         log.warning("Broker add-on %s has spec errors: %s", plugin_row.plugin_id, errors)
     except Exception as e:

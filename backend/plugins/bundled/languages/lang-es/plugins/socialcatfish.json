@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de Social Catfish. Una persona sigue los pasos de la lista; OpenOptOut aporta una dirección de correo de un solo uso y hace clic en cualquier enlace de confirmación.",
+ "instructions": "Busca en socialcatfish.com y anota la dirección de cada página donde apareces. Abre socialcatfish.com/opt-out, baja hasta la sección para eliminar páginas, correos, teléfonos y direcciones, y pide solo lo que ya muestra. Da {contact_email} como tu correo; Social Catfish envía un enlace de confirmación que OpenOptOut pulsa por ti. Después pulsa «Ya lo hice»."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Opt-out para sa BeenVerified (beenverified.com). Hinahanap ang tao, tapos may pipili ng sarili niyang listing; awtomatikong kini-click ang confirmation link ng BeenVerified.",
+ "steps.7.text": "Kailangan ng BeenVerified na piliin mo ang listing mo. Pumunta sa beenverified.com/svc/optout/search, hanapin ang {full_name} sa {state_name}, i-click ang sarili mong record at sagutan ang CAPTCHA. Sa removal form, piliin ang \"No\" para sa account, suriin ang mga detalye mo, at ilagay ang {contact_email} bilang email address. Isang opt-out lang bawat email address ang tinatanggap ng BeenVerified, at para lang sa opt-out na ito ang address na ito. Iki-click ng OpenOptOut ang confirmation link na ipapadala ng BeenVerified dito."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Opt-out fer Radaris (radaris.com). Fills the name search automatically, then hands the listing pick an' confirmation to a sailor.",
+ "steps.7.text": "Radaris needs ye to finish this one. Go to radaris.com/control-privacy, search fer {full_name} an' yer city, click, matey, yer own profile, then smash the blue \"Start Removing\" button. Enter {contact_email} as the email address an' submit. Radaris emails a link to that address; OpenOptOut clicks it fer ye."
+}

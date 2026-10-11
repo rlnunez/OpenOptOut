@@ -1,0 +1,4 @@
+{
+ "description": "Spy Dialer 的引导式退出，该网站按电话号码列出个人信息。一次退出即可涵盖所有已保存的号码。",
+ "instructions": "打开 https://www.spydialer.com/，点击页面底部的“Do Not Sell Or Share My Personal Information”。点击 Start，选择你所在的州，完成机器人验证，然后添加 {full_name}、你的地址、以下每个号码（{all_phones}）以及 {email}。点击“Opt-Out My Info”，等待出现“Your submitted data has been blocked from future sharing”。然后点击“我已完成”。"
+}

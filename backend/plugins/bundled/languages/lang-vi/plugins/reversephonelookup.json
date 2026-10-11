@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho ReversePhoneLookup.com, trang liệt kê người theo số điện thoại. Một lần gỡ áp dụng cho mọi số đã lưu.",
+ "instructions": "Mở https://www.reversephonelookup.com/ và bấm \"Do Not Sell or Share My Personal Information\" ở cuối trang. Nhập {contact_email} và một trong các số sau (chỉ nhập chữ số nếu báo lỗi): {all_phones}. Hoàn tất bước kiểm tra robot và gửi; chúng tôi sẽ bấm liên kết xác nhận được gửi qua email. Lặp lại cho từng số, rồi bấm \"Tôi đã làm xong\"."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no Whitepages. Uma pessoa segue os passos da lista; o OpenOptOut fornece um endereço de e-mail de uso único e clica em qualquer link de confirmação.",
+ "instructions": "O Whitepages confirma por telefone, então esta você mesmo precisa fazer. Abra whitepages.com/suppression-requests, cole {listing_url}, toque em Next e depois em \"Remove Me\". Escolha um motivo, toque em Next e digite o número de telefone que o Whitepages mostra para você. Atenda a ligação automática e digite o código informado. Quando a página disser que seu pedido foi recebido, toque em \"Já fiz isso\"."
+}

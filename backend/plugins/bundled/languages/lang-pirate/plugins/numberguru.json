@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer NumberGuru, which lists folk by phone number. One opt-out covers every saved phone number.",
+ "instructions": "Search https://www.numberguru.com/ fer each of these numbers: {all_phones}. On any page that shows ye, use the \"Remove This Listing\" or \"Opt Out\" link an' give {contact_email} as yer email. Then smash \"I've done this\"."
+}

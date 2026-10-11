@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour Apollo.io, qui répertorie les gens par adresse e-mail. Une seule désinscription couvre toutes les adresses enregistrées.",
+ "instructions": "Apollo classe les gens par e-mail professionnel. Ouvrez https://www.apollo.io/privacy-policy/remove, saisissez chacune de ces adresses (une à la fois), terminez la vérification anti-robot et ouvrez le lien qu'Apollo envoie à cette adresse : {all_emails}. Puis appuyez sur « C'est fait »."
+}

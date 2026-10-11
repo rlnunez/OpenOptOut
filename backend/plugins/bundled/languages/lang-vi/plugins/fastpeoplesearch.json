@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho FastPeopleSearch. Một người làm theo các bước trong danh sách; OpenOptOut cung cấp địa chỉ email dùng một lần và tự bấm mọi liên kết xác nhận.",
+ "instructions": "Tìm {full_name} trên fastpeoplesearch.com. Nếu có tên bạn, mở fastpeoplesearch.com/optout và làm theo các bước để xóa hồ sơ; có thể bạn cần giải CAPTCHA. Nếu trang hỏi địa chỉ email, dùng {contact_email} để OpenOptOut có thể bấm giúp bạn mọi liên kết xác nhận. Sau đó bấm \"Tôi đã làm xong\"."
+}

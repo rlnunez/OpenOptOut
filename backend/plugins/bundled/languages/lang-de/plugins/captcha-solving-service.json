@@ -1,0 +1,3 @@
+{
+ "description": "Schickt CAPTCHAs an einen Lösungsdienst, bei dem du ein Konto hast (2Captcha, Anti-Captcha, CapSolver oder CapMonster Cloud). Er sieht nie persönliche Daten: nur den CAPTCHA-Schlüssel der Website und eine bereinigte Seitenadresse oder ein zugeschnittenes Bild des Rätsels, auf dem jedes Formularfeld und jede gespeicherte Angabe geschwärzt ist. Der Kontoschlüssel wird auf der CAPTCHA-Seite eingestellt und diesem Plugin nur während des Lösens übergeben. Schafft der Dienst es nicht, kann eine Person es lösen."
+}

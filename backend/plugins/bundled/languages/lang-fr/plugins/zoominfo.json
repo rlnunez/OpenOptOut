@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour ZoomInfo, qui répertorie les gens par adresse e-mail. Une seule désinscription couvre toutes les adresses enregistrées.",
+ "instructions": "Ouvrez https://privacy.zoominfo.com/, cherchez {full_name} avec votre employeur, choisissez la fiche et demandez sa suppression. Validez avec chaque e-mail professionnel que ZoomInfo demande. Vos adresses enregistrées : {all_emails}. Puis appuyez sur « C'est fait »."
+}

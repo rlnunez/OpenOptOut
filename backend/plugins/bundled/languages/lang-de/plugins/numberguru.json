@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei NumberGuru, das Personen nach Telefonnummer auflistet. Ein Widerspruch gilt für alle gespeicherten Nummern.",
+ "instructions": "Such auf https://www.numberguru.com/ nach jeder dieser Nummern: {all_phones}. Nutz auf jeder Seite, die dich zeigt, den Link „Remove This Listing“ oder „Opt Out“ und gib {contact_email} als deine E-Mail an. Drück dann „Ich habe das erledigt“."
+}
