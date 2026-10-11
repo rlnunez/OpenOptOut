@@ -587,8 +587,72 @@ class DropboxDest(CloudDest):
                       headers=self._h(), timeout=30).raise_for_status()
 
 
+class RcloneDest(Destination):
+    """
+    Anything rclone can reach: Proton Drive, Box, pCloud, MEGA, Backblaze,
+    iCloud Drive, WebDAV/Nextcloud and dozens more. The admin pastes the
+    remote's section from their rclone.conf (made with `rclone config` on
+    any computer); it's kept encrypted and written to a private temp file only
+    while rclone runs. Backups are already encrypted before rclone sees them.
+    """
+    kind = "rclone"
+    _REMOTE = __import__("re").compile(r"^[A-Za-z0-9_.-]{1,64}$")
+
+    def _remote(self):
+        r = (self.conf.get("remote") or "").strip().rstrip(":")
+        if not self._REMOTE.match(r):
+            raise RuntimeError("enter the remote's name exactly as it appears in [brackets] in the config")
+        path = (self.conf.get("path") or "").strip().strip("/")
+        if ".." in path.split("/"):
+            raise RuntimeError("the folder can't contain '..'")
+        return f"{r}:{path}" if path else f"{r}:"
+
+    def _run(self, *args, timeout=3600):
+        import subprocess
+        exe = shutil.which("rclone")
+        if not exe:
+            raise RuntimeError("rclone isn't installed on this server (it's included in the Docker image; "
+                               "elsewhere install it from rclone.org)")
+        from .oauth_engine import _decrypt
+        conf_text = _decrypt(self.conf["config_enc"]) if self.conf.get("config_enc") else ""
+        if not conf_text.strip():
+            raise RuntimeError("paste the remote's settings from rclone.conf")
+        fd, conf_path = tempfile.mkstemp(prefix="oo-rclone-", suffix=".conf")
+        try:
+            os.chmod(conf_path, 0o600)
+            with os.fdopen(fd, "w") as f:
+                f.write(conf_text)
+            res = subprocess.run([exe, "--config", conf_path, "--retries", "2", "--low-level-retries", "3", *args],
+                                 capture_output=True, text=True, timeout=timeout,
+                                 env={"PATH": os.environ.get("PATH", ""), "HOME": tempfile.gettempdir()})
+        finally:
+            try:
+                os.unlink(conf_path)
+            except OSError:
+                pass
+        if res.returncode != 0:
+            last = (res.stderr or res.stdout or "").strip().splitlines()[-1:] or ["rclone failed"]
+            raise RuntimeError(f"rclone: {last[0][:300]}")
+        return res.stdout
+
+    def _dest(self, name):
+        base = self._remote()
+        return base + ("" if base.endswith(":") else "/") + os.path.basename(name)
+
+    def upload(self, path, name):
+        self._run("copyto", path, self._dest(name))
+
+    def names(self, include_tests=False):
+        out = self._run("lsf", "--files-only", self._remote(), timeout=300)
+        return sorted(n for n in out.splitlines() if n.startswith(PREFIX)
+                      and (n.endswith(SUFFIX) or include_tests))
+
+    def delete(self, name):
+        self._run("deletefile", self._dest(name), timeout=300)
+
+
 KINDS = {"folder": FolderDest, "sftp": SFTPDest, "s3": S3Dest, "gdrive": GDriveDest,
-         "onedrive": OneDriveDest, "dropbox": DropboxDest}
+         "onedrive": OneDriveDest, "dropbox": DropboxDest, "rclone": RcloneDest}
 LOCAL_DIR = os.getenv("BACKUP_DIR") or os.path.join(os.path.dirname(os.getenv("SETTINGS_FILE") or "./x"), "backups")
 
 
