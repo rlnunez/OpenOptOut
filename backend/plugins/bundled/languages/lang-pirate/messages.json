@@ -152,5 +152,6 @@
   "nav.deadlines": "Overdue Scallywags",
   "nav.privacy_record": "Ship's Secrets Ledger",
   "nav.calendar": "Ship's Almanac",
-  "nav.spec_helpers": "Automatic broker steps"
+  "nav.spec_helpers": "Automatic broker steps",
+  "nav.letters": "Opt-out letters"
 }

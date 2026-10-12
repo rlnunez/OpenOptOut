@@ -2,9 +2,17 @@
   "id": "ccpa",
   "title": "California — CCPA / CPRA",
   "law": "California Consumer Privacy Act, as amended by the California Privacy Rights Act (Cal. Civ. Code § 1798.100 et seq.)",
-  "legal_basis": ["ccpa", "cpra"],
-  "jurisdictions": ["US", "US-CA"],
-  "residents_of": ["CA"],
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "jurisdictions": [
+    "US",
+    "US-CA"
+  ],
+  "residents_of": [
+    "CA"
+  ],
   "deadline_days": 45,
   "default_language": "en",
   "review_status": "draft",

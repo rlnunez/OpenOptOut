@@ -86,6 +86,7 @@ Plugins are organized into specialized subdirectories under `<plugins_root>/` (d
 │       └── assets/ (logo.svg, logo.png, favicon.ico)
 │
 ├── languages/        # i18n localization packs (Data-Only, Item 17)
+├── letters/          # opt-out letter wording, letter.json (Data-Only)
 │   └── <plugin_id>/
 │       ├── manifest.json
 │       └── messages.json
@@ -107,6 +108,7 @@ Plugins are organized into specialized subdirectories under `<plugins_root>/` (d
 | `email` | `plugins/email/` | `email_provider` | `email_provider`, `read_pii`, `network`, `settings_read`, `storage` | Sandboxed Python process (Trusted Class) |
 | `themes` | `plugins/themes/` | *(Prohibited)* | *(Prohibited — 0 permissions)* | **Data-only** (No code execution) |
 | `languages` | `plugins/languages/` | *(Prohibited)* | *(Prohibited — 0 permissions)* | **Data-only** (No code execution) |
+| `letters` | `plugins/letters/` | *(Prohibited)* | *(Prohibited — 0 permissions)* | **Data-only**: one `letter.json`, checked on upload |
 | `general` | `plugins/general/` | *(None)* | All except `email_provider`, `solve_captcha`, `fill_forms` | Sandboxed Python process |
 
 ---
@@ -169,7 +171,7 @@ Every plugin bundle must contain a `manifest.json` at its root.
 | `author` | `string` | **Yes** | Author or maintainer attribution. |
 | `type` | `string` | **Yes** | Must match one of the defined category types. |
 | `description` | `string` | No | Operational overview and documentation summary. |
-| `entrypoint` | `string` | Conditional | Relative path to executable script (e.g. `plugin.py`). **Must be empty or omitted for `themes`, `languages`, and declarative `brokers`**. |
+| `entrypoint` | `string` | Conditional | Relative path to executable script (e.g. `plugin.py`). **Must be empty or omitted for `themes`, `languages`, `letters`, and declarative `brokers`**. |
 | `permissions` | `list[string]` | No | High-level privilege categories requested from the host. |
 | `methods` | `list[string]` | Conditional | Exhaustive list of exact host API methods called by the plugin. |
 | `hooks` | `list[string]` | Conditional | Extension hooks implemented by the plugin. |

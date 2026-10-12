@@ -1,0 +1,9 @@
+{
+  "id": "letter-gdpr",
+  "type": "letters",
+  "name": "EU / EEA GDPR letter",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Erasure request under GDPR Article 17 for brokers in the EU and EEA, in English, French, German, Spanish, Italian, Dutch and Portuguese. Draft wording awaiting a lawyer's review.",
+  "api_version": "1.0"
+}

@@ -122,9 +122,22 @@ def _build_exhaustive_email(
         addresses, phones, emails, identifiers_block,
     )
 
-    # The broker's own letter, in order: one written for its legal language,
-    # then the add-on's single template, then a recorded script's.
-    own = addon_spec.letter_template(legal_language) if addon_spec else None
+    # Which letter (core/legal_letters.letter_choice): an admin's choice for
+    # this broker wins over everything, including the add-on's own wording.
+    from .legal_letters import letter_choice
+    choice = letter_choice(admin_choice=getattr(broker, "letter_template", None) or "",
+                           spec=addon_spec, jurisdiction=jurisdiction,
+                           residence_state=residence, legal_language=legal_language)
+    if choice["missing"]:
+        log.warning("Letter '%s' chosen for broker %s isn't available; using '%s' instead",
+                    choice["missing"], broker.name, choice["template_id"] or "the add-on's own wording")
+    admin_picked = choice["source"] == "admin"
+
+    # Otherwise the broker's own letter, in order: one written for its legal
+    # language, then the add-on's single template, then a recorded script's.
+    own = addon_spec.letter_template(legal_language) if addon_spec and not admin_picked else None
+    if admin_picked:
+        addon_email, script = None, None
     custom_subject = ((own or {}).get("subject")
                       or (addon_email.subject_template if addon_email and addon_email.subject_template
                           else (script.email_subject_tpl if script and script.email_subject_tpl else "")))
@@ -141,7 +154,8 @@ def _build_exhaustive_email(
         }
     letter = compose_letter(ids, broker.name, jurisdiction=jurisdiction,
                             legal_language=legal_language, residence_state=residence,
-                            request_key=request_key, property_records=prop)
+                            request_key=request_key, property_records=prop,
+                            template_id=choice["template_id"])
 
     subject = render_template(custom_subject, tpl_fields) if custom_subject else letter.subject
     if custom_body:
@@ -364,6 +378,7 @@ def send_parent_optout_detailed(member, parent, cfg, db, discovered_urls=None,
         locale=parent.locale or "", state=_residence_state(member),
         jurisdiction=getattr(parent, "jurisdiction", None) or "US",
         request_key=request_key,
+        template_id=getattr(parent, "letter_template", None) or "",
     )
     subject = (subject_prefix or "") + composed.subject
     detail.update({"cc": list(composed.cc), "subject": subject,

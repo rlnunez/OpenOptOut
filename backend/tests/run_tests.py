@@ -7187,6 +7187,10 @@ def t_access_route_gates():
         ("POST", "/api/spec-helpers/local"): {"SUPER"},
         ("PUT", "/api/spec-helpers/settings"): {"SUPER"},
         ("GET", "/api/spec-helpers/drafts"): {"brokers.manage"},
+        # Opt-out letters: choosing one is broker work; adding one is a plugin upload
+        ("GET", "/api/letters"): {"brokers.manage"},
+        ("GET", "/api/letters/{letter_id}/preview"): {"brokers.manage"},
+        ("PUT", "/api/letters/assign"): {"brokers.manage"},
         ("POST", "/api/spec-helpers/drafts/{draft_id}/approve"): {"brokers.manage"},
     }
     wrong = {k: (table.get(k), v) for k, v in expect.items() if table.get(k) != v}
@@ -10287,6 +10291,143 @@ def t_legal_broker_email():
         ba.get_broker_spec_for_broker = real
     # IF THIS FAILS: brokers would get English letters regardless of where they are, or an
     #   add-on's own wording would be ignored.
+
+
+@test(1, "legal.letters_are_plugins",
+      "Opt-out letters are plugins: built-in ones load, a turned-off letter isn't used, an admin's own letter replaces a built-in one, and a bad letter plugin is refused.")
+def t_letters_are_plugins():
+    import json, tempfile, shutil
+    ll = _imp("core.legal_letters")
+    layout = _imp("plugins.layout")
+    perms = _imp("plugins.permissions")
+    ll.reload()
+    cat = {t["id"]: t for t in ll.catalog()}
+    assert set(cat) >= {"ccpa", "us", "gdpr", "uk_gdpr", "lgpd", "pipeda", "generic"}, sorted(cat)
+    assert all(t["built_in"] and t["plugin_id"].startswith("letter-") for t in cat.values())
+    for found in [f for f in layout.scan(layout.BUNDLED_ROOT) if f.manifest and f.manifest.effective_type == "letters"]:
+        assert found.valid, (found.path, found.errors)
+        assert found.manifest.is_data_only
+    real_states, real_root = ll._plugin_states, os.environ.get("PLUGINS_DIR")
+    tmp = tempfile.mkdtemp()
+    try:
+        # Turned off: a California resident falls back to the general US letter;
+        # the general letter can't be lost.
+        ll._plugin_states = lambda: {"letter-ccpa": False, "letter-generic": False}
+        ll.reload()
+        assert ll.choose_template("US", "CA")["id"] == "us"
+        assert ll.choose_template("AU")["id"] == "generic"
+        assert {t["id"]: t["enabled"] for t in ll.catalog()}["ccpa"] is False, "shown, marked off"
+        assert ll.letter_choice(admin_choice="ccpa", jurisdiction="US")["missing"] == "ccpa"
+        # An admin's own plugin with the same letter id replaces the built-in one.
+        os.environ["PLUGINS_DIR"] = tmp
+        mine = os.path.join(tmp, "letters", "my-ccpa")
+        os.makedirs(mine)
+        t = json.load(open(os.path.join(layout.BUNDLED_ROOT, "letters", "letter-ccpa", "letter.json")))
+        t["languages"]["en"]["body"] = "Our own wording for {broker}.\n{scope}\n{property_note}\n{identifiers}\n{reference}\n{full_name}"
+        json.dump(t, open(os.path.join(mine, "letter.json"), "w"))
+        json.dump({"id": "my-ccpa", "type": "letters", "name": "Our CCPA letter", "version": "1.0.0",
+                   "author": "Example Library", "description": "Our own CCPA wording."},
+                  open(os.path.join(mine, "manifest.json"), "w"))
+        ll._plugin_states = lambda: {"my-ccpa": True}
+        ll.reload()
+        assert ll.choose_template("US", "CA")["_plugin_id"] == "my-ccpa"
+        tmpl = _imp("core.optout_email_template")
+        ids = tmpl.Identifiers(full_name="Jordan Example", emails=["jordan@example.invalid"])
+        e = tmpl.compose_optout_email(ids, "Acme", "p@acme.example", [], state="CA")
+        assert e.body.startswith("Our own wording for Acme") and "jordan@example.invalid" in e.body
+        # Not yet enabled (just uploaded): the built-in one is used.
+        ll._plugin_states = lambda: {"my-ccpa": False}
+        ll.reload()
+        assert ll.choose_template("US", "CA")["_plugin_id"] == "letter-ccpa"
+        # A letter plugin that leaves out the identifiers is refused at upload.
+        t["languages"]["en"]["body"] = "Please delete me. {broker} {scope} {full_name}"
+        json.dump(t, open(os.path.join(mine, "letter.json"), "w"))
+        m = perms.PluginManifest.from_dict(json.load(open(os.path.join(mine, "manifest.json"))))
+        errs = layout.content_errors(mine, m)
+        assert any("identifiers" in e for e in errs), errs
+        os.remove(os.path.join(mine, "letter.json"))
+        assert any("letter.json" in e for e in layout.content_errors(mine, m))
+        bad = perms.PluginManifest.from_dict({"id": "x-letter", "type": "letters", "name": "X", "version": "1",
+                                              "author": "x", "entrypoint": "plugin.py", "permissions": ["network"]})
+        assert bad.validate(), "a letters plugin can't run code or reach the network"
+    finally:
+        ll._plugin_states = real_states
+        if real_root is None:
+            os.environ.pop("PLUGINS_DIR", None)
+        else:
+            os.environ["PLUGINS_DIR"] = real_root
+        shutil.rmtree(tmp, ignore_errors=True)
+        ll.reload()
+    # IF THIS FAILS: letters couldn't be added, replaced or turned off as plugins,
+    #   or a letter missing the identifiers could reach brokers.
+
+
+@test(1, "legal.letter_chosen_per_broker",
+      "An admin can give a broker or parent company a different letter; it wins over the add-on's choice and wording, and an unavailable choice falls back to automatic.")
+def t_letter_per_broker():
+    from types import SimpleNamespace as NS
+    ll = _imp("core.legal_letters")
+    oe = _imp("core.optout_engine")
+    ba = _imp("plugins.broker_addon")
+    tmpl = _imp("core.optout_email_template")
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    ll.reload()
+    member = _fake_member()
+    # Admin's choice: a US broker gets the GDPR letter.
+    broker = NS(name="Acme", is_property_broker=False, notes="", plugin_id=None, letter_template="gdpr")
+    subject, body = oe._build_exhaustive_email(member, broker, "K-9", None, db=None)
+    assert "Article 17" in body and "jane@example.com" in body, body
+    # A choice that isn't available: automatic, never a failed send.
+    broker.letter_template = "no-such-letter"
+    subject, body = oe._build_exhaustive_email(member, broker, "K-9", None, db=None)
+    assert "Article 17" not in body and "jane@example.com" in body
+    real = ba.get_broker_spec_for_broker
+    try:
+        spec = BrokerSpec.from_dict({"broker_id": "acme", "name": "Acme", "method": "manual", "letter": "uk_gdpr"})
+        assert spec.validate() == [] and spec.to_dict()["letter"] == "uk_gdpr"
+        assert BrokerSpec.from_dict({"broker_id": "a", "name": "A", "method": "manual", "letter": "Bad Letter!"}).validate()
+        ba.get_broker_spec_for_broker = lambda db, b: spec
+        broker.letter_template = None
+        subject, body = oe._build_exhaustive_email(member, broker, "K-10", None, db=object())
+        assert "Information Commissioner" in body, "the add-on's named letter is used"
+        broker.letter_template = "lgpd"
+        subject, body = oe._build_exhaustive_email(member, broker, "K-11", None, db=object())
+        assert "13.709" in body, "the admin's choice wins over the add-on's"
+        own = BrokerSpec.from_dict({"broker_id": "acme", "name": "Acme", "method": "manual",
+                                    "email_templates": {"en": {"subject": "Own {request_key}", "body": "Own words {identifiers}"}}})
+        ba.get_broker_spec_for_broker = lambda db, b: own
+        subject, body = oe._build_exhaustive_email(member, broker, "K-12", None, db=object())
+        assert "13.709" in body and not body.startswith("Own"), "the admin's choice wins over the add-on's wording"
+        broker.letter_template = None
+        subject, body = oe._build_exhaustive_email(member, broker, "K-13", None, db=object())
+        assert body.startswith("Own words")
+        assert ll.letter_choice(spec=own, legal_language="en")["source"] == "addon_text"
+    finally:
+        ba.get_broker_spec_for_broker = real
+    ids = tmpl.Identifiers(full_name="Jordan Example", emails=["jordan@example.invalid"])
+    e = tmpl.compose_optout_email(ids, "Parent Co", "p@parent.example", [], jurisdiction="US", template_id="pipeda")
+    assert e.template_id == "pipeda"
+    # The API's preview uses made-up details only.
+    letters = _imp("routers.letters")
+    pv = letters.preview("gdpr", language="fr", broker="Exemple", _=None)
+    assert pv["language"] == "fr" and "Jordan Example" in pv["body"] and "jordan@example.invalid" in pv["body"]
+    assert pv["review_status"] == "draft"
+    # The admin's choice is stored on the broker and the parent company.
+    db, s = _memory_db()
+    s.add(db.Broker(name="Example Broker", opt_out_url="https://broker.example/optout"))
+    s.add(db.ParentCompany(name="Example Parent", jurisdiction="FR"))
+    s.commit()
+    b = s.query(db.Broker).first(); p = s.query(db.ParentCompany).first()
+    row = letters.assign(letters.Assign(kind="broker", id=b.id, letter_id="ccpa"), db=s, user=NS(id=1))
+    assert row["uses"] == "ccpa" and row["source"] == "admin" and s.query(db.Broker).first().letter_template == "ccpa"
+    row = letters.assign(letters.Assign(kind="parent", id=p.id, letter_id=""), db=s, user=NS(id=1))
+    assert row["uses"] == "gdpr" and row["source"] == "automatic"
+    try:
+        letters.assign(letters.Assign(kind="broker", id=b.id, letter_id="no-such-letter"), db=s, user=NS(id=1))
+        raise AssertionError("accepted a letter that doesn't exist")
+    except Exception as ex:
+        assert getattr(ex, "status_code", 0) == 400
+    # IF THIS FAILS: brokers couldn't get different letters, or a broken choice would stop sends.
 
 
 @test(1, "i18n.plugin_text_translated",

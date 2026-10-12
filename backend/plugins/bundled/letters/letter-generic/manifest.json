@@ -1,0 +1,9 @@
+{
+  "id": "letter-generic",
+  "type": "letters",
+  "name": "General letter (any other country)",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Deletion request for brokers in any country without its own letter, citing whichever data-protection law applies. Draft wording awaiting a lawyer's review.",
+  "api_version": "1.0"
+}

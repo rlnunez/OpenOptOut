@@ -1,0 +1,9 @@
+{
+  "id": "letter-uk-gdpr",
+  "type": "letters",
+  "name": "UK GDPR letter",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Erasure request under the UK GDPR for brokers in the United Kingdom. Draft wording awaiting a lawyer's review.",
+  "api_version": "1.0"
+}

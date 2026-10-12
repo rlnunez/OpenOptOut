@@ -5,7 +5,7 @@ import {
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
   Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal,
   Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Bell, Share2, Snowflake, Gavel, DatabaseBackup,
-  CalendarDays, FileLock2, Wand2
+  CalendarDays, FileLock2, Wand2, FileText
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
@@ -109,6 +109,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
     { k: 'nav.broker_updates', to: '/broker-updates',   icon: Bell,        label: tx("Broker updates"),   perms: ['brokers.manage'], badge: updatesCount, badgeLabel: tx("new broker updates") },
     { k: 'nav.broker_health', to: '/broker-health',    icon: Activity,    label: tx("Broker health"),    perms: ['brokers.manage'] },
     { k: 'nav.spec_helpers', to: '/spec-helpers',     icon: Wand2,       label: tx("Automatic broker steps"), perms: ['brokers.manage'] },
+    { k: 'nav.letters', to: '/letters',               icon: FileText,    label: tx("Opt-out letters"),  perms: ['brokers.manage'] },
     { k: 'nav.broker_priority', to: '/broker-priority',  icon: ListOrdered, label: tx("Broker priority"),  perms: ['brokers.manage'] },
     { k: 'nav.data_sharing', to: '/data-sharing',     icon: Share2,      label: tx("Data sharing"),     perms: ['brokers.manage'] },
     { k: 'nav.parent_companies', to: '/parent-companies', icon: Building2,   label: tx("Parent companies"), perms: ['brokers.manage'] },

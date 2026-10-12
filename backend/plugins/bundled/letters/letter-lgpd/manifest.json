@@ -1,0 +1,9 @@
+{
+  "id": "letter-lgpd",
+  "type": "letters",
+  "name": "Brazil LGPD letter",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Deletion request under Brazil's LGPD, in Brazilian Portuguese and English. Draft wording awaiting a lawyer's review.",
+  "api_version": "1.0"
+}

@@ -32,6 +32,7 @@ Each data broker is a plugin in `backend/plugins/bundled/brokers/<id>/` with `ma
 - `pause_for_human.text` and `instructions` are read by non-technical people. Write numbered-feeling plain steps, name the buttons exactly as the site shows them, and end with: press "I've done this".
 - Fill in `legal_basis`, `statutory_response_days`, `requires`, `search_url` and `listing_pattern` when known.
 - For brokers outside the US, also fill in `jurisdiction` and `legal_language` (e.g. `FR`/`fr`, `BR`/`pt-BR`). The opt-out letter follows these, not the family's language.
+- If the automatic letter is wrong for this broker, name another with `"letter": "<letter id>"` (for example `uk_gdpr`); letters are listed under Admin → Opt-out letters and in `backend/core/legal_templates/README.md`. An admin's choice still wins.
 - Leave `last_verified` empty unless you ran it against the live site yourself.
 
 ## 4. Write `manifest.json`

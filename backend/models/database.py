@@ -555,6 +555,7 @@ class ParentCompany(Base):
     # Where the parent company is ("US", "FR", "BR", ...): picks the law its
     # opt-out letter cites (core/legal_letters.py). Empty means "US".
     jurisdiction  = Column(String(12), nullable=True)
+    letter_template = Column(String(64), nullable=True)   # an admin's choice of letter; empty = automatic
     # The parent's legal language: the language its opt-out letter is written
     # in — not the family's interface language. Empty means the usual
     # language for the jurisdiction.
@@ -614,6 +615,9 @@ class Broker(Base):
 
     # Optional installed broker add-on plugin ID providing declarative spec / automation (Roadmap Item 1)
     plugin_id         = Column(String(100), nullable=True, index=True)
+    # The opt-out letter an admin picked for this broker (a letter id from a
+    # letters plugin); empty = the add-on's choice or automatic.
+    letter_template   = Column(String(64), nullable=True)
 
     # Where this broker record came from: "curated" (catalog, plugins, admins),
     # "registry" (imported from a state data-broker registry — off by default),

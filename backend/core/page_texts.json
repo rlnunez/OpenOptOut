@@ -178,7 +178,8 @@
   {
    "text": "+{v} more",
    "where": [
-    "pages/Calendar.jsx"
+    "pages/Calendar.jsx",
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -882,6 +883,12 @@
    ]
   },
   {
+   "text": "Added",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "added",
    "where": [
     "pages/SpecHelpers.jsx"
@@ -1343,6 +1350,18 @@
    ]
   },
   {
+   "text": "Answer due in {n} day",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
+   "text": "Answer due in {n} days",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "Answered late",
    "where": [
     "pages/DeadlineReport.jsx"
@@ -1370,6 +1389,12 @@
    "text": "Any notes about the opt-out process",
    "where": [
     "pages/BrokerSubmit.jsx"
+   ]
+  },
+  {
+   "text": "Any other country",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -1646,7 +1671,8 @@
   {
    "text": "Automatic",
    "where": [
-    "pages/Inboxes.jsx"
+    "pages/Inboxes.jsx",
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -1675,6 +1701,12 @@
    ]
   },
   {
+   "text": "Automatic picks the letter for the law where the broker is, and for US brokers, where the person lives. Pick a letter to send that one instead, whatever the broker's add-on says.",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "Automatic sending is off in Settings, so nothing goes out by itself.",
    "where": [
     "pages/Calendar.jsx"
@@ -1696,6 +1728,18 @@
    "text": "Automatic web search isn't turned on. An administrator can set it up under Web search.",
    "where": [
     "components/WebSearchResults.jsx"
+   ]
+  },
+  {
+   "text": "Automatic: the add-on's own wording",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
+   "text": "Automatic: {letter}",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -1911,6 +1955,7 @@
    "where": [
     "pages/BrokerHealth.jsx",
     "pages/BrokerPriority.jsx",
+    "pages/Letters.jsx",
     "pages/SpecHelpers.jsx",
     "pages/StateRegistries.jsx"
    ]
@@ -1987,7 +2032,8 @@
   {
    "text": "Brokers",
    "where": [
-    "pages/DatabaseAdmin.jsx"
+    "pages/DatabaseAdmin.jsx",
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -2030,6 +2076,12 @@
    "text": "Build Commit",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "Built in",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -2515,6 +2567,18 @@
    ]
   },
   {
+   "text": "Chosen by the broker's add-on",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
+   "text": "Chosen here",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "City",
    "where": [
     "components/UserWelcomeModal.jsx"
@@ -2660,7 +2724,8 @@
     "components/LiveCaptcha.jsx",
     "components/PluginUploadWizard.jsx",
     "pages/AdminPanel.jsx",
-    "pages/Inboxes.jsx"
+    "pages/Inboxes.jsx",
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -3325,6 +3390,12 @@
    ]
   },
   {
+   "text": "Couldn't load the letters.",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "Couldn't load the record.",
    "where": [
     "pages/PrivacyRecord.jsx"
@@ -3432,6 +3503,7 @@
     "components/SolvingSettings.jsx",
     "components/WebSearchResults.jsx",
     "pages/Calendar.jsx",
+    "pages/Letters.jsx",
     "pages/Settings.jsx"
    ]
   },
@@ -3485,6 +3557,12 @@
    "text": "Couldn't send the test email.",
    "where": [
     "pages/Inboxes.jsx"
+   ]
+  },
+  {
+   "text": "Couldn't show the letter.",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -4451,6 +4529,12 @@
    ]
   },
   {
+   "text": "Draft",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "Draft new steps",
    "where": [
     "pages/SpecHelpers.jsx"
@@ -4689,6 +4773,12 @@
    "text": "Each day, draft steps for one broker that has none (they wait for your approval)",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Each letter is a plugin. Add your own, replace a built-in one, or turn one off on the <0>Plugins page</0>.",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -5195,6 +5285,18 @@
    ]
   },
   {
+   "text": "European Economic Area",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
+   "text": "European Union",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "Event types it expects to receive:",
    "where": [
     "pages/Plugins.jsx"
@@ -5204,6 +5306,12 @@
    "text": "Every address increases discovery and opt-out coverage significantly",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Every built-in letter is a draft that no lawyer has reviewed yet. Read a letter before relying on it, and see each letter's notes for what a lawyer should check.",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -5521,6 +5629,12 @@
    ]
   },
   {
+   "text": "Filled in with made-up details (Jordan Example). This is exactly what a broker would get.",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "Filling in the opt-out form again, up to the CAPTCHA…",
    "where": [
     "server: live_captcha.py"
@@ -5541,7 +5655,8 @@
   {
    "text": "Filter by name",
    "where": [
-    "pages/BrokerHealth.jsx"
+    "pages/BrokerHealth.jsx",
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -5730,6 +5845,12 @@
    "text": "For your information",
    "where": [
     "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "For:",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -6792,6 +6913,12 @@
    ]
   },
   {
+   "text": "its add-on's own wording",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "Jane Smith",
    "where": [
     "pages/AdminPanel.jsx",
@@ -6866,6 +6993,12 @@
    ]
   },
   {
+   "text": "Language",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "Language Code (ISO 639-1)",
    "where": [
     "pages/Translations.jsx"
@@ -6881,6 +7014,12 @@
    "text": "Language Picker",
    "where": [
     "components/UserWelcomeModal.jsx"
+   ]
+  },
+  {
+   "text": "Languages:",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -7052,6 +7191,18 @@
    ]
   },
   {
+   "text": "Letter",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
+   "text": "Letter for {name}",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "Letter language",
    "where": [
     "pages/ParentCompanies.jsx"
@@ -7061,6 +7212,12 @@
    "text": "Letter: {law} in {language}",
    "where": [
     "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
+   "text": "Letters",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -7246,6 +7403,7 @@
     "pages/Family.jsx",
     "pages/IdentityVault.jsx",
     "pages/Inboxes.jsx",
+    "pages/Letters.jsx",
     "pages/Login.jsx",
     "pages/ParentCompanies.jsx",
     "pages/Plugins.jsx",
@@ -8709,6 +8867,12 @@
    ]
   },
   {
+   "text": "Nothing to show.",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "Nothing waiting for review.",
    "where": [
     "components/WebSearchResults.jsx"
@@ -9156,6 +9320,13 @@
    ]
   },
   {
+   "text": "Opt-out letters",
+   "where": [
+    "components/Sidebar.jsx",
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "Opt-out letters follow the company's country and are written in its legal language, not the language you use the app in.",
    "where": [
     "pages/ParentCompanies.jsx"
@@ -9358,7 +9529,14 @@
    "text": "Parent companies",
    "where": [
     "components/Sidebar.jsx",
+    "pages/Letters.jsx",
     "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
+   "text": "Parent company",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -9583,6 +9761,18 @@
    "text": "pending tasks",
    "where": [
     "pages/WorkerFleet.jsx"
+   ]
+  },
+  {
+   "text": "people living in a covered state get: {letter}",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
+   "text": "people living in: {v}",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -9943,7 +10133,8 @@
   {
    "text": "Preview",
    "where": [
-    "pages/BrokerPriority.jsx"
+    "pages/BrokerPriority.jsx",
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -10944,6 +11135,12 @@
    ]
   },
   {
+   "text": "Reviewed by a lawyer",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "Revoke",
    "where": [
     "pages/AdminPanel.jsx"
@@ -11274,6 +11471,12 @@
     "pages/Settings.jsx",
     "pages/SpecHelpers.jsx",
     "pages/WebSearchSettings.jsx"
+   ]
+  },
+  {
+   "text": "Saved. {name} now gets: {letter}.",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -11970,7 +12173,8 @@
    "text": "Show",
    "where": [
     "pages/BrokerSubmit.jsx",
-    "pages/IdentityVault.jsx"
+    "pages/IdentityVault.jsx",
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -12803,6 +13007,12 @@
    ]
   },
   {
+   "text": "Subject",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "Subject:",
    "where": [
     "pages/ParentCompanies.jsx"
@@ -13164,6 +13374,12 @@
    ]
   },
   {
+   "text": "The broker's add-on has its own wording",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "The broker's page, showing a CAPTCHA",
    "where": [
     "pages/CaptchaQueue.jsx"
@@ -13209,6 +13425,12 @@
    "text": "The JSON file can also be wrapped in <0/> for compatibility with export files. Existing brokers are matched by name (case-insensitive) and updated rather than duplicated.",
    "where": [
     "pages/BrokerSubmit.jsx"
+   ]
+  },
+  {
+   "text": "The letter picked for this one ({v}) isn't available, so the automatic one is used.",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -13329,6 +13551,12 @@
    "text": "The upstream strategy — remove from the source",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "The wording OpenOptOut emails to brokers. Each broker gets the letter for the law where it is, unless you pick a different one below.",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -13814,6 +14042,12 @@
    ]
   },
   {
+   "text": "Turned off",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "Turned off {disabled} broker(s).",
    "where": [
     "pages/StateRegistries.jsx"
@@ -14180,6 +14414,18 @@
    "text": "Used as email surrogate for patron accounts",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Used for {n} broker or parent company",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
+   "text": "Used for {n} brokers and parent companies",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
@@ -14592,6 +14838,12 @@
    ]
   },
   {
+   "text": "What a lawyer should check",
+   "where": [
+    "pages/Letters.jsx"
+   ]
+  },
+  {
    "text": "What changed",
    "where": [
     "pages/SpecHelpers.jsx"
@@ -14684,6 +14936,7 @@
   {
    "text": "Where",
    "where": [
+    "pages/Letters.jsx",
     "pages/PrivacyRecord.jsx"
    ]
   },
@@ -14727,6 +14980,12 @@
    "text": "Which identity provider to use",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Which letter each broker gets",
+   "where": [
+    "pages/Letters.jsx"
    ]
   },
   {
