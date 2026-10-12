@@ -3,6 +3,7 @@ import { ScanEye, RefreshCw } from 'lucide-react'
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import { tx } from '../i18n/tx'
+import { fmtDateTime } from '../i18n/format'
 
 const VERDICT = {
   gone: { label: tx("Gone"), cls: 'text-emerald-300' },
@@ -44,7 +45,7 @@ export default function RemovalChecks() {
         {data.enabled
           ? tx("OpenOptOut looks at each site again after an opt-out, and every month after that, to make sure the listing stayed gone. If it's back, the opt-out is sent again.")
           : tx("Automatic checks are turned off.")}
-        {data.last_checked_at && tx("Last check: {v}.", { v: new Date(data.last_checked_at + 'Z').toLocaleString() })}
+        {data.last_checked_at && tx("Last check: {v}.", { v: fmtDateTime(data.last_checked_at) })}
       </p>
       <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-xs">
         <div><dt className="text-slate-400">{tx("Checked: gone")}</dt><dd className="text-emerald-300 text-lg font-semibold">{c.gone}</dd></div>

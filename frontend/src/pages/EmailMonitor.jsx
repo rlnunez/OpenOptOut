@@ -8,6 +8,7 @@ import { useAuth, can } from '../hooks/useAuth'
 import Badge from '../components/Badge'
 import ConfirmLinksCard from '../components/ConfirmLinksCard'
 import { tx, txr } from '../i18n/tx'
+import { fmtDateTime } from '../i18n/format'
 
 function StatusDot({ ok }) {
   return <span className={`w-2 h-2 rounded-full inline-block ${ok ? 'bg-emerald-400' : 'bg-slate-600'}`} />
@@ -55,7 +56,7 @@ function EmailRow({ log }) {
           {log.direction === 'sent' && (
             <span className="text-xs text-blue-400 border border-blue-800 bg-blue-900/20 px-2 py-0.5 rounded-sm">{tx("sent")}</span>
           )}
-          <span className="text-slate-600 text-xs">{new Date(log.received_at).toLocaleString()}</span>
+          <span className="text-slate-600 text-xs">{fmtDateTime(log.received_at)}</span>
         </div>
       </button>
       {expanded && log.body_snippet && (
@@ -96,7 +97,7 @@ function PollHistory({ history }) {
               : null
             return (
               <tr key={r.id} className="border-t border-slate-700/20 hover:bg-slate-700/10">
-                <td className="px-4 py-2 text-slate-400">{new Date(r.started_at).toLocaleString()}</td>
+                <td className="px-4 py-2 text-slate-400">{fmtDateTime(r.started_at)}</td>
                 <td className="px-4 py-2">
                   <span className={r.status === 'done' ? 'text-emerald-400' : r.status === 'error' ? 'text-red-400' : 'text-amber-400'}>
                     {r.status === 'done' ? tx("Done") : r.status === 'error' ? tx("Problem") : tx("Checking")}
@@ -204,7 +205,7 @@ export default function EmailMonitor() {
                 </p>
                 <p className="text-slate-500 text-xs">
                   {tx("Checked every {poll_interval_minutes} minutes", { poll_interval_minutes: status.poll_interval_minutes })}
-                  {status.last_poll && tx("· last checked {v}", { v: new Date(status.last_poll).toLocaleString() })}
+                  {status.last_poll && tx("· last checked {v}", { v: fmtDateTime(status.last_poll) })}
                 </p>
               </div>
               <span className={`text-xs border px-2 py-0.5 rounded ${

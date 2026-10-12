@@ -21,11 +21,8 @@ STATUS_TEXT = {
 
 
 def _d(v) -> str:
-    if not v:
-        return "—"
-    if isinstance(v, str):
-        v = datetime.fromisoformat(v)
-    return f"{v:%b} {v.day}, {v.year}"
+    from .regional import format_date
+    return format_date(v)
 
 
 def gather(db, member_ids: Iterable[int], now: Optional[datetime] = None) -> dict:

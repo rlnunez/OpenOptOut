@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import { FileLock2, Download, AlertTriangle, Trash2 } from 'lucide-react'
 import api from '../api'
 import { tx, txn, txr } from '../i18n/tx'
+import { fmtDateTime } from '../i18n/format'
 
 // OpenOptOut's own record of the personal data it keeps (GDPR Article 30
 // style), its protection and retention, staff access, and tools for answering
 // a person's request to see or delete their data.
 
 const card = 'bg-slate-800 rounded-xl border border-slate-700/50 p-4 mb-4'
-const fmt = d => d ? new Date(d).toLocaleString() : '—'
+const fmt = d => fmtDateTime(d)
 
 export default function PrivacyRecord() {
   const [rec, setRec] = useState(null)

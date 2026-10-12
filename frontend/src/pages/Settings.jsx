@@ -10,6 +10,7 @@ import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import { performWebAuthnRegister } from '../utils/webauthn'
 import { tx, txn, txr } from '../i18n/tx'
+import { fmtDate, fmtDateTime, fmtNumber, formatLocale, regional, setRegional } from '../i18n/format'
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
@@ -159,6 +160,108 @@ function AppearanceSection({ initial, onSaved, userRole }) {
         </div>
       </Field>
       <div className="flex justify-end pt-1"><SaveButton saving={saving} saved={saved} onClick={save} /></div>
+    </Section>
+  )
+}
+
+// ── Regional formats ──────────────────────────────────────────────────────────
+
+// How dates, times and numbers look for everyone (default: United States).
+// Each person still reads month and day names in their own language.
+function RegionalSection({ userRole }) {
+  const isAdmin = userRole === 'super_admin'
+  const [form, setForm] = useState(null)
+  const [regions, setRegions] = useState([])
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  useEffect(() => {
+    api.get('/settings/regional').then(r => {
+      const { regions: list, ...rest } = r.data
+      setForm(rest); setRegions(list || [])
+    }).catch(() => {})
+  }, [])
+  if (!form) return null
+
+  let names = null
+  try { names = new Intl.DisplayNames([formatLocale()], { type: 'region' }) } catch { /* codes only */ }
+  const regionName = c => { try { return names?.of(c) || c } catch { return c } }
+  let zones = []
+  try { zones = Intl.supportedValuesOf('timeZone') } catch { /* free text */ }
+
+  // Preview with the choices on screen, then put the saved ones back.
+  const preview = (() => {
+    const before = regional()
+    setRegional(form)
+    const sample = new Date(Date.UTC(2026, 9, 11, 20, 5))
+    const out = { date: fmtDate(sample), dateTime: fmtDateTime(sample), number: fmtNumber(1234567.5) }
+    setRegional(before)
+    return out
+  })()
+
+  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const save = async () => {
+    setSaving(true); setMsg('')
+    try {
+      const { data } = await api.patch('/settings/regional', form)
+      setRegional(data); setForm(data)
+      setSaved(true); setTimeout(() => setSaved(false), 2000)
+      setMsg(tx("Saved. Refresh the page to see it everywhere."))
+    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save that.")) }
+    finally { setSaving(false) }
+  }
+  const sel = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-hidden focus:border-shield-500"
+
+  return (
+    <Section icon={Globe} title={tx("Regional formats")}
+      description={tx("How dates, times and numbers look for everyone. People still see month and day names in their own language.")}
+      adminOnly userRole={userRole}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="rf-region" className={labelCls}>{tx("Country or region")}</label>
+          <select id="rf-region" className={sel} value={form.region} onChange={set('region')} disabled={!isAdmin}>
+            {regions.map(c => <option key={c} value={c}>{regionName(c)}</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="rf-clock" className={labelCls}>{tx("Clock")}</label>
+          <select id="rf-clock" className={sel} value={form.hour_cycle} onChange={set('hour_cycle')} disabled={!isAdmin}>
+            <option value="auto">{tx("Usual for the region")}</option>
+            <option value="h12">{tx("12-hour (3:05 PM)")}</option>
+            <option value="h23">{tx("24-hour (15:05)")}</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="rf-week" className={labelCls}>{tx("Weeks start on")}</label>
+          <select id="rf-week" className={sel} value={form.week_start} onChange={set('week_start')} disabled={!isAdmin}>
+            <option value="auto">{tx("Usual for the region")}</option>
+            <option value="sun">{tx("Sunday")}</option>
+            <option value="mon">{tx("Monday")}</option>
+            <option value="sat">{tx("Saturday")}</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="rf-digits" className={labelCls}>{tx("Digits")}</label>
+          <select id="rf-digits" className={sel} value={form.digits} onChange={set('digits')} disabled={!isAdmin}>
+            <option value="latn">{tx("0–9 in every language")}</option>
+            <option value="native">{tx("Each language's own digits")}</option>
+          </select>
+        </div>
+        <div className="sm:col-span-2">
+          <label htmlFor="rf-tz" className={labelCls}>{tx("Time zone for times on screen")}</label>
+          <input id="rf-tz" className={inp} list="rf-tz-list" value={form.time_zone} onChange={set('time_zone')} disabled={!isAdmin}
+            placeholder={tx("Leave empty to use each person's own device")} dir="ltr" />
+          <datalist id="rf-tz-list">{zones.map(z => <option key={z} value={z} />)}</datalist>
+          <p className="text-slate-500 text-xs mt-1">{tx("Leave empty to use each person's own device. Example: America/Chicago.")}</p>
+        </div>
+      </div>
+      <div className="rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2.5 text-sm" aria-live="polite">
+        <p className="text-slate-400 text-xs mb-1">{tx("Preview")}</p>
+        <p className="text-slate-200">{preview.date} · {preview.dateTime} · {preview.number}</p>
+      </div>
+      {msg && <p role="status" className="text-slate-300 text-xs">{msg}</p>}
+      {isAdmin && <div className="flex justify-end pt-1"><SaveButton saving={saving} saved={saved} onClick={save} /></div>}
     </Section>
   )
 }
@@ -738,7 +841,7 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
               {Object.entries(status.next_runs).map(([id, time]) => (
                 <div key={id} className="flex items-center justify-between text-xs">
                   <span className="text-slate-400">{id.replace('_', ' ')}</span>
-                  <span className="text-slate-300 font-mono">{time ? new Date(time).toLocaleString() : '—'}</span>
+                  <span className="text-slate-300 font-mono">{fmtDateTime(time)}</span>
                 </div>
               ))}
             </div>
@@ -883,7 +986,7 @@ function DataSection({ userRole }) {
           <ul className="text-sm space-y-0.5 max-h-48 overflow-y-auto">
             {log.map((e, i) => (
               <li key={i} className="text-slate-300">
-                <span className="text-slate-500">{new Date(e.at).toLocaleString()}</span> · {e.who} {({ view: 'looked at', edit: 'changed', export: 'downloaded', delete: 'removed' })[e.action] || e.action}{" "}{tx("{person}'s {v}", { person: e.person, v: e.detail || 'details' })}
+                <span className="text-slate-500">{fmtDateTime(e.at)}</span> · {e.who} {({ view: tx("looked at"), edit: tx("changed"), export: tx("downloaded"), delete: tx("removed") })[e.action] || e.action}{" "}{tx("{person}'s {v}", { person: e.person, v: e.detail || 'details' })}
               </li>
             ))}
           </ul>
@@ -1049,11 +1152,11 @@ function VaultLimitsSection({ initial, userRole, onSaved }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div>
                 <p className="text-slate-400 text-xs">{txr("To find someone <0>(each name with each address)</0>", [<span className="text-slate-600" />])}</p>
-                <p className="text-slate-200 font-semibold">{discoveryPerBroker.toLocaleString()}{" "}{tx("searches")}</p>
+                <p className="text-slate-200 font-semibold">{fmtNumber(discoveryPerBroker)}{" "}{tx("searches")}</p>
               </div>
               <div>
                 <p className="text-slate-400 text-xs">{txr("To remove someone <0>(every mix)</0>", [<span className="text-slate-600" />])}</p>
-                <p className="text-slate-200 font-semibold">{optoutPerBroker.toLocaleString()}{" "}{tx("submissions")}</p>
+                <p className="text-slate-200 font-semibold">{fmtNumber(optoutPerBroker)}{" "}{tx("submissions")}</p>
               </div>
             </div>
             {optoutPerBroker > 500 && (
@@ -1978,7 +2081,7 @@ function MfaAccountSection({ user }) {
                     </span>
                   )}
                   <span className="text-slate-500 text-[11px] shrink-0">
-                    {tx("Added {v}", { v: k.created_at ? new Date(k.created_at).toLocaleDateString() : 'recently' })}
+                    {tx("Added {v}", { v: k.created_at ? fmtDate(k.created_at) : tx("recently") })}
                   </span>
                 </div>
                 <button
@@ -2926,6 +3029,7 @@ export default function Settings() {
         <p className="text-slate-400 text-sm mt-0.5">{tx("Configure how OpenOptOut looks and behaves")}</p>
       </div>
       <AppearanceSection initial={settings?.appearance ?? {}} onSaved={a => setSettings(s=>({...s,appearance:a}))} userRole={sectionRole('branding.manage')}/>
+      <RegionalSection userRole={sectionRole('settings.system')}/>
       <MfaAccountSection user={user} />
       <WebAuthnPolicySection userRole={user?.role} />
       <PasswordlessPolicySection userRole={user?.role} />

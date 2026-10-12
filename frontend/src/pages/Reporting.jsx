@@ -8,6 +8,7 @@ import api from '../api'
 import { downloadReport } from '../components/PrivacyScore'
 import { useAuth, can } from '../hooks/useAuth'
 import { tx } from '../i18n/tx'
+import { fmtDate } from '../i18n/format'
 
 function StatCard({ label, value, sub, icon: Icon, color = 'text-slate-300' }) {
   return (
@@ -239,7 +240,7 @@ export default function Reporting() {
                       <span className="text-emerald-400">{h.ok}{" "}{tx("ok")}</span>
                       {h.error > 0 && <span className="text-red-400">{h.error}{" "}{tx("err")}</span>}
                     </div>
-                    {h.last_run && <p className="text-slate-700 text-xs mt-1">{new Date(h.last_run).toLocaleDateString()}</p>}
+                    {h.last_run && <p className="text-slate-700 text-xs mt-1">{fmtDate(h.last_run)}</p>}
                   </div>
                 ))}
               </div>

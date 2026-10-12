@@ -9,6 +9,7 @@ import RemovalChecks from '../components/RemovalChecks'
 import PrivacyScore from '../components/PrivacyScore'
 import { useAuth, can } from '../hooks/useAuth'
 import { tx, txn, txr } from '../i18n/tx'
+import { fmtDate } from '../i18n/format'
 
 function StatCard({ label, value, icon: Icon, color }) {
   return (
@@ -341,7 +342,7 @@ function RecentRequests() {
             <td className="px-4 py-2.5"><Badge value={r.status} /></td>
             <td className="px-4 py-2.5"><Badge value={r.method_used} /></td>
             <td className="px-4 py-2.5 text-slate-500 text-xs">
-              {r.recheck_after ? new Date(r.recheck_after).toLocaleDateString() : '—'}
+              {fmtDate(r.recheck_after)}
             </td>
           </tr>
         ))}

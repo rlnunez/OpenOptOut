@@ -9,6 +9,7 @@ import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
 import { useLanguage } from '../i18n/LanguageContext'
 import { tx, txr } from '../i18n/tx'
+import { fmtDate, fmtDateTime } from '../i18n/format'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
@@ -311,7 +312,7 @@ function RegistrationSection() {
                 <span className="text-slate-500 text-xs">{c.uses}{tx("/{v} uses", { v: c.max_uses === 0 ? '∞' : c.max_uses })}</span>
                 <span className="text-slate-600 text-xs">{c.role}</span>
                 {c.note && <span className="text-slate-600 text-xs truncate max-w-32">{c.note}</span>}
-                {c.expires_at && <span className="text-slate-600 text-xs">{new Date(c.expires_at).toLocaleDateString()}</span>}
+                {c.expires_at && <span className="text-slate-600 text-xs">{fmtDate(c.expires_at)}</span>}
                 <button onClick={() => revokeCode(c.id)} className="text-slate-600 hover:text-red-400 transition-colors">
                   <Trash2 size={12} />
                 </button>
@@ -984,7 +985,7 @@ function AuthProvidersSection() {
               return (
                 <div className="text-xs flex items-start justify-between gap-2">
                   <p className={color}>{tx("Server certificate: {message}", { message: c.message })}
-                    {c.checked_at && <span className="text-slate-600">{" "}{tx("· checked")}{" "}{new Date(c.checked_at).toLocaleString()}</span>}
+                    {c.checked_at && <span className="text-slate-600">{" "}{tx("· checked")}{" "}{fmtDateTime(c.checked_at)}</span>}
                   </p>
                   <button onClick={() => api.post('/branding/auth-providers/ldap/cert-check').then(r => setLdapCert(r.data))}
                     className="text-slate-400 hover:text-slate-200 shrink-0">{tx("Check now")}</button>

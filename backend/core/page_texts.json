@@ -236,6 +236,12 @@
    ]
   },
   {
+   "text": "0–9 in every language",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "1. Generate a key: <0>openssl rand -hex 32</0>",
    "where": [
     "pages/Settings.jsx"
@@ -254,6 +260,12 @@
    ]
   },
   {
+   "text": "12-hour (3:05 PM)",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "2. Add to .env: <0>DB_ENCRYPTION_KEY=your-key-here</0>",
    "where": [
     "pages/Settings.jsx"
@@ -263,6 +275,12 @@
    "text": "2. Add your identity provider's metadata",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "24-hour (15:05)",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -2269,6 +2287,12 @@
    ]
   },
   {
+   "text": "changed",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Changes apply to this manager only. Anything left matching the defaults keeps following them.",
    "where": [
     "pages/AdminPanel.jsx"
@@ -2650,6 +2674,12 @@
   },
   {
    "text": "Client secret (optional if already registered)",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Clock",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -3591,6 +3621,12 @@
    ]
   },
   {
+   "text": "Country or region",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Crashed",
    "where": [
     "pages/Plugins.jsx"
@@ -4127,6 +4163,12 @@
    ]
   },
   {
+   "text": "Digits",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Direct link to the removal/opt-out page",
    "where": [
     "pages/BrokerSubmit.jsx"
@@ -4451,6 +4493,12 @@
    ]
   },
   {
+   "text": "downloaded",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Draft new steps",
    "where": [
     "pages/SpecHelpers.jsx"
@@ -4689,6 +4737,12 @@
    "text": "Each day, draft steps for one broker that has none (they wait for your approval)",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Each language's own digits",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -6212,6 +6266,12 @@
    ]
   },
   {
+   "text": "How dates, times and numbers look for everyone. People still see month and day names in their own language.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "How far your family's information has been removed",
    "where": [
     "pages/Dashboard.jsx"
@@ -7004,6 +7064,18 @@
    ]
   },
   {
+   "text": "Leave empty to use each person's own device",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Leave empty to use each person's own device. Example: America/Chicago.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Legal deadline",
    "where": [
     "pages/Calendar.jsx"
@@ -7318,6 +7390,12 @@
    "text": "Look on this site for its privacy request page",
    "where": [
     "pages/Brokers.jsx"
+   ]
+  },
+  {
+   "text": "looked at",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -7789,7 +7867,8 @@
   {
    "text": "Monday",
    "where": [
-    "pages/Calendar.jsx"
+    "pages/Calendar.jsx",
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -8670,6 +8749,12 @@
    "text": "Nothing new.",
    "where": [
     "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "nothing planned",
+   "where": [
+    "pages/Calendar.jsx"
    ]
   },
   {
@@ -9943,7 +10028,8 @@
   {
    "text": "Preview",
    "where": [
-    "pages/BrokerPriority.jsx"
+    "pages/BrokerPriority.jsx",
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -10302,6 +10388,12 @@
    ]
   },
   {
+   "text": "recently",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Reclaim Stalled Leases",
    "where": [
     "pages/WorkerFleet.jsx"
@@ -10399,6 +10491,12 @@
    "text": "Region (e.g. us-east-1; \"auto\" for some services)",
    "where": [
     "pages/Backups.jsx"
+   ]
+  },
+  {
+   "text": "Regional formats",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -10679,6 +10777,7 @@
   {
    "text": "removed",
    "where": [
+    "pages/Settings.jsx",
     "pages/SpecHelpers.jsx"
    ]
   },
@@ -11128,7 +11227,8 @@
   {
    "text": "Saturday",
    "where": [
-    "pages/Calendar.jsx"
+    "pages/Calendar.jsx",
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -11274,6 +11374,12 @@
     "pages/Settings.jsx",
     "pages/SpecHelpers.jsx",
     "pages/WebSearchSettings.jsx"
+   ]
+  },
+  {
+   "text": "Saved. Refresh the page to see it everywhere.",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -12842,7 +12948,8 @@
   {
    "text": "Sunday",
    "where": [
-    "pages/Calendar.jsx"
+    "pages/Calendar.jsx",
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -13525,6 +13632,12 @@
   },
   {
    "text": "Time window",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Time zone for times on screen",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -14293,6 +14406,12 @@
    ]
   },
   {
+   "text": "Usual for the region",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Usually removes",
    "where": [
     "components/Badge.jsx"
@@ -14563,6 +14682,12 @@
   },
   {
    "text": "Weeks",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Weeks start on",
    "where": [
     "pages/Settings.jsx"
    ]

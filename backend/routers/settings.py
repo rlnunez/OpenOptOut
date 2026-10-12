@@ -253,6 +253,38 @@ def save_appearance(data: AppearanceSettings, _: User = Depends(require_permissi
     return s["appearance"]
 
 
+# ── Regional formats ──────────────────────────────────────────────────────────
+
+class RegionalSettings(BaseModel):
+    region:     Optional[str] = None
+    hour_cycle: Optional[str] = None
+    week_start: Optional[str] = None
+    time_zone:  Optional[str] = None
+    digits:     Optional[str] = None
+
+
+@router.get("/regional")
+def get_regional():
+    """How dates, times and numbers are shown. Public: the screens need it
+    before sign-in, and it holds nothing about anyone."""
+    from ..core import regional
+    return {**regional.get(load_settings()), "regions": regional.REGIONS}
+
+
+@router.patch("/regional")
+def save_regional(data: RegionalSettings, _: User = Depends(require_permission("settings.system"))):
+    from ..core import regional
+    s = load_settings()
+    merged = {**regional.get(s), **{k: v for k, v in data.model_dump().items() if v is not None}}
+    try:
+        s["regional"] = regional.clean(merged)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    _save(s)
+    regional._cache["value"] = None
+    return s["regional"]
+
+
 # ── Email ─────────────────────────────────────────────────────────────────────
 
 @router.get("/email/presets")
