@@ -1,0 +1,19 @@
+{
+  "broker_id": "usa-people-search",
+  "name": "USA People Search",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://www.usa-people-search.com/removal",
+  "instructions": "Open https://www.usa-people-search.com/removal and follow the site's steps for {full_name}. Use {contact_email} wherever it asks for an email address, so the reply is matched. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "listing_selection"
+  ],
+  "notes": "A two-form flow: first a search, then a removal form for the chosen record.",
+  "source": "Process per redact.dev's USA People Search removal guide (May 2026).",
+  "last_verified": ""
+}

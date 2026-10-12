@@ -1,0 +1,18 @@
+{
+  "broker_id": "whooster",
+  "name": "Whooster",
+  "spec_version": "1.0",
+  "method": "email",
+  "email": {
+    "to_address": "privacy@whooster.com"
+  },
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "Whooster sells people-search and investigative data to businesses.",
+  "source": "BADBOOL Whooster entry; on 2026-10-11 the site was live.",
+  "last_verified": ""
+}

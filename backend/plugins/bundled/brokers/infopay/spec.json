@@ -1,0 +1,27 @@
+{
+  "broker_id": "infopay",
+  "name": "InfoPay network",
+  "spec_version": "1.0",
+  "method": "email",
+  "email": {
+    "to_address": "privacy@infopay.com"
+  },
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "covers": [
+    "backgroundcheckers.net",
+    "checksecrets.com",
+    "mugshotlook.com",
+    "peoplesearch123.com",
+    "peoplesearcher.com",
+    "privaterecords.net",
+    "freebackgroundcheck.us"
+  ],
+  "notes": "InfoPay runs several people-search sites: BackgroundCheckers.net, CheckSecrets, MugshotLook, PeopleSearch123, PeopleSearcher, PrivateRecords and FreeBackgroundCheck.us. One email asks all of them. InfoTracer, also InfoPay's, has its own form plugin.",
+  "source": "BADBOOL InfoPay entries and redact.dev's InfoTracer guide (updated 2026-08-11), which give this address.",
+  "last_verified": ""
+}

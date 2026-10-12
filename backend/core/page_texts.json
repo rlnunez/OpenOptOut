@@ -1369,6 +1369,18 @@
    ]
   },
   {
+   "text": "Also removes you from {n} other site",
+   "where": [
+    "pages/Brokers.jsx"
+   ]
+  },
+  {
+   "text": "Also removes you from {n} other sites",
+   "where": [
+    "pages/Brokers.jsx"
+   ]
+  },
+  {
    "text": "Also using the CA file at <0/> (legacy setting).",
    "where": [
     "pages/Branding.jsx"
@@ -3812,6 +3824,12 @@
    "text": "Couldn't try again:",
    "where": [
     "pages/CaptchaQueue.jsx"
+   ]
+  },
+  {
+   "text": "Couldn't turn it on.",
+   "where": [
+    "pages/Brokers.jsx"
    ]
   },
   {
@@ -8134,6 +8152,18 @@
    ]
   },
   {
+   "text": "May also clear other sites",
+   "where": [
+    "pages/Brokers.jsx"
+   ]
+  },
+  {
+   "text": "May also clear: {sites}. Not counted, because it isn't certain.",
+   "where": [
+    "pages/Brokers.jsx"
+   ]
+  },
+  {
    "text": "MB",
    "where": [
     "pages/Backups.jsx"
@@ -9694,6 +9724,12 @@
    ]
   },
   {
+   "text": "OpenOptOut hasn't checked each of these sites itself.",
+   "where": [
+    "pages/Brokers.jsx"
+   ]
+  },
+  {
    "text": "OpenOptOut is looking at each broker's site for this person. It can take a few minutes; results appear as they come in.",
    "where": [
     "pages/Discovery.jsx"
@@ -10479,6 +10515,18 @@
    "text": "Plugins you upload are installed disabled. A super admin reviews and enables them.",
    "where": [
     "pages/PluginUpload.jsx"
+   ]
+  },
+  {
+   "text": "Plus about {n} look-alike site in the same network.",
+   "where": [
+    "pages/Brokers.jsx"
+   ]
+  },
+  {
+   "text": "Plus about {n} look-alike sites in the same network.",
+   "where": [
+    "pages/Brokers.jsx"
    ]
   },
   {
@@ -13967,6 +14015,12 @@
    ]
   },
   {
+   "text": "The company says one request here also reaches:",
+   "where": [
+    "pages/Brokers.jsx"
+   ]
+  },
+  {
    "text": "the containers",
    "where": [
     "pages/SetupWizard.jsx"
@@ -14156,6 +14210,18 @@
    "text": "The wording OpenOptOut emails to brokers. Each broker gets the letter for the law where it is, unless you pick a different one below.",
    "where": [
     "pages/Letters.jsx"
+   ]
+  },
+  {
+   "text": "The {on} brokers turned on reach about {n} site, counting the other sites their opt-outs cover.",
+   "where": [
+    "pages/Brokers.jsx"
+   ]
+  },
+  {
+   "text": "The {on} brokers turned on reach about {n} sites, counting the other sites their opt-outs cover.",
+   "where": [
+    "pages/Brokers.jsx"
    ]
   },
   {
@@ -14607,6 +14673,7 @@
   {
    "text": "Turn on",
    "where": [
+    "pages/Brokers.jsx",
     "pages/StateRegistries.jsx"
    ]
   },
@@ -14641,6 +14708,24 @@
    ]
   },
   {
+   "text": "Turn on to also cover {n} other site",
+   "where": [
+    "pages/Brokers.jsx"
+   ]
+  },
+  {
+   "text": "Turn on to also cover {n} other sites",
+   "where": [
+    "pages/Brokers.jsx"
+   ]
+  },
+  {
+   "text": "Turn on {name}",
+   "where": [
+    "pages/Brokers.jsx"
+   ]
+  },
+  {
    "text": "Turn on {n} broker?",
    "where": [
     "pages/StateRegistries.jsx"
@@ -14655,6 +14740,7 @@
   {
    "text": "Turned off",
    "where": [
+    "pages/Brokers.jsx",
     "pages/Letters.jsx",
     "pages/Monitoring.jsx"
    ]

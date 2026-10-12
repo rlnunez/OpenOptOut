@@ -1,0 +1,36 @@
+{
+  "broker_id": "acxiom",
+  "name": "Acxiom",
+  "spec_version": "1.0",
+  "method": "form",
+  "opt_out_url": "https://www.acxiom.com/optout/",
+  "steps": [
+    {
+      "kind": "navigate",
+      "url": "https://www.acxiom.com/optout/",
+      "timeout_ms": 30000
+    },
+    {
+      "kind": "autofill"
+    },
+    {
+      "kind": "solve_captcha",
+      "selector": "iframe[src*='recaptcha'], iframe[src*='hcaptcha'], iframe[src*='challenges.cloudflare.com']",
+      "optional": true
+    },
+    {
+      "kind": "submit"
+    }
+  ],
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "email_confirmation"
+  ],
+  "notes": "Acxiom is a marketing data wholesaler, so opting out here cuts off data that flows on to many other brokers. The form asks for name, address, phone and email, then Acxiom sends a confirmation link from noreply-optout@acxiom.com. If the form fails, consumeradvo@acxiom.com is Acxiom's consumer advocate address.",
+  "source": "Process per redact.dev's Acxiom removal guide (updated 2026-09-10).",
+  "last_verified": ""
+}

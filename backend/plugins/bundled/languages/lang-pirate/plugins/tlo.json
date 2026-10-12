@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer TransUnion (TLOxp). A sailor follows the steps on the checklist; OpenOptOut hands over a one-time email address an' clicks any confirmation link.",
+ "instructions": "Open https://service.transunion.com/dss/ccpa_optout.page an' follow the site's steps fer {full_name}. The site asks fer a Social Security or driver's license number, which OpenOptOut never fills in; only finish it if ye be comfortable sharing that with them. Use {contact_email} if it asks fer an email address. Then smash \"I've done this\"."
+}

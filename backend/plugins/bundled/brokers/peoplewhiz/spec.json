@@ -1,0 +1,20 @@
+{
+  "broker_id": "peoplewhiz",
+  "name": "PeopleWhiz",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://www.peoplewhiz.com/optout",
+  "instructions": "Open https://www.peoplewhiz.com/optout and follow the site's steps for {full_name}. Use {contact_email} wherever it asks for an email address, so the reply is matched. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "government_id",
+    "postal_mail"
+  ],
+  "notes": "PeopleWhiz may ask for a copy of an ID by fax or mail. If it does, black out the ID number and photo before sending, or skip it: OpenOptOut never sends ID documents.",
+  "source": "Process per redact.dev's PeopleWhiz removal guide (updated 2026-09-09).",
+  "last_verified": ""
+}

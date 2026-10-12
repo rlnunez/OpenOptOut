@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho PeopleWhiz. Một người làm theo các bước trong danh sách; OpenOptOut cung cấp địa chỉ email dùng một lần và tự bấm mọi liên kết xác nhận.",
+ "instructions": "Mở https://www.peoplewhiz.com/optout và làm theo các bước của trang cho {full_name}. Dùng {contact_email} mỗi khi trang hỏi địa chỉ email, để thư trả lời được khớp. Sau đó bấm \"Tôi đã làm xong\"."
+}

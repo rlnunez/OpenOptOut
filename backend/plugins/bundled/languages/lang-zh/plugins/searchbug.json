@@ -1,0 +1,4 @@
+{
+ "description": "SearchBug 的引导式退出。由一个人按清单步骤操作；OpenOptOut 提供一次性电子邮件地址，并自动点击确认链接。",
+ "instructions": "打开 https://www.searchbug.com/privacy-requests.aspx，按网站的步骤为 {full_name} 操作。凡是要求填写电子邮件地址的地方都填 {contact_email}，以便匹配回复。然后点击“我已完成”。"
+}

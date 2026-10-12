@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour LexisNexis. Une personne suit les étapes de la liste ; OpenOptOut fournit une adresse e-mail à usage unique et clique sur les liens de confirmation.",
+ "instructions": "Ouvrez https://consumer.risk.lexisnexis.com/opt et suivez les étapes du site pour {full_name}. Le site demande un numéro de sécurité sociale ou de permis de conduire, qu'OpenOptOut ne remplit jamais ; ne terminez que si vous acceptez de le leur donner. Utilisez {contact_email} si une adresse e-mail est demandée. Puis appuyez sur « C'est fait »."
+}

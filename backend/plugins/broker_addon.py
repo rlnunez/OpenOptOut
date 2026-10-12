@@ -263,7 +263,9 @@ def sync_builtin_brokers(db) -> dict:
     (backend/plugins/bundled/brokers/), so the curated opt-out steps work out
     of the box. Called at startup.
 
-    * New ones are installed and turned on; their broker is created turned on.
+    * New ones are installed and turned on; their broker is created turned on,
+      unless the manifest says "starts_enabled": false (a plugin nobody could
+      check against the live site yet). Then the broker starts off.
     * Updated ones (an app upgrade) are refreshed in place.
     * One an admin turned off stays off, and an admin's own add-on with the
       same id is never replaced.
@@ -301,7 +303,7 @@ def sync_builtin_brokers(db) -> dict:
                 db.commit()
                 existed = db.query(Broker).filter(
                     (Broker.plugin_id == m.id) | (Broker.name.ilike(spec.name.strip()))).first() is not None
-                sync_broker_from_addon(db, m, dest, enabled=not existed)
+                sync_broker_from_addon(db, m, dest, enabled=not existed and m.starts_enabled)
                 stats["installed"] += 1
             elif row.version != m.version or row.install_path != dest:
                 row.version, row.name, row.description = m.version, m.name, m.description

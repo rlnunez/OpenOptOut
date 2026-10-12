@@ -1,0 +1,18 @@
+{
+  "broker_id": "irbsearch",
+  "name": "IRBsearch",
+  "spec_version": "1.0",
+  "method": "email",
+  "email": {
+    "to_address": "customercare@irbsearch.com"
+  },
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "IRBsearch sells public-records searches to investigators and businesses.",
+  "source": "BADBOOL IRBsearch entry; on 2026-10-11 the site was live and showed this address.",
+  "last_verified": ""
+}

@@ -1,0 +1,12 @@
+{
+  "id": "locatefamily",
+  "type": "brokers",
+  "broker_id": "locatefamily",
+  "name": "LocateFamily",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Guided opt-out for LocateFamily. A person follows the steps on the checklist; OpenOptOut supplies a one-time email address and clicks any confirmation link.",
+  "spec_file": "spec.json",
+  "difficulty": "medium",
+  "is_property_broker": false
+}

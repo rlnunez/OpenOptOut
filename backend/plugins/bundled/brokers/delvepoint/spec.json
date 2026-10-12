@@ -1,0 +1,18 @@
+{
+  "broker_id": "delvepoint",
+  "name": "DelvePoint",
+  "spec_version": "1.0",
+  "method": "email",
+  "email": {
+    "to_address": "customerservice@delvepoint.com"
+  },
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "DelvePoint is a skip-tracing service for businesses.",
+  "source": "BADBOOL DelvePoint entry; on 2026-10-11 the site was live and showed this address.",
+  "last_verified": ""
+}

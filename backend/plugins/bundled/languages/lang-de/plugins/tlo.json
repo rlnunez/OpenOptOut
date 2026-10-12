@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei TransUnion (TLOxp). Eine Person folgt den Schritten der Checkliste; OpenOptOut stellt eine Einmal-E-Mail-Adresse bereit und klickt Bestätigungslinks an.",
+ "instructions": "Öffnen Sie https://service.transunion.com/dss/ccpa_optout.page und folgen Sie den Schritten der Seite für {full_name}. Die Seite fragt nach einer Sozialversicherungs- oder Führerscheinnummer, die OpenOptOut nie ausfüllt; schließen Sie nur ab, wenn Sie sie dort angeben möchten. Geben Sie {contact_email} an, falls eine E-Mail-Adresse gefragt ist. Drücken Sie dann „Ich habe das erledigt“."
+}

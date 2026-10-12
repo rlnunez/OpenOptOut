@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no LexisNexis. Uma pessoa segue os passos da lista; o OpenOptOut fornece um endereço de e-mail de uso único e clica em qualquer link de confirmação.",
+ "instructions": "Abra https://consumer.risk.lexisnexis.com/opt e siga os passos do site para {full_name}. O site pede um número de Seguro Social ou de carteira de motorista, que o OpenOptOut nunca preenche; só termine se você estiver à vontade para informá-lo. Use {contact_email} se pedir um endereço de e-mail. Depois toque em \"Já fiz isso\"."
+}

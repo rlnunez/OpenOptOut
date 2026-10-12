@@ -1,0 +1,18 @@
+{
+  "broker_id": "truepeoplesearch-net",
+  "name": "TruePeopleSearch.net",
+  "spec_version": "1.0",
+  "method": "email",
+  "email": {
+    "to_address": "support@truepeoplesearch.net"
+  },
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "A different site from TruePeopleSearch.com, which has its own plugin.",
+  "source": "BADBOOL entry for TruePeopleSearch.net; on 2026-10-11 the site was live.",
+  "last_verified": ""
+}

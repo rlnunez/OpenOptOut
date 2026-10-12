@@ -1,0 +1,35 @@
+{
+  "broker_id": "peoplebyphone",
+  "name": "PeopleByPhone",
+  "spec_version": "1.0",
+  "method": "form",
+  "opt_out_url": "https://www.peoplebyphone.com/remove-my-number/",
+  "steps": [
+    {
+      "kind": "navigate",
+      "url": "https://www.peoplebyphone.com/remove-my-number/",
+      "timeout_ms": 30000
+    },
+    {
+      "kind": "autofill"
+    },
+    {
+      "kind": "solve_captcha",
+      "selector": "iframe[src*='recaptcha'], iframe[src*='hcaptcha'], iframe[src*='challenges.cloudflare.com']",
+      "optional": true
+    },
+    {
+      "kind": "submit"
+    }
+  ],
+  "lookup_by": "phone",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "",
+  "source": "Opt-out page listed in The Opt-Out Manual 2026 (thumpersecure/opt-out-manual-2026, public domain). The page couldn't be loaded for a check on 2026-10-11 (the site blocks automated readers), so this plugin ships turned off.",
+  "last_verified": ""
+}

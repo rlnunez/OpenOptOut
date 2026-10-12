@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no SearchBug. Uma pessoa segue os passos da lista; o OpenOptOut fornece um endereço de e-mail de uso único e clica em qualquer link de confirmação.",
+ "instructions": "Abra https://www.searchbug.com/privacy-requests.aspx e siga os passos do site para {full_name}. Use {contact_email} sempre que pedir um endereço de e-mail, para que a resposta seja associada. Depois toque em \"Já fiz isso\"."
+}

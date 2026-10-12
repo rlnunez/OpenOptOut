@@ -1,0 +1,32 @@
+{
+  "broker_id": "peopleconnect",
+  "name": "PeopleConnect (Intelius)",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://suppression.peopleconnect.us/login",
+  "instructions": "Open https://suppression.peopleconnect.us/login and follow the site's steps for {full_name}. Use {contact_email} wherever it asks for an email address, so the reply is matched. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "email_confirmation",
+    "listing_selection"
+  ],
+  "covers": [
+    "intelius.com",
+    "truthfinder.com",
+    "instantcheckmate.com",
+    "ussearch.com",
+    "zabasearch.com",
+    "addresses.com",
+    "addresssearch.com",
+    "peoplelookup.com",
+    "lookupanyone.com",
+    "publicrecords.com"
+  ],
+  "notes": "One suppression request covers the PeopleConnect brands: Intelius, TruthFinder, Instant Checkmate, US Search, ZabaSearch, Addresses.com, AddressSearch, PeopleLookup, LookupAnyone and PublicRecords.com (not Classmates). The site emails a code to the address given, then asks for a date of birth and legal name before showing records to pick; it may ask the person to complete a masked old email or phone. If it can't find the record, privacy@peopleconnect.us takes requests by email.",
+  "source": "Process per redact.dev's Intelius/PeopleConnect removal guide (updated 2026-05-21). Brands covered per the parent-company catalog.",
+  "last_verified": ""
+}

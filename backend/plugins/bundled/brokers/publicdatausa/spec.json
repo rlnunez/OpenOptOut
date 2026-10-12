@@ -1,0 +1,36 @@
+{
+  "broker_id": "publicdatausa",
+  "name": "PublicDataUSA",
+  "spec_version": "1.0",
+  "method": "form",
+  "opt_out_url": "https://publicdatausa.com/remove.php",
+  "steps": [
+    {
+      "kind": "navigate",
+      "url": "https://publicdatausa.com/remove.php",
+      "timeout_ms": 30000
+    },
+    {
+      "kind": "autofill"
+    },
+    {
+      "kind": "solve_captcha",
+      "selector": "iframe[src*='recaptcha'], iframe[src*='hcaptcha'], iframe[src*='challenges.cloudflare.com']",
+      "optional": true
+    },
+    {
+      "kind": "submit"
+    }
+  ],
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "listing_url"
+  ],
+  "notes": "The form asks for name, email and the address of the record on the site.",
+  "source": "Opt-out page listed in The Opt-Out Manual 2026 (thumpersecure/opt-out-manual-2026, public domain). On 2026-10-11 OpenOptOut loaded the page (no details entered) and it was an opt-out form.",
+  "last_verified": ""
+}

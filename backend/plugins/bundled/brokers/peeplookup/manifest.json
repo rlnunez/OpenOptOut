@@ -1,0 +1,13 @@
+{
+  "id": "peeplookup",
+  "type": "brokers",
+  "broker_id": "peeplookup",
+  "name": "PeepLookup",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Automatic opt-out for PeepLookup. OpenOptOut fills in the site's opt-out form; a person steps in only if the site asks for something unexpected.",
+  "spec_file": "spec.json",
+  "difficulty": "easy",
+  "is_property_broker": false,
+  "starts_enabled": false
+}

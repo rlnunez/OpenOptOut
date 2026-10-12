@@ -357,6 +357,11 @@ class PluginManifest:
     captcha_plugin_id: str = ""
     is_property_broker: bool = False
     difficulty: str = "medium"
+    # Whether a built-in broker plugin's broker starts turned on. False for
+    # plugins whose opt-out page nobody could check yet: they ship installed
+    # but off, and an admin turns them on (Brokers page) once a rehearsal
+    # passes. See broker-plugins/README.md, "Checked and unchecked plugins".
+    starts_enabled: bool = True
     # Translations the plugin carries in locales/<code>.json, and the language
     # its manifest and spec text is written in (plugins/plugin_i18n.py).
     default_locale: str = "en"
@@ -548,6 +553,7 @@ class PluginManifest:
             captcha_plugin_id=d.get("captcha_plugin_id", ""),
             is_property_broker=bool(d.get("is_property_broker", False)),
             difficulty=d.get("difficulty", "medium"),
+            starts_enabled=bool(d.get("starts_enabled", True)),
             default_locale=d.get("default_locale", "en") or "en",
             locales=d.get("locales", []) or [],
         )
@@ -584,6 +590,7 @@ class PluginManifest:
             "captcha_plugin_id": self.captcha_plugin_id,
             "is_property_broker": self.is_property_broker,
             "difficulty": self.difficulty,
+            "starts_enabled": self.starts_enabled,
             "default_locale": self.default_locale,
             "locales": self.locales,
         }

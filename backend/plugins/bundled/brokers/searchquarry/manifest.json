@@ -1,0 +1,13 @@
+{
+  "id": "searchquarry",
+  "type": "brokers",
+  "broker_id": "searchquarry",
+  "name": "SearchQuarry",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Automatic opt-out for SearchQuarry. OpenOptOut fills in the site's opt-out form; a person steps in only if the site asks for something unexpected.",
+  "spec_file": "spec.json",
+  "difficulty": "easy",
+  "is_property_broker": false,
+  "starts_enabled": false
+}
