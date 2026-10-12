@@ -70,6 +70,7 @@ SERVER_TEXTS = [
     ("backend/core/live_captcha.py", "STATES", None),
     ("backend/core/live_captcha.py", "PROBLEMS", None),
     ("backend/core/monitoring.py", "CHECK_TEXTS", None),
+    ("backend/core/sushi_check.py", "CHECK_TEXTS", None),
 ]
 
 

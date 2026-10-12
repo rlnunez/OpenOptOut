@@ -181,6 +181,7 @@ MASTER_DICTIONARY: List[Dict[str, str]] = [
     {"key": "nav.letters", "default_text": "Opt-out letters", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
     {"key": "nav.monitoring", "default_text": "Monitoring and alerts", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
     {"key": "nav.terms", "default_text": "Terms", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.usage_stats", "default_text": "Usage statistics (SUSHI)", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
     {"key": "nav.broker_priority", "default_text": "Broker priority", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
     {"key": "nav.data_sharing", "default_text": "Data sharing", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
     {"key": "nav.parent_companies", "default_text": "Parent companies", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
