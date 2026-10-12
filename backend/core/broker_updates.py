@@ -17,6 +17,10 @@ super administrators as a digest:
   steps_rehearsal_failed  drafted steps didn't get through a rehearsal
   found_while_off  listings were found on a broker that's turned off (core/found_listings.py)
   turned_on_found  a broker was turned on automatically because listings were found
+  plugin_added     a built-in broker plugin arrived with an app upgrade (plugins/broker_addon.py)
+  plugin_updated   a built-in broker plugin's opt-out steps changed with an app upgrade
+  privacy_found    the privacy-page finder found a request form, opt-out page or privacy
+                   email address on a broker's website (core/privacy_finder.py)
 
 The same thing about the same broker isn't recorded twice within
 DEDUPE_DAYS. Nothing here contains family members' personal details: titles
@@ -42,6 +46,9 @@ KINDS = {
     "steps_rehearsal_failed": ("review", "Drafted steps need a look"),
     "found_while_off": ("urgent", "Found on a broker that's off"),
     "turned_on_found": ("info", "Turned on after listings were found"),
+    "plugin_added": ("info", "Built-in plugin added"),
+    "plugin_updated": ("info", "Built-in plugin updated"),
+    "privacy_found": ("review", "Privacy page found"),
 }
 DEFAULT_SETTINGS = {"email_digest": "daily"}     # off | daily | weekly
 
