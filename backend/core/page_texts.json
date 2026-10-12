@@ -1417,6 +1417,12 @@
    ]
   },
   {
+   "text": "An admin turned it off.",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
    "text": "An API key from platform.claude.com (starts with sk-ant-).",
    "where": [
     "server: ai_helpers.py"
@@ -1648,6 +1654,18 @@
    "text": "Ask again automatically",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "ask an admin",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Ask an admin here first",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {
@@ -3867,6 +3885,7 @@
   {
    "text": "Couldn't turn it on.",
    "where": [
+    "pages/BrokerUpdates.jsx",
     "pages/Brokers.jsx"
    ]
   },
@@ -4807,6 +4826,12 @@
    "text": "Draft or fix steps for one broker",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Drafted steps need a look",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {
@@ -6113,6 +6138,12 @@
    ]
   },
   {
+   "text": "For a family, 1 is fine. For a library or school, a higher number means one stray match doesn't turn a site on.",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
    "text": "For any SAML identity provider: a home-lab Keycloak or Authentik, a university Shibboleth, Microsoft ADFS or Entra, Okta, and others. Google Workspace and Microsoft 365 can also use the simpler OIDC options below.",
    "where": [
     "pages/Branding.jsx"
@@ -6212,6 +6243,24 @@
    "text": "Found again on {fmt}. A new request goes out on the next run.",
    "where": [
     "components/RemovalTimeline.jsx"
+   ]
+  },
+  {
+   "text": "found for {n} people",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "found for {n} person",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Found on a broker that's off",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {
@@ -7310,6 +7359,12 @@
    ]
   },
   {
+   "text": "It goes on their checklist with the site's opt-out page, so they can do it themselves. If the broker is turned on later, OpenOptOut takes over.",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
    "text": "It is disabled until a super admin reviews and enables it.",
    "where": [
     "components/PluginUploadWizard.jsx"
@@ -7355,6 +7410,12 @@
    "text": "its add-on's own wording",
    "where": [
     "pages/Letters.jsx"
+   ]
+  },
+  {
+   "text": "Its website looked gone.",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {
@@ -7628,6 +7689,12 @@
    "text": "Leave empty to use each person's own device. Example: America/Chicago.",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Left a registry",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {
@@ -8763,6 +8830,18 @@
    ]
   },
   {
+   "text": "New brokers",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "New contact address",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
    "text": "New managers start with the manager defaults. Adjust them from the user's Permissions button.",
    "where": [
     "pages/AdminPanel.jsx"
@@ -8784,6 +8863,12 @@
    "text": "New passphrase",
    "where": [
     "pages/Backups.jsx"
+   ]
+  },
+  {
+   "text": "New site from a listing",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {
@@ -9078,6 +9163,12 @@
    "text": "No pending requests under any parent company",
    "where": [
     "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
+   "text": "No plugin, so only an admin can turn it on.",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {
@@ -9523,6 +9614,12 @@
    ]
   },
   {
+   "text": "Number of people",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
    "text": "of {v} sites asked to remove you",
    "where": [
     "pages/Dashboard.jsx"
@@ -9672,6 +9769,12 @@
    ]
   },
   {
+   "text": "once listings are found for at least <0/> people",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
    "text": "One IP for all traffic",
    "where": [
     "pages/Settings.jsx"
@@ -9729,6 +9832,12 @@
    "text": "Only checks physical presence (a basic capacitive touch). Does not require biometric or PIN verification.",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Only for brokers with a plugin that nobody turned off on purpose.",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {
@@ -12105,6 +12214,7 @@
     "components/SolvingSettings.jsx",
     "pages/AdminPanel.jsx",
     "pages/Branding.jsx",
+    "pages/BrokerUpdates.jsx",
     "pages/IdentityVault.jsx",
     "pages/Monitoring.jsx",
     "pages/ParentCompanies.jsx",
@@ -12292,6 +12402,18 @@
    "text": "Saved. {name} now gets: {letter}.",
    "where": [
     "pages/Letters.jsx"
+   ]
+  },
+  {
+   "text": "Saved. {n} broker was turned on: {names}.",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Saved. {n} brokers were turned on: {names}.",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {
@@ -13441,6 +13563,12 @@
    ]
   },
   {
+   "text": "Some brokers start turned off until someone checks them. When Find listings or web search finds a person on one, the site is clearly live and already has them, so opting out can't add anyone new.",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
    "text": "Some ignore requests, take months, or ask for things OpenOptOut won't send, like ID numbers. Some put listings back later, which is why it checks again.",
    "where": [
     "components/TermsGate.jsx"
@@ -13773,6 +13901,18 @@
    "text": "Steps",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Steps fixed automatically",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Steps ready to approve",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {
@@ -14120,6 +14260,18 @@
    ]
   },
   {
+   "text": "Tell the person",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "tell the person",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
    "text": "Templates & general tips",
    "where": [
     "pages/Help.jsx"
@@ -14283,6 +14435,12 @@
    "text": "That's {v}: add {domain} to removals",
    "where": [
     "components/WebSearchResults.jsx"
+   ]
+  },
+  {
+   "text": "The broker shows up below with a Turn on button. Opt-outs wait until it's on.",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {
@@ -15004,6 +15162,7 @@
   {
    "text": "Turn on",
    "where": [
+    "pages/BrokerUpdates.jsx",
     "pages/Brokers.jsx",
     "pages/StateRegistries.jsx"
    ]
@@ -15053,6 +15212,7 @@
   {
    "text": "Turn on {name}",
    "where": [
+    "pages/BrokerUpdates.jsx",
     "pages/Brokers.jsx"
    ]
   },
@@ -15069,11 +15229,29 @@
    ]
   },
   {
+   "text": "Turn the broker on and opt out automatically",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
    "text": "Turned off",
    "where": [
     "pages/Brokers.jsx",
     "pages/Letters.jsx",
     "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "Turned off after failing",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Turned off after failing.",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {
@@ -15083,9 +15261,21 @@
    ]
   },
   {
+   "text": "Turned off, with listings found",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
    "text": "Turned on",
    "where": [
     "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "Turned on after listings were found",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {
@@ -15219,6 +15409,12 @@
    "text": "Unlimited",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Until then:",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {
@@ -15849,6 +16045,18 @@
    ]
   },
   {
+   "text": "Website back",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Website gone",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
    "text": "Wed",
    "where": [
     "pages/Calendar.jsx"
@@ -15960,6 +16168,12 @@
    "text": "When a broker changes its page and the opt-out steps stop working, OpenOptOut tries to fix them. With an AI helper connected, it can also draft steps for brokers nobody has written steps for. Every draft is rehearsed with made-up details and stops before the final click, so nothing is sent while trying it.",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "When a listing is found on a broker that's turned off",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {
@@ -16584,6 +16798,12 @@
    "text": "{m}m {s}s",
    "where": [
     "pages/WorkerFleet.jsx"
+   ]
+  },
+  {
+   "text": "{name} is turned on. Its waiting opt-outs go out in the next run.",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {

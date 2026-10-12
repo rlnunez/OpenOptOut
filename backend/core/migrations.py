@@ -374,6 +374,8 @@ INSTITUTIONAL_MIGRATIONS = [
      "ALTER TABLE brokers ADD COLUMN letter_template VARCHAR(64)"),
     ("Add letter_template to parent_companies (an admin's choice of opt-out letter)",
      "ALTER TABLE parent_companies ADD COLUMN letter_template VARCHAR(64)"),
+    ("Add waiting_for to removal_requests (listings found on a broker that's turned off)",
+     "ALTER TABLE removal_requests ADD COLUMN waiting_for VARCHAR(20)"),
     ("Add combo_enc to captcha_challenges (live hand-off)",
      "ALTER TABLE captcha_challenges ADD COLUMN combo_enc TEXT"),
     ("Add calendar_token_hash to users (private calendar feed)",

@@ -7195,6 +7195,8 @@ def t_access_route_gates():
         ("GET", "/api/health/ready"): set(),
         # The operator's terms are what the server promises everyone: super admins only
         ("PUT", "/api/terms/settings"): {"SUPER"},
+        # Turning brokers on when listings are found is broker work
+        ("PUT", "/api/brokers/found-rule"): {"brokers.manage"},
         ("GET", "/api/terms/public"): set(),
         ("GET", "/api/spec-helpers/drafts"): {"brokers.manage"},
         # Opt-out letters: choosing one is broker work; adding one is a plugin upload
@@ -7823,6 +7825,69 @@ def t_terms_acting_for():
     s.close()
     # EXPECTED: no one is added without the parent confirming they may act for them.
     # IF THIS FAILS: OpenOptOut could send requests for people who never agreed.
+
+
+@test(2, "found_listings.rule_ask_auto_tell",
+      "A listing found on a broker that's off: ask an admin, tell the person, or turn it on at N people; never one turned off on purpose.")
+def t_found_listings_rule():
+    import uuid
+    db, s = _memory_db()
+    fl = _imp("core.found_listings")
+    people = []
+    for i in range(3):
+        u = db.User(email=f"p{i}@example.invalid", full_name=f"Jordan Example {i}", role=db.UserRole.member)
+        s.add(u); s.flush()
+        m = db.FamilyMember(user_id=u.id, full_name=f"Jordan Example {i}")
+        s.add(m); s.flush(); people.append(m)
+    s.add(db.InstalledPlugin(plugin_id="cocofinder", name="CocoFinder", version="1.0.0", enabled=True, manifest_json="{}", install_path="/nonexistent"))
+    b = db.Broker(name="CocoFinder", plugin_id="cocofinder", enabled=False, opt_out_url="https://cocofinder.example/optOut")
+    s.add(b); s.commit()
+
+    def found(m):
+        s.add(db.DiscoveryResult(member_id=m.id, broker_id=b.id, found=True, listing_url="https://cocofinder.example/x"))
+        r = db.RemovalRequest(member_id=m.id, broker_id=b.id, request_key=str(uuid.uuid4()), status=db.RequestStatus.pending)
+        s.add(r); s.commit()
+        return r
+
+    # ask: one admin entry per broker, with the count kept up to date, and no names
+    r0 = found(people[0])
+    assert fl.handle(s, b, people[0].id, {"found_listings": {"action": "ask"}}) == "asked"
+    found(people[1])
+    fl.handle(s, b, people[1].id, {"found_listings": {"action": "ask"}})
+    ups = s.query(db.BrokerUpdate).filter_by(kind="found_while_off").all()
+    assert len(ups) == 1 and "2 people" in ups[0].title and "Jordan" not in ups[0].title + (ups[0].detail or ""), ups[0].title
+    assert r0.status == db.RequestStatus.pending and not b.enabled
+
+    # auto at 3 people: below it, the fallback tells the person
+    cfg = {"found_listings": {"action": "auto", "threshold": 3, "fallback": "tell"}}
+    assert fl.handle(s, b, people[0].id, cfg) == "told"
+    s.refresh(r0)
+    assert r0.status == db.RequestStatus.needs_manual and r0.waiting_for == "broker_off" and "CocoFinder" in r0.notes
+    found(people[2])
+    assert fl.handle(s, b, people[2].id, cfg) == "turned_on"
+    s.refresh(b); s.refresh(r0)
+    assert b.enabled and r0.status == db.RequestStatus.pending and r0.waiting_for is None, "told requests go back"
+    assert s.query(db.BrokerUpdate).filter_by(kind="turned_on_found").count() == 1
+
+    # never a broker an admin turned off, or one without a plugin
+    bh = _imp("core.broker_health")
+    bh.disable(s, b.id, reason="manually disabled by an admin")
+    s.refresh(b)
+    assert fl.can_turn_on(s, b) == (False, "turned_off")
+    assert fl.handle(s, b, people[0].id, {"found_listings": {"action": "auto", "threshold": 1, "fallback": "ask"}}) == "asked"
+    s.refresh(b); assert not b.enabled
+    nb = db.Broker(name="NoPlugin", enabled=False); s.add(nb); s.commit()
+    assert fl.can_turn_on(s, nb) == (False, "no_plugin")
+    reg = db.Broker(name="Registry Co", enabled=False, origin="registry"); s.add(reg); s.commit()
+    assert fl.handle(s, reg, people[0].id, cfg) == "", "registry brokers are left to broker_gate"
+    try:
+        fl.clean({"threshold": 0}); assert False
+    except ValueError:
+        pass
+    assert fl.settings_of({}) == fl.DEFAULTS
+    s.close()
+    # EXPECTED: the admin's rule decides, counts are of people, and nobody's name is recorded.
+    # IF THIS FAILS: brokers could turn on that an admin turned off, or people wait forever with no word.
 
 
 # ── Long tail: privacy-request pages and hosted forms ─────────────────────────

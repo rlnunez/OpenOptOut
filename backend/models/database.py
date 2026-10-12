@@ -708,6 +708,10 @@ class RemovalRequest(Base):
     # pause_for_human step, or a form OpenOptOut wasn't sure how to fill), to
     # finish it on a live page: {"combo", "step", "kind"}. Encrypted.
     handoff_enc   = Column(EncryptedText, nullable=True)
+    # "broker_off": a listing was found on a broker that's turned off, and the
+    # person was told to opt out by hand (core/found_listings.py). When the
+    # broker is turned on, the request goes back to OpenOptOut.
+    waiting_for   = Column(String(20), nullable=True)
     created_at    = Column(DateTime, default=datetime.utcnow)
     updated_at    = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
