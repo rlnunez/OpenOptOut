@@ -1,0 +1,40 @@
+{
+  "broker_id": "peoplefinders",
+  "name": "PeopleFinders",
+  "spec_version": "1.0",
+  "method": "form",
+  "opt_out_url": "https://www.peoplefinders.com/opt-out",
+  "steps": [
+    {
+      "kind": "navigate",
+      "url": "https://www.peoplefinders.com/opt-out",
+      "timeout_ms": 30000
+    },
+    {
+      "kind": "autofill"
+    },
+    {
+      "kind": "solve_captcha",
+      "selector": "iframe[src*='recaptcha'], iframe[src*='hcaptcha'], iframe[src*='challenges.cloudflare.com']",
+      "optional": true
+    },
+    {
+      "kind": "submit"
+    }
+  ],
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "email_confirmation"
+  ],
+  "covers": [
+    "privateeye.com",
+    "publicrecordsnow.com"
+  ],
+  "notes": "Covers PrivateEye and PublicRecordsNow too. The confirmation link must be clicked within 24 hours. PeopleFinders says it honors only residents of states with privacy laws (about 19), so for others the request may be refused.",
+  "source": "Process per redact.dev's PeopleFinders removal guide (updated 2026-09-24).",
+  "last_verified": ""
+}

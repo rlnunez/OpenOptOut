@@ -1,0 +1,18 @@
+{
+  "broker_id": "ufind",
+  "name": "uFind",
+  "spec_version": "1.0",
+  "method": "email",
+  "email": {
+    "to_address": "support@ufind.name"
+  },
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "uFind also has an opt-out page linked from its home page.",
+  "source": "BADBOOL uFind entry; on 2026-10-11 the site was live.",
+  "last_verified": ""
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour SearchBug. Une personne suit les étapes de la liste ; OpenOptOut fournit une adresse e-mail à usage unique et clique sur les liens de confirmation.",
+ "instructions": "Ouvrez https://www.searchbug.com/privacy-requests.aspx et suivez les étapes du site pour {full_name}. Utilisez {contact_email} chaque fois qu'une adresse e-mail est demandée, pour que la réponse soit rapprochée. Puis appuyez sur « C'est fait »."
+}

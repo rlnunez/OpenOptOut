@@ -155,6 +155,8 @@ def _keyed_text(v, path: str, keys: dict):
 
 # A letter id (core/legal_letters): "ccpa", "gdpr", or one from a letters plugin.
 LETTER_ID = re.compile(r"[a-z][a-z0-9_-]{1,40}")
+# A bare domain for `covers`: lower case, no scheme, path or "www.".
+DOMAIN = re.compile(r"(?!www\.)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}")
 
 def _require_types(obj, where: str) -> None:
     """Raise ValueError if a field loaded from an untrusted spec has the wrong JSON type.
@@ -234,10 +236,10 @@ class EmailSpec:
         errs = []
         if not self.to_address or "@" not in self.to_address:
             errs.append("email to_address is missing or invalid")
-        if not self.subject_template:
-            errs.append("email subject_template is required")
-        if not self.body_template:
-            errs.append("email body_template is required")
+        # Both or neither: with neither, the broker gets the legal letter for
+        # its jurisdiction (core/legal_letters.py), which is usually better.
+        if bool(self.subject_template) != bool(self.body_template):
+            errs.append("email needs both subject_template and body_template, or neither (to use the legal letter)")
         for f in self.require_fields:
             if f not in KNOWN_FIELDS:
                 errs.append(f"email require_fields references unknown field: {f}")
@@ -311,6 +313,11 @@ class BrokerSpec:
     # a letters plugin), when the automatic choice isn't right. An admin's
     # choice on the Opt-out letters page still wins.
     letter: str = ""
+    # Other sites this one opt-out also removes the person from, by domain
+    # ("truthfinder.com"), because the same company runs them and says one
+    # request reaches all of them. Shown as "also covers N sites" (see
+    # core/coverage.py, which adds the parent-company catalog's families).
+    covers: list[str] = field(default_factory=list)
 
     # Set by whatever loaded the spec (not part of spec.json): the plugin it
     # came from, for looking up its translations, and the keys a spec gave its
@@ -411,6 +418,9 @@ class BrokerSpec:
                     errs.append(f"email_templates.{code} needs a subject and a body")
         if self.letter and not LETTER_ID.fullmatch(str(self.letter)):
             errs.append("letter must be a letter id like ccpa or gdpr")
+        for d in self.covers:
+            if not isinstance(d, str) or not DOMAIN.fullmatch(d):
+                errs.append(f"covers: '{d}' isn't a bare domain like truthfinder.com")
         if self.last_verified:
             from datetime import date
             try:
@@ -482,6 +492,7 @@ class BrokerSpec:
             legal_language=d.get("legal_language", "") or "",
             email_templates=d.get("email_templates", {}) or {},
             letter=d.get("letter", "") or "",
+            covers=d.get("covers", []) or [],
         )
         _require_types(spec, "spec")
         spec.text_keys = text_keys
@@ -503,7 +514,7 @@ class BrokerSpec:
         for k in ("legal_basis", "statutory_response_days", "search_url", "listing_pattern",
                   "one_optout_per_email", "accepts_plus_addresses", "requires", "lookup_by",
                   "source", "last_verified", "jurisdiction", "legal_language", "email_templates",
-                  "letter"):
+                  "letter", "covers"):
             v = getattr(self, k)
             if v not in ("", 0, False, [], {}):
                 out[k] = v

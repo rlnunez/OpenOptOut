@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de TransUnion (TLOxp). Una persona sigue los pasos de la lista; OpenOptOut aporta una dirección de correo de un solo uso y hace clic en cualquier enlace de confirmación.",
+ "instructions": "Abre https://service.transunion.com/dss/ccpa_optout.page y sigue los pasos del sitio para {full_name}. El sitio pide un número de la Seguridad Social o del permiso de conducir, que OpenOptOut nunca rellena; termina solo si te parece bien compartirlo con ellos. Usa {contact_email} si pide una dirección de correo. Después pulsa «Ya lo hice»."
+}

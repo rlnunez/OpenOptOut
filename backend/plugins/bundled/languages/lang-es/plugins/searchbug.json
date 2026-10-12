@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de SearchBug. Una persona sigue los pasos de la lista; OpenOptOut aporta una dirección de correo de un solo uso y hace clic en cualquier enlace de confirmación.",
+ "instructions": "Abre https://www.searchbug.com/privacy-requests.aspx y sigue los pasos del sitio para {full_name}. Usa {contact_email} siempre que pida una dirección de correo, para que la respuesta se relacione. Después pulsa «Ya lo hice»."
+}

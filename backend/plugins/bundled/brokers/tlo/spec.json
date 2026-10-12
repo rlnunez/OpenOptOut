@@ -1,0 +1,19 @@
+{
+  "broker_id": "tlo",
+  "name": "TransUnion (TLOxp)",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://service.transunion.com/dss/ccpa_optout.page",
+  "instructions": "Open https://service.transunion.com/dss/ccpa_optout.page and follow the site's steps for {full_name}. The site asks for a Social Security or driver's license number, which OpenOptOut never fills in; only finish it if you're comfortable sharing that with them. Use {contact_email} if it asks for an email address. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "government_id"
+  ],
+  "notes": "TLOxp is TransUnion's investigations database. The opt-out page asks for identifying numbers that OpenOptOut never fills in, so a person decides whether to finish it. This doesn't affect TransUnion credit reports.",
+  "source": "TransUnion's California privacy opt-out page, listed in The Opt-Out Manual 2026 (public domain).",
+  "last_verified": ""
+}

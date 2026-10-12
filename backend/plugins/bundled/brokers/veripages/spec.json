@@ -1,0 +1,37 @@
+{
+  "broker_id": "veripages",
+  "name": "VeriPages",
+  "spec_version": "1.0",
+  "method": "form",
+  "opt_out_url": "https://veripages.com/inner/removal-service",
+  "steps": [
+    {
+      "kind": "navigate",
+      "url": "https://veripages.com/inner/removal-service",
+      "timeout_ms": 30000
+    },
+    {
+      "kind": "autofill"
+    },
+    {
+      "kind": "solve_captcha",
+      "selector": "iframe[src*='recaptcha'], iframe[src*='hcaptcha'], iframe[src*='challenges.cloudflare.com']",
+      "optional": true
+    },
+    {
+      "kind": "submit"
+    }
+  ],
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "listing_url",
+    "email_confirmation"
+  ],
+  "notes": "Needs the address of the person's own VeriPages listing (Find your listings). A Cloudflare Turnstile check may wait for a person. removal@veripages.com takes requests by email.",
+  "source": "Process per redact.dev's VeriPages removal guide (updated 2026-09-10).",
+  "last_verified": ""
+}

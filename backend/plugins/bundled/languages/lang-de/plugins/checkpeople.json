@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei CheckPeople. Eine Person folgt den Schritten der Checkliste; OpenOptOut stellt eine Einmal-E-Mail-Adresse bereit und klickt Bestätigungslinks an.",
+ "instructions": "Öffnen Sie https://checkpeople.com/opt-out und folgen Sie den Schritten der Seite für {full_name}. Geben Sie {contact_email} an, wann immer eine E-Mail-Adresse gefragt ist, damit die Antwort zugeordnet wird. Drücken Sie dann „Ich habe das erledigt“."
+}

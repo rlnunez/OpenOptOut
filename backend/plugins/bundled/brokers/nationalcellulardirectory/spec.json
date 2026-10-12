@@ -1,0 +1,35 @@
+{
+  "broker_id": "nationalcellulardirectory",
+  "name": "National Cellular Directory",
+  "spec_version": "1.0",
+  "method": "form",
+  "opt_out_url": "https://www.nationalcellulardirectory.com/optout/",
+  "steps": [
+    {
+      "kind": "navigate",
+      "url": "https://www.nationalcellulardirectory.com/optout/",
+      "timeout_ms": 30000
+    },
+    {
+      "kind": "autofill"
+    },
+    {
+      "kind": "solve_captcha",
+      "selector": "iframe[src*='recaptcha'], iframe[src*='hcaptcha'], iframe[src*='challenges.cloudflare.com']",
+      "optional": true
+    },
+    {
+      "kind": "submit"
+    }
+  ],
+  "lookup_by": "phone",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "Also takes opt-outs at privacy@nationalcellulardirectory.com or (888) 346-9978. No account needed.",
+  "source": "Opt-out page listed in The Opt-Out Manual 2026 (thumpersecure/opt-out-manual-2026, public domain). On 2026-10-11 OpenOptOut loaded the page (no details entered); it is the opt-out page, but its form fields weren't visible to the check.",
+  "last_verified": ""
+}

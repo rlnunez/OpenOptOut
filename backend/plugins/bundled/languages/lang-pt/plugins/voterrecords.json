@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no VoterRecords. Uma pessoa segue os passos da lista; o OpenOptOut fornece um endereço de e-mail de uso único e clica em qualquer link de confirmação.",
+ "instructions": "Abra https://voterrecords.com, procure {full_name}, abra o seu próprio registro e use o link de exclusão ou \"Control\" dele. Use {contact_email} sempre que pedir um endereço de e-mail. Depois toque em \"Já fiz isso\"."
+}

@@ -1,0 +1,12 @@
+{
+  "id": "clustrmaps",
+  "type": "brokers",
+  "broker_id": "clustrmaps",
+  "name": "ClustrMaps",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Automatic opt-out for ClustrMaps. OpenOptOut fills in the site's opt-out form; a person steps in only if the site asks for something unexpected.",
+  "spec_file": "spec.json",
+  "difficulty": "medium",
+  "is_property_broker": false
+}

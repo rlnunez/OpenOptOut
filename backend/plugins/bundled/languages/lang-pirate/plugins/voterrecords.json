@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer VoterRecords. A sailor follows the steps on the checklist; OpenOptOut hands over a one-time email address an' clicks any confirmation link.",
+ "instructions": "Open https://voterrecords.com, search fer {full_name}, open yer own record an' use the site's opt-out or \"Control\" link on it. Use {contact_email} wherever it asks fer an email address. Then smash \"I've done this\"."
+}

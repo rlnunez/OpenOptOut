@@ -1,0 +1,12 @@
+{
+  "id": "whooster",
+  "type": "brokers",
+  "broker_id": "whooster",
+  "name": "Whooster",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Opt-out for Whooster by email. OpenOptOut sends a deletion request under the law that applies and matches the reply.",
+  "spec_file": "spec.json",
+  "difficulty": "easy",
+  "is_property_broker": false
+}

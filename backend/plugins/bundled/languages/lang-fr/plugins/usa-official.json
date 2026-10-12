@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour USA-Official. Une personne suit les étapes de la liste ; OpenOptOut fournit une adresse e-mail à usage unique et clique sur les liens de confirmation.",
+ "instructions": "Ouvrez https://usa-official.com, cherchez {full_name}, ouvrez votre propre fiche et utilisez son lien de désinscription ou « Control ». Utilisez {contact_email} chaque fois qu'une adresse e-mail est demandée. Puis appuyez sur « C'est fait »."
+}

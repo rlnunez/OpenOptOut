@@ -1,0 +1,13 @@
+{
+  "id": "searchbug",
+  "type": "brokers",
+  "broker_id": "searchbug",
+  "name": "SearchBug",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Guided opt-out for SearchBug. A person follows the steps on the checklist; OpenOptOut supplies a one-time email address and clicks any confirmation link.",
+  "spec_file": "spec.json",
+  "difficulty": "medium",
+  "is_property_broker": false,
+  "starts_enabled": false
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho VoterRecords. Một người làm theo các bước trong danh sách; OpenOptOut cung cấp địa chỉ email dùng một lần và tự bấm mọi liên kết xác nhận.",
+ "instructions": "Mở https://voterrecords.com, tìm {full_name}, mở hồ sơ của chính bạn và dùng liên kết gỡ dữ liệu hoặc \"Control\" trên đó. Dùng {contact_email} mỗi khi trang hỏi địa chỉ email. Sau đó bấm \"Tôi đã làm xong\"."
+}

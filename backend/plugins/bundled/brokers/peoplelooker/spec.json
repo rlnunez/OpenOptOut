@@ -1,0 +1,41 @@
+{
+  "broker_id": "peoplelooker",
+  "name": "PeopleLooker",
+  "spec_version": "1.0",
+  "method": "form",
+  "opt_out_url": "https://www.peoplelooker.com/app/optout/search",
+  "steps": [
+    {
+      "kind": "navigate",
+      "url": "https://www.peoplelooker.com/app/optout/search",
+      "timeout_ms": 30000
+    },
+    {
+      "kind": "autofill"
+    },
+    {
+      "kind": "solve_captcha",
+      "selector": "iframe[src*='recaptcha'], iframe[src*='hcaptcha'], iframe[src*='challenges.cloudflare.com']",
+      "optional": true
+    },
+    {
+      "kind": "submit"
+    },
+    {
+      "kind": "pause_for_human",
+      "text": "Find your own record in the results (check the age, city and relatives), select it, and finish the site's steps. Then press \"I've done this step\"."
+    }
+  ],
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "listing_selection",
+    "email_confirmation"
+  ],
+  "notes": "A BeenVerified-family site. Search, pick the record, solve an hCaptcha and confirm by email. privacy@peoplelooker.com takes requests if the form fails.",
+  "source": "Process per redact.dev's PeopleLooker removal guide (updated 2026-08-05).",
+  "last_verified": ""
+}

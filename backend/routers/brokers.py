@@ -112,6 +112,15 @@ def dashboard_stats(
     )
 
 
+@router.get("/coverage")
+def broker_coverage(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """How many other sites each broker's opt-out reaches, and how many sites
+    the turned-on brokers cover between them (core/coverage.py). Counts and
+    site names only."""
+    from ..core.coverage import summary
+    return summary(db)
+
+
 @router.get("", response_model=List[BrokerOut])
 def list_brokers(
     search: Optional[str] = Query(None),

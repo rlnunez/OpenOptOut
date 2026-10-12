@@ -7684,12 +7684,72 @@ def t_forms_builtin():
         row.enabled = False; s.commit()
         st2 = ba.sync_builtin_brokers(s)
         assert st2["installed"] == 0 and not s.query(db.InstalledPlugin).filter_by(plugin_id="nuwber").one().enabled
+        # Plugins nobody could check yet ship installed but with their broker off.
+        unchecked = [f.manifest for f in shipped if not f.manifest.starts_enabled]
+        assert unchecked, "expected some plugins that start turned off"
+        for m in unchecked:
+            b = s.query(db.Broker).filter_by(plugin_id=m.id).one()
+            assert b.enabled is False, f"{m.id} should start off"
+        assert s.query(db.Broker).filter_by(plugin_id="acxiom").one().enabled is True
+        # Coverage: PeopleConnect's opt-out covers its family, not Classmates.
+        cov = _imp("core.coverage")
+        out = cov.summary(s)
+        pc = s.query(db.Broker).filter_by(plugin_id="peopleconnect").one()
+        c = out["coverage"][str(pc.id)]
+        assert "truthfinder.com" in c["sites"] and "classmates.com" not in c["sites"], c
+        assert c["count"] == len(c["sites"]) >= 10, c
+        ip = s.query(db.Broker).filter_by(plugin_id="infopay").one()
+        assert out["coverage"][str(ip.id)]["count"] == 7, out["coverage"][str(ip.id)]
+        assert out["sites_covered"] > out["brokers_on"], out
     finally:
         if old is None:
             os.environ.pop("PLUGINS_DIR", None)
         else:
             os.environ["PLUGINS_DIR"] = old
     s.close()
+
+
+@test(1, "coverage.counts_each_site_once",
+      "Coverage adds a plugin's own list, its catalog family and confirmed cascades; 'likely' ones aren't counted.")
+def t_coverage_counts():
+    cov = _imp("core.coverage")
+    cat = {"parents": [
+        {"name": "Fam", "website": "https://www.fam.example", "children": ["fam.example", "a.example", "b.example", "c.example"],
+         "child_suffixes": [], "one_optout_covers": True, "not_covered": ["c.example"]},
+        {"name": "Grp", "website": "https://grp.example", "children": ["grp.example", "x.example"],
+         "child_suffixes": [], "one_optout_covers": False},
+        {"name": "Net", "website": "https://net.example", "children": ["net.example"],
+         "child_suffixes": ["arrests.example"], "one_optout_covers": True, "approx_sites": 40}],
+        "cascades": [{"from": ["fam.example"], "to": ["d.example"], "confidence": "confirmed"},
+                     {"from": ["fam.example"], "to": ["e.example"], "confidence": "likely"},
+                     {"from": ["fam.example"], "to": ["f.example"], "confidence": "historical"}]}
+    c = cov.coverage("fam.example", "Fam", ["a.example", "z.example"], cat)
+    assert c["sites"] == ["a.example", "b.example", "d.example", "z.example"], c
+    assert c["maybe"] == ["e.example"] and c["count"] == 4, c
+    assert cov.coverage("x.example", "X", [], cat)["count"] == 0, "a family alone doesn't mean covered"
+    n = cov.coverage("texasarrests.example", "Texasarrests.example", [], cat)
+    assert n["network"] == "Net" and n["count"] == 40, n
+    assert cov.site_of("https://suppression.peopleconnect.us/login") == "peopleconnect.us"
+    # EXPECTED: one opt-out's reach is counted from what the company says, each site once.
+    # IF THIS FAILS: the Brokers page could promise families coverage they don't have.
+
+
+@test(1, "plugins.email_spec_uses_letter",
+      "An email broker plugin may leave out its own templates; then it gets the legal letter. Half a template is refused.")
+def t_email_spec_letter():
+    bs = _imp("core.interpreter.broker_spec")
+    base = {"broker_id": "x", "name": "X", "method": "email", "source": "test",
+            "email": {"to_address": "privacy@x.example"}}
+    assert not bs.BrokerSpec.from_dict(base).validate()
+    half = dict(base, email={"to_address": "privacy@x.example", "subject_template": "Delete"})
+    assert any("both" in e for e in bs.BrokerSpec.from_dict(half).validate())
+    bad = dict(base, covers=["https://x.example/"])
+    assert any("covers" in e for e in bs.BrokerSpec.from_dict(bad).validate())
+    lt = _imp("core.legal_letters")
+    spec = bs.BrokerSpec.from_dict(base)
+    assert lt.choose_template(spec.effective_jurisdiction(), "CA"), "no letter for a US broker"
+    # EXPECTED: email plugins fall back to the per-law letter instead of failing validation.
+    # IF THIS FAILS: built-in email plugins (Experian, Data Axle, InfoPay...) won't install.
 
 
 # ── Long tail: privacy-request pages and hosted forms ─────────────────────────

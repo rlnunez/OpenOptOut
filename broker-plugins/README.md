@@ -15,13 +15,14 @@ broker-plugins/
     └── package.py    builds one upload-ready zip per plugin into dist/ (to update a server by hand)
 ```
 
-At startup each built-in plugin is installed and its broker created (turned on). On an upgrade the copy is refreshed. A plugin an admin turned off stays off, and an admin's own plugin with the same id is never replaced.
+At startup each built-in plugin is installed and its broker created, turned on unless the manifest says `"starts_enabled": false` (see below). On an upgrade the copy is refreshed. A plugin an admin turned off stays off, and an admin's own plugin with the same id is never replaced.
 
-## Two kinds of plugin
+## Three kinds of plugin
 
 | Kind | `method` | What happens |
 |---|---|---|
 | **Automated** | `form` | The app fills and submits the broker's form. CAPTCHAs go to a solver plugin or the CAPTCHA queue; a `pause_for_human` step hands the rest to a person. |
+| **Email** | `email` | The app emails `email.to_address`. Leave out `subject_template` and `body_template` and the broker gets the legal opt-out letter for the law that applies to the person (Opt-out letters page); give both only when the broker needs its own wording. |
 | **Guided** | `manual` | The broker needs something only a person can do (pick their record, answer a call, solve several CAPTCHAs). The request goes on the checklist with `instructions`. Use `{contact_email}` in them: the person gives that one-time address, so the broker's reply is matched and its confirmation link is clicked automatically. |
 
 | Broker | Kind | A person must |
@@ -32,6 +33,45 @@ At startup each built-in plugin is installed and its broker created (turned on).
 | Radaris | Automated, then a person | Pick their profile |
 | Whitepages | Guided | Answer an automated phone call |
 | FastPeopleSearch, TruePeopleSearch, Nuwber, That's Them, USPhoneBook, SmartBackgroundChecks, SearchPeopleFree, FamilyTreeNow, Cyber Background Checks, Clustal, Social Catfish | Guided | Find their record and submit the site's form |
+
+### Broker pack 1 (October 2026)
+
+Fifty more brokers, written to a few standard shapes so they're easy to check and translate:
+
+| Shape | Steps | Brokers |
+|---|---|---|
+| Automatic form | `navigate` → `autofill` (fills by labels; stops for a person when unsure) → `solve_captcha` (optional) → `submit` | Acxiom, Epsilon, PeopleFinders, Pipl, VeriPages, ClustrMaps, PublicDataUSA, WYTY, AbsolutePeopleSearch, National Cellular Directory, CocoFinder, OfficialUSA, SpyFly, SearchQuarry, Neighbor.Report, PeopleByName, PeepLookup, Spytox, ProPeopleSearch, BackgroundAlert, Archives.com, CallTruth, PeopleByPhone, RevealPhoneOwner |
+| Form, then a person picks the record | the same, then a `pause_for_human` | InfoTracer, PeopleLooker, PeopleSmart |
+| Email with the legal letter | `method: email`, `to_address` only | Experian Marketing, Data Axle, InfoPay network, TruePeopleSearch.net, uFind, Whooster, DelvePoint, IRBsearch |
+| Guided | `method: manual` with standard `instructions` | PeopleConnect (Intelius), LexisNexis, TransUnion (TLOxp), CheckPeople, Unmask, VoterRecords, USA People Search, PeopleSearchNow, AdvancedBackgroundChecks, PeopleWhiz, LocateFamily, GladIKnow, USA-Official, 411.info, SearchBug |
+
+LexisNexis and TransUnion (TLOxp) ask for a Social Security or driver's license number. They are guided plugins that say so; OpenOptOut never fills those in.
+
+Sources: current (2026) removal guides from redact.dev and the companies' own pages for the big brokers, and *The Opt-Out Manual 2026* (public domain) for the rest. On 2026-10-11 we tried to load every page taken from the manual, without entering any details. The 16 that blocked automated readers ship turned off (below). These were left out:
+
+| Site | Why it was left out |
+|---|---|
+| golookup.com | domain transferred by court order |
+| revealname.com | domain changed hands after a lawsuit |
+| dataveria.com, centeda.com, pub360.com, newenglandfacts.com, rehold.com, telephonedirectories.us | domains transferred to Atlas Data Privacy Corporation by a New Jersey court order |
+| backgroundcheck.run, councilon.com, people-background-check.com, vericora.com, veriforia.com | same Radaris-clone network as the seized sites; couldn't be checked, so left out rather than shipped |
+| grey-pages.com | the removal page redirects to an unrelated removal service |
+| allareacodes.com | says it no longer holds personal details |
+| phoneowner.com | now a numbering reference site, not a directory of people |
+| idcrawl.com | the listed opt-out address is no longer an opt-out page |
+| findpeoplesearch.com | the listed page is a general customer-service form |
+| persopo.com | search powered by TruthFinder, so the PeopleConnect plugin covers it |
+| addresssearch.com | a PeopleConnect site, so the PeopleConnect plugin covers it |
+
+## Checked and unchecked plugins
+
+A plugin whose opt-out page nobody could check ships with `"starts_enabled": false` in its manifest. It installs, but its broker starts turned off, so nothing is typed into a site that may have changed hands. Data-broker domains do change hands: several from older lists now show court-ordered transfer notices, or redirect somewhere else.
+
+To turn one on, open its opt-out page and confirm it's still the site's own form, or run a rehearsal (**Automatic broker steps**). A rehearsal uses made-up details and stops before the last click. Then press **Turn on** on the Brokers page. Once someone runs the flow against the live site, fill in `last_verified` and remove `starts_enabled`.
+
+## What one opt-out covers
+
+`covers` in `spec.json` lists other sites, by bare domain, that the same company says one request reaches (PeopleConnect's covers Intelius, TruthFinder, Instant Checkmate and more). The Brokers page adds these up, together with families in the parent-company catalog marked `one_optout_covers` and its "confirmed" cascades ([`core/coverage.py`](../backend/core/coverage.py)). It shows "Also removes you from N other sites" on each broker, and how many sites the turned-on brokers reach between them. "Likely" cascades are shown but never counted.
 
 None of these has been run against the live site by OpenOptOut yet (`last_verified` is empty). The automated flows use selectors that were verified upstream in May 2026.
 
@@ -56,6 +96,7 @@ None of these has been run against the live site by OpenOptOut yet (`last_verifi
 | `one_optout_per_email` | The broker accepts one opt-out per email address |
 | `accepts_plus_addresses` | Set `false` if the broker's form refuses addresses with a `+`. The app also learns this by itself when a form says the email is invalid, and retries with the plain address |
 | `instructions` | For guided (`manual`) plugins: the checklist steps, with `{full_name}`, `{contact_email}`, `{listing_url}`, `{city}`, `{state}`… filled in |
+| `covers` | Other sites (bare domains) that one opt-out here also reaches, per the company |
 | `requires` | What a person may have to do: `email_confirmation`, `listing_url`, `listing_selection`, `phone_call`, `government_id`, `account`, `payment`, `postal_mail` |
 
 ## Commands

@@ -1,0 +1,12 @@
+{
+  "id": "ufind",
+  "type": "brokers",
+  "broker_id": "ufind",
+  "name": "uFind",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Opt-out for uFind by email. OpenOptOut sends a deletion request under the law that applies and matches the reply.",
+  "spec_file": "spec.json",
+  "difficulty": "easy",
+  "is_property_broker": false
+}

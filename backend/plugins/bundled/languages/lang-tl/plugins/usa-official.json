@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa USA-Official. Sinusunod ng isang tao ang mga hakbang sa checklist; nagbibigay ang OpenOptOut ng pang-isahang email address at kini-click nito ang anumang confirmation link.",
+ "instructions": "Buksan ang https://usa-official.com, hanapin si {full_name}, buksan ang sarili mong record at gamitin ang opt-out o \"Control\" link nito. Gamitin ang {contact_email} tuwing hihingi ito ng email address. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

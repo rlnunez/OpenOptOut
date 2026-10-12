@@ -1,11 +1,11 @@
 import { Fragment, useEffect, useState, useCallback } from 'react'
-import { Search, Upload, ExternalLink, ChevronDown, ChevronRight, ScanSearch } from 'lucide-react'
+import { Search, Upload, ExternalLink, ChevronDown, ChevronRight, ScanSearch, Layers } from 'lucide-react'
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import Badge, { plainLabel } from '../components/Badge'
 import PrivacyPagesPanel from '../components/PrivacyPagesPanel'
 import BrokerTimelines from '../components/RemovalTimeline'
-import { tx } from '../i18n/tx'
+import { tx, txn } from '../i18n/tx'
 import { fmtDate } from '../i18n/format'
 
 const STATUS_OPTIONS   = ['', 'compliant', 'resistant', 'inconsistent', 'undetermined']
@@ -26,6 +26,21 @@ export default function Brokers() {
   const [solvers, setSolvers]     = useState([])
   const [ppKey, setPpKey]         = useState(0)
   const [openId, setOpenId]       = useState(null)   // broker whose history is showing
+  const [cover, setCover]         = useState(null)   // what each opt-out also covers (core/coverage.py)
+  const [coverId, setCoverId]     = useState(null)   // broker whose covered sites are showing
+
+  const fetchCoverage = useCallback(() => {
+    api.get('/brokers/coverage').then(r => setCover(r.data)).catch(() => {})
+  }, [])
+  useEffect(() => { fetchCoverage() }, [fetchCoverage])
+
+  const turnOn = async (b) => {
+    try {
+      await api.post(`/brokers/${b.id}/enable`)
+      setBrokers(prev => prev.map(x => x.id === b.id ? { ...x, enabled: true } : x))
+      fetchCoverage()
+    } catch (e) { setImportMsg(e.response?.data?.detail || tx("Couldn't turn it on.")) }
+  }
 
   const findPrivacyPage = async (b) => {
     try {
@@ -92,6 +107,13 @@ export default function Brokers() {
         <div>
           <h1 className="text-white text-xl font-semibold">{tx("Data broker sites")}</h1>
           <p className="text-slate-400 text-sm mt-0.5">{brokers.length}{" "}{tx("sites that sell or publish personal details")}</p>
+          {cover && cover.brokers > 0 && (
+            <p className="text-slate-300 text-sm mt-1 flex items-center gap-1.5">
+              <Layers size={13} aria-hidden="true" className="text-shield-400" />
+              {txn(cover.sites_covered, "The {on} brokers turned on reach about {n} site, counting the other sites their opt-outs cover.",
+                "The {on} brokers turned on reach about {n} sites, counting the other sites their opt-outs cover.", { on: cover.brokers_on })}
+            </p>
+          )}
         </div>
         {canManage && <label className={`flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg cursor-pointer transition-colors ${
           importing
@@ -161,6 +183,8 @@ export default function Brokers() {
                     {openId === b.id ? <ChevronDown size={13} aria-hidden="true" /> : <ChevronRight size={13} aria-hidden="true" />}
                     {b.name}
                   </button>
+                  <CoverLine b={b} c={cover?.coverage?.[b.id]} open={coverId === b.id} canManage={canManage}
+                    onToggle={() => setCoverId(id => id === b.id ? null : b.id)} onTurnOn={() => turnOn(b)} />
                 </td>
                 <td className="px-4 py-2.5"><Badge value={b.status} /></td>
                 <td className="px-4 py-2.5"><Badge value={b.method} /></td>
@@ -216,6 +240,11 @@ export default function Brokers() {
                   )}
                 </td>
               </tr>
+              {coverId === b.id && cover?.coverage?.[b.id] && (
+                <tr id={`cover-${b.id}`} className="bg-slate-800/60">
+                  <td colSpan={8} className="px-4 py-3"><CoverList c={cover.coverage[b.id]} /></td>
+                </tr>
+              )}
               {openId === b.id && (
                 <tr id={`hist-${b.id}`} className="bg-slate-800/60">
                   <td colSpan={8} className="px-4 py-3"><BrokerTimelines brokerId={b.id} /></td>
@@ -228,6 +257,53 @@ export default function Brokers() {
         </div>
       </div>
       {canManage && <PrivacyPagesPanel refreshKey={ppKey} />}
+    </div>
+  )
+}
+
+// Under a broker's name: whether it's off, and how many other sites its opt-out covers.
+function CoverLine({ b, c, open, canManage, onToggle, onTurnOn }) {
+  const n = c?.count || 0
+  if (b.enabled && !n && !c?.maybe?.length) return null
+  return (
+    <div className="flex flex-wrap items-center gap-2 mt-1 ms-5 text-xs font-normal">
+      {!b.enabled && <span className="px-1.5 py-0.5 rounded-sm bg-slate-700 text-slate-300">{tx("Turned off")}</span>}
+      {(n > 0 || c?.maybe?.length > 0) && (
+        <button onClick={onToggle} aria-expanded={open} aria-controls={`cover-${b.id}`}
+          className="text-shield-300 hover:text-shield-200 underline-offset-2 hover:underline">
+          {n > 0
+            ? (b.enabled
+                ? txn(n, "Also removes you from {n} other site", "Also removes you from {n} other sites")
+                : txn(n, "Turn on to also cover {n} other site", "Turn on to also cover {n} other sites"))
+            : tx("May also clear other sites")}
+        </button>
+      )}
+      {!b.enabled && canManage && (
+        <button onClick={onTurnOn} className="px-2 py-0.5 rounded-sm border border-slate-600 text-slate-200 hover:bg-slate-700"
+          aria-label={tx("Turn on {name}", { name: b.name })}>{tx("Turn on")}</button>
+      )}
+    </div>
+  )
+}
+
+function CoverList({ c }) {
+  return (
+    <div className="text-sm text-slate-300 space-y-2">
+      {c.sites.length > 0 && (
+        <div>
+          <p className="text-slate-400 text-xs mb-1">{tx("The company says one request here also reaches:")}</p>
+          <ul className="flex flex-wrap gap-1.5">
+            {c.sites.map(s => <li key={s} className="px-2 py-0.5 rounded-sm bg-slate-700/60 text-xs">{s}</li>)}
+          </ul>
+        </div>
+      )}
+      {c.network_sites > 0 && (
+        <p className="text-xs">{txn(c.network_sites, "Plus about {n} look-alike site in the same network.", "Plus about {n} look-alike sites in the same network.")}</p>
+      )}
+      {c.maybe.length > 0 && (
+        <p className="text-xs">{tx("May also clear: {sites}. Not counted, because it isn't certain.", { sites: c.maybe.join(', ') })}</p>
+      )}
+      <p className="text-slate-500 text-xs">{tx("OpenOptOut hasn't checked each of these sites itself.")}</p>
     </div>
   )
 }

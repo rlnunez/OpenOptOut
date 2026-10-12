@@ -1,0 +1,19 @@
+{
+  "broker_id": "lexisnexis",
+  "name": "LexisNexis",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://consumer.risk.lexisnexis.com/opt",
+  "instructions": "Open https://consumer.risk.lexisnexis.com/opt and follow the site's steps for {full_name}. The site asks for a Social Security or driver's license number, which OpenOptOut never fills in; only finish it if you're comfortable sharing that with them. Use {contact_email} if it asks for an email address. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "government_id"
+  ],
+  "notes": "LexisNexis asks for a Social Security or driver's license number to find the record. OpenOptOut never fills those in, so a person decides whether to finish it. LexisNexis also takes opt-outs by phone at 1-888-497-0011. Some records (for law enforcement and fraud prevention) are kept regardless.",
+  "source": "Process per redact.dev's LexisNexis removal guide (updated 2026-08-10).",
+  "last_verified": ""
+}

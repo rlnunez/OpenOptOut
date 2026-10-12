@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa LexisNexis. Sinusunod ng isang tao ang mga hakbang sa checklist; nagbibigay ang OpenOptOut ng pang-isahang email address at kini-click nito ang anumang confirmation link.",
+ "instructions": "Buksan ang https://consumer.risk.lexisnexis.com/opt at sundin ang mga hakbang ng site para kay {full_name}. Humihingi ang site ng Social Security o driver's license number, na hindi kailanman pinupunan ng OpenOptOut; tapusin lang ito kung panatag kang ibigay iyon sa kanila. Gamitin ang {contact_email} kung hihingi ito ng email address. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}
