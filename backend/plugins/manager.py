@@ -627,6 +627,12 @@ class PluginManager:
                 row.last_error = f"Auto-disabled after repeated crashes: {reason}"
                 db.add(PluginAuditLog(plugin_id=plugin_id, action="auto_disabled", detail=reason))
                 db.commit()
+                try:
+                    from ..core.webhooks import safe_notify
+                    safe_notify("plugin_turned_off", f"The plugin {plugin_id} kept crashing and was turned off. "
+                                                     "See the Plugins page.", {"plugin": plugin_id[:120]})
+                except Exception:
+                    pass
         finally:
             db.close()
         if self.on_status_change:

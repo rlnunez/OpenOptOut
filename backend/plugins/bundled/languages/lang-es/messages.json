@@ -153,5 +153,6 @@
   "nav.privacy_record": "Registro de privacidad",
   "nav.calendar": "Calendario",
   "nav.spec_helpers": "Pasos automáticos de brókers",
-  "nav.letters": "Cartas de baja"
+  "nav.letters": "Cartas de baja",
+  "nav.monitoring": "Supervisión y alertas"
 }

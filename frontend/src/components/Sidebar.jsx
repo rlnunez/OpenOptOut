@@ -120,6 +120,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
     { k: 'nav.reporting', to: '/reporting',        icon: BarChart2,   label: tx("Reporting"),        perms: ['reporting.view'] },
     { k: 'nav.database', to: '/database',         icon: HardDrive,   label: tx("Database"),         perms: ['database.view'] },
     ...(user?.role === 'super_admin' ? [{ k: 'nav.backups', to: '/backups', icon: DatabaseBackup, label: tx("Backups"), perms: [] }] : []),
+    ...(user?.role === 'super_admin' ? [{ k: 'nav.monitoring', to: '/monitoring', icon: Activity, label: tx("Monitoring and alerts"), perms: [] }] : []),
     { k: 'nav.worker_fleet', to: '/worker-fleet',     icon: Server,      label: tx("Worker fleet"),     perms: ['settings.system'] },
     { k: 'nav.privacy_record', to: '/privacy-record', icon: FileLock2, label: tx("Privacy record"), perms: ['settings.system'] },
     { k: 'nav.logs', to: '/logs',             icon: Terminal,    label: tx("System logs"),      perms: ['logs.view'] },

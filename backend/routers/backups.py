@@ -265,7 +265,15 @@ def connect_dest(dest_id: str, _=Depends(require_super_admin)):
 def _run_backup():
     try:
         cfg = load_settings()
-        res = bk.run_backup(cfg)
+        try:
+            res = bk.run_backup(cfg)
+        except Exception as e:
+            res = {"ok": False, "error": str(e)[:300]}
+        if not res.get("ok"):
+            from ..core.webhooks import safe_notify
+            bad = [d.get("kind", "") for d in res.get("destinations", []) if not d.get("ok")]
+            safe_notify("backup_failed", "A backup didn't work" + (f" for: {', '.join(bad)}" if bad else "")
+                        + ". See Backups.", {"destination": ", ".join(bad)[:120]} if bad else {})
         cfg = load_settings()
         hist = [res] + (cfg.get("backups_history") or [])
         cfg["backups_history"] = hist[:50]
