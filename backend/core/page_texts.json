@@ -207,12 +207,6 @@
    ]
   },
   {
-   "text": "--save keeps each report, to upload to the COUNTER Validator for an independent check.",
-   "where": [
-    "pages/UsageStats.jsx"
-   ]
-  },
-  {
    "text": "/ {v} concurrent slots",
    "where": [
     "pages/WorkerFleet.jsx"
@@ -489,9 +483,9 @@
    ]
   },
   {
-   "text": "A date that isn't a date is refused (3020)",
+   "text": "A date in the future is refused (400)",
    "where": [
-    "server: sushi_check.py"
+    "server: stats_check.py"
    ]
   },
   {
@@ -555,15 +549,27 @@
    ]
   },
   {
+   "text": "A person found on a broker for the first time.",
+   "where": [
+    "pages/UsageStats.jsx"
+   ]
+  },
+  {
+   "text": "A person's listings looked for on one broker on one day.",
+   "where": [
+    "pages/UsageStats.jsx"
+   ]
+  },
+  {
    "text": "A plugin kept crashing and was turned off",
    "where": [
     "pages/Monitoring.jsx"
    ]
   },
   {
-   "text": "A request without credentials is refused",
+   "text": "A request without a key is refused (401)",
    "where": [
-    "server: sushi_check.py"
+    "server: stats_check.py"
    ]
   },
   {
@@ -603,9 +609,21 @@
    ]
   },
   {
-   "text": "A wrong API key is refused (2020)",
+   "text": "A total for the whole range matches the daily counts",
    "where": [
-    "server: sushi_check.py"
+    "server: stats_check.py"
+   ]
+  },
+  {
+   "text": "A web service your own scripts call to pull OpenOptOut's numbers into a data mart like LibInsight, a data warehouse or a data lake: daily, weekly or monthly counts, or totals, for any dates, per library system and branch. Counts only, never anyone's name or details.",
+   "where": [
+    "pages/UsageStats.jsx"
+   ]
+  },
+  {
+   "text": "A wrong key is refused (401)",
+   "where": [
+    "server: stats_check.py"
    ]
   },
   {
@@ -765,12 +783,6 @@
    "text": "Add a formal name above to use the exact legal name for property record removal.",
    "where": [
     "pages/IdentityVault.jsx"
-   ]
-  },
-  {
-   "text": "Add a harvester",
-   "where": [
-    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -1060,12 +1072,6 @@
    ]
   },
   {
-   "text": "Address to give your harvester (SUSHI base URL)",
-   "where": [
-    "pages/UsageStats.jsx"
-   ]
-  },
-  {
    "text": "Addresses",
    "where": [
     "pages/Family.jsx",
@@ -1279,6 +1285,12 @@
    ]
   },
   {
+   "text": "All five metrics are described",
+   "where": [
+    "server: stats_check.py"
+   ]
+  },
+  {
    "text": "All Levels",
    "where": [
     "pages/SystemLogs.jsx"
@@ -1483,21 +1495,15 @@
    ]
   },
   {
-   "text": "An unknown customer ID is refused (2010)",
+   "text": "An institution the key can't see is refused (403)",
    "where": [
-    "server: sushi_check.py"
+    "server: stats_check.py"
    ]
   },
   {
-   "text": "An unknown parameter is reported (3050)",
+   "text": "An unknown metric is refused (400)",
    "where": [
-    "server: sushi_check.py"
-   ]
-  },
-  {
-   "text": "An unknown requestor ID is refused (2000)",
-   "where": [
-    "server: sushi_check.py"
+    "server: stats_check.py"
    ]
   },
   {
@@ -1623,8 +1629,7 @@
   {
    "text": "API key",
    "where": [
-    "pages/SpecHelpers.jsx",
-    "pages/UsageStats.jsx"
+    "pages/SpecHelpers.jsx"
    ]
   },
   {
@@ -1733,12 +1738,6 @@
    "text": "Asking your model… this can take a while.",
    "where": [
     "pages/SpecHelpers.jsx"
-   ]
-  },
-  {
-   "text": "Asks this server what a library's harvester would ask, with a throwaway key, and checks every answer against COUNTER Release 5.1: credentials, report list, report shape, dates and error codes.",
-   "where": [
-    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -2065,6 +2064,12 @@
    "text": "Banks, phone companies and insurers check these. Each is free to freeze.",
    "where": [
     "pages/CreditFreeze.jsx"
+   ]
+  },
+  {
+   "text": "Base address",
+   "where": [
+    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -2435,6 +2440,12 @@
    "text": "California, Vermont, Texas and Oregon require data brokers to register. Importing these lists keeps OpenOptOut's broker list up to date. New brokers from a registry start <0>turned off</0>. A family member who finds a listing about themselves on one of them still gets an opt-out for it.",
    "where": [
     "pages/StateRegistries.jsx"
+   ]
+  },
+  {
+   "text": "Calls this server the way a script would, with a throwaway key, and checks every answer: keys, institutions, daily rows, totals that add up, CSV, and refusals for bad requests.",
+   "where": [
+    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -3465,7 +3476,7 @@
    ]
   },
   {
-   "text": "Copy the API key now; it isn't shown again. Give the harvester all three: the base URL, the requestor ID and the API key, plus a customer ID from the table above.",
+   "text": "Copy the key now; it isn't shown again. Keep it out of scripts you share: an environment variable such as OPENOPTOUT_STATS_KEY is a good place.",
    "where": [
     "pages/UsageStats.jsx"
    ]
@@ -3542,12 +3553,6 @@
    "text": "Couldn't add that listing. Please check the address and try again.",
    "where": [
     "components/FindListings.jsx"
-   ]
-  },
-  {
-   "text": "Couldn't add the harvester.",
-   "where": [
-    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -3759,6 +3764,12 @@
    "text": "Couldn't make steps",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Couldn't make the key.",
+   "where": [
+    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -4009,12 +4020,6 @@
    ]
   },
   {
-   "text": "COUNTER Registry address (optional)",
-   "where": [
-    "pages/UsageStats.jsx"
-   ]
-  },
-  {
    "text": "Country",
    "where": [
     "pages/ParentCompanies.jsx"
@@ -4111,6 +4116,12 @@
    ]
   },
   {
+   "text": "CSV has a header and the same rows as JSON",
+   "where": [
+    "server: stats_check.py"
+   ]
+  },
+  {
    "text": "Current order: <0/> (change it under <1>Settings → Schedule</1>).",
    "where": [
     "pages/BrokerNetwork.jsx"
@@ -4141,12 +4152,6 @@
    ]
   },
   {
-   "text": "Customer ID",
-   "where": [
-    "pages/UsageStats.jsx"
-   ]
-  },
-  {
    "text": "Customize how the app looks for everyone",
    "where": [
     "pages/Settings.jsx"
@@ -4156,6 +4161,12 @@
    "text": "Daily",
    "where": [
     "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Daily counts have one row per day, zeros included",
+   "where": [
+    "server: stats_check.py"
    ]
   },
   {
@@ -4257,9 +4268,9 @@
    ]
   },
   {
-   "text": "Dates the wrong way round are refused (3020)",
+   "text": "Dates the wrong way round are refused (400)",
    "where": [
-    "server: sushi_check.py"
+    "server: stats_check.py"
    ]
   },
   {
@@ -5057,12 +5068,6 @@
    ]
   },
   {
-   "text": "e.g. Celus, or the university's ERM",
-   "where": [
-    "pages/UsageStats.jsx"
-   ]
-  },
-  {
    "text": "e.g. How to opt out of Acxiom",
    "where": [
     "pages/Help.jsx"
@@ -5108,6 +5113,12 @@
    "text": "e.g. My YubiKey, or Mac fingerprint",
    "where": [
     "pages/Login.jsx"
+   ]
+  },
+  {
+   "text": "e.g. Nightly warehouse load",
+   "where": [
+    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -5216,12 +5227,6 @@
    "text": "Each site gets searched once for every mix of your details",
    "where": [
     "pages/IdentityVault.jsx"
-   ]
-  },
-  {
-   "text": "Each system that collects reports gets its own requestor ID and API key, so you can remove one without affecting the others.",
-   "where": [
-    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -5700,12 +5705,6 @@
    ]
   },
   {
-   "text": "Error messages match the Code of Practice",
-   "where": [
-    "server: sushi_check.py"
-   ]
-  },
-  {
    "text": "Errors",
    "where": [
     "pages/BrokerHealth.jsx"
@@ -5862,9 +5861,27 @@
    ]
   },
   {
+   "text": "Example",
+   "where": [
+    "pages/UsageStats.jsx"
+   ]
+  },
+  {
    "text": "Example:",
    "where": [
     "pages/Inboxes.jsx"
+   ]
+  },
+  {
+   "text": "Example: September by day, every institution, as CSV",
+   "where": [
+    "pages/UsageStats.jsx"
+   ]
+  },
+  {
+   "text": "examples/stats-bridge/pull_usage.py is a starting script: it collects each new day and saves CSV and JSON Lines files, ready to load into a data mart like LibInsight, a warehouse or a lake.",
+   "where": [
+    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -6528,6 +6545,12 @@
    ]
   },
   {
+   "text": "Give each script or system its own key, so you can remove one without affecting the others.",
+   "where": [
+    "pages/UsageStats.jsx"
+   ]
+  },
+  {
    "text": "Given to",
    "where": [
     "pages/BrokerNetwork.jsx"
@@ -6537,12 +6560,6 @@
    "text": "Global \"Remember Me\" Feature",
    "where": [
     "pages/Settings.jsx"
-   ]
-  },
-  {
-   "text": "Global (\"The World\") reports are refused (2011)",
-   "where": [
-    "server: sushi_check.py"
    ]
   },
   {
@@ -6642,6 +6659,12 @@
    ]
   },
   {
+   "text": "granularity can be day, week, month or total. institution can be one id, several separated by commas, or * for all. format can be json or csv. Dates are UTC days; today's counts are marked complete=false.",
+   "where": [
+    "pages/UsageStats.jsx"
+   ]
+  },
+  {
    "text": "greater than (>)",
    "where": [
     "pages/Branding.jsx"
@@ -6699,18 +6722,6 @@
    "text": "Hard — resistant or complex process",
    "where": [
     "pages/BrokerSubmit.jsx"
-   ]
-  },
-  {
-   "text": "Harvesters",
-   "where": [
-    "pages/UsageStats.jsx"
-   ]
-  },
-  {
-   "text": "Hasn't collected yet",
-   "where": [
-    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -7436,6 +7447,12 @@
    ]
   },
   {
+   "text": "Institution id",
+   "where": [
+    "pages/UsageStats.jsx"
+   ]
+  },
+  {
    "text": "Institutional metrics for administrators and managers",
    "where": [
     "pages/Reporting.jsx"
@@ -7451,6 +7468,12 @@
    "text": "Institutional recommendation for device credential cache.",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Institutions are listed",
+   "where": [
+    "server: stats_check.py"
    ]
   },
   {
@@ -7641,6 +7664,12 @@
    ]
   },
   {
+   "text": "Key",
+   "where": [
+    "pages/UsageStats.jsx"
+   ]
+  },
+  {
    "text": "Key / Touch ID",
    "where": [
     "pages/Login.jsx"
@@ -7663,6 +7692,12 @@
    "text": "Key removed.",
    "where": [
     "components/SolvingSettings.jsx"
+   ]
+  },
+  {
+   "text": "Keys",
+   "where": [
+    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -7775,12 +7810,6 @@
    ]
   },
   {
-   "text": "Last collected {when}",
-   "where": [
-    "pages/UsageStats.jsx"
-   ]
-  },
-  {
    "text": "Last failure",
    "where": [
     "pages/BrokerHealth.jsx"
@@ -7802,6 +7831,12 @@
    "text": "Last updated by {updated_by} · {v}",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "Last used {when}",
+   "where": [
+    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -7958,12 +7993,6 @@
    "text": "Library / Branch (AQ, AF, AO)",
    "where": [
     "pages/Branding.jsx"
-   ]
-  },
-  {
-   "text": "Library and campus systems can collect monthly usage from OpenOptOut the way they do from journal platforms: COUNTER reports over SUSHI, per library system and branch. Counts only, never anyone's name or details. SUSHI-compatible, not COUNTER-audited.",
-   "where": [
-    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -8326,6 +8355,12 @@
    ]
   },
   {
+   "text": "Make a key",
+   "where": [
+    "pages/UsageStats.jsx"
+   ]
+  },
+  {
    "text": "Make a metrics token",
    "where": [
     "pages/Monitoring.jsx"
@@ -8599,12 +8634,6 @@
    ]
   },
   {
-   "text": "Members lists the institutions",
-   "where": [
-    "server: sushi_check.py"
-   ]
-  },
-  {
    "text": "Message",
    "where": [
     "pages/Branding.jsx"
@@ -8776,9 +8805,9 @@
    ]
   },
   {
-   "text": "Months available: {first} to {last}.",
+   "text": "Monthly totals match the daily counts",
    "where": [
-    "pages/UsageStats.jsx"
+    "server: stats_check.py"
    ]
   },
   {
@@ -8928,12 +8957,6 @@
    "text": "Names, addresses, phones, emails encrypted before DB write",
    "where": [
     "pages/Settings.jsx"
-   ]
-  },
-  {
-   "text": "Namespace for custom reports",
-   "where": [
-    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -9305,12 +9328,6 @@
    ]
   },
   {
-   "text": "No months with data yet.",
-   "where": [
-    "pages/UsageStats.jsx"
-   ]
-  },
-  {
    "text": "No notes in this section yet.",
    "where": [
     "pages/Help.jsx"
@@ -9613,6 +9630,12 @@
    ]
   },
   {
+   "text": "Not used yet",
+   "where": [
+    "pages/UsageStats.jsx"
+   ]
+  },
+  {
    "text": "not yet",
    "where": [
     "pages/PrivacyRecord.jsx"
@@ -9846,7 +9869,7 @@
    ]
   },
   {
-   "text": "Off. Only the public status page answers.",
+   "text": "Off. Only the public status answers.",
    "where": [
     "pages/UsageStats.jsx"
    ]
@@ -9974,7 +9997,7 @@
    ]
   },
   {
-   "text": "On. Harvesters with a key can collect reports.",
+   "text": "On. Scripts with a key can pull counts.",
    "where": [
     "pages/UsageStats.jsx"
    ]
@@ -10342,6 +10365,12 @@
    "text": "Opt-out requests are sent from these inboxes, and brokers reply to them. Each person needs one. Inboxes like Gmail can give every opt-out its own address (like <0>you+oo7f3k2a9@gmail.com</0>), so one inbox can cover the whole family and replies are matched automatically.",
    "where": [
     "pages/Inboxes.jsx"
+   ]
+  },
+  {
+   "text": "Opt-out requests sent. A request sent again counts on its latest date.",
+   "where": [
+    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -10794,12 +10823,6 @@
    ]
   },
   {
-   "text": "people added, listing searches, listings found, opt-out requests sent and removals confirmed.",
-   "where": [
-    "pages/UsageStats.jsx"
-   ]
-  },
-  {
    "text": "people living in a covered state get: {letter}",
    "where": [
     "pages/Letters.jsx"
@@ -10815,6 +10838,12 @@
    "text": "People see this name when they first sign in: \"The Rivera family uses OpenOptOut to…\". You can change it on the Terms page.",
    "where": [
     "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "People whose details were added.",
+   "where": [
+    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -10976,12 +11005,6 @@
    "text": "Plain text — TLS disabled",
    "where": [
     "pages/Branding.jsx"
-   ]
-  },
-  {
-   "text": "Platform name",
-   "where": [
-    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -11837,6 +11860,12 @@
    ]
   },
   {
+   "text": "Removals confirmed.",
+   "where": [
+    "pages/UsageStats.jsx"
+   ]
+  },
+  {
    "text": "Removals shown",
    "where": [
     "pages/Scheduled.jsx"
@@ -11911,6 +11940,12 @@
    ]
   },
   {
+   "text": "Remove the key {name}? Scripts using it will stop working.",
+   "where": [
+    "pages/UsageStats.jsx"
+   ]
+  },
+  {
    "text": "Remove the ones I picked",
    "where": [
     "pages/Checklist.jsx"
@@ -11958,12 +11993,6 @@
    "text": "Remove {name}?",
    "where": [
     "pages/Monitoring.jsx"
-   ]
-  },
-  {
-   "text": "Remove {name}? It won't be able to collect reports any more.",
-   "where": [
-    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -12069,21 +12098,9 @@
    ]
   },
   {
-   "text": "Reports and institutions",
-   "where": [
-    "pages/UsageStats.jsx"
-   ]
-  },
-  {
    "text": "Requested permissions",
    "where": [
     "pages/Plugins.jsx"
-   ]
-  },
-  {
-   "text": "Requestor ID",
-   "where": [
-    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -12482,7 +12499,6 @@
     "pages/Settings.jsx",
     "pages/SpecHelpers.jsx",
     "pages/Terms.jsx",
-    "pages/UsageStats.jsx",
     "pages/WebSearchSettings.jsx"
    ]
   },
@@ -12627,7 +12643,6 @@
     "pages/Inboxes.jsx",
     "pages/Settings.jsx",
     "pages/SpecHelpers.jsx",
-    "pages/UsageStats.jsx",
     "pages/WebSearchSettings.jsx"
    ]
   },
@@ -12891,12 +12906,6 @@
    ]
   },
   {
-   "text": "searches for people's listings on data-broker sites, as Searches_Platform.",
-   "where": [
-    "pages/UsageStats.jsx"
-   ]
-  },
-  {
    "text": "Searches per person per run",
    "where": [
     "pages/WebSearchSettings.jsx"
@@ -13149,6 +13158,12 @@
    "text": "Send test opt-out",
    "where": [
     "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
+   "text": "Send the key in a header: Authorization: Bearer <key>. Use HTTPS, so the key can't be read on the way.",
+   "where": [
+    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -14409,12 +14424,6 @@
    ]
   },
   {
-   "text": "SUSHI base URL",
-   "where": [
-    "pages/UsageStats.jsx"
-   ]
-  },
-  {
    "text": "Sweeping...",
    "where": [
     "pages/WorkerFleet.jsx"
@@ -14756,21 +14765,9 @@
    ]
   },
   {
-   "text": "The COUNTER API must be reached over HTTPS. Reports cover whole months, up to the last complete one.",
-   "where": [
-    "pages/UsageStats.jsx"
-   ]
-  },
-  {
    "text": "The country decides which privacy law the opt-out letter cites (US, GB, FR, BR, CA, or EU). The letter is written in the company's language — French for a French company — not the language you use here. Leave the language blank to use the usual one for the country.",
    "where": [
     "pages/ParentCompanies.jsx"
-   ]
-  },
-  {
-   "text": "The current month is reported as not ready (3031)",
-   "where": [
-    "server: sushi_check.py"
    ]
   },
   {
@@ -14864,12 +14861,6 @@
    ]
   },
   {
-   "text": "The report list includes PR and PR_P1",
-   "where": [
-    "server: sushi_check.py"
-   ]
-  },
-  {
    "text": "The security key step was cancelled or took too long. Try again.",
    "where": [
     "pages/Login.jsx"
@@ -14900,15 +14891,9 @@
    ]
   },
   {
-   "text": "The service is off, so harvesters can't collect yet.",
+   "text": "The service is off, so scripts can't pull counts yet.",
    "where": [
     "pages/UsageStats.jsx"
-   ]
-  },
-  {
-   "text": "The service status answers without a key",
-   "where": [
-    "server: sushi_check.py"
    ]
   },
   {
@@ -14951,6 +14936,12 @@
    "text": "The site's page. Click on it to click in the page.",
    "where": [
     "components/LiveCaptcha.jsx"
+   ]
+  },
+  {
+   "text": "The status answers without a key",
+   "where": [
+    "server: stats_check.py"
    ]
   },
   {
@@ -15338,7 +15329,7 @@
    ]
   },
   {
-   "text": "To test from outside, the way a harvester reaches the server (run it on any computer with the OpenOptOut files and Python):",
+   "text": "To test from another computer, the way your scripts will reach the server:",
    "where": [
     "pages/UsageStats.jsx"
    ]
@@ -15347,6 +15338,12 @@
    "text": "To:",
    "where": [
     "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
+   "text": "Today's numbers are marked as not complete",
+   "where": [
+    "server: stats_check.py"
    ]
   },
   {
@@ -15605,7 +15602,7 @@
    ]
   },
   {
-   "text": "Turned off. Harvesters get \"Service Not Available\".",
+   "text": "Turned off. Scripts get \"turned off\" until you turn it back on.",
    "where": [
     "pages/UsageStats.jsx"
    ]
@@ -15890,7 +15887,7 @@
    ]
   },
   {
-   "text": "Usage statistics (SUSHI)",
+   "text": "Usage statistics",
    "where": [
     "components/Sidebar.jsx",
     "pages/UsageStats.jsx"
@@ -16444,6 +16441,12 @@
    ]
   },
   {
+   "text": "Weeks start on Monday",
+   "where": [
+    "server: stats_check.py"
+   ]
+  },
+  {
    "text": "weight {score}",
    "where": [
     "pages/BrokerNetwork.jsx"
@@ -16507,6 +16510,12 @@
    "text": "What the page showed",
    "where": [
     "pages/CaptchaQueue.jsx"
+   ]
+  },
+  {
+   "text": "What's counted",
+   "where": [
+    "pages/UsageStats.jsx"
    ]
   },
   {
@@ -17437,12 +17446,6 @@
    "text": "{person}'s {v}",
    "where": [
     "pages/Settings.jsx"
-   ]
-  },
-  {
-   "text": "{report}: header and monthly counts are in COUNTER 5.1 form",
-   "where": [
-    "server: sushi_check.py"
    ]
   },
   {
