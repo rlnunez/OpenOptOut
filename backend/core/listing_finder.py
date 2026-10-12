@@ -399,17 +399,33 @@ def add_listing(db, member, url: str, create_unknown: bool = True, source: str =
         req.notes = (f"OpenOptOut doesn't know how to opt out of {hit['domain']} yet. On that site, "
                      f"look for a link at the bottom of the page called \"Opt out\", \"Remove my "
                      f"information\", \"Do not sell\" or \"Privacy\". Your listing: {clean}")
-    elif not broker.enabled:
-        req.notes = ((req.notes or "") + f"\n{broker.name} is turned off by your administrator, "
-                     "so this listing will wait until it's turned back on.").strip()
 
     db.commit()
+
+    # A listing on a broker that's turned off: the admin's rule decides
+    # (core/found_listings.py). Registry brokers are handled by broker_gate.
+    outcome = ""
+    if not created and not broker.enabled:
+        from .found_listings import handle
+        outcome = handle(db, broker, member.id)
+        db.refresh(req)
+        if not outcome and req.status == RequestStatus.pending:
+            req.notes = ((req.notes or "") + f"\n{broker.name} is turned off by your administrator, "
+                         "so this listing will wait until it's turned back on.").strip()
+            db.commit()
 
     if created:
         msg = (f"Added. {hit['domain']} is new to OpenOptOut, so it's on your checklist with "
                f"instructions, and your administrator will see it as a site to research.")
     elif state == "already_open":
         msg = f"{broker.name} is already in the removal cycle for {member.full_name}; the link was saved with it."
+    elif outcome == "asked":
+        msg = (f"Added. {broker.name} is turned off for now. Your administrator has been asked to turn it on, "
+               f"and the opt-out waits until then.")
+    elif outcome == "told":
+        msg = f"Added. {broker.name} is turned off, so it's on your checklist with the steps to do it yourself."
+    elif outcome == "turned_on":
+        msg = f"Added. {broker.name} was turned on and will be included in the next opt-out run for {member.full_name}."
     else:
         msg = f"Added. {broker.name} will be included in the next opt-out run for {member.full_name}."
     if hit["note"] and not created:

@@ -112,6 +112,38 @@ def dashboard_stats(
     )
 
 
+class FoundRule(BaseModel):
+    action: Optional[str] = None       # auto | ask | tell
+    threshold: Optional[int] = None    # people, for auto
+    fallback: Optional[str] = None     # ask | tell, below the threshold or when it can't turn on
+
+
+@router.get("/found-rule")
+def get_found_rule(db: Session = Depends(get_db), user: User = Depends(require_permission("brokers.manage"))):
+    """What happens when a listing is found on a broker that's turned off
+    (core/found_listings.py), and the brokers waiting with listings found.
+    Counts and broker names only."""
+    from ..core import found_listings as fl
+    return {**fl.settings_of(), "waiting": fl.waiting(db)}
+
+
+@router.put("/found-rule")
+def put_found_rule(req: FoundRule, db: Session = Depends(get_db), user: User = Depends(require_permission("brokers.manage"))):
+    from ..core import found_listings as fl
+    from ..core.settings_store import load_settings, SETTINGS_FILE
+    s = load_settings()
+    try:
+        cur = fl.settings_of(s)
+        cur.update({k: v for k, v in req.model_dump(exclude_unset=True).items() if v is not None})
+        s["found_listings"] = fl.clean(cur)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    with open(SETTINGS_FILE, "w") as f:
+        json.dump(s, f, indent=2)
+    turned_on = fl.apply_now(db, s)
+    return {**s["found_listings"], "turned_on": turned_on, "waiting": fl.waiting(db)}
+
+
 @router.get("/coverage")
 def broker_coverage(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """How many other sites each broker's opt-out reaches, and how many sites
@@ -581,6 +613,8 @@ def enable_broker(
         raise HTTPException(404, "That site is gone. Refresh the page.")
     _health_re_enable(db, broker_id)
     db.refresh(broker)
+    from ..core.found_listings import resume
+    resume(db, broker)      # requests people were told to do by hand go back to OpenOptOut
     h = db.query(BrokerHealth).filter(BrokerHealth.broker_id == broker_id).first()
     return _health_out(broker, h)
 

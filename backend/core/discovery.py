@@ -334,6 +334,10 @@ async def run_discovery_for_member(member_id: int) -> dict:
                                 status=RequestStatus.pending,
                             ))
                             db.commit()
+                        if not broker.enabled:
+                            # Found on a broker that's turned off: the admin's rule decides.
+                            from .found_listings import handle
+                            handle(db, broker, member_id)
 
                     # Polite inter-broker delay
                     await asyncio.sleep(1.0)

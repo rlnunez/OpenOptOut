@@ -15,6 +15,8 @@ super administrators as a digest:
   steps_applied    a broker's opt-out steps were fixed automatically (core/spec_drafter.py)
   steps_ready      drafted or repaired steps are ready for an admin to approve
   steps_rehearsal_failed  drafted steps didn't get through a rehearsal
+  found_while_off  listings were found on a broker that's turned off (core/found_listings.py)
+  turned_on_found  a broker was turned on automatically because listings were found
 
 The same thing about the same broker isn't recorded twice within
 DEDUPE_DAYS. Nothing here contains family members' personal details: titles
@@ -38,6 +40,8 @@ KINDS = {
     "steps_applied":   ("review", "Steps fixed automatically"),
     "steps_ready":     ("review", "Steps ready to approve"),
     "steps_rehearsal_failed": ("review", "Drafted steps need a look"),
+    "found_while_off": ("urgent", "Found on a broker that's off"),
+    "turned_on_found": ("info", "Turned on after listings were found"),
 }
 DEFAULT_SETTINGS = {"email_digest": "daily"}     # off | daily | weekly
 
@@ -80,11 +84,13 @@ def listing(db, limit: int = 200, unread_only: bool = False) -> list:
     if unread_only:
         q = q.filter(BrokerUpdate.read_at.is_(None))
     rows = q.order_by(BrokerUpdate.created_at.desc()).limit(limit).all()
-    names = {b.id: b.name for b in db.query(Broker).filter(
-        Broker.id.in_({r.broker_id for r in rows if r.broker_id})).all()} if rows else {}
+    found = db.query(Broker).filter(Broker.id.in_({r.broker_id for r in rows if r.broker_id})).all() if rows else []
+    names = {b.id: b.name for b in found}
+    enabled = {b.id: bool(b.enabled) for b in found}
     return [{"id": r.id, "kind": r.kind, "level": KINDS.get(r.kind, ("info",))[0],
              "label": KINDS.get(r.kind, (None, r.kind))[1], "title": r.title, "detail": r.detail,
              "broker_id": r.broker_id, "broker_name": names.get(r.broker_id),
+             "broker_enabled": enabled.get(r.broker_id),
              "created_at": r.created_at.isoformat() if r.created_at else None,
              "read": r.read_at is not None} for r in rows]
 

@@ -69,6 +69,18 @@ A plugin whose opt-out page nobody could check ships with `"starts_enabled": fal
 
 To turn one on, open its opt-out page and confirm it's still the site's own form, or run a rehearsal (**Automatic broker steps**). A rehearsal uses made-up details and stops before the last click. Then press **Turn on** on the Brokers page. Once someone runs the flow against the live site, fill in `last_verified` and remove `starts_enabled`.
 
+### When a listing is found on one that's off
+
+When Find listings or web search finds someone on a broker that's turned off, that broker is clearly live, and it already lists the person. Opting out there can't add anyone new. Under **Broker updates** an admin chooses what happens next ([`core/found_listings.py`](../backend/core/found_listings.py)):
+
+| Choice | What happens |
+|---|---|
+| **Ask an admin** (default) | The broker is listed with the number of people found and a **Turn on** button. Opt-outs wait until it's on. |
+| **Turn on automatically** once listings are found for at least *N* people | It turns on and opts out. Below *N*, it asks an admin or tells the person, whichever the admin chose. It never turns on a broker that an admin turned off, that the health monitor turned off after failures, whose website looked gone, or that has no plugin. |
+| **Tell the person** | It goes on their checklist with the site's opt-out page. If the broker is turned on later, the request goes back to OpenOptOut. |
+
+The rule counts distinct people, not listings, and records only a broker name and a number. Brokers imported from a state registry follow their own rule (`core/broker_gate.py`).
+
 ## What one opt-out covers
 
 `covers` in `spec.json` lists other sites, by bare domain, that the same company says one request reaches (PeopleConnect's covers Intelius, TruthFinder, Instant Checkmate and more). The Brokers page adds these up, together with families in the parent-company catalog marked `one_optout_covers` and its "confirmed" cascades ([`core/coverage.py`](../backend/core/coverage.py)). It shows "Also removes you from N other sites" on each broker, and how many sites the turned-on brokers reach between them. "Likely" cascades are shown but never counted.

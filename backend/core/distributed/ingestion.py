@@ -410,6 +410,15 @@ class ResultIngestionService:
 
                 out["discovery_listings_saved"] = saved_count
                 out["chained_requests"] = chained_count
+                if saved_count:
+                    try:
+                        db.flush()
+                        b = db.query(Broker).filter(Broker.id == broker_id_int).first()
+                        if b is not None and not b.enabled:
+                            from ..found_listings import handle
+                            handle(db, b, member_id_int)
+                    except Exception as fl_err:
+                        log.debug("found-listing rule skipped: %s", fl_err)
 
                 # Record AutomationLog
                 try:
