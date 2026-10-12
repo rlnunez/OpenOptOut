@@ -645,7 +645,7 @@ function LogoDropzone({ logoUrl, onUploaded, onRemoved, setError }) {
 }
 
 function BrandingStep({ onNext, onSkip, onBack, busy, setError }) {
-  const [b, setB] = useState({ system_name: '', primary_color: '' })
+  const [b, setB] = useState({ system_name: '', primary_color: '', operator: '' })
   const [logoUrl, setLogoUrl] = useState(null)
   const [saving, setSaving] = useState(false)
 
@@ -658,8 +658,13 @@ function BrandingStep({ onNext, onSkip, onBack, busy, setError }) {
 
   return (
     <div>
-      <StepHeader icon={Palette} title={tx("Branding (optional)")} subtitle={tx("Cosmetic only — you can set or change this anytime in Settings.")} />
+      <StepHeader icon={Palette} title={tx("Name and branding (optional)")} subtitle={tx("You can set or change these anytime.")} />
       <div className="space-y-3">
+        <label className="block text-slate-300 text-sm">{tx("Who runs this OpenOptOut?")}
+          <input className={`${inp} mt-1`} placeholder={tx("e.g. The Rivera family, or Riverside Public Library")} maxLength={200}
+            value={b.operator} onChange={e => setB({ ...b, operator: e.target.value })} />
+          <span className="block text-slate-500 text-xs mt-1">{tx("People see this name when they first sign in: \"The Rivera family uses OpenOptOut to…\". You can change it on the Terms page.")}</span>
+        </label>
         <input className={inp} placeholder={tx("System name (e.g. Springfield Library Privacy)")} value={b.system_name} onChange={e => setB({ ...b, system_name: e.target.value })} />
         <div>
           <p className="text-slate-400 text-xs mb-1">{tx("Logo")}</p>

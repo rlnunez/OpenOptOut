@@ -731,6 +731,23 @@ class NoticeSent(Base):
     sent_at    = Column(DateTime, default=datetime.utcnow)
 
 
+class TermsAcceptance(Base):
+    """Someone accepted a version of the terms (core/terms.py). Kinds:
+    "limits" (an admin's "what OpenOptOut can and can't do"), "notice" (a
+    person's "how OpenOptOut works for you"), "operator_terms" (the terms the
+    people running this server wrote), and "acting_for" (a parent confirmed
+    they may act for the person in subject_user_id). Ids, versions and dates
+    only; never names or details."""
+    __tablename__ = "terms_acceptances"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    user_id         = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind            = Column(String(20), nullable=False)
+    version         = Column(Integer, nullable=False)
+    subject_user_id = Column(Integer, nullable=True, index=True)   # acting_for: the person added
+    accepted_at     = Column(DateTime, default=datetime.utcnow)
+
+
 class PrivacyScoreSnapshot(Base):
     """One person's privacy score on one day (core/privacy_score.py). Counts only, nothing personal."""
     __tablename__ = "privacy_score_snapshots"

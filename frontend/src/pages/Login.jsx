@@ -1499,9 +1499,7 @@ export default function Login() {
 
               {/* Footer */}
               <div className="mt-4 flex items-center justify-between text-xs text-slate-600">
-                {branding?.terms_url
-                  ? <a href={branding.terms_url} target="_blank" rel="noopener noreferrer" className="hover:text-slate-400">{tx("Terms")}</a>
-                  : <span />}
+                <a href="/terms" className="hover:text-slate-400">{tx("Terms")}</a>
                 {branding?.contact_email
                   ? <a href={`mailto:${branding.contact_email}`} className="hover:text-slate-400">{branding.contact_email}</a>
                   : <span>{tx("Contact your administrator for access")}</span>}

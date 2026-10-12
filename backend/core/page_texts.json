@@ -1092,6 +1092,12 @@
    ]
   },
   {
+   "text": "Admins, at first sign-in: what OpenOptOut can and can't do",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
    "text": "Adult (16 or older)",
    "where": [
     "pages/CreditFreeze.jsx"
@@ -1432,6 +1438,12 @@
    "text": "and",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "And when someone adds a person without their own sign-in, they confirm they're allowed to act for them: the person agreed, or they're the parent or legal guardian.",
+   "where": [
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -1897,7 +1909,8 @@
   {
    "text": "Back to sign in",
    "where": [
-    "pages/Login.jsx"
+    "pages/Login.jsx",
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -2000,6 +2013,12 @@
    ]
   },
   {
+   "text": "Before you start: what OpenOptOut can and can't do",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
    "text": "between (min & max)",
    "where": [
     "pages/Branding.jsx"
@@ -2055,9 +2074,9 @@
    ]
   },
   {
-   "text": "Branding (optional)",
+   "text": "Branding also links to terms on another site: {url}. The Terms link on the sign-in page goes there when yours are off.",
    "where": [
-    "pages/SetupWizard.jsx"
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -2162,6 +2181,12 @@
    "where": [
     "pages/DatabaseAdmin.jsx",
     "pages/Letters.jsx"
+   ]
+  },
+  {
+   "text": "Brokers decide.",
+   "where": [
+    "components/TermsGate.jsx"
    ]
   },
   {
@@ -3248,6 +3273,12 @@
    ]
   },
   {
+   "text": "Continue",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
    "text": "Continue to Dashboard",
    "where": [
     "pages/Login.jsx"
@@ -3356,12 +3387,6 @@
    "text": "Copy {v}",
    "where": [
     "pages/Monitoring.jsx"
-   ]
-  },
-  {
-   "text": "Cosmetic only — you can set or change this anytime in Settings.",
-   "where": [
-    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -3607,6 +3632,12 @@
    ]
   },
   {
+   "text": "Couldn't load the terms.",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
    "text": "Couldn't load your family. Please refresh the page.",
    "where": [
     "pages/CreditFreeze.jsx"
@@ -3699,6 +3730,7 @@
    "text": "Couldn't save that. Please try again.",
    "where": [
     "components/PrivacyPagesPanel.jsx",
+    "components/TermsGate.jsx",
     "pages/Checklist.jsx",
     "pages/DeadlineReport.jsx"
    ]
@@ -3713,6 +3745,12 @@
    "text": "Couldn't save the birthday.",
    "where": [
     "pages/IdentityVault.jsx"
+   ]
+  },
+  {
+   "text": "Couldn't save the terms.",
+   "where": [
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -4947,9 +4985,21 @@
    ]
   },
   {
+   "text": "e.g. privacy@example.org",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
    "text": "e.g. Requires email confirmation. Re-lists within 60 days — use 30-day recheck.",
    "where": [
     "pages/BrokerSubmit.jsx"
+   ]
+  },
+  {
+   "text": "e.g. Riverside Public Library",
+   "where": [
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -4980,6 +5030,12 @@
    "text": "e.g. Seattle",
    "where": [
     "components/UserWelcomeModal.jsx"
+   ]
+  },
+  {
+   "text": "e.g. The Rivera family, or Riverside Public Library",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -5052,7 +5108,8 @@
    "text": "Edit",
    "where": [
     "pages/ParentCompanies.jsx",
-    "pages/SpecHelpers.jsx"
+    "pages/SpecHelpers.jsx",
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -5598,6 +5655,12 @@
    "text": "Everyone",
    "where": [
     "pages/Scheduled.jsx"
+   ]
+  },
+  {
+   "text": "Everyone else, at first sign-in: how OpenOptOut works for them",
+   "where": [
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -6447,6 +6510,12 @@
    ]
   },
   {
+   "text": "Headings start with ##, list items with -. Links look like [text](https://…).",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
    "text": "Health",
    "where": [
     "pages/Monitoring.jsx"
@@ -6691,6 +6760,12 @@
    ]
   },
   {
+   "text": "How OpenOptOut works for you",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
    "text": "How should people reach it?",
    "where": [
     "pages/SetupWizard.jsx"
@@ -6706,6 +6781,12 @@
    "text": "How to ask",
    "where": [
     "pages/Brokers.jsx"
+   ]
+  },
+  {
+   "text": "How to reach you",
+   "where": [
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -6757,6 +6838,18 @@
    ]
   },
   {
+   "text": "I understand",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
+   "text": "I understand OpenOptOut makes a best effort and can't guarantee removal, and I'm responsible for how this server is used.",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
    "text": "I understand this plugin will be able to see member personal data and send it over the network, and I accept the justification above. Grant this specific combination.",
    "where": [
     "pages/Plugins.jsx"
@@ -6775,6 +6868,12 @@
    ]
   },
   {
+   "text": "I'm allowed to ask brokers to remove this person's details: they've agreed, or I'm their parent or legal guardian.",
+   "where": [
+    "pages/Family.jsx"
+   ]
+  },
+  {
    "text": "I've confirmed it",
    "where": [
     "pages/Checklist.jsx"
@@ -6790,6 +6889,12 @@
    "text": "I've done this step",
    "where": [
     "components/LiveCaptcha.jsx"
+   ]
+  },
+  {
+   "text": "I've read these terms and I accept them.",
+   "where": [
+    "components/TermsGate.jsx"
    ]
   },
   {
@@ -6850,6 +6955,12 @@
    "text": "If you leave someone on \"Automatic\", they use their own inbox, or else a parent's inbox that gives every opt-out its own address.",
    "where": [
     "pages/Inboxes.jsx"
+   ]
+  },
+  {
+   "text": "If you run OpenOptOut for other people, like a library's patrons, you're the one offering it to them. Write the terms you offer; when they're turned on, everyone is asked to accept them when they sign in, and again whenever you change them.",
+   "where": [
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -7193,6 +7304,12 @@
    ]
   },
   {
+   "text": "It can't remove everything.",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
    "text": "It is disabled until a super admin reviews and enables it.",
    "where": [
     "components/PluginUploadWizard.jsx"
@@ -7205,6 +7322,12 @@
    ]
   },
   {
+   "text": "It knows about the brokers on its list. New ones appear every day, and many aren't covered. It doesn't touch government or court records, news, or social media.",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
    "text": "It sends sign-in links, status updates and admin alerts only. Opt-outs are sent from each family's own inbox, connected under <0>Email inboxes</0>.",
    "where": [
     "pages/Settings.jsx"
@@ -7214,6 +7337,12 @@
    "text": "It will be installed disabled.",
    "where": [
     "components/PluginUploadWizard.jsx"
+   ]
+  },
+  {
+   "text": "It's a best effort. It can't reach every site, brokers decide whether to comply, and listings can come back. You may still find your details online.",
+   "where": [
+    "components/TermsGate.jsx"
    ]
   },
   {
@@ -7396,6 +7525,13 @@
    "text": "Last backup worked.",
    "where": [
     "server: monitoring.py"
+   ]
+  },
+  {
+   "text": "Last changed {date}",
+   "where": [
+    "components/TermsGate.jsx",
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -7745,6 +7881,7 @@
    "where": [
     "App.jsx",
     "components/RemovalTimeline.jsx",
+    "components/TermsGate.jsx",
     "pages/AdminPanel.jsx",
     "pages/Backups.jsx",
     "pages/Branding.jsx",
@@ -7772,6 +7909,7 @@
     "pages/Settings.jsx",
     "pages/SpecHelpers.jsx",
     "pages/StateRegistries.jsx",
+    "pages/Terms.jsx",
     "pages/WebSearchSettings.jsx"
    ]
   },
@@ -8317,6 +8455,12 @@
    ]
   },
   {
+   "text": "Mistakes can happen.",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
    "text": "Mixed results",
    "where": [
     "components/Badge.jsx"
@@ -8473,6 +8617,12 @@
    "text": "Name (for you)",
    "where": [
     "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "Name and branding (optional)",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -8688,6 +8838,12 @@
    "text": "Next scheduled runs",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Next you'll see the terms from the people who run this server.",
+   "where": [
+    "components/TermsGate.jsx"
    ]
   },
   {
@@ -8997,6 +9153,12 @@
    ]
   },
   {
+   "text": "No warranty.",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
    "text": "No worker nodes matching current filter or search criteria.",
    "where": [
     "pages/WorkerFleet.jsx"
@@ -9104,6 +9266,12 @@
    "where": [
     "components/Badge.jsx",
     "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
+   "text": "Not legal advice.",
+   "where": [
+    "components/TermsGate.jsx"
    ]
   },
   {
@@ -9370,6 +9538,12 @@
    ]
   },
   {
+   "text": "Off. Nobody is asked to accept them.",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
    "text": "Off: add the solving plugin, turn it on on the Plugins page, then add your key here.",
    "where": [
     "components/SolvingSettings.jsx"
@@ -9489,6 +9663,12 @@
    "text": "On, using {v}.",
    "where": [
     "components/SolvingSettings.jsx"
+   ]
+  },
+  {
+   "text": "On. Version {v}, changed {date}. Accepted by {accepted} of {people} people who sign in.",
+   "where": [
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -9694,6 +9874,12 @@
    ]
   },
   {
+   "text": "OpenOptOut asks data brokers to remove the details of the people you add, and checks back later to see if they did. It can't promise more than that.",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
    "text": "OpenOptOut asks the site to remove every one (up to 10 per site). This may include other people with the same name.",
    "where": [
     "pages/Settings.jsx"
@@ -9727,6 +9913,12 @@
    "text": "OpenOptOut hasn't checked each of these sites itself.",
    "where": [
     "pages/Brokers.jsx"
+   ]
+  },
+  {
+   "text": "OpenOptOut is free software, provided as is, under the AGPL (sections 15 and 16). Its authors aren't responsible for what brokers do with requests.",
+   "where": [
+    "components/TermsGate.jsx"
    ]
   },
   {
@@ -10282,6 +10474,12 @@
    ]
   },
   {
+   "text": "People see this name when they first sign in: \"The Rivera family uses OpenOptOut to…\". You can change it on the Terms page.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "PeopleConnect network — one opt-out for many",
    "where": [
     "pages/Help.jsx"
@@ -10654,7 +10852,8 @@
    "where": [
     "pages/BrokerPriority.jsx",
     "pages/Letters.jsx",
-    "pages/Settings.jsx"
+    "pages/Settings.jsx",
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -10963,6 +11162,18 @@
    "text": "Read the letter",
    "where": [
     "pages/CreditFreeze.jsx"
+   ]
+  },
+  {
+   "text": "Read the terms",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
+   "text": "Read the terms on {operator}'s site",
+   "where": [
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -11457,6 +11668,12 @@
    ]
   },
   {
+   "text": "Replace what's in the box with the starting draft?",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
    "text": "Replaced",
    "where": [
     "pages/SpecHelpers.jsx"
@@ -11893,7 +12110,14 @@
     "pages/ParentCompanies.jsx",
     "pages/Settings.jsx",
     "pages/SpecHelpers.jsx",
+    "pages/Terms.jsx",
     "pages/WebSearchSettings.jsx"
+   ]
+  },
+  {
+   "text": "Save and turn on",
+   "where": [
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -11984,6 +12208,12 @@
    ]
   },
   {
+   "text": "Save without turning on",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
    "text": "Save {label} download address",
    "where": [
     "pages/StateRegistries.jsx"
@@ -12029,9 +12259,27 @@
    ]
   },
   {
+   "text": "Saved. Everyone will be asked to accept the new terms the next time they sign in.",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
+   "text": "Saved. Nothing people see changed, so nobody is asked again.",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
    "text": "Saved. Refresh the page to see it everywhere.",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Saved. The terms are turned off, so nobody is asked to accept them.",
+   "where": [
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -12074,6 +12322,7 @@
   {
    "text": "Saving…",
    "where": [
+    "components/TermsGate.jsx",
     "pages/AdminPanel.jsx",
     "pages/Branding.jsx",
     "pages/DatabaseAdmin.jsx",
@@ -12921,6 +13170,12 @@
    ]
   },
   {
+   "text": "Sign out",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
    "text": "sign-in needs renewing (happens automatically next time)",
    "where": [
     "pages/Settings.jsx"
@@ -13186,6 +13441,12 @@
    ]
   },
   {
+   "text": "Some ignore requests, take months, or ask for things OpenOptOut won't send, like ID numbers. Some put listings back later, which is why it checks again.",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
    "text": "Some searches failed: {v}",
    "where": [
     "components/WebSearchResults.jsx"
@@ -13376,6 +13637,12 @@
    "text": "Star one in each group as the main one. We use it first.",
    "where": [
     "pages/IdentityVault.jsx"
+   ]
+  },
+  {
+   "text": "Start from the draft",
+   "where": [
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -13873,7 +14140,23 @@
   {
    "text": "Terms",
    "where": [
-    "pages/Login.jsx"
+    "components/Sidebar.jsx",
+    "pages/Login.jsx",
+    "pages/Terms.jsx"
+   ]
+  },
+  {
+   "text": "Terms for this server",
+   "where": [
+    "components/TermsGate.jsx",
+    "pages/Terms.jsx"
+   ]
+  },
+  {
+   "text": "Terms from {operator}",
+   "where": [
+    "components/TermsGate.jsx",
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -14093,9 +14376,21 @@
    ]
   },
   {
+   "text": "The opt-out letters and these terms are drafts that a lawyer hasn't reviewed yet.",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
    "text": "The page at the end of the rehearsal, filled in with made-up details",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "The people who run this server haven't published their own terms. Here's how OpenOptOut works:",
+   "where": [
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -14267,6 +14562,12 @@
    ]
   },
   {
+   "text": "These come with OpenOptOut and are shown whether or not your own terms are on. They're translated into every language.",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
    "text": "These searches use {v} saved names, phone numbers and addresses. They open in your browser. If you find a page about {v2}, copy its web address and paste it below.",
    "where": [
     "components/FindListings.jsx"
@@ -14360,6 +14661,18 @@
    "text": "This request was submitted on your behalf by Raleigh Public Library's privacy protection service.",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "This server is yours.",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
+   "text": "This server uses OpenOptOut to ask data brokers (sites that collect and sell personal details) to remove your details.",
+   "where": [
+    "components/TermsGate.jsx"
    ]
   },
   {
@@ -14483,6 +14796,12 @@
    ]
   },
   {
+   "text": "To do that, it sends brokers your name and the details you add, such as address, phone, email and birth date. It never sends your Social Security number, ID numbers or passwords.",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
    "text": "To enable field-level encryption:",
    "where": [
     "pages/Settings.jsx"
@@ -14504,6 +14823,12 @@
    "text": "To find you (each name with each address)",
    "where": [
     "pages/IdentityVault.jsx"
+   ]
+  },
+  {
+   "text": "To opt someone out, OpenOptOut has to send that person's details to the broker. Details are stored encrypted, requests go only to brokers on its list, broker plugins (the steps OpenOptOut follows to opt out of a site) that nobody has checked yet start turned off, every message is checked before it leaves, and Social Security numbers, ID numbers and passwords are never sent. These lower the risk but can't remove it: a broker's site can change owners or change its form between checks.",
+   "where": [
+    "components/TermsGate.jsx"
    ]
   },
   {
@@ -14662,6 +14987,12 @@
    "text": "Turn my link off",
    "where": [
     "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Turn off",
+   "where": [
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -15590,6 +15921,18 @@
    ]
   },
   {
+   "text": "What everyone is told anyway",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
+   "text": "What people are told before they use OpenOptOut here. Everything on this page is a draft that a lawyer hasn't reviewed yet; have yours checked before you rely on it.",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
    "text": "What personal data this OpenOptOut keeps, why, how it's protected and for how long, and who looked at it. Use it as your record of processing under GDPR Article 30, and to answer requests under the CCPA and GDPR.",
    "where": [
     "pages/PrivacyRecord.jsx"
@@ -15801,6 +16144,18 @@
    ]
   },
   {
+   "text": "Who runs this OpenOptOut?",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Who runs this service",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
    "text": "Who uses which inbox",
    "where": [
     "pages/Inboxes.jsx"
@@ -15928,6 +16283,30 @@
    ]
   },
   {
+   "text": "You can set or change these anytime.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "You can stop at any time. Ask the people who run this server to remove you, and your details and requests are deleted.",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
+   "text": "You can stop at any time. Ask {operator} to remove you, and your details and requests are deleted.",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
+   "text": "You decide who's added, and you make sure you're allowed to act for them. You keep the server updated and backed up, and you follow the laws where you run it. If you offer it to others, like a library's patrons, you're the one offering it, so set your own terms on the Terms page.",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
    "text": "You don't have access to these settings.",
    "where": [
     "pages/Branding.jsx"
@@ -15996,6 +16375,18 @@
    ]
   },
   {
+   "text": "Your details are stored encrypted on a server that {operator} runs.",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
+   "text": "Your details are stored encrypted on this server.",
+   "where": [
+    "components/TermsGate.jsx"
+   ]
+  },
+  {
    "text": "Your Gotify server's /message address, for example https://gotify.example.org/message, and an app token.",
    "where": [
     "pages/Monitoring.jsx"
@@ -16049,6 +16440,12 @@
    "text": "Your phone number is one of the main ways data brokers link records together. OpenOptOut handles the sites. Your phone company handles the rest, and only you can change those settings.\n\n**What OpenOptOut does for you:**\n- Searches the web for each saved number.\n- Sends removal requests to caller ID apps (Truecaller, Hiya, Sync.ME, CallApp) and reverse phone lookup sites (Spy Dialer, NumLookup, CallerSmart, ReversePhoneLookup, NumberGuru). Each saved number gets its own request, because these sites list people by number.\n- Checks again later, one search per number, and asks again if a number shows up.\n\n**What to do with your phone company (10 minutes, once):**\n1. **Change or remove the caller ID name.** This is the name people see when you call. Set it to your initials or first name only. See the guide for your carrier below.\n2. **Turn off advertising and data-sharing programs.** Most carriers turn these on by default.\n3. **Limit \"CPNI\" use.** CPNI is the record of who you call, when, and what plan you have. You can tell the carrier not to use it for marketing.\n4. **Turn on number lock / a port-out PIN.** This stops someone from moving your number to another phone (a SIM swap). It's not about privacy, but you'll be on the same settings page.\n5. **Register on the Do Not Call list** at donotcall.gov. It doesn't remove listings, but it cuts sales calls.\n\n**Hide your number on a single call:** dial *67 before the number (US). Calls to 911 and to toll-free numbers still show your number.\n\n**Hide your number on every call:** iPhone: Settings → Apps → Phone → Show My Caller ID. Android: Phone app → Settings → Calls (or Supplementary services) → Caller ID. If the switch is greyed out, ask your carrier for \"per-line caller ID blocking\".\n\n**Old landline?** Ask the phone company to make the number \"non-published\" so it stays out of directories. There may be a monthly fee.",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "Your terms",
+   "where": [
+    "pages/Terms.jsx"
    ]
   },
   {
@@ -16340,6 +16737,18 @@
    ]
   },
   {
+   "text": "{n} note in square brackets still needs filling in, like {first}. The terms can't be turned on until it's done.",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
+   "text": "{n} notes in square brackets still need filling in, like {first}. The terms can't be turned on until they're done.",
+   "where": [
+    "pages/Terms.jsx"
+   ]
+  },
+  {
    "text": "{n} opt-out is waiting for someone to solve a CAPTCHA",
    "where": [
     "pages/Dashboard.jsx"
@@ -16415,6 +16824,12 @@
    "text": "{online_nodes} online & operational",
    "where": [
     "pages/WorkerFleet.jsx"
+   ]
+  },
+  {
+   "text": "{operator} uses OpenOptOut to ask data brokers (sites that collect and sell personal details) to remove your details.",
+   "where": [
+    "components/TermsGate.jsx"
    ]
   },
   {

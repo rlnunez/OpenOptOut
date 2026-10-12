@@ -42,15 +42,16 @@ function IdentityPill({ kind }) {
 function AddMemberModal({ onClose, onCreated }) {
   const [name, setName] = useState('')
   const [age, setAge]   = useState('')
+  const [authorized, setAuthorized] = useState(false)   // may act for them (core/terms.py)
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
 
   const submit = async e => {
     e.preventDefault()
-    if (!name.trim()) return
+    if (!name.trim() || !authorized) return
     setSaving(true)
     try {
-      const { data } = await api.post('/family', { full_name: name.trim(), age: age ? parseInt(age) : null })
+      const { data } = await api.post('/family', { full_name: name.trim(), age: age ? parseInt(age) : null, authorized })
       onCreated(data)
       onClose()
     } catch (err) {
@@ -87,9 +88,14 @@ function AddMemberModal({ onClose, onCreated }) {
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
             />
           </div>
+          <label className="flex items-start gap-2 text-sm text-slate-300 pt-1">
+            <input type="checkbox" checked={authorized} onChange={e => setAuthorized(e.target.checked)} required
+              className="mt-0.5 h-4 w-4 accent-shield-500 shrink-0" />
+            <span>{tx("I'm allowed to ask brokers to remove this person's details: they've agreed, or I'm their parent or legal guardian.")}</span>
+          </label>
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose} className="flex-1 py-2 border border-slate-700 rounded-lg text-slate-400 text-sm hover:bg-slate-800 transition-colors">{tx("Cancel")}</button>
-            <button type="submit" disabled={saving} className="flex-1 py-2 bg-shield-600 hover:bg-shield-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
+            <button type="submit" disabled={saving || !authorized} className="flex-1 py-2 bg-shield-600 hover:bg-shield-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
               {saving ? tx("Adding…") : tx("Add person")}
             </button>
           </div>

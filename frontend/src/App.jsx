@@ -51,6 +51,8 @@ import StateRegistries from './pages/StateRegistries'
 import WebSearchSettings from './pages/WebSearchSettings'
 import Checklist from './pages/Checklist'
 import InboxPrompt from './components/InboxPrompt'
+import TermsGate from './components/TermsGate'
+import Terms, { PublicTerms } from './pages/Terms'
 import { tx } from './i18n/tx'
 
 // Super admins, plus managers holding at least one of these permissions.
@@ -136,6 +138,7 @@ function Layout() {
             <Route path="/plugin-upload" element={<RequirePermission perms={['plugins.upload']}><PluginUpload /></RequirePermission>} />
             <Route path="/backups" element={<Backups />} />
             <Route path="/monitoring" element={<Monitoring />} />
+            <Route path="/terms-settings" element={<Terms />} />
             <Route path="/broker-updates" element={<RequirePermission perms={['brokers.manage']}><BrokerUpdates /></RequirePermission>} />
             <Route path="/data-sharing" element={<RequirePermission perms={['brokers.manage']}><BrokerNetwork /></RequirePermission>} />
             <Route path="/broker-health" element={<RequirePermission perms={['brokers.manage']}><BrokerHealth /></RequirePermission>} />
@@ -176,9 +179,10 @@ function RequireAuth({ children }) {
   // Fresh install: super admin hasn't finished the setup wizard yet.
   if (user.role === 'super_admin' && wizard === undefined)
     return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-500 text-sm">{tx("Loading…")}</p></div>
+  // Before anything else, what they still have to accept (core/terms.py).
   if (wizard && !wizard.completed)
-    return <SetupWizard onDone={() => setWizard({ ...wizard, completed: true })} />
-  return children
+    return <TermsGate><SetupWizard onDone={() => setWizard({ ...wizard, completed: true })} /></TermsGate>
+  return <TermsGate>{children}</TermsGate>
 }
 
 export default function App() {
@@ -192,6 +196,7 @@ export default function App() {
               <Routes>
                 <Route path="/login"                element={<Login />} />
                 <Route path="/auth/callback"        element={<OIDCCallback />} />
+                <Route path="/terms"                element={<PublicTerms />} />
                 <Route path="/*"                    element={<RequireAuth><Layout /></RequireAuth>} />
               </Routes>
             </BrowserRouter>

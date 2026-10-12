@@ -120,6 +120,9 @@ class MemberCreate(BaseModel):
     full_name: str = Field(..., min_length=1, max_length=200)
     age: Optional[int] = Field(None, ge=0, le=150)
     dob: Optional[str] = None
+    # The parent confirms they may ask brokers to remove this person's details:
+    # the person agreed, or the parent is their parent or legal guardian.
+    authorized: bool = False
 
 
 def _is_dependent(u) -> bool:
@@ -145,6 +148,9 @@ def add_member(
     name = data.full_name.strip()
     if not name:
         raise HTTPException(400, "Type the person's name.")
+    if not data.authorized:
+        raise HTTPException(400, "Confirm that you're allowed to act for this person: "
+                                 "they agreed, or you're their parent or legal guardian.")
     from .admin import _check_children_limit
     _check_children_limit(db, current_user.id, current_user.id)
     # Profiles without a sign-in still need a unique address on the account;
@@ -164,6 +170,8 @@ def add_member(
     db.add(member)
     db.add(ProfileAccess(manager_id=current_user.id, managed_id=user.id, can_view=True, can_edit=True,
                          granted_by=current_user.id))
+    from ..core.terms import record_acting_for
+    record_acting_for(db, current_user, user.id)
     db.commit(); db.refresh(member)
     return _member_out(member, True)
 

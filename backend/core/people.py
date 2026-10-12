@@ -41,6 +41,7 @@ def delete_person(db, user) -> None:
     gone(m.InviteCode, m.InviteCode.created_by == user.id)
     if hasattr(m, "NoticeSent"):
         gone(m.NoticeSent, m.NoticeSent.user_id == user.id)
+    gone(m.TermsAcceptance, (m.TermsAcceptance.user_id == user.id) | (m.TermsAcceptance.subject_user_id == user.id))
     for model, col in ((m.User, "branch_override_by"), (m.User, "created_by_id"), (m.InstalledPlugin, "enabled_by"),
                        (m.PluginAuditLog, "actor_id"), (m.ProfileAccess, "granted_by"),
                        (m.MemberScheduleConfig, "updated_by_id"), (m.CaptchaChallenge, "resolved_by"),

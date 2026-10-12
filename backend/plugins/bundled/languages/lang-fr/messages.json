@@ -154,5 +154,6 @@
   "nav.calendar": "Calendrier",
   "nav.spec_helpers": "Étapes automatiques des courtiers",
   "nav.letters": "Lettres d'opposition",
-  "nav.monitoring": "Surveillance et alertes"
+  "nav.monitoring": "Surveillance et alertes",
+  "nav.terms": "Conditions"
 }
