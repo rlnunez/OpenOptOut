@@ -35,6 +35,7 @@ import BrokerUpdates from './pages/BrokerUpdates'
 import SpecHelpers from './pages/SpecHelpers'
 import Letters from './pages/Letters'
 import Monitoring from './pages/Monitoring'
+import UsageStats from './pages/UsageStats'
 import BrokerNetwork from './pages/BrokerNetwork'
 import BrokerPriority from './pages/BrokerPriority'
 import ParentCompanies from './pages/ParentCompanies'
@@ -138,6 +139,7 @@ function Layout() {
             <Route path="/plugin-upload" element={<RequirePermission perms={['plugins.upload']}><PluginUpload /></RequirePermission>} />
             <Route path="/backups" element={<Backups />} />
             <Route path="/monitoring" element={<Monitoring />} />
+            <Route path="/usage-stats" element={<UsageStats />} />
             <Route path="/terms-settings" element={<Terms />} />
             <Route path="/broker-updates" element={<RequirePermission perms={['brokers.manage']}><BrokerUpdates /></RequirePermission>} />
             <Route path="/data-sharing" element={<RequirePermission perms={['brokers.manage']}><BrokerNetwork /></RequirePermission>} />

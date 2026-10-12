@@ -155,5 +155,6 @@
   "nav.spec_helpers": "Passos automáticos de corretores",
   "nav.letters": "Cartas de exclusão",
   "nav.monitoring": "Monitoramento e alertas",
-  "nav.terms": "Termos"
+  "nav.terms": "Termos",
+  "nav.usage_stats": "Estatísticas de uso (SUSHI)"
 }

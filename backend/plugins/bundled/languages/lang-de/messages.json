@@ -155,5 +155,6 @@
   "nav.spec_helpers": "Automatische Broker-Schritte",
   "nav.letters": "Widerspruchsschreiben",
   "nav.monitoring": "Überwachung und Warnungen",
-  "nav.terms": "Bedingungen"
+  "nav.terms": "Bedingungen",
+  "nav.usage_stats": "Nutzungsstatistik (SUSHI)"
 }

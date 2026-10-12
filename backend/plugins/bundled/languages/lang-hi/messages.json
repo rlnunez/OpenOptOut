@@ -155,5 +155,6 @@
   "nav.spec_helpers": "ब्रोकर के स्वचालित कदम",
   "nav.letters": "ऑप्ट-आउट पत्र",
   "nav.monitoring": "निगरानी और अलर्ट",
-  "nav.terms": "शर्तें"
+  "nav.terms": "शर्तें",
+  "nav.usage_stats": "उपयोग के आँकड़े (SUSHI)"
 }

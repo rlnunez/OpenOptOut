@@ -5,7 +5,7 @@ import {
   ToggleLeft, ToggleRight, BookOpen, PlusCircle,
   Palette, BarChart2, HardDrive, Puzzle, X, Activity, ListOrdered, Building2, Upload, Terminal,
   Globe, Compass, Server, Eye, Sun, Copy, Check, Inbox, Landmark, Globe2, ListChecks, Bell, Share2, Snowflake, Gavel, DatabaseBackup,
-  CalendarDays, FileLock2, Wand2, FileText, ScrollText
+  CalendarDays, FileLock2, Wand2, FileText, ScrollText, BarChart3
 } from 'lucide-react'
 import { useAuth, can } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
@@ -122,6 +122,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
     ...(user?.role === 'super_admin' ? [{ k: 'nav.backups', to: '/backups', icon: DatabaseBackup, label: tx("Backups"), perms: [] }] : []),
     ...(user?.role === 'super_admin' ? [{ k: 'nav.monitoring', to: '/monitoring', icon: Activity, label: tx("Monitoring and alerts"), perms: [] }] : []),
     ...(user?.role === 'super_admin' ? [{ k: 'nav.terms', to: '/terms-settings', icon: ScrollText, label: tx("Terms"), perms: [] }] : []),
+    ...(user?.role === 'super_admin' ? [{ k: 'nav.usage_stats', to: '/usage-stats', icon: BarChart3, label: tx("Usage statistics (SUSHI)"), perms: [] }] : []),
     { k: 'nav.worker_fleet', to: '/worker-fleet',     icon: Server,      label: tx("Worker fleet"),     perms: ['settings.system'] },
     { k: 'nav.privacy_record', to: '/privacy-record', icon: FileLock2, label: tx("Privacy record"), perms: ['settings.system'] },
     { k: 'nav.logs', to: '/logs',             icon: Terminal,    label: tx("System logs"),      perms: ['logs.view'] },

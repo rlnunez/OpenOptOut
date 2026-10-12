@@ -50,6 +50,7 @@ from .routers.live_steps import router as live_steps_router
 from .routers.letters import router as letters_router
 from .routers.observability import router as observability_router, ops_router
 from .routers.terms import router as terms_router
+from .routers.sushi import router as sushi_admin_router, api_router as sushi_api_router
 from .core.scheduler import start_scheduler, stop_scheduler
 from .core.version import get_version, get_commit, version_string
 from .core.logging_config import init_logging
@@ -125,7 +126,7 @@ for r in [
     email_oauth_router, test_broker_router, saml_router, cert_monitor_router,
     consortium_router, logs_router, captcha_router, i18n_router,
     workers_router, mailboxes_router, listings_router, registry_router,
-    web_search_router, checklist_router, variants_router, privacy_pages_router, confirm_links_router, broker_updates_router, verification_router, broker_network_router, credit_freeze_router, timeline_router, compliance_router, privacy_router, reports_router, calendar_router, spec_helpers_router, live_steps_router, letters_router, observability_router, ops_router, terms_router,
+    web_search_router, checklist_router, variants_router, privacy_pages_router, confirm_links_router, broker_updates_router, verification_router, broker_network_router, credit_freeze_router, timeline_router, compliance_router, privacy_router, reports_router, calendar_router, spec_helpers_router, live_steps_router, letters_router, observability_router, ops_router, terms_router, sushi_admin_router, sushi_api_router,
 ]:
     app.include_router(r)
 

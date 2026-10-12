@@ -7197,6 +7197,8 @@ def t_access_route_gates():
         ("PUT", "/api/terms/settings"): {"SUPER"},
         # Turning brokers on when listings are found is broker work
         ("PUT", "/api/brokers/found-rule"): {"brokers.manage"},
+        # Usage statistics credentials hand data to outside systems: super admins only
+        ("POST", "/api/sushi-admin/harvesters"): {"SUPER"},
         ("GET", "/api/terms/public"): set(),
         ("GET", "/api/spec-helpers/drafts"): {"brokers.manage"},
         # Opt-out letters: choosing one is broker work; adding one is a plugin upload
@@ -7888,6 +7890,113 @@ def t_found_listings_rule():
     s.close()
     # EXPECTED: the admin's rule decides, counts are of people, and nobody's name is recorded.
     # IF THIS FAILS: brokers could turn on that an admin turned off, or people wait forever with no word.
+
+
+def _sushi_fixture():
+    """Two branches, three people, a few searches, listings and opt-outs over
+    August and September 2026. Made-up details only."""
+    import uuid
+    from datetime import datetime as _dt
+    db, s = _memory_db()
+    sys_ = db.LibrarySystem(name="Riverside Libraries", code="RVL"); s.add(sys_); s.flush()
+    main = db.Branch(system_id=sys_.id, name="Main", code="MAIN"); west = db.Branch(system_id=sys_.id, name="West", code="WEST")
+    s.add_all([main, west]); s.flush()
+    b = db.Broker(name="ExampleBroker", enabled=True); s.add(b); s.flush()
+    people = []
+    for i, (br, when) in enumerate([(main, _dt(2026, 8, 3)), (main, _dt(2026, 9, 9)), (west, _dt(2026, 9, 20))]):
+        u = db.User(email=f"p{i}@example.invalid", full_name=f"Jordan Example {i}", role=db.UserRole.parent,
+                    hashed_password="x", branch_id=br.id, created_at=when)
+        s.add(u); s.flush()
+        m = db.FamilyMember(user_id=u.id, full_name=f"Jordan Example {i}"); s.add(m); s.flush(); people.append(m)
+    p0, p1, p2 = people
+    for m, day, found in ((p0, _dt(2026, 8, 4, 9), True), (p0, _dt(2026, 8, 4, 10), True), (p1, _dt(2026, 9, 10), False),
+                          (p2, _dt(2026, 9, 21), True)):
+        s.add(db.DiscoveryResult(member_id=m.id, broker_id=b.id, found=found, scanned_at=day))
+    s.add(db.RemovalRequest(member_id=p0.id, broker_id=b.id, request_key=str(uuid.uuid4()), status=db.RequestStatus.confirmed,
+                            sent_at=_dt(2026, 8, 5), confirmed_at=_dt(2026, 9, 1)))
+    s.add(db.RemovalRequest(member_id=p2.id, broker_id=b.id, request_key=str(uuid.uuid4()), status=db.RequestStatus.sent,
+                            sent_at=_dt(2026, 9, 22)))
+    s.commit()
+    return db, s
+
+
+@test(2, "sushi.api_follows_counter_51",
+      "The COUNTER API (SUSHI) passes every harvester check, and counts are per branch with no names.")
+def t_sushi_api():
+    import json as _json
+    from datetime import datetime as _dt, date as _d
+    sushi = _imp("core.sushi")
+    check = _imp("core.sushi_check")
+    db, s = _sushi_fixture()
+    now = _dt(2026, 10, 12, 12, 0)
+    cfg = sushi.config({"sushi": {"enabled": True}})
+    h, key = sushi.new_harvester(cfg, "Test harvester", ["*"])
+    get = lambda path, params: sushi.dispatch(s, path, params, cfg, now=now)
+    results = check.run(get, h["requestor_id"], key, "all", today=_d(2026, 10, 12))
+    failed = [(check.text(r), r["detail"]) for r in results if not r["ok"]]
+    assert not failed, failed
+    assert len(results) >= 16
+    creds = {"requestor_id": h["requestor_id"], "api_key": key, "begin_date": "2026-08", "end_date": "2026-09"}
+    st, oo = get("/r51/reports/openoptout:oo1", dict(creds, customer_id="RVL-MAIN"))
+    perf = oo["Report_Items"][0]["Attribute_Performance"][0]["Performance"]
+    assert perf["OpenOptOut:People_Added"] == {"2026-08": 1, "2026-09": 1}, perf
+    assert perf["OpenOptOut:Listing_Searches"] == {"2026-08": 1, "2026-09": 1}, "one search per person, broker and day"
+    assert perf["OpenOptOut:Listings_Found"] == {"2026-08": 1}
+    assert perf["OpenOptOut:Optout_Requests_Sent"] == {"2026-08": 1}
+    assert perf["OpenOptOut:Removals_Confirmed"] == {"2026-09": 1}
+    st, west = get("/r51/reports/pr", dict(creds, customer_id="RVL-WEST"))
+    assert west["Report_Items"][0]["Attribute_Performance"][0]["Performance"] == {"Searches_Platform": {"2026-09": 1}}
+    assert west["Report_Header"]["Institution_Name"] == "Riverside Libraries: West"
+    st, whole = get("/r51/reports/pr", dict(creds, customer_id="all"))
+    assert whole["Report_Items"][0]["Attribute_Performance"][0]["Performance"]["Searches_Platform"] == {"2026-08": 1, "2026-09": 2}
+    assert "Jordan" not in _json.dumps([oo, west, whole]), "reports must never name anyone"
+    # A harvester limited to one branch can't see another, or the whole server.
+    h2, key2 = sushi.new_harvester(cfg, "West only", ["RVL-WEST"])
+    st, body = get("/r51/reports/pr", dict(creds, requestor_id=h2["requestor_id"], api_key=key2, customer_id="RVL-MAIN"))
+    assert st == 403 and body["Code"] == 2010
+    st, mem = get("/r51/members", {"requestor_id": h2["requestor_id"], "api_key": key2})
+    assert [m["Customer_ID"] for m in mem] == ["RVL-WEST"], mem
+    # Off means off, apart from the public status.
+    off = sushi.config({"sushi": {"enabled": False, "harvesters": cfg["harvesters"]}})
+    st, body = sushi.dispatch(s, "/r51/reports", dict(creds, customer_id="all"), off, now=now)
+    assert st == 503 and body["Code"] == 1000
+    st, body = sushi.dispatch(s, "/r51/status", {}, off, now=now)
+    assert st == 200 and body[0]["Service_Active"] is False
+    s.close()
+    # EXPECTED: library harvesters get COUNTER 5.1 answers, scoped to their institutions, counts only.
+    # IF THIS FAILS: harvesters reject the reports, or one library sees another's numbers.
+
+
+@test(2, "sushi.celus_client_reads_reports",
+      "Celus's open-source SUSHI client (celus-nigiri) harvests our Platform Report without errors.")
+def t_sushi_celus():
+    import io, json as _json
+    from datetime import datetime as _dt
+    try:
+        from celus_nigiri.counter51 import Counter51PRReport
+    except Exception:
+        raise Skip("celus-nigiri not installed (pip install celus-nigiri to run this check)")
+    sushi = _imp("core.sushi")
+    db, s = _sushi_fixture()
+    cfg = sushi.config({"sushi": {"enabled": True}})
+    h, key = sushi.new_harvester(cfg, "Celus", ["*"])
+    params = {"requestor_id": h["requestor_id"], "api_key": key, "customer_id": "all",
+              "begin_date": "2026-08", "end_date": "2026-09", "attributes_to_show": "Access_Method"}
+    for path in ("/r51/reports/pr", "/r51/reports/openoptout:oo1"):
+        st, body = sushi.dispatch(s, path, params, cfg, now=_dt(2026, 10, 12))
+        fd = io.BytesIO(_json.dumps(body).encode())
+        rep = Counter51PRReport(fd, http_status_code=st, start_date="2026-08", end_date="2026-09", strict=True)
+        assert not rep.errors and not rep.warnings, (path, rep.errors, rep.warnings)
+        header, items = rep.fd_to_dicts(fd)
+        recs = list(rep.read_report(header, items))
+        assert recs and all(r.value > 0 for r in recs), path
+    # And an error body is understood as the right error.
+    st, body = sushi.dispatch(s, "/r51/reports/pr", dict(params, api_key="wrong"), cfg)
+    rep = Counter51PRReport(io.BytesIO(_json.dumps(body).encode()), http_status_code=st)
+    assert [str(e.code) for e in rep.errors] == ["2020"], rep.errors
+    s.close()
+    # EXPECTED: a real library-statistics harvester reads our reports as valid COUNTER 5.1.
+    # IF THIS FAILS: harvesters like Celus would reject OpenOptOut's statistics.
 
 
 # ── Long tail: privacy-request pages and hosted forms ─────────────────────────
