@@ -153,5 +153,6 @@
   "nav.privacy_record": "Ship's Secrets Ledger",
   "nav.calendar": "Ship's Almanac",
   "nav.spec_helpers": "Automatic broker steps",
-  "nav.letters": "Opt-out letters"
+  "nav.letters": "Opt-out letters",
+  "nav.monitoring": "Lookout an' alarms"
 }

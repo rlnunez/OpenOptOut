@@ -58,6 +58,10 @@ def start_scheduler():
               replace_existing=True, misfire_grace_time=3600,
               next_run_time=datetime.utcnow() + timedelta(minutes=10))
 
+    # Health checks for monitoring; webhooks hear when the result changes.
+    s.add_job(health_job, IntervalTrigger(minutes=5), id="health",
+              replace_existing=True, misfire_grace_time=300,
+              next_run_time=datetime.utcnow() + timedelta(minutes=2))
     # Encrypted backups: checked hourly, run when due (daily or weekly at the set hour).
     s.add_job(backup_job, IntervalTrigger(hours=1), id="backup",
               replace_existing=True, misfire_grace_time=3600,
@@ -403,6 +407,7 @@ def _run_optout_with_limit(run_type: str, max_this_run: int, manual: bool = Fals
                 db = SessionLocal()
 
         _finish_run(db, run_id, status="done", sent=sent, errors=errors)
+        _notify_run(db, sent, len(errors))
 
     except Exception as e:
         errors.append(str(e))
@@ -414,6 +419,25 @@ def _run_optout_with_limit(run_type: str, max_this_run: int, manual: bool = Fals
     finally:
         try: db.close()
         except Exception: pass
+
+
+def _notify_run(db, sent: int, failed: int) -> None:
+    """Webhooks: how the run went, and whether anything waits for a person.
+    Counts only (core/webhooks.py)."""
+    try:
+        from .webhooks import safe_notify
+        from ..models.database import RemovalRequest, RequestStatus, CaptchaChallenge
+        needs = db.query(RemovalRequest).filter(RemovalRequest.status == RequestStatus.needs_manual).count()
+        captchas = db.query(CaptchaChallenge).filter(CaptchaChallenge.status == "pending").count()
+        if sent or failed:
+            safe_notify("run_finished",
+                        f"{sent} opt-out(s) sent, {failed} problem(s). {needs} item(s) wait on the Checklist.",
+                        {"sent": sent, "failed": failed, "needs_you": needs})
+        if needs or captchas:
+            safe_notify("needs_you", f"{needs} item(s) on the Checklist and {captchas} CAPTCHA(s) wait for someone.",
+                        {"checklist": needs, "captchas": captchas})
+    except Exception as e:
+        log.debug("run notification skipped: %s", e)
 
 
 def _finish_run(db, run_id, status, sent, errors=None):
@@ -842,6 +866,15 @@ def _get_html(msg) -> str:
 
 # ── Job 3: recheck scanner ────────────────────────────────────────────────────
 
+def health_job():
+    """Every five minutes: health checks; webhooks hear when the result changes."""
+    try:
+        from .monitoring import health_job as run
+        run()
+    except Exception as e:
+        log.debug("health job: %s", e)
+
+
 def backup_job():
     """Hourly: make an encrypted backup when one is due."""
     try:
@@ -889,6 +922,10 @@ def verification_job():
         run.status = "done"
         if stats["checked"]:
             log.info("Removal checks: %s", stats)
+        if stats.get("resent"):
+            from .webhooks import safe_notify
+            safe_notify("listing_back", f"{stats['resent']} listing(s) showed up again after removal; "
+                                        "opt-outs were sent again.", {"count": stats["resent"]})
     except Exception as e:
         run.status = "error"; run.errors = json.dumps([str(e)])
         log.error("Verification job error: %s", e)

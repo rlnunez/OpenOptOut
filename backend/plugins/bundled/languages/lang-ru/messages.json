@@ -153,5 +153,6 @@
   "nav.privacy_record": "Журнал обработки данных",
   "nav.calendar": "Календарь",
   "nav.spec_helpers": "Автоматические шаги брокеров",
-  "nav.letters": "Письма об отказе"
+  "nav.letters": "Письма об отказе",
+  "nav.monitoring": "Мониторинг и оповещения"
 }

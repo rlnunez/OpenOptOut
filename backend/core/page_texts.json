@@ -423,9 +423,33 @@
    ]
   },
   {
+   "text": "A backup didn't work",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "A backup holds everything needed to bring OpenOptOut back on a new server: the database, settings, installed plugins and the keys that unlock them. It's encrypted with your backup passphrase before it leaves this server, so wherever you store it, nobody can read it without the passphrase.",
    "where": [
     "pages/Backups.jsx"
+   ]
+  },
+  {
+   "text": "A broker was turned off after failing",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "A certificate needs attention",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "A channel webhook address (Channel settings → Integrations → Webhooks).",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -477,9 +501,21 @@
    ]
   },
   {
+   "text": "A health check fails",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "A helper only sees the broker's public opt-out page and its current steps. OpenOptOut checks every request for your family's saved details and refuses to send one that contains any.",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "A Home Assistant webhook trigger address, for example http://homeassistant.local:8123/api/webhook/your-id.",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -498,6 +534,12 @@
    "text": "A passphrase is set. Changing it only affects new backups; older ones still need the old one.",
    "where": [
     "pages/Backups.jsx"
+   ]
+  },
+  {
+   "text": "A plugin kept crashing and was turned off",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -528,6 +570,12 @@
    "text": "A super admin has to review and enable it before it does anything.",
    "where": [
     "components/PluginUploadWizard.jsx"
+   ]
+  },
+  {
+   "text": "A Teams Workflows webhook address (\"Post to a channel when a webhook request is received\").",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -565,6 +613,12 @@
    "text": "Access key",
    "where": [
     "pages/Backups.jsx"
+   ]
+  },
+  {
+   "text": "Access token (optional)",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -684,6 +738,12 @@
    ]
   },
   {
+   "text": "Add a log server",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Add a person",
    "where": [
     "pages/Family.jsx"
@@ -705,6 +765,12 @@
    "text": "Add a single broker via form or bulk-import from a JSON file",
    "where": [
     "pages/BrokerSubmit.jsx"
+   ]
+  },
+  {
+   "text": "Add a webhook",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -953,6 +1019,7 @@
   {
    "text": "Address",
    "where": [
+    "pages/Monitoring.jsx",
     "pages/SpecHelpers.jsx"
    ]
   },
@@ -1344,6 +1411,12 @@
    ]
   },
   {
+   "text": "An incoming webhook address from Slack (Apps → Incoming Webhooks).",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "and",
    "where": [
     "pages/Branding.jsx"
@@ -1383,6 +1456,18 @@
    "text": "Answered late",
    "where": [
     "pages/DeadlineReport.jsx"
+   ]
+  },
+  {
+   "text": "Answering.",
+   "where": [
+    "server: monitoring.py"
+   ]
+  },
+  {
+   "text": "Any address that accepts a JSON POST. With a secret, each message is signed (X-OpenOptOut-Signature).",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -1479,6 +1564,12 @@
    "text": "App password <0>(not your normal password)</0>",
    "where": [
     "pages/Inboxes.jsx"
+   ]
+  },
+  {
+   "text": "App token",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -1856,7 +1947,8 @@
    "text": "Backups",
    "where": [
     "components/Sidebar.jsx",
-    "pages/Backups.jsx"
+    "pages/Backups.jsx",
+    "server: monitoring.py"
    ]
   },
   {
@@ -1875,6 +1967,12 @@
    "text": "Batch interval (minutes)",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Bearer token (optional)",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -2236,6 +2334,18 @@
    ]
   },
   {
+   "text": "Can't reach: {names}.",
+   "where": [
+    "server: monitoring.py"
+   ]
+  },
+  {
+   "text": "Can't send right now: {v}",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Can't tell who",
    "where": [
     "pages/BrokerNetwork.jsx"
@@ -2257,6 +2367,7 @@
     "pages/Family.jsx",
     "pages/Help.jsx",
     "pages/Inboxes.jsx",
+    "pages/Monitoring.jsx",
     "pages/ParentCompanies.jsx",
     "pages/Plugins.jsx",
     "pages/Settings.jsx",
@@ -2336,6 +2447,12 @@
    "text": "Certificate: {message}",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Change",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -2441,6 +2558,12 @@
    ]
   },
   {
+   "text": "Check the server's certificate",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Checked",
    "where": [
     "pages/Discovery.jsx"
@@ -2450,6 +2573,12 @@
    "text": "Checked every",
    "where": [
     "pages/EmailMonitor.jsx"
+   ]
+  },
+  {
+   "text": "Checked every five minutes. Webhooks hear when something starts failing and when it's fixed.",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -3029,7 +3158,8 @@
   {
    "text": "Connection",
    "where": [
-    "pages/DatabaseAdmin.jsx"
+    "pages/DatabaseAdmin.jsx",
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -3133,6 +3263,7 @@
    "text": "Copied",
    "where": [
     "pages/CreditFreeze.jsx",
+    "pages/Monitoring.jsx",
     "pages/SetupWizard.jsx"
    ]
   },
@@ -3157,7 +3288,8 @@
   {
    "text": "Copy",
    "where": [
-    "pages/CreditFreeze.jsx"
+    "pages/CreditFreeze.jsx",
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -3200,6 +3332,18 @@
    "text": "Copy report details",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "Copy this token now; it isn't shown again. Send it as: Authorization: Bearer <token>.",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "Copy {v}",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -3446,6 +3590,7 @@
   {
    "text": "Couldn't load the settings.",
    "where": [
+    "pages/Monitoring.jsx",
     "pages/WebSearchSettings.jsx"
    ]
   },
@@ -3534,6 +3679,7 @@
     "components/WebSearchResults.jsx",
     "pages/Calendar.jsx",
     "pages/Letters.jsx",
+    "pages/Monitoring.jsx",
     "pages/Settings.jsx"
    ]
   },
@@ -3575,6 +3721,12 @@
    "text": "Couldn't save. Please try again.",
    "where": [
     "components/ConfirmLinksCard.jsx"
+   ]
+  },
+  {
+   "text": "Couldn't send it.",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -3899,7 +4051,8 @@
     "components/Sidebar.jsx",
     "pages/DatabaseAdmin.jsx",
     "pages/Settings.jsx",
-    "pages/SetupWizard.jsx"
+    "pages/SetupWizard.jsx",
+    "server: monitoring.py"
    ]
   },
   {
@@ -4333,6 +4486,12 @@
    "text": "Disk log: <0/>",
    "where": [
     "pages/SystemLogs.jsx"
+   ]
+  },
+  {
+   "text": "Disk space",
+   "where": [
+    "server: monitoring.py"
    ]
   },
   {
@@ -4976,7 +5135,8 @@
    "text": "Email inboxes",
    "where": [
     "components/Sidebar.jsx",
-    "pages/Inboxes.jsx"
+    "pages/Inboxes.jsx",
+    "server: monitoring.py"
    ]
   },
   {
@@ -5327,6 +5487,12 @@
    ]
   },
   {
+   "text": "Errors only",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "errors:",
    "where": [
     "pages/BrokerSubmit.jsx"
@@ -5372,6 +5538,12 @@
    "text": "Every day",
    "where": [
     "pages/Backups.jsx"
+   ]
+  },
+  {
+   "text": "Every health check passes again",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -5432,6 +5604,12 @@
    "text": "Everything OpenOptOut keeps about you and the people you manage, as a file",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Everything, including debugging",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -5878,6 +6056,18 @@
    ]
   },
   {
+   "text": "For example: Family phone",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "For example: Graylog",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "For larger deployments. Point at your own Postgres server — it does not have to be on this machine.",
    "where": [
     "pages/SetupWizard.jsx"
@@ -5899,6 +6089,12 @@
    "text": "For your information",
    "where": [
     "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "For your monitoring tool",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -6233,9 +6429,27 @@
    ]
   },
   {
+   "text": "Health",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "Health checks",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Health, statistics, and migration tools",
    "where": [
     "pages/DatabaseAdmin.jsx"
+   ]
+  },
+  {
+   "text": "HEC token",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -6823,6 +7037,12 @@
    ]
   },
   {
+   "text": "Information, warnings and errors",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Install",
    "where": [
     "pages/Plugins.jsx"
@@ -6919,6 +7139,18 @@
    ]
   },
   {
+   "text": "Is everything working? (answers 503 when a check fails)",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "Is it running?",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "is not any of (comma-separated)",
    "where": [
     "pages/Branding.jsx"
@@ -6998,6 +7230,12 @@
    ]
   },
   {
+   "text": "Keep an eye on OpenOptOut from your own tools. Messages, metrics and logs sent from here hold counts and names of brokers, never anyone's details.",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Keep it somewhere safe that isn't this server. If it's lost, the backups can't be opened by anyone.",
    "where": [
     "pages/Backups.jsx"
@@ -7050,6 +7288,12 @@
    "text": "Key removed.",
    "where": [
     "components/SolvingSettings.jsx"
+   ]
+  },
+  {
+   "text": "Kind of log server",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -7131,6 +7375,12 @@
    ]
   },
   {
+   "text": "Last backup worked.",
+   "where": [
+    "server: monitoring.py"
+   ]
+  },
+  {
    "text": "Last check: {v}.",
    "where": [
     "components/RemovalChecks.jsx"
@@ -7146,6 +7396,12 @@
    "text": "Last failure",
    "where": [
     "pages/BrokerHealth.jsx"
+   ]
+  },
+  {
+   "text": "Last message: {status}, {when}",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -7200,6 +7456,12 @@
    "text": "Leave blank — no login",
    "where": [
     "pages/AdminPanel.jsx"
+   ]
+  },
+  {
+   "text": "Leave empty to keep {v}",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -7407,6 +7669,12 @@
    ]
   },
   {
+   "text": "Listings came back after removal",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Live",
    "where": [
     "pages/SystemLogs.jsx"
@@ -7477,6 +7745,7 @@
     "pages/Inboxes.jsx",
     "pages/Letters.jsx",
     "pages/Login.jsx",
+    "pages/Monitoring.jsx",
     "pages/ParentCompanies.jsx",
     "pages/Plugins.jsx",
     "pages/PrivacyRecord.jsx",
@@ -7504,6 +7773,13 @@
    "text": "Lockdown mode {v}",
    "where": [
     "pages/Plugins.jsx"
+   ]
+  },
+  {
+   "text": "Log forwarding",
+   "where": [
+    "pages/Monitoring.jsx",
+    "server: monitoring.py"
    ]
   },
   {
@@ -7647,9 +7923,21 @@
    ]
   },
   {
+   "text": "Make a metrics token",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Make a new link",
    "where": [
     "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Make a new metrics token",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -7915,6 +8203,18 @@
    ]
   },
   {
+   "text": "Metrics (Prometheus)",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "Metrics token",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "MFA Enrolled Successfully",
    "where": [
     "pages/Login.jsx"
@@ -8030,6 +8330,13 @@
    ]
   },
   {
+   "text": "Monitoring and alerts",
+   "where": [
+    "components/Sidebar.jsx",
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Month / Day / Year (US — MM/DD/YYYY)",
    "where": [
     "pages/Branding.jsx"
@@ -8130,6 +8437,12 @@
    "where": [
     "pages/AdminPanel.jsx",
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Name (for you)",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -8396,6 +8709,12 @@
    ]
   },
   {
+   "text": "No backup yet.",
+   "where": [
+    "server: monitoring.py"
+   ]
+  },
+  {
    "text": "No branch",
    "where": [
     "pages/AdminPanel.jsx"
@@ -8447,6 +8766,12 @@
    "text": "No emails yet",
    "where": [
     "pages/EmailMonitor.jsx"
+   ]
+  },
+  {
+   "text": "No events chosen",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -8618,6 +8943,12 @@
    ]
   },
   {
+   "text": "No stuck or failed runs.",
+   "where": [
+    "server: monitoring.py"
+   ]
+  },
+  {
    "text": "No TLS",
    "where": [
     "pages/SetupWizard.jsx"
@@ -8703,6 +9034,12 @@
    ]
   },
   {
+   "text": "Not answering ({error}).",
+   "where": [
+    "server: monitoring.py"
+   ]
+  },
+  {
    "text": "Not checked yet",
    "where": [
     "pages/EmailMonitor.jsx"
@@ -8755,6 +9092,12 @@
    "text": "Not recommended for production",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Not running, so nothing is sent or checked on schedule.",
+   "where": [
+    "server: monitoring.py"
    ]
   },
   {
@@ -8970,6 +9313,12 @@
    ]
   },
   {
+   "text": "Notifications (webhooks)",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "now",
    "where": [
     "pages/Brokers.jsx"
@@ -9018,6 +9367,12 @@
    "text": "Often refuses",
    "where": [
     "components/Badge.jsx"
+   ]
+  },
+  {
+   "text": "OK",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -9182,6 +9537,12 @@
    "text": "Only problems",
    "where": [
     "pages/DeadlineReport.jsx"
+   ]
+  },
+  {
+   "text": "Only super admins can see this page.",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -9430,6 +9791,12 @@
    ]
   },
   {
+   "text": "Opt-out runs",
+   "where": [
+    "server: monitoring.py"
+   ]
+  },
+  {
    "text": "Opt-out URL",
    "where": [
     "pages/BrokerSubmit.jsx"
@@ -9469,6 +9836,12 @@
    "text": "Opt-outs sent vs confirmed",
    "where": [
     "pages/Reporting.jsx"
+   ]
+  },
+  {
+   "text": "Opt-outs were sent",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -9535,6 +9908,12 @@
    "text": "other",
    "where": [
     "pages/EmailMonitor.jsx"
+   ]
+  },
+  {
+   "text": "Other (JSON)",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -9726,6 +10105,12 @@
    "text": "Passwords cross the network unencrypted, and Google/Microsoft sign-in requires HTTPS.",
    "where": [
     "pages/Dashboard.jsx"
+   ]
+  },
+  {
+   "text": "Passwords, tokens, email addresses and phone numbers are removed from each line before it leaves.",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -10138,6 +10523,7 @@
     "pages/Branding.jsx",
     "pages/DatabaseAdmin.jsx",
     "pages/Inboxes.jsx",
+    "pages/Monitoring.jsx",
     "pages/Settings.jsx",
     "pages/SetupWizard.jsx"
    ]
@@ -10332,7 +10718,8 @@
    "where": [
     "components/Badge.jsx",
     "pages/Backups.jsx",
-    "pages/EmailMonitor.jsx"
+    "pages/EmailMonitor.jsx",
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -10926,6 +11313,12 @@
    ]
   },
   {
+   "text": "Remove the token",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Remove this person",
    "where": [
     "pages/Family.jsx"
@@ -10952,7 +11345,14 @@
   {
    "text": "Remove {name}",
    "where": [
+    "pages/Monitoring.jsx",
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Remove {name}?",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -11368,6 +11768,12 @@
    ]
   },
   {
+   "text": "Running.",
+   "where": [
+    "server: monitoring.py"
+   ]
+  },
+  {
    "text": "Running…",
    "where": [
     "pages/Settings.jsx"
@@ -11435,6 +11841,7 @@
     "pages/AdminPanel.jsx",
     "pages/Branding.jsx",
     "pages/IdentityVault.jsx",
+    "pages/Monitoring.jsx",
     "pages/ParentCompanies.jsx",
     "pages/Settings.jsx",
     "pages/SpecHelpers.jsx",
@@ -11580,6 +11987,12 @@
    ]
   },
   {
+   "text": "Saved. Type to replace it.",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Saved. {name} now gets: {letter}.",
    "where": [
     "pages/Letters.jsx"
@@ -11628,6 +12041,12 @@
    "text": "Scan and reclaim orphaned leases from unresponsive or crashed workers",
    "where": [
     "pages/WorkerFleet.jsx"
+   ]
+  },
+  {
+   "text": "Scheduled jobs",
+   "where": [
+    "server: monitoring.py"
    ]
   },
   {
@@ -11959,6 +12378,24 @@
    ]
   },
   {
+   "text": "Send a copy of the System logs to a central log server: syslog (rsyslog, Graylog, most SIEMs), OpenTelemetry, Grafana Loki or Splunk.",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "Send a message when",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "Send a test",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Send again",
    "where": [
     "pages/Checklist.jsx",
@@ -12036,6 +12473,12 @@
    "text": "Sending opt-outs now. This can take a few minutes; the numbers below update as replies come in.",
    "where": [
     "pages/Dashboard.jsx"
+   ]
+  },
+  {
+   "text": "Sending.",
+   "where": [
+    "server: monitoring.py"
    ]
   },
   {
@@ -12125,6 +12568,12 @@
    ]
   },
   {
+   "text": "Server name or address",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Server type",
    "where": [
     "pages/SetupWizard.jsx"
@@ -12133,7 +12582,8 @@
   {
    "text": "Service",
    "where": [
-    "components/SolvingSettings.jsx"
+    "components/SolvingSettings.jsx",
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -12273,6 +12723,12 @@
    "text": "SheerID — resistant",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "Short messages to ntfy, Gotify, Slack, Microsoft Teams, Discord, Home Assistant or any service that takes JSON.",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -12444,6 +12900,12 @@
    "text": "Signing in…",
    "where": [
     "pages/Login.jsx"
+   ]
+  },
+  {
+   "text": "Signing secret (optional)",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -12703,6 +13165,12 @@
    "text": "Something else already terminates HTTPS",
    "where": [
     "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Something waits for a person (Checklist or CAPTCHA)",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -13331,6 +13799,12 @@
    ]
   },
   {
+   "text": "TCP (usual port 514)",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Templates & general tips",
    "where": [
     "pages/Help.jsx"
@@ -13535,6 +14009,18 @@
    ]
   },
   {
+   "text": "The last backup didn't work. See Backups.",
+   "where": [
+    "server: monitoring.py"
+   ]
+  },
+  {
+   "text": "The last run stopped with an error. See System logs.",
+   "where": [
+    "server: monitoring.py"
+   ]
+  },
+  {
    "text": "The letter picked for this one ({v}) isn't available, so the automatic one is used.",
    "where": [
     "pages/Letters.jsx"
@@ -13646,6 +14132,12 @@
    "text": "The target database must exist and be empty. The schema will be created automatically.",
    "where": [
     "pages/DatabaseAdmin.jsx"
+   ]
+  },
+  {
+   "text": "The topic address, for example https://ntfy.sh/your-topic. Add an access token if the topic is protected.",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -13913,6 +14405,12 @@
    ]
   },
   {
+   "text": "TLS, encrypted (usual port 6514)",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "To complain: California residents can file with the California Privacy Protection Agency (cppa.ca.gov); others with their state attorney general, or in the EU and UK with their data protection authority. Attach the downloaded file.",
    "where": [
     "pages/DeadlineReport.jsx"
@@ -14157,13 +14655,20 @@
   {
    "text": "Turned off",
    "where": [
-    "pages/Letters.jsx"
+    "pages/Letters.jsx",
+    "pages/Monitoring.jsx"
    ]
   },
   {
    "text": "Turned off {disabled} broker(s).",
    "where": [
     "pages/StateRegistries.jsx"
+   ]
+  },
+  {
+   "text": "Turned on",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -14231,6 +14736,12 @@
    "text": "Type your email address and we will send you a sign-in code.",
    "where": [
     "pages/Login.jsx"
+   ]
+  },
+  {
+   "text": "UDP (usual port 514)",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -14389,6 +14900,12 @@
    "text": "Uptime aggregated",
    "where": [
     "pages/WorkerFleet.jsx"
+   ]
+  },
+  {
+   "text": "Uptime Kuma, Zabbix or Nagios can check the first two addresses. Prometheus or Grafana can read the third with the token. None of them shows anyone's details.",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -14848,6 +15365,12 @@
    ]
   },
   {
+   "text": "Warnings and errors",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Watching for process spawns, external file writes, network sockets, and memory abuse.",
    "where": [
     "pages/Plugins.jsx"
@@ -15111,6 +15634,12 @@
    "text": "Which letter each broker gets",
    "where": [
     "pages/Letters.jsx"
+   ]
+  },
+  {
+   "text": "Which lines",
+   "where": [
+    "pages/Monitoring.jsx"
    ]
   },
   {
@@ -15381,6 +15910,12 @@
    ]
   },
   {
+   "text": "Your Gotify server's /message address, for example https://gotify.example.org/message, and an app token.",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "Your inboxes",
    "where": [
     "pages/Inboxes.jsx"
@@ -15503,6 +16038,12 @@
    ]
   },
   {
+   "text": "{errors} inbox(es) can't be read, {late} not checked for over 2 hours.",
+   "where": [
+    "server: monitoring.py"
+   ]
+  },
+  {
    "text": "{fieldName} contains [{val}]",
    "where": [
     "pages/Branding.jsx"
@@ -15512,6 +16053,18 @@
    "text": "{fieldName} is not in [{val}]",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "{gb} GB free ({pct}%).",
+   "where": [
+    "server: monitoring.py"
+   ]
+  },
+  {
+   "text": "{gb} GB free ({pct}%). Free up space soon.",
+   "where": [
+    "server: monitoring.py"
    ]
   },
   {
@@ -15611,6 +16164,12 @@
    ]
   },
   {
+   "text": "{n} connected, all checked recently.",
+   "where": [
+    "server: monitoring.py"
+   ]
+  },
+  {
    "text": "{n} crash",
    "where": [
     "pages/Plugins.jsx"
@@ -15671,6 +16230,30 @@
    ]
   },
   {
+   "text": "{n} line couldn't be sent.",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "{n} line sent since the last restart.",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "{n} lines couldn't be sent.",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "{n} lines sent since the last restart.",
+   "where": [
+    "pages/Monitoring.jsx"
+   ]
+  },
+  {
    "text": "{n} opt-out is waiting for someone to solve a CAPTCHA",
    "where": [
     "pages/Dashboard.jsx"
@@ -15704,6 +16287,12 @@
    "text": "{n} person",
    "where": [
     "pages/BrokerNetwork.jsx"
+   ]
+  },
+  {
+   "text": "{n} run(s) started over 6 hours ago and never finished.",
+   "where": [
+    "server: monitoring.py"
    ]
   },
   {

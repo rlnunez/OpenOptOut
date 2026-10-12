@@ -7188,6 +7188,11 @@ def t_access_route_gates():
         ("PUT", "/api/spec-helpers/providers/{pid}"): {"SUPER"},
         ("POST", "/api/spec-helpers/local"): {"SUPER"},
         ("PUT", "/api/spec-helpers/settings"): {"SUPER"},
+        # Sending data off the server is never delegated
+        ("PUT", "/api/observability/log-forwarding"): {"SUPER"},
+        ("PUT", "/api/observability/webhooks"): {"SUPER"},
+        ("POST", "/api/observability/metrics-token"): {"SUPER"},
+        ("GET", "/api/health/ready"): set(),
         ("GET", "/api/spec-helpers/drafts"): {"brokers.manage"},
         # Opt-out letters: choosing one is broker work; adding one is a plugin upload
         ("GET", "/api/letters"): {"brokers.manage"},
@@ -10170,6 +10175,174 @@ def t_regional_formats():
     r = TestClient(main.app).get("/api/settings/regional")
     assert r.status_code == 200 and r.json()["region"] and "US" in r.json()["regions"], r.text
     assert set(r.json()) == set(rg.DEFAULTS) | {"regions"}, "nothing else is shown before sign-in"
+
+
+@test(1, "observability.webhooks_safe_and_formatted",
+      "Webhook messages carry only allowed counts and names, never saved personal details, in each service's own format.")
+def t_webhooks():
+    import json, hmac, hashlib
+    wh = _imp("core.webhooks")
+    real_blocked = wh._blocked
+    sent = []
+    wh.TRANSPORT = lambda url, body, headers: (sent.append((url, body, headers)), 204)[1]
+    wh._blocked = lambda: ["Jordan Example", "jordan@example.invalid", "555-010-0199"]
+    try:
+        # Format per service.
+        b, h = wh.payload("ntfy", "run_finished", "Opt-outs sent", "3 sent.", {"sent": 3}, secret="tk")
+        assert b == b"3 sent." and h["Title"] == "Opt-outs sent" and h["Authorization"] == "Bearer tk"
+        b, h = wh.payload("gotify", "broker_turned_off", "T", "M", {}, secret="app")
+        assert json.loads(b)["priority"] == 7 and h["X-Gotify-Key"] == "app"
+        assert json.loads(wh.payload("slack", "test", "T", "M", {})[0]) == {"text": "*T*\nM"}
+        d = json.loads(wh.payload("discord", "test", "T", "M", {})[0])
+        assert d["content"] == "**T**\nM" and d["allowed_mentions"] == {"parse": []}, "no @everyone pings"
+        card = json.loads(wh.payload("teams", "test", "T", "M", {})[0])["attachments"][0]
+        assert card["contentType"] == "application/vnd.microsoft.card.adaptive" and card["content"]["body"][0]["text"] == "T"
+        raw, h = wh.payload("json", "listing_back", "T", "M", {"count": 2}, secret="s3cret")
+        assert json.loads(raw)["details"] == {"count": 2} and json.loads(raw)["source"] == "openoptout"
+        assert h["X-OpenOptOut-Signature"] == "sha256=" + hmac.new(b"s3cret", raw, hashlib.sha256).hexdigest()
+        # Only allowed details; nothing personal.
+        for bad in (lambda: wh.build("run_finished", "x", {"person": "someone"}),
+                    lambda: wh.build("broker_turned_off", "Jordan Example's listing", {"broker": "Acme"}),
+                    lambda: wh.build("broker_turned_off", "x", {"broker": "a\nb<script>"}),
+                    lambda: wh.build("nope", "x")):
+            try:
+                bad(); raise AssertionError("allowed")
+            except ValueError:
+                pass
+        t, m, _ = wh.build("needs_you", "Mail from someone@example.org or 555 123 4567 needs you.", {"checklist": 1})
+        assert "[email]" in m and "[number]" in m and "@" not in m
+        # Sending: only targets that want the event; secrets stay encrypted at rest.
+        cfg = {"observability": {"webhooks": [
+            wh.make_target({"kind": "slack", "url": "https://hooks.slack.example/services/T/B/X", "events": ["run_finished"]}),
+            wh.make_target({"kind": "ntfy", "url": "https://ntfy.example/oo-alerts", "events": ["backup_failed"]}),
+        ]}}
+        stored = json.dumps(cfg)
+        assert "hooks.slack.example" not in stored, "the webhook address is stored encrypted"
+        assert wh.public_view(cfg["observability"]["webhooks"][0])["host"] == "hooks.slack.example"
+        assert wh.notify("run_finished", "2 sent.", {"sent": 2}, settings=cfg, sync=True) == 1
+        assert sent[-1][0].startswith("https://hooks.slack.example/") and len(sent) == 1
+        before = wh.STATS["refused"]
+        assert wh.notify("run_finished", "Sent for Jordan Example.", {"sent": 1}, settings=cfg, sync=True) == 0
+        assert wh.STATS["refused"] == before + 1 and len(sent) == 1, "a saved name never leaves"
+        # Repeats of "needs you" are held back for a while.
+        cfg["observability"]["webhooks"][1]["events"] = ["needs_you"]
+        wh._last_sent.clear()
+        assert wh.notify("needs_you", "1 waits.", {"checklist": 1}, settings=cfg, sync=True) == 1
+        assert wh.notify("needs_you", "1 waits.", {"checklist": 1}, settings=cfg, sync=True) == 0
+        for bad in ({"kind": "pager", "url": "https://x.example"}, {"kind": "slack", "url": "ftp://x"}, {"kind": "slack"}):
+            try:
+                wh.make_target(bad); raise AssertionError(f"accepted {bad}")
+            except ValueError:
+                pass
+    finally:
+        wh.TRANSPORT = None
+        wh._blocked = real_blocked
+        wh._last_sent.clear()
+    # IF THIS FAILS: a notification could carry someone's details, or reach a service in a form it rejects.
+
+
+@test(1, "observability.log_forwarding",
+      "Log lines go to syslog, OpenTelemetry, Loki or Splunk scrubbed of secrets, emails and phone numbers, without slowing the app.")
+def t_log_forwarding():
+    import json, logging, re
+    lf = _imp("core.log_forwarding")
+    msg = lf.scrub("Login for jordan@example.invalid from 555-010-0199 with Bearer abc.def token=xyz")
+    assert "example.invalid" not in msg and "555" not in msg and "abc.def" not in msg and "xyz" not in msg, msg
+    from datetime import datetime, timezone
+    t0 = datetime(2026, 10, 11, tzinfo=timezone.utc).timestamp() + 0.25
+    rec = {"time": t0, "level": "WARNING", "logger": "backend.core.scheduler", "message": "Run took long"}
+    line = lf.syslog_line(rec).decode()
+    assert re.match(r"^<132>1 2026-10-11T00:00:00\.250Z \S+ openoptout \d+ backend\.core\.scheduler - Run took long$", line), line
+    o = lf.otlp_json([rec])["resourceLogs"][0]
+    lr = o["scopeLogs"][0]["logRecords"][0]
+    assert lr["severityNumber"] == 13 and lr["body"]["stringValue"] == "Run took long" and lr["timeUnixNano"] == str(int(t0 * 1e9))
+    assert {"key": "service.name", "value": {"stringValue": "openoptout"}} in o["resource"]["attributes"]
+    assert lf.loki_json([rec])["streams"][0]["stream"]["level"] == "warning"
+    assert json.loads(lf.splunk_lines([rec]))["event"]["message"] == "Run took long"
+    for bad in ({"kind": "syslog", "host": "bad host!"}, {"kind": "syslog", "host": "logs.example", "port": 99999},
+                {"kind": "otlp", "endpoint": "logs.example"}, {"kind": "carrier-pigeon"},
+                {"kind": "loki", "endpoint": "https://l.example", "level": "LOUD"}):
+        try:
+            lf.make_destination(bad); raise AssertionError(f"accepted {bad}")
+        except ValueError:
+            pass
+    d = lf.make_destination({"kind": "splunk_hec", "endpoint": "https://splunk.example:8088/", "token": "hec-secret"})
+    assert d["endpoint"] == "https://splunk.example:8088" and "hec-secret" not in json.dumps(d)
+    assert lf.public_view(d)["has_token"] is True and "token_enc" not in lf.public_view(d)
+    got = []
+    lf.SENDER = lambda dest, recs: got.append((dest["id"], [r["message"] for r in recs]))
+    h = lf.ForwardingHandler()
+    try:
+        h.dests = [dict(d, id="all", level="DEBUG"), dict(d, id="errors", level="ERROR")]
+        lg = logging.getLogger("backend.test.forwarding")
+        for level, text in ((logging.INFO, "hello jordan@example.invalid"), (logging.ERROR, "it broke")):
+            h.emit(lg.makeRecord(lg.name, level, __file__, 1, text, (), None))
+        h.emit(lg.makeRecord("httpx", logging.INFO, __file__, 1, "POST https://splunk.example", (), None))
+        batch = [h.q.get_nowait() for _ in range(h.q.qsize())]
+        assert len(batch) == 2, "the sender's own HTTP lines are never forwarded"
+        h.flush_batch(batch)
+        assert ("all", ["hello [email]", "it broke"]) in got and ("errors", ["it broke"]) in got
+        # A server that can't keep up: oldest lines go, never the app.
+        small = lf.ForwardingHandler(); small.q.maxsize = 2; small.dests = [d]
+        before = lf.STATS["dropped"]
+        for i in range(4):
+            small.emit(lg.makeRecord(lg.name, logging.INFO, __file__, 1, f"line {i}", (), None))
+        assert lf.STATS["dropped"] == before + 2 and [r["message"] for r in list(small.q.queue)] == ["line 2", "line 3"]
+        lf.SENDER = lambda dest, recs: (_ for _ in ()).throw(ConnectionRefusedError("nobody home"))
+        assert "ConnectionRefusedError" in lf.test(d)
+    finally:
+        lf.SENDER = None
+    # IF THIS FAILS: logs could leave with secrets or contact details, or a log server could stall the app.
+
+
+@test(1, "observability.health_and_metrics",
+      "Health checks and Prometheus metrics report counts and states only, need the token, and webhooks hear when health changes.")
+def t_health_metrics():
+    from types import SimpleNamespace as NS
+    mon = _imp("core.monitoring")
+    db, s = _memory_db()
+    s.add(db.FamilyMember(full_name="Jordan Example", user_id=1))
+    s.add(db.Broker(name="Example Broker", opt_out_url="https://broker.example/optout"))
+    s.commit()
+    text = mon.metrics(s, {})
+    for name in ("openoptout_up 1", "openoptout_brokers{enabled=\"true\"} 1", "openoptout_family_members 1",
+                 "# TYPE openoptout_requests gauge", "openoptout_captchas_waiting 0"):
+        assert name in text, (name, text[:400])
+    assert "Jordan" not in text and "example.invalid" not in text, "metrics never name anyone"
+    checks = {c["name"]: c for c in mon.checks(s, {})}
+    assert checks["database"]["ok"] and "scheduler" in checks and checks["inboxes"]["ok"]
+    cfg = {}
+    token = mon.new_token(cfg)
+    assert token.startswith("oo_metrics_") and token not in str(cfg)
+    assert mon.token_ok(cfg, token) and not mon.token_ok(cfg, token + "x") and not mon.token_ok({}, token)
+    # The health job only speaks when the result changes.
+    wh = _imp("core.webhooks")
+    said = []
+    real_ready, real_notify, real_session = mon.ready, wh.safe_notify, db.SessionLocal
+    try:
+        db.SessionLocal = lambda: NS(close=lambda: None)
+        wh.safe_notify = lambda ev, msg, details=None, **k: said.append((ev, details))
+        states = iter([{"status": "ok", "checks": []}, {"status": "ok", "checks": []},
+                       {"status": "problem", "checks": [{"name": "disk", "label": "Disk space", "ok": False, "detail": "1 GB free."}]},
+                       {"status": "problem", "checks": [{"name": "disk", "label": "Disk space", "ok": False, "detail": "1 GB free."}]},
+                       {"status": "ok", "checks": []}])
+        mon.ready = lambda db_: next(states)
+        mon._last_state["ok"] = None
+        for _ in range(5):
+            mon.health_job()
+        assert said == [("health_problem", {"checks": "disk"}), ("health_ok", None)], said
+    finally:
+        mon.ready, wh.safe_notify, db.SessionLocal = real_ready, real_notify, real_session
+        mon._last_state["ok"] = None
+    obs = _imp("routers.observability")
+    r = obs.health_ready(db=s)
+    assert r.status_code in (200, 503) and b"database" in r.body
+    try:
+        obs.get_metrics(NS(headers={}), db=s)
+        raise AssertionError("metrics answered without a token")
+    except Exception as e:
+        assert getattr(e, "status_code", 0) == 401
+    # IF THIS FAILS: monitoring could expose details, answer anyone, or alert on every check.
 
 
 @test(1, "i18n.plugin_text_lookup_order",

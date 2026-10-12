@@ -133,6 +133,11 @@ def record_failure(db, broker_id: int, detail: str = "") -> bool:
                         f"Last problem: {h.last_failure_reason}. {(h.last_failure_detail or '')[:300]} "
                         f"Check its opt-out steps, then turn it back on under Broker health.",
                         broker_id=broker_id)
+                from .webhooks import safe_notify
+                safe_notify("broker_turned_off",
+                            f"{broker.name} was turned off after {h.consecutive_failures} failed opt-outs in a row. "
+                            "Check it under Broker health.",
+                            {"broker": broker.name[:120], "failures": h.consecutive_failures})
                 log.warning(
                     "Broker %s AUTO-DISABLED after %d consecutive failures (%s)",
                     broker_id, h.consecutive_failures, h.last_failure_reason,

@@ -48,6 +48,7 @@ from .routers.variants import router as variants_router
 from .routers.spec_helpers import router as spec_helpers_router
 from .routers.live_steps import router as live_steps_router
 from .routers.letters import router as letters_router
+from .routers.observability import router as observability_router, ops_router
 from .core.scheduler import start_scheduler, stop_scheduler
 from .core.version import get_version, get_commit, version_string
 from .core.logging_config import init_logging
@@ -123,7 +124,7 @@ for r in [
     email_oauth_router, test_broker_router, saml_router, cert_monitor_router,
     consortium_router, logs_router, captcha_router, i18n_router,
     workers_router, mailboxes_router, listings_router, registry_router,
-    web_search_router, checklist_router, variants_router, privacy_pages_router, confirm_links_router, broker_updates_router, verification_router, broker_network_router, credit_freeze_router, timeline_router, compliance_router, privacy_router, reports_router, calendar_router, spec_helpers_router, live_steps_router, letters_router,
+    web_search_router, checklist_router, variants_router, privacy_pages_router, confirm_links_router, broker_updates_router, verification_router, broker_network_router, credit_freeze_router, timeline_router, compliance_router, privacy_router, reports_router, calendar_router, spec_helpers_router, live_steps_router, letters_router, observability_router, ops_router,
 ]:
     app.include_router(r)
 
@@ -135,6 +136,12 @@ def startup():
     disable_core_dumps()
     # Initialize rotating file logger and in-memory ring buffer
     init_logging()
+    try:   # copies of log lines to a central server, if an admin set one up
+        from .core.log_forwarding import apply as _forward_logs
+        _forward_logs()
+        from .core import monitoring as _monitoring   # noqa: F401  (uptime counts from here)
+    except Exception:
+        pass
     # First thing logged, before anything that could fail — so "what version
     # is this" is answerable from `docker compose logs api` even if startup
     # doesn't get any further than this.
