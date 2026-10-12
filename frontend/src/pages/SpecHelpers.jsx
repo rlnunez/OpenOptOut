@@ -6,6 +6,7 @@ import {
 import api from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { tx } from '../i18n/tx'
+import { fmtDateTime } from '../i18n/format'
 
 const STATUS = {
   queued:           { label: () => tx("Waiting"),             cls: 'text-slate-300 border-slate-600' },
@@ -34,7 +35,7 @@ function sourceLabel(d, settings) {
 }
 
 function when(s) {
-  return s ? new Date(s + (s.endsWith('Z') ? '' : 'Z')).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
+  return fmtDateTime(s, 'short', '')
 }
 
 export default function SpecHelpers() {

@@ -4,6 +4,7 @@ import { Bell, CheckCheck, AlertTriangle, Eye, Info } from 'lucide-react'
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import { tx } from '../i18n/tx'
+import { fmtDateTime } from '../i18n/format'
 
 const LEVEL = {
   urgent: { icon: AlertTriangle, cls: 'text-amber-300', label: tx("Needs attention") },
@@ -95,7 +96,7 @@ export default function BrokerUpdates() {
                   </div>
                   {u.detail && <p className="text-xs text-slate-400 mt-0.5 whitespace-pre-line">{u.detail}</p>}
                   <p className="text-[11px] text-slate-500 mt-1">
-                    {u.label} · {u.created_at ? new Date(u.created_at + 'Z').toLocaleString() : ''}
+                    {u.label} · {fmtDateTime(u.created_at, 'medium', '')}
                     {LINK[u.kind] && <> · <Link to={LINK[u.kind]} className="text-shield-400 hover:text-shield-300">{tx("Open")}</Link></>}
                   </p>
                 </div>

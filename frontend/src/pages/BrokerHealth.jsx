@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import api from '../api'
 import { tx } from '../i18n/tx'
+import { fmtDateTime } from '../i18n/format'
 
 const REASON_LABEL = {
   timeout:        { label: tx("Timeouts"),        icon: Clock,        cls: 'text-amber-400' },
@@ -13,11 +14,7 @@ const REASON_LABEL = {
   error:          { label: tx("Errors"),          icon: AlertTriangle,cls: 'text-red-400' },
 }
 
-function fmtDate(s) {
-  if (!s) return '—'
-  const d = new Date(s)
-  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
+const fmtWhen = s => fmtDateTime(s, 'short')
 
 export default function BrokerHealth() {
   const [rows, setRows]       = useState([])
@@ -154,7 +151,7 @@ export default function BrokerHealth() {
                             {ReasonIcon && <ReasonIcon size={12} className={reason.cls} />}
                             <div>
                               <div className={`text-xs ${reason?.cls || 'text-slate-400'}`}>{reason?.label || r.last_failure_reason}</div>
-                              <div className="text-slate-500 text-[11px]">{fmtDate(r.last_failure_at)}</div>
+                              <div className="text-slate-500 text-[11px]">{fmtWhen(r.last_failure_at)}</div>
                               {r.last_failure_reason === 'captcha' && (
                                 <div className="text-purple-300/80 text-[10px] mt-0.5">
                                   {tx("Solver: {v}", { v: r.captcha_plugin_id || 'default' })}

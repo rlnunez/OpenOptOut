@@ -8,6 +8,7 @@ import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import { escapeHtml, renderLinks } from '../components/Markdown'
 import { tx } from '../i18n/tx'
+import { fmtDate } from '../i18n/format'
 
 // ── Static documentation data ─────────────────────────────────────────────────
 
@@ -215,7 +216,7 @@ function DocItem({ item, isAdmin, onEdit, onDelete }) {
           <SimpleMarkdown content={item.content} />
           {item.updated_by && (
             <p className="text-slate-600 text-xs mt-3">
-              {tx("Last updated by {updated_by} · {v}", { updated_by: item.updated_by, v: new Date(item.updated_at).toLocaleDateString() })}
+              {tx("Last updated by {updated_by} · {v}", { updated_by: item.updated_by, v: fmtDate(item.updated_at) })}
             </p>
           )}
         </div>

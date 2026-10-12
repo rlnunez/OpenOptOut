@@ -8,6 +8,7 @@ import {
 import api from '../api'
 import { useLanguage } from '../i18n/LanguageContext'
 import { tx, txr } from '../i18n/tx'
+import { fmtNumber } from '../i18n/format'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -94,7 +95,7 @@ function MatrixPreview({ stats, memberId }) {
         </div>
         <div className="bg-slate-800 rounded-lg px-3 py-2">
           <p className="text-slate-500 mb-0.5">{tx("To remove you (every mix)")}</p>
-          <p className="text-slate-200 font-semibold text-sm">{optout_combos.toLocaleString()}{" "}{tx("submissions")}</p>
+          <p className="text-slate-200 font-semibold text-sm">{fmtNumber(optout_combos)}{" "}{tx("submissions")}</p>
           <p className="text-slate-600">{tx("on each site that lists you")}</p>
         </div>
       </div>

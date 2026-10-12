@@ -7179,6 +7179,8 @@ def t_access_route_gates():
         ("PATCH", "/api/branding/auth-providers/ldap"): {"auth.providers"},
         ("PUT", "/api/auth/saml/config"): {"auth.providers"},
         ("PATCH", "/api/settings/proxy"): {"settings.system"},
+        ("PATCH", "/api/settings/regional"): {"settings.system"},
+        ("GET", "/api/settings/regional"): set(),
         ("GET", "/api/database/health"): {"database.view"},
         ("GET", "/api/plugins"): {"plugins.view"},
         ("POST", "/api/plugins/upload"): {"plugins.upload"},
@@ -10115,6 +10117,55 @@ def t_rtl_mirrored_icons():
     # IF THIS FAILS: add the icon to the list in frontend/src/index.css if it
     #   points the reading way (back/next, open, send, undo), or to `keep` above
     #   if it points up/down or holds text. Don't swap icons in code.
+
+
+@test(1, "i18n.regional_formats_used",
+      "Screens show dates and numbers through i18n/format.js, so the admin's regional formats apply everywhere.")
+def t_regional_formats_used():
+    import re
+    src, files = _frontend_src()
+    bad = []
+    for f in files:
+        if f.endswith(os.path.join("i18n", "format.js")):
+            continue
+        for i, line in enumerate(open(f, encoding="utf-8"), 1):
+            if re.search(r"\.toLocale(Date|Time)?String\(|new Intl\.(DateTimeFormat|NumberFormat)\(", line):
+                bad.append(f"{os.path.basename(f)}:{i}")
+    assert not bad, f"format these with fmtDate/fmtDateTime/fmtNumber from i18n/format.js: {bad}"
+    # IF THIS FAILS: import the helper from i18n/format.js instead of calling
+    #   toLocaleString() directly; the browser's own locale would ignore the
+    #   admin's choice (and treat the server's UTC times as local).
+
+
+@test(1, "settings.regional_formats",
+      "Regional formats default to the US, reject bad values in plain words, and set the day/month order of server-written dates.")
+def t_regional_formats():
+    from datetime import date
+    rg = _imp("core.regional")
+    assert rg.get({}) == rg.DEFAULTS and rg.DEFAULTS["region"] == "US"
+    assert rg.format_date(date(2026, 10, 1), {}) == "Oct 1, 2026"
+    assert rg.format_date("2026-10-01T20:05:00", {"regional": {"region": "GB"}}) == "1 Oct 2026"
+    assert rg.format_date(date(2026, 10, 1), {"regional": {"region": "JP"}}) == "2026-10-01"
+    assert rg.format_date(None, {}) == "—"
+    ok = rg.clean({"region": "ca", "hour_cycle": "h23", "week_start": "mon", "time_zone": "America/Chicago", "digits": "native"})
+    assert ok["region"] == "CA" and ok["time_zone"] == "America/Chicago"
+    for bad in ({"region": "USA"}, {"hour_cycle": "h25"}, {"week_start": "tue"}, {"digits": "roman"},
+                {"time_zone": "Mars/Base"}):
+        try:
+            rg.clean(bad)
+            raise AssertionError(f"accepted {bad}")
+        except ValueError as e:
+            assert str(e)[0].isupper() and "_" not in str(e).split()[0]
+    # A broken saved value falls back to the defaults instead of breaking pages.
+    assert rg.get({"regional": {"region": "??"}}) == rg.DEFAULTS
+    try:
+        from fastapi.testclient import TestClient
+    except Exception:
+        raise Skip("fastapi test client not available")
+    main = _import_app_main()
+    r = TestClient(main.app).get("/api/settings/regional")
+    assert r.status_code == 200 and r.json()["region"] and "US" in r.json()["regions"], r.text
+    assert set(r.json()) == set(rg.DEFAULTS) | {"regions"}, "nothing else is shown before sign-in"
 
 
 @test(1, "i18n.plugin_text_lookup_order",

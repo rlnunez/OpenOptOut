@@ -3,11 +3,12 @@ import { Check, Circle, AlertTriangle, RotateCcw, ChevronDown, ChevronRight } fr
 import api from '../api'
 import Badge from './Badge'
 import { tx } from '../i18n/tx'
+import { fmtDate } from '../i18n/format'
 
 // Progress of one opt-out, round after round: sent → reply → removed →
 // staying gone. If a later check finds the listing again, a new round starts.
 
-const fmt = d => d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : ''
+const fmt = d => fmtDate(d, 'medium', '')
 
 function Steps({ cycle, stages }) {
   const at = {

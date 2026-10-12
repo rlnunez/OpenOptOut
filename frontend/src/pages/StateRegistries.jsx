@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { Landmark, Upload, ExternalLink, AlertTriangle, RefreshCw, Power, PowerOff, Save, Activity, X } from 'lucide-react'
 import api from '../api'
 import { tx, txn, txr } from '../i18n/tx'
+import { fmtDate } from '../i18n/format'
 
 const inp = 'w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-shield-500'
 const btn = 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm disabled:opacity-50'
@@ -69,7 +70,7 @@ function SourceCard({ src, onDone, setMsg }) {
           <h3 className="text-white font-medium">{src.label}</h3>
           <p className="text-xs text-slate-400 mt-0.5">
             {txn(src.brokers, "{n} broker from this registry", "{n} brokers from this registry")}
-            {src.last_import_at ? tx("· last imported {v}", { v: new Date(src.last_import_at).toLocaleDateString() }) : tx("· not imported yet")}
+            {src.last_import_at ? tx("· last imported {v}", { v: fmtDate(src.last_import_at) }) : tx("· not imported yet")}
           </p>
         </div>
         <a href={src.page} target="_blank" rel="noopener noreferrer" className="text-shield-400 hover:text-shield-300 text-sm flex items-center gap-1">

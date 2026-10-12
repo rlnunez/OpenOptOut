@@ -148,7 +148,8 @@ def pending_notices(db, user, now: Optional[datetime] = None) -> list:
 
 
 def _fmt(v):
-    return datetime.fromisoformat(v).strftime("%b %d, %Y") if v else "—"
+    from .regional import format_date
+    return format_date(v)
 
 
 def notice_email(items: list) -> tuple:

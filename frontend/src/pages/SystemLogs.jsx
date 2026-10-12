@@ -6,6 +6,7 @@ import {
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import { tx, txr } from '../i18n/tx'
+import { fmtNumber } from '../i18n/format'
 
 const LEVEL_COLORS = {
   DEBUG:    'text-slate-400 bg-slate-800/60 border-slate-700/50',
@@ -31,7 +32,7 @@ function formatBytes(bytes) {
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+  return fmtNumber(bytes / Math.pow(k, i), { maximumFractionDigits: 1 }) + ' ' + sizes[i]
 }
 
 export default function SystemLogs() {
