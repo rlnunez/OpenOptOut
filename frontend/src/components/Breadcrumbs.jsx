@@ -90,7 +90,7 @@ export default function Breadcrumbs() {
       ],
       '/usage-stats': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.usage_stats', 'Usage statistics (SUSHI)'), to: '/usage-stats' },
+        { label: t('nav.usage_stats', 'Usage statistics'), to: '/usage-stats' },
       ],
       '/terms-settings': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
