@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { DatabaseBackup, KeyRound, Plus, Trash2, CheckCircle2, AlertTriangle, Download, ShieldCheck, Plug } from 'lucide-react'
 import api from '../api'
 import { tx, txr } from '../i18n/tx'
+import { fmtDateTime, fmtMB } from '../i18n/format'
 
 const inp = 'w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-shield-500'
 const btn = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm'
@@ -184,8 +185,8 @@ export default function Backups() {
               <li key={i} className="py-2 text-sm">
                 <div className="flex items-center gap-2">
                   {h.ok ? <CheckCircle2 size={14} className="text-emerald-400" aria-label={tx("Worked")} /> : <AlertTriangle size={14} className="text-amber-400" aria-label={tx("Problem")} />}
-                  <span className="text-slate-200">{h.started ? new Date(h.started).toLocaleString() : ''}</span>
-                  {h.size && <span className="text-slate-500 text-xs">{(h.size / 1048576).toFixed(1)}{" "}{tx("MB")}</span>}
+                  <span className="text-slate-200">{fmtDateTime(h.started, 'medium', '')}</span>
+                  {h.size && <span className="text-slate-500 text-xs">{fmtMB(h.size)}{" "}{tx("MB")}</span>}
                 </div>
                 {h.error && <p className="text-xs text-red-300 ms-6">{h.error}</p>}
                 {(h.destinations || []).map((x, j) => (
@@ -201,7 +202,7 @@ export default function Backups() {
             <ul className="divide-y divide-slate-700/40">
               {d.files.map(f => (
                 <li key={f.name} className="py-1.5 flex items-center justify-between gap-2 text-xs">
-                  <span className="text-slate-300 break-all">{f.name} <span className="text-slate-500">{tx("({v} MB)", { v: (f.size / 1048576).toFixed(1) })}</span></span>
+                  <span className="text-slate-300 break-all">{f.name} <span className="text-slate-500">{tx("({v} MB)", { v: fmtMB(f.size) })}</span></span>
                   <span className="flex gap-3 shrink-0">
                     <button onClick={() => act(() => api.post(`/backups/files/${f.name}/verify`))} className="text-shield-400 hover:text-shield-300 flex items-center gap-1"><ShieldCheck size={12} aria-hidden="true" />{" "}{tx("Check it opens")}</button>
                     <button onClick={() => download(f.name)} className="text-shield-400 hover:text-shield-300 flex items-center gap-1"><Download size={12} aria-hidden="true" />{" "}{tx("Download")}</button>

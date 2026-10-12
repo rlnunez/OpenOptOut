@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import { Gauge, FileDown } from 'lucide-react'
 import api from '../api'
 import { tx } from '../i18n/tx'
+import { fmtDate } from '../i18n/format'
 
 // Privacy score: how much of the family's known exposure has been cleaned up
 // (0–100), where it started, and a daily trend line. Single series, so the
 // title names it and there's no legend; each point has a hover tooltip, and
 // the same numbers are available as a list for screen readers.
 
-const fmtDay = d => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+const fmtDay = d => fmtDate(d, 'short')
 
 function Trend({ history }) {
   const [hover, setHover] = useState(null)

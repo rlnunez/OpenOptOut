@@ -10,6 +10,7 @@ import LiveCaptcha from '../components/LiveCaptcha'
 import SolvingSettings from '../components/SolvingSettings'
 import { useAuth } from '../hooks/useAuth'
 import { tx } from '../i18n/tx'
+import { fmtDateTime } from '../i18n/format'
 
 export default function CaptchaQueue() {
   const [challenges, setChallenges] = useState([])
@@ -196,8 +197,8 @@ export default function CaptchaQueue() {
 
                   <p className="text-slate-400 text-xs flex items-center gap-1.5 mt-1">
                     <Clock size={12} className="text-slate-500" />
-                    {tx("Stopped: {v}", { v: new Date(c.created_at).toLocaleString() })}
-                    {c.resolved_at && ` • Finished: ${new Date(c.resolved_at).toLocaleString()} by ${c.resolved_by_name || tx("an admin")}`}
+                    {tx("Stopped: {v}", { v: fmtDateTime(c.created_at) })}
+                    {c.resolved_at && ` • Finished: ${fmtDateTime(c.resolved_at)} by ${c.resolved_by_name || tx("an admin")}`}
                   </p>
 
                   {c.notes && (

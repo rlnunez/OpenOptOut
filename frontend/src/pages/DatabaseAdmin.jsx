@@ -8,6 +8,7 @@ import {
 import api from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { tx, txr } from '../i18n/tx'
+import { fmtMB, fmtNumber } from '../i18n/format'
 
 function Field({ label, hint, children }) {
   return (
@@ -54,7 +55,7 @@ function TableRow({ table }) {
   const [open, setOpen] = useState(false)
   const size = table.size_bytes
     ? table.size_bytes > 1_048_576
-      ? `${(table.size_bytes / 1_048_576).toFixed(1)} MB`
+      ? `${fmtMB(table.size_bytes)} MB`
       : `${Math.round(table.size_bytes / 1024)} KB`
     : null
 
@@ -66,7 +67,7 @@ function TableRow({ table }) {
           {open ? <ChevronDown size={12} className="text-slate-500" /> : <ChevronRight size={12} className="text-slate-500" />}
           {table.name}
         </td>
-        <td className="px-4 py-2.5 text-slate-300 text-sm text-end">{table.row_count?.toLocaleString() ?? '—'}</td>
+        <td className="px-4 py-2.5 text-slate-300 text-sm text-end">{fmtNumber(table.row_count)}</td>
         <td className="px-4 py-2.5 text-slate-500 text-sm text-end">{size ?? '—'}</td>
       </tr>
       {open && (
@@ -136,7 +137,7 @@ function MigrationTool() {
           <div className="flex items-start gap-2 px-3 py-2.5 bg-emerald-900/20 border border-emerald-800 rounded-lg text-emerald-300 text-sm">
             <CheckCircle size={13} className="shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium">{tx("Migration complete — {v} rows copied", { v: status.total_rows?.toLocaleString() })}</p>
+              <p className="font-medium">{tx("Migration complete — {v} rows copied", { v: fmtNumber(status.total_rows) })}</p>
               <p className="text-xs mt-1 text-emerald-500">{tx("Update DATABASE_URL in .env and restart the container.")}</p>
             </div>
           </div>
@@ -481,10 +482,10 @@ export default function DatabaseAdmin() {
 
           {/* KPI cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-            <StatCard label={tx("Users")}       value={health.table_counts?.users?.toLocaleString()}              icon={Database} />
-            <StatCard label={tx("Members")}     value={health.table_counts?.family_members?.toLocaleString()}     icon={Database} />
-            <StatCard label={tx("Opt-outs")}    value={health.table_counts?.removal_requests?.toLocaleString()}   icon={Database} color="text-shield-400" />
-            <StatCard label={tx("Brokers")}     value={health.table_counts?.brokers?.toLocaleString()}            icon={Database} color="text-amber-400" />
+            <StatCard label={tx("Users")}       value={fmtNumber(health.table_counts?.users)}              icon={Database} />
+            <StatCard label={tx("Members")}     value={fmtNumber(health.table_counts?.family_members)}     icon={Database} />
+            <StatCard label={tx("Opt-outs")}    value={fmtNumber(health.table_counts?.removal_requests)}   icon={Database} color="text-shield-400" />
+            <StatCard label={tx("Brokers")}     value={fmtNumber(health.table_counts?.brokers)}            icon={Database} color="text-amber-400" />
           </div>
 
           {/* Connection pool (Postgres only) */}

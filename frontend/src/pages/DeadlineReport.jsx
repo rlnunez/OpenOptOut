@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { Gavel, Download, Bell } from 'lucide-react'
 import api from '../api'
 import { tx } from '../i18n/tx'
+import { fmtDate } from '../i18n/format'
 
 // Which sites missed the time the law gives them to answer, and which put
 // details back after removing them. Limited to the people you can see.
 
-const fmt = d => d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+const fmt = d => fmtDate(d)
 const VERDICT = {
   overdue: [tx("No answer, past due"), 'text-red-300'],
   late: [tx("Answered late"), 'text-amber-300'],

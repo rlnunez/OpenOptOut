@@ -3,6 +3,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, Link2, Download, X } from 'luc
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import { tx } from '../i18n/tx'
+import { fmtDate, fmtClock, weekStart } from '../i18n/format'
 
 // What happens when: the days opt-outs go out, when each site is checked
 // again, and when a site's legal deadline to answer runs out. Admins choose
@@ -17,8 +18,13 @@ const KIND = {
   deadline: { label: tx("Legal deadline"),  cls: 'bg-amber-900/40 text-amber-200 border-amber-700/60' },
   skip:     { label: tx("Day off"),         cls: 'bg-slate-800 text-slate-400 border-slate-700 line-through' },
 }
+// Monday-first lists (index = the server's weekday number), shown starting on
+// the admin's first day of the week.
+const FIRST = (weekStart() + 6) % 7
+const ORDER = Array.from({ length: 7 }, (_, i) => (FIRST + i) % 7)
+const backToWeekStart = d => { const s = new Date(d); s.setDate(s.getDate() - ((s.getDay() - weekStart() + 7) % 7)); return s }
 const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-const nice = s => new Date(s + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+const nice = s => fmtDate(s, 'weekday')
 
 export default function Calendar() {
   const { user } = useAuth()
@@ -30,7 +36,7 @@ export default function Calendar() {
   const [newSkip, setNewSkip] = useState('')
 
   const load = useCallback(() => {
-    const start = new Date(month); start.setDate(start.getDate() - ((start.getDay() + 6) % 7))
+    const start = backToWeekStart(month)
     api.get('/calendar', { params: { start: iso(start), days: 42 } })
       .then(r => setData(r.data)).catch(e => setMsg(e.response?.data?.detail || tx("Couldn't load the calendar.")))
   }, [month])
@@ -43,7 +49,7 @@ export default function Calendar() {
   }, [data])
 
   const cells = useMemo(() => {
-    const start = new Date(month); start.setDate(start.getDate() - ((start.getDay() + 6) % 7))
+    const start = backToWeekStart(month)
     return Array.from({ length: 42 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d })
   }, [month])
 
@@ -84,7 +90,7 @@ export default function Calendar() {
         <div className="flex items-center justify-between mb-3">
           <button onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))} aria-label={tx("Previous month")}
             className="p-1.5 rounded-lg text-slate-300 hover:bg-slate-700"><ChevronLeft size={16} /></button>
-          <h2 id="h-month" className="text-white font-medium">{month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</h2>
+          <h2 id="h-month" className="text-white font-medium">{fmtDate(month, 'month')}</h2>
           <button onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))} aria-label={tx("Next month")}
             className="p-1.5 rounded-lg text-slate-300 hover:bg-slate-700"><ChevronRight size={16} /></button>
         </div>
@@ -92,16 +98,16 @@ export default function Calendar() {
           {Object.entries(KIND).map(([k, v]) => <span key={k} className={`px-2 py-0.5 rounded border ${v.cls}`}>{v.label}</span>)}
         </div>
         <div className="hidden md:grid grid-cols-7 gap-px bg-slate-700/40 rounded-lg overflow-hidden" role="grid" aria-label={tx("Month view")}>
-          {DAYS.map(d => <div key={d} role="columnheader" className="bg-slate-900 text-slate-400 text-xs px-2 py-1">{d}</div>)}
+          {ORDER.map(i => DAYS[i]).map(d => <div key={d} role="columnheader" className="bg-slate-900 text-slate-400 text-xs px-2 py-1">{d}</div>)}
           {cells.map(d => {
             const k = iso(d), evs = byDay[k] || [], inMonth = d.getMonth() === month.getMonth()
             return (
-              <div key={k} role="gridcell" aria-label={`${nice(k)}: ${evs.length ? evs.map(e => e.title).join('; ') : 'nothing'}`}
+              <div key={k} role="gridcell" aria-label={`${nice(k)}: ${evs.length ? evs.map(e => e.title).join('; ') : tx("nothing planned")}`}
                 className={`bg-slate-900 min-h-24 p-1.5 ${inMonth ? '' : 'opacity-40'} ${k === today ? 'ring-1 ring-inset ring-shield-500' : ''}`}>
                 <p className="text-slate-400 text-xs mb-1">{d.getDate()}</p>
                 {evs.slice(0, 3).map((e, i) => (
                   <p key={i} title={e.title} dir="auto" className={`text-[11px] leading-tight px-1 py-0.5 mb-0.5 rounded border truncate ${KIND[e.kind].cls}`}>
-                    {e.kind === 'run' ? tx("Opt-outs {time}", { time: e.time }) : e.title}</p>
+                    {e.kind === 'run' ? tx("Opt-outs {time}", { time: fmtClock(e.time) }) : e.title}</p>
                 ))}
                 {evs.length > 3 && <p className="text-[11px] text-slate-400">{tx("+{v} more", { v: evs.length - 3 })}</p>}
               </div>
@@ -143,12 +149,12 @@ export default function Calendar() {
         <section aria-labelledby="h-sched" className={card}>
           <h2 id="h-sched" className="text-white font-medium mb-1">{tx("When opt-outs go out")}</h2>
           <p className="text-slate-400 text-sm mb-2">
-            {data.enabled ? tx("At {run_time} ({timezone}) on the days ticked below.", { run_time: data.run_time, timezone: data.timezone }) : tx("Automatic sending is off in Settings, so nothing goes out by itself.")}
+            {data.enabled ? tx("At {run_time} ({timezone}) on the days ticked below.", { run_time: fmtClock(data.run_time), timezone: data.timezone }) : tx("Automatic sending is off in Settings, so nothing goes out by itself.")}
             {' '}{tx("\"Send opt-outs now\" on the Dashboard always works.")}
           </p>
           <fieldset className="flex flex-wrap gap-3 mb-3">
             <legend className="sr-only">{tx("Days opt-outs go out")}</legend>
-            {LONG_DAYS.map((d, i) => (
+            {ORDER.map(i => [LONG_DAYS[i], i]).map(([d, i]) => (
               <label key={d} className="flex items-center gap-1.5 text-sm text-slate-200">
                 <input type="checkbox" checked={runDays.includes(i)} onChange={() => toggleDay(i)} className="w-4 h-4 accent-shield-500" />{d}
               </label>

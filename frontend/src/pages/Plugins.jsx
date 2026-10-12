@@ -9,6 +9,7 @@ import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import PluginUploadWizard from '../components/PluginUploadWizard'
 import { tx, txn, txr } from '../i18n/tx'
+import { fmtDateTime } from '../i18n/format'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
@@ -129,7 +130,7 @@ function ViolationsFeed({ violations }) {
                   <p className="text-[11px] opacity-70 mt-0.5">{tx("Action:")}{" "}{v.action_taken.replace('_', ' ')}</p>
                 )}
               </div>
-              <span className="text-[11px] opacity-60 shrink-0">{new Date(v.created_at).toLocaleString()}</span>
+              <span className="text-[11px] opacity-60 shrink-0">{fmtDateTime(v.created_at)}</span>
             </div>
           )
         })}
@@ -510,7 +511,7 @@ function AuditModal({ plugin, onClose }) {
                   <div key={i} className="flex items-start gap-3 px-3 py-2 rounded-lg bg-slate-800/50 text-xs">
                     <span className="text-slate-300 font-mono w-32 shrink-0">{r.action}</span>
                     <span className="text-slate-500 flex-1">{r.detail}</span>
-                    <span className="text-slate-600 shrink-0">{new Date(r.created_at).toLocaleString()}</span>
+                    <span className="text-slate-600 shrink-0">{fmtDateTime(r.created_at)}</span>
                   </div>
                 ))}
               </div>

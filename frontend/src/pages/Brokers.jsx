@@ -6,6 +6,7 @@ import Badge, { plainLabel } from '../components/Badge'
 import PrivacyPagesPanel from '../components/PrivacyPagesPanel'
 import BrokerTimelines from '../components/RemovalTimeline'
 import { tx } from '../i18n/tx'
+import { fmtDate } from '../i18n/format'
 
 const STATUS_OPTIONS   = ['', 'compliant', 'resistant', 'inconsistent', 'undetermined']
 const METHOD_OPTIONS   = ['', 'form', 'email', 'manual', 'phone']
@@ -192,7 +193,7 @@ export default function Brokers() {
                   {b.recheck_after
                     ? new Date(b.recheck_after) < new Date()
                       ? <span className="text-orange-400">{tx("now")}</span>
-                      : new Date(b.recheck_after).toLocaleDateString()
+                      : fmtDate(b.recheck_after)
                     : '—'}
                 </td>
                 <td className="px-4 py-2.5 flex items-center gap-2">

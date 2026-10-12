@@ -6,6 +6,7 @@ import {
 import api from '../api'
 import Badge from '../components/Badge'
 import { tx, txn } from '../i18n/tx'
+import { fmtDate } from '../i18n/format'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ function RecheckRow({ req, onRequeue, onSnooze }) {
         <Badge value={req.broker_difficulty} />
       </td>
       <td className="px-4 py-3 text-slate-500 text-xs">
-        {req.confirmed_at ? new Date(req.confirmed_at).toLocaleDateString() : '—'}
+        {fmtDate(req.confirmed_at)}
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1">

@@ -7,6 +7,7 @@ import api from '../api'
 import Badge from '../components/Badge'
 import FindListings from '../components/FindListings'
 import { tx, txn } from '../i18n/tx'
+import { fmtDate } from '../i18n/format'
 
 function MemberSelect({ members, value, onChange }) {
   return (
@@ -52,7 +53,7 @@ function DiscoveryRow({ result }) {
         ) : <span className="text-slate-700 text-xs">—</span>}
       </td>
       <td className="px-4 py-3 text-slate-500 text-xs">
-        {new Date(result.scanned_at).toLocaleDateString()}
+        {fmtDate(result.scanned_at)}
       </td>
       <td className="px-4 py-3">
         {result.scan_error && (
