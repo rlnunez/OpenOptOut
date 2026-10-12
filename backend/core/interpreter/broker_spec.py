@@ -153,6 +153,9 @@ def _keyed_text(v, path: str, keys: dict):
     return v
 
 
+# A letter id (core/legal_letters): "ccpa", "gdpr", or one from a letters plugin.
+LETTER_ID = re.compile(r"[a-z][a-z0-9_-]{1,40}")
+
 def _require_types(obj, where: str) -> None:
     """Raise ValueError if a field loaded from an untrusted spec has the wrong JSON type.
 
@@ -304,6 +307,10 @@ class BrokerSpec:
     # The broker's own opt-out letter per language: {"fr": {"subject", "body"}}.
     # The one in the legal language is used before the built-in letter.
     email_templates: dict = field(default_factory=dict)
+    # Which opt-out letter this broker gets, by letter id ("ccpa", or one from
+    # a letters plugin), when the automatic choice isn't right. An admin's
+    # choice on the Opt-out letters page still wins.
+    letter: str = ""
 
     # Set by whatever loaded the spec (not part of spec.json): the plugin it
     # came from, for looking up its translations, and the keys a spec gave its
@@ -402,6 +409,8 @@ class BrokerSpec:
                 elif not isinstance(t, dict) or not isinstance(t.get("subject"), str) \
                         or not isinstance(t.get("body"), str) or not t.get("subject") or not t.get("body"):
                     errs.append(f"email_templates.{code} needs a subject and a body")
+        if self.letter and not LETTER_ID.fullmatch(str(self.letter)):
+            errs.append("letter must be a letter id like ccpa or gdpr")
         if self.last_verified:
             from datetime import date
             try:
@@ -472,6 +481,7 @@ class BrokerSpec:
                          else d.get("jurisdiction"),
             legal_language=d.get("legal_language", "") or "",
             email_templates=d.get("email_templates", {}) or {},
+            letter=d.get("letter", "") or "",
         )
         _require_types(spec, "spec")
         spec.text_keys = text_keys
@@ -492,7 +502,8 @@ class BrokerSpec:
             out["instructions"] = keyed("instructions", self.instructions)
         for k in ("legal_basis", "statutory_response_days", "search_url", "listing_pattern",
                   "one_optout_per_email", "accepts_plus_addresses", "requires", "lookup_by",
-                  "source", "last_verified", "jurisdiction", "legal_language", "email_templates"):
+                  "source", "last_verified", "jurisdiction", "legal_language", "email_templates",
+                  "letter"):
             v = getattr(self, k)
             if v not in ("", 0, False, [], {}):
                 out[k] = v

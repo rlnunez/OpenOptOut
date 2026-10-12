@@ -3,7 +3,9 @@
   "title": "Other countries — applicable data-protection law",
   "law": "Whatever data-protection law applies where the broker is",
   "legal_basis": [],
-  "jurisdictions": [],
+  "jurisdictions": [
+    "*"
+  ],
   "deadline_days": 30,
   "default_language": "en",
   "review_status": "draft",

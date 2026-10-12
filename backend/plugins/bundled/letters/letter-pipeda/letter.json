@@ -2,8 +2,12 @@
   "id": "pipeda",
   "title": "Canada — PIPEDA",
   "law": "Personal Information Protection and Electronic Documents Act (S.C. 2000, c. 5)",
-  "legal_basis": ["pipeda"],
-  "jurisdictions": ["CA"],
+  "legal_basis": [
+    "pipeda"
+  ],
+  "jurisdictions": [
+    "CA"
+  ],
   "deadline_days": 30,
   "default_language": "en",
   "review_status": "draft",

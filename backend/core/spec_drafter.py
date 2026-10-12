@@ -614,7 +614,7 @@ def repair(db, row, provider: str = "", cfg=None):
             candidate, warnings = build_spec(data, broker, hosts)
             for k in ("broker_id", "legal_basis", "statutory_response_days", "search_url", "listing_pattern",
                       "one_optout_per_email", "accepts_plus_addresses", "lookup_by", "jurisdiction",
-                      "legal_language", "email_templates", "source"):
+                      "legal_language", "email_templates", "letter", "source"):
                 setattr(candidate, k, getattr(spec, k))
             candidate.requires = candidate.requires or spec.requires
             source, row.model, row.confidence = pid, model, data.get("confidence")

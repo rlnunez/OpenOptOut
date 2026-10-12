@@ -2,8 +2,12 @@
   "id": "lgpd",
   "title": "Brazil — LGPD",
   "law": "Lei Geral de Proteção de Dados Pessoais (Lei nº 13.709/2018)",
-  "legal_basis": ["lgpd"],
-  "jurisdictions": ["BR"],
+  "legal_basis": [
+    "lgpd"
+  ],
+  "jurisdictions": [
+    "BR"
+  ],
   "deadline_days": 15,
   "default_language": "pt-BR",
   "review_status": "draft",

@@ -158,7 +158,7 @@ A plugin is a directory with a `manifest.json` and an entrypoint (default `plugi
 | `captcha` | must declare the `solve_captcha` hook |
 | `forms` | must declare the `fill_form` hook |
 | `discovery`, `brokers`, `general` | no required hook |
-| `themes`, `languages` | data only: no `entrypoint`, `hooks`, `permissions`, `methods` or `outbound_domains` |
+| `themes`, `languages`, `letters` | data only: no `entrypoint`, `hooks`, `permissions`, `methods` or `outbound_domains` |
 
 The `email_provider`, `solve_captcha` and `fill_form` hooks are only allowed in their own type. A manifest without `type` still installs (its type is worked out from its hooks, `general` if none match), but new plugins should declare it.
 

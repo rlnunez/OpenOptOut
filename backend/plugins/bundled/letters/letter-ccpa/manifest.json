@@ -1,0 +1,9 @@
+{
+  "id": "letter-ccpa",
+  "type": "letters",
+  "name": "California CCPA / CPRA letter",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Opt-out letter for US brokers when the person lives in California: deletion and opt-out of sale/sharing under the CCPA as amended by the CPRA. Draft wording awaiting a lawyer's review.",
+  "api_version": "1.0"
+}

@@ -278,6 +278,8 @@ PLUGIN_TYPES = {
     },
     "themes":    {"label": "Themes",         "data_only": True, "allowed_permissions": _P()},
     "languages": {"label": "Language packs", "data_only": True, "allowed_permissions": _P()},
+    # Opt-out letter wording (letter.json): text the host fills in, no code.
+    "letters":   {"label": "Opt-out letters", "data_only": True, "allowed_permissions": _P()},
     "general": {
         "label": "General",   # event hooks, email parsers, anything else
         # Everything except the permissions that belong to a specialized type.

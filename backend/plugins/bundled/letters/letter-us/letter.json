@@ -2,8 +2,20 @@
   "id": "us",
   "title": "United States — general state privacy laws",
   "law": "California Consumer Privacy Act where it applies, and other US state privacy laws",
-  "legal_basis": ["ccpa", "cpra", "vcdpa", "cpa", "ctdpa", "ucpa", "tdpsa", "ocpa", "mcdpa"],
-  "jurisdictions": ["US"],
+  "legal_basis": [
+    "ccpa",
+    "cpra",
+    "vcdpa",
+    "cpa",
+    "ctdpa",
+    "ucpa",
+    "tdpsa",
+    "ocpa",
+    "mcdpa"
+  ],
+  "jurisdictions": [
+    "US"
+  ],
   "deadline_days": 45,
   "default_language": "en",
   "review_status": "draft",

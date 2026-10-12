@@ -178,6 +178,7 @@ MASTER_DICTIONARY: List[Dict[str, str]] = [
     {"key": "nav.broker_updates", "default_text": "Broker updates", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
     {"key": "nav.broker_health", "default_text": "Broker health", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
     {"key": "nav.spec_helpers", "default_text": "Automatic broker steps", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.letters", "default_text": "Opt-out letters", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
     {"key": "nav.broker_priority", "default_text": "Broker priority", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
     {"key": "nav.data_sharing", "default_text": "Data sharing", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
     {"key": "nav.parent_companies", "default_text": "Parent companies", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},

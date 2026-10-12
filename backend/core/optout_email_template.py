@@ -53,7 +53,7 @@ class ComposedEmail:
     subject: str
     body: str
     language: str = "en"          # the language the letter is written in
-    template_id: str = ""         # which letter (core/legal_templates/<id>.json)
+    template_id: str = ""         # which letter (a letters plugin's letter id)
     review_status: str = "draft"  # "draft" until a lawyer has reviewed the letter
 
 
@@ -85,6 +85,7 @@ def compose_optout_email(
     state: str = "",
     request_key: str = "",
     jurisdiction: str = "US",
+    template_id: str = "",
 ) -> ComposedEmail:
     """
     Compose the opt-out email for one parent company.
@@ -104,11 +105,16 @@ def compose_optout_email(
         between the CCPA letter (California) and the general US letter.
     request_key: optional UUID tracking key. When provided, embedded in the
         subject line and body so incoming replies can be matched automatically.
+    template_id: the letter an admin picked for this parent company; empty, or
+        a letter that isn't available, means the automatic choice.
     """
-    from .legal_letters import compose_letter
+    from .legal_letters import compose_letter, letter_choice
+    choice = letter_choice(admin_choice=template_id, jurisdiction=jurisdiction or "US",
+                           residence_state=state, legal_language=locale or "")
     letter = compose_letter(
         ids, parent_name, jurisdiction=jurisdiction or "US", legal_language=locale or "",
-        residence_state=state, sites=_normalize_sites(child_sites), request_key=request_key)
+        residence_state=state, sites=_normalize_sites(child_sites), request_key=request_key,
+        template_id=choice["template_id"])
     return ComposedEmail(
         to=to_address,
         cc=list(cc or []),

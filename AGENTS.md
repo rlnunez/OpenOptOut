@@ -12,7 +12,7 @@ OpenOptOut is a self-hosted tool that removes families' personal details from da
 | `backend/core/interpreter/` | Broker steps: `broker_spec.py` (the spec format), `compiler.py`, `executor.py` (Playwright) |
 | `backend/plugins/bundled/brokers/<id>/` | One plugin per data broker: `manifest.json`, `spec.json`, `README.md` |
 | `backend/plugins/bundled/languages/lang-*/` | Language packs. `texts.json` holds screen phrases, and `plugins/<id>.json` translates other plugins. |
-| `backend/core/legal_templates/` | Opt-out letters per law. All are drafts awaiting a lawyer's review. |
+| `backend/plugins/bundled/letters/letter-*/` | Opt-out letters per law, as `letters` plugins (`letter.json`). All are drafts awaiting a lawyer's review. `core/legal_templates/` holds the shared pieces and the README. |
 | `broker-plugins/` | The broker plugin template, `tools/validate.py` and `tools/package.py` |
 | `frontend/src/` | React + Vite. Every phrase a person sees goes through `tx()`, `txn()` or `txr()` from `i18n/tx.js`; every date, time and number through `fmtDate()`, `fmtDateTime()`, `fmtClock()` or `fmtNumber()` from `i18n/format.js` (the admin's regional formats). |
 | `docs/` | Architecture, plugins, roadmap |

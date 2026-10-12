@@ -183,9 +183,10 @@ Every plugin is stored at `<plugins directory>/<type>/<id>/`, where the type com
 | `brokers/` | Broker add-ons | Reserved for broker add-ons (roadmap item 1) |
 | `themes/` | Themes | Data only: no code, never run |
 | `languages/` | Language packs | Data only: no code, never run |
+| `letters/` | Opt-out letters | Data only: the wording sent to brokers (`letter.json`); see `backend/core/legal_templates/README.md` |
 | `general/` | Everything else | Event hooks, email parsers |
 
-The type is enforced, not just a folder name. A plugin sitting in the wrong folder is flagged as invalid, the `email_provider`, `solve_captcha` and `fill_form` hooks are only accepted in their own type, and a `themes` or `languages` plugin may not contain code, permissions or network access.
+The type is enforced, not just a folder name. A plugin sitting in the wrong folder is flagged as invalid, the `email_provider`, `solve_captcha` and `fill_form` hooks are only accepted in their own type, and a `themes`, `languages` or `letters` plugin may not contain code, permissions or network access.
 
 **Built-in plugins** ship inside the app (`backend/plugins/bundled/email/`) and are copied into `email/` when they're first needed. The copy carries a `.openoptout-bundled` marker and is refreshed automatically when you upgrade OpenOptOut. A plugin of your own with the same ID (no marker) is never overwritten.
 

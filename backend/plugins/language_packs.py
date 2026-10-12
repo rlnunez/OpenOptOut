@@ -1,5 +1,5 @@
 """
-Built-in language packs.
+Built-in data plugins: language packs and opt-out letters.
 
 Every language except English ships as a language-pack plugin in
 plugins/bundled/languages/. At startup each is copied into
@@ -21,6 +21,23 @@ log = logging.getLogger(__name__)
 
 
 def sync_builtin_languages(db) -> dict:
+    return sync_builtin_data(db, "languages")
+
+
+def sync_builtin_letters(db) -> dict:
+    """Built-in opt-out letters (plugins/bundled/letters/), installed the same
+    way as language packs: turned on, refreshed on upgrade, an admin's choice
+    to turn one off kept, an admin's own letter plugin never replaced."""
+    stats = sync_builtin_data(db, "letters")
+    try:
+        from ..core.legal_letters import reload
+        reload()
+    except Exception:
+        pass
+    return stats
+
+
+def sync_builtin_data(db, ptype: str) -> dict:
     from . import layout
     try:
         from ..models.database import InstalledPlugin
@@ -30,7 +47,7 @@ def sync_builtin_languages(db) -> dict:
     root = layout.plugins_root()
     for found in layout.scan(layout.BUNDLED_ROOT):
         m = found.manifest if found.valid else None
-        if m is None or m.effective_type != "languages":
+        if m is None or m.effective_type != ptype:
             continue
         try:
             row = db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == m.id).first()
@@ -55,7 +72,7 @@ def sync_builtin_languages(db) -> dict:
                 stats["updated"] += 1
         except Exception as e:
             db.rollback()
-            log.error("Could not install built-in language pack %s: %s", m.id, e)
+            log.error("Could not install built-in %s plugin %s: %s", ptype, m.id, e)
     if stats["installed"] or stats["updated"]:
-        log.info("Built-in language packs: %s", stats)
+        log.info("Built-in %s plugins: %s", ptype, stats)
     return stats

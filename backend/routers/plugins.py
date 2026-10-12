@@ -138,7 +138,7 @@ def _extracted_bundle(file: UploadFile):
             manifest = layout.read_manifest(manifest_dir)
         except Exception:
             raise HTTPException(400, "The plugin's manifest.json couldn't be read.")
-        yield manifest_dir, manifest, manifest.validate() + layout.locale_errors(manifest_dir, manifest)
+        yield manifest_dir, manifest, manifest.validate() + layout.content_errors(manifest_dir, manifest)
 
 
 def _email_inspection(manifest: PluginManifest, plugin_dir: str):
@@ -360,7 +360,7 @@ def install_plugin(path: str, db: Session = Depends(get_db),
         raise HTTPException(404, "There's no manifest.json in that folder.")
 
     m = layout.read_manifest(plugin_dir_real)
-    errors = m.validate() + layout.locale_errors(plugin_dir_real, m)
+    errors = m.validate() + layout.content_errors(plugin_dir_real, m)
     if errors:
         raise HTTPException(400, f"Invalid manifest: {'; '.join(errors)}")
 
