@@ -154,5 +154,6 @@
   "nav.calendar": "Календарь",
   "nav.spec_helpers": "Автоматические шаги брокеров",
   "nav.letters": "Письма об отказе",
-  "nav.monitoring": "Мониторинг и оповещения"
+  "nav.monitoring": "Мониторинг и оповещения",
+  "nav.terms": "Условия"
 }

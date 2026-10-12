@@ -88,6 +88,10 @@ export default function Breadcrumbs() {
         { label: t('nav.admin', 'Admin'), to: '/admin' },
         { label: t('nav.monitoring', 'Monitoring and alerts'), to: '/monitoring' },
       ],
+      '/terms-settings': [
+        { label: t('nav.admin', 'Admin'), to: '/admin' },
+        { label: t('nav.terms', 'Terms'), to: '/terms-settings' },
+      ],
       '/letters': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
         { label: t('nav.letters', 'Opt-out letters'), to: '/letters' },

@@ -154,5 +154,6 @@
   "nav.calendar": "캘린더",
   "nav.spec_helpers": "브로커 자동 단계",
   "nav.letters": "거부 요청 서한",
-  "nav.monitoring": "모니터링 및 알림"
+  "nav.monitoring": "모니터링 및 알림",
+  "nav.terms": "이용 약관"
 }

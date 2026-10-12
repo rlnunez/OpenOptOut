@@ -7193,6 +7193,9 @@ def t_access_route_gates():
         ("PUT", "/api/observability/webhooks"): {"SUPER"},
         ("POST", "/api/observability/metrics-token"): {"SUPER"},
         ("GET", "/api/health/ready"): set(),
+        # The operator's terms are what the server promises everyone: super admins only
+        ("PUT", "/api/terms/settings"): {"SUPER"},
+        ("GET", "/api/terms/public"): set(),
         ("GET", "/api/spec-helpers/drafts"): {"brokers.manage"},
         # Opt-out letters: choosing one is broker work; adding one is a plugin upload
         ("GET", "/api/letters"): {"brokers.manage"},
@@ -7750,6 +7753,76 @@ def t_email_spec_letter():
     assert lt.choose_template(spec.effective_jurisdiction(), "CA"), "no letter for a US broker"
     # EXPECTED: email plugins fall back to the per-law letter instead of failing validation.
     # IF THIS FAILS: built-in email plugins (Experian, Data Axle, InfoPay...) won't install.
+
+
+@test(1, "terms.versions_and_asking_again",
+      "Admins accept the limits, everyone else the notice; the operator's terms get a new version only when what people see changes.")
+def t_terms_versions():
+    db, s = _memory_db()
+    T = _imp("core.terms")
+    admin = db.User(email="admin@example.invalid", full_name="Admin Example", role=db.UserRole.super_admin, hashed_password="x")
+    pat = db.User(email="jordan@example.invalid", full_name="Jordan Example", role=db.UserRole.parent, hashed_password="x")
+    s.add_all([admin, pat]); s.commit()
+    st = {}
+    assert T.needs(s, admin, st) == [{"kind": "limits", "version": T.LIMITS_VERSION}]
+    assert T.needs(s, pat, st) == [{"kind": "notice", "version": T.NOTICE_VERSION}]
+    try:
+        T.accept(s, pat, "limits", T.LIMITS_VERSION, st); assert False, "only admins accept the limits"
+    except ValueError:
+        pass
+    T.accept(s, admin, "limits", T.LIMITS_VERSION, st)
+    T.accept(s, pat, "notice", T.NOTICE_VERSION, st)
+    assert T.needs(s, admin, st) == [] and T.needs(s, pat, st) == []
+    # Operator terms: off means nobody is asked; turning them on is version 1.
+    T.save(st, {"text": "## Hello", "operator": "Riverside Library", "enabled": False})
+    assert T.needs(s, pat, st) == [] and T.config(st)["version"] == 0
+    T.save(st, {"enabled": True})
+    assert T.config(st)["version"] == 1 and T.needs(s, pat, st) == [{"kind": "operator_terms", "version": 1}]
+    try:
+        T.accept(s, pat, "operator_terms", 2, st); assert False, "a version that isn't current must be refused"
+    except ValueError:
+        pass
+    T.accept(s, pat, "operator_terms", 1, st)
+    assert T.needs(s, pat, st) == []
+    T.save(st, {"text": "## Hello"})                       # nothing changed
+    T.save(st, {"enabled": False}); T.save(st, {"enabled": True})
+    assert T.config(st)["version"] == 1, "turning them off and on unchanged mustn't ask again"
+    T.save(st, {"enabled": False}); T.save(st, {"text": "## Hello again"}); T.save(st, {"enabled": True})
+    assert T.config(st)["version"] == 2 and T.needs(s, pat, st)[0]["version"] == 2, "a change made while off still counts"
+    try:
+        T.save({}, {"enabled": True}); assert False, "empty terms can't be turned on"
+    except ValueError:
+        pass
+    tpl = T.template("Riverside Library", "privacy@example.invalid")
+    assert "Riverside Library" in tpl and "{operator}" not in tpl and T.unfinished(tpl), "the draft has notes to fill in"
+    s.close()
+    # EXPECTED: people are asked once per version, and again only when what they see changes.
+    # IF THIS FAILS: people could be nagged on every save, or never told about a change.
+
+
+@test(2, "terms.adding_someone_needs_permission",
+      "A parent must confirm they may act for someone they add; it's recorded without names and removed with the person.")
+def t_terms_acting_for():
+    db, s = _memory_db()
+    fam = _imp("routers.family")
+    people = _imp("core.people")
+    from fastapi import HTTPException
+    parent = db.User(email="jordan@example.invalid", full_name="Jordan Example", role=db.UserRole.parent, hashed_password="x")
+    s.add(parent); s.commit()
+    try:
+        fam.add_member(fam.MemberCreate(full_name="Casey Example", age=9), s, parent)
+        assert False, "adding someone without confirming must be refused"
+    except HTTPException as e:
+        assert e.status_code == 400
+    m = fam.add_member(fam.MemberCreate(full_name="Casey Example", age=9, authorized=True), s, parent)
+    row = s.query(db.TermsAcceptance).filter_by(kind="acting_for").one()
+    added = s.query(db.FamilyMember).filter_by(id=m.id).one().user_id
+    assert row.user_id == parent.id and row.subject_user_id == added
+    people.delete_person(s, s.query(db.User).get(added)); s.commit()
+    assert s.query(db.TermsAcceptance).count() == 0, "the record goes with the person"
+    s.close()
+    # EXPECTED: no one is added without the parent confirming they may act for them.
+    # IF THIS FAILS: OpenOptOut could send requests for people who never agreed.
 
 
 # ── Long tail: privacy-request pages and hosted forms ─────────────────────────
@@ -9414,7 +9487,7 @@ def t_family_add_remove():
     parent = db.User(email="p@x.example", full_name="Pat Parent", role=db.UserRole.parent, hashed_password="x")
     s.add(parent); s.flush()
     s.add(db.FamilyMember(user_id=parent.id, full_name="Pat Parent")); s.commit()
-    out = fam.add_member(fam.MemberCreate(full_name=" Kim Kid ", dob="2015-03-02"), db=s, current_user=parent)
+    out = fam.add_member(fam.MemberCreate(full_name=" Kim Kid ", dob="2015-03-02", authorized=True), db=s, current_user=parent)
     assert out.full_name == "Kim Kid" and out.dob == "2015-03-02" and out.age is not None and out.can_edit
     kid = s.query(db.FamilyMember).get(out.id)
     assert kid.user.role == db.UserRole.member and kid.user.email.endswith(".invalid") and not kid.user.hashed_password
@@ -9429,7 +9502,7 @@ def t_family_add_remove():
     s.commit()
     child_user = kid.user
     try:
-        fam.add_member(fam.MemberCreate(full_name="X"), db=s, current_user=child_user)
+        fam.add_member(fam.MemberCreate(full_name="X", authorized=True), db=s, current_user=child_user)
         raise AssertionError("a member added someone")
     except HTTPException as e:
         assert e.status_code == 403
@@ -9514,7 +9587,7 @@ def t_privacy_record():
     s.add_all([parent, staff]); s.flush()
     s.add(db.FamilyMember(user_id=parent.id, full_name="Pat Parent"))
     s.add(db.FamilyMember(user_id=staff.id, full_name="Sam Staff")); s.commit()
-    kid = fam.add_member(fam.MemberCreate(full_name="Kim Kid"), db=s, current_user=parent)
+    kid = fam.add_member(fam.MemberCreate(full_name="Kim Kid", authorized=True), db=s, current_user=parent)
     s.add(db.Identity(member_id=kid.id, kind="phone", value="512-555-0100"))
     b = db.Broker(name="B", opt_out_url="https://b.example"); s.add(b); s.flush()
     rq = db.RemovalRequest(member_id=kid.id, broker_id=b.id, status=db.RequestStatus.sent); s.add(rq); s.flush()
