@@ -6357,6 +6357,107 @@ def t_auth_passwordless_local_account_restrictions():
         s.close()
 
 
+@test(2, "registration.residents_only_signup",
+      "With the address check on, people can only sign up at an address on the uploaded list: "
+      "addresses are matched in any common spelling, a row without a unit covers the building, the "
+      "per-home limit holds, the email must be confirmed with a code, the address becomes the "
+      "person's own, sign-in buttons can't start a new account, and no address is echoed back.")
+def t_residents_only_signup():
+    from types import SimpleNamespace as NS
+    try:
+        auth_router = _imp("routers.auth")
+        R = _imp("core.resident_addresses")
+        settings_store = _imp("core.settings_store")
+        system_mail = _imp("core.system_mail")
+        pol = _imp("core.sso_policy")
+        from fastapi import HTTPException
+        db, s = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    reg = {"mode": "open", "signup_page": True, "address_check": True, "address_limit": 1,
+           "signup_help": "Call the office"}
+    fake = lambda: {"registration": reg, "email": {"provider": "smtp", "smtp_host": "smtp.example.invalid"}}
+    sent = []
+    saved = (settings_store.load_settings, auth_router.load_settings, system_mail.send)
+    settings_store.load_settings = fake
+    auth_router.load_settings = fake
+    system_mail.send = lambda to, subject, body: sent.append((to, subject, body)) or True
+    try:
+        s.add(db.User(email="admin@example.org", full_name="Admin Example", role=db.UserRole.super_admin))
+        s.commit()
+        csv_text = R.EXAMPLE_CSV + "300 Example Court,,Exampleville,TX,77000,\n" + "not an address,,,,\n"
+        rows, problems = R.read_csv(csv_text.encode())
+        assert len(rows) == 4 and len(problems) == 1 and problems[0]["line"] == 6, (len(rows), problems)
+        assert "not an address" not in str(problems)
+        assert R.import_rows(s, rows, replace=True) == {"added": 4, "already_listed": 0}
+        assert R.import_rows(s, rows[:1], replace=False)["already_listed"] == 1
+        stored = s.query(db.ResidentAddress).first()
+        assert "EXAMPLE" not in stored.key and len(stored.key) == 64
+
+        A = auth_router.SignupAddressIn
+        look = lambda **kw: auth_router.signup_address(A(**kw), db=s)
+        r = look(street="999 Nowhere Rd", zip="77000")
+        assert r["reason"] == "not_found" and r["help"] == "Call the office" and "NOWHERE" not in str(r).upper()
+        assert look(street="200 Sample Ave", zip="77000")["reason"] == "unit_needed"
+        assert look(street="200 Sample Ave", unit="3", zip="77000")["reason"] == "unit_not_found"
+        assert look(street="300 Example Ct Apt 9", city="Exampleville", state="TX", zip="77000")["ok"]
+        assert look(street="Sample Ave", zip="77000")["reason"] == "unclear"
+        home = look(street="200 SAMPLE AVENUE", unit="#01", city="Exampleville", state="tx", zip="77000-1234")
+        assert home["ok"] and home["token"], home
+
+        # The email must be confirmed with the code
+        E = auth_router.SignupEmailIn
+        code_res = auth_router.signup_email_code(E(email="jordan@library.org"), db=s)
+        code = re.search(r"\b(\d{6})\b", sent[-1][2]).group(1)
+        assert code not in str(code_res)
+        Reg = auth_router.RegisterRequest
+        base = dict(email="jordan@library.org", full_name="Jordan Example", password="correct horse battery")
+        for bad in ({}, {"email_token": code_res["token"], "email_code": "000000" if code != "000000" else "111111"},
+                    {"email_token": code_res["token"], "email_code": code}):   # last: no address yet
+            try:
+                auth_router.register(Reg(**base, **bad), db=s)
+                assert False, f"registered without {bad or 'a code'}"
+            except HTTPException as exc:
+                assert exc.status_code == 400
+        user = auth_router.register(Reg(**base, email_token=code_res["token"], email_code=code,
+                                        address_token=home["token"]), db=s)
+        assert user.resident_key and user.resident_address_id
+        member = s.query(db.FamilyMember).filter(db.FamilyMember.user_id == user.id).first()
+        addr = [i for i in member.identities if i.kind == "address"]
+        assert len(addr) == 1 and addr[0].is_primary and addr[0].value == "200 SAMPLE AVE #1, EXAMPLEVILLE, TX 77000", addr
+
+        # One account per home: the same unit is now full; the other unit isn't
+        assert look(street="200 Sample Ave", unit="1", zip="77000")["reason"] == "full"
+        assert look(street="200 Sample Ave", unit="2", zip="77000")["ok"]
+
+        # An email that already has an account gets a reminder, not a code
+        n = len(sent)
+        auth_router.signup_email_code(E(email="jordan@library.org"), db=s)
+        assert len(sent) == n + 1 and not re.search(r"\b\d{6}\b", sent[-1][2])
+
+        # Without a way to send email there's no sign-up
+        settings_store.load_settings = lambda: {"registration": reg, "email": {}}
+        try:
+            auth_router.signup_email_code(E(email="sam@library.org"), db=s)
+            assert False, "sign-up code without email set up"
+        except HTTPException as exc:
+            assert exc.status_code == 503
+        settings_store.load_settings = fake
+
+        # Sign-in buttons can't start a new account; an existing one can link
+        g = NS(provider="google", email="new@library.org", email_verified=True, hd=None, groups=[])
+        assert not pol.evaluate_sso_login(g, {}, reg, False, 5).allowed
+        assert pol.evaluate_sso_login(g, {}, reg, True, 5).allowed
+        assert pol.evaluate_sso_login(g, {}, {**reg, "address_check": False}, False, 5).allowed
+
+        info = auth_router.signup_info()
+        assert info["signup"] and info["address_check"] and info["help"] == "Call the office"
+    finally:
+        settings_store.load_settings, auth_router.load_settings, system_mail.send = saved
+        s.close()
+
+
 @test(2, "scheduler.result_ingestion_reclaims_leases",
       "The 30-second result ingestion job drains results and reclaims worker leases that "
       "timed out (before, it crashed every run calling reclaim as a service method).")
@@ -7243,6 +7344,10 @@ def t_access_route_gates():
         # Usage statistics credentials hand data to outside systems: super admins only
         ("POST", "/api/stats-admin/keys"): {"SUPER"},
         ("GET", "/api/terms/public"): set(),
+        # Residents-only sign-up: the address list is registration work
+        ("POST", "/api/resident-addresses/upload"): {"users.registration"},
+        ("DELETE", "/api/resident-addresses"): {"users.registration"},
+        ("POST", "/api/auth/signup/address"): set(),
         ("GET", "/api/spec-helpers/drafts"): {"brokers.manage"},
         # Opt-out letters: choosing one is broker work; adding one is a plugin upload
         ("GET", "/api/letters"): {"brokers.manage"},

@@ -19,7 +19,7 @@ api.interceptors.response.use(
       const hadToken = !!localStorage.getItem('token')
       localStorage.removeItem('token')
       const path = window.location.pathname
-      const onAuthPage = path === '/login' || path === '/register' || path === '/'
+      const onAuthPage = path === '/login' || path === '/register' || path === '/signup' || path === '/'
       if (hadToken && !onAuthPage) {
         window.location.href = '/login'
       }

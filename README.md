@@ -81,6 +81,7 @@ Comprehensive architectural specifications and deployment guides:
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System architecture, pipeline stages, APScheduler jobs, failure diagnostics, and repository layout |
 | [`docs/HTTPS.md`](docs/HTTPS.md) | Production HTTPS setup: built-in Caddy/Traefik front door, Cloudflare DNS/Tunnel, InCommon, and reverse proxies |
 | [`docs/SSO.md`](docs/SSO.md) | Single sign-on integration: OIDC, SAML 2.0, Active Directory / LDAP, and library card (SIP2/SIP2S) logins |
+| [`docs/COMMUNITIES.md`](docs/COMMUNITIES.md) | Residents-only sign-up for a district, apartment complex or other housing community: a sign-up page that checks addresses against an uploaded list |
 | [`docs/DATABASE.md`](docs/DATABASE.md) | PostgreSQL scaling, enterprise auth (mTLS, IAM, Kerberos), SQLite migration, and SQLCipher encryption at rest |
 | [`docs/EMAIL_SETUP.md`](docs/EMAIL_SETUP.md) | System notification inbox vs. family inboxes, one address per opt-out (+addresses), OAuth and app-password setup |
 | [`docs/WEB_SEARCH.md`](docs/WEB_SEARCH.md) | Optional server-side web search for each family member (self-hosted SearXNG), with automatic adds and a review list |

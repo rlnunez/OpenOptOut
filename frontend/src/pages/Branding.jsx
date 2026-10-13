@@ -10,6 +10,7 @@ import { useBranding } from '../hooks/useBranding'
 import { useLanguage } from '../i18n/LanguageContext'
 import { tx, txr } from '../i18n/tx'
 import { fmtDate, fmtDateTime } from '../i18n/format'
+import ResidentAddresses from '../components/ResidentAddresses'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
@@ -216,7 +217,9 @@ function BrandingSection() {
 
 // ── Registration section ──────────────────────────────────────────────────────
 function RegistrationSection() {
-  const [config, setConfig] = useState({ mode: 'open', allowed_domains: '', require_invite: false, self_registration: true })
+  const [config, setConfig] = useState({ mode: 'open', allowed_domains: '', require_invite: false, self_registration: true,
+                                         signup_page: false, address_check: false, address_limit: 0, signup_help: '' })
+  const [canEmail, setCanEmail] = useState(true)
   const [saving, setSaving]   = useState(false)
   const [saved, setSaved]     = useState(false)
   const [codes, setCodes]     = useState([])
@@ -225,6 +228,7 @@ function RegistrationSection() {
   useEffect(() => {
     api.get('/branding/registration').then(r => setConfig(r.data)).catch(() => {})
     api.get('/auth/invite-codes').then(r => setCodes(r.data)).catch(() => {})
+    api.get('/auth/signup-info').then(r => setCanEmail(!!r.data.can_email)).catch(() => {})
   }, [])
 
   const save = async () => {
@@ -276,7 +280,48 @@ function RegistrationSection() {
         </Field>
       )}
 
+      {/* Sign-up page and residents-only address check (core/resident_addresses.py) */}
+      <div className="space-y-3 border-t border-slate-700/50 pt-4">
+        <label className="flex items-start gap-2.5 text-sm text-slate-300">
+          <input type="checkbox" className="mt-0.5" checked={!!config.signup_page || !!config.address_check}
+            disabled={!!config.address_check}
+            onChange={e => setConfig(c => ({...c, signup_page: e.target.checked}))} />
+          <span>
+            {tx("Show a \"Create an account\" page on the sign-in screen")}
+            <span className="block text-slate-500 text-xs">{tx("People confirm their email with a code before the account is made. The rules above still apply.")}</span>
+          </span>
+        </label>
+        <label className="flex items-start gap-2.5 text-sm text-slate-300">
+          <input type="checkbox" className="mt-0.5" checked={!!config.address_check}
+            onChange={e => setConfig(c => ({...c, address_check: e.target.checked, signup_page: c.signup_page || e.target.checked}))} />
+          <span>
+            {tx("Only people who live at an address on our list can sign up")}
+            <span className="block text-slate-500 text-xs">{tx("For a district, apartment complex, senior living or other housing community. Anyone who knows an address on the list can pass this check, so it keeps the service for your community but doesn't prove where someone lives. New accounts can't start from Google or Microsoft sign-in buttons; people can link them after signing up.")}</span>
+          </span>
+        </label>
+        {(config.signup_page || config.address_check) && !canEmail && (
+          <p role="alert" className="flex items-start gap-1.5 text-amber-300 text-xs">
+            <AlertTriangle size={13} className="shrink-0 mt-0.5" aria-hidden="true" />
+            {tx("This server can't send email yet, so the sign-up page can't send codes. Set up the notification email first.")}
+          </p>
+        )}
+        {config.address_check && (
+          <div className="grid grid-cols-1 sm:grid-cols-[10rem_1fr] gap-3">
+            <Field label={tx("Accounts per home")} hint={tx("0 means no limit. A home is an address with its unit.")}>
+              <input type="number" min="0" aria-label={tx("Accounts per home")} value={config.address_limit ?? 0}
+                onChange={e => setConfig(c => ({...c, address_limit: Math.max(0, parseInt(e.target.value || '0'))}))} className={inp} />
+            </Field>
+            <Field label={tx("Who to contact if an address isn't on the list")} hint={tx("Shown on the sign-up page, e.g. the office's phone number.")}>
+              <input aria-label={tx("Who to contact if an address isn't on the list")} value={config.signup_help || ''} maxLength={300}
+                onChange={e => setConfig(c => ({...c, signup_help: e.target.value}))} className={inp} />
+            </Field>
+          </div>
+        )}
+      </div>
+
       <div className="flex justify-end"><SaveBtn saving={saving} saved={saved} onClick={save} /></div>
+
+      {config.address_check && <ResidentAddresses />}
 
       {/* Invite codes */}
       <div className="border-t border-slate-700/50 pt-4">
