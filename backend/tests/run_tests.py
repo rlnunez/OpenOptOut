@@ -7976,6 +7976,46 @@ def t_stats_api():
     # IF THIS FAILS: a library's warehouse would load wrong numbers, or see another library's.
 
 
+@test(2, "broker_updates.builtin_plugins_recorded",
+      "Built-in broker plugins added or updated by an upgrade become Broker updates: one summary on first start, one entry each for a few.")
+def t_builtin_plugin_updates():
+    import tempfile
+    db, s = _memory_db()
+    ba = _imp("plugins.broker_addon")
+    old = os.environ.get("PLUGINS_DIR")
+    os.environ["PLUGINS_DIR"] = tempfile.mkdtemp(prefix="oo-plugins-")
+    try:
+        st = ba.sync_builtin_brokers(s)
+        ups = s.query(db.BrokerUpdate).filter_by(kind="plugin_added").all()
+        assert len(ups) == 1 and ups[0].title == f"{st['installed']} built-in broker plugins installed", [u.title for u in ups]
+        assert "CocoFinder" in ups[0].detail and "Turned off until someone checks" in ups[0].detail
+        # An upgrade that changes one plugin and brings back another: one entry each.
+        row = s.query(db.InstalledPlugin).filter_by(plugin_id="acxiom").one()
+        new_version = row.version
+        row.version = "0.9.0"
+        gone = s.query(db.InstalledPlugin).filter_by(plugin_id="wyty").one()
+        s.query(db.Broker).filter_by(plugin_id="wyty").delete()
+        s.delete(gone); s.commit()
+        st2 = ba.sync_builtin_brokers(s)
+        assert st2["installed"] == 1 and st2["updated"] == 1, st2
+        upd = s.query(db.BrokerUpdate).filter_by(kind="plugin_updated").one()
+        acx = s.query(db.Broker).filter_by(plugin_id="acxiom").one()
+        assert upd.broker_id == acx.id and f"0.9.0 → {new_version}" in upd.title, upd.title
+        added = s.query(db.BrokerUpdate).filter_by(kind="plugin_added").order_by(db.BrokerUpdate.id).all()
+        assert len(added) == 2 and added[1].title == "Built-in plugin added: WYTY", [a.title for a in added]
+        # Nothing changed: nothing recorded.
+        ba.sync_builtin_brokers(s)
+        assert s.query(db.BrokerUpdate).count() == 3
+    finally:
+        if old is None:
+            os.environ.pop("PLUGINS_DIR", None)
+        else:
+            os.environ["PLUGINS_DIR"] = old
+    s.close()
+    # EXPECTED: admins see which built-in plugins arrived or changed with each upgrade, without a flood.
+    # IF THIS FAILS: plugins change silently, or the first start buries Broker updates under 80 entries.
+
+
 # ── Long tail: privacy-request pages and hosted forms ─────────────────────────
 
 _PP_HOME = """<html><head><title>PeopleFind</title></head><body>
@@ -8145,6 +8185,13 @@ def t_pp_used():
     out = pf.check_new_site(s, b, fetch=fetch)
     s.refresh(b); s.refresh(req)
     assert out["used"] == "hosted_onetrust" and b.method == db.OptOutMethod.form and req.status == db.RequestStatus.pending
+    # Admins hear about what was found (Broker updates), once, without anyone's name.
+    ups = s.query(db.BrokerUpdate).filter_by(kind="privacy_found", broker_id=b.id).all()
+    assert len(ups) == 1 and "privacy request form (OneTrust)" in ups[0].title and "privacy email address" in ups[0].title, \
+        [u.title for u in ups]
+    assert "Pat" not in ups[0].title + (ups[0].detail or "")
+    pf.run_for_broker(s, b, fetch=fetch)
+    assert s.query(db.BrokerUpdate).filter_by(kind="privacy_found", broker_id=b.id).count() == 1, "nothing new, no new note"
     spec = sb.get_or_build_broker_spec(b, db=s)
     assert spec.opt_out_url.startswith("https://privacyportal.onetrust.com/") and any(st.kind == "autofill" for st in spec.steps)
     # The verification link a OneTrust form sends is allowed to be clicked.

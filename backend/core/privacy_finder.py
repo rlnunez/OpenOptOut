@@ -272,16 +272,51 @@ def run_for_broker(db, broker, fetch=None, now=None) -> dict:
     domain = registrable_domain(host)
     res = find(domain, fetch=fetch)
     existing = {(p.url, p.kind): p for p in db.query(PrivacyPage).filter(PrivacyPage.broker_id == broker.id).all()}
+    new = []
     for f in res["findings"]:
         row = existing.get((f["url"], f["kind"]))
         if row is None:
             db.add(PrivacyPage(broker_id=broker.id, url=f["url"][:1000], kind=f["kind"],
                                label=f["label"], score=f["score"], found_at=now))
+            new.append(f)
         elif row.status != "dismissed":
             row.label, row.score, row.found_at = f["label"], f["score"], now
     broker.privacy_checked_at = now
+    _note_found(db, broker, new)
     db.commit()
     return res
+
+
+FOUND_WORDS = {
+    "hosted_onetrust": "a privacy request form (OneTrust)",
+    "hosted_trustarc": "a privacy request form (TrustArc)",
+    "hosted_other": "a privacy request form",
+    "request_form": "a privacy request form",
+    "optout_page": "an opt-out page",
+    "email": "a privacy email address",
+}
+
+
+def _note_found(db, broker, new: list) -> None:
+    """Tell admins (Broker updates) what the finder newly found on this
+    broker's website: forms OpenOptOut can fill, opt-out pages, and privacy
+    email addresses that wait for an admin's approval. A privacy policy alone
+    isn't worth a note."""
+    kinds = sorted({f["kind"] for f in new if f["kind"] in FOUND_WORDS}, key=lambda k: PRIORITY.get(k, 9))
+    if not kinds:
+        return
+    from .broker_updates import record
+    what = [FOUND_WORDS[k] for k in kinds]
+    seen = []
+    what = [w for w in what if not (w in seen or seen.append(w))]
+    title = f"Found {' and '.join(what) if len(what) < 3 else ', '.join(what[:-1]) + ' and ' + what[-1]} on {broker.name}'s website"
+    notes = []
+    if any(k in FILLABLE for k in kinds):
+        notes.append("OpenOptOut can fill in the request form for this broker's opt-outs.")
+    if "email" in kinds:
+        notes.append("A found email address is only used after an admin approves it (Brokers page, \"Privacy pages found on brokers' websites\").")
+    record(db, "privacy_found", title, " ".join(notes) or "See \"Privacy pages found on brokers' websites\" on the Brokers page.",
+           broker_id=broker.id)
 
 
 def best(db, broker, kinds=None):

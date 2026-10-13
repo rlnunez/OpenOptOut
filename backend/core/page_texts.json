@@ -2334,6 +2334,18 @@
    ]
   },
   {
+   "text": "Built-in plugin added",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Built-in plugin updated",
+   "where": [
+    "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
    "text": "Built-in rules",
    "where": [
     "pages/SpecHelpers.jsx"
@@ -2601,7 +2613,7 @@
    ]
   },
   {
-   "text": "Changes to your broker list: brokers turned off after failing, websites that disappeared or came back, new brokers from state registries, and new sites found in listings.",
+   "text": "Changes to your broker list: brokers turned off after failing, websites that disappeared or came back, new brokers from state registries, new sites found in listings, built-in plugins added or updated, and privacy pages found on brokers' websites.",
    "where": [
     "pages/BrokerUpdates.jsx"
    ]
@@ -11300,6 +11312,12 @@
    "text": "Privacy laws give sites a set number of days to answer a removal request (45 under California's law, 30 under Europe's). This shows which sites missed it, and which put details back after removing them. You only see the people you have access to.",
    "where": [
     "pages/DeadlineReport.jsx"
+   ]
+  },
+  {
+   "text": "Privacy page found",
+   "where": [
+    "pages/BrokerUpdates.jsx"
    ]
   },
   {

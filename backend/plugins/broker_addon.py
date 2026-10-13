@@ -277,6 +277,11 @@ def sync_builtin_brokers(db) -> dict:
         from models.database import InstalledPlugin, Broker
     from datetime import datetime
     stats = {"installed": 0, "updated": 0, "skipped": 0}
+    added, updated = [], []          # (name, version, broker_id, starts_enabled) for Broker updates
+    try:
+        first_run = db.query(InstalledPlugin).filter(InstalledPlugin.status == "spec").count() == 0
+    except Exception:
+        first_run = False
     root = layout.plugins_root()
     for found in layout.scan(layout.BUNDLED_ROOT):
         m = found.manifest if found.valid else None
@@ -303,9 +308,13 @@ def sync_builtin_brokers(db) -> dict:
                 db.commit()
                 existed = db.query(Broker).filter(
                     (Broker.plugin_id == m.id) | (Broker.name.ilike(spec.name.strip()))).first() is not None
-                sync_broker_from_addon(db, m, dest, enabled=not existed and m.starts_enabled)
+                b = sync_broker_from_addon(db, m, dest, enabled=not existed and m.starts_enabled)
                 stats["installed"] += 1
+                added.append((m.name, m.version, getattr(b, "id", None), bool(getattr(b, "enabled", False))))
             elif row.version != m.version or row.install_path != dest:
+                if row.version != m.version:
+                    bid = db.query(Broker.id).filter(Broker.plugin_id == m.id).scalar()
+                    updated.append((m.name, f"{row.version} → {m.version}", bid, bool(row.enabled)))
                 row.version, row.name, row.description = m.version, m.name, m.description
                 row.manifest_json = json.dumps(m.to_dict())
                 row.install_path, row.code_hash = dest, layout.dir_hash(dest)
@@ -318,7 +327,54 @@ def sync_builtin_brokers(db) -> dict:
             log.error("Could not install built-in broker add-on %s: %s", m.id, e)
     if stats["installed"] or stats["updated"]:
         log.info("Built-in broker add-ons: %s", stats)
+    try:
+        _record_updates(db, added, updated, first_run)
+    except Exception as e:                  # a note for admins must never stop the upgrade
+        db.rollback()
+        log.warning("Broker updates not recorded for built-in plugins: %s", type(e).__name__)
     return stats
+
+
+# More than this many in one upgrade are listed in one Broker updates entry.
+ONE_BY_ONE = 3
+
+
+def _record_updates(db, added, updated, first_run: bool) -> None:
+    """Tell admins (Broker updates) which built-in broker plugins an upgrade
+    added or changed. The very first start installs every plugin, so that is
+    one entry, not eighty."""
+    try:
+        from ..core.broker_updates import record
+    except (ImportError, ValueError):
+        from core.broker_updates import record
+    if added:
+        off = [a[0] for a in added if not a[3]]
+        off_note = (f"Turned off until someone checks their opt-out page: {', '.join(off)}. "
+                    "Turn them on from the Brokers page once checked.") if off else ""
+        if first_run or len(added) > ONE_BY_ONE:
+            title = (f"{len(added)} built-in broker plugins installed" if first_run
+                     else f"{len(added)} built-in broker plugins added with this upgrade")
+            names = ", ".join(sorted(a[0] for a in added))
+            record(db, "plugin_added", title, (f"Added: {names}." + (f"\n{off_note}" if off_note else "")))
+        else:
+            for name, version, bid, on in added:
+                record(db, "plugin_added", f"Built-in plugin added: {name}",
+                       "Turned on." if on else "Turned off until someone checks its opt-out page. "
+                                               "Turn it on from the Brokers page once checked.",
+                       broker_id=bid)
+    if updated:
+        if len(updated) > ONE_BY_ONE:
+            names = ", ".join(sorted(f"{u[0]} ({u[1]})" for u in updated))
+            record(db, "plugin_updated", f"{len(updated)} built-in broker plugins updated with this upgrade",
+                   f"Their opt-out steps changed: {names}.")
+        else:
+            for name, change, bid, on in updated:
+                record(db, "plugin_updated", f"{name}'s built-in plugin was updated ({change})",
+                       "Its opt-out steps changed with this upgrade. Any automatic repair made for the "
+                       "older version is set aside." + ("" if on else " The plugin is turned off."),
+                       broker_id=bid)
+    if added or updated:
+        db.commit()
 
 
 def package_broker_addon(addon_dir: str, output_zip_path: str) -> str:

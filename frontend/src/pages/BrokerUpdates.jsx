@@ -16,6 +16,7 @@ const LINK = {
   new_brokers: '/state-registries', delisted: '/state-registries', new_site: '/brokers', contact_changed: '/brokers',
   steps_applied: '/spec-helpers', steps_ready: '/spec-helpers', steps_rehearsal_failed: '/spec-helpers',
   found_while_off: '/brokers', turned_on_found: '/brokers',
+  plugin_added: '/brokers', plugin_updated: '/brokers', privacy_found: '/brokers',
 }
 // The kind of each update, in the reader's language (the server's label is English).
 const KIND = () => ({
@@ -24,6 +25,7 @@ const KIND = () => ({
   contact_changed: tx("New contact address"), steps_applied: tx("Steps fixed automatically"),
   steps_ready: tx("Steps ready to approve"), steps_rehearsal_failed: tx("Drafted steps need a look"),
   found_while_off: tx("Found on a broker that's off"), turned_on_found: tx("Turned on after listings were found"),
+  plugin_added: tx("Built-in plugin added"), plugin_updated: tx("Built-in plugin updated"), privacy_found: tx("Privacy page found"),
 })
 
 export default function BrokerUpdates() {
@@ -73,7 +75,7 @@ export default function BrokerUpdates() {
         )}
       </div>
       <p className="text-slate-400 text-sm mb-4">
-        {tx("Changes to your broker list: brokers turned off after failing, websites that disappeared or came back, new brokers from state registries, and new sites found in listings.")}
+        {tx("Changes to your broker list: brokers turned off after failing, websites that disappeared or came back, new brokers from state registries, new sites found in listings, built-in plugins added or updated, and privacy pages found on brokers' websites.")}
       </p>
 
       <div className="flex flex-wrap items-center gap-4 mb-4 text-sm">
