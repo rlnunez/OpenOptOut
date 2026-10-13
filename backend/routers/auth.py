@@ -72,8 +72,25 @@ class RegisterRequest(BaseModel):
     password: Optional[str] = None
     full_name: str
     invite_code: Optional[str] = None
+    # From the sign-up page (core/resident_addresses.py): the emailed code,
+    # and the token for an address found on the community's list.
+    email_token: Optional[str] = None
+    email_code: Optional[str] = None
+    address_token: Optional[str] = None
 
     _validate_password = field_validator("password")(validate_password_length)
+
+
+class SignupAddressIn(BaseModel):
+    street: str
+    unit: Optional[str] = ""
+    city: Optional[str] = ""
+    state: Optional[str] = ""
+    zip: str
+
+
+class SignupEmailIn(BaseModel):
+    email: EmailStr
 
 
 class UserOut(BaseModel):
@@ -214,11 +231,136 @@ def needs_setup(db: Session = Depends(get_db)):
     return {"needs_setup": db.query(User).count() == 0}
 
 
+# ── Sign-up page (residents-only sign-up: core/resident_addresses.py) ─────────
+
+SIGNUP_TOKEN_MINUTES = 30
+
+
+def _signup_token(payload: dict, minutes: int) -> str:
+    from ..core.settings_store import encrypt_password
+    return encrypt_password(json.dumps({**payload, "exp": int(time.time()) + minutes * 60}))
+
+
+def _read_signup_token(token: Optional[str], kind: str) -> Optional[dict]:
+    from ..core.settings_store import decrypt_password
+    raw = decrypt_password(token or "") if token else ""
+    try:
+        data = json.loads(raw) if raw else None
+    except Exception:
+        return None
+    if not data or data.get("type") != kind or data.get("exp", 0) < time.time():
+        return None
+    return data
+
+
+@router.get("/signup-info")
+def signup_info():
+    """Public: what the sign-up page needs to know. No personal data."""
+    from ..core import resident_addresses, system_mail
+    cfg = resident_addresses.config()
+    reg = load_settings().get("registration", {}) or {}
+    mode = reg.get("mode", "open")
+    return {
+        "signup": cfg["signup_page"] and mode != "admin_only",
+        "address_check": cfg["address_check"],
+        "invite_required": mode == "invite" or bool(reg.get("require_invite")),
+        "can_email": system_mail.can_send(),
+        "help": cfg["help"],
+    }
+
+
+@router.post("/signup/address", dependencies=[Depends(rate_limit.limit("signup", 10))])
+def signup_address(req: SignupAddressIn, db: Session = Depends(get_db)):
+    """Is this address on the community's list? Answers yes with a short-lived
+    token for /register, or no with a plain reason. Never echoes the address."""
+    from ..core import resident_addresses as R
+    cfg = R.config()
+    if not cfg["address_check"]:
+        raise HTTPException(400, "This server doesn't check addresses at sign-up.")
+    try:
+        c = R.clean(req.street, req.unit or "", req.city or "", req.state or "", req.zip)
+    except R.AddressError as e:
+        return {"ok": False, "reason": "unclear", "message": str(e), "help": cfg["help"]}
+    status_, row = R.match(db, c)
+    if status_ != "ok":
+        messages = {
+            "unit_needed": "Add your apartment or unit number.",
+            "unit_not_found": "We couldn't find that unit number at this address. Check it and try again.",
+            "not_found": "We couldn't find that address on the list of homes this service is for.",
+        }
+        return {"ok": False, "reason": status_, "message": messages[status_], "help": cfg["help"]}
+    person_key = R.keys(c)[0]
+    if cfg["address_limit"] and R.accounts_at(db, person_key) >= cfg["address_limit"]:
+        return {"ok": False, "reason": "full",
+                "message": "This home already has as many accounts as this service allows.",
+                "help": cfg["help"]}
+    token = _signup_token({"type": "resident", "rid": row.id, "key": person_key,
+                           "line": R.one_line(c), "branch": row.branch_code}, SIGNUP_TOKEN_MINUTES)
+    return {"ok": True, "token": token}
+
+
+@router.post("/signup/email-code", dependencies=[Depends(rate_limit.limit("signup", 10))])
+def signup_email_code(req: SignupEmailIn, db: Session = Depends(get_db)):
+    """Email a 6-digit code to prove the address is theirs. The answer is the
+    same whether or not the email already has an account (that person is
+    emailed a reminder to sign in instead)."""
+    from ..core import resident_addresses as R, system_mail
+    if not R.config()["signup_page"]:
+        raise HTTPException(400, "Sign-up isn't open on this server.")
+    if not system_mail.can_send():
+        raise HTTPException(503, "This server can't send email yet, so it can't make new accounts. "
+                                 "Please ask the people who run it.")
+    email = req.email.strip().lower()
+    code = f"{secrets.randbelow(900000) + 100000}"
+    token = _signup_token({"type": "signup_code", "email": email,
+                           "code_hash": hashlib.sha256(code.encode()).hexdigest()}, 15)
+    if db.query(User).filter(User.email == email).first():
+        system_mail.send(email, "You already have an OpenOptOut account",
+                         "Someone tried to create an account with this email, but you already have one. "
+                         "Sign in instead. If that wasn't you, you can ignore this email.")
+    else:
+        system_mail.send(email, "Your OpenOptOut sign-up code",
+                         f"Your code to finish creating your account is: {code}\n\n"
+                         "It expires in 15 minutes. If you didn't ask for it, you can ignore this email.")
+    return {"token": token, "message": "We sent a 6-digit code to that email. It expires in 15 minutes."}
+
+
+def _check_signup_steps(req: RegisterRequest, db: Session) -> Optional[dict]:
+    """The sign-up page's checks, enforced here so the API can't skip them.
+    Returns the address token's data when the address check is on."""
+    from ..core import resident_addresses as R, code_attempts
+    cfg = R.config()
+    if db.query(User).count() == 0:
+        return None                       # the first administrator (setup)
+    if cfg["signup_page"]:
+        data = _read_signup_token(req.email_token, "signup_code")
+        if not data or data.get("email") != req.email.strip().lower():
+            raise HTTPException(400, "Confirm your email with the code we send you first.")
+        if not code_attempts.allowed(req.email_token, data["exp"]):
+            raise HTTPException(400, "This code can't be used any more. Ask for a new one.")
+        if not hmac.compare_digest(hashlib.sha256((req.email_code or "").strip().encode()).hexdigest(),
+                                   data.get("code_hash", "")):
+            code_attempts.wrong(req.email_token)
+            raise HTTPException(400, "That code isn't right. Check the email and try again.")
+    if not cfg["address_check"]:
+        return None
+    home = _read_signup_token(req.address_token, "resident")
+    if not home:
+        raise HTTPException(400, "Enter your home address first. It has to be on this service's list.")
+    from ..models.database import ResidentAddress
+    if not db.query(ResidentAddress).filter(ResidentAddress.id == home["rid"]).first():
+        raise HTTPException(400, "That address is no longer on the list. Enter it again.")
+    if cfg["address_limit"] and R.accounts_at(db, home["key"]) >= cfg["address_limit"]:
+        raise HTTPException(400, "This home already has as many accounts as this service allows.")
+    return home
+
+
 @router.post("/register", response_model=UserOut, status_code=201,
              dependencies=[Depends(rate_limit.limit("register", 10))])
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == req.email).first():
         raise HTTPException(400, "An account with that email already exists.")
+    home = _check_signup_steps(req, db)
     role = _check_registration_allowed(req.email, req.invite_code, db)
     if not req.password and role != UserRole.super_admin:
         raise HTTPException(400, "Password is required")
@@ -226,7 +368,29 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
         db, req.email, req.full_name, role,
         hashed_pw=hash_password(req.password) if req.password else None,
     )
+    if req.email_token:
+        from ..core import code_attempts
+        code_attempts.used(req.email_token)
+    if home:
+        _link_home(db, user, home)
     return user
+
+
+def _link_home(db: Session, user: User, home: dict):
+    """Record the sign-up address: on the account (for the per-home limit and
+    the branch) and as the person's own primary address."""
+    from ..core import resident_addresses as R
+    from ..models.database import Identity
+    user.resident_address_id = home["rid"]
+    user.resident_key = home["key"]
+    branch = R.find_branch(db, home.get("branch"))
+    if branch and user.branch_id is None:
+        user.branch_id = branch.id
+        user.branch_source = "address"
+    member = db.query(FamilyMember).filter(FamilyMember.user_id == user.id).first()
+    if member:
+        db.add(Identity(member_id=member.id, kind="address", value=home["line"], is_primary=True))
+    db.commit()
 
 
 def _finish_sign_in(user: User, db: Session, request: Optional[Request], remember_me: bool) -> dict:

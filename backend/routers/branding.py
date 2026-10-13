@@ -84,6 +84,11 @@ class RegistrationConfig(BaseModel):
     allowed_domains:   Optional[str] = None   # comma-separated, e.g. "library.org,city.gov"
     require_invite:    bool  = False
     self_registration: bool  = True
+    # Residents-only sign-up (core/resident_addresses.py)
+    signup_page:       bool  = False          # a "Create an account" page on the sign-in screen
+    address_check:     bool  = False          # only addresses on the uploaded list may sign up
+    address_limit:     int   = 0              # accounts per home (address + unit); 0 = no limit
+    signup_help:       Optional[str] = None   # who to contact when an address isn't on the list
 
 
 class AnnouncementBanner(BaseModel):

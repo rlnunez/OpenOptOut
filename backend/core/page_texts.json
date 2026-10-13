@@ -243,6 +243,12 @@
    ]
   },
   {
+   "text": "0 means no limit. A home is an address with its unit.",
+   "where": [
+    "pages/Branding.jsx"
+   ]
+  },
+  {
    "text": "0–9 in every language",
    "where": [
     "pages/Settings.jsx"
@@ -700,6 +706,12 @@
    ]
   },
   {
+   "text": "Accounts per home",
+   "where": [
+    "pages/Branding.jsx"
+   ]
+  },
+  {
    "text": "Accounts you've signed in with",
    "where": [
     "pages/Settings.jsx"
@@ -943,9 +955,23 @@
    ]
   },
   {
+   "text": "Add the 5-digit ZIP code.",
+   "where": [
+    "components/ResidentAddresses.jsx",
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "Add the solving plugin",
    "where": [
     "components/SolvingSettings.jsx"
+   ]
+  },
+  {
+   "text": "Add the street name after the number.",
+   "where": [
+    "components/ResidentAddresses.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -967,6 +993,12 @@
    ]
   },
   {
+   "text": "Add to the list",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
    "text": "Add unassigned brokers",
    "where": [
     "pages/ParentCompanies.jsx"
@@ -982,6 +1014,12 @@
    "text": "Add where you live now and where you used to live, as far back as you can. Example: 123 Main St, Houston TX 77001.",
    "where": [
     "pages/IdentityVault.jsx"
+   ]
+  },
+  {
+   "text": "Add your apartment or unit number.",
+   "where": [
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -1039,6 +1077,18 @@
    ]
   },
   {
+   "text": "Added {n} address.",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
+   "text": "Added {n} addresses.",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
    "text": "Added {v}",
    "where": [
     "pages/Settings.jsx"
@@ -1069,6 +1119,18 @@
    "where": [
     "pages/Monitoring.jsx",
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Address list",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
+   "text": "Address list file",
+   "where": [
+    "components/ResidentAddresses.jsx"
    ]
   },
   {
@@ -1417,6 +1479,12 @@
    ]
   },
   {
+   "text": "Already have an account?",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "Already in your broker list",
    "where": [
     "pages/StateRegistries.jsx"
@@ -1618,6 +1686,12 @@
    "text": "Anyone can register",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Apartment or unit (if you have one)",
+   "where": [
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -2625,6 +2699,12 @@
    ]
   },
   {
+   "text": "Check",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
    "text": "Check +addresses",
    "where": [
     "pages/Inboxes.jsx"
@@ -2768,6 +2848,7 @@
     "components/PluginUploadWizard.jsx",
     "pages/Dashboard.jsx",
     "pages/EmailMonitor.jsx",
+    "pages/Signup.jsx",
     "pages/StateRegistries.jsx"
    ]
   },
@@ -2879,7 +2960,8 @@
   {
    "text": "City",
    "where": [
-    "components/UserWelcomeModal.jsx"
+    "components/UserWelcomeModal.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -3057,6 +3139,12 @@
    ]
   },
   {
+   "text": "Code from the email",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "Code inspection found things to review:",
    "where": [
     "components/PluginUploadWizard.jsx"
@@ -3197,7 +3285,8 @@
   {
    "text": "Confirm password",
    "where": [
-    "pages/Login.jsx"
+    "pages/Login.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -3383,7 +3472,8 @@
   {
    "text": "Continue",
    "where": [
-    "components/TermsGate.jsx"
+    "components/TermsGate.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -3616,6 +3706,12 @@
    ]
   },
   {
+   "text": "Couldn't check the address. Try again in a minute.",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "Couldn't check this site",
    "where": [
     "pages/Discovery.jsx"
@@ -3636,7 +3732,8 @@
   {
    "text": "Couldn't create the account. Check the details and try again.",
    "where": [
-    "pages/AdminPanel.jsx"
+    "pages/AdminPanel.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -3815,6 +3912,12 @@
    ]
   },
   {
+   "text": "Couldn't read the file.",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
    "text": "Couldn't remove them. Please try again.",
    "where": [
     "pages/Family.jsx"
@@ -3907,6 +4010,12 @@
    "text": "Couldn't send it.",
    "where": [
     "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "Couldn't send the code. Check the email address and try again.",
+   "where": [
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -4062,6 +4171,12 @@
    ]
   },
   {
+   "text": "Create account",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "Create accounts for new users from this IdP even when registration is invite-only or admin-only",
    "where": [
     "pages/Branding.jsx"
@@ -4077,6 +4192,13 @@
    "text": "Create administrator account",
    "where": [
     "pages/Login.jsx"
+   ]
+  },
+  {
+   "text": "Create an account",
+   "where": [
+    "pages/Login.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -4100,7 +4222,8 @@
   {
    "text": "Creating…",
    "where": [
-    "pages/AdminPanel.jsx"
+    "pages/AdminPanel.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -4574,6 +4697,12 @@
    "text": "Did",
    "where": [
     "pages/PrivacyRecord.jsx"
+   ]
+  },
+  {
+   "text": "Didn't get the code? Send it again",
+   "where": [
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -5068,6 +5197,12 @@
    ]
   },
   {
+   "text": "e.g. 123 Main Street",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "e.g. 123 Pine St",
    "where": [
     "components/UserWelcomeModal.jsx"
@@ -5315,7 +5450,8 @@
     "components/Badge.jsx",
     "pages/AdminPanel.jsx",
     "pages/Login.jsx",
-    "pages/SetupWizard.jsx"
+    "pages/SetupWizard.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -5879,6 +6015,12 @@
    ]
   },
   {
+   "text": "Example file",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
    "text": "Example:",
    "where": [
     "pages/Inboxes.jsx"
@@ -6244,6 +6386,12 @@
    ]
   },
   {
+   "text": "Finish your account",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "FIPS 140-2 / 140-3",
    "where": [
     "pages/Settings.jsx"
@@ -6301,6 +6449,12 @@
    "text": "Followed up {length}× (last {fmt})",
    "where": [
     "components/RemovalTimeline.jsx"
+   ]
+  },
+  {
+   "text": "For a district, apartment complex, senior living or other housing community. Anyone who knows an address on the list can pass this check, so it keeps the service for your community but doesn't prove where someone lives. New accounts can't start from Google or Microsoft sign-in buttons; people can link them after signing up.",
+   "where": [
+    "pages/Branding.jsx"
    ]
   },
   {
@@ -7503,7 +7657,8 @@
   {
    "text": "Invite code",
    "where": [
-    "pages/Branding.jsx"
+    "pages/Branding.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -8194,6 +8349,7 @@
     "pages/Reporting.jsx",
     "pages/Scheduled.jsx",
     "pages/Settings.jsx",
+    "pages/Signup.jsx",
     "pages/SpecHelpers.jsx",
     "pages/StateRegistries.jsx",
     "pages/Terms.jsx",
@@ -9052,6 +9208,12 @@
    ]
   },
   {
+   "text": "New accounts can't be made right now because this server can't send email yet. Please try again later, or ask the people who run it.",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "New Backup Recovery Codes Generated",
    "where": [
     "pages/Settings.jsx"
@@ -9073,6 +9235,12 @@
    "text": "New contact address",
    "where": [
     "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "New here?",
+   "where": [
+    "pages/Login.jsx"
    ]
   },
   {
@@ -9313,6 +9481,12 @@
    "text": "No legal deadline on record",
    "where": [
     "pages/DeadlineReport.jsx"
+   ]
+  },
+  {
+   "text": "No list yet. Until you upload one, nobody can sign up.",
+   "where": [
+    "components/ResidentAddresses.jsx"
    ]
   },
   {
@@ -9609,6 +9783,12 @@
    "text": "Not listed ({notFoundCount})",
    "where": [
     "pages/Discovery.jsx"
+   ]
+  },
+  {
+   "text": "Not on the list.",
+   "where": [
+    "components/ResidentAddresses.jsx"
    ]
   },
   {
@@ -9973,6 +10153,12 @@
    ]
   },
   {
+   "text": "On the list. Someone at this address can sign up.",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
    "text": "On the registry page, choose \"Download CSV\".",
    "where": [
     "server: registry_sync.py"
@@ -10102,6 +10288,12 @@
    "text": "Only new",
    "where": [
     "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Only people who live at an address on our list can sign up",
+   "where": [
+    "pages/Branding.jsx"
    ]
   },
   {
@@ -10639,7 +10831,8 @@
   {
    "text": "Password (min 8 characters)",
    "where": [
-    "pages/Login.jsx"
+    "pages/Login.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -10832,6 +11025,12 @@
    "text": "pending tasks",
    "where": [
     "pages/WorkerFleet.jsx"
+   ]
+  },
+  {
+   "text": "People confirm their email with a code before the account is made. The rules above still apply.",
+   "where": [
+    "pages/Branding.jsx"
    ]
   },
   {
@@ -11484,6 +11683,12 @@
    ]
   },
   {
+   "text": "Questions? {help}",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "Queue Backlog",
    "where": [
     "pages/WorkerFleet.jsx"
@@ -11964,6 +12169,12 @@
    ]
   },
   {
+   "text": "Remove the list",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
    "text": "Remove the ones I picked",
    "where": [
     "pages/Checklist.jsx"
@@ -11973,6 +12184,12 @@
    "text": "Remove the token",
    "where": [
     "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "Remove the whole address list? People who already have accounts keep them, but nobody new can sign up until you upload a list again.",
+   "where": [
+    "components/ResidentAddresses.jsx"
    ]
   },
   {
@@ -12064,6 +12281,12 @@
    "text": "Removing…",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Replace the list",
+   "where": [
+    "components/ResidentAddresses.jsx"
    ]
   },
   {
@@ -12373,6 +12596,12 @@
    "text": "Route automation through proxies to mask the server IP",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Row {line}: {reason}",
+   "where": [
+    "components/ResidentAddresses.jsx"
    ]
   },
   {
@@ -13179,6 +13408,12 @@
    ]
   },
   {
+   "text": "Send the code",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "Send the key in a header: Authorization: Bearer <key>. Use HTTPS, so the key can't be read on the way.",
    "where": [
     "pages/UsageStats.jsx"
@@ -13205,7 +13440,8 @@
   {
    "text": "Sending…",
    "where": [
-    "pages/ParentCompanies.jsx"
+    "pages/ParentCompanies.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -13467,6 +13703,12 @@
    ]
   },
   {
+   "text": "Show a \"Create an account\" page on the sign-in screen",
+   "where": [
+    "pages/Branding.jsx"
+   ]
+  },
+  {
    "text": "Show new brokers",
    "where": [
     "pages/StateRegistries.jsx"
@@ -13510,6 +13752,12 @@
   },
   {
    "text": "Shown below the system name on the login screen",
+   "where": [
+    "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Shown on the sign-up page, e.g. the office's phone number.",
    "where": [
     "pages/Branding.jsx"
    ]
@@ -13560,7 +13808,8 @@
    "text": "Sign in",
    "where": [
     "pages/Backups.jsx",
-    "pages/Login.jsx"
+    "pages/Login.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -14088,6 +14337,13 @@
    ]
   },
   {
+   "text": "Start the street address with the house or building number.",
+   "where": [
+    "components/ResidentAddresses.jsx",
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "Started at {start} on {fmtDay}",
    "where": [
     "components/PrivacyScore.jsx"
@@ -14122,6 +14378,7 @@
    "text": "State",
    "where": [
     "pages/BrokerHealth.jsx",
+    "pages/Signup.jsx",
     "pages/StateRegistries.jsx"
    ]
   },
@@ -14191,6 +14448,12 @@
    "text": "Step {n}",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Step {n} of {total}",
+   "where": [
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -14305,6 +14568,13 @@
    "text": "Stored metadata problem:",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Street address",
+   "where": [
+    "components/ResidentAddresses.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -14686,6 +14956,12 @@
    ]
   },
   {
+   "text": "That address isn't complete. Add the house number, street and ZIP code.",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
    "text": "That backup code didn't work. Each one works only once.",
    "where": [
     "pages/Login.jsx"
@@ -14834,6 +15110,12 @@
    "text": "The letter picked for this one ({v}) isn't available, so the automatic one is used.",
    "where": [
     "pages/Letters.jsx"
+   ]
+  },
+  {
+   "text": "The list has units for this building. The person will be asked for theirs.",
+   "where": [
+    "components/ResidentAddresses.jsx"
    ]
   },
   {
@@ -14989,7 +15271,8 @@
   {
    "text": "The two passwords don't match.",
    "where": [
-    "pages/Login.jsx"
+    "pages/Login.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -15101,6 +15384,18 @@
    ]
   },
   {
+   "text": "This building is on the list, but not this unit.",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
+   "text": "This home already has as many accounts as this service allows.",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "This is <0/>",
    "where": [
     "components/FindListings.jsx"
@@ -15161,6 +15456,12 @@
    ]
   },
   {
+   "text": "This server can't send email yet, so the sign-up page can't send codes. Set up the notification email first.",
+   "where": [
+    "pages/Branding.jsx"
+   ]
+  },
+  {
    "text": "This server is yours.",
    "where": [
     "components/TermsGate.jsx"
@@ -15170,6 +15471,18 @@
    "text": "This server uses OpenOptOut to ask data brokers (sites that collect and sell personal details) to remove your details.",
    "where": [
     "components/TermsGate.jsx"
+   ]
+  },
+  {
+   "text": "This service doesn't take sign-ups here. Ask the people who run it how to join.",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
+   "text": "This service is for people who live in our community. Enter the address where you live now.",
+   "where": [
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -15365,6 +15678,12 @@
    ]
   },
   {
+   "text": "Too many tries. Wait a minute and try again.",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "Took",
    "where": [
     "pages/EmailMonitor.jsx"
@@ -15460,6 +15779,12 @@
     "components/LiveCaptcha.jsx",
     "pages/CaptchaQueue.jsx",
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Try an address the way the sign-up page will check it.",
+   "where": [
+    "components/ResidentAddresses.jsx"
    ]
   },
   {
@@ -15759,6 +16084,12 @@
    ]
   },
   {
+   "text": "Unit",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
    "text": "University SSO",
    "where": [
     "pages/Branding.jsx"
@@ -15807,8 +16138,15 @@
    ]
   },
   {
+   "text": "updated {when}",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
    "text": "Upload",
    "where": [
+    "components/ResidentAddresses.jsx",
     "pages/Settings.jsx"
    ]
   },
@@ -15816,6 +16154,12 @@
    "text": "Upload a .zip bundle, or put a plugin folder in its type folder (plugins/<type>/<id>/).",
    "where": [
     "pages/Plugins.jsx"
+   ]
+  },
+  {
+   "text": "Upload a CSV file with one address per row: address, unit, city, state and zip columns, or house_number and street_name. A row without a unit stands for the whole building. An optional branch column puts new accounts in that branch. Your county's mapping or property office can usually give you an export.",
+   "where": [
+    "components/ResidentAddresses.jsx"
    ]
   },
   {
@@ -15864,6 +16208,7 @@
   {
    "text": "Uploading…",
    "where": [
+    "components/ResidentAddresses.jsx",
     "pages/Branding.jsx",
     "pages/SetupWizard.jsx"
    ]
@@ -15938,7 +16283,8 @@
   {
    "text": "Use a password of at least 8 characters",
    "where": [
-    "pages/Login.jsx"
+    "pages/Login.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -16362,9 +16708,27 @@
    ]
   },
   {
+   "text": "We couldn't find that address on the list of homes this service is for.",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
+   "text": "We couldn't find that unit number at this address. Check it and try again.",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "We never save Social Security numbers. The letters leave a blank. Write the number in by hand after printing.",
    "where": [
     "pages/CreditFreeze.jsx"
+   ]
+  },
+  {
+   "text": "We sent a 6-digit code to that email. It expires in 15 minutes.",
+   "where": [
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -16377,6 +16741,12 @@
    "text": "We suggest a **separate email address** just for removal requests, apart from your everyday inbox.\n\n**Why a separate address?**\n- Some sites add people who opt out to marketing lists. A separate inbox keeps that mess away from you.\n- Every reply lands in one place, so it's easy to see who answered.\n\n**Easiest way (Gmail, Outlook or Yahoo):**\n1. Make a new Gmail, Outlook or Yahoo address, for example yourname.removals@gmail.com.\n2. Go to **Email inboxes** and choose **Connect an inbox**.\n3. Pick Google, Microsoft or Yahoo and sign in. You never type your password into OpenOptOut, and you can disconnect at any time.\n\n**Other email services (Fastmail and others):**\n1. Turn on two-step sign-in for the account.\n2. In the account's security settings, make an **app password** (a separate password just for apps like this one).\n3. Go to **Email inboxes**, choose **Connect an inbox**, pick your service, and paste the app password, not your normal one.\n\nGmail and Outlook let every opt-out use its own address (like you+oo7f3k2a@gmail.com), which is how we match each reply to the right site.",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "We'll send a 6-digit code to this email to make sure it's yours.",
+   "where": [
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -16528,6 +16898,12 @@
    "text": "What the page showed",
    "where": [
     "pages/CaptchaQueue.jsx"
+   ]
+  },
+  {
+   "text": "What to do with the file",
+   "where": [
+    "components/ResidentAddresses.jsx"
    ]
   },
   {
@@ -16754,6 +17130,12 @@
    ]
   },
   {
+   "text": "Who to contact if an address isn't on the list",
+   "where": [
+    "pages/Branding.jsx"
+   ]
+  },
+  {
    "text": "Who uses which inbox",
    "where": [
     "pages/Inboxes.jsx"
@@ -16953,6 +17335,12 @@
    ]
   },
   {
+   "text": "Your address is on the list.",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "Your administrator has set this for everyone: {defaultLabel}.",
    "where": [
     "pages/Settings.jsx"
@@ -16985,9 +17373,21 @@
    ]
   },
   {
+   "text": "Your email",
+   "where": [
+    "pages/Signup.jsx"
+   ]
+  },
+  {
    "text": "Your Gotify server's /message address, for example https://gotify.example.org/message, and an app token.",
    "where": [
     "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "Your home address",
+   "where": [
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -17005,7 +17405,8 @@
   {
    "text": "Your name",
    "where": [
-    "pages/Login.jsx"
+    "pages/Login.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -17074,6 +17475,13 @@
    "text": "Zero Mailbox Clutter",
    "where": [
     "components/UserWelcomeModal.jsx"
+   ]
+  },
+  {
+   "text": "ZIP code",
+   "where": [
+    "components/ResidentAddresses.jsx",
+    "pages/Signup.jsx"
    ]
   },
   {
@@ -17191,15 +17599,51 @@
    ]
   },
   {
+   "text": "{n} account here so far.",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
+   "text": "{n} account made at them",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
+   "text": "{n} accounts here so far.",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
+   "text": "{n} accounts made at them",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
    "text": "{n} address",
    "where": [
     "pages/BrokerNetwork.jsx"
    ]
   },
   {
+   "text": "{n} address on the list",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
    "text": "{n} addresses",
    "where": [
     "pages/BrokerNetwork.jsx"
+   ]
+  },
+  {
+   "text": "{n} addresses on the list",
+   "where": [
+    "components/ResidentAddresses.jsx"
    ]
   },
   {
@@ -17401,6 +17845,18 @@
    ]
   },
   {
+   "text": "{n} row couldn't be used.",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
+   "text": "{n} rows couldn't be used.",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
    "text": "{n} run(s) started over 6 hours ago and never finished.",
    "where": [
     "server: monitoring.py"
@@ -17434,6 +17890,18 @@
    "text": "{n} used this month; your own model isn't counted",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "{n} was already on the list.",
+   "where": [
+    "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
+   "text": "{n} were already on the list.",
+   "where": [
+    "components/ResidentAddresses.jsx"
    ]
   },
   {

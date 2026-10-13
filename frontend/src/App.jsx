@@ -42,6 +42,7 @@ import ParentCompanies from './pages/ParentCompanies'
 import CaptchaQueue from './pages/CaptchaQueue'
 import WorkerFleet from './pages/WorkerFleet'
 import Login from './pages/Login'
+import Signup from './pages/Signup'
 import SetupWizard from './pages/SetupWizard'
 import Inboxes from './pages/Inboxes'
 import CreditFreeze from './pages/CreditFreeze'
@@ -199,6 +200,7 @@ export default function App() {
                 <Route path="/login"                element={<Login />} />
                 <Route path="/auth/callback"        element={<OIDCCallback />} />
                 <Route path="/terms"                element={<PublicTerms />} />
+                <Route path="/signup"               element={<Signup />} />
                 <Route path="/*"                    element={<RequireAuth><Layout /></RequireAuth>} />
               </Routes>
             </BrowserRouter>

@@ -125,6 +125,12 @@ export default function Login() {
     }).catch(() => {}).finally(() => setLoadingProviders(false))
   }, [])
 
+  // Is there a public sign-up page? (Admin → Branding → Registration)
+  const [signupOpen, setSignupOpen] = useState(false)
+  useEffect(() => {
+    api.get('/auth/signup-info').then(r => setSignupOpen(!!r.data.signup)).catch(() => {})
+  }, [])
+
   // Keep tab in sync if branding changes
   useEffect(() => {
     if (!showStaff && showPatron) setTab('patron')
@@ -1500,6 +1506,13 @@ export default function Login() {
                     </p>
                   )}
                 </form>
+              )}
+
+              {signupOpen && (
+                <p className="mt-4 text-center text-sm text-slate-400">
+                  {tx("New here?")}{" "}
+                  <a href="/signup" className="text-shield-400 hover:text-shield-300 font-medium">{tx("Create an account")}</a>
+                </p>
               )}
 
               {/* Footer */}

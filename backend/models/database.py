@@ -226,6 +226,8 @@ class User(Base):
 
     created_at       = Column(DateTime, default=datetime.utcnow)
     created_by_id    = Column(Integer, ForeignKey("users.id"), nullable=True)  # who created this account
+    resident_address_id = Column(Integer, nullable=True, index=True)  # sign-up address on the list (core/resident_addresses.py)
+    resident_key        = Column(String(64), nullable=True, index=True)  # hash of that address with the unit (account limit per home)
 
     # relationships
     created_by       = relationship("User", remote_side="User.id", foreign_keys=[created_by_id])
@@ -733,6 +735,23 @@ class NoticeSent(Base):
     kind       = Column(String(20), nullable=False)        # overdue | relisted
     round_key  = Column(String(40), nullable=False)        # the round's send date, or when it was found again
     sent_at    = Column(DateTime, default=datetime.utcnow)
+
+
+class ResidentAddress(Base):
+    """One address on a community's list (core/resident_addresses.py). When
+    the admin turns on address checks, people can only sign up at an address
+    on the list. `key` is a hash of the cleaned-up address (street, unit,
+    ZIP); `building_key` leaves the unit out. A row without a unit stands
+    for the whole building. The address itself is encrypted."""
+    __tablename__ = "resident_addresses"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    key          = Column(String(64), nullable=False, unique=True, index=True)
+    building_key = Column(String(64), nullable=False, index=True)
+    has_unit     = Column(Boolean, default=False)
+    address      = Column(EncryptedText, nullable=False)    # cleaned-up, one line
+    branch_code  = Column(String(30), nullable=True)        # optional: the branch new accounts join
+    created_at   = Column(DateTime, default=datetime.utcnow)
 
 
 class TermsAcceptance(Base):
