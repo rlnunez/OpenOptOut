@@ -131,6 +131,44 @@ export default function Login() {
     if (showStaff && !showPatron) setTab('staff')
   }, [showStaff, showPatron])
 
+  // After a password or an email code: ask for the second factor, or for MFA
+  // set-up, when the server says so. Returns true if it did.
+  const askSecondStep = res => {
+    if (res?.mfa_required) {
+      const allowed = res.allowed_methods || { totp: true, webauthn: true, backup_codes: true }
+      const methods = res.methods || {}
+      const canWebauthn = !!methods.webauthn && allowed.webauthn !== false
+      const canTotp = !!methods.totp && allowed.totp !== false
+      const canBackup = !!methods.has_backup_codes && allowed.backup_codes !== false
+
+      setMfaChallenge({
+        ticket: res.mfa_ticket,
+        totpEnabled: canTotp,
+        webauthnEnabled: canWebauthn,
+        hasBackupCodes: canBackup,
+        allowedMethods: allowed,
+      })
+      if (canWebauthn) {
+        setMfaMethod('webauthn')
+      } else if (canTotp) {
+        setMfaMethod('totp')
+      } else if (canBackup) {
+        setMfaMethod('backup')
+      }
+      return true
+    }
+    if (res?.mfa_mandated) {
+      setMfaMandate({
+        ticket: res.mfa_ticket,
+        message: res.detail || res.message,
+        allowedMethods: res.allowed_methods || { totp: true, webauthn: true, backup_codes: true },
+      })
+      setMandateStep('intro')
+      return true
+    }
+    return false
+  }
+
   const submitStaff = async e => {
     e.preventDefault(); setError(''); setLoading(true)
     if (rememberStaff && email.trim()) {
@@ -140,38 +178,7 @@ export default function Login() {
     }
     try {
       const res = await login(email, password, rememberStaff)
-      if (res?.mfa_required) {
-        const allowed = res.allowed_methods || { totp: true, webauthn: true, backup_codes: true }
-        const methods = res.methods || {}
-        const canWebauthn = !!methods.webauthn && allowed.webauthn !== false
-        const canTotp = !!methods.totp && allowed.totp !== false
-        const canBackup = !!methods.has_backup_codes && allowed.backup_codes !== false
-
-        setMfaChallenge({
-          ticket: res.mfa_ticket,
-          totpEnabled: canTotp,
-          webauthnEnabled: canWebauthn,
-          hasBackupCodes: canBackup,
-          allowedMethods: allowed,
-        })
-        if (canWebauthn) {
-          setMfaMethod('webauthn')
-        } else if (canTotp) {
-          setMfaMethod('totp')
-        } else if (canBackup) {
-          setMfaMethod('backup')
-        }
-        return
-      }
-      if (res?.mfa_mandated) {
-        setMfaMandate({
-          ticket: res.mfa_ticket,
-          message: res.detail || res.message,
-          allowedMethods: res.allowed_methods || { totp: true, webauthn: true, backup_codes: true },
-        })
-        setMandateStep('intro')
-        return
-      }
+      if (askSecondStep(res)) return
       navigate('/')
     } catch (err) {
       // 429 = too many failed attempts; the server says how long to wait
@@ -223,9 +230,6 @@ export default function Login() {
       })
       setMagicLinkToken(data.token || '')
       setMagicLinkMessage(data.message || tx("We sent a 6-digit sign-in code to your email."))
-      if (data.fallback_code) {
-        setMagicLinkCode(data.fallback_code)
-      }
       setStaffAuthMode('magic_link_verify')
     } catch (err) {
       setError(err.response?.data?.detail || tx("Couldn't send the sign-in code. Please try again in a minute."))
@@ -251,6 +255,7 @@ export default function Login() {
         code: magicLinkCode.trim(),
         remember_me: rememberStaff,
       })
+      if (askSecondStep(data)) return
       await completeMfaLogin(data.access_token)
       navigate('/')
     } catch (err) {
