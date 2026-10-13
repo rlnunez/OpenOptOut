@@ -6296,16 +6296,59 @@ def t_auth_passwordless_local_account_restrictions():
             assert exc.status_code == 400
             assert "only available for local accounts" in exc.detail.lower()
 
-        # Magic link for local account succeeds
-        magic_local = auth_router.MagicLinkRequestIn(email="local@library.org")
-        res = auth_router.request_magic_link(magic_local, db=s)
-        assert res.get("token") is not None
-        assert res.get("fallback_code") is not None
+        # Magic link for local account: the code is emailed, never returned
+        system_mail = _imp("core.system_mail")
+        sent = []
+        orig_send = system_mail.send
+        system_mail.send = lambda to, subject, body: sent.append((to, body)) or True
+        try:
+            magic_local = auth_router.MagicLinkRequestIn(email="local@library.org")
+            res = auth_router.request_magic_link(magic_local, db=s)
+            assert res.get("token") is not None
+            assert "fallback_code" not in res and len(sent) == 1, res
+            code = re.search(r"\b(\d{6})\b", sent[0][1]).group(1)
+            assert code not in str(res)
 
-        # Verify magic link logs in local account
-        verify_req = auth_router.MagicLinkVerifyIn(token=res["token"], code=res["fallback_code"])
-        tok = auth_router.verify_magic_link(verify_req, db=s)
-        assert tok.get("access_token") is not None
+            # An unknown email gets the same answer and no email
+            res_unknown = auth_router.request_magic_link(
+                auth_router.MagicLinkRequestIn(email="nobody@library.org"), db=s)
+            assert res_unknown["message"] == res["message"] and len(sent) == 1
+
+            # Five wrong guesses use the code up
+            bad = "000000" if code != "000000" else "111111"
+            for _ in range(5):
+                try:
+                    auth_router.verify_magic_link(auth_router.MagicLinkVerifyIn(token=res["token"], code=bad), db=s)
+                    assert False, "wrong code accepted"
+                except HTTPException as exc:
+                    assert exc.status_code == 401
+            try:
+                auth_router.verify_magic_link(auth_router.MagicLinkVerifyIn(token=res["token"], code=code), db=s)
+                assert False, "code still usable after 5 wrong guesses"
+            except HTTPException as exc:
+                assert exc.status_code == 400
+
+            # A fresh code signs in, once
+            res2 = auth_router.request_magic_link(magic_local, db=s)
+            code2 = re.search(r"\b(\d{6})\b", sent[-1][1]).group(1)
+            verify_req = auth_router.MagicLinkVerifyIn(token=res2["token"], code=code2)
+            tok = auth_router.verify_magic_link(verify_req, db=s)
+            assert tok.get("access_token") is not None
+            try:
+                auth_router.verify_magic_link(verify_req, db=s)
+                assert False, "code worked twice"
+            except HTTPException as exc:
+                assert exc.status_code == 400
+
+            # An email code replaces the password, not the second factor
+            local_user.totp_enabled = True
+            s.commit()
+            res3 = auth_router.request_magic_link(magic_local, db=s)
+            code3 = re.search(r"\b(\d{6})\b", sent[-1][1]).group(1)
+            out = auth_router.verify_magic_link(auth_router.MagicLinkVerifyIn(token=res3["token"], code=code3), db=s)
+            assert out.get("mfa_required") and "access_token" not in out, out
+        finally:
+            system_mail.send = orig_send
     finally:
         settings_store.load_settings = orig_load
         mfa.load_settings = orig_mfa

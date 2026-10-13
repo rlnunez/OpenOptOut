@@ -229,43 +229,11 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     return user
 
 
-@router.post("/token", dependencies=[Depends(rate_limit.limit("signin", 60))])
-def login(
-    form: OAuth2PasswordRequestForm = Depends(),
-    request: Request = None,
-    db: Session = Depends(get_db),
-    remember_me: bool = Query(False),
-):
-    throttle_key = login_throttle.account_key("password", form.username)
-    ip_key = login_throttle.ip_key(request)
-    login_throttle.check(throttle_key, ip_key)
-    user = db.query(User).filter(User.email == form.username).first()
-    if not user or not user.hashed_password or not verify_password(form.password, user.hashed_password):
-        login_throttle.failure(throttle_key, ip_key)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    login_throttle.success(throttle_key)
-
-    # Automatic transparent hash upgrade: if legacy unpeppered, upgrade to HMAC-SHA256 peppered hash!
-    if is_legacy_unpeppered_hash(form.password, user.hashed_password):
-        try:
-            user.hashed_password = hash_password(form.password)
-            db.commit()
-        except Exception:
-            pass
-
+def _finish_sign_in(user: User, db: Session, request: Optional[Request], remember_me: bool) -> dict:
+    """After the first factor (password or email code): ask for the second
+    factor if the account has one, or for MFA set-up if it's required, else
+    issue the session token."""
     from ..core import mfa
-    pwdless_cfg = mfa.get_passwordless_config()
-    if pwdless_cfg.get("enabled") and pwdless_cfg.get("enforce_passwordless_local"):
-        if _is_local_user(user):
-            raise HTTPException(
-                status_code=403,
-                detail="Password authentication is disabled for local accounts by security policy. Please sign in using a passkey or one-time email code.",
-            )
-
     allowed_methods = mfa.get_user_allowed_mfa_methods(user)
     webauthn_keys = []
     if user.webauthn_credentials:
@@ -316,6 +284,46 @@ def login(
         }
 
     return {"access_token": create_user_token(user, remember_me=remember_me), "token_type": "bearer"}
+
+
+@router.post("/token", dependencies=[Depends(rate_limit.limit("signin", 60))])
+def login(
+    form: OAuth2PasswordRequestForm = Depends(),
+    request: Request = None,
+    db: Session = Depends(get_db),
+    remember_me: bool = Query(False),
+):
+    throttle_key = login_throttle.account_key("password", form.username)
+    ip_key = login_throttle.ip_key(request)
+    login_throttle.check(throttle_key, ip_key)
+    user = db.query(User).filter(User.email == form.username).first()
+    if not user or not user.hashed_password or not verify_password(form.password, user.hashed_password):
+        login_throttle.failure(throttle_key, ip_key)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    login_throttle.success(throttle_key)
+
+    # Automatic transparent hash upgrade: if legacy unpeppered, upgrade to HMAC-SHA256 peppered hash!
+    if is_legacy_unpeppered_hash(form.password, user.hashed_password):
+        try:
+            user.hashed_password = hash_password(form.password)
+            db.commit()
+        except Exception:
+            pass
+
+    from ..core import mfa
+    pwdless_cfg = mfa.get_passwordless_config()
+    if pwdless_cfg.get("enabled") and pwdless_cfg.get("enforce_passwordless_local"):
+        if _is_local_user(user):
+            raise HTTPException(
+                status_code=403,
+                detail="Password authentication is disabled for local accounts by security policy. Please sign in using a passkey or one-time email code.",
+            )
+
+    return _finish_sign_in(user, db, request, remember_me)
 
 
 @router.get("/me", response_model=UserOut)
@@ -1192,31 +1200,21 @@ def request_magic_link(req: MagicLinkRequestIn, request: Request = None, db: Ses
     }
     token = encrypt_password(json.dumps(payload))
 
-    fallback_code = None
+    # The code is only ever emailed. The answer is the same whether or not the
+    # account exists or the email went out, so it can't be used to find accounts
+    # or to sign in as someone else.
     if user:
-        s = load_settings()
-        email_cfg = s.get("email", {})
-        has_smtp = bool(email_cfg.get("smtp_host") and email_cfg.get("smtp_user"))
-        if has_smtp:
-            try:
-                from ..core.email_sender import send_email_message
-                send_email_message(
-                    to_email=user.email,
-                    subject="Your OpenOptOut Sign-In Code",
-                    body_text=f"Your one-time sign-in code is: {code}\n\nThis code will expire in 10 minutes.",
-                )
-            except Exception:
-                logger.warning("Email verification code delivery failed")
-                fallback_code = code
-        else:
-            fallback_code = code
-    else:
-        pass
+        from ..core import system_mail
+        system_mail.send(
+            user.email,
+            "Your OpenOptOut sign-in code",
+            f"Your one-time sign-in code is: {code}\n\nIt expires in 10 minutes. "
+            "If you didn't ask for it, you can ignore this email.",
+        )
 
     return {
         "token": token,
-        "message": "A 6-digit sign-in code has been sent to your email address.",
-        "fallback_code": fallback_code,
+        "message": "If that email has an account here, we sent it a 6-digit sign-in code.",
     }
 
 
@@ -1240,10 +1238,15 @@ def verify_magic_link(data: MagicLinkVerifyIn, request: Request = None, db: Sess
     if tdata.get("type") != "magic_code" or tdata.get("exp", 0) < time.time():
         raise HTTPException(400, "Sign-in code expired or invalid. Please request a new code.")
 
+    from ..core import code_attempts
+    if not code_attempts.allowed(data.token, tdata.get("exp", 0)):
+        raise HTTPException(400, "This code can't be used any more. Please request a new code.")
     expected_hash = tdata.get("code_hash", "")
     actual_hash = hashlib.sha256(data.code.strip().encode()).hexdigest()
     if not hmac.compare_digest(actual_hash, expected_hash):
+        code_attempts.wrong(data.token)
         raise HTTPException(401, "Invalid sign-in code. Please check your email and try again.")
+    code_attempts.used(data.token)
 
     user = None
     if tdata.get("uid"):
@@ -1257,5 +1260,5 @@ def verify_magic_link(data: MagicLinkVerifyIn, request: Request = None, db: Sess
     if not _is_local_user(user):
         raise HTTPException(400, "Email code sign-in is only available for local accounts.")
 
-    token = create_user_token(user, remember_me=bool(data.remember_me))
-    return {"access_token": token, "token_type": "bearer"}
+    # An email code replaces the password, not the second factor.
+    return _finish_sign_in(user, db, request, bool(data.remember_me))
