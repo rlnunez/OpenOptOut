@@ -1,0 +1,4 @@
+{
+ "description": "Opt-out dengan panduan untuk LexisNexis. Seseorang mengikuti langkah-langkah pada daftar periksa; OpenOptOut menyediakan alamat email sekali pakai dan mengeklik tautan konfirmasi.",
+ "instructions": "Buka https://consumer.risk.lexisnexis.com/opt and follow the site's steps for {full_name}. The site asks for a Social Security or driver's license number, which OpenOptOut never fills in; only finish it if you're comfortable sharing that with them. Use {contact_email} if it asks for an email address. Kemudian tekan \"Saya sudah melakukan ini\"."
+}

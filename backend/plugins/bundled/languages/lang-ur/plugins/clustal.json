@@ -1,0 +1,4 @@
+{
+ "description": "Clustal کے لیے رہنمائی شدہ آپٹ آؤٹ۔ ایک فرد چیک لسٹ کے اقدامات پر عمل کرتا ہے؛ OpenOptOut ایک وقتی ای میل ایڈریس فراہم کرتا ہے اور تصدیقی لنک پر کلک کرتا ہے۔",
+ "instructions": "Search clustal.org for {full_name}, open \"view full record\", and copy that page's address (the search result's address won't work). کھولیں clustal.org/privacy-control, paste it, press \"remove my info\", enter {contact_email} and press \"remove my info\" again. Clustal emails a link to finish; OpenOptOut clicks it for you. پھر \"میں نے یہ کر لیا\" دبائیں۔"
+}

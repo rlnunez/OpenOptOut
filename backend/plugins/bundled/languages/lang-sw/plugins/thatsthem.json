@@ -1,0 +1,4 @@
+{
+ "description": "Kujiondoa kwa kuelekezwa kwa That's Them. Mtu hufuata hatua kwenye orodha ya ukaguzi; OpenOptOut hutoa anwani ya barua pepe ya mara moja na kubofya kiungo cha uthibitisho.",
+ "instructions": "Check thatsthem.com for {full_name}. If you're listed, open thatsthem.com/optout, fill in your details as they appear on the listing, and use {contact_email} as the email address. Don't click the identity-theft-protection offer on the page: it's a paid product. Kisha bonyeza \"Nimefanya hili\"."
+}

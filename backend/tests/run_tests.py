@@ -10033,15 +10033,15 @@ def t_languages_are_plugins():
     lp = _imp("plugins.language_packs")
     src = pathlib.Path(i18n.__file__).read_text(encoding="utf-8")
     assert "Bóveda" not in src and "Panel de Control" not in src, "translations are no longer hardcoded"
-    assert set(i18n.BUNDLED_LANGUAGES) == {"es", "fr", "ar", "pirate", "de", "hi", "ko", "pt", "ru", "tl", "vi", "zh"}
+    assert set(i18n.BUNDLED_LANGUAGES) == {"es", "fr", "ar", "pirate", "de", "hi", "ko", "pt", "ru", "tl", "vi", "zh", "pl", "uk", "ur", "sw", "id"}
     assert all(p["id"] == f"lang-{c}" for c, p in i18n.BUNDLED_LANGUAGES.items())
-    assert i18n.BUNDLED_LANGUAGES["ar"]["is_rtl"] and "en" in i18n.DEFAULT_ENABLED
+    assert i18n.BUNDLED_LANGUAGES["ar"]["is_rtl"] and i18n.BUNDLED_LANGUAGES["ur"]["is_rtl"] and "en" in i18n.DEFAULT_ENABLED
     db, s = _memory_db()
     root = tempfile.mkdtemp()
     old = os.environ.get("PLUGINS_DIR"); os.environ["PLUGINS_DIR"] = root
     try:
         st = lp.sync_builtin_languages(s)
-        assert st["installed"] == 12, st
+        assert st["installed"] == 17, st
         assert os.path.isfile(os.path.join(root, "languages", "lang-de", "messages.json"))
         assert lp.sync_builtin_languages(s)["installed"] == 0, "second run changes nothing"
         rows = {r.plugin_id: r for r in s.query(db.InstalledPlugin).all()}

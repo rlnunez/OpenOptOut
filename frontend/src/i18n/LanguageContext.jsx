@@ -12,6 +12,11 @@ export function LanguageProvider({ children }) {
     { code: 'en', name: 'English', native_name: 'English', is_rtl: false, enabled: true },
     { code: 'es', name: 'Spanish', native_name: 'Español', is_rtl: false, enabled: true },
     { code: 'ar', name: 'Arabic', native_name: 'العربية', is_rtl: true, enabled: true },
+    { code: 'ur', name: 'Urdu', native_name: 'اردو', is_rtl: true, enabled: true },
+    { code: 'pl', name: 'Polish', native_name: 'Polski', is_rtl: false, enabled: true },
+    { code: 'uk', name: 'Ukrainian', native_name: 'Українська', is_rtl: false, enabled: true },
+    { code: 'sw', name: 'Swahili', native_name: 'Kiswahili', is_rtl: false, enabled: true },
+    { code: 'id', name: 'Indonesian', native_name: 'Bahasa Indonesia', is_rtl: false, enabled: true },
     { code: 'fr', name: 'French', native_name: 'Français', is_rtl: false, enabled: true },
     { code: 'pirate', name: 'Pirate', native_name: 'Pirate (Ahoy!)', is_rtl: false, enabled: true },
   ])

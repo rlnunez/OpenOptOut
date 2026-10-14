@@ -1,0 +1,4 @@
+{
+ "description": "Kujiondoa kwa kuelekezwa kwa SearchPeopleFree. Mtu hufuata hatua kwenye orodha ya ukaguzi; OpenOptOut hutoa anwani ya barua pepe ya mara moja na kubofya kiungo cha uthibitisho.",
+ "instructions": "Search searchpeoplefree.com by name, phone number, address and email; people are often listed more than once. For each record, use searchpeoplefree.com/opt-out, giving {contact_email} as the email address. Kisha bonyeza \"Nimefanya hili\"."
+}

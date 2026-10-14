@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out for Lusha, which lists people by email address. One opt-out covers every saved email address.",
+ "instructions": "کھولیں https://www.lusha.com/privacy-center/request-removal/ and send a removal request for {full_name} with each of these addresses and numbers: {all_emails}; {all_phones}. Use {contact_email} for replies. پھر \"میں نے یہ کر لیا\" دبائیں۔"
+}

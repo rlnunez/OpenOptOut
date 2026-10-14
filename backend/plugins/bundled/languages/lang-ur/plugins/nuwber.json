@@ -1,0 +1,4 @@
+{
+ "description": "Nuwber کے لیے رہنمائی شدہ آپٹ آؤٹ۔ ایک فرد چیک لسٹ کے اقدامات پر عمل کرتا ہے؛ OpenOptOut ایک وقتی ای میل ایڈریس فراہم کرتا ہے اور تصدیقی لنک پر کلک کرتا ہے۔",
+ "instructions": "Find your page on nuwber.com (searching {full_name} and filtering by {state} helps) and copy its address. کھولیں nuwber.com/removal/link, paste it, and enter {contact_email} as the email address. Nuwber emails a link to confirm; OpenOptOut clicks it for you. پھر \"میں نے یہ کر لیا\" دبائیں۔ If the form won't take the address, email support@nuwber.com with a screenshot of your listing and ask to be removed."
+}

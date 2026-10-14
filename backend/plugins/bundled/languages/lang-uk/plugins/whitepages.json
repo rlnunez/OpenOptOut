@@ -1,0 +1,4 @@
+{
+ "description": "Покрокова відмова для Whitepages. Користувач виконує кроки з контрольного списку; OpenOptOut надає одноразову адресу ел. пошти та переходить за посиланням підтвердження.",
+ "instructions": "Whitepages confirms by phone, so you need to do this one. Відкрийте whitepages.com/suppression-requests, paste {listing_url}, press Next, then \"Remove Me\". Pick a reason, press Next, and enter the phone number Whitepages shows for you. Answer the automated call and enter the code it gives you. When the page says your request was received, press \"I've done this\"."
+}

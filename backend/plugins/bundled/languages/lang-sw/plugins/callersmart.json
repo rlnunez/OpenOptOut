@@ -1,0 +1,4 @@
+{
+ "description": "Kujiondoa kwa kuelekezwa kwa CallerSmart, ambalo huorodhesha watu kwa nambari ya simu. Kujiondoa mara moja kunajumuisha kila nambari iliyohifadhiwa.",
+ "instructions": "Fungua https://www.callersmart.com/data. For each of these numbers, enter the number and {contact_email}, finish the robot check, then type the 6-digit code CallerSmart texts or calls to that phone: {all_phones}. Kisha bonyeza \"Nimefanya hili\"."
+}

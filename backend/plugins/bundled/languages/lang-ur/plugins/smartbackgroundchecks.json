@@ -1,0 +1,4 @@
+{
+ "description": "SmartBackgroundChecks کے لیے رہنمائی شدہ آپٹ آؤٹ۔ ایک فرد چیک لسٹ کے اقدامات پر عمل کرتا ہے؛ OpenOptOut ایک وقتی ای میل ایڈریس فراہم کرتا ہے اور تصدیقی لنک پر کلک کرتا ہے۔",
+ "instructions": "Search smartbackgroundchecks.com for {full_name}. If you're listed, open smartbackgroundchecks.com/optout and remove your record, using {contact_email} where it asks for an email. This usually removes you from PeopleFinders too. پھر \"میں نے یہ کر لیا\" دبائیں۔"
+}

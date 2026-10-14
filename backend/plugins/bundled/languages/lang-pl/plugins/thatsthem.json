@@ -1,0 +1,4 @@
+{
+ "description": "Wspomagana rezygnacja z That's Them. Użytkownik wykonuje kroki z listy zadań; OpenOptOut zapewnia jednorazowy adres e-mail i klika link potwierdzający.",
+ "instructions": "Check thatsthem.com for {full_name}. If you're listed, open thatsthem.com/optout, fill in your details as they appear on the listing, and use {contact_email} as the email address. Don't click the identity-theft-protection offer on the page: it's a paid product. Następnie naciśnij „Zrobione”."
+}

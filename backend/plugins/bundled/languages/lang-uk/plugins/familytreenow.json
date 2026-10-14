@@ -1,0 +1,4 @@
+{
+ "description": "Покрокова відмова для FamilyTreeNow. Користувач виконує кроки з контрольного списку; OpenOptOut надає одноразову адресу ел. пошти та переходить за посиланням підтвердження.",
+ "instructions": "Search familytreenow.com for {full_name}. If you're listed, open familytreenow.com/optout and follow the steps to remove your record, using {contact_email} if it asks for an email address. Потім натисніть «Я це зробив(-ла)»."
+}

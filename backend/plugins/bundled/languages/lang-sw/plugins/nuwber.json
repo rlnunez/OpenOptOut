@@ -1,0 +1,4 @@
+{
+ "description": "Kujiondoa kwa kuelekezwa kwa Nuwber. Mtu hufuata hatua kwenye orodha ya ukaguzi; OpenOptOut hutoa anwani ya barua pepe ya mara moja na kubofya kiungo cha uthibitisho.",
+ "instructions": "Find your page on nuwber.com (searching {full_name} and filtering by {state} helps) and copy its address. Fungua nuwber.com/removal/link, paste it, and enter {contact_email} as the email address. Nuwber emails a link to confirm; OpenOptOut clicks it for you. Kisha bonyeza \"Nimefanya hili\". If the form won't take the address, email support@nuwber.com with a screenshot of your listing and ask to be removed."
+}

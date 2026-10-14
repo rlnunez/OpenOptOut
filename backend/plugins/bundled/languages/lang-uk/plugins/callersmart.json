@@ -1,0 +1,4 @@
+{
+ "description": "Покрокова відмова для CallerSmart, який шукає людей за номером телефону. Одна відмова охоплює кожен збережений номер.",
+ "instructions": "Відкрийте https://www.callersmart.com/data. For each of these numbers, enter the number and {contact_email}, finish the robot check, then type the 6-digit code CallerSmart texts or calls to that phone: {all_phones}. Потім натисніть «Я це зробив(-ла)»."
+}

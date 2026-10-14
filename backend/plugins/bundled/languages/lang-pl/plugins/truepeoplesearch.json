@@ -1,0 +1,4 @@
+{
+ "description": "Wspomagana rezygnacja z TruePeopleSearch. Użytkownik wykonuje kroki z listy zadań; OpenOptOut zapewnia jednorazowy adres e-mail i klika link potwierdzający.",
+ "instructions": "Otwórz truepeoplesearch.com/removal. Enter {full_name}, your city and state ({city}, {state}) and {contact_email} as the email address, then solve the CAPTCHAs. If your record is listed, press the button to remove it. OpenOptOut clicks any confirmation link sent to that address. Następnie naciśnij „Zrobione”."
+}

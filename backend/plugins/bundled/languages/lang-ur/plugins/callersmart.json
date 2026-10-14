@@ -1,0 +1,4 @@
+{
+ "description": "CallerSmart کے لیے رہنمائی شدہ آپٹ آؤٹ، جو فون نمبر کے ذریعے لوگوں کو فہرست کرتا ہے۔ ایک آپٹ آؤٹ ہر محفوظ کردہ فون نمبر کا احاطہ کرتا ہے۔",
+ "instructions": "کھولیں https://www.callersmart.com/data. For each of these numbers, enter the number and {contact_email}, finish the robot check, then type the 6-digit code CallerSmart texts or calls to that phone: {all_phones}. پھر \"میں نے یہ کر لیا\" دبائیں۔"
+}

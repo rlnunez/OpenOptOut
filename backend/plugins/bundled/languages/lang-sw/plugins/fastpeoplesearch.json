@@ -1,0 +1,4 @@
+{
+ "description": "Kujiondoa kwa kuelekezwa kwa FastPeopleSearch. Mtu hufuata hatua kwenye orodha ya ukaguzi; OpenOptOut hutoa anwani ya barua pepe ya mara moja na kubofya kiungo cha uthibitisho.",
+ "instructions": "Search fastpeoplesearch.com for {full_name}. If you're listed, open fastpeoplesearch.com/optout and follow the steps to remove your record; you may need to solve a CAPTCHA. If it asks for an email address, use {contact_email}, so OpenOptOut can click any confirmation link for you. Kisha bonyeza \"Nimefanya hili\"."
+}

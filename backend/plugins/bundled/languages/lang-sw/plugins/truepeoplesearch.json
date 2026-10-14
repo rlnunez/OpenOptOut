@@ -1,0 +1,4 @@
+{
+ "description": "Kujiondoa kwa kuelekezwa kwa TruePeopleSearch. Mtu hufuata hatua kwenye orodha ya ukaguzi; OpenOptOut hutoa anwani ya barua pepe ya mara moja na kubofya kiungo cha uthibitisho.",
+ "instructions": "Fungua truepeoplesearch.com/removal. Enter {full_name}, your city and state ({city}, {state}) and {contact_email} as the email address, then solve the CAPTCHAs. If your record is listed, press the button to remove it. OpenOptOut clicks any confirmation link sent to that address. Kisha bonyeza \"Nimefanya hili\"."
+}

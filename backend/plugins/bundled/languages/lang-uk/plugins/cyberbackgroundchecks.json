@@ -1,0 +1,4 @@
+{
+ "description": "Покрокова відмова для Cyber Background Checks. Користувач виконує кроки з контрольного списку; OpenOptOut надає одноразову адресу ел. пошти та переходить за посиланням підтвердження.",
+ "instructions": "Search cyberbackgroundchecks.com for {full_name}. If you're listed, open cyberbackgroundchecks.com/removal and remove the record, giving {contact_email} as the email address. Потім натисніть «Я це зробив(-ла)»."
+}

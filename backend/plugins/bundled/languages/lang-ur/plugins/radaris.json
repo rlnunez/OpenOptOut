@@ -1,0 +1,4 @@
+{
+ "description": "Opt-out for Radaris (radaris.com). Fills the name search automatically, then hands the listing pick and confirmation to a person.",
+ "steps.7.text": "Radaris needs you to finish this one. Go to radaris.com/control-privacy, search for {full_name} and your city, click your own profile, then press the blue \"Start Removing\" button. Enter {contact_email} as the email address and submit. Radaris emails a link to that address; OpenOptOut clicks it for you."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Opt-out dengan panduan untuk Cyber Background Checks. Seseorang mengikuti langkah-langkah pada daftar periksa; OpenOptOut menyediakan alamat email sekali pakai dan mengeklik tautan konfirmasi.",
+ "instructions": "Search cyberbackgroundchecks.com for {full_name}. If you're listed, open cyberbackgroundchecks.com/removal and remove the record, giving {contact_email} as the email address. Kemudian tekan \"Saya sudah melakukan ini\"."
+}

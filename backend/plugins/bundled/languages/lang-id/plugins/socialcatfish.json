@@ -1,0 +1,4 @@
+{
+ "description": "Opt-out dengan panduan untuk Social Catfish. Seseorang mengikuti langkah-langkah pada daftar periksa; OpenOptOut menyediakan alamat email sekali pakai dan mengeklik tautan konfirmasi.",
+ "instructions": "Search socialcatfish.com and note the address of every page that shows you. Buka socialcatfish.com/opt-out, scroll to the section for removing pages, emails, phone numbers and addresses, and ask only for things it already shows. Give {contact_email} as your email; Social Catfish emails a confirmation link that OpenOptOut clicks for you. Kemudian tekan \"Saya sudah melakukan ini\"."
+}

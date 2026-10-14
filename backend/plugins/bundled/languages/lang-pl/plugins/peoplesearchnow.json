@@ -1,0 +1,4 @@
+{
+ "description": "Wspomagana rezygnacja z PeopleSearchNow. Użytkownik wykonuje kroki z listy zadań; OpenOptOut zapewnia jednorazowy adres e-mail i klika link potwierdzający.",
+ "instructions": "Otwórz https://peoplesearchnow.com/opt-out i wykonaj kroki na stronie dla {full_name}. Użyj {contact_email} wszędzie tam, gdzie wymagany jest adres e-mail, aby dopasować odpowiedź. Następnie naciśnij „Zrobione”."
+}

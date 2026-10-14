@@ -1,0 +1,4 @@
+{
+ "description": "NumberGuru کے لیے رہنمائی شدہ آپٹ آؤٹ، جو فون نمبر کے ذریعے لوگوں کو فہرست کرتا ہے۔ ایک آپٹ آؤٹ ہر محفوظ کردہ فون نمبر کا احاطہ کرتا ہے۔",
+ "instructions": "Search https://www.numberguru.com/ for each of these numbers: {all_phones}. On any page that shows you, use the \"Remove This Listing\" or \"Opt Out\" link and give {contact_email} as your email. پھر \"میں نے یہ کر لیا\" دبائیں۔"
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Spy Dialer کے لیے رہنمائی شدہ آپٹ آؤٹ، جو فون نمبر کے ذریعے لوگوں کو فہرست کرتا ہے۔ ایک آپٹ آؤٹ ہر محفوظ کردہ فون نمبر کا احاطہ کرتا ہے۔",
+ "instructions": "کھولیں https://www.spydialer.com/ and click \"Do Not Sell Or Share My Personal Information\" at the bottom. Press Start, choose your state, finish the robot check, then add {full_name}, your address, each of these numbers ({all_phones}) and {email}. Press \"Opt-Out My Info\" and wait for \"Your submitted data has been blocked from future sharing\". پھر \"میں نے یہ کر لیا\" دبائیں۔"
+}

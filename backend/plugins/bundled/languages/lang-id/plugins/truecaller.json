@@ -1,0 +1,4 @@
+{
+ "description": "Opt-out dengan panduan untuk Truecaller, yang mencantumkan orang berdasarkan nomor telepon. Satu opt-out mencakup setiap nomor telepon yang disimpan.",
+ "instructions": "Truecaller shows your name to people you call. Buka https://www.truecaller.com/unlisting and unlist each of these numbers, one at a time, with the country code: {all_phones}. Finish the robot check for each. If you use the Truecaller app yourself, deactivate your account in the app first, then uninstall it, or the unlisting won't stick. Kemudian tekan \"Saya sudah melakukan ini\"."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "FastPeopleSearch کے لیے رہنمائی شدہ آپٹ آؤٹ۔ ایک فرد چیک لسٹ کے اقدامات پر عمل کرتا ہے؛ OpenOptOut ایک وقتی ای میل ایڈریس فراہم کرتا ہے اور تصدیقی لنک پر کلک کرتا ہے۔",
+ "instructions": "Search fastpeoplesearch.com for {full_name}. If you're listed, open fastpeoplesearch.com/optout and follow the steps to remove your record; you may need to solve a CAPTCHA. If it asks for an email address, use {contact_email}, so OpenOptOut can click any confirmation link for you. پھر \"میں نے یہ کر لیا\" دبائیں۔"
+}

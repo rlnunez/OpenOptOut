@@ -1,0 +1,4 @@
+{
+ "description": "Покрокова відмова для NumLookup, який шукає людей за номером телефону. Одна відмова охоплює кожен збережений номер.",
+ "instructions": "Відкрийте https://www.numlookup.com/opt_out, enter one of these numbers, finish the robot check and choose to remove your information: {all_phones}. Choose to send a removal request by hand (you don't need an account) and fill in {full_name}, {contact_email} and the number. The form may ask for a photo ID. You can black out everything on it except your name and photo. Потім натисніть «Я це зробив(-ла)»."
+}
