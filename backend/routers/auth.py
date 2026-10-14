@@ -11,6 +11,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, field_validator, Field
 
@@ -196,10 +197,11 @@ def _check_registration_allowed(email: str, invite_code: Optional[str], db: Sess
 def _create_user_and_member(db: Session, email: str, full_name: str,
                              role: UserRole, hashed_pw: Optional[str] = None,
                              created_by: Optional[int] = None) -> User:
+    clean_email = email.strip().lower() if email else ""
     user = User(
-        email=email,
+        email=clean_email,
         hashed_password=hashed_pw,
-        full_name=full_name,
+        full_name=full_name.strip() if full_name else "",
         role=role,
         created_by_id=created_by,
     )
@@ -358,14 +360,15 @@ def _check_signup_steps(req: RegisterRequest, db: Session) -> Optional[dict]:
 @router.post("/register", response_model=UserOut, status_code=201,
              dependencies=[Depends(rate_limit.limit("register", 10))])
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == req.email).first():
+    clean_email = req.email.strip().lower()
+    if db.query(User).filter(func.lower(User.email) == clean_email).first():
         raise HTTPException(400, "An account with that email already exists.")
     home = _check_signup_steps(req, db)
-    role = _check_registration_allowed(req.email, req.invite_code, db)
+    role = _check_registration_allowed(clean_email, req.invite_code, db)
     if not req.password and role != UserRole.super_admin:
         raise HTTPException(400, "Password is required")
     user = _create_user_and_member(
-        db, req.email, req.full_name, role,
+        db, clean_email, req.full_name, role,
         hashed_pw=hash_password(req.password) if req.password else None,
     )
     if req.email_token:
@@ -406,9 +409,16 @@ def _finish_sign_in(user: User, db: Session, request: Optional[Request], remembe
         except Exception:
             pass
 
+    backup_codes = []
+    if user.backup_codes:
+        try:
+            backup_codes = json.loads(user.backup_codes)
+        except Exception:
+            pass
+
     has_totp = bool(user.totp_enabled and allowed_methods.get("totp", True))
     has_webauthn = bool(len(webauthn_keys) > 0 and allowed_methods.get("webauthn", True))
-    has_backup = bool(user.backup_codes and len(json.loads(user.backup_codes or "[]")) > 0 and allowed_methods.get("backup_codes", True))
+    has_backup = bool(len(backup_codes) > 0 and allowed_methods.get("backup_codes", True))
 
     if has_totp or has_webauthn or has_backup:
         ticket = mfa.create_mfa_ticket(user.id, user.email, remember_me=remember_me)
@@ -457,10 +467,11 @@ def login(
     db: Session = Depends(get_db),
     remember_me: bool = Query(False),
 ):
-    throttle_key = login_throttle.account_key("password", form.username)
+    username = (form.username or "").strip().lower()
+    throttle_key = login_throttle.account_key("password", username)
     ip_key = login_throttle.ip_key(request)
     login_throttle.check(throttle_key, ip_key)
-    user = db.query(User).filter(User.email == form.username).first()
+    user = db.query(User).filter(func.lower(User.email) == username).first()
     if not user or not user.hashed_password or not verify_password(form.password, user.hashed_password):
         login_throttle.failure(throttle_key, ip_key)
         raise HTTPException(
@@ -1349,7 +1360,7 @@ def request_magic_link(req: MagicLinkRequestIn, request: Request = None, db: Ses
         raise HTTPException(400, "Email code sign-in is disabled by security policy.")
 
     email_clean = req.email.strip().lower()
-    user = db.query(User).filter(User.email == email_clean).first()
+    user = db.query(User).filter(func.lower(User.email) == email_clean).first()
     if user and not _is_local_user(user):
         raise HTTPException(400, "Email code sign-in is only available for local accounts.")
 
