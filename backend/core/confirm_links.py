@@ -340,7 +340,7 @@ async def _browser_press(url: str, domains: set) -> str:
         await route.continue_()
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.firefox.launch(headless=True)
         try:
             ctx = await browser.new_context()
             await ctx.route("**/*", guard)

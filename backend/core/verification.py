@@ -107,7 +107,7 @@ def browser_get(url: str, domain: str):
         from playwright.async_api import async_playwright
         from .confirm_links import public_host
         async with async_playwright() as p:
-            b = await p.chromium.launch(headless=True)
+            b = await p.firefox.launch(headless=True)
             try:
                 ctx = await b.new_context()
 

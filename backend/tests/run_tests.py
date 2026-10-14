@@ -8299,7 +8299,7 @@ def t_hf_browser():
     async def go(html):
         async with async_playwright() as p:
             try:
-                b = await p.chromium.launch()
+                b = await p.firefox.launch()
             except Exception as e:
                 raise Skip(f"no browser: {e}")
             try:
@@ -10204,7 +10204,7 @@ def t_captcha_capture_live():
     async def go():
         from playwright.async_api import async_playwright
         async with async_playwright() as p:
-            b = await p.chromium.launch()
+            b = await p.firefox.launch()
             try:
                 page = await b.new_page(viewport={"width": 800, "height": 600})
                 await page.set_content(html)
@@ -10236,7 +10236,7 @@ def t_live_handoff():
     async def runner(s):
         from playwright.async_api import async_playwright
         async with async_playwright() as p:
-            b = await p.chromium.launch()
+            b = await p.firefox.launch()
             try:
                 page = await b.new_page(viewport=lc.VIEWPORT)
                 await page.set_content(html)
@@ -10303,7 +10303,7 @@ def t_live_person_step():
     async def go(hook):
         from playwright.async_api import async_playwright
         async with async_playwright() as p:
-            b = await p.chromium.launch()
+            b = await p.firefox.launch()
             try:
                 page = await b.new_page()
                 await page.set_content(_STEP_PAGE)
@@ -10330,7 +10330,7 @@ def t_live_person_step():
     async def go2():
         from playwright.async_api import async_playwright
         async with async_playwright() as p:
-            b = await p.chromium.launch()
+            b = await p.firefox.launch()
             try:
                 page = await b.new_page()
                 person.page = page
@@ -10358,7 +10358,7 @@ def t_live_step_session():
     async def runner(s):
         from playwright.async_api import async_playwright
         async with async_playwright() as p:
-            b = await p.chromium.launch()
+            b = await p.firefox.launch()
             try:
                 page = await b.new_page(viewport=lc.VIEWPORT)
                 await page.set_content(_STEP_PAGE)
@@ -11759,7 +11759,7 @@ def t_match_results_live():
     async def go():
         from playwright.async_api import async_playwright
         async with async_playwright() as p:
-            b = await p.chromium.launch()
+            b = await p.firefox.launch()
             try:
                 page = await b.new_page()
                 await page.route("https://search.example/**", lambda r: r.fulfill(body=html, content_type="text/html"))

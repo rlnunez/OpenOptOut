@@ -218,7 +218,7 @@ async def _rehearse_async(spec, screenshot_path: str = "", timeout_ms: int = 150
     out = {"ok": False, "reached": 0, "total": len(job.steps), "stop": stop, "failed": None,
            "detail": "", "trace": [], "page_map": None, "screenshot": ""}
     async with _launch() as pw:
-        browser = await pw.chromium.launch(headless=True)
+        browser = await pw.firefox.launch(headless=True)
         try:
             page = await browser.new_page()
             page.set_default_timeout(timeout_ms)
