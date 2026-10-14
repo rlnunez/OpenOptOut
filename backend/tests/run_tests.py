@@ -304,6 +304,8 @@ def _yahoo_plugin():
 @test(1, "email_providers.yahoo_oauth_only",
       "Yahoo is sign-in only: its manifest reaches only Yahoo's IMAP/SMTP, and it signs in with the token.")
 def t_yahoo_oauth_only():
+    if _try_import("fastapi") is None:
+        raise Skip("fastapi not installed")
     mod, mani = _yahoo_plugin()
     m = mod.plugin.manifest
     assert mani["version"] == m["version"] == "2.0.0"
@@ -7401,6 +7403,8 @@ def _fake_member():
 @test(2, "email.template_rendering_is_safe",
       "Opt-out email templates accept spec-style and legacy placeholders, and unknown ones don't crash.")
 def t_email_template_safe():
+    if _try_import("sqlalchemy") is None:
+        raise Skip("sqlalchemy not installed")
     oe = _imp("core.optout_engine")
     fields = {"full_name": "Jane Q Public", "name": "Jane Q Public", "broker": "Acme",
               "request_key": "K1", "identifiers": "NAME VARIANTS:\n  - Jane"}
@@ -7415,6 +7419,8 @@ def t_email_template_safe():
 @test(2, "email.no_guessed_address",
       "A broker with no recorded opt-out address gets None — never a guessed privacy@ address.")
 def t_email_no_guess():
+    if _try_import("sqlalchemy") is None:
+        raise Skip("sqlalchemy not installed")
     from types import SimpleNamespace as NS
     oe = _imp("core.optout_engine")
     assert oe.resolve_optout_address(NS(name="Acme.com", notes="", plugin_id=None), None) is None
@@ -8600,6 +8606,8 @@ def t_broker_network():
 @test(1, "backups.encryption",
       "Backups are AES-GCM encrypted with a scrypt-derived key; a wrong passphrase, a cut-short file or a changed byte is refused.")
 def t_backup_crypto():
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
     import tempfile
     bk = _imp("core.backup")
     bk.SCRYPT = {"n": 2 ** 12, "r": 8, "p": 1}          # fast for the test
@@ -8642,6 +8650,10 @@ def t_backup_crypto():
 @test(2, "backups.run_keep_verify_restore",
       "A backup is kept locally and copied to a folder destination, old copies are pruned, it verifies, and restore unpacks it.")
 def t_backup_run():
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
+    if _try_import("sqlalchemy") is None:
+        raise Skip("sqlalchemy not installed")
     import tempfile, tarfile, json as _json
     from datetime import datetime, timedelta
     bk = _imp("core.backup")
@@ -8691,6 +8703,10 @@ def t_backup_run():
 @test(1, "backups.s3_signing",
       "S3-compatible uploads are signed with AWS Signature V4 and go only to https storage addresses.")
 def t_backup_s3():
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
+    if _try_import("requests") is None:
+        raise Skip("requests not installed")
     bk = _imp("core.backup")
     oe = _imp("core.oauth_engine")
     import requests as _rq
@@ -8902,6 +8918,10 @@ def t_engine_no_inbox():
 @test(2, "email_send.refresh_keeps_real_settings",
       "Refreshing an inbox's OAuth token saves only the token; a per-inbox settings copy never replaces the settings file.")
 def t_refresh_keeps_settings():
+    if _try_import("fastapi") is None:
+        raise Skip("fastapi not installed")
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
     import json, tempfile
     es = _imp("core.email_send")
     ss = _imp("core.settings_store")
@@ -9766,6 +9786,8 @@ def t_i18n_full_coverage():
 @test(2, "backup.rclone_destination",
       "The rclone option uploads, lists and deletes through rclone with a private temp config, and checks its inputs.")
 def t_backup_rclone():
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
     import os, stat, tempfile, shutil as _sh
     bk = _imp("core.backup")
     oe = _imp("core.oauth_engine")
@@ -10659,6 +10681,8 @@ def t_regional_formats():
 @test(1, "observability.webhooks_safe_and_formatted",
       "Webhook messages carry only allowed counts and names, never saved personal details, in each service's own format.")
 def t_webhooks():
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
     import json, hmac, hashlib
     wh = _imp("core.webhooks")
     real_blocked = wh._blocked
@@ -10723,6 +10747,8 @@ def t_webhooks():
 @test(1, "observability.log_forwarding",
       "Log lines go to syslog, OpenTelemetry, Loki or Splunk scrubbed of secrets, emails and phone numbers, without slowing the app.")
 def t_log_forwarding():
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
     import json, logging, re
     lf = _imp("core.log_forwarding")
     msg = lf.scrub("Login for jordan@example.invalid from 555-010-0199 with Bearer abc.def token=xyz")
@@ -10962,6 +10988,8 @@ def t_legal_letters():
 @test(1, "legal.broker_email_uses_letter",
       "Per-broker opt-out emails use the broker's legal letter (CCPA for a California resident), or the add-on's own letter in its legal language.")
 def t_legal_broker_email():
+    if _try_import("sqlalchemy") is None:
+        raise Skip("sqlalchemy not installed")
     from types import SimpleNamespace as NS
     oe = _imp("core.optout_engine")
     ba = _imp("plugins.broker_addon")
@@ -11068,6 +11096,8 @@ def t_letters_are_plugins():
 @test(1, "legal.letter_chosen_per_broker",
       "An admin can give a broker or parent company a different letter; it wins over the add-on's choice and wording, and an unavailable choice falls back to automatic.")
 def t_letter_per_broker():
+    if _try_import("sqlalchemy") is None:
+        raise Skip("sqlalchemy not installed")
     from types import SimpleNamespace as NS
     ll = _imp("core.legal_letters")
     oe = _imp("core.optout_engine")
@@ -11166,6 +11196,8 @@ def t_plugin_text_translated():
 
 def _ai_settings(extra=None):
     """A throwaway settings file with the three online helpers keyed, for AI helper tests."""
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
     import json, tempfile
     ss = _imp("core.settings_store")
     oe = _imp("core.oauth_engine")

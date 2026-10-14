@@ -7,10 +7,16 @@ Pass 2: triggered by opt-out engine using full matrix on confirmed brokers
 
 import asyncio, logging, re, time, uuid
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any
 from urllib.parse import quote_plus, urlparse
 
-from playwright.async_api import async_playwright, BrowserContext, Page, TimeoutError as PWTimeout
+try:
+    from playwright.async_api import async_playwright, BrowserContext, Page, TimeoutError as PWTimeout
+except ImportError:
+    async_playwright = None
+    BrowserContext = Any  # type: ignore
+    Page = Any  # type: ignore
+    PWTimeout = TimeoutError  # type: ignore
 
 from ..models.database import (
     SessionLocal, FamilyMember, Broker, BrokerScript,

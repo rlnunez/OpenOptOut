@@ -99,7 +99,8 @@ def public_view(t: dict) -> dict:
     """A target as the settings page shows it: the service's host, never the
     full address or the secret."""
     url = _decrypt(t.get("url_enc", ""))
-    host = re.sub(r"^https?://", "", url).split("/")[0] if url else ""
+    from urllib.parse import urlparse
+    host = (urlparse(url).hostname or re.sub(r"^https?://", "", url).split("/")[0]) if url else ""
     return {"id": t["id"], "name": t.get("name", ""), "kind": t.get("kind", "json"),
             "host": host, "has_secret": bool(t.get("secret_enc")), "events": t.get("events", []),
             "enabled": bool(t.get("enabled", True)),

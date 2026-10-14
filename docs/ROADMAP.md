@@ -57,10 +57,33 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 35 | Broker confirmation links clicked automatically | Complete (#76) |
 | 36 | Curated broker form plugins & honest form results | Complete (#77) — live verification pending |
 | 37 | Long tail: privacy-request page finder & OneTrust/TrustArc forms | Complete (#79) — live verification pending |
-| 38 | Built-in receive-only inbox | In Design ([`docs/BUILTIN_INBOX.md`](BUILTIN_INBOX.md)) |
-| 39 | Automated removal verification & re-listing monitor | In Review — live verification pending |
-| 40 | Data-sharing detection & aggregator-first targeting | In Review |
-| 41 | Encrypted backups to local, network, SFTP and cloud storage | In Review |
+| 38 | Built-in receive-only inbox | Not Planned (covered by + addressing & direct fallbacks) |
+| 39 | Automated removal verification & re-listing monitor | Complete (#82) — live verification pending |
+| 40 | Data-sharing detection & aggregator-first targeting | Complete (#83) |
+| 41 | Encrypted backups to local, network, SFTP and cloud storage | Complete (#85, #91) |
+| 42 | Automatic broker steps & AI helpers | Complete (#98) — live verification pending |
+| 43 | Plain language for people and family pages | Complete (#86, #87) |
+| 44 | Phone and email removal, birthday matching, and credit freeze letters | Complete (#88) |
+| 45 | Removal timeline & round tracking | Complete (#89) |
+| 46 | Plain language for admin pages & localized status badges | Complete (#90) |
+| 47 | Cloud backups through rclone (Proton Drive, Box, pCloud, MEGA, Nextcloud) | Complete (#91) |
+| 48 | Privacy record, access logging, and deadline reporting | Complete (#92) |
+| 49 | Decoupled language packs, privacy score, PDF reports, and calendar scheduling | Complete (#93) |
+| 50 | Live CAPTCHA hand-off & privacy-preserving solvers | Complete (#94) |
+| 51 | Unclear match resolution & listing disambiguation | Complete (#95) |
+| 52 | Full UI translation framework across 12 languages | Complete (#96) |
+| 53 | Plugin localization standard & jurisdiction-based legal letters | Complete (#97) |
+| 54 | Universal live hand-off for interactive steps ("Do it here") | Complete (#99) |
+| 55 | Yahoo OAuth-only email integration | Complete (#100) |
+| 56 | Comprehensive RTL mirroring & logical layout | Complete (#101) |
+| 57 | Configurable regional date, time, and number formats | Complete (#103) |
+| 58 | Modular opt-out letter plugins | Complete (#104) |
+| 59 | Monitoring, Prometheus metrics, webhooks, and log forwarding | Complete (#105) |
+| 60 | Broker pack 1 (50 independent plugins) & coverage calculation | Complete (#106) |
+| 61 | Terms, operational limits, and transparency notices | Complete (#107) |
+| 62 | Automated discovery response for inactive brokers | Complete (#108) |
+| 63 | Usage statistics API for institutional data warehouses | Complete (#110) |
+| 64 | Address-verified registration for housing communities | Complete (#116) |
 
 ---
 
@@ -695,7 +718,7 @@ plugins/
 ### 38. Built-in receive-only inbox
 **Goal:** Unique addresses on a family-owned domain for inboxes without `+` addressing. Design: [`docs/BUILTIN_INBOX.md`](BUILTIN_INBOX.md).
 
-**Status:** In Design.
+**Status:** Not Planned (2026-10-12): Gmail and Microsoft "+" addresses cover it; Yahoo/AOL and brokers that refuse "+" already fall back to the plain address.
 
 ---
 
@@ -707,13 +730,16 @@ plugins/
 - Runs daily within a budget, before every scheduled re-send, and whenever the weekly web search finds a page on a broker someone was removed from.
 - Dashboard *Removal checks* card. See [`docs/VERIFICATION.md`](VERIFICATION.md).
 
-**Status:** In Review — live verification pending.
+**Status:** Complete (#82) — live verification pending.
+
+---
+
 ### 40. Data-sharing detection & aggregator-first targeting
 - **Sharing:** opt-out addresses that receive mail from a company they were never given to become "given to → came from" edges (possible / likely / strong by how many distinct addresses), excluding the broker's own family. Admin → Data sharing.
 - **Targeting:** brokers weighted by known wholesalers (`catalog/aggregators.json`), cascades, family size and observed sharing; new default dispatch order "aggregators first".
 - See [`docs/DATA_SHARING.md`](DATA_SHARING.md).
 
-**Status:** In Review.
+**Status:** Complete (#83).
 
 ---
 
@@ -722,7 +748,7 @@ plugins/
 - Destinations: local folder / mounted network drive, SFTP (host key pinned), S3-compatible (Amazon S3, Google Cloud Storage, Backblaze, Wasabi, MinIO), Google Drive, OneDrive, Dropbox; retention per destination; daily or weekly schedule; restore and verify commands.
 - See [`docs/BACKUPS.md`](BACKUPS.md).
 
-**Status:** In Review.
+**Status:** Complete (#85, #91).
 
 ---
 
@@ -734,7 +760,237 @@ plugins/
 - **Coding agents:** `AGENTS.md`, `CLAUDE.md` and a shared `broker-plugin` skill so Claude Code, Codex and Antigravity write and fix broker plugins to the project's rules.
 - See [`docs/AUTOMATIC_STEPS.md`](AUTOMATIC_STEPS.md).
 
-**Status:** In Review — not yet run against live providers or live broker sites.
+**Status:** Complete (#98) — not yet run against live providers or live broker sites.
+
+---
+
+### 43. Plain language for people and family pages
+**Goal:** Eliminate confusing technical jargon across all public and family-facing workflows.
+
+- Renamed and simplified screens: status labels, Dashboard, Email monitor, Find listings, Check again, CAPTCHAs, Family, Your details, Broker sites, Login, Settings, and Help.
+- Automated testing (`jargon` test) protects family screens against re-introducing engineering jargon.
+
+**Status:** Complete (#86, #87).
+
+---
+
+### 44. Phone and email removal, birthday matching, and credit freeze letters
+**Goal:** Expand removal coverage to phone- and email-keyed directory sites, optional encrypted birth dates, and credit freezes.
+
+- Sites marked `lookup_by` phone or email dispatch one opt-out per saved number or address across 14 specialized directory plugins (Truecaller, Sync.ME, CallApp, Hiya, CallerSmart, NumLookup, Spy Dialer, ReversePhoneLookup, NumberGuru, RocketReach, Apollo, Hunter, ZoomInfo, Lusha).
+- Optional encrypted birthday with age-aware matching rules to disambiguate namesakes without exposing exact birth dates.
+- Dedicated Freeze credit page providing standardized freeze request letters for Equifax, Experian, and TransUnion (adult and child under 16); SSNs are never stored or handled by OpenOptOut.
+
+**Status:** Complete (#88).
+
+---
+
+### 45. Removal timeline & round tracking
+**Goal:** Transparently record every removal status transition and visualize longitudinal progress.
+
+- Removal timeline logs every status change in sequential rounds (sent → reply → removed → staying gone; found again → next round).
+- Per-site progress bar visualizes lifecycle progress and recurring verification sweeps.
+
+**Status:** Complete (#89).
+
+---
+
+### 46. Plain language for admin pages & localized status badges
+**Goal:** Apply plain-language standards to administration screens and localize operational badges.
+
+- Standardized admin navigation, management views, and system error notices.
+- Menu items and status badges fully localized across all 12 supported languages.
+
+**Status:** Complete (#90).
+
+---
+
+### 47. Cloud backups through rclone
+**Goal:** Support arbitrary cloud storage providers without bloating core platform dependencies.
+
+- Added "Other cloud storage" provider powered by pinned, checksum-verified `rclone` binary in the image.
+- Supports Proton Drive, Box, pCloud, MEGA, Nextcloud, and other standard remote protocols with private temporary configuration files and input validation.
+
+**Status:** Complete (#91).
+
+---
+
+### 48. Privacy record, access logging, and deadline reporting
+**Goal:** Provide full compliance reporting, staff audit visibility, and data subject rights management under GDPR and CCPA.
+
+- Privacy Record: Complete inventory of stored personal data (GDPR Art. 30), staff access log for cross-account viewing, per-person JSON data export, configurable retention policies, and self-service account deletion.
+- Fix family member addition and deletion to cascade cleanly across all related database records.
+- Re-landed statutory deadline reporting and opt-in alert notices for delinquent brokers.
+
+**Status:** Complete (#92).
+
+---
+
+### 49. Decoupled language packs, privacy score, PDF reports, and calendar scheduling
+**Goal:** Modularize language distribution, track privacy posture quantitatively, and offer privacy-respecting scheduling.
+
+- Decoupled language system: English core with 12 built-in language pack plugins (`lang-*`) that administrators can enable, disable, or replace.
+- Privacy Score: 0–100 composite index tracking removal progress and exposure reduction over time with historical snapshots.
+- PDF Removal Reports: Clean, printable PDF summaries of removal status and scores without printing sensitive personal details.
+- Calendar scheduling: Configurable opt-out execution weekdays, holidays, calendar page, and private authenticated `.ics` subscription feed.
+
+**Status:** Complete (#93).
+
+---
+
+### 50. Live CAPTCHA hand-off & privacy-preserving solvers
+**Goal:** Allow users to solve complex CAPTCHAs interactively while keeping automated third-party solving privacy-safe.
+
+- Interactive "Solve it here": Browser session is mirrored to a secure user-facing page where the user completes the CAPTCHA inside the live broker page, and automation resumes automatically.
+- Privacy-safe automated solvers: Challenge redaction (`core/captcha_privacy.py`) crops the puzzle and blacks out personal details before dispatching to external solving services (2Captcha, Anti-Captcha, CapSolver, CapMonster) using encrypted credentials.
+
+**Status:** Complete (#94).
+
+---
+
+### 51. Unclear match resolution & listing disambiguation
+**Goal:** Safely handle ambiguous search results that return only names without location, age, or phone identifiers.
+
+- Policy-driven disambiguation: Admin-configurable default behavior (ask on Checklist, skip, or remove all up to 10 listings) with individual user override.
+- Automated negative filtering: Drops candidate profiles that explicitly contradict known attributes (e.g. mismatched age or middle initial).
+- Added `pick_listing` step and Skipped status to the declarative interpreter.
+
+**Status:** Complete (#95).
+
+---
+
+### 52. Full UI translation framework across 12 languages
+**Goal:** Localize every user interface phrase into all 12 supported languages.
+
+- Complete internationalization pass: All interface phrases routed through `tx()`, `txn()` (plurals), and `txr()` (rich text).
+- 2,450 phrases translated into Spanish, French, Arabic, German, Portuguese, Chinese, Vietnamese, Korean, Tagalog, Hindi, and Russian.
+- CI extractor and synchronization tests ensure zero untranslated screen phrases.
+
+**Status:** Complete (#96).
+
+---
+
+### 53. Plugin localization standard & jurisdiction-based legal letters
+**Goal:** Enable plugins to provide their own localized strings and decouple opt-out legal language from UI display language.
+
+- Plugin localization: Plugins declare `locales/` directories or reference language pack dictionaries; checklist steps display in the user's preferred language while form selectors remain exact.
+- Decoupled legal letters: Broker opt-out communications select legal templates by broker/parent `jurisdiction` and `legal_language` (CCPA, GDPR, UK GDPR, LGPD, PIPEDA, US general, law-neutral) rather than the account's UI language.
+
+**Status:** Complete (#97).
+
+---
+
+### 54. Universal live hand-off for interactive steps ("Do it here")
+**Goal:** Extend live interactive browser hand-off to all manual confirmation and verification steps.
+
+- Generalizes the live session hand-off beyond CAPTCHAs to any `pause_for_human` step (e.g., SMS verification codes, security questions, email confirmation PINs).
+- Reruns automation up to the interactive step, hands control to the user in a safe sandboxed frame, and seamlessly continues automation once complete.
+
+**Status:** Complete (#99).
+
+---
+
+### 55. Yahoo OAuth-only email integration
+**Goal:** Modernize Yahoo Mail integration with secure OAuth sign-in and token-based IMAP/SMTP access.
+
+- Removed legacy insecure app-password authentication in favor of standard Yahoo OAuth flow (`mail-r`, `mail-w`).
+- Reads confirmation emails over IMAP with `BODY.PEEK` using OAuthBearer / XOAUTH2 tokens without marking emails as read.
+
+**Status:** Complete (#100).
+
+---
+
+### 56. Comprehensive RTL mirroring & logical layout
+**Goal:** Deliver first-class right-to-left layout support for Arabic and RTL languages.
+
+- Converted all layout rules to directional Tailwind utilities (`ms-`, `pe-`, `start-`, `text-end`, `border-s`).
+- Global stylesheet rule mirrors navigational and directional icons automatically.
+- Enforced by `i18n.rtl_logical_classes` and `i18n.rtl_mirrored_icons` automated tests.
+
+**Status:** Complete (#101).
+
+---
+
+### 57. Configurable regional date, time, and number formats
+**Goal:** Respect administrative and cultural formatting conventions across all numeric and temporal displays.
+
+- Admin setting for system regional formats (locale, 12h/24h clock, first day of week, digit sets, time zone).
+- Client formatting pipeline (`i18n/format.js`) standardizes dates and numbers across screens while leaving legal broker communications in the broker's statutory format.
+
+**Status:** Complete (#103).
+
+---
+
+### 58. Modular opt-out letter plugins
+**Goal:** Convert legal opt-out text templates into modular, installable plugins.
+
+- Built-in letters decoupled into `letters` plugin type (`backend/plugins/bundled/letters/`).
+- Admins can assign custom letters per broker or parent organization with live preview using sanitized mock details.
+
+**Status:** Complete (#104).
+
+---
+
+### 59. Monitoring, Prometheus metrics, webhooks, and log forwarding
+**Goal:** Production-grade observability, health probing, and alerting for homelab and enterprise clusters.
+
+- Endpoints: Unauthenticated `/api/health/ready` liveness probe and token-authenticated Prometheus `/api/metrics`.
+- Outbound webhooks: Real-time event notifications to ntfy, Gotify, Slack, Teams, Discord, Home Assistant, or signed JSON payloads with zero PII egress.
+- Scrubbed log forwarding: Streams sanitized logs to syslog (UDP/TCP/TLS), OTLP, Loki, or Splunk HEC.
+
+**Status:** Complete (#105).
+
+---
+
+### 60. Broker pack 1 (50 independent plugins) & coverage calculation
+**Goal:** Significantly expand out-of-the-box opt-out coverage across independent data brokers.
+
+- Pack 1 adds 50 curated broker plugins targeting high-impact upstream data wholesalers, directory networks, and public records platforms.
+- Calculates and displays cumulative site coverage (direct broker + parent networks + confirmed downstream cascades).
+- Unchecked plugins start disabled until verified or approved by an administrator.
+
+**Status:** Complete (#106).
+
+---
+
+### 61. Terms, operational limits, and transparency notices
+**Goal:** Transparent communication of platform capabilities, legal constraints, and operator responsibilities.
+
+- Plain-language disclosure accepted during setup explaining what automated opt-outs can and cannot guarantee.
+- Per-member transparency notice presented prior to storing personal identifiers.
+- Editable terms template for institutional and multi-family deployments.
+
+**Status:** Complete (#107).
+
+---
+
+### 62. Automated discovery response for inactive brokers
+**Goal:** Handle listings found on disabled brokers according to administrative policy.
+
+- Policy rules: Automatically enable the broker once listings reach N members, request admin review, or notify the affected person with manual instructions.
+
+**Status:** Complete (#108).
+
+---
+
+### 63. Usage statistics API for institutional data warehouses
+**Goal:** Replace academic journal metrics (COUNTER/SUSHI) with a streamlined analytics API for libraries and universities.
+
+- Lightweight authenticated endpoint (`/api/stats/v1`) providing aggregated daily, weekly, and monthly counts.
+- Designed for ETL ingestion into library analytics platforms (e.g. Springshare LibInsight) or corporate data warehouses without exposing individual patron records.
+
+**Status:** Complete (#110).
+
+---
+
+### 64. Address-verified registration for housing communities
+**Goal:** Enable self-service onboarding restricted to verified residents of housing districts and apartment complexes.
+
+- Management uploads an authorized address CSV list (with unit/apartment normalization).
+- Sign-up flow validates resident address eligibility prior to account creation, rate-limits lookups, and auto-populates verified address into the member's profile.
+- Provides secure fallback contact details for unlisted units.
+
+**Status:** Complete (#116).
 
 ---
 

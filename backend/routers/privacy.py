@@ -53,6 +53,8 @@ def access_log(member_id: int = None, limit: int = Query(200, ge=1, le=2000),
 def my_access_log(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from ..core.compliance import own_member_ids
     ids = own_member_ids(db, current_user)
+    if not ids:
+        return []
     rows = db.query(AccessLog).filter(AccessLog.member_id.in_(ids)).order_by(AccessLog.at.desc()).limit(200).all()
     return _log_out(rows)
 
@@ -60,7 +62,10 @@ def my_access_log(db: Session = Depends(get_db), current_user: User = Depends(ge
 @router.get("/export")
 def export_mine(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from ..core.compliance import own_member_ids
-    members = db.query(FamilyMember).filter(FamilyMember.id.in_(own_member_ids(db, current_user))).all()
+    ids = own_member_ids(db, current_user)
+    if not ids:
+        return _download({"exported_at": datetime.utcnow().isoformat(), "people": []}, "openoptout-my-data.json")
+    members = db.query(FamilyMember).filter(FamilyMember.id.in_(ids)).all()
     return _download({"exported_at": datetime.utcnow().isoformat(),
                       "people": [pr.export_person(db, m) for m in members]}, "openoptout-my-data.json")
 

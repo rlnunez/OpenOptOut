@@ -14,9 +14,15 @@ import asyncio, json, logging, smtplib, ssl, time, uuid, re, os
 from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Optional
+from typing import Optional, Any
 
-from playwright.async_api import async_playwright, Page, BrowserContext, TimeoutError as PWTimeout
+try:
+    from playwright.async_api import async_playwright, Page, BrowserContext, TimeoutError as PWTimeout
+except ImportError:
+    async_playwright = None
+    Page = Any  # type: ignore
+    BrowserContext = Any  # type: ignore
+    PWTimeout = TimeoutError  # type: ignore
 
 from ..models.database import (
     SessionLocal, FamilyMember, Broker, BrokerScript,
