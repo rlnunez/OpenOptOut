@@ -243,8 +243,7 @@ def purge(db, cfg: dict, now: Optional[datetime] = None, screenshots_dir: Option
 
 def mark_purged(stats: dict) -> None:
     """Remember when the retention schedule last ran (shown on the privacy record)."""
-    from .settings_store import load_settings, SETTINGS_FILE
+    from .settings_store import load_settings, save_settings
     cfg = load_settings()
     cfg.setdefault("privacy", {})["last_purge"] = {"at": datetime.utcnow().isoformat(), "removed": stats}
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(cfg, f, indent=2)
+    save_settings(cfg)

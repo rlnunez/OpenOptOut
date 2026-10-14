@@ -15,7 +15,7 @@ from typing import Optional, List, Any
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, get_current_user_optional, require_super_admin
 from ..core.access import require_permission, has_permission
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
 from ..core.auth_providers import OIDC_PRESETS
 
 import base64 as b64lib
@@ -50,8 +50,7 @@ def _decrypt(v: str) -> str:
     except: return ""
 
 def _save(data: dict):
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    save_settings(data)
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────

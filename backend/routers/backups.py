@@ -27,7 +27,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from ..core.auth import require_super_admin
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
 from ..core import backup as bk
 from ..core import oauth_engine as oe
 
@@ -50,8 +50,7 @@ LABELS = {"folder": "Folder or network drive", "sftp": "SFTP server", "s3": "S3-
 
 
 def _save(cfg):
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(cfg, f, indent=2)
+    save_settings(cfg)
 
 
 def _public(d: dict) -> dict:

@@ -401,7 +401,7 @@ def purge_for_user(db, user_id: int) -> None:
     Members it managed fall back to their own or another parent's inbox.
     """
     from ..models.database import Mailbox, ContactAddress, FamilyMember
-    from .settings_store import load_settings, SETTINGS_FILE
+    from .settings_store import load_settings, save_settings
     import json
 
     boxes = db.query(Mailbox).filter(Mailbox.owner_user_id == user_id).all()
@@ -428,8 +428,7 @@ def purge_for_user(db, user_id: int) -> None:
                     changed = True
             if changed:
                 s["email_credentials"] = creds
-                with open(SETTINGS_FILE, "w") as f:
-                    json.dump(s, f, indent=2)
+                save_settings(s)
         except Exception as e:
             log.warning("Could not remove inbox tokens for deleted user: %s", e)
         for b in boxes:

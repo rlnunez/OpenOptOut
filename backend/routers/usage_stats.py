@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from ..core import usage_stats as U
 from ..core.auth import require_super_admin
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings
 from ..models.database import get_db, User
 
 api_router = APIRouter(tags=["usage statistics"])
@@ -29,8 +29,7 @@ router = APIRouter(prefix="/api/stats-admin", tags=["usage statistics"])
 
 
 def _save(s: dict) -> None:
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(s, f, indent=2)
+    save_settings(s)
 
 
 def _respond(status, body, media):

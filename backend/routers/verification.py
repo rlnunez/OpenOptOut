@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from ..models.database import get_db, User, RemovalRequest, SessionLocal
 from ..core.auth import get_current_user, get_accessible_member_ids, assert_can_edit
 from ..core.access import require_permission
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
 from ..core import verification as vf
 
 router = APIRouter(prefix="/api/verification", tags=["verification"])
@@ -81,6 +81,5 @@ def put_settings(body: SettingsIn, _=Depends(require_permission("settings.system
     cur = vf.settings_of(cfg)
     cur.update(enabled=body.enabled, use_browser=body.use_browser, per_day=max(1, min(int(body.per_day), 500)))
     cfg["verification"] = cur
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(cfg, f, indent=2)
+    save_settings(cfg)
     return {"ok": True}

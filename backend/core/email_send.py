@@ -56,11 +56,10 @@ def _refresh_if_needed(settings: dict, account_ref: str, provider_key: str):
         # file. `settings` may be a per-inbox copy whose "email" section points
         # at a family member's inbox; writing it back whole would replace the
         # real settings.
-        from .settings_store import SETTINGS_FILE, load_settings
+        from .settings_store import load_settings, save_settings
         on_disk = load_settings()
         oe.store_tokens(on_disk, account_ref, new)
-        with open(SETTINGS_FILE, "w") as f:
-            json.dump(on_disk, f, indent=2)
+        save_settings(on_disk)
         log.info("Refreshed OAuth session for account '%s'", account_ref)
         return True
     except Exception as e:

@@ -448,13 +448,11 @@ def save_connection_config(
     Secret material is NEVER accepted here — passwords come from env/files only.
     Changes take effect after a container restart.
     """
-    from ..core.settings_store import load_settings, SETTINGS_FILE
-    import json as _json
+    from ..core.settings_store import load_settings, save_settings
 
     s = load_settings()
     s["database"] = data.model_dump()
-    with open(SETTINGS_FILE, "w") as f:
-        _json.dump(s, f, indent=2)
+    save_settings(s)
 
     return {
         "saved": True,

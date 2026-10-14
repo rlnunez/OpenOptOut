@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from ..models.database import get_db, User, WebSearchHit, Broker, SessionLocal, FamilyMember
 from ..core.auth import get_current_user, assert_can_view, assert_can_edit
 from ..core.access import require_permission
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
 from ..core import web_search as wsm
 
 router = APIRouter(prefix="/api/web-search", tags=["web-search"])
@@ -32,9 +32,7 @@ _LOCK = threading.Lock()
 
 
 def _save(cfg: dict):
-    import json
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(cfg, f, indent=2)
+    save_settings(cfg)
 
 
 @router.get("/settings")

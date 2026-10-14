@@ -29,7 +29,7 @@ from cryptography.fernet import Fernet
 
 from ..models.database import get_db, User
 from ..core.auth import get_current_user
-from ..core.settings_store import load_settings, SETTINGS_FILE, get_secret_key
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE, get_secret_key
 
 router = APIRouter(prefix="/api/wizard", tags=["wizard"])
 
@@ -56,8 +56,7 @@ def _load() -> dict:
 
 
 def _save(data: dict):
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    save_settings(data)
 
 
 def _wizard_state(s: dict) -> dict:

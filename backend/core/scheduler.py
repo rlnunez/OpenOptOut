@@ -173,7 +173,7 @@ def registry_maintenance_job():
         from .state_programs import ensure_drop_items
         from .broker_health import probe_sites
         from . import registry_sync as rs
-        from .settings_store import SETTINGS_FILE
+        from .settings_store import SETTINGS_FILE, save_settings
         try:
             ensure_drop_items(db)
         except Exception as e:
@@ -199,8 +199,7 @@ def registry_maintenance_job():
             if d.get("sent"):
                 cfg = load_settings()
                 cfg["broker_updates_last_digest"] = datetime.utcnow().isoformat() + "Z"
-                with open(SETTINGS_FILE, "w") as f:
-                    json.dump(cfg, f, indent=2)
+                save_settings(cfg)
         except Exception as e:
             log.warning("Broker update digest failed: %s", e)
         # Weekly web searches, when an admin turned them on.
@@ -216,8 +215,7 @@ def registry_maintenance_job():
             if ws_due and run_weekly(db, cfg):
                 cfg = load_settings()
                 cfg["web_search_last_weekly"] = datetime.utcnow().isoformat() + "Z"
-                with open(SETTINGS_FILE, "w") as f:
-                    json.dump(cfg, f, indent=2)
+                save_settings(cfg)
         except Exception as e:
             log.warning("Weekly web search failed: %s", e)
         last = cfg.get("registry_last_refresh")
@@ -230,8 +228,7 @@ def registry_maintenance_job():
         if due and any(((cfg.get("registry_sources") or {}).get(st) or {}).get("url") for st in rs.SOURCES):
             rs.refresh_saved_sources(db, cfg)
             cfg["registry_last_refresh"] = datetime.utcnow().isoformat() + "Z"
-            with open(SETTINGS_FILE, "w") as f:
-                json.dump(cfg, f, indent=2)
+            save_settings(cfg)
     except Exception as e:
         log.error("registry maintenance failed: %s", e)
     finally:

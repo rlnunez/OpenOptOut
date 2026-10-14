@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from ..models.database import get_db, User, ConfirmationLink, RemovalRequest
 from ..core.auth import get_current_user, get_accessible_member_ids
 from ..core.access import require_permission
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
 from ..core import confirm_links as cl
 
 router = APIRouter(prefix="/api/confirm-links", tags=["confirm-links"])
@@ -52,6 +52,5 @@ class SettingsIn(BaseModel):
 def put_settings(body: SettingsIn, _=Depends(_admin)):
     cfg = load_settings()
     cfg["confirm_links"] = {"auto_click": body.auto_click, "use_browser": body.use_browser}
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(cfg, f, indent=2)
+    save_settings(cfg)
     return {"ok": True}

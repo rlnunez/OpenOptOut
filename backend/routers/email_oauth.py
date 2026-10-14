@@ -29,7 +29,7 @@ from typing import Optional
 
 from ..models.database import get_db, User
 from ..core.auth import get_current_user
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
 from ..core import oauth_engine as oe
 
 router = APIRouter(prefix="/api/email-oauth", tags=["email-oauth"])
@@ -46,8 +46,7 @@ def _admin(user: User):
 
 
 def _save(data: dict):
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    save_settings(data)
 
 
 def _provider_flow(provider_key: str) -> oe.OAuthFlowDesc:

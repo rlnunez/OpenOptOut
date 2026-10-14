@@ -197,9 +197,8 @@ def public(cfg: dict) -> dict:
 
 
 def _save(cfg: dict) -> None:
-    from .settings_store import SETTINGS_FILE
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(cfg, f, indent=2)
+    from .settings_store import save_settings
+    save_settings(cfg)
 
 
 def save_provider(pid: str, enabled: Optional[bool] = None, model: Optional[str] = None,

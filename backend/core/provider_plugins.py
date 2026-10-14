@@ -61,7 +61,7 @@ def ensure_provider_plugin(provider_key: str, db_session_factory=None) -> bool:
 
     try:
         from ..models.database import SessionLocal, InstalledPlugin
-        from .settings_store import load_settings, SETTINGS_FILE
+        from .settings_store import load_settings, save_settings
         from ..plugins.permissions import PluginManifest, Permission
         from ..plugins.email_inspector import inspect_email_plugin, summarize_findings
         from ..plugins import get_manager, init_plugin_system
@@ -163,8 +163,7 @@ def ensure_provider_plugin(provider_key: str, db_session_factory=None) -> bool:
                 pcfg = s.setdefault("plugins", {})
                 if not pcfg.get("enabled"):
                     pcfg["enabled"] = True
-                    with open(SETTINGS_FILE, "w") as f:
-                        json.dump(s, f, indent=2)
+                    save_settings(s)
                     log.info("Enabled the plugin system (was off) to run the %s provider plugin.", provider_key)
                 mgr = init_plugin_system()
 

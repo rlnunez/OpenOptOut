@@ -86,14 +86,12 @@ def for_member(db, member, cfg: dict) -> str:
 
 def save_global(choice: str, users_choose: bool) -> dict:
     """Admin: set the default and whether people may choose their own."""
-    import json as _json
-    from .settings_store import load_settings, SETTINGS_FILE
+    from .settings_store import load_settings, save_settings
     if choice not in CHOICES:
         raise ValueError("Choose ask, skip or remove all.")
     cfg = load_settings()
     cfg["matching"] = {**(cfg.get("matching") or {}), "unclear_listings": choice, "users_choose": bool(users_choose)}
-    with open(SETTINGS_FILE, "w") as f:
-        _json.dump(cfg, f, indent=2)
+    save_settings(cfg)
     return global_settings(cfg)
 
 

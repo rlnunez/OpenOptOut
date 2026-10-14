@@ -361,8 +361,7 @@ def save_i18n_settings(cfg: Dict[str, Any]) -> None:
     """Persist i18n configuration to settings store."""
     settings = settings_store.load_settings()
     settings["i18n"] = cfg
-    with open(settings_store.SETTINGS_FILE, "w", encoding="utf-8") as f:
-        json.dump(settings, f, indent=2)
+    settings_store.save_settings(settings)
 
 
 _DISABLED_CACHE = {"at": 0.0, "ids": set()}
@@ -634,7 +633,6 @@ def offer_new_builtin_languages() -> List[str]:
     i18n_cfg["enabled_languages"] = enabled
     i18n_cfg["builtins_offered"] = sorted(offered | set(new))
     settings["i18n"] = i18n_cfg
-    with open(settings_store.SETTINGS_FILE, "w", encoding="utf-8") as f:
-        json.dump(settings, f, indent=2)
+    settings_store.save_settings(settings)
     log.info("Turned on newly built-in languages: %s", ", ".join(new))
     return new

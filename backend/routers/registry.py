@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from ..models.database import get_db, Broker, BrokerHealth
 from ..core.access import require_permission
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
 from ..core import registry_sync as rs
 
 router = APIRouter(prefix="/api/registry", tags=["registry"])
@@ -29,8 +29,7 @@ _admin = require_permission("brokers.manage")
 
 
 def _save(s: dict):
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(s, f, indent=2)
+    save_settings(s)
 
 
 def _state(state: str) -> str:

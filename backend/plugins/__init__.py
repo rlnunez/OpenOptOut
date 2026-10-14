@@ -55,10 +55,8 @@ def init_plugin_system():
     )
 
     def _save_settings(s):
-        from ..core.settings_store import SETTINGS_FILE
-        import json
-        with open(SETTINGS_FILE, "w") as f:
-            json.dump(s, f, indent=2)
+        from ..core.settings_store import save_settings
+        save_settings(s)
 
     settings_accessor = PluginSettingsAccessor(load_settings, _save_settings)
 

@@ -119,6 +119,11 @@ def make_target(data: dict, old: Optional[dict] = None) -> dict:
         raise ValueError("Paste the address the service gave you.")
     if url and not re.match(r"^https?://[^\s/]+", url):
         raise ValueError("The address must start with https:// (or http:// on your own network).")
+    if url:
+        from urllib.parse import urlparse
+        host = (urlparse(url).hostname or "").lower().strip()
+        if host in {"169.254.169.254", "169.254.170.2", "metadata.google.internal", "metadata", "instance-data", "100.100.100.200"} or host.startswith("169.254."):
+            raise ValueError("The webhook address cannot target cloud metadata endpoints.")
     events = data.get("events")
     events = [e for e in (events if events is not None else old.get("events", DEFAULT_EVENTS)) if e in EVENTS and e != "test"]
     secret = data.get("secret")
@@ -224,6 +229,10 @@ def _deliver(t: dict, event: str, title: str, message: str, details: dict) -> tu
     url = _decrypt(t.get("url_enc", ""))
     if not url:
         return False, "no address"
+    from urllib.parse import urlparse
+    host = (urlparse(url).hostname or "").lower().strip()
+    if host in {"169.254.169.254", "169.254.170.2", "metadata.google.internal", "metadata", "instance-data", "100.100.100.200"} or host.startswith("169.254."):
+        return False, "prohibited address (cloud metadata)"
     body, headers = payload(kind, event, title, message, details, secret)
     try:
         code = _post(url, body, headers)
@@ -236,14 +245,13 @@ def _deliver(t: dict, event: str, title: str, message: str, details: dict) -> tu
 
 def _record(tid: str, ok: bool, status: str) -> None:
     try:
-        from .settings_store import load_settings, SETTINGS_FILE
+        from .settings_store import load_settings, save_settings
         s = load_settings()
         for t in (s.get("observability") or {}).get("webhooks") or []:
             if t["id"] == tid:
                 t["last_status"] = status
                 t["last_at"] = datetime.now(timezone.utc).isoformat()
-        with open(SETTINGS_FILE, "w") as f:
-            json.dump(s, f, indent=2)
+        save_settings(s)
     except Exception:
         pass
 

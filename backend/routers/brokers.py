@@ -130,7 +130,7 @@ def get_found_rule(db: Session = Depends(get_db), user: User = Depends(require_p
 @router.put("/found-rule")
 def put_found_rule(req: FoundRule, db: Session = Depends(get_db), user: User = Depends(require_permission("brokers.manage"))):
     from ..core import found_listings as fl
-    from ..core.settings_store import load_settings, SETTINGS_FILE
+    from ..core.settings_store import load_settings, save_settings
     s = load_settings()
     try:
         cur = fl.settings_of(s)
@@ -138,8 +138,7 @@ def put_found_rule(req: FoundRule, db: Session = Depends(get_db), user: User = D
         s["found_listings"] = fl.clean(cur)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(s, f, indent=2)
+    save_settings(s)
     turned_on = fl.apply_now(db, s)
     return {**s["found_listings"], "turned_on": turned_on, "waiting": fl.waiting(db)}
 

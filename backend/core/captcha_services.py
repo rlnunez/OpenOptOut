@@ -53,8 +53,7 @@ def plugin_meta(plugin_id: str) -> dict:
 
 def save_service(plugin_id: str, service: str, api_key: Optional[str]) -> dict:
     """Set the service and (when given) a new key for one solver plugin. An empty key clears it."""
-    import json as _json
-    from .settings_store import load_settings, SETTINGS_FILE
+    from .settings_store import load_settings, save_settings
     from .oauth_engine import _encrypt
     if service not in SERVICES:
         raise ValueError("Choose one of the listed services.")
@@ -66,6 +65,5 @@ def save_service(plugin_id: str, service: str, api_key: Optional[str]) -> dict:
             svc["api_key_enc"] = _encrypt(api_key.strip())
         else:
             svc.pop("api_key_enc", None)
-    with open(SETTINGS_FILE, "w") as f:
-        _json.dump(cfg, f, indent=2)
+    save_settings(cfg)
     return public(cfg)

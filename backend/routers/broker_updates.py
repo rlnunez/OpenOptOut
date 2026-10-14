@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from ..models.database import get_db
 from ..core.access import require_permission
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
 from ..core import broker_updates as bu
 
 router = APIRouter(prefix="/api/broker-updates", tags=["broker-updates"])
@@ -58,6 +58,5 @@ def put_settings(body: SettingsIn, _=Depends(require_permission("settings.system
         raise HTTPException(400, "Choose off, daily or weekly.")
     cfg = load_settings()
     cfg["broker_updates"] = {"email_digest": body.email_digest}
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(cfg, f, indent=2)
+    save_settings(cfg)
     return {"ok": True}

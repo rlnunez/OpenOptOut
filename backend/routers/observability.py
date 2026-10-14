@@ -27,7 +27,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..core.auth import require_super_admin
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings
 from ..models.database import get_db, User
 
 router = APIRouter(prefix="/api/observability", tags=["observability"])
@@ -35,8 +35,7 @@ ops_router = APIRouter(tags=["monitoring"])
 
 
 def _save(s: dict) -> None:
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(s, f, indent=2)
+    save_settings(s)
 
 
 def _obs(s: dict) -> dict:

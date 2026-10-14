@@ -432,7 +432,7 @@ def cloud_flow(kind: str):
 class CloudDest(Destination):
     def _token(self) -> str:
         from . import oauth_engine as oe
-        from .settings_store import load_settings, SETTINGS_FILE
+        from .settings_store import load_settings, save_settings
         ref = self.conf.get("account_ref")
         s = load_settings()
         toks = oe.load_tokens(s, ref) if ref else None
@@ -442,8 +442,7 @@ class CloudDest(Destination):
             client = oe.OAuthClient(toks.get("client_id", ""), toks.get("client_secret", ""), "")
             new = oe.refresh_token(cloud_flow(self.kind), client, toks["refresh_token"])
             oe.store_tokens(s, ref, new)
-            with open(SETTINGS_FILE, "w") as f:
-                json.dump(s, f, indent=2)
+            save_settings(s)
             toks = new
         return toks["access_token"]
 

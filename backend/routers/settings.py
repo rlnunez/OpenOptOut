@@ -14,7 +14,7 @@ from cryptography.fernet import Fernet
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, require_super_admin
 from ..core.access import require_permission
-from ..core.settings_store import load_settings, SETTINGS_FILE, get_secret_key
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE, get_secret_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -41,8 +41,7 @@ def _decrypt(v: str) -> str:
         return ""
 
 def _save(data: dict):
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    save_settings(data)
 
 
 # ── Email presets ─────────────────────────────────────────────────────────────

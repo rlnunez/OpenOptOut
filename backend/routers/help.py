@@ -10,7 +10,7 @@ from datetime import datetime
 
 from ..core.auth import get_current_user, require_super_admin, User
 from ..core.access import require_permission
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
 import json, os
 
 router = APIRouter(prefix="/api/help", tags=["help"])
@@ -38,14 +38,9 @@ def _load_notes() -> dict:
 
 
 def _save_notes(notes: dict):
-    if not os.path.exists(SETTINGS_FILE):
-        s = {}
-    else:
-        with open(SETTINGS_FILE) as f:
-            s = json.load(f)
+    s = load_settings()
     s["help_notes"] = notes
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(s, f, indent=2)
+    save_settings(s)
 
 
 @router.get("/notes", response_model=List[CustomNote])

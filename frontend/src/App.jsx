@@ -56,6 +56,7 @@ import InboxPrompt from './components/InboxPrompt'
 import TermsGate from './components/TermsGate'
 import Terms, { PublicTerms } from './pages/Terms'
 import { tx } from './i18n/tx'
+import api from './api'
 
 // Super admins, plus managers holding at least one of these permissions.
 function RequirePermission({ perms, children }) {
@@ -77,9 +78,7 @@ function OIDCCallback() {
     window.history.replaceState(null, '', window.location.pathname)
     if (token) {
       localStorage.setItem('token', token)
-      import('./api').then(({ default: api }) => {
-        api.get('/auth/me').then(r => { setUser(r.data); navigate('/') })
-      })
+      api.get('/auth/me').then(r => { setUser(r.data); navigate('/') })
     } else {
       navigate('/login')
     }
@@ -167,11 +166,9 @@ function RequireAuth({ children }) {
 
   useEffect(() => {
     if (user?.role === 'super_admin') {
-      import('./api').then(({ default: api }) => {
-        api.get('/wizard/state')
-          .then(r => setWizard(r.data))
-          .catch(() => setWizard(null))
-      })
+      api.get('/wizard/state')
+        .then(r => setWizard(r.data))
+        .catch(() => setWizard(null))
     } else if (user) {
       setWizard(null)
     }

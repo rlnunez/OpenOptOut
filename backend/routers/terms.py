@@ -19,15 +19,14 @@ from sqlalchemy.orm import Session
 
 from ..core import terms as T
 from ..core.auth import get_current_user, require_super_admin
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings
 from ..models.database import get_db, User
 
 router = APIRouter(prefix="/api/terms", tags=["terms"])
 
 
 def _save(s: dict) -> None:
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(s, f, indent=2)
+    save_settings(s)
 
 
 def _defaults(s: dict) -> dict:
