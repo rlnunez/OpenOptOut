@@ -57,7 +57,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 35 | Broker confirmation links clicked automatically | Complete (#76) |
 | 36 | Curated broker form plugins & honest form results | Complete (#77) — live verification pending |
 | 37 | Long tail: privacy-request page finder & OneTrust/TrustArc forms | Complete (#79) — live verification pending |
-| 38 | Built-in receive-only inbox | Not Planned (covered by + addressing & direct fallbacks) |
+| 38 | Built-in receive-only inbox | Considering (backup/alternate solution when brokers reject '+' addressing) |
 | 39 | Automated removal verification & re-listing monitor | Complete (#82) — live verification pending |
 | 40 | Data-sharing detection & aggregator-first targeting | Complete (#83) |
 | 41 | Encrypted backups to local, network, SFTP and cloud storage | Complete (#85, #91) |
@@ -718,7 +718,7 @@ plugins/
 ### 38. Built-in receive-only inbox
 **Goal:** Unique addresses on a family-owned domain for inboxes without `+` addressing. Design: [`docs/BUILTIN_INBOX.md`](BUILTIN_INBOX.md).
 
-**Status:** Not Planned (2026-10-12): Gmail and Microsoft "+" addresses cover it; Yahoo/AOL and brokers that refuse "+" already fall back to the plain address.
+**Status:** Considering: Under consideration as a backup/alternate solution for brokers that do not support or actively reject `+` addressing, ensuring reliable per-broker matching without exposing a personal primary inbox address.
 
 ---
 
