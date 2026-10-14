@@ -73,6 +73,11 @@ RUN python -m grpc_tools.protoc -Iplugins/proto \
     touch plugins/proto/__init__.py \
     || echo "WARN: proto compile skipped — plugin system will be inactive"
 
+# VERSION must be a real, non-empty file inside this build context. A symlink pointing outside ./backend arrives dangling and the API would report "unknown", so fail the build loudly instead of shipping that.
+RUN if [ -L VERSION ] || [ ! -s VERSION ]; then \
+      echo "ERROR: backend/VERSION must be a real non-empty file (not a symlink) inside the build context" >&2; exit 1; \
+    fi
+
 # Data directories (screenshots, plugins, plugin storage) and unprivileged user
 RUN groupadd -g 1000 appuser && \
     useradd -u 1000 -g appuser -m -s /bin/bash appuser && \
