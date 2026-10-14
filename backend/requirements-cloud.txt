@@ -3,10 +3,10 @@
 #   pip install -r requirements-cloud.txt
 
 # AWS RDS IAM authentication
-boto3==1.43.107
+boto3==1.43.108
 
 # GCP Cloud SQL IAM authentication
-google-auth==2.59.1
+google-auth==2.60.0
 pyasn1==0.6.4
 
 # Azure AD authentication
