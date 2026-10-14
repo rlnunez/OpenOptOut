@@ -262,10 +262,16 @@ def _work():
         if item is None:
             return
         t, event, title, message, details = item
-        ok, status = _deliver(t, event, title, message, details)
+        ok, status = False, "failed"
+        for attempt in range(3):
+            ok, status = _deliver(t, event, title, message, details)
+            if ok or "prohibited" in status or "no address" in status:
+                break
+            if attempt < 2:
+                time.sleep(1.0 * (attempt + 1))
         STATS["sent" if ok else "failed"] += 1
         if not ok:
-            log.warning("Webhook '%s' (%s) not delivered: %s", t.get("name"), t.get("kind"), status)
+            log.warning("Webhook '%s' (%s) not delivered after retries: %s", t.get("name"), t.get("kind"), status)
         _record(t["id"], ok, status)
 
 

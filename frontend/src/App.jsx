@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { Menu } from 'lucide-react'
 import { AuthProvider, useAuth, can } from './hooks/useAuth'
 import { BrandingProvider, useBranding } from './hooks/useBranding'
@@ -12,51 +12,53 @@ import UserWelcomeModal from './components/UserWelcomeModal'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import Brokers from './pages/Brokers'
-import BrokerSubmit from './pages/BrokerSubmit'
 import Family from './pages/Family'
 import IdentityVault from './pages/IdentityVault'
-import AdminPanel from './pages/AdminPanel'
 import Settings from './pages/Settings'
-import Translations from './pages/Translations'
-import Scheduled from './pages/Scheduled'
 import Help from './pages/Help'
-import EmailMonitor from './pages/EmailMonitor'
-import Discovery from './pages/Discovery'
-import Branding from './pages/Branding'
-import Reporting from './pages/Reporting'
-import DatabaseAdmin from './pages/DatabaseAdmin'
-import Plugins from './pages/Plugins'
-import PluginUpload from './pages/PluginUpload'
-import PluginHelp from './pages/PluginHelp'
-import SystemLogs from './pages/SystemLogs'
-import BrokerHealth from './pages/BrokerHealth'
-import Backups from './pages/Backups'
-import BrokerUpdates from './pages/BrokerUpdates'
-import SpecHelpers from './pages/SpecHelpers'
-import Letters from './pages/Letters'
-import Monitoring from './pages/Monitoring'
-import UsageStats from './pages/UsageStats'
-import BrokerNetwork from './pages/BrokerNetwork'
-import BrokerPriority from './pages/BrokerPriority'
-import ParentCompanies from './pages/ParentCompanies'
-import CaptchaQueue from './pages/CaptchaQueue'
-import WorkerFleet from './pages/WorkerFleet'
-import Login from './pages/Login'
-import Signup from './pages/Signup'
-import SetupWizard from './pages/SetupWizard'
-import Inboxes from './pages/Inboxes'
-import CreditFreeze from './pages/CreditFreeze'
-import DeadlineReport from './pages/DeadlineReport'
-import PrivacyRecord from './pages/PrivacyRecord'
-import Calendar from './pages/Calendar'
-import StateRegistries from './pages/StateRegistries'
-import WebSearchSettings from './pages/WebSearchSettings'
-import Checklist from './pages/Checklist'
+import Terms, { PublicTerms } from './pages/Terms'
 import InboxPrompt from './components/InboxPrompt'
 import TermsGate from './components/TermsGate'
-import Terms, { PublicTerms } from './pages/Terms'
 import { tx } from './i18n/tx'
 import api from './api'
+
+// Code-split secondary and administrative routes to minimize initial bundle size
+const Login = lazy(() => import('./pages/Login'))
+const Signup = lazy(() => import('./pages/Signup'))
+const SetupWizard = lazy(() => import('./pages/SetupWizard'))
+const BrokerSubmit = lazy(() => import('./pages/BrokerSubmit'))
+const AdminPanel = lazy(() => import('./pages/AdminPanel'))
+const Translations = lazy(() => import('./pages/Translations'))
+const Scheduled = lazy(() => import('./pages/Scheduled'))
+const EmailMonitor = lazy(() => import('./pages/EmailMonitor'))
+const Discovery = lazy(() => import('./pages/Discovery'))
+const Branding = lazy(() => import('./pages/Branding'))
+const Reporting = lazy(() => import('./pages/Reporting'))
+const DatabaseAdmin = lazy(() => import('./pages/DatabaseAdmin'))
+const Plugins = lazy(() => import('./pages/Plugins'))
+const PluginUpload = lazy(() => import('./pages/PluginUpload'))
+const PluginHelp = lazy(() => import('./pages/PluginHelp'))
+const SystemLogs = lazy(() => import('./pages/SystemLogs'))
+const BrokerHealth = lazy(() => import('./pages/BrokerHealth'))
+const Backups = lazy(() => import('./pages/Backups'))
+const BrokerUpdates = lazy(() => import('./pages/BrokerUpdates'))
+const SpecHelpers = lazy(() => import('./pages/SpecHelpers'))
+const Letters = lazy(() => import('./pages/Letters'))
+const Monitoring = lazy(() => import('./pages/Monitoring'))
+const UsageStats = lazy(() => import('./pages/UsageStats'))
+const BrokerNetwork = lazy(() => import('./pages/BrokerNetwork'))
+const BrokerPriority = lazy(() => import('./pages/BrokerPriority'))
+const ParentCompanies = lazy(() => import('./pages/ParentCompanies'))
+const CaptchaQueue = lazy(() => import('./pages/CaptchaQueue'))
+const WorkerFleet = lazy(() => import('./pages/WorkerFleet'))
+const Inboxes = lazy(() => import('./pages/Inboxes'))
+const CreditFreeze = lazy(() => import('./pages/CreditFreeze'))
+const DeadlineReport = lazy(() => import('./pages/DeadlineReport'))
+const PrivacyRecord = lazy(() => import('./pages/PrivacyRecord'))
+const Calendar = lazy(() => import('./pages/Calendar'))
+const StateRegistries = lazy(() => import('./pages/StateRegistries'))
+const WebSearchSettings = lazy(() => import('./pages/WebSearchSettings'))
+const Checklist = lazy(() => import('./pages/Checklist'))
 
 // Super admins, plus managers holding at least one of these permissions.
 function RequirePermission({ perms, children }) {
@@ -112,48 +114,50 @@ function Layout() {
         <UserWelcomeModal />
         <main id="main-content" tabIndex="-1" role="main" className="flex-1 overflow-auto focus:outline-hidden">
           <Breadcrumbs />
-          <Routes>
-            <Route path="/"            element={<Dashboard />} />
-            <Route path="/brokers"     element={<Brokers />} />
-            <Route path="/brokers/add" element={<RequirePermission perms={['brokers.manage']}><BrokerSubmit /></RequirePermission>} />
-            <Route path="/email"       element={<EmailMonitor />} />
-            <Route path="/scheduled"   element={<Scheduled />} />
-            <Route path="/discovery"   element={<Discovery />} />
-            <Route path="/family"      element={<Family />} />
-            <Route path="/identity"    element={<IdentityVault />} />
-            <Route path="/inboxes"     element={<Inboxes />} />
-            <Route path="/credit-freeze" element={<CreditFreeze />} />
-            <Route path="/deadlines" element={<DeadlineReport />} />
-            <Route path="/privacy-record" element={<PrivacyRecord />} />
-            <Route path="/calendar" element={<Calendar />} />
-            <Route path="/checklist"   element={<Checklist />} />
-            <Route path="/settings"    element={<Settings />} />
-            <Route path="/translations" element={<RequirePermission perms={['settings.manage']}><Translations /></RequirePermission>} />
-            <Route path="/help"        element={<Help />} />
-            <Route path="/admin"       element={<RequirePermission perms={['users.manage']}><AdminPanel /></RequirePermission>} />
-            <Route path="/branding"    element={<RequirePermission perms={['branding.manage', 'users.registration', 'auth.providers']}><Branding /></RequirePermission>} />
-            <Route path="/reporting"   element={<RequirePermission perms={['reporting.view']}><Reporting /></RequirePermission>} />
-            <Route path="/database"    element={<RequirePermission perms={['database.view']}><DatabaseAdmin /></RequirePermission>} />
-            <Route path="/plugins"     element={<RequirePermission perms={['plugins.view']}><Plugins /></RequirePermission>} />
-            <Route path="/plugin-help" element={<RequirePermission perms={['plugins.view', 'plugins.upload']}><PluginHelp /></RequirePermission>} />
-            <Route path="/plugin-upload" element={<RequirePermission perms={['plugins.upload']}><PluginUpload /></RequirePermission>} />
-            <Route path="/backups" element={<Backups />} />
-            <Route path="/monitoring" element={<Monitoring />} />
-            <Route path="/usage-stats" element={<UsageStats />} />
-            <Route path="/terms-settings" element={<Terms />} />
-            <Route path="/broker-updates" element={<RequirePermission perms={['brokers.manage']}><BrokerUpdates /></RequirePermission>} />
-            <Route path="/data-sharing" element={<RequirePermission perms={['brokers.manage']}><BrokerNetwork /></RequirePermission>} />
-            <Route path="/broker-health" element={<RequirePermission perms={['brokers.manage']}><BrokerHealth /></RequirePermission>} />
-            <Route path="/spec-helpers" element={<RequirePermission perms={['brokers.manage']}><SpecHelpers /></RequirePermission>} />
-            <Route path="/letters" element={<RequirePermission perms={['brokers.manage']}><Letters /></RequirePermission>} />
-            <Route path="/web-search" element={<RequirePermission perms={['settings.system']}><WebSearchSettings /></RequirePermission>} />
-            <Route path="/state-registries" element={<RequirePermission perms={['brokers.manage']}><StateRegistries /></RequirePermission>} />
-            <Route path="/broker-priority" element={<RequirePermission perms={['brokers.manage']}><BrokerPriority /></RequirePermission>} />
-            <Route path="/parent-companies" element={<RequirePermission perms={['brokers.manage']}><ParentCompanies /></RequirePermission>} />
-            <Route path="/captcha" element={<CaptchaQueue />} />
-            <Route path="/logs" element={<RequirePermission perms={['logs.view']}><SystemLogs /></RequirePermission>} />
-            <Route path="/worker-fleet" element={<RequirePermission perms={['settings.system']}><WorkerFleet /></RequirePermission>} />
-          </Routes>
+          <Suspense fallback={<div className="p-8 text-center text-slate-500 text-sm">{tx("Loading…")}</div>}>
+            <Routes>
+              <Route path="/"            element={<Dashboard />} />
+              <Route path="/brokers"     element={<Brokers />} />
+              <Route path="/brokers/add" element={<RequirePermission perms={['brokers.manage']}><BrokerSubmit /></RequirePermission>} />
+              <Route path="/email"       element={<EmailMonitor />} />
+              <Route path="/scheduled"   element={<Scheduled />} />
+              <Route path="/discovery"   element={<Discovery />} />
+              <Route path="/family"      element={<Family />} />
+              <Route path="/identity"    element={<IdentityVault />} />
+              <Route path="/inboxes"     element={<Inboxes />} />
+              <Route path="/credit-freeze" element={<CreditFreeze />} />
+              <Route path="/deadlines" element={<DeadlineReport />} />
+              <Route path="/privacy-record" element={<PrivacyRecord />} />
+              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/checklist"   element={<Checklist />} />
+              <Route path="/settings"    element={<Settings />} />
+              <Route path="/translations" element={<RequirePermission perms={['settings.manage']}><Translations /></RequirePermission>} />
+              <Route path="/help"        element={<Help />} />
+              <Route path="/admin"       element={<RequirePermission perms={['users.manage']}><AdminPanel /></RequirePermission>} />
+              <Route path="/branding"    element={<RequirePermission perms={['branding.manage', 'users.registration', 'auth.providers']}><Branding /></RequirePermission>} />
+              <Route path="/reporting"   element={<RequirePermission perms={['reporting.view']}><Reporting /></RequirePermission>} />
+              <Route path="/database"    element={<RequirePermission perms={['database.view']}><DatabaseAdmin /></RequirePermission>} />
+              <Route path="/plugins"     element={<RequirePermission perms={['plugins.view']}><Plugins /></RequirePermission>} />
+              <Route path="/plugin-help" element={<RequirePermission perms={['plugins.view', 'plugins.upload']}><PluginHelp /></RequirePermission>} />
+              <Route path="/plugin-upload" element={<RequirePermission perms={['plugins.upload']}><PluginUpload /></RequirePermission>} />
+              <Route path="/backups" element={<Backups />} />
+              <Route path="/monitoring" element={<Monitoring />} />
+              <Route path="/usage-stats" element={<UsageStats />} />
+              <Route path="/terms-settings" element={<Terms />} />
+              <Route path="/broker-updates" element={<RequirePermission perms={['brokers.manage']}><BrokerUpdates /></RequirePermission>} />
+              <Route path="/data-sharing" element={<RequirePermission perms={['brokers.manage']}><BrokerNetwork /></RequirePermission>} />
+              <Route path="/broker-health" element={<RequirePermission perms={['brokers.manage']}><BrokerHealth /></RequirePermission>} />
+              <Route path="/spec-helpers" element={<RequirePermission perms={['brokers.manage']}><SpecHelpers /></RequirePermission>} />
+              <Route path="/letters" element={<RequirePermission perms={['brokers.manage']}><Letters /></RequirePermission>} />
+              <Route path="/web-search" element={<RequirePermission perms={['settings.system']}><WebSearchSettings /></RequirePermission>} />
+              <Route path="/state-registries" element={<RequirePermission perms={['brokers.manage']}><StateRegistries /></RequirePermission>} />
+              <Route path="/broker-priority" element={<RequirePermission perms={['brokers.manage']}><BrokerPriority /></RequirePermission>} />
+              <Route path="/parent-companies" element={<RequirePermission perms={['brokers.manage']}><ParentCompanies /></RequirePermission>} />
+              <Route path="/captcha" element={<CaptchaQueue />} />
+              <Route path="/logs" element={<RequirePermission perms={['logs.view']}><SystemLogs /></RequirePermission>} />
+              <Route path="/worker-fleet" element={<RequirePermission perms={['settings.system']}><WorkerFleet /></RequirePermission>} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
     </div>
@@ -193,13 +197,15 @@ export default function App() {
           <LanguageProvider>
             <SkipLink />
             <BrowserRouter>
-              <Routes>
-                <Route path="/login"                element={<Login />} />
-                <Route path="/auth/callback"        element={<OIDCCallback />} />
-                <Route path="/terms"                element={<PublicTerms />} />
-                <Route path="/signup"               element={<Signup />} />
-                <Route path="/*"                    element={<RequireAuth><Layout /></RequireAuth>} />
-              </Routes>
+              <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-500 text-sm">{tx("Loading…")}</p></div>}>
+                <Routes>
+                  <Route path="/login"                element={<Login />} />
+                  <Route path="/auth/callback"        element={<OIDCCallback />} />
+                  <Route path="/terms"                element={<PublicTerms />} />
+                  <Route path="/signup"               element={<Signup />} />
+                  <Route path="/*"                    element={<RequireAuth><Layout /></RequireAuth>} />
+                </Routes>
+              </Suspense>
             </BrowserRouter>
           </LanguageProvider>
         </AuthProvider>
