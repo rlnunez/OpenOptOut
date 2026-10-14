@@ -3,8 +3,9 @@
 **Open-source personal data removal pipeline.** Automated opt-out submission, confirmation tracking, and continuous defense against quiet data-broker re-listings.
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+[![Data Brokers](https://img.shields.io/badge/Data%20Brokers-80%20built--in-orange.svg)](backend/plugins/bundled/brokers)
 [![WCAG 2.2 AAA](https://img.shields.io/badge/Accessibility-WCAG_2.2_AAA-green.svg)](ACCESSIBILITY.md)
-[![Security Policy](https://img.shields.io/badge/Security-Policy-brightgreen.svg)](SECURITY.md)
+[![Languages](https://img.shields.io/badge/Languages-17%20packs-informational.svg)](backend/plugins/bundled/languages)
 
 OpenOptOut is a free, self-hostable privacy automation platform built for two audiences from the same codebase:
 - **Families** — Single system with role-based access so parents can manage their children's data and spouses can coordinate removals together.
