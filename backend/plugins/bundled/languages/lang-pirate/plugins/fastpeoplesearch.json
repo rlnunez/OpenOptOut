@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer FastPeopleSearch. A sailor follows the steps on the checklist; OpenOptOut hands over a one-time email address an' clicks any confirmation link.",
+ "instructions": "Search fastpeoplesearch.com fer {full_name}. If ye be listed, open fastpeoplesearch.com/optout an' follow the steps to remove yer record; ye may need to solve a CAPTCHA. If it asks fer an email address, use {contact_email}, so OpenOptOut can click, matey, any confirmation link fer ye. Then smash \"I've done this\"."
+}

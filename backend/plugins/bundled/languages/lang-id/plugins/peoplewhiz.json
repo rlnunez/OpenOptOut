@@ -1,0 +1,4 @@
+{
+ "description": "Opt-out dengan panduan untuk PeopleWhiz. Seseorang mengikuti langkah-langkah pada daftar periksa; OpenOptOut menyediakan alamat email sekali pakai dan mengeklik tautan konfirmasi.",
+ "instructions": "Buka https://www.peoplewhiz.com/optout dan ikuti langkah-langkah situs untuk {full_name}. Gunakan {contact_email} di mana pun situs meminta alamat email, agar balasan cocok. Kemudian tekan \"Saya sudah melakukan ini\"."
+}

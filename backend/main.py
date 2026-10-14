@@ -27,6 +27,31 @@ from .routers.logs import router as logs_router
 from .routers.captcha import router as captcha_router
 from .routers.i18n import router as i18n_router
 from .routers.workers import router as workers_router
+from .routers.mailboxes import router as mailboxes_router
+from .routers.listings import router as listings_router
+from .routers.registry import router as registry_router
+from .routers.web_search import router as web_search_router
+from .routers.backups import router as backups_router
+from .routers.privacy_pages import router as privacy_pages_router
+from .routers.broker_updates import router as broker_updates_router
+from .routers.verification import router as verification_router
+from .routers.broker_network import router as broker_network_router
+from .routers.credit_freeze import router as credit_freeze_router
+from .routers.timeline import router as timeline_router
+from .routers.compliance import router as compliance_router
+from .routers.privacy import router as privacy_router
+from .routers.reports import router as reports_router
+from .routers.calendar import router as calendar_router
+from .routers.confirm_links import router as confirm_links_router
+from .routers.checklist import router as checklist_router
+from .routers.variants import router as variants_router
+from .routers.spec_helpers import router as spec_helpers_router
+from .routers.live_steps import router as live_steps_router
+from .routers.letters import router as letters_router
+from .routers.observability import router as observability_router, ops_router
+from .routers.terms import router as terms_router
+from .routers.usage_stats import router as stats_admin_router, api_router as stats_api_router
+from .routers.resident_addresses import router as resident_addresses_router
 from .core.scheduler import start_scheduler, stop_scheduler
 from .core.version import get_version, get_commit, version_string
 from .core.logging_config import init_logging
@@ -101,7 +126,8 @@ for r in [
     db_admin_router, plugins_router, parent_companies_router, wizard_router,
     email_oauth_router, test_broker_router, saml_router, cert_monitor_router,
     consortium_router, logs_router, captcha_router, i18n_router,
-    workers_router,
+    workers_router, mailboxes_router, listings_router, registry_router,
+    web_search_router, checklist_router, variants_router, privacy_pages_router, confirm_links_router, broker_updates_router, verification_router, broker_network_router, credit_freeze_router, timeline_router, compliance_router, privacy_router, reports_router, calendar_router, spec_helpers_router, live_steps_router, letters_router, observability_router, ops_router, terms_router, stats_admin_router, stats_api_router, resident_addresses_router,
 ]:
     app.include_router(r)
 
@@ -113,6 +139,12 @@ def startup():
     disable_core_dumps()
     # Initialize rotating file logger and in-memory ring buffer
     init_logging()
+    try:   # copies of log lines to a central server, if an admin set one up
+        from .core.log_forwarding import apply as _forward_logs
+        _forward_logs()
+        from .core import monitoring as _monitoring   # noqa: F401  (uptime counts from here)
+    except Exception:
+        pass
     # First thing logged, before anything that could fail — so "what version
     # is this" is answerable from `docker compose logs api` even if startup
     # doesn't get any further than this.
@@ -126,6 +158,21 @@ def startup():
     run_institutional_migrations()
     migrate_plugin_upload_grants()   # needs every users column, so after both lists
     seed_property_brokers()
+    # Curated broker opt-out steps that ship with the app.
+    try:
+        from .models.database import SessionLocal
+        from .plugins.broker_addon import sync_builtin_brokers
+        from .plugins.language_packs import sync_builtin_languages, sync_builtin_letters
+        _db = SessionLocal()
+        try:
+            sync_builtin_brokers(_db)
+            sync_builtin_languages(_db)
+            sync_builtin_letters(_db)
+        finally:
+            _db.close()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("Built-in broker add-ons not installed: %s", e)
     start_scheduler()
     # Plugin system — process-isolated, sandboxed, opt-in via settings
     try:

@@ -1,0 +1,4 @@
+{
+ "description": "Radaris(radaris.com) 거부. 이름 검색은 자동으로 채우고, 게시물 선택과 확인은 사람에게 넘깁니다.",
+ "steps.7.text": "Radaris는 이 단계를 직접 마쳐야 합니다. radaris.com/control-privacy 로 가서 {full_name}과(와) 사는 도시를 검색하고, 본인 프로필을 누른 뒤 파란색 \"Start Removing\" 버튼을 누르세요. 이메일 주소로 {contact_email}을(를) 입력하고 제출하세요. Radaris가 그 주소로 링크를 보내면 OpenOptOut이 대신 누릅니다."
+}

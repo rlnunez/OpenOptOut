@@ -7,10 +7,16 @@ Pass 2: triggered by opt-out engine using full matrix on confirmed brokers
 
 import asyncio, logging, re, time, uuid
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any
 from urllib.parse import quote_plus, urlparse
 
-from playwright.async_api import async_playwright, BrowserContext, Page, TimeoutError as PWTimeout
+try:
+    from playwright.async_api import async_playwright, BrowserContext, Page, TimeoutError as PWTimeout
+except ImportError:
+    async_playwright = None
+    BrowserContext = Any  # type: ignore
+    Page = Any  # type: ignore
+    PWTimeout = TimeoutError  # type: ignore
 
 from ..models.database import (
     SessionLocal, FamilyMember, Broker, BrokerScript,
@@ -260,7 +266,10 @@ async def run_discovery_for_member(member_id: int) -> dict:
 
         combos  = build_discovery_combos(member)
         # Exclude test brokers — they exist only for the explicit email test send.
-        brokers = db.query(Broker).filter(Broker.is_test.isnot(True)).all()
+        # Registry imports that are still off aren't scanned: hundreds of
+        # them would turn every scan into hundreds of web searches.
+        brokers = [b for b in db.query(Broker).filter(Broker.is_test.isnot(True)).all()
+                   if b.enabled or (b.origin or "curated") != "registry"]
         scripts = {s.broker_id: s for s in db.query(BrokerScript).all()}
 
         log.info(f"Discovery for member_id={member.id}: {len(combos)} combos × {len(brokers)} brokers")
@@ -310,7 +319,7 @@ async def run_discovery_for_member(member_id: int) -> dict:
                                 break
 
                         except Exception as e:
-                            errors.append(f"{broker.name} / {combo.label()}: {e}")
+                            errors.append(f"{broker.name} / {combo.masked_label()}: {e}")
 
                     db.commit()
 
@@ -331,6 +340,10 @@ async def run_discovery_for_member(member_id: int) -> dict:
                                 status=RequestStatus.pending,
                             ))
                             db.commit()
+                        if not broker.enabled:
+                            # Found on a broker that's turned off: the admin's rule decides.
+                            from .found_listings import handle
+                            handle(db, broker, member_id)
 
                     # Polite inter-broker delay
                     await asyncio.sleep(1.0)

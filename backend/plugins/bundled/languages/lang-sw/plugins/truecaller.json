@@ -1,0 +1,4 @@
+{
+ "description": "Kujiondoa kwa kuelekezwa kwa Truecaller, ambalo huorodhesha watu kwa nambari ya simu. Kujiondoa mara moja kunajumuisha kila nambari iliyohifadhiwa.",
+ "instructions": "Truecaller shows your name to people you call. Fungua https://www.truecaller.com/unlisting and unlist each of these numbers, one at a time, with the country code: {all_phones}. Finish the robot check for each. If you use the Truecaller app yourself, deactivate your account in the app first, then uninstall it, or the unlisting won't stick. Kisha bonyeza \"Nimefanya hili\"."
+}

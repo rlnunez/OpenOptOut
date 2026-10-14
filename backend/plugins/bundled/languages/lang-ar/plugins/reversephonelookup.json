@@ -1,0 +1,4 @@
+{
+ "description": "إلغاء موجَّه لدى ReversePhoneLookup.com، الذي يعرض الأشخاص حسب رقم الهاتف. إلغاء واحد يشمل كل الأرقام المحفوظة.",
+ "instructions": "افتح https://www.reversephonelookup.com/ وانقر «Do Not Sell or Share My Personal Information» أسفل الصفحة. أدخل {contact_email} وأحد هذه الأرقام (أرقام فقط إن ظهر خطأ): {all_phones}. أكمل التحقق من أنك لست روبوتًا وأرسل؛ وسننقر رابط التأكيد الذي يصل بالبريد. كرّر ذلك لكل رقم، ثم اضغط «لقد أنجزت هذا»."
+}

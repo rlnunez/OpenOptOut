@@ -1,0 +1,18 @@
+{
+  "broker_id": "numlookup",
+  "name": "NumLookup",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://www.numlookup.com/opt_out",
+  "lookup_by": "phone",
+  "instructions": "Open https://www.numlookup.com/opt_out, enter one of these numbers, finish the robot check and choose to remove your information: {all_phones}. Choose to send a removal request by hand (you don't need an account) and fill in {full_name}, {contact_email} and the number. The form may ask for a photo ID. You can black out everything on it except your name and photo. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "NumLookup can take up to 45 days. Its manual request form has asked for a photo ID; OpenOptOut never uploads ID for you.",
+  "source": "Steps per Incogni's NumLookup opt-out guide (2022; check the form is unchanged).",
+  "last_verified": ""
+}

@@ -1,0 +1,282 @@
+"""
+General web search: the server runs searches for a family member and sorts
+what it finds.
+
+The searches are the same ones "Find your listings" offers as links
+(core/listing_finder.discovery_queries) — exact phone numbers, exact street
+addresses, exact emails, name + city, people-search phrases — run through a
+SearXNG instance the admin runs (self-hosted, open source; needs `json` in its
+settings.yml search.formats). SearXNG is the only supported provider.
+
+Each result is sorted by how sure we are that it's about this person:
+
+  strong  — the page shows one of their exact phone numbers, street addresses
+            or email addresses
+  medium  — their name and their city
+  weak    — anything else the searches turned up
+
+A strong result on a site OpenOptOut knows as a broker goes straight into the
+removal cycle (listing_finder.add_listing). Everything else waits in a review
+list for the person: "Add to removals" or "Not me". "Not me" is remembered.
+
+Privacy: these searches send the member's identifiers to the provider (and, for
+the engines SearXNG forwards to). That's inherent in web search, and finding
+where people are listed is the point of the system, so it's on by default
+whenever a SearXNG address is available (docker-compose bundles one and sets
+SEARXNG_URL). The settings page explains the trade-off and an admin can turn
+it off.
+"""
+
+import hashlib
+import logging
+import re
+import time
+from datetime import datetime
+from typing import Optional
+from urllib.parse import urlparse
+
+log = logging.getLogger(__name__)
+
+import os
+
+DEFAULTS = {"enabled": True, "provider": "searxng", "searxng_url": "",
+            "max_queries": 12, "weekly": True, "auto_add_strong": True}
+
+PRIVACY_NOTE = ("Web searches send family members' names, phone numbers, addresses and email "
+                "addresses to your SearXNG server, which passes them on to the search engines it "
+                "uses. Turn it off under Admin → Web search if the family isn't comfortable with that.")
+
+# Sites that show up in searches but aren't where a listing lives.
+_SKIP_DOMAINS = {"google.com", "bing.com", "duckduckgo.com", "search.brave.com", "yahoo.com",
+                 "wikipedia.org", "youtube.com"}
+
+_STREET_ABBR = {"street": "st", "avenue": "ave", "road": "rd", "drive": "dr", "lane": "ln",
+                "boulevard": "blvd", "court": "ct", "place": "pl", "terrace": "ter",
+                "circle": "cir", "parkway": "pkwy", "highway": "hwy", "north": "n",
+                "south": "s", "east": "e", "west": "w", "apartment": "apt", "suite": "ste"}
+
+
+def settings_of(cfg: dict) -> dict:
+    """Saved settings over the defaults. Until an admin saves an address, the
+    one from SEARXNG_URL (the bundled SearXNG) is used."""
+    out = dict(DEFAULTS, searxng_url=os.getenv("SEARXNG_URL", "").strip())
+    saved = (cfg or {}).get("web_search") or {}
+    out.update({k: v for k, v in saved.items() if not (k == "searxng_url" and not v)})
+    return out
+
+
+def configured(ws: dict) -> bool:
+    return bool(ws.get("enabled") and ws.get("provider", "searxng") == "searxng" and ws.get("searxng_url"))
+
+
+# ── Providers ─────────────────────────────────────────────────────────────────
+
+def _searxng(ws: dict, query: str) -> list:
+    import requests
+    base = ws["searxng_url"].rstrip("/")
+    url = base if base.endswith("/search") else base + "/search"
+    r = requests.get(url, params={"q": query, "format": "json"}, timeout=20,
+                     headers={"User-Agent": "OpenOptOut"})
+    if r.status_code == 403:
+        raise RuntimeError("SearXNG refused the request. Add `json` to search.formats in its settings.yml.")
+    r.raise_for_status()
+    return [{"url": x.get("url", ""), "title": x.get("title", ""), "snippet": x.get("content", "")}
+            for x in (r.json().get("results") or [])]
+
+
+PROVIDERS = {"searxng": _searxng}
+
+
+# ── Matching ──────────────────────────────────────────────────────────────────
+
+def _digits_runs(text: str) -> set:
+    """Every phone-number-looking run in the text, as 10 digits."""
+    out = set()
+    for m in re.finditer(r"(?:\+?1[\s.\-]?)?\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}", text or ""):
+        d = re.sub(r"\D", "", m.group(0))
+        if len(d) == 11 and d.startswith("1"):
+            d = d[1:]
+        if len(d) == 10:
+            out.add(d)
+    return out
+
+
+def norm_street(s: str) -> str:
+    words = re.sub(r"[^a-z0-9 ]", " ", (s or "").lower()).split()
+    return " ".join(_STREET_ABBR.get(w, w) for w in words)
+
+
+def score(member_profile: dict, text: str) -> tuple:
+    """-> (strength, matched_on) for a result's title + snippet + url."""
+    low = (text or "").lower()
+    phones = {re.sub(r"\D", "", p)[-10:] for p in member_profile["phones"] if len(re.sub(r"\D", "", p)) >= 10}
+    if phones & _digits_runs(text):
+        return "strong", "phone"
+    ntext = norm_street(text)
+    for street in member_profile["streets"]:
+        ns = norm_street(street)
+        if ns and len(ns) > 6 and re.search(r"\b" + re.escape(ns) + r"\b", ntext):
+            return "strong", "address"
+    for e in member_profile["emails"]:
+        if e and e.lower() in low:
+            return "strong", "email"
+    names = [n.lower() for n in member_profile["names"] if n]
+    cities = [p.split(",")[0].strip().lower() for p in member_profile["places"] if p]
+    from .age import age_matches
+    for n in names:
+        if n in low:
+            in_city = any(c and c in low for c in cities)
+            same_age = age_matches(member_profile, text)
+            if in_city and same_age:
+                return "strong", "name+city+age"
+            if in_city:
+                return "medium", "name+city"
+            if same_age:
+                return "medium", "name+age"
+            return "weak", "name"
+    return "weak", ""
+
+
+# ── Running ───────────────────────────────────────────────────────────────────
+
+def _url_hash(url: str) -> str:
+    u = urlparse(url)
+    key = f"{(u.hostname or '').lower()}{u.path.rstrip('/')}?{u.query}"
+    return hashlib.sha256(key.encode()).hexdigest()
+
+
+def run_for_member(db, member, cfg: dict, search=None, pause: float = 1.0) -> dict:
+    """
+    Run the member's searches, store new results, and add strong matches on
+    known brokers to the removal cycle. `search(query) -> [ {url,title,snippet} ]`
+    can be injected (tests); otherwise the configured provider is used.
+    """
+    from ..models.database import WebSearchHit
+    from . import listing_finder as lf
+
+    ws = settings_of(cfg)
+    if search is None:
+        if not configured(ws):
+            raise RuntimeError("Web search isn't set up. An admin can turn it on under Admin → Web search.")
+        provider = PROVIDERS[ws["provider"]]
+        search = lambda q: provider(ws, q)   # noqa: E731
+
+    profile = lf._profile(member)
+    queries = lf.discovery_queries(member)[: int(ws.get("max_queries") or 12)]
+    stats = {"queries": 0, "results": 0, "new": 0, "added": 0, "errors": []}
+    now = datetime.utcnow()
+    unclear_cache, per_broker = {}, {}
+
+    for i, q in enumerate(queries):
+        try:
+            results = search(q["query"])
+        except Exception as e:
+            stats["errors"].append(str(e))
+            log.warning("Web search failed (%s): %s", q["label"], e)
+            if "refused" in str(e) or "limit" in str(e):
+                break
+            continue
+        stats["queries"] += 1
+        for r in results or []:
+            url = (r.get("url") or "").strip()
+            try:
+                url = lf.validate_listing_url(url)
+            except ValueError:
+                continue
+            host = lf._host(url)
+            domain = lf.registrable_domain(host)
+            if domain in _SKIP_DOMAINS:
+                continue
+            stats["results"] += 1
+            h = _url_hash(url)
+            hit = db.query(WebSearchHit).filter(WebSearchHit.member_id == member.id,
+                                                WebSearchHit.url_hash == h).first()
+            if hit is not None:
+                hit.last_seen_at = now
+                continue
+            strength, matched_on = score(profile, " ".join([r.get("title", ""), r.get("snippet", ""), url]))
+            broker = lf.resolve_broker(db, url)["broker"]
+            hit = WebSearchHit(member_id=member.id, url=url, url_hash=h, domain=domain,
+                               title=(r.get("title") or "")[:500], snippet=(r.get("snippet") or "")[:1000],
+                               query_label=q["label"], strength=strength, matched_on=matched_on,
+                               broker_id=broker.id if broker else None, found_at=now, last_seen_at=now)
+            db.add(hit)
+            db.flush()
+            stats["new"] += 1
+            # A page on a broker this person was already removed from: check
+            # whether the listing came back (and send the opt-out again if so).
+            if broker is not None and strength in ("strong", "medium"):
+                try:
+                    from .verification import on_web_hit, settings_of as vsettings
+                    if vsettings(cfg)["enabled"]:
+                        vr = on_web_hit(db, member, broker, url, cfg)
+                        if vr is not None:
+                            stats["rechecked"] = stats.get("rechecked", 0) + 1
+                            if vr["action"].startswith("resend"):
+                                hit.status = "added"
+                                stats["relisted"] = stats.get("relisted", 0) + 1
+                            continue
+                except Exception as e:
+                    log.info("re-listing check skipped: %s", e)
+            # A known broker's page that shows only the name: follow the
+            # unclear-matches setting (core/match_policy.py).
+            if broker is not None and strength == "weak" and matched_on == "name":
+                from .match_policy import classify, for_member, MAX_REMOVE_ALL
+                verdict, why = classify(profile, " ".join([r.get("title", ""), r.get("snippet", ""), url]))
+                if verdict == "not_you":
+                    hit.status, hit.dismiss_reason = "dismissed", "ruled_out"
+                elif verdict == "unclear":
+                    hit.matched_on = "unclear"
+                    policy = unclear_cache.setdefault("policy", for_member(db, member, cfg))
+                    if policy == "skip":
+                        hit.status, hit.dismiss_reason = "dismissed", "unclear_skipped"
+                        stats["skipped"] = stats.get("skipped", 0) + 1
+                    elif policy == "remove_all" and per_broker.get(broker.id, 0) < MAX_REMOVE_ALL:
+                        res = lf.add_listing(db, member, url, create_unknown=False, source="web_search")
+                        if res.get("ok"):
+                            per_broker[broker.id] = per_broker.get(broker.id, 0) + 1
+                            hit.status, hit.request_id = "added", res.get("request_id")
+                            stats["added"] += 1
+                continue
+            if broker is not None and strength == "strong" and ws.get("auto_add_strong", True):
+                res = lf.add_listing(db, member, url, create_unknown=False, source="web_search")
+                if res.get("ok"):
+                    hit.status = "added"
+                    hit.request_id = res.get("request_id")
+                    stats["added"] += 1
+        db.commit()
+        if pause and i < len(queries) - 1:
+            time.sleep(pause)
+    log.info("Web search for member_id=%s: %s", member.id, {k: v for k, v in stats.items() if k != "errors"})
+    return stats
+
+
+def add_hit(db, hit, member) -> dict:
+    """The person says this page is about them: put it in the removal cycle."""
+    from . import listing_finder as lf
+    res = lf.add_listing(db, member, hit.url, source="web_search")
+    hit.status = "added"
+    hit.request_id = res.get("request_id")
+    db.commit()
+    return res
+
+
+def dismiss_hit(db, hit, reason: str = "not_me") -> None:
+    hit.status = "dismissed"
+    hit.dismiss_reason = reason if reason in ("not_me", "not_broker") else "not_me"
+    db.commit()
+
+
+def run_weekly(db, cfg: dict) -> dict:
+    """Scheduled run for every member, when the admin turned weekly searches on."""
+    from ..models.database import FamilyMember
+    ws = settings_of(cfg)
+    if not (configured(ws) and ws.get("weekly")):
+        return {}
+    out = {}
+    for m in db.query(FamilyMember).all():
+        try:
+            out[m.id] = run_for_member(db, m, cfg)
+        except Exception as e:
+            out[m.id] = {"error": str(e)}
+    return out

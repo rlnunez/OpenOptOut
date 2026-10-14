@@ -1,3 +1,6 @@
+import { useT } from '../i18n/LanguageContext'
+import { tx } from '../i18n/tx'
+
 const styles = {
   confirmed:  'bg-emerald-900/50 text-emerald-400 border-emerald-800',
   pending:    'bg-amber-900/50  text-amber-400  border-amber-800',
@@ -6,6 +9,8 @@ const styles = {
   failed:     'bg-red-900/50    text-red-400    border-red-800',
   resistant:  'bg-red-900/50    text-red-400    border-red-800',
   recheck_due:'bg-orange-900/50 text-orange-400 border-orange-800',
+  needs_manual:'bg-amber-900/50 text-amber-300 border-amber-700',
+  submitted:  'bg-amber-900/50  text-amber-400  border-amber-800',
   compliant:  'bg-slate-800     text-slate-300  border-slate-700',
   inconsistent:'bg-orange-900/50 text-orange-400 border-orange-800',
   undetermined:'bg-slate-800    text-slate-400  border-slate-700',
@@ -18,11 +23,32 @@ const styles = {
   hard:       'bg-red-900/50    text-red-400    border-red-800',
 }
 
+// Plain words for the codes the server uses. Anything not listed is shown
+// with underscores turned into spaces.
+export const LABELS = {
+  pending: tx("Waiting to send"), sent: tx("Sent"), submitted: tx("Sent"), confirmed: tx("Removed"),
+  rejected: tx("Refused"), failed: tx("Didn't work"), needs_manual: tx("Needs you"), recheck_due: tx("Check again"),
+  resistant: tx("Often refuses"), compliant: tx("Usually removes"), inconsistent: tx("Mixed results"),
+  undetermined: tx("Not known yet"), form: tx("Web form"), email: tx("Email"), manual: tx("By hand"), phone: tx("By phone"),
+  easy: tx("Easy"), medium: tx("Medium"), hard: tx("Hard"), running: tx("Running"), done: tx("Done"), error: tx("Problem"),
+  success: tx("Worked"), failure: tx("Didn't work"), captcha: 'CAPTCHA', skipped: tx("Skipped"),
+}
+
+// Pass `t` (from useLanguage) to get the label in the person's language;
+// each code has a dictionary key `status.<code>`.
+export function plainLabel(value, t) {
+  if (value == null || value === '') return ''
+  const v = String(value)
+  const english = LABELS[v.toLowerCase()] || (v.charAt(0).toUpperCase() + v.slice(1)).replace(/_/g, ' ')
+  return t && LABELS[v.toLowerCase()] ? t(`status.${v.toLowerCase()}`, english) : english
+}
+
 export default function Badge({ value }) {
+  const t = useT()
   const cls = styles[value?.toLowerCase()] ?? 'bg-slate-800 text-slate-300 border-slate-700'
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-sm text-xs border ${cls}`}>
-      {value}
+      {plainLabel(value, t)}
     </span>
   )
 }

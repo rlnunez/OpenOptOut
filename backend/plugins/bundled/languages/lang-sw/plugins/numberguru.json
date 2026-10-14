@@ -1,0 +1,4 @@
+{
+ "description": "Kujiondoa kwa kuelekezwa kwa NumberGuru, ambalo huorodhesha watu kwa nambari ya simu. Kujiondoa mara moja kunajumuisha kila nambari iliyohifadhiwa.",
+ "instructions": "Search https://www.numberguru.com/ for each of these numbers: {all_phones}. On any page that shows you, use the \"Remove This Listing\" or \"Opt Out\" link and give {contact_email} as your email. Kisha bonyeza \"Nimefanya hili\"."
+}

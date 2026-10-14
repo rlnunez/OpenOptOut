@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out for Hunter, which lists people by email address. One opt-out covers every saved email address.",
+ "instructions": "Hunter shows people's work email addresses. Fungua https://hunter.io/ and click \"Do Not Sell My Info\" at the bottom. For each of these addresses, claim it, open the link Hunter sends to it, then press \"Delete my information\": {all_emails}. Kisha bonyeza \"Nimefanya hili\"."
+}

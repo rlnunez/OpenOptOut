@@ -23,7 +23,7 @@ from ..core.auth import (
 from ..core.access import require_permission
 from ..core.scheduler import (
     get_scheduler, get_next_run_times,
-    daily_optout_job, email_monitor_job, recheck_job,
+    daily_optout_job, email_monitor_job, recheck_job, verification_job,
     reload_scheduler
 )
 from ..core.settings_store import load_settings
@@ -103,6 +103,7 @@ JOB_MAP = {
     "optout":       daily_optout_job,
     "email_monitor": email_monitor_job,
     "recheck":      recheck_job,
+    "verify":       verification_job,
 }
 
 @router.post("/trigger/{job_name}")
@@ -114,7 +115,8 @@ def trigger_job(
     if not fn:
         raise HTTPException(400, f"Unknown job. Valid: {list(JOB_MAP)}")
     import threading
-    threading.Thread(target=fn, daemon=True).start()
+    kwargs = {"manual": True} if job_name == "optout" else {}   # a person asked: ignore the calendar
+    threading.Thread(target=fn, kwargs=kwargs, daemon=True).start()
     return {"triggered": job_name, "at": datetime.utcnow().isoformat()}
 
 

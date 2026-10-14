@@ -1,0 +1,3 @@
+{
+ "description": "Envia e-mails de exclusão e lê confirmações pela API do Gmail usando OAuth 2.0. Plugin de referência de provedor de e-mail. Classe confiável: ele envia identificadores dos membros ao Gmail, por isso declara read_pii + network, e o sistema o inspeciona em busca de destinatários ocultos e impõe o destinatário real no envio."
+}

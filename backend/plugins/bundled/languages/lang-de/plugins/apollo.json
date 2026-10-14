@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei Apollo.io, das Personen nach E-Mail-Adresse auflistet. Ein Widerspruch gilt für alle gespeicherten Adressen.",
+ "instructions": "Apollo führt Personen unter ihrer beruflichen E-Mail. Öffne https://www.apollo.io/privacy-policy/remove, gib jede dieser Adressen ein (eine nach der anderen), schließ die Roboterprüfung ab und öffne den Link, den Apollo an diese Adresse schickt: {all_emails}. Drück dann „Ich habe das erledigt“."
+}

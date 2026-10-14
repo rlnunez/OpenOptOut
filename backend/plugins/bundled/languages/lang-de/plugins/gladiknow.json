@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei GladIKnow. Eine Person folgt den Schritten der Checkliste; OpenOptOut stellt eine Einmal-E-Mail-Adresse bereit und klickt Bestätigungslinks an.",
+ "instructions": "Öffnen Sie https://gladiknow.com, suchen Sie {full_name}, öffnen Sie Ihren eigenen Eintrag und nutzen Sie dort den Widerspruchs- oder „Control“-Link. Geben Sie {contact_email} an, wann immer eine E-Mail-Adresse gefragt ist. Drücken Sie dann „Ich habe das erledigt“."
+}

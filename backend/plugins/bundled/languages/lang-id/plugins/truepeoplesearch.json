@@ -1,0 +1,4 @@
+{
+ "description": "Opt-out dengan panduan untuk TruePeopleSearch. Seseorang mengikuti langkah-langkah pada daftar periksa; OpenOptOut menyediakan alamat email sekali pakai dan mengeklik tautan konfirmasi.",
+ "instructions": "Buka truepeoplesearch.com/removal. Enter {full_name}, your city and state ({city}, {state}) and {contact_email} as the email address, then solve the CAPTCHAs. If your record is listed, press the button to remove it. OpenOptOut clicks any confirmation link sent to that address. Kemudian tekan \"Saya sudah melakukan ini\"."
+}

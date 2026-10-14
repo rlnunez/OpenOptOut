@@ -15,7 +15,7 @@ from typing import Optional, List, Any
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, get_current_user_optional, require_super_admin
 from ..core.access import require_permission, has_permission
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
 from ..core.auth_providers import OIDC_PRESETS
 
 import base64 as b64lib
@@ -50,8 +50,7 @@ def _decrypt(v: str) -> str:
     except: return ""
 
 def _save(data: dict):
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    save_settings(data)
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -84,6 +83,11 @@ class RegistrationConfig(BaseModel):
     allowed_domains:   Optional[str] = None   # comma-separated, e.g. "library.org,city.gov"
     require_invite:    bool  = False
     self_registration: bool  = True
+    # Residents-only sign-up (core/resident_addresses.py)
+    signup_page:       bool  = False          # a "Create an account" page on the sign-in screen
+    address_check:     bool  = False          # only addresses on the uploaded list may sign up
+    address_limit:     int   = 0              # accounts per home (address + unit); 0 = no limit
+    signup_help:       Optional[str] = None   # who to contact when an address isn't on the list
 
 
 class AnnouncementBanner(BaseModel):

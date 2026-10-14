@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no USPhoneBook. Uma pessoa segue os passos da lista; o OpenOptOut fornece um endereço de e-mail de uso único e clica em qualquer link de confirmação.",
+ "instructions": "Procure seu número de telefone no usphonebook.com. Se você aparecer, abra usphonebook.com/opt-out e siga os passos, usando {contact_email} onde pedir um e-mail. Se a página de exclusão travar, escreva para support+optout@usphonebook.com pedindo a remoção. Depois toque em \"Já fiz isso\"."
+}

@@ -1,0 +1,20 @@
+{
+  "broker_id": "apollo",
+  "name": "Apollo.io",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://www.apollo.io/privacy-policy/remove",
+  "lookup_by": "email",
+  "instructions": "Apollo files people by work email. Open https://www.apollo.io/privacy-policy/remove, enter each of these addresses (one at a time), finish the robot check, and open the link Apollo sends to that address: {all_emails}. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "own_inbox_confirmation"
+  ],
+  "notes": "Usually done within 1 to 7 days. If nothing changes after a week, write to Apollo's privacy address.",
+  "source": "Steps per ClearNym's Apollo opt-out guide.",
+  "last_verified": ""
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour NumLookup, qui répertorie les gens par numéro de téléphone. Une seule désinscription couvre tous les numéros enregistrés.",
+ "instructions": "Ouvrez https://www.numlookup.com/opt_out, saisissez l'un de ces numéros, terminez la vérification anti-robot et choisissez de supprimer vos informations : {all_phones}. Choisissez d'envoyer la demande de suppression manuellement (pas besoin de compte) et indiquez {full_name}, {contact_email} et le numéro. Le formulaire peut demander une pièce d'identité avec photo. Vous pouvez tout masquer sauf votre nom et votre photo. Puis appuyez sur « C'est fait »."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Kujiondoa kwa kuelekezwa kwa Spy Dialer, ambalo huorodhesha watu kwa nambari ya simu. Kujiondoa mara moja kunajumuisha kila nambari iliyohifadhiwa.",
+ "instructions": "Fungua https://www.spydialer.com/ and click \"Do Not Sell Or Share My Personal Information\" at the bottom. Press Start, choose your state, finish the robot check, then add {full_name}, your address, each of these numbers ({all_phones}) and {email}. Press \"Opt-Out My Info\" and wait for \"Your submitted data has been blocked from future sharing\". Kisha bonyeza \"Nimefanya hili\"."
+}

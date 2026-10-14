@@ -278,6 +278,8 @@ PLUGIN_TYPES = {
     },
     "themes":    {"label": "Themes",         "data_only": True, "allowed_permissions": _P()},
     "languages": {"label": "Language packs", "data_only": True, "allowed_permissions": _P()},
+    # Opt-out letter wording (letter.json): text the host fills in, no code.
+    "letters":   {"label": "Opt-out letters", "data_only": True, "allowed_permissions": _P()},
     "general": {
         "label": "General",   # event hooks, email parsers, anything else
         # Everything except the permissions that belong to a specialized type.
@@ -355,6 +357,15 @@ class PluginManifest:
     captcha_plugin_id: str = ""
     is_property_broker: bool = False
     difficulty: str = "medium"
+    # Whether a built-in broker plugin's broker starts turned on. False for
+    # plugins whose opt-out page nobody could check yet: they ship installed
+    # but off, and an admin turns them on (Brokers page) once a rehearsal
+    # passes. See broker-plugins/README.md, "Checked and unchecked plugins".
+    starts_enabled: bool = True
+    # Translations the plugin carries in locales/<code>.json, and the language
+    # its manifest and spec text is written in (plugins/plugin_i18n.py).
+    default_locale: str = "en"
+    locales: list[str] = field(default_factory=list)
 
     def validate(self) -> list[str]:
         """Return a list of validation errors (empty = valid)."""
@@ -446,6 +457,11 @@ class PluginManifest:
                     "plugins (operator-defined mail server); this plugin may not use it"
                 )
             # else: allowed, but the host must bind the concrete host at enable time.
+        import re as _re
+        _code = _re.compile(r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$")
+        for code in [self.default_locale or "en"] + list(self.locales):
+            if not _code.match(code or ""):
+                errors.append(f"'{code}' isn't a language code (use e.g. en, fr or pt-BR)")
         if self.effective_type == "brokers":
             if ".." in (self.spec_file or "") or (self.spec_file or "").startswith(("/", "\\")):
                 errors.append("spec_file must be a relative path without directory traversal")
@@ -537,6 +553,9 @@ class PluginManifest:
             captcha_plugin_id=d.get("captcha_plugin_id", ""),
             is_property_broker=bool(d.get("is_property_broker", False)),
             difficulty=d.get("difficulty", "medium"),
+            starts_enabled=bool(d.get("starts_enabled", True)),
+            default_locale=d.get("default_locale", "en") or "en",
+            locales=d.get("locales", []) or [],
         )
         # Manifests come from uploaded plugins. A number where text is expected
         # (e.g. "version": 1.0) used to crash validate() with AttributeError,
@@ -571,4 +590,7 @@ class PluginManifest:
             "captcha_plugin_id": self.captcha_plugin_id,
             "is_property_broker": self.is_property_broker,
             "difficulty": self.difficulty,
+            "starts_enabled": self.starts_enabled,
+            "default_locale": self.default_locale,
+            "locales": self.locales,
         }

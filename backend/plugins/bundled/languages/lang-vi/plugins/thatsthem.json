@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho That's Them. Một người làm theo các bước trong danh sách; OpenOptOut cung cấp địa chỉ email dùng một lần và tự bấm mọi liên kết xác nhận.",
+ "instructions": "Kiểm tra {full_name} trên thatsthem.com. Nếu có tên bạn, mở thatsthem.com/optout, điền thông tin đúng như trên hồ sơ và dùng {contact_email} làm địa chỉ email. Đừng bấm vào lời mời bảo vệ chống đánh cắp danh tính trên trang: đó là sản phẩm trả phí. Sau đó bấm \"Tôi đã làm xong\"."
+}

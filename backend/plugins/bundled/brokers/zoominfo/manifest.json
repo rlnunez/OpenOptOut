@@ -1,0 +1,12 @@
+{
+  "id": "zoominfo",
+  "type": "brokers",
+  "broker_id": "zoominfo",
+  "name": "ZoomInfo",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Guided opt-out for ZoomInfo, which lists people by email address. One opt-out covers every saved email address.",
+  "spec_file": "spec.json",
+  "difficulty": "medium",
+  "is_property_broker": false
+}

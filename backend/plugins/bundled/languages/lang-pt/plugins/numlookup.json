@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no NumLookup, que lista pessoas por número de telefone. Uma exclusão cobre todos os números salvos.",
+ "instructions": "Abra https://www.numlookup.com/opt_out, digite um destes números, conclua a verificação de robô e escolha remover suas informações: {all_phones}. Escolha enviar o pedido de remoção manualmente (não precisa de conta) e preencha {full_name}, {contact_email} e o número. O formulário pode pedir um documento com foto. Você pode cobrir tudo nele, menos seu nome e sua foto. Depois toque em \"Já fiz isso\"."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Покрокова відмова для Hiya, який шукає людей за номером телефону. Одна відмова охоплює кожен збережений номер.",
+ "instructions": "Hiya supplies caller ID to many Samsung phones and carrier apps. Відкрийте Hiya's request form at https://hiyahelp.zendesk.com/hc/en-us/requests/new?ticket_form_id=33394399463699 and ask Hiya to remove the caller ID name for each of these numbers: {all_phones}. Use {contact_email} as your email. Потім натисніть «Я це зробив(-ла)»."
+}

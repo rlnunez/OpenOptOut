@@ -5,7 +5,7 @@ import { useLanguage } from '../i18n/LanguageContext'
 
 export default function Breadcrumbs() {
   const location = useLocation()
-  const { t, isRTL } = useLanguage()
+  const { t } = useLanguage()
 
   const pathname = location.pathname
 
@@ -18,26 +18,37 @@ export default function Breadcrumbs() {
     }
 
     const segments = {
-      '/brokers': [{ label: t('nav.brokers', 'Data Brokers'), to: '/brokers' }],
+      '/brokers': [{ label: t('nav.brokers', 'Broker sites'), to: '/brokers' }],
       '/brokers/add': [
-        { label: t('nav.brokers', 'Data Brokers'), to: '/brokers' },
-        { label: t('common.add_broker', 'Add Broker'), to: '/brokers/add' },
+        { label: t('nav.brokers', 'Broker sites'), to: '/brokers' },
+        { label: t('common.add_broker', 'Add a site'), to: '/brokers/add' },
       ],
-      '/email': [{ label: t('nav.email_monitor', 'Email Monitor'), to: '/email' }],
-      '/scheduled': [{ label: t('nav.scheduled', 'Scheduled Tasks'), to: '/scheduled' }],
-      '/discovery': [{ label: t('nav.discovery', 'Discovery'), to: '/discovery' }],
-      '/captcha': [{ label: t('nav.captcha', 'CAPTCHA Queue'), to: '/captcha' }],
-      '/family': [{ label: t('nav.family', 'Family Members'), to: '/family' }],
-      '/identity': [{ label: t('nav.vault', 'Identity Vault'), to: '/identity' }],
+      '/email': [{ label: t('nav.email_monitor', 'Replies'), to: '/email' }],
+      '/scheduled': [{ label: t('nav.scheduled', 'Check again'), to: '/scheduled' }],
+      '/discovery': [{ label: t('nav.discovery', 'Find listings'), to: '/discovery' }],
+      '/captcha': [{ label: t('nav.captcha', 'CAPTCHAs'), to: '/captcha' }],
+      '/family': [{ label: t('nav.family', 'Family members'), to: '/family' }],
+      '/identity': [{ label: t('nav.vault', 'Your details'), to: '/identity' }],
+      '/inboxes': [{ label: t('nav.inboxes', 'Email inboxes'), to: '/inboxes' }],
+      '/privacy-record': [
+        { label: t('nav.admin', 'Admin'), to: '/admin' },
+        { label: t('nav.privacy_record', 'Privacy record'), to: '/privacy-record' },
+      ],
+      '/calendar': [{ label: t('nav.calendar', 'Calendar'), to: '/calendar' }],
+      '/deadlines': [{ label: t('nav.deadlines', 'Deadline report'), to: '/deadlines' }],
+      '/credit-freeze': [{ label: t('nav.credit_freeze', 'Freeze credit'), to: '/credit-freeze' }],
+      '/checklist': [{ label: t('nav.checklist', 'Checklist'), to: '/checklist' }],
+      '/web-search': [{ label: t('nav.websearch', 'Web search'), to: '/web-search' }],
+      '/state-registries': [{ label: t('nav.registries', 'State registries'), to: '/state-registries' }],
       '/settings': [{ label: t('nav.settings', 'Settings'), to: '/settings' }],
       '/help': [{ label: t('nav.help', 'Help'), to: '/help' }],
       '/admin': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.admin_panel', 'Admin Panel'), to: '/admin' },
+        { label: t('nav.admin_panel', 'Admin panel'), to: '/admin' },
       ],
       '/branding': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.branding', 'Branding & Consortia'), to: '/branding' },
+        { label: t('nav.branding', 'Branding'), to: '/branding' },
       ],
       '/translations': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
@@ -49,7 +60,7 @@ export default function Breadcrumbs() {
       ],
       '/database': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.database', 'Database Admin'), to: '/database' },
+        { label: t('nav.database', 'Database'), to: '/database' },
       ],
       '/plugins': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
@@ -58,32 +69,52 @@ export default function Breadcrumbs() {
       '/plugin-upload': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
         { label: t('nav.plugins', 'Plugins'), to: '/plugins' },
-        { label: t('nav.plugin_upload', 'Upload Plugin'), to: '/plugin-upload' },
+        { label: t('nav.plugin_upload', 'Add a plugin'), to: '/plugin-upload' },
       ],
       '/plugin-help': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
         { label: t('nav.plugins', 'Plugins'), to: '/plugins' },
-        { label: t('nav.plugin_docs', 'Plugin Documentation'), to: '/plugin-help' },
+        { label: t('nav.plugin_docs', 'Plugin guide'), to: '/plugin-help' },
       ],
       '/broker-health': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.broker_health', 'Broker Health'), to: '/broker-health' },
+        { label: t('nav.broker_health', 'Broker health'), to: '/broker-health' },
+      ],
+      '/spec-helpers': [
+        { label: t('nav.admin', 'Admin'), to: '/admin' },
+        { label: t('nav.spec_helpers', 'Automatic broker steps'), to: '/spec-helpers' },
+      ],
+      '/monitoring': [
+        { label: t('nav.admin', 'Admin'), to: '/admin' },
+        { label: t('nav.monitoring', 'Monitoring and alerts'), to: '/monitoring' },
+      ],
+      '/usage-stats': [
+        { label: t('nav.admin', 'Admin'), to: '/admin' },
+        { label: t('nav.usage_stats', 'Usage statistics'), to: '/usage-stats' },
+      ],
+      '/terms-settings': [
+        { label: t('nav.admin', 'Admin'), to: '/admin' },
+        { label: t('nav.terms', 'Terms'), to: '/terms-settings' },
+      ],
+      '/letters': [
+        { label: t('nav.admin', 'Admin'), to: '/admin' },
+        { label: t('nav.letters', 'Opt-out letters'), to: '/letters' },
       ],
       '/broker-priority': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.broker_priority', 'Broker Priority'), to: '/broker-priority' },
+        { label: t('nav.broker_priority', 'Broker priority'), to: '/broker-priority' },
       ],
       '/parent-companies': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.parent_companies', 'Parent Companies'), to: '/parent-companies' },
+        { label: t('nav.parent_companies', 'Parent companies'), to: '/parent-companies' },
       ],
       '/logs': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.logs', 'System Logs'), to: '/logs' },
+        { label: t('nav.logs', 'System logs'), to: '/logs' },
       ],
       '/worker-fleet': [
         { label: t('nav.admin', 'Admin'), to: '/admin' },
-        { label: t('nav.worker_fleet', 'Worker Fleet'), to: '/worker-fleet' },
+        { label: t('nav.worker_fleet', 'Worker fleet'), to: '/worker-fleet' },
       ],
     }
 
@@ -117,7 +148,7 @@ export default function Breadcrumbs() {
             <li key={crumb.to + idx} className="flex items-center gap-1.5">
               {idx > 0 && (
                 <span aria-hidden="true" className="text-slate-600 select-none">
-                  {isRTL ? <ChevronRight size={12} className="rotate-180" /> : <ChevronRight size={12} />}
+                  <ChevronRight size={12} />
                 </span>
               )}
               {isLast ? (

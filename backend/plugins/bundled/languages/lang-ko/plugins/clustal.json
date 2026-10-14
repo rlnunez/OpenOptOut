@@ -1,0 +1,4 @@
+{
+ "description": "Clustal 안내형 거부. 사람이 체크리스트의 단계를 따라 하고, OpenOptOut이 일회용 이메일 주소를 제공하며 확인 링크를 대신 누릅니다.",
+ "instructions": "clustal.org에서 {full_name}을(를) 검색하고 \"view full record\"를 연 뒤 그 페이지 주소를 복사하세요(검색 결과 주소는 안 됩니다). clustal.org/privacy-control 을 열어 붙여 넣고 \"remove my info\"를 누른 뒤, {contact_email}을(를) 입력하고 \"remove my info\"를 다시 누르세요. Clustal이 마무리 링크를 보내면 OpenOptOut이 대신 누릅니다. 그런 다음 \"완료했어요\"를 누르세요."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "That's Them 的引导式退出。由一个人按清单步骤操作；OpenOptOut 提供一次性电子邮件地址，并自动点击确认链接。",
+ "instructions": "在 thatsthem.com 查找 {full_name}。如果有你的信息，打开 thatsthem.com/optout，按条目上显示的内容填写你的信息，电子邮件地址使用 {contact_email}。不要点击页面上的身份盗用保护优惠：那是付费产品。然后点击“我已完成”。"
+}

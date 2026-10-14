@@ -1,0 +1,4 @@
+{
+ "description": "Widerspruch bei Radaris (radaris.com). Füllt die Namenssuche automatisch aus und übergibt dann Auswahl des Eintrags und Bestätigung an eine Person.",
+ "steps.7.text": "Diesen Schritt musst du bei Radaris selbst erledigen. Geh auf radaris.com/control-privacy, such nach {full_name} und deiner Stadt, klick dein eigenes Profil an und drück den blauen Knopf „Start Removing“. Gib {contact_email} als E-Mail-Adresse ein und sende ab. Radaris schickt einen Link an diese Adresse; OpenOptOut klickt ihn für dich an."
+}

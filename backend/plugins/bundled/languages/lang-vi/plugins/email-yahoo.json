@@ -1,0 +1,3 @@
+{
+ "description": "Nhà cung cấp email Yahoo Mail. Người dùng đăng nhập bằng Yahoo (OAuth 2.0); thư được gửi qua SMTP của Yahoo và đọc qua IMAP của Yahoo bằng mã đăng nhập đó (SASL OAUTHBEARER). Không dùng mật khẩu ứng dụng. Đọc liên kết xác nhận trong nội dung thư mà không đánh dấu là đã đọc. Thuộc nhóm nhà cung cấp email tin cậy; hệ thống kiểm tra người nhận ẩn và buộc dùng đúng người nhận khi gửi."
+}

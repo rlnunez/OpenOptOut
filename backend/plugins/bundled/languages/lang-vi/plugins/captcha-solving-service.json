@@ -1,0 +1,3 @@
+{
+ "description": "Gửi CAPTCHA tới dịch vụ giải mà bạn có tài khoản (2Captcha, Anti-Captcha, CapSolver hoặc CapMonster Cloud). Dịch vụ không bao giờ thấy thông tin cá nhân: chỉ có khóa CAPTCHA của trang và địa chỉ trang đã làm sạch, hoặc ảnh cắt của câu đố với mọi ô biểu mẫu và thông tin đã lưu bị che đen. Khóa tài khoản được đặt ở trang CAPTCHA và chỉ được trao cho plugin này trong lúc giải. Nếu dịch vụ không giải được, một người có thể giải."
+}

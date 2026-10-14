@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa Clustal. Sinusunod ng isang tao ang mga hakbang sa checklist; nagbibigay ang OpenOptOut ng pang-isahang email address at kini-click nito ang anumang confirmation link.",
+ "instructions": "Hanapin ang {full_name} sa clustal.org, buksan ang \"view full record\", at kopyahin ang address ng page na iyon (hindi gagana ang address ng search result). Buksan ang clustal.org/privacy-control, i-paste ito, pindutin ang \"remove my info\", ilagay ang {contact_email} at pindutin ulit ang \"remove my info\". Magpapadala ang Clustal ng link para tapusin; iki-click ito ng OpenOptOut para sa iyo. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

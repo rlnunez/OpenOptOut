@@ -3,10 +3,11 @@ import { useSearchParams } from 'react-router-dom'
 import { BookOpen, Code2, RefreshCw, ShieldAlert } from 'lucide-react'
 import api from '../api'
 import Markdown from '../components/Markdown'
+import { tx } from '../i18n/tx'
 
 const TABS = [
-  { key: 'using',   label: 'Using plugins',   icon: BookOpen, blurb: 'Security model, permissions, safety controls, and how to install and operate plugins.' },
-  { key: 'writing', label: 'Writing plugins', icon: Code2,    blurb: 'Extension points, host capabilities, the manifest format, and the plugin SDK.' },
+  { key: 'using',   label: tx("Using plugins"),   icon: BookOpen, blurb: tx("Security model, permissions, safety controls, and how to install and operate plugins.") },
+  { key: 'writing', label: tx("Writing plugins"), icon: Code2,    blurb: tx("Extension points, host capabilities, the manifest format, and the plugin SDK.") },
 ]
 
 export default function PluginHelp() {
@@ -22,7 +23,7 @@ export default function PluginHelp() {
     setLoading(true); setError('')
     api.get(`/plugins/docs/${tab}`)
       .then(r => { if (!cancelled) setContent(r.data.markdown || '') })
-      .catch(e => { if (!cancelled) setError(e.response?.data?.detail || 'Could not load documentation') })
+      .catch(e => { if (!cancelled) setError(e.response?.data?.detail || tx("Could not load documentation")) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [tab])
@@ -35,10 +36,9 @@ export default function PluginHelp() {
   return (
     <div className="p-4 md:p-6 max-w-3xl">
       <div className="mb-5">
-        <h1 className="text-white text-xl font-semibold">Plugin documentation</h1>
+        <h1 className="text-white text-xl font-semibold">{tx("Plugin documentation")}</h1>
         <p className="text-slate-400 text-sm mt-0.5">
-          Reference for administrators and developers. Rendered live from the source docs, so it
-          always matches the installed version.
+          {tx("Reference for administrators and developers. Rendered live from the source docs, so it always matches the installed version.")}
         </p>
       </div>
 
@@ -65,13 +65,13 @@ export default function PluginHelp() {
       <div className="bg-slate-800/40 rounded-xl border border-slate-700/50 px-5 py-4">
         {loading ? (
           <div className="flex items-center gap-2 text-slate-500 text-sm py-8 justify-center">
-            <RefreshCw size={14} className="animate-spin" /> Loading documentation…
+            <RefreshCw size={14} className="animate-spin" />{" "}{tx("Loading documentation…")}
           </div>
         ) : error ? (
           <div className="flex items-start gap-2 px-3 py-3 rounded-lg border border-red-800 bg-red-900/15">
             <ShieldAlert size={15} className="text-red-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-red-300 text-sm font-medium">Documentation unavailable</p>
+              <p className="text-red-300 text-sm font-medium">{tx("Documentation unavailable")}</p>
               <p className="text-red-400/80 text-xs mt-0.5">{error}</p>
             </div>
           </div>

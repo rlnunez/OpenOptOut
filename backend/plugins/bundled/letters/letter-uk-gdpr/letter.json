@@ -1,0 +1,22 @@
+{
+  "id": "uk_gdpr",
+  "title": "United Kingdom — UK GDPR",
+  "law": "UK General Data Protection Regulation and the Data Protection Act 2018",
+  "legal_basis": [
+    "uk_gdpr"
+  ],
+  "jurisdictions": [
+    "UK",
+    "GB"
+  ],
+  "deadline_days": 30,
+  "default_language": "en",
+  "review_status": "draft",
+  "review_note": "Draft wording, not reviewed by a lawyer. Articles cited are those of the UK GDPR: 17 (erasure), 21 (objection), 19 (telling recipients), 12(3) (one month), 12(6) (identity checks). A lawyer should confirm the wording against the Data (Use and Access) Act 2025 changes to response time limits.",
+  "languages": {
+    "en": {
+      "subject": "Request for erasure of personal data (Article 17 UK GDPR) — {full_name}{ref_tag}",
+      "body": "To the data protection officer / privacy team at {broker},\n\nI am writing to exercise my right to erasure under Article 17 of the UK General Data Protection Regulation (UK GDPR), read with the Data Protection Act 2018, and my right to object under Article 21 to any processing of my personal data, including for direct marketing.\n\n{scope}\n\n{property_note}\n\nPlease erase all personal data you hold about me that matches ANY of the following identifiers:\n\n{identifiers}\n\nI am asking you to:\n  1. Erase all personal data concerning me without undue delay (Article 17(1)), from {broker} and every property listed above.\n  2. Stop processing my personal data, including any disclosure, sale or licensing to third parties (Article 21).\n  3. Tell every recipient to whom my personal data has been disclosed about this erasure, and tell me who they are (Article 19).\n  4. Not collect or publish my personal data again from other sources.\n  5. Confirm in writing, to the sending email address, that the erasure has been carried out.\n\nUnder Article 12(3) UK GDPR you must respond without undue delay and in any event within one month of receiving this request. If you need more information to identify me, please tell me what is strictly necessary; please do not ask me to create an account or send identity documents unless you have a reasonable doubt about my identity (Article 12(6)).\n\nIf I do not receive a satisfactory answer, I may complain to the Information Commissioner's Office.\n\n{reference}\n\nYours faithfully,\n{full_name}\n"
+    }
+  }
+}

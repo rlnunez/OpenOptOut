@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer Lusha, which lists folk by email address. One opt-out covers every saved email address.",
+ "instructions": "Open https://www.lusha.com/privacy-center/request-removal/ an' send a removal request fer {full_name} with each of these addresses an' numbers: {all_emails}; {all_phones}. Use {contact_email} fer replies. Then smash \"I've done this\"."
+}

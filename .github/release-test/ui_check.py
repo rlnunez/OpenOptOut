@@ -62,7 +62,7 @@ class Recorder:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", default="http://localhost")
-    ap.add_argument("--browser", default=os.environ.get("PLAYWRIGHT_BROWSER", "chromium"))
+    ap.add_argument("--browser", default=os.environ.get("PLAYWRIGHT_BROWSER", "firefox"))
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--creds-file", required=True)
     args = ap.parse_args()

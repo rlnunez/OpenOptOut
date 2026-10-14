@@ -1,0 +1,4 @@
+{
+ "description": "Cyber Background Checks کے لیے رہنمائی شدہ آپٹ آؤٹ۔ ایک فرد چیک لسٹ کے اقدامات پر عمل کرتا ہے؛ OpenOptOut ایک وقتی ای میل ایڈریس فراہم کرتا ہے اور تصدیقی لنک پر کلک کرتا ہے۔",
+ "instructions": "Search cyberbackgroundchecks.com for {full_name}. If you're listed, open cyberbackgroundchecks.com/removal and remove the record, giving {contact_email} as the email address. پھر \"میں نے یہ کر لیا\" دبائیں۔"
+}

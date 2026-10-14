@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de Hunter, que publica a las personas por dirección de correo. Una sola baja cubre todas las direcciones guardadas.",
+ "instructions": "Hunter muestra direcciones de correo del trabajo. Abre https://hunter.io/ y haz clic en «Do Not Sell My Info» al final de la página. Para cada una de estas direcciones, reclámala, abre el enlace que Hunter le envía y pulsa «Delete my information»: {all_emails}. Después pulsa «Ya lo hice»."
+}

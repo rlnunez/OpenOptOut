@@ -1,0 +1,4 @@
+{
+ "description": "Покрокова відмова для SmartBackgroundChecks. Користувач виконує кроки з контрольного списку; OpenOptOut надає одноразову адресу ел. пошти та переходить за посиланням підтвердження.",
+ "instructions": "Search smartbackgroundchecks.com for {full_name}. If you're listed, open smartbackgroundchecks.com/optout and remove your record, using {contact_email} where it asks for an email. This usually removes you from PeopleFinders too. Потім натисніть «Я це зробив(-ла)»."
+}

@@ -14,10 +14,10 @@ absent, reports an error rather than crashing.
 
 import json
 
-from openoptout_sdk import Plugin, manifest
+from openoptout_sdk import Plugin, manifest, extract_links, wants_links
 
 plugin = Plugin(manifest(
-    id="email-outlook", name="Outlook / Microsoft 365 Email Provider", version="1.0.0",
+    id="email-outlook", name="Outlook / Microsoft 365 Email Provider", version="1.2.0",
     author="OpenOptOut",
     permissions=["email_provider", "read_pii", "network", "settings_read"],
     hooks=["email_provider"],
@@ -85,6 +85,9 @@ def send(req):
         },
         "saveToSentItems": True,
     }
+    reply_to = (req.get("meta") or {}).get("reply_to", "")
+    if reply_to:   # host-supplied; not a recipient
+        message["message"]["replyTo"] = [{"emailAddress": {"address": reply_to}}]
     try:
         r = requests.post(f"{_GRAPH}/me/sendMail",
                           headers={"Authorization": f"Bearer {token}",
@@ -111,7 +114,7 @@ def list_messages(req):
     try:
         r = requests.get(
             f"{_GRAPH}/me/messages?$top={top}"
-            f"&$select=id,from,subject,bodyPreview,receivedDateTime",
+            f"&$select=id,from,toRecipients,subject,bodyPreview,receivedDateTime",
             headers={"Authorization": f"Bearer {token}"}, timeout=25)
         if r.status_code != 200:
             return {"ok": False, "error": f"Graph messages {r.status_code}: {r.text[:200]}"}
@@ -125,10 +128,21 @@ def list_messages(req):
                     m.get("receivedDateTime", "").replace("Z", "+00:00")).timestamp())
             except Exception:
                 pass
-            out.append({"message_id": m.get("id", ""), "from": frm,
-                        "subject": m.get("subject", ""),
-                        "snippet": m.get("bodyPreview", ""), "received_ts": ts})
-        return {"ok": True, "messages": out}
+            to_list = ", ".join((r.get("emailAddress", {}) or {}).get("address", "")
+                                for r in (m.get("toRecipients") or []))
+            item = {"message_id": m.get("id", ""), "from": frm, "to": to_list,
+                    "subject": m.get("subject", ""),
+                    "snippet": m.get("bodyPreview", ""), "received_ts": ts}
+            if wants_links(req, to_list) and m.get("id"):
+                b = requests.get(f"{_GRAPH}/me/messages/{m['id']}?$select=body",
+                                 headers={"Authorization": f"Bearer {token}"}, timeout=25)
+                if b.status_code == 200:
+                    body = (b.json().get("body") or {})
+                    is_html = (body.get("contentType") or "").lower() == "html"
+                    content = body.get("content", "")
+                    item["links"] = extract_links("" if is_html else content, content if is_html else "")
+            out.append(item)
+        return {"ok": True, "messages": out, "links_supported": bool(req.get("include_links"))}
     except Exception as e:
         return {"ok": False, "error": f"Outlook list failed: {str(e) or type(e).__name__}"}
 

@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho TransUnion (TLOxp). Một người làm theo các bước trong danh sách; OpenOptOut cung cấp địa chỉ email dùng một lần và tự bấm mọi liên kết xác nhận.",
+ "instructions": "Mở https://service.transunion.com/dss/ccpa_optout.page và làm theo các bước của trang cho {full_name}. Trang hỏi số An sinh Xã hội hoặc số bằng lái xe, những số mà OpenOptOut không bao giờ điền; chỉ hoàn tất nếu bạn thấy ổn khi cung cấp cho họ. Dùng {contact_email} nếu trang hỏi địa chỉ email. Sau đó bấm \"Tôi đã làm xong\"."
+}

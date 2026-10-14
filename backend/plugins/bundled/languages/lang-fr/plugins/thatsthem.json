@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour That's Them. Une personne suit les étapes de la liste ; OpenOptOut fournit une adresse e-mail à usage unique et clique sur les liens de confirmation.",
+ "instructions": "Cherchez {full_name} sur thatsthem.com. Si vous y figurez, ouvrez thatsthem.com/optout, saisissez vos informations telles qu'elles apparaissent sur la fiche et utilisez {contact_email} comme adresse e-mail. Ne cliquez pas sur l'offre de protection contre l'usurpation d'identité : c'est un produit payant. Puis appuyez sur « C'est fait »."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Wspomagana rezygnacja z GladIKnow. Użytkownik wykonuje kroki z listy zadań; OpenOptOut zapewnia jednorazowy adres e-mail i klika link potwierdzający.",
+ "instructions": "Otwórz https://gladiknow.com, search for {full_name}, open your own record and use the site's opt-out or \"Control\" link on it. Use {contact_email} wherever it asks for an email address. Następnie naciśnij „Zrobione”."
+}

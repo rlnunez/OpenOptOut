@@ -1,0 +1,3 @@
+{
+ "description": "Email provider ng Yahoo Mail. Nagsa-sign in ang tao gamit ang Yahoo (OAuth 2.0); ipinapadala ang mail sa SMTP ng Yahoo at binabasa sa IMAP nito gamit ang sign-in token na iyon (SASL OAUTHBEARER). Walang app password. Binabasa ang mga confirmation link mula sa laman ng mensahe nang hindi minamarkahang nabasa na. Pinagkakatiwalaang klase ng email provider; sinusuri ng host para sa mga nakatagong recipient at ipinapatupad ang recipient sa pagpapadala."
+}

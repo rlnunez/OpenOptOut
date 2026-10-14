@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer ReversePhoneLookup.com, which lists folk by phone number. One opt-out covers every saved phone number.",
+ "instructions": "Open https://www.reversephonelookup.com/ an' click, matey, \"Do Not Sell or Share My Personal Information\" at the bottom. Enter {contact_email} an' one of these numbers (digits only if it complains): {all_phones}. Finish the robot check an' submit; we'll click, matey, the confirmation link it emails. Repeat fer each number, then smash \"I've done this\"."
+}

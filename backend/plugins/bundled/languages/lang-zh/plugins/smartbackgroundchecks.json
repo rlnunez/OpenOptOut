@@ -1,0 +1,4 @@
+{
+ "description": "SmartBackgroundChecks 的引导式退出。由一个人按清单步骤操作；OpenOptOut 提供一次性电子邮件地址，并自动点击确认链接。",
+ "instructions": "在 smartbackgroundchecks.com 搜索 {full_name}。如果有你的信息，打开 smartbackgroundchecks.com/optout 删除你的记录，需要填写邮箱的地方使用 {contact_email}。这通常也会把你从 PeopleFinders 删除。然后点击“我已完成”。"
+}

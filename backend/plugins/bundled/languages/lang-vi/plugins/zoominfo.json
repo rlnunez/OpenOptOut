@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho ZoomInfo, trang liệt kê người theo địa chỉ email. Một lần gỡ áp dụng cho mọi địa chỉ đã lưu.",
+ "instructions": "Mở https://privacy.zoominfo.com/, tìm {full_name} cùng nơi làm việc của bạn, chọn hồ sơ và yêu cầu xóa. Xác minh bằng từng email công việc mà ZoomInfo hỏi. Các địa chỉ đã lưu của bạn: {all_emails}. Sau đó bấm \"Tôi đã làm xong\"."
+}

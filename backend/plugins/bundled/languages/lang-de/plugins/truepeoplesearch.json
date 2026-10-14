@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei TruePeopleSearch. Eine Person folgt den Schritten der Checkliste; OpenOptOut stellt eine Einmal-E-Mail-Adresse bereit und klickt Bestätigungslinks an.",
+ "instructions": "Öffne truepeoplesearch.com/removal. Gib {full_name}, deine Stadt und deinen Bundesstaat ({city}, {state}) und {contact_email} als E-Mail-Adresse ein und löse dann die CAPTCHAs. Wenn dein Eintrag erscheint, drück den Knopf zum Entfernen. OpenOptOut klickt jeden Bestätigungslink an, der an diese Adresse geht. Drück dann „Ich habe das erledigt“."
+}

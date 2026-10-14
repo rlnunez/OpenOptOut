@@ -1,0 +1,3 @@
+{
+ "description": "Envia e-mails de exclusão e lê confirmações pelo Microsoft Graph usando OAuth 2.0. Classe confiável de provedor de e-mail; o sistema inspeciona em busca de destinatários ocultos e impõe o destinatário no envio."
+}

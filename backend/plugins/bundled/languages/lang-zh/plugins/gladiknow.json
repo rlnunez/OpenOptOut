@@ -1,0 +1,4 @@
+{
+ "description": "GladIKnow 的引导式退出。由一个人按清单步骤操作；OpenOptOut 提供一次性电子邮件地址，并自动点击确认链接。",
+ "instructions": "打开 https://gladiknow.com，搜索 {full_name}，打开你自己的记录，使用其中的退出或“Control”链接。凡是要求填写电子邮件地址的地方都填 {contact_email}。然后点击“我已完成”。"
+}

@@ -1,0 +1,39 @@
+{
+  "broker_id": "rocketreach",
+  "name": "RocketReach",
+  "spec_version": "1.0",
+  "method": "form",
+  "opt_out_url": "https://rocketreach.co/remove-profile",
+  "lookup_by": "email",
+  "steps": [
+    {
+      "kind": "navigate",
+      "url": "https://rocketreach.co/remove-profile",
+      "timeout_ms": 20000
+    },
+    {
+      "kind": "wait_for",
+      "selector": "input[type='email']",
+      "timeout_ms": 15000
+    },
+    {
+      "kind": "fill",
+      "selector": "input[type='email']",
+      "field": "email"
+    },
+    {
+      "kind": "submit"
+    }
+  ],
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "own_inbox_confirmation"
+  ],
+  "notes": "RocketReach files people by email. One request per saved email address. If a profile exists, RocketReach sends a link to that address, and the opt-out only finishes after the link is opened and the next page is completed. If that inbox is connected to OpenOptOut, the link is clicked for you.",
+  "source": "Steps per Redact's RocketReach removal guide; fallback privacy@rocketreach.co.",
+  "last_verified": ""
+}

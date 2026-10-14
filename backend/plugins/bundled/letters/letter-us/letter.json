@@ -1,0 +1,31 @@
+{
+  "id": "us",
+  "title": "United States — general state privacy laws",
+  "law": "California Consumer Privacy Act where it applies, and other US state privacy laws",
+  "legal_basis": [
+    "ccpa",
+    "cpra",
+    "vcdpa",
+    "cpa",
+    "ctdpa",
+    "ucpa",
+    "tdpsa",
+    "ocpa",
+    "mcdpa"
+  ],
+  "jurisdictions": [
+    "US"
+  ],
+  "deadline_days": 45,
+  "default_language": "en",
+  "review_status": "draft",
+  "review_note": "Draft wording, not reviewed by a lawyer. Used for US brokers when the person is not a California resident. It names the CCPA 'where applicable' and other state laws generally; a lawyer should confirm which statutes to name for residents of states with their own privacy law (Virginia, Colorado, Connecticut, Utah, Texas, Oregon, Montana and others) and the response deadline each sets.",
+  "languages": {
+    "en": {
+      "subject": "Data removal request — {full_name}{ref_tag}",
+      "body": "To the Privacy / Data Protection team at {broker},\n\nI am writing to request the removal and deletion of my personal information from your records and services, and to opt out of any sale, licensing, or sharing of that information.\n\n{scope}\n\n{property_note}\n\nPlease remove all records matching ANY of the following identifiers — every record, not only the most recent or primary one:\n\n{identifiers}\n\nI am requesting that you:\n  1. Delete and suppress all personal information associated with the identifiers above from {broker} and every property listed above.\n  2. Do not sell, license, share, or otherwise disclose this information to any third party.\n  3. Do not re-create, re-acquire, or re-list this information from other sources following this request.\n  4. Confirm in writing, to the sending email address, once the removal has been completed, and identify any records you were unable to remove and why.\n\n{law}\n\nPlease treat this as a formal request and respond within the timeframe required by applicable law. If you require anything further from me to locate these records, reply to this email and I will provide what is reasonably necessary — though I ask that you not require the creation of an account or the submission of additional sensitive information (such as a full date of birth or government ID).\n\n{reference}\n\nThank you for your prompt attention.\n\nSincerely,\n{full_name}\n",
+      "law": "I am exercising my rights under applicable privacy and data-protection laws, including the California Consumer Privacy Act (CCPA) and any other applicable state privacy laws, including any right to deletion, to opt out of the sale or sharing of personal information, and to have my information suppressed from public-facing listings. This request covers all affiliated and successor properties under common ownership or operation.",
+      "law_state": "As a resident of {state}, I am exercising my rights under applicable privacy and data-protection laws, including the California Consumer Privacy Act (CCPA) where applicable and any other applicable state privacy laws, including any right to deletion, to opt out of the sale or sharing of personal information, and to have my information suppressed from public-facing listings. This request covers all affiliated and successor properties under common ownership or operation."
+    }
+  }
+}

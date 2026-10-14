@@ -1,0 +1,141 @@
+{
+  "catalog_version": 1,
+  "updated": "2026-10-11",
+  "about": "Parent companies that run several broker sites, which sites belong to each, and opt-outs known to remove a listing from other sites too. Facts only; descriptions are written for this project. Each entry records where it came from. An opt-out email is applied automatically only when email_verified is true; otherwise it is kept in the notes for an admin to confirm. one_optout_covers is true when one opt-out through the family reaches all of its sites (the Brokers page counts them as covered); approx_sites is the rough size of a network of look-alike sites that aren't listed one by one; not_covered lists family sites that need their own opt-out.",
+  "parents": [
+    {
+      "name": "StateRecords.org network",
+      "website": "https://staterecords.org",
+      "optout_email": "privacy@staterecords.org",
+      "email_verified": true,
+      "email_source": "Confirmed by project maintainer; see BROKERS.md",
+      "children": ["staterecords.org"],
+      "child_suffixes": ["arrests.org", "arrestrecords.org"],
+      "notes": "The state arrests.org and arrestrecords.org sites redirect to staterecords.org and share one opt-out inbox.",
+      "source": "BROKERS.md (2026-09-26 audit)",
+      "last_verified": "",
+      "one_optout_covers": true,
+      "approx_sites": 95
+    },
+    {
+      "name": "CourtRecords.us network",
+      "website": "https://courtrecords.us",
+      "optout_email": "privacy@courtrecords.us",
+      "email_verified": true,
+      "email_source": "BROKERS.md",
+      "children": [],
+      "child_suffixes": ["courtrecords.us"],
+      "notes": "State court-records sites redirect to courtrecords.us and share one opt-out inbox.",
+      "source": "BROKERS.md (2026-09-26 audit)",
+      "last_verified": "",
+      "one_optout_covers": true
+    },
+    {
+      "name": "PeopleConnect (Intelius)",
+      "website": "https://suppression.peopleconnect.us",
+      "optout_email": "support@mailer.intelius.com",
+      "email_verified": false,
+      "email_source": "BADBOOL lists this address as one of Intelius's opt-out channels",
+      "children": [
+        "intelius.com", "addresses.com", "addresssearch.com", "anywho.com",
+        "classmates.com", "datecheck.com", "instantcheckmate.com",
+        "instantpeoplefinder.com", "isearch.com", "lookupanyone.com",
+        "peopleconnect.us", "peoplefinder.com", "peoplelookup.com",
+        "phonesbook.com", "publicrecords.com", "spock.com", "truthfinder.com",
+        "ussearch.com", "zabasearch.com"
+      ],
+      "child_suffixes": [],
+      "notes": "One suppression request through PeopleConnect covers the sites it owns. Intelius may ask to confirm an old address, phone or email by email before it can find the record; only confirm details it already shows.",
+      "source": "BADBOOL (yaelwrites/Big-Ass-Data-Broker-Opt-Out-List), Intelius entry",
+      "last_verified": "",
+      "one_optout_covers": true,
+      "not_covered": ["classmates.com"],
+      "not_covered_source": "redact.dev Intelius/PeopleConnect guide (updated 2026-05-21): Classmates needs its own request"
+    },
+    {
+      "name": "BeenVerified",
+      "website": "https://www.beenverified.com",
+      "optout_email": "",
+      "email_verified": false,
+      "email_source": "",
+      "children": ["beenverified.com", "peoplelooker.com", "peoplesmart.com"],
+      "child_suffixes": [],
+      "notes": "Separate opt-outs exist for people search and property search. Allows only one opt-out per email address, and each opt-out must be confirmed by clicking an emailed link.",
+      "source": "BADBOOL, BeenVerified entry",
+      "last_verified": "",
+      "one_optout_covers": false
+    },
+    {
+      "name": "Whitepages",
+      "website": "https://www.whitepages.com",
+      "optout_email": "",
+      "email_verified": false,
+      "email_source": "",
+      "children": ["whitepages.com", "411.com"],
+      "child_suffixes": [],
+      "notes": "The opt-out ends with an automated phone call and a code. 411.com uses the same opt-out. Whitepages Premium listings may need a separate request.",
+      "source": "BADBOOL, White Pages entry",
+      "last_verified": "",
+      "one_optout_covers": true
+    },
+    {
+      "name": "Spokeo",
+      "website": "https://www.spokeo.com",
+      "optout_email": "optout@spokeo.com",
+      "email_verified": false,
+      "email_source": "Incogni broker list (per claude/email_broker_plugin_system.md)",
+      "children": ["spokeo.com", "freepeopledirectory.com"],
+      "child_suffixes": [],
+      "notes": "FreePeopleDirectory listings are removed through Spokeo's opt-out page. The web opt-out needs the listing URL and an emailed confirmation click. Paid Spokeo accounts may still see removed data.",
+      "source": "BADBOOL, Spokeo and FreePeopleDirectory entries",
+      "last_verified": "",
+      "one_optout_covers": true
+    },
+    {
+      "name": "InfoPay",
+      "website": "https://www.infopay.com",
+      "optout_email": "privacy@infopay.com",
+      "email_verified": false,
+      "email_source": "The Opt-Out Manual 2026 (public domain) InfoPay entries; redact.dev InfoTracer guide (updated 2026-08-11)",
+      "children": [
+        "infopay.com", "infotracer.com", "backgroundcheckers.net", "checksecrets.com",
+        "mugshotlook.com", "peoplesearch123.com", "peoplesearcher.com",
+        "privaterecords.net", "freebackgroundcheck.us"
+      ],
+      "child_suffixes": [],
+      "notes": "InfoPay runs these sites. The built-in InfoPay plugin emails one request naming all of them; InfoTracer has its own opt-out page too, so the family alone isn't counted as covering every site.",
+      "source": "The Opt-Out Manual 2026 (public domain) InfoPay entries; redact.dev InfoTracer guide",
+      "last_verified": "",
+      "one_optout_covers": false
+    },
+    {
+      "name": "PeopleFinders",
+      "website": "https://www.peoplefinders.com",
+      "optout_email": "",
+      "email_verified": false,
+      "email_source": "",
+      "children": ["peoplefinders.com", "privateeye.com", "publicrecordsnow.com"],
+      "child_suffixes": [],
+      "notes": "The PeopleFinders opt-out also covers PrivateEye and PublicRecordsNow.",
+      "source": "redact.dev PeopleFinders guide (updated 2026-09-24)",
+      "last_verified": "",
+      "one_optout_covers": true
+    }
+  ],
+  "cascades": [
+    {
+      "from": ["smartbackgroundchecks.com"],
+      "to": ["peoplefinders.com"],
+      "confidence": "likely",
+      "notes": "BADBOOL says opting out of SmartBackgroundChecks will likely also remove PeopleFinders listings.",
+      "source": "BADBOOL, SmartBackgroundChecks entry"
+    },
+    {
+      "from": ["intelius.com", "beenverified.com"],
+      "to": ["truepeoplesearch.com", "cyberbackgroundchecks.com"],
+      "confidence": "historical",
+      "notes": "BADBOOL's October 2023 update dropped these two because successful Intelius and BeenVerified opt-outs removed them. The current list includes them again with their own opt-outs, so keep opting out of them directly.",
+      "source": "BADBOOL changelog note (October 2023) and current entries"
+    }
+  ]
+}

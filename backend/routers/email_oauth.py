@@ -29,7 +29,7 @@ from typing import Optional
 
 from ..models.database import get_db, User
 from ..core.auth import get_current_user
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
 from ..core import oauth_engine as oe
 
 router = APIRouter(prefix="/api/email-oauth", tags=["email-oauth"])
@@ -46,8 +46,7 @@ def _admin(user: User):
 
 
 def _save(data: dict):
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    save_settings(data)
 
 
 def _provider_flow(provider_key: str) -> oe.OAuthFlowDesc:
@@ -105,20 +104,20 @@ def _provider_flow(provider_key: str) -> oe.OAuthFlowDesc:
             "yahoo",
             "https://api.login.yahoo.com/oauth2/request_auth",
             "https://api.login.yahoo.com/oauth2/get_token",
-            "mail-w", use_pkce=False),
+            "mail-r mail-w", use_pkce=False),
     }
     flow = builtins.get(provider_key)
     if not flow:
-        raise HTTPException(400, f"No OAuth flow available for provider '{provider_key}' "
-                                 "(the plugin must describe one, or it's app-password only)")
+        raise HTTPException(400, f"'{provider_key}' doesn't offer sign-in from here. "
+                                 "Use an app password for it instead.")
     return flow
 
 
 def _client(settings: dict, provider_key: str) -> oe.OAuthClient:
     store = (settings.get("oauth_clients") or {}).get(provider_key)
     if not store:
-        raise HTTPException(400, f"No OAuth client registered for '{provider_key}'. "
-                                 "Register the client_id/client_secret first.")
+        raise HTTPException(400, f"Sign-in for '{provider_key}' isn't set up yet. "
+                                 "An admin needs to add its app ID and secret in Settings first.")
     return oe.OAuthClient(
         client_id=store.get("client_id", ""),
         client_secret=oe._decrypt(store.get("client_secret_enc", "")),
@@ -168,7 +167,7 @@ def begin(body: BeginIn, db: Session = Depends(get_db),
     flow = _provider_flow(body.provider_key)
     client = _client(s, body.provider_key)
     if not flow.auth_url or not flow.token_url:
-        raise HTTPException(400, "provider did not describe auth/token URLs")
+        raise HTTPException(400, "This email service's plugin is missing its sign-in addresses, so sign-in can't start.")
     url, pending = oe.begin_authorization(flow, client, body.account_ref)
     _PENDING[pending.state] = pending
     return {"authorize_url": url, "state": pending.state}
@@ -204,6 +203,8 @@ def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(Non
 
     pending = _PENDING.pop(state)
     s = load_settings()
+    if pending.account_ref.startswith("bkp-"):
+        return _finish_backup_storage(pending, code, s)
     flow = _provider_flow(pending.provider_key)
     client = _client(s, pending.provider_key)
     try:
@@ -212,6 +213,10 @@ def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(Non
         return _html_resp("<p>Token exchange failed. Please verify provider settings and try again.</p>", status_code=400)
 
     oe.store_tokens(s, pending.account_ref, tokens)
+    if pending.account_ref.startswith("mbx-"):
+        # A family member's own inbox (routers/mailboxes.py), not the system one.
+        _save(s)
+        return _finish_member_inbox(db, pending.account_ref, s)
     # Keep settings["email"]["provider"] in sync with whichever account is
     # actually active — that field is what send_email() checks to decide
     # whether to even ATTEMPT the provider path at all. Without this, an
@@ -229,6 +234,51 @@ def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(Non
         "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;"
         "padding:2rem'><h2>✓ Email account connected</h2>"
         "<p>You can close this window and return to OpenOptOut.</p></body></html>")
+
+
+def _finish_backup_storage(pending, code: str, s: dict) -> HTMLResponse:
+    """Google Drive / OneDrive / Dropbox connected for backups (routers/backups.py)."""
+    from ..core import backup as bk
+    kind = pending.provider_key.replace("backup-", "", 1)
+    if kind not in bk.CLOUD:
+        return _html_resp("<p>Unknown storage service.</p>", status_code=400)
+    try:
+        client = _client(s, bk.CLOUD[kind]["client_key"])
+        tokens = oe.exchange_code(bk.cloud_flow(kind), client, pending, code)
+    except Exception:
+        return _html_resp("<p>Couldn't finish connecting the storage account. Please try again.</p>", status_code=400)
+    oe.store_tokens(s, pending.account_ref, tokens)
+    for d in (s.get("backups") or {}).get("destinations", []):
+        if f"bkp-{d.get('id')}" == pending.account_ref:
+            d["account_ref"] = pending.account_ref
+            d["connected"] = True
+    _save(s)
+    return _html_resp(
+        "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;"
+        "padding:2rem'><h2>✓ Backup storage connected</h2>"
+        "<p>You can close this window and return to OpenOptOut.</p></body></html>")
+
+
+def _finish_member_inbox(db, account_ref: str, settings: dict) -> HTMLResponse:
+    from ..models.database import Mailbox
+    from ..core import mailboxes as mbx
+    mb = db.query(Mailbox).filter(Mailbox.account_ref == account_ref).first()
+    if not mb:
+        return _html_resp("<p>That inbox was removed before sign-in finished.</p>", status_code=400)
+    mb.status = "connected"
+    mb.status_detail = None
+    db.commit()
+    note = "Opt-outs will be sent from this inbox."
+    if mb.plus_status == "unknown":
+        res = mbx.start_plus_check(db, settings, mb)
+        if res.get("sent"):
+            note = ("We sent a test email to check whether it accepts +addresses; "
+                    "you can delete it when it arrives.")
+    return _html_resp(
+        "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;"
+        "padding:2rem'><h2>✓ Inbox connected</h2>"
+        f"<p>{html.escape(note)}</p><p>You can close this window and return to OpenOptOut.</p>"
+        "</body></html>")
 
 
 # ── Status ────────────────────────────────────────────────────────────────────
@@ -294,7 +344,7 @@ def activate_account(account_ref: str, db: Session = Depends(get_db),
     s = load_settings()
     toks = oe.load_tokens(s, account_ref)
     if not toks:
-        raise HTTPException(404, f"No connected account '{account_ref}'")
+        raise HTTPException(404, "That account isn't connected anymore.")
     email = s.setdefault("email", {})
     email["active_account_ref"] = account_ref
     # Keep provider in sync with whichever account is now active — switching
@@ -316,7 +366,7 @@ def disconnect_account(account_ref: str, db: Session = Depends(get_db),
     s = load_settings()
     creds = s.get("email_credentials") or {}
     if account_ref not in creds:
-        raise HTTPException(404, f"No connected account '{account_ref}'")
+        raise HTTPException(404, "That account isn't connected anymore.")
     creds.pop(account_ref, None)
     s["email_credentials"] = creds
     email = s.setdefault("email", {})

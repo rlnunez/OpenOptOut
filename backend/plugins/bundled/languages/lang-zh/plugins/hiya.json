@@ -1,0 +1,4 @@
+{
+ "description": "Hiya 的引导式退出，该网站按电话号码列出个人信息。一次退出即可涵盖所有已保存的号码。",
+ "instructions": "Hiya 为许多三星手机和运营商应用提供来电显示。打开 Hiya 的申请表 https://hiyahelp.zendesk.com/hc/en-us/requests/new?ticket_form_id=33394399463699，请 Hiya 删除以下每个号码的来电显示名称：{all_phones}。使用 {contact_email} 作为你的邮箱。然后点击“我已完成”。"
+}

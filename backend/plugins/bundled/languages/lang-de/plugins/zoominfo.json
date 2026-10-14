@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei ZoomInfo, das Personen nach E-Mail-Adresse auflistet. Ein Widerspruch gilt für alle gespeicherten Adressen.",
+ "instructions": "Öffne https://privacy.zoominfo.com/, such {full_name} mit deinem Arbeitgeber, wähl den Eintrag aus und beantrage seine Löschung. Bestätige mit jeder beruflichen E-Mail, nach der ZoomInfo fragt. Deine gespeicherten Adressen: {all_emails}. Drück dann „Ich habe das erledigt“."
+}

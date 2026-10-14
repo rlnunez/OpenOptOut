@@ -1,0 +1,4 @@
+{
+ "description": "Kujiondoa kwa kuelekezwa kwa Whitepages. Mtu hufuata hatua kwenye orodha ya ukaguzi; OpenOptOut hutoa anwani ya barua pepe ya mara moja na kubofya kiungo cha uthibitisho.",
+ "instructions": "Whitepages confirms by phone, so you need to do this one. Fungua whitepages.com/suppression-requests, paste {listing_url}, press Next, then \"Remove Me\". Pick a reason, press Next, and enter the phone number Whitepages shows for you. Answer the automated call and enter the code it gives you. When the page says your request was received, press \"I've done this\"."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de FastPeopleSearch. Una persona sigue los pasos de la lista; OpenOptOut aporta una dirección de correo de un solo uso y hace clic en cualquier enlace de confirmación.",
+ "instructions": "Busca {full_name} en fastpeoplesearch.com. Si apareces, abre fastpeoplesearch.com/optout y sigue los pasos para eliminar tu registro; puede que tengas que resolver un CAPTCHA. Si te pide una dirección de correo, usa {contact_email}, para que OpenOptOut pueda pulsar por ti cualquier enlace de confirmación. Después pulsa «Ya lo hice»."
+}

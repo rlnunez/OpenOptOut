@@ -1,5 +1,6 @@
 import { X, Info, AlertTriangle, Wrench, CheckCircle } from 'lucide-react'
 import { useBranding } from '../hooks/useBranding'
+import { tx } from '../i18n/tx'
 
 const SEVERITY = {
   info:        { icon: Info,          bg: 'bg-blue-900/40',   border: 'border-blue-800',  text: 'text-blue-200' },
@@ -22,7 +23,7 @@ export default function AnnouncementBanner() {
       <button
         onClick={() => setDismissed(true)}
         className={`${s.text} opacity-60 hover:opacity-100 transition-opacity shrink-0`}
-        aria-label="Dismiss"
+        aria-label={tx("Dismiss")}
       >
         <X size={14} />
       </button>

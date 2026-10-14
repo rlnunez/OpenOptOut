@@ -1,0 +1,4 @@
+{
+ "description": "Truecaller کے لیے رہنمائی شدہ آپٹ آؤٹ، جو فون نمبر کے ذریعے لوگوں کو فہرست کرتا ہے۔ ایک آپٹ آؤٹ ہر محفوظ کردہ فون نمبر کا احاطہ کرتا ہے۔",
+ "instructions": "Truecaller shows your name to people you call. کھولیں https://www.truecaller.com/unlisting and unlist each of these numbers, one at a time, with the country code: {all_phones}. Finish the robot check for each. If you use the Truecaller app yourself, deactivate your account in the app first, then uninstall it, or the unlisting won't stick. پھر \"میں نے یہ کر لیا\" دبائیں۔"
+}

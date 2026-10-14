@@ -1,0 +1,4 @@
+{
+ "description": "Opt-out dengan panduan untuk Whitepages. Seseorang mengikuti langkah-langkah pada daftar periksa; OpenOptOut menyediakan alamat email sekali pakai dan mengeklik tautan konfirmasi.",
+ "instructions": "Whitepages confirms by phone, so you need to do this one. Buka whitepages.com/suppression-requests, paste {listing_url}, press Next, then \"Remove Me\". Pick a reason, press Next, and enter the phone number Whitepages shows for you. Answer the automated call and enter the code it gives you. When the page says your request was received, press \"I've done this\"."
+}

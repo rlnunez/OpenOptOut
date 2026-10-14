@@ -77,3 +77,5 @@ fuzz/corpus/
 fuzz/crash-*
 fuzz/timeout-*
 fuzz/oom-*
+# Local scratch
+scratch/

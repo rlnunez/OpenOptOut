@@ -2,7 +2,7 @@
 Background scheduler — three APScheduler jobs wired to real engines.
 """
 
-import asyncio, json, imaplib, email, re, logging, threading
+import asyncio, json, imaplib, email, os, re, logging, threading
 from datetime import datetime, timedelta
 from typing import Optional
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -51,6 +51,44 @@ def start_scheduler():
     s.add_job(result_ingestion_job, IntervalTrigger(seconds=30), id="result_ingestion",
               replace_existing=True, misfire_grace_time=60,
               next_run_time=datetime.utcnow() + timedelta(seconds=15))
+
+    # Broker list upkeep: California DROP checklist items, dead-site checks,
+    # and a monthly refresh of state registries that have a saved address.
+    s.add_job(registry_maintenance_job, IntervalTrigger(hours=24), id="registry_maintenance",
+              replace_existing=True, misfire_grace_time=3600,
+              next_run_time=datetime.utcnow() + timedelta(minutes=10))
+
+    # Health checks for monitoring; webhooks hear when the result changes.
+    s.add_job(health_job, IntervalTrigger(minutes=5), id="health",
+              replace_existing=True, misfire_grace_time=300,
+              next_run_time=datetime.utcnow() + timedelta(minutes=2))
+    # Encrypted backups: checked hourly, run when due (daily or weekly at the set hour).
+    s.add_job(backup_job, IntervalTrigger(hours=1), id="backup",
+              replace_existing=True, misfire_grace_time=3600,
+              next_run_time=datetime.utcnow() + timedelta(minutes=5))
+
+    # Removal checks: did listings go, and have any come back? Daily, on a budget.
+    s.add_job(verification_job, IntervalTrigger(hours=24), id="verification",
+              replace_existing=True, misfire_grace_time=3600,
+              next_run_time=datetime.utcnow() + timedelta(minutes=20))
+
+    # Deadline and re-listing notices for people who asked for them. Daily,
+    # after the removal checks.
+    s.add_job(notice_job, IntervalTrigger(hours=24), id="notices",
+              replace_existing=True, misfire_grace_time=3600,
+              next_run_time=datetime.utcnow() + timedelta(minutes=50))
+
+    # Opt-out steps: repair steps that stopped finding things on a broker's
+    # page, and (if turned on) draft steps for brokers without any. Hourly,
+    # a few at a time (core/spec_drafter.py).
+    s.add_job(spec_helper_job, IntervalTrigger(hours=1), id="spec_helpers",
+              replace_existing=True, misfire_grace_time=3600,
+              next_run_time=datetime.utcnow() + timedelta(minutes=30))
+
+    # Retention: delete old logs and excerpts (Settings → Privacy & data).
+    s.add_job(retention_job, IntervalTrigger(hours=24), id="retention",
+              replace_existing=True, misfire_grace_time=3600,
+              next_run_time=datetime.utcnow() + timedelta(minutes=70))
 
     if not sc.get("enabled", False):
         s.start()
@@ -128,6 +166,75 @@ def start_scheduler():
     log.info(f"Scheduler started — spread_mode={spread_mode}, email poll every {poll_mins}m")
 
 
+def registry_maintenance_job():
+    """Daily: DROP checklist items, up to 50 site checks; monthly: registry refresh."""
+    db = SessionLocal()
+    try:
+        from .state_programs import ensure_drop_items
+        from .broker_health import probe_sites
+        from . import registry_sync as rs
+        from .settings_store import SETTINGS_FILE, save_settings
+        try:
+            ensure_drop_items(db)
+        except Exception as e:
+            log.warning("DROP checklist upkeep failed: %s", e)
+        try:
+            res = probe_sites(db, limit=50)
+            log.info("Site checks: %d checked, %d unreachable", res["checked"], res["unreachable"])
+        except Exception as e:
+            log.warning("Site checks failed: %s", e)
+        # Look for privacy-request pages on brokers nobody wrote steps for.
+        try:
+            from .privacy_finder import run_daily as find_privacy_pages
+            pf = find_privacy_pages(db, limit=20)
+            if pf["checked"]:
+                log.info("Privacy-page finder: %d sites checked, %d with a privacy page", pf["checked"], pf["found"])
+        except Exception as e:
+            log.warning("Privacy-page finder failed: %s", e)
+        cfg = load_settings()
+        # Email the admins what changed in the broker list (daily or weekly digest).
+        try:
+            from .broker_updates import digest
+            d = digest(db, cfg)
+            if d.get("sent"):
+                cfg = load_settings()
+                cfg["broker_updates_last_digest"] = datetime.utcnow().isoformat() + "Z"
+                save_settings(cfg)
+        except Exception as e:
+            log.warning("Broker update digest failed: %s", e)
+        # Weekly web searches, when an admin turned them on.
+        try:
+            from .web_search import run_weekly
+            last_ws = cfg.get("web_search_last_weekly")
+            ws_due = True
+            if last_ws:
+                try:
+                    ws_due = datetime.utcnow() - datetime.fromisoformat(last_ws.rstrip("Z")) >= timedelta(days=7)
+                except ValueError:
+                    ws_due = True
+            if ws_due and run_weekly(db, cfg):
+                cfg = load_settings()
+                cfg["web_search_last_weekly"] = datetime.utcnow().isoformat() + "Z"
+                save_settings(cfg)
+        except Exception as e:
+            log.warning("Weekly web search failed: %s", e)
+        last = cfg.get("registry_last_refresh")
+        due = True
+        if last:
+            try:
+                due = datetime.utcnow() - datetime.fromisoformat(last.rstrip("Z")) >= timedelta(days=30)
+            except ValueError:
+                due = True
+        if due and any(((cfg.get("registry_sources") or {}).get(st) or {}).get("url") for st in rs.SOURCES):
+            rs.refresh_saved_sources(db, cfg)
+            cfg["registry_last_refresh"] = datetime.utcnow().isoformat() + "Z"
+            save_settings(cfg)
+    except Exception as e:
+        log.error("registry maintenance failed: %s", e)
+    finally:
+        db.close()
+
+
 def cert_check_job():
     """Daily: LDAP / SIP2 / SAML certificate checks + milestone emails to admins."""
     try:
@@ -172,7 +279,9 @@ def _select_pending_batch(db, cfg, max_this_run: int) -> list:
     """
     sc      = cfg.get("scheduler", {})
     sys_max = sc.get("max_optouts_per_day", 20)
-    dispatch_order = sc.get("dispatch_order", "priority")  # priority | fifo | easy_first
+    # priority | fifo | easy_first | aggregators_first (default: cut off the
+    # sources other brokers copy from before their downstream sites)
+    dispatch_order = sc.get("dispatch_order", "aggregators_first")
 
     sent_today = _count_sent_today(db)
     daily_remaining = max(0, sys_max - sent_today)
@@ -192,7 +301,14 @@ def _select_pending_batch(db, cfg, max_this_run: int) -> list:
     # offenders / highest data exposure first), so a member's most sensitive
     # exposures clear first even when the full opt-out spans many days.
     from .broker_priority import order_pending
-    pending = order_pending(pending, strategy=dispatch_order)
+    upstream = None
+    if dispatch_order == "aggregators_first":
+        try:
+            from .broker_network import upstream_scores
+            upstream = {k: v["score"] for k, v in upstream_scores(db).items()}
+        except Exception as e:
+            log.warning("aggregator scores unavailable, using priority order: %s", e)
+    pending = order_pending(pending, strategy=dispatch_order, upstream=upstream)
 
     batch_ids = []
     for req in pending:
@@ -200,10 +316,11 @@ def _select_pending_batch(db, cfg, max_this_run: int) -> list:
             break
         # Skip brokers disabled by an admin or auto-disabled by the health
         # monitor — a broken broker never consumes a member's daily budget.
-        if req.broker and (not req.broker.enabled or getattr(req.broker, "is_test", False)):
+        from .broker_gate import request_allowed
+        if req.broker and not request_allowed(req, db):
             continue
         # Skip requests currently paused for human CAPTCHA resolution (Item 4)
-        if req.notes and "Paused for human CAPTCHA" in req.notes:
+        if req.notes and ("Paused for human CAPTCHA" in req.notes or "Stopped at a CAPTCHA" in req.notes):
             continue
         mc = req.member.schedule_config
         if mc and not mc.enabled:
@@ -217,7 +334,7 @@ def _select_pending_batch(db, cfg, max_this_run: int) -> list:
     return batch_ids
 
 
-def _run_optout_with_limit(run_type: str, max_this_run: int):
+def _run_optout_with_limit(run_type: str, max_this_run: int, manual: bool = False):
     """
     Core opt-out execution shared by all spread modes.
     Selects a batch (capped at max_this_run), runs it, logs a SchedulerRun.
@@ -237,6 +354,14 @@ def _run_optout_with_limit(run_type: str, max_this_run: int):
             log.info("pause_before_send=True — skipping auto send")
             _finish_run(db, run_id, status="done", sent=0)
             return
+
+        if not manual:   # "Send opt-outs now" ignores the calendar
+            from .calendar_plan import run_allowed, local_today
+            ok, why = run_allowed(sc, local_today(sc))
+            if not ok:
+                log.info("Opt-outs skipped today: %s", why)
+                _finish_run(db, run_id, status="done", sent=0)
+                return
 
         batch_ids = _select_pending_batch(db, cfg, max_this_run)
 
@@ -279,6 +404,7 @@ def _run_optout_with_limit(run_type: str, max_this_run: int):
                 db = SessionLocal()
 
         _finish_run(db, run_id, status="done", sent=sent, errors=errors)
+        _notify_run(db, sent, len(errors))
 
     except Exception as e:
         errors.append(str(e))
@@ -290,6 +416,25 @@ def _run_optout_with_limit(run_type: str, max_this_run: int):
     finally:
         try: db.close()
         except Exception: pass
+
+
+def _notify_run(db, sent: int, failed: int) -> None:
+    """Webhooks: how the run went, and whether anything waits for a person.
+    Counts only (core/webhooks.py)."""
+    try:
+        from .webhooks import safe_notify
+        from ..models.database import RemovalRequest, RequestStatus, CaptchaChallenge
+        needs = db.query(RemovalRequest).filter(RemovalRequest.status == RequestStatus.needs_manual).count()
+        captchas = db.query(CaptchaChallenge).filter(CaptchaChallenge.status == "pending").count()
+        if sent or failed:
+            safe_notify("run_finished",
+                        f"{sent} opt-out(s) sent, {failed} problem(s). {needs} item(s) wait on the Checklist.",
+                        {"sent": sent, "failed": failed, "needs_you": needs})
+        if needs or captchas:
+            safe_notify("needs_you", f"{needs} item(s) on the Checklist and {captchas} CAPTCHA(s) wait for someone.",
+                        {"checklist": needs, "captchas": captchas})
+    except Exception as e:
+        log.debug("run notification skipped: %s", e)
 
 
 def _finish_run(db, run_id, status, sent, errors=None):
@@ -304,11 +449,11 @@ def _finish_run(db, run_id, status, sent, errors=None):
 
 # ── Mode-specific job entry points ────────────────────────────────────────────
 
-def daily_optout_job():
+def daily_optout_job(manual: bool = False):
     """Burst mode — send up to the full daily cap in one run."""
     cfg = load_settings()
     sys_max = cfg.get("scheduler", {}).get("max_optouts_per_day", 20)
-    _run_optout_with_limit("optout", sys_max)
+    _run_optout_with_limit("optout", sys_max, manual=manual)
 
 
 def windowed_optout_job():
@@ -439,47 +584,12 @@ def _poll_imap_mailbox(ec: dict, db: Session, cfg: dict, is_grace_period: bool =
                     log.debug("plugin email parse skipped: %s", _pe)
 
                 if not plugin_handled:
+                    from .confirm_links import extract_links
+                    links = extract_links(body, _get_html(msg))
                     for key in set(UUID_RE.findall(text)):
-                        matching_reqs = db.query(RemovalRequest).filter(
-                            RemovalRequest.request_key == key,
-                            RemovalRequest.status == RequestStatus.sent,
-                        ).all()
-                        if matching_reqs:
-                            recheck_days = cfg.get("scheduler", {}).get("recheck_interval_days", 90)
-                            recheck_dt = datetime.utcnow() + timedelta(days=recheck_days)
-                            now = datetime.utcnow()
-                            parent_ids_to_confirm = set()
-
-                            for req in matching_reqs:
-                                req.status = RequestStatus.confirmed
-                                req.confirmed_at = now
-                                req.recheck_after = recheck_dt
-                                db.add(EmailLog(
-                                    request_id=req.id, direction="received",
-                                    subject=subj[:500], body_snippet=body[:500], matched_key=key,
-                                ))
-                                matched += 1
-                                via_label = "grace_uuid" if is_grace_period else "uuid"
-                                log.info(f"Matched ({via_label}): {req.broker.name} (member_id={req.member_id})")
-                                if req.broker and req.broker.parent_company_id:
-                                    parent_ids_to_confirm.add(req.broker.parent_company_id)
-                                try:
-                                    from ..plugins.hooks import fire_event
-                                    fire_event("confirmation_received", entity_id=str(req.id),
-                                               data={"broker": req.broker.name, "via": via_label})
-                                except Exception:
-                                    pass
-
-                            db.commit()
-
-                            # Record confirmation for parent companies
-                            if parent_ids_to_confirm:
-                                try:
-                                    from . import parent_company as pcmod
-                                    for pid in parent_ids_to_confirm:
-                                        pcmod.record_confirmation(db, pid)
-                                except Exception as _pce:
-                                    log.debug("parent confirmation tracking error: %s", _pce)
+                        matched += _confirm_by_key(db, cfg, key, subj, body,
+                                                   "grace_uuid" if is_grace_period else "uuid",
+                                                   links=links, sender=msg.get("From", ""), links_known=True)
 
                 conn.store(mid, "+FLAGS", "\\Seen")
             except Exception as e:
@@ -491,6 +601,179 @@ def _poll_imap_mailbox(ec: dict, db: Session, cfg: dict, is_grace_period: bool =
         log.warning("IMAP polling error (%s): %s", "grace_period" if is_grace_period else "primary", e)
 
     return matched, errors
+
+
+def _confirm_by_key(db, cfg: dict, key: str, subj: str, body: str, via_label: str,
+                    links=None, sender: str = "", links_known: bool = False) -> int:
+    """
+    A broker replied about the requests sharing tracking key `key`. If the
+    reply asks for a confirmation click, save the link to be clicked (the
+    requests stay 'sent' until it is). Otherwise mark the still-'sent' ones
+    confirmed, log the email, and credit the parent company.
+    Returns how many requests changed.
+    """
+    matching_reqs = db.query(RemovalRequest).filter(
+        RemovalRequest.request_key == key,
+        RemovalRequest.status.in_([RequestStatus.sent, RequestStatus.submitted,
+                                   RequestStatus.needs_manual]),
+    ).all()
+    if not matching_reqs:
+        return 0
+    now_ = datetime.utcnow()
+    for req in matching_reqs:
+        if req.status != RequestStatus.sent:
+            # The broker wrote back, so it was sent — whether by the worker
+            # fleet or by a person following a checklist item.
+            req.status = RequestStatus.sent
+            req.sent_at = req.sent_at or now_
+    try:
+        from . import confirm_links as cl
+        if cl.handle_reply(db, matching_reqs, subj, body, links or [], sender=sender,
+                           links_known=links_known):
+            for req in matching_reqs:
+                db.add(EmailLog(request_id=req.id, direction="received",
+                                subject=(subj or "")[:500], body_snippet="(asks for a confirmation click)",
+                                matched_key=key))
+            db.commit()
+            return len(matching_reqs)
+    except Exception as e:
+        log.warning("confirmation-link check failed, treating as a normal reply: %s", e)
+        db.rollback()
+    recheck_days = cfg.get("scheduler", {}).get("recheck_interval_days", 90)
+    now = datetime.utcnow()
+    recheck_dt = now + timedelta(days=recheck_days)
+    parent_ids_to_confirm = set()
+    for req in matching_reqs:
+        req.status = RequestStatus.confirmed
+        req.confirmed_at = now
+        req.recheck_after = recheck_dt
+        db.add(EmailLog(request_id=req.id, direction="received",
+                        subject=(subj or "")[:500], body_snippet=(body or "")[:500], matched_key=key))
+        log.info(f"Matched ({via_label}): {req.broker.name} (member_id={req.member_id})")
+        if req.broker and req.broker.parent_company_id:
+            parent_ids_to_confirm.add(req.broker.parent_company_id)
+        try:
+            from ..plugins.hooks import fire_event
+            fire_event("confirmation_received", entity_id=str(req.id),
+                       data={"broker": req.broker.name, "via": via_label})
+        except Exception:
+            pass
+    db.commit()
+    if parent_ids_to_confirm:
+        try:
+            from . import parent_company as pcmod
+            for pid in parent_ids_to_confirm:
+                pcmod.record_confirmation(db, pid)
+        except Exception as _pce:
+            log.debug("parent confirmation tracking error: %s", _pce)
+    return len(matching_reqs)
+
+
+def _handle_member_message(db, cfg: dict, mailbox, to_h: str, from_h: str,
+                           subj: str, text: str, links=None) -> int:
+    """Match one message in a family member's inbox: +address tag first, then
+    a tracking key in the subject/snippet. `links` is None when the inbox
+    couldn't give us the message's links (older provider plugins)."""
+    from . import mailboxes as mbx
+    matched = 0
+    hit = mbx.match_inbound(db, mailbox, to_h, from_h)
+    keys = set(hit["request_keys"])
+    known = links is not None
+    if hit["unexpected"]:
+        # Someone other than the broker wrote to this opt-out address: never
+        # click anything they sent.
+        links, known = [], True
+    for key in keys:
+        matched += _confirm_by_key(db, cfg, key, subj, text, "tag",
+                                   links=links, sender=from_h, links_known=known)
+    if not hit["plus_check"] and not hit["unexpected"]:
+        for key in set(UUID_RE.findall(f"{subj} {text}")) - keys:
+            matched += _confirm_by_key(db, cfg, key, subj, text, "uuid",
+                                       links=links, sender=from_h, links_known=known)
+    return matched
+
+
+def _poll_member_mailboxes(db, cfg: dict) -> tuple:
+    """
+    Check every connected family inbox for broker replies. OAuth inboxes
+    (Gmail, Outlook, Yahoo) are read through their provider plugin; inboxes
+    connected with an app password are read over IMAP here. Only headers and a
+    short snippet are read, never stored beyond the email log's 500 characters.
+    """
+    from ..models.database import Mailbox
+    from . import mailboxes as mbx
+    matched, errors = 0, []
+    try:
+        mbx.expire_plus_checks(db)
+    except Exception as e:
+        log.debug("plus-check expiry skipped: %s", e)
+
+    for mb in db.query(Mailbox).filter(Mailbox.status == "connected").all():
+        started = datetime.utcnow()
+        since = mb.last_polled_at or (started - timedelta(days=14))
+        try:
+            if mb.transport == "oauth":
+                from ..plugins import get_manager
+                from .email_send import _refresh_if_needed
+                mgr = get_manager()
+                if not mgr:
+                    continue
+                _refresh_if_needed(cfg, mb.account_ref, mb.provider_key)
+                res = mgr.dispatch_email_list(mb.provider_key, mb.account_ref,
+                                              max_results=50, since_ts=int(since.timestamp()),
+                                              include_links=True,
+                                              links_if_to_contains=("+" + mbx.TAG_PREFIX)
+                                              if mbx.uses_plus(mb) else "",
+                                              account_address=mbx.base_address(mb.address))
+                if res is None:
+                    continue
+                if not res.get("ok"):
+                    errors.append(f"Inbox {mb.id}: {res.get('error') or 'list failed'}")
+                    continue
+                for m in res.get("messages", []):
+                    if m.get("received_ts") and m["received_ts"] < int(since.timestamp()):
+                        continue
+                    matched += _handle_member_message(db, cfg, mb, m.get("to", ""), m.get("from", ""),
+                                                      m.get("subject", ""), m.get("snippet", ""),
+                                                      links=m.get("links") if res.get("links_supported") else None)
+            else:
+                matched += _poll_member_imap(db, cfg, mb)
+            mb.last_polled_at = started
+            db.commit()
+        except Exception as e:
+            errors.append(f"Inbox {mb.id}: {e}")
+            log.warning("Inbox poll failed for mailbox_id=%s: %s", mb.id, e)
+    return matched, errors
+
+
+def _poll_member_imap(db, cfg: dict, mb) -> int:
+    from .memory_hygiene import ephemeral_secret
+    from . import mailboxes as mbx
+    if not mb.imap_host or not mb.password_enc:
+        return 0
+    matched = 0
+    conn = imaplib.IMAP4_SSL(mb.imap_host, mb.imap_port or 993)
+    try:
+        with ephemeral_secret(mb.password_enc) as pw:
+            conn.login(mb.username or mbx.base_address(mb.address), pw)
+        conn.select("INBOX")
+        _, msg_ids = conn.search(None, "UNSEEN")
+        for mid in msg_ids[0].split():
+            # BODY.PEEK leaves the message unread for the person.
+            _, data = conn.fetch(mid, "(BODY.PEEK[])")
+            msg = email.message_from_bytes(data[0][1])
+            to_h = ", ".join(filter(None, [msg.get("To", ""), msg.get("Delivered-To", "")]))
+            from .confirm_links import extract_links
+            body = _get_body(msg)
+            matched += _handle_member_message(db, cfg, mb, to_h, msg.get("From", ""),
+                                              msg.get("Subject", ""), body[:2000],
+                                              links=extract_links(body, _get_html(msg)))
+    finally:
+        try:
+            conn.logout()
+        except Exception:
+            pass
+    return matched
 
 
 def email_monitor_job():
@@ -508,7 +791,16 @@ def email_monitor_job():
             matched += succ
             errors.extend(errs)
 
-        # 2. Mode-Switching Grace Period Dual-Inbox Polling (Roadmap Item 11)
+        # 2. Family members' own inboxes — where opt-out replies now arrive.
+        try:
+            m_succ, m_errs = _poll_member_mailboxes(db, cfg)
+            matched += m_succ
+            errors.extend(m_errs)
+        except Exception as me:
+            errors.append(f"Family inbox polling: {me}")
+            log.warning("Family inbox polling failed: %s", me)
+
+        # 3. Mode-Switching Grace Period Dual-Inbox Polling (Roadmap Item 11)
         try:
             from .email_grace import get_email_grace_status
             grace = get_email_grace_status(cfg)
@@ -525,6 +817,16 @@ def email_monitor_job():
                         log.debug("Grace period inbox polling warnings: %s", g_errs)
         except Exception as ge:
             log.debug("Grace period inbox check skipped: %s", ge)
+
+        # 4. Click the confirmation links brokers sent back.
+        try:
+            from .confirm_links import click_pending
+            stats = click_pending(db, cfg)
+            if stats["clicked"] or stats["needs_person"]:
+                log.info("Confirmation links: %d clicked, %d need a person", stats["clicked"], stats["needs_person"])
+        except Exception as ce:
+            errors.append(f"Confirmation links: {ce}")
+            log.warning("Confirmation link clicking failed: %s", ce)
 
         run.emails_matched = matched; run.status = "done"
 
@@ -548,7 +850,120 @@ def _get_body(msg) -> str:
     except Exception: return ""
 
 
+def _get_html(msg) -> str:
+    parts = msg.walk() if msg.is_multipart() else [msg]
+    for part in parts:
+        if part.get_content_type() == "text/html":
+            try:
+                return part.get_payload(decode=True).decode(part.get_content_charset() or "utf-8", errors="replace")
+            except Exception:
+                pass
+    return ""
+
+
 # ── Job 3: recheck scanner ────────────────────────────────────────────────────
+
+def health_job():
+    """Every five minutes: health checks; webhooks hear when the result changes."""
+    try:
+        from .monitoring import health_job as run
+        run()
+    except Exception as e:
+        log.debug("health job: %s", e)
+
+
+def backup_job():
+    """Hourly: make an encrypted backup when one is due."""
+    try:
+        from .backup import due
+        if not due(load_settings()):
+            return
+        from ..routers.backups import _run_backup, _RUN, _LOCK
+        with _LOCK:
+            if _RUN["running"]:
+                return
+            _RUN["running"] = True
+        _run_backup()
+        log.info("Scheduled backup finished")
+    except Exception as e:
+        log.error("Backup job error: %s", e)
+
+
+def spec_helper_job():
+    """Hourly: work on queued step repairs and, if turned on, draft new steps."""
+    db = SessionLocal()
+    try:
+        from .spec_drafter import run_queue
+        res = run_queue(db)
+        if res["repaired"] or res["drafted"]:
+            log.info("Opt-out steps: %s", res)
+    except Exception as e:
+        log.warning("Opt-out step drafting failed: %s", e)
+    finally:
+        db.close()
+
+
+def verification_job():
+    """Daily: check whether removals stuck and whether listings came back."""
+    db = SessionLocal()
+    run = SchedulerRun(run_type="verification", status="running")
+    db.add(run); db.commit()
+    try:
+        from .verification import run_daily
+        stats = run_daily(db, load_settings())
+        try:   # after the checks, so today's score reflects them
+            from .privacy_score import snapshot
+            snapshot(db)
+        except Exception as se:
+            log.warning("Privacy score snapshot failed: %s", se)
+        run.status = "done"
+        if stats["checked"]:
+            log.info("Removal checks: %s", stats)
+        if stats.get("resent"):
+            from .webhooks import safe_notify
+            safe_notify("listing_back", f"{stats['resent']} listing(s) showed up again after removal; "
+                                        "opt-outs were sent again.", {"count": stats["resent"]})
+    except Exception as e:
+        run.status = "error"; run.errors = json.dumps([str(e)])
+        log.error("Verification job error: %s", e)
+    finally:
+        run.finished_at = datetime.utcnow()
+        db.commit(); db.close()
+
+
+def notice_job():
+    """Daily: email opted-in people when a site misses its deadline or relists them."""
+    db = SessionLocal()
+    run = SchedulerRun(run_type="notices", status="running")
+    db.add(run); db.commit()
+    try:
+        from .compliance import run_notices
+        stats = run_notices(db, load_settings())
+        run.status = "done"
+        if stats["emails"]:
+            log.info("Notices: %s", stats)
+    except Exception as e:
+        run.status = "error"; run.errors = json.dumps([str(e)])
+        log.error("Notice job error: %s", e)
+    finally:
+        run.finished_at = datetime.utcnow()
+        db.commit(); db.close()
+
+
+def retention_job():
+    """Daily: apply the retention schedule to logs (never to people's details)."""
+    db = SessionLocal()
+    try:
+        from .privacy_record import purge, mark_purged
+        stats = purge(db, load_settings())
+        mark_purged(stats)
+        if any(stats.values()):
+            log.info("Retention: %s", stats)
+    except Exception as e:
+        log.error("Retention job error: %s", e)
+    finally:
+        db.close()
+
 
 def recheck_job():
     db  = SessionLocal()
@@ -566,7 +981,18 @@ def recheck_job():
             RemovalRequest.recheck_after <= datetime.utcnow(),
         ).all()
 
+        from .verification import verify_request, settings_of as vsettings
+        verify_on = vsettings(cfg)["enabled"]
         for req in overdue:
+            # Look first: a listing that's still gone doesn't need another opt-out.
+            if verify_on:
+                try:
+                    res = verify_request(db, req, cfg)
+                    if res["verdict"] in ("gone", "not_found") or res["action"].startswith("resend"):
+                        queued += 1 if res["action"].startswith("resend") else 0
+                        continue
+                except Exception as ve:
+                    log.info("check before re-send failed for request %s: %s", req.id, ve)
             req.status = RequestStatus.pending
             req.confirmed_at = None; req.sent_at = None
             queued += 1
@@ -617,28 +1043,40 @@ def enqueue_pending_optouts(
 
             spec = get_or_build_broker_spec(broker, script=script, db=db)
 
-            # Resolve member fields
-            def first(kind):
-                vals = _get_values(member, kind, 1)
-                return vals[0] if vals else ""
+            from .interpreter.member_fields import resolve as resolve_fields
+            member_fields = resolve_fields(member)
 
-            raw_addr = first("address")
-            p = _parse_address(raw_addr) if raw_addr else {"address": "", "city": "", "state": "", "zip": ""}
-            parts = (member.full_name or "").split()
-            member_fields = {
-                "full_name": member.full_name or first("name"),
-                "formal_name": getattr(member, "formal_name", "") or member.full_name or "",
-                "first_name": parts[0] if parts else "",
-                "last_name": " ".join(parts[1:]) if len(parts) > 1 else "",
-                "email": first("email"),
-                "phone": first("phone"),
-                "address": p.get("address") or raw_addr,
-                "city": p.get("city", ""),
-                "state": p.get("state", ""),
-                "zip": p.get("zip", ""),
-            }
+            member_fields["listing_url"] = req.listing_url or ""
+            if any(st.field == "listing_url" and not st.optional for st in (spec.steps or [])) \
+                    and not req.listing_url:
+                req.status = RequestStatus.needs_manual
+                req.notes = (f"{broker.name} needs the web address of {member.full_name}'s own listing. "
+                             "Add it under Discovery → Find your listings.")
+                db.commit()
+                continue
+            from .interpreter.compiler import uses_field
+            if uses_field(spec, "contact_email"):
+                from . import mailboxes as mbx
+                import uuid as _uuid
+                if not req.request_key:
+                    req.request_key = str(_uuid.uuid4())
+                mailbox = mbx.resolve_mailbox(db, member)
+                contact, reason = (None, mbx.missing_mailbox_instruction(member)) if mailbox is None \
+                    else mbx.issue_contact_address(
+                        db, mailbox, member, broker=broker, request_key=req.request_key,
+                        one_optout_per_email=bool(getattr(spec, "one_optout_per_email", False)),
+                        allow_plus=bool(getattr(spec, "accepts_plus_addresses", True))
+                        and not bool(getattr(broker, "rejects_plus_addresses", False)))
+                if contact is None:
+                    req.status = RequestStatus.needs_manual
+                    req.notes = reason
+                    db.commit()
+                    continue
+                member_fields["contact_email"] = contact.address
 
-            job = compile_job(spec, member_fields, member_id=str(member.id))
+            from ..plugins.plugin_i18n import member_language
+            job = compile_job(spec, member_fields, member_id=str(member.id),
+                              lang=member_language(member))
             priority = "high" if getattr(broker, "priority", 3) >= 4 else "normal"
 
             env = create_removal_envelope(

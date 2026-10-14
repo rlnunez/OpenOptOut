@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de GladIKnow. Una persona sigue los pasos de la lista; OpenOptOut aporta una dirección de correo de un solo uso y hace clic en cualquier enlace de confirmación.",
+ "instructions": "Abre https://gladiknow.com, busca {full_name}, abre tu propia ficha y usa el enlace de baja o «Control» que tenga. Usa {contact_email} siempre que pida una dirección de correo. Después pulsa «Ya lo hice»."
+}

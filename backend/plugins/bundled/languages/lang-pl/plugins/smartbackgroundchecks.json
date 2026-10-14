@@ -1,0 +1,4 @@
+{
+ "description": "Wspomagana rezygnacja z SmartBackgroundChecks. Użytkownik wykonuje kroki z listy zadań; OpenOptOut zapewnia jednorazowy adres e-mail i klika link potwierdzający.",
+ "instructions": "Search smartbackgroundchecks.com for {full_name}. If you're listed, open smartbackgroundchecks.com/optout and remove your record, using {contact_email} where it asks for an email. This usually removes you from PeopleFinders too. Następnie naciśnij „Zrobione”."
+}

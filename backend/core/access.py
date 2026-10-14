@@ -188,8 +188,7 @@ def save_manager_defaults(keys: Iterable[str]) -> list[str]:
     keys = clean(keys)
     s = settings_store.load_settings()
     s.setdefault("access", {})["manager_defaults"] = keys
-    with open(settings_store.SETTINGS_FILE, "w") as f:
-        json.dump(s, f, indent=2)
+    settings_store.save_settings(s)
     return keys
 
 

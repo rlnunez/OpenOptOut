@@ -1,0 +1,4 @@
+{
+ "description": "CallerSmart 的引导式退出，该网站按电话号码列出个人信息。一次退出即可涵盖所有已保存的号码。",
+ "instructions": "打开 https://www.callersmart.com/data。对以下每个号码，输入号码和 {contact_email}，完成机器人验证，然后输入 CallerSmart 通过短信或电话发到该号码的 6 位验证码：{all_phones}。然后点击“我已完成”。"
+}

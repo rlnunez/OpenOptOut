@@ -1,0 +1,18 @@
+{
+  "broker_id": "hiya",
+  "name": "Hiya",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://hiyahelp.zendesk.com/hc/en-us/requests/new?ticket_form_id=33394399463699",
+  "lookup_by": "phone",
+  "instructions": "Hiya supplies caller ID to many Samsung phones and carrier apps. Open Hiya's request form at https://hiyahelp.zendesk.com/hc/en-us/requests/new?ticket_form_id=33394399463699 and ask Hiya to remove the caller ID name for each of these numbers: {all_phones}. Use {contact_email} as your email. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "Hiya handles requests per number and allows up to 30 days. A full data deletion request uses its separate advanced data request form.",
+  "source": "Hiya help article 'Your data and privacy' (spamblocker-support.hiya.com, article 38).",
+  "last_verified": ""
+}

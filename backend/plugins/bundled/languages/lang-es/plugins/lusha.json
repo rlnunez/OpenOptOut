@@ -1,0 +1,4 @@
+{
+ "description": "Baja guiada de Lusha, que publica a las personas por dirección de correo. Una sola baja cubre todas las direcciones guardadas.",
+ "instructions": "Abre https://www.lusha.com/privacy-center/request-removal/ y envía una solicitud de eliminación para {full_name} con cada una de estas direcciones y números: {all_emails}; {all_phones}. Usa {contact_email} para las respuestas. Después pulsa «Ya lo hice»."
+}

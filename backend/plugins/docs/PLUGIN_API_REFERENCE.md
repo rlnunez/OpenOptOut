@@ -86,6 +86,7 @@ Plugins are organized into specialized subdirectories under `<plugins_root>/` (d
 │       └── assets/ (logo.svg, logo.png, favicon.ico)
 │
 ├── languages/        # i18n localization packs (Data-Only, Item 17)
+├── letters/          # opt-out letter wording, letter.json (Data-Only)
 │   └── <plugin_id>/
 │       ├── manifest.json
 │       └── messages.json
@@ -107,6 +108,7 @@ Plugins are organized into specialized subdirectories under `<plugins_root>/` (d
 | `email` | `plugins/email/` | `email_provider` | `email_provider`, `read_pii`, `network`, `settings_read`, `storage` | Sandboxed Python process (Trusted Class) |
 | `themes` | `plugins/themes/` | *(Prohibited)* | *(Prohibited — 0 permissions)* | **Data-only** (No code execution) |
 | `languages` | `plugins/languages/` | *(Prohibited)* | *(Prohibited — 0 permissions)* | **Data-only** (No code execution) |
+| `letters` | `plugins/letters/` | *(Prohibited)* | *(Prohibited — 0 permissions)* | **Data-only**: one `letter.json`, checked on upload |
 | `general` | `plugins/general/` | *(None)* | All except `email_provider`, `solve_captcha`, `fill_forms` | Sandboxed Python process |
 
 ---
@@ -153,7 +155,9 @@ Every plugin bundle must contain a `manifest.json` at its root.
   "spec_file": "spec.json",
   "captcha_plugin_id": "recaptcha-v2-solver",
   "difficulty": "easy | medium | hard",
-  "is_property_broker": false
+  "is_property_broker": false,
+  "default_locale": "en",
+  "locales": ["es", "fr"]
 }
 ```
 
@@ -167,7 +171,7 @@ Every plugin bundle must contain a `manifest.json` at its root.
 | `author` | `string` | **Yes** | Author or maintainer attribution. |
 | `type` | `string` | **Yes** | Must match one of the defined category types. |
 | `description` | `string` | No | Operational overview and documentation summary. |
-| `entrypoint` | `string` | Conditional | Relative path to executable script (e.g. `plugin.py`). **Must be empty or omitted for `themes`, `languages`, and declarative `brokers`**. |
+| `entrypoint` | `string` | Conditional | Relative path to executable script (e.g. `plugin.py`). **Must be empty or omitted for `themes`, `languages`, `letters`, and declarative `brokers`**. |
 | `permissions` | `list[string]` | No | High-level privilege categories requested from the host. |
 | `methods` | `list[string]` | Conditional | Exhaustive list of exact host API methods called by the plugin. |
 | `hooks` | `list[string]` | Conditional | Extension hooks implemented by the plugin. |
@@ -180,6 +184,41 @@ Every plugin bundle must contain a `manifest.json` at its root.
 | `captcha_plugin_id` | `string` | No | Recommended or required CAPTCHA solver plugin ID for `brokers` add-ons. |
 | `difficulty` | `string` | No | Broker opt-out difficulty rating (`easy`, `medium`, `hard`). |
 | `is_property_broker` | `bool` | No | Flag indicating if broker exposes real estate/property deed listings. |
+| `default_locale` | `string` | No | Language the manifest and spec text is written in (default `en`). See [Translating plugin text](#translating-plugin-text). |
+| `locales` | `list[string]` | No | Languages the plugin carries in `locales/<code>.json`. Each listed file must exist. |
+
+### Translating plugin text
+
+A plugin's description, a broker's `instructions` and the text of `pause_for_human` steps are shown to people, so they can be translated. Nothing that is sent to a broker or matched on a broker's page is translated here (see [Jurisdiction and legal language](#jurisdiction-and-legal-language)).
+
+Text is looked up by key:
+
+| Key | Text |
+|---|---|
+| `description` | manifest `description` |
+| `instructions` | spec `instructions` |
+| `steps.<i>.text` | `text` of the `pause_for_human` step at index `<i>` (from 0) |
+
+A spec can name its own key, so a translation survives steps being added or reordered:
+
+```json
+{ "instructions": { "$t": "how_to", "default": "Open {listing_url} and press Remove." } }
+```
+
+There are two places a translation can live:
+
+1. **In the plugin**: `locales/<code>.json`, a flat `{key: text}` object, with the codes listed in the manifest's `locales`.
+2. **In a language pack**: `<pack>/plugins/<plugin_id>.json`, same format. This is how the built-in packs translate the built-in plugins, so a translator never has to change a broker plugin.
+
+For a person reading in language L, the first of these that has the key wins:
+
+1. An admin's override: settings `i18n.custom_translations[L]["plugin:<plugin_id>:<key>"]`
+2. A language pack for L (an installed pack before the built-in one)
+3. The plugin's `locales/L.json`
+4. The plugin's `locales/<default_locale>.json`
+5. The text as written in the manifest or spec
+
+`pt-BR` falls back to `pt`. A translation must use the same `{placeholders}` as the text it translates; installation refuses a `locales/` file that doesn't, isn't valid JSON, or holds anything but text. `python3 scripts/plugin_texts.py --check` lists what the built-in packs are missing.
 
 ---
 
@@ -267,6 +306,31 @@ plugins/brokers/fastpeoplesearch/
 - `scroll`: Scrolls target element or page into viewport.
 - `frame`: Switches execution context into a child `<iframe>`.
 - `solve_captcha`: Dispatches an inline challenge to the configured CAPTCHA solver.
+
+#### Jurisdiction and legal language
+
+The opt-out letter a broker receives depends on the broker, not on the family: a Spanish-speaking family in California writes to a US broker in English, and anyone writing to a French broker writes in French under the GDPR. A spec says where the broker is and which language its legal team reads:
+
+```json
+{
+  "broker_id": "exemple",
+  "jurisdiction": "FR",
+  "legal_language": "fr",
+  "legal_basis": ["gdpr"],
+  "email_templates": {
+    "fr": { "subject": "Demande d'effacement — {full_name} [{request_key}]",
+            "body": "Madame, Monsieur,\n...\n{identifiers}\n..." }
+  }
+}
+```
+
+| Field | Default | Meaning |
+|---|---|---|
+| `jurisdiction` | from `legal_basis` (`gdpr` → `EU`, `uk_gdpr` → `UK`, `lgpd` → `BR`, `pipeda` → `CA`, US state laws → `US`), else `US` | `US`, `EU`, `EEA`, `UK`, or a country code, optionally with a region (`US-CA`, `CA-QC`). Note `CA` is Canada; California is `US-CA`. |
+| `legal_language` | the usual language for the jurisdiction (`FR` → `fr`, `BR` → `pt-BR`, `DE` → `de`, ...), else `en` | The language every letter to this broker is written in. |
+| `email_templates` | none | The broker's own letter per language: `{"<code>": {"subject", "body"}}`. The one in the legal language is used first; `{identifiers}` places the person's details, labelled in that language. |
+
+Without its own letter, the broker gets the built-in letter for its jurisdiction (`backend/core/legal_templates/`): CCPA for a US broker when the person lives in California, the general US letter otherwise, GDPR, UK GDPR, LGPD or PIPEDA, and a law-neutral letter elsewhere. These are drafts until a lawyer has reviewed them; each file says what to check.
 
 ---
 
@@ -575,7 +639,10 @@ Language packs provide community translations and Right-to-Left (RTL) layout par
 ```
 plugins/languages/lang-ar/
 ├── manifest.json
-└── messages.json
+├── messages.json
+├── texts.json               # every phrase on the screens, keyed by its English text
+└── plugins/
+    └── whitepages.json      # translations of another plugin's text (see "Translating plugin text")
 ```
 
 **`manifest.json`:**

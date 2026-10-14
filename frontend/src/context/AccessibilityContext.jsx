@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import api from '../api'
+import { tx } from '../i18n/tx'
 
 const AccessibilityContext = createContext(null)
 
@@ -183,7 +184,7 @@ export function AccessibilityProvider({ children }) {
     setThemeState(target)
     localStorage.setItem('app_theme', target)
     persistSettings({ theme: target })
-    announce(`Theme switched to ${target === 'space' ? 'Space Explorer' : target}`)
+    announce(`Theme switched to ${target === 'space' ? tx("Space Explorer") : target}`)
   }
 
   const setFontSize = (size) => {
@@ -198,7 +199,7 @@ export function AccessibilityProvider({ children }) {
     setHighContrastState(next)
     localStorage.setItem('a11y_high_contrast', String(next))
     persistSettings({ high_contrast: next })
-    announce(next ? 'High Contrast Mode enabled' : 'High Contrast Mode disabled')
+    announce(next ? tx("High Contrast Mode enabled") : tx("High Contrast Mode disabled"))
   }
 
   const setDyslexicFont = (val) => {
@@ -206,7 +207,7 @@ export function AccessibilityProvider({ children }) {
     setDyslexicFontState(next)
     localStorage.setItem('a11y_dyslexic_font', String(next))
     persistSettings({ dyslexic_font: next })
-    announce(next ? 'OpenDyslexic font enabled' : 'Default font restored')
+    announce(next ? tx("OpenDyslexic font enabled") : tx("Default font restored"))
   }
 
   const setReducedMotion = (val) => {
@@ -214,7 +215,7 @@ export function AccessibilityProvider({ children }) {
     setReducedMotionState(next)
     localStorage.setItem('a11y_reduced_motion', String(next))
     persistSettings({ reduced_motion: next })
-    announce(next ? 'Reduced motion enabled' : 'Reduced motion disabled')
+    announce(next ? tx("Reduced motion enabled") : tx("Reduced motion disabled"))
   }
 
   const setEnhancedTargets = (val) => {
@@ -222,7 +223,7 @@ export function AccessibilityProvider({ children }) {
     setEnhancedTargetsState(next)
     localStorage.setItem('a11y_enhanced_targets', String(next))
     persistSettings({ enhanced_targets: next })
-    announce(next ? '44 pixel enhanced touch targets enabled' : 'Enhanced touch targets disabled')
+    announce(next ? tx("44 pixel enhanced touch targets enabled") : tx("Enhanced touch targets disabled"))
   }
 
   const announce = (message) => {

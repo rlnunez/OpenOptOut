@@ -1,0 +1,4 @@
+{
+ "description": "Покрокова відмова для That's Them. Користувач виконує кроки з контрольного списку; OpenOptOut надає одноразову адресу ел. пошти та переходить за посиланням підтвердження.",
+ "instructions": "Check thatsthem.com for {full_name}. If you're listed, open thatsthem.com/optout, fill in your details as they appear on the listing, and use {contact_email} as the email address. Don't click the identity-theft-protection offer on the page: it's a paid product. Потім натисніть «Я це зробив(-ла)»."
+}

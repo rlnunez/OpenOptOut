@@ -1,0 +1,27 @@
+{
+  "id": "ccpa",
+  "title": "California — CCPA / CPRA",
+  "law": "California Consumer Privacy Act, as amended by the California Privacy Rights Act (Cal. Civ. Code § 1798.100 et seq.)",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "jurisdictions": [
+    "US",
+    "US-CA"
+  ],
+  "residents_of": [
+    "CA"
+  ],
+  "deadline_days": 45,
+  "default_language": "en",
+  "review_status": "draft",
+  "review_note": "Draft wording, not reviewed by a lawyer. Used for US brokers when the person lives in California. Section numbers cited: 1798.105 (deletion), 1798.120 (opt out of sale/sharing), 1798.121 (limit use of sensitive data), 1798.130 (45-day response). A lawyer should confirm the citations, whether a registered data broker must also honour requests through the California Delete Act's DROP platform, and the wording of the authorized-agent sentence.",
+  "languages": {
+    "en": {
+      "subject": "CCPA request to delete and opt out — {full_name}{ref_tag}",
+      "body": "To the Privacy / Data Protection team at {broker},\n\nI am a California consumer submitting a verifiable request to delete my personal information and to opt out of its sale and sharing.\n\n{scope}\n\n{property_note}\n\nPlease delete all records matching ANY of the following identifiers — every record, not only the most recent or primary one:\n\n{identifiers}\n\nI am requesting that you:\n  1. Delete all personal information you have collected about me, from {broker} and every property listed above, and direct your service providers and contractors to do the same (§ 1798.105(c)).\n  2. Stop selling or sharing my personal information, and do not sell or share it in the future (§ 1798.120).\n  3. Limit any use of my sensitive personal information to what § 1798.121 permits.\n  4. Do not re-collect or re-list my information from other sources after this request.\n  5. Confirm in writing, to the sending email address, once this is done, and tell me which records, if any, you did not delete and the legal reason.\n\n{law}\n\nIf you need more to verify this request, reply to this email and I will provide what is reasonably necessary. Please do not require me to create an account (§ 1798.130(a)(2)) or to send a government ID or full date of birth.\n\n{reference}\n\nThank you.\n\nSincerely,\n{full_name}\n",
+      "law": "As a resident of {state}, I am exercising my rights under the California Consumer Privacy Act (CCPA), as amended by the California Privacy Rights Act (Cal. Civ. Code § 1798.100 et seq.), and any other applicable state privacy laws. You must respond within 45 days of receiving this request (§ 1798.130(a)(2)). This request covers all affiliated and successor properties under common ownership or operation."
+    }
+  }
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer USPhoneBook. A sailor follows the steps on the checklist; OpenOptOut hands over a one-time email address an' clicks any confirmation link.",
+ "instructions": "Look up yer phone number on usphonebook.com. If ye be listed, open usphonebook.com/opt-out an' follow the steps, using {contact_email} where it asks fer an email. If the opt-out page just hangs, email support+optout@usphonebook.com an' ask to be removed. Then smash \"I've done this\"."
+}

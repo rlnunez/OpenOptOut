@@ -1,0 +1,4 @@
+{
+ "description": "Покрокова відмова для SearchPeopleFree. Користувач виконує кроки з контрольного списку; OpenOptOut надає одноразову адресу ел. пошти та переходить за посиланням підтвердження.",
+ "instructions": "Search searchpeoplefree.com by name, phone number, address and email; people are often listed more than once. For each record, use searchpeoplefree.com/opt-out, giving {contact_email} as the email address. Потім натисніть «Я це зробив(-ла)»."
+}

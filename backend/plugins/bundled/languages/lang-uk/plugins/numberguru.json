@@ -1,0 +1,4 @@
+{
+ "description": "Покрокова відмова для NumberGuru, який шукає людей за номером телефону. Одна відмова охоплює кожен збережений номер.",
+ "instructions": "Search https://www.numberguru.com/ for each of these numbers: {all_phones}. On any page that shows you, use the \"Remove This Listing\" or \"Opt Out\" link and give {contact_email} as your email. Потім натисніть «Я це зробив(-ла)»."
+}

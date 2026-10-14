@@ -9,6 +9,7 @@ Role model:
 """
 
 from sqlalchemy import (
+    Date,
     create_engine, Column, Integer, String, Text,
     DateTime, Boolean, ForeignKey, Enum as SAEnum, UniqueConstraint
 )
@@ -56,6 +57,7 @@ class RequestStatus(str, enum.Enum):
     failed       = "failed"
     submitted    = "submitted"
     needs_manual = "needs_manual"
+    skipped      = "skipped"        # left alone on purpose (e.g. unclear matches, by setting)
 
 class OptOutMethod(str, enum.Enum):
     form   = "form"
@@ -209,6 +211,9 @@ class User(Base):
     preferred_language     = Column(String(10), default="en", nullable=False)
     tutorial_completed     = Column(Boolean, default=False, nullable=False)
     pending_ils_import     = Column(Text, nullable=True)  # Staged ILS demographic fields waiting for patron confirmation
+    notification_prefs = Column(Text, nullable=True)  # JSON: {"overdue": bool, "relisted": bool} (core/compliance.py)
+    calendar_token_hash = Column(String(64), nullable=True, index=True)  # private calendar feed link (hash only)
+    optout_prefs = Column(Text, nullable=True)  # JSON: {"unclear_listings": "ask"|"skip"|"remove_all"} (core/match_policy.py)
     accessibility_settings = Column(Text, nullable=True)  # JSON dict: {"high_contrast": bool, "large_text": bool, "reduced_motion": bool}
 
     # Multi-Factor Authentication (TOTP + FIDO2/WebAuthn/YubiKey)
@@ -221,6 +226,8 @@ class User(Base):
 
     created_at       = Column(DateTime, default=datetime.utcnow)
     created_by_id    = Column(Integer, ForeignKey("users.id"), nullable=True)  # who created this account
+    resident_address_id = Column(Integer, nullable=True, index=True)  # sign-up address on the list (core/resident_addresses.py)
+    resident_key        = Column(String(64), nullable=True, index=True)  # hash of that address with the unit (account limit per home)
 
     # relationships
     created_by       = relationship("User", remote_side="User.id", foreign_keys=[created_by_id])
@@ -296,11 +303,218 @@ class FamilyMember(Base):
     full_name   = Column(String, nullable=False)
     formal_name = Column(EncryptedText, nullable=True)  # legal name — encrypted at rest
     age         = Column(Integer)
+    # Optional date of birth (YYYY-MM-DD), encrypted at rest. Some brokers'
+    # forms require it; it also tells a person's listing from a namesake's.
+    dob         = Column(EncryptedText, nullable=True)
     created_at  = Column(DateTime, default=datetime.utcnow)
 
+    # The inbox opt-outs for this member are sent from and replies arrive at.
+    # None = use the member's own default inbox, else a managing parent's
+    # inbox that supports +addresses (see core/mailboxes.py).
+    mailbox_id  = Column(Integer, ForeignKey("mailboxes.id"), nullable=True, index=True)
+
     user       = relationship("User", back_populates="family_member")
+    mailbox    = relationship("Mailbox", foreign_keys=[mailbox_id])
     identities = relationship("Identity", back_populates="member", cascade="all, delete-orphan")
     requests   = relationship("RemovalRequest", back_populates="member")
+
+
+class Mailbox(Base):
+    """
+    An email inbox a user has connected. Opt-outs for the members it is
+    assigned to are sent from it, and broker replies arrive in it. A parent
+    may connect several and assign each to a family member.
+
+    Credentials never live here for OAuth inboxes: tokens are stored
+    encrypted in settings under `account_ref` (as the system inbox's are).
+    App-password inboxes keep their password encrypted in `password_enc`.
+    """
+    __tablename__ = "mailboxes"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    owner_user_id  = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    label          = Column(String, nullable=True)            # "Mom's Gmail"
+    address        = Column(EncryptedText, nullable=False)    # PII — encrypted at rest
+    address_hash   = Column(String(64), nullable=False, unique=True, index=True)  # sha256 of lowercased address
+    provider_key   = Column(String(40), nullable=False)       # gmail | outlook | yahoo | smtp
+    transport      = Column(String(20), nullable=False, default="oauth")   # oauth | app_password
+    account_ref    = Column(String(64), nullable=False, unique=True)       # token key, "mbx-<id>"
+    # App-password inboxes only:
+    smtp_host      = Column(String, nullable=True)
+    smtp_port      = Column(Integer, nullable=True)
+    imap_host      = Column(String, nullable=True)
+    imap_port      = Column(Integer, nullable=True)
+    username       = Column(EncryptedText, nullable=True)
+    password_enc   = Column(Text, nullable=True)               # Fernet, like the system inbox
+    status         = Column(String(20), nullable=False, default="pending")  # pending | connected | error
+    status_detail  = Column(Text, nullable=True)
+    # +address support: unknown | checking | verified | unsupported
+    plus_status    = Column(String(20), nullable=False, default="unknown")
+    plus_test_tag  = Column(String(32), nullable=True)
+    plus_test_sent_at = Column(DateTime, nullable=True)
+    last_polled_at = Column(DateTime, nullable=True)
+    created_at     = Column(DateTime, default=datetime.utcnow)
+
+    owner = relationship("User", foreign_keys=[owner_user_id])
+
+
+class ContactAddress(Base):
+    """
+    The address given to a broker for ONE opt-out (one form submission or one
+    email). With a +address inbox this is unique, e.g. jane+oo7f3k2a@gmail.com,
+    so every reply can be matched to its request, one-opt-out-per-email limits
+    don't bite, and mail arriving at the tag from anyone else shows the
+    address was passed on.
+    """
+    __tablename__ = "contact_addresses"
+
+    id               = Column(Integer, primary_key=True, index=True)
+    tag              = Column(String(32), nullable=True, unique=True, index=True)  # None = plain address
+    address          = Column(EncryptedText, nullable=False)
+    address_hash     = Column(String(64), nullable=False, index=True)
+    mailbox_id       = Column(Integer, ForeignKey("mailboxes.id"), nullable=False, index=True)
+    member_id        = Column(Integer, ForeignKey("family_members.id"), nullable=False, index=True)
+    broker_id        = Column(Integer, ForeignKey("brokers.id"), nullable=True, index=True)
+    parent_company_id = Column(Integer, ForeignKey("parent_companies.id"), nullable=True)
+    request_key      = Column(String, nullable=True, index=True)
+    combo_label      = Column(String, nullable=True)
+    created_at       = Column(DateTime, default=datetime.utcnow)
+    inbound_count    = Column(Integer, default=0)
+    last_inbound_at  = Column(DateTime, nullable=True)
+    # Sender domains that wrote to this address but aren't the broker (comma-separated).
+    unexpected_senders = Column(Text, nullable=True)
+
+    mailbox = relationship("Mailbox")
+
+
+class WebSearchHit(Base):
+    """
+    A page a server-side web search found for a family member. Strong matches
+    on known brokers go straight into the removal cycle; the rest wait here for
+    the person to say "that's me" or "not me". Title and snippet can contain the
+    member's details, so they're encrypted at rest.
+    """
+    __tablename__ = "web_search_hits"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    member_id    = Column(Integer, ForeignKey("family_members.id"), nullable=False, index=True)
+    url          = Column(Text, nullable=False)
+    url_hash     = Column(String(64), nullable=False, index=True)
+    domain       = Column(String, nullable=False, index=True)
+    title        = Column(EncryptedText, nullable=True)
+    snippet      = Column(EncryptedText, nullable=True)
+    query_label  = Column(String, nullable=True)
+    strength     = Column(String(10), nullable=False, default="weak")   # strong | medium | weak
+    matched_on   = Column(String, nullable=True)                         # "phone", "address", "email", "name+city"
+    broker_id    = Column(Integer, ForeignKey("brokers.id"), nullable=True)
+    status       = Column(String(12), nullable=False, default="new")    # new | added | dismissed
+    dismiss_reason = Column(String(20), nullable=True)                   # not_me | not_broker
+    request_id   = Column(Integer, ForeignKey("removal_requests.id"), nullable=True)
+    found_at     = Column(DateTime, default=datetime.utcnow)
+    last_seen_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RequestVariant(Base):
+    """
+    Which saved details (identity-vault entries) a removal request actually
+    sent to the broker: every variant for email opt-outs, the submitted
+    combination for each form submission. Drives the per-variant removal
+    report ("main details" vs other variants).
+    """
+    __tablename__ = "request_variants"
+    __table_args__ = (UniqueConstraint("request_id", "identity_id", name="uq_request_variant"),)
+
+    id          = Column(Integer, primary_key=True, index=True)
+    request_id  = Column(Integer, ForeignKey("removal_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    identity_id = Column(Integer, ForeignKey("identities.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at  = Column(DateTime, default=datetime.utcnow)
+
+
+class PrivacyPage(Base):
+    """
+    Something the privacy-page finder found on a broker's own website
+    (core/privacy_finder.py): a hosted privacy-request form (OneTrust,
+    TrustArc...), the company's own request form, an opt-out page, its
+    privacy policy, or a privacy email address. Forms are filled by
+    core/interpreter/hosted_forms.py; email addresses are only used after an
+    admin approves them.
+    """
+    __tablename__ = "privacy_pages"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    broker_id  = Column(Integer, ForeignKey("brokers.id", ondelete="CASCADE"), nullable=False, index=True)
+    url        = Column(String(1000), nullable=False)      # or "mailto:address" for an email
+    kind       = Column(String(30), nullable=False)        # see privacy_finder.KINDS
+    label      = Column(String(300), nullable=True)        # link text or page title
+    score      = Column(Integer, default=0)
+    status     = Column(String(20), default="active", index=True)   # active | dismissed | approved
+    found_at   = Column(DateTime, default=datetime.utcnow)
+
+
+class BrokerUpdate(Base):
+    """
+    Something an administrator should know about a broker: it was turned off
+    after repeated failures, its site disappeared or came back, new brokers
+    were found, a registry dropped one. Shown on the Broker updates page with
+    a sidebar badge, and sent to super administrators as an email digest.
+    """
+    __tablename__ = "broker_updates"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    kind       = Column(String(30), nullable=False, index=True)    # see broker_updates.KINDS
+    broker_id  = Column(Integer, ForeignKey("brokers.id", ondelete="CASCADE"), nullable=True, index=True)
+    title      = Column(String(300), nullable=False)
+    detail     = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    read_at    = Column(DateTime, nullable=True)
+    emailed_at = Column(DateTime, nullable=True)
+
+
+class VerificationCheck(Base):
+    """
+    One automatic check of whether a removal stuck: the listing page, the
+    broker's own search, or a web search, looked at after an opt-out
+    (core/verification.py). `verdict` is gone | listed | not_found | blocked |
+    unknown. `evidence` is the page that showed it (no personal details).
+    """
+    __tablename__ = "verification_checks"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    request_id = Column(Integer, ForeignKey("removal_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    checked_at = Column(DateTime, default=datetime.utcnow, index=True)
+    method     = Column(String(20), nullable=False)       # listing_url | broker_search | web_search
+    verdict    = Column(String(20), nullable=False, index=True)
+    evidence   = Column(String(1000), nullable=True)
+    detail     = Column(String(500), nullable=True)
+
+
+class ConfirmationLink(Base):
+    """
+    A broker emailed back asking the person to click a link before it will
+    act (Radaris, Spokeo, BeenVerified, ...). The request stays 'sent' until
+    the link is clicked; only then is it 'confirmed'.
+
+    status:
+      pending       found, not clicked yet (clicked on the next email check)
+      clicked       visited and the page accepted it → request confirmed
+      needs_person  couldn't be clicked automatically; on the checklist
+      done          the person clicked it themselves
+
+    The link carries a one-time token, so it's encrypted at rest and never
+    logged; only its host is stored in the clear.
+    """
+    __tablename__ = "confirmation_links"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    request_id  = Column(Integer, ForeignKey("removal_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    url         = Column(EncryptedText, nullable=True)     # empty when the email had no usable link
+    host        = Column(String(255), nullable=True)
+    status      = Column(String(20), nullable=False, default="pending", index=True)
+    reason      = Column(String(40), nullable=True)        # why it needs a person (see confirm_links.REASONS)
+    attempts    = Column(Integer, default=0)
+    sender      = Column(String(255), nullable=True)       # From: of the email, for "find the email from …"
+    found_at    = Column(DateTime, default=datetime.utcnow)
+    clicked_at  = Column(DateTime, nullable=True)
 
 
 class Identity(Base):
@@ -340,7 +554,13 @@ class ParentCompany(Base):
     # can be CC'd for parents that list multiple privacy contacts.
     optout_email  = Column(String, nullable=True)
     cc_emails     = Column(String, nullable=True)   # comma-separated, optional
-    # Language/locale the opt-out email must be written in for this parent.
+    # Where the parent company is ("US", "FR", "BR", ...): picks the law its
+    # opt-out letter cites (core/legal_letters.py). Empty means "US".
+    jurisdiction  = Column(String(12), nullable=True)
+    letter_template = Column(String(64), nullable=True)   # an admin's choice of letter; empty = automatic
+    # The parent's legal language: the language its opt-out letter is written
+    # in — not the family's interface language. Empty means the usual
+    # language for the jurisdiction.
     locale        = Column(String, default="en")
     website       = Column(String, nullable=True)
     notes         = Column(Text, nullable=True)
@@ -397,6 +617,23 @@ class Broker(Base):
 
     # Optional installed broker add-on plugin ID providing declarative spec / automation (Roadmap Item 1)
     plugin_id         = Column(String(100), nullable=True, index=True)
+    # The opt-out letter an admin picked for this broker (a letter id from a
+    # letters plugin); empty = the add-on's choice or automatic.
+    letter_template   = Column(String(64), nullable=True)
+
+    # Where this broker record came from: "curated" (catalog, plugins, admins),
+    # "registry" (imported from a state data-broker registry — off by default),
+    # "listing" (created when someone pasted a listing on an unknown site), or
+    # "state_program" (a government deletion service such as California's DROP).
+    origin                 = Column(String(20), default="curated", nullable=True, index=True)
+    registry_states        = Column(String(40), nullable=True)   # "CA,VT,TX,OR"
+    registry_contact_email = Column(String, nullable=True)       # as registered; not used until confirmed
+    registry_last_seen     = Column(DateTime, nullable=True)
+    # Learned when this broker's form refused a "+" address; from then on its
+    # forms get the inbox's plain address (replies are matched by sender).
+    rejects_plus_addresses = Column(Boolean, default=False, nullable=True)
+    # When the privacy-page finder last looked at this broker's website.
+    privacy_checked_at     = Column(DateTime, nullable=True)
 
     requests = relationship("RemovalRequest", back_populates="broker")
     health   = relationship("BrokerHealth", back_populates="broker", uselist=False)
@@ -429,6 +666,11 @@ class BrokerHealth(Base):
     # Auto-disable bookkeeping. auto_disabled is True when the monitor turned the
     # broker off; needs_review flags it for the admin even if re-enabled.
     auto_disabled        = Column(Boolean, default=False)
+    # Dead-site detection: when the site itself stopped answering (DNS failure,
+    # connection refused, 404/410), as opposed to a form that changed.
+    unreachable_since    = Column(DateTime, nullable=True)
+    defunct              = Column(Boolean, default=False)
+    last_probe_at        = Column(DateTime, nullable=True)
     auto_disabled_at     = Column(DateTime, nullable=True)
     auto_disabled_reason = Column(String, nullable=True)
     needs_review         = Column(Boolean, default=False)
@@ -456,7 +698,22 @@ class RemovalRequest(Base):
     confirmed_at  = Column(DateTime)
     recheck_after = Column(DateTime)
     listing_url   = Column(String)
+    # Latest automatic check of whether the listing is still up (see VerificationCheck).
+    last_checked_at = Column(DateTime, nullable=True)
+    last_verdict    = Column(String(20), nullable=True)
+    # Possible listings the site showed that only matched by name (core/match_policy.py),
+    # kept encrypted while the person decides, and the ones they picked.
+    candidates_enc  = Column(EncryptedText, nullable=True)
+    picked_enc      = Column(EncryptedText, nullable=True)
     notes         = Column(Text)
+    # Where a person can pick up a form flow that stopped for them (a
+    # pause_for_human step, or a form OpenOptOut wasn't sure how to fill), to
+    # finish it on a live page: {"combo", "step", "kind"}. Encrypted.
+    handoff_enc   = Column(EncryptedText, nullable=True)
+    # "broker_off": a listing was found on a broker that's turned off, and the
+    # person was told to opt out by hand (core/found_listings.py). When the
+    # broker is turned on, the request goes back to OpenOptOut.
+    waiting_for   = Column(String(20), nullable=True)
     created_at    = Column(DateTime, default=datetime.utcnow)
     updated_at    = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -464,6 +721,121 @@ class RemovalRequest(Base):
     broker = relationship("Broker", back_populates="requests")
     emails = relationship("EmailLog", back_populates="request")
     captcha_challenges = relationship("CaptchaChallenge", back_populates="request", cascade="all, delete-orphan")
+    events = relationship("RequestEvent", back_populates="request", cascade="all, delete-orphan",
+                          order_by="RequestEvent.at")
+
+
+class NoticeSent(Base):
+    """A deadline or re-listing notice already emailed, so each goes out once per round."""
+    __tablename__ = "notices_sent"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    request_id = Column(Integer, ForeignKey("removal_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind       = Column(String(20), nullable=False)        # overdue | relisted
+    round_key  = Column(String(40), nullable=False)        # the round's send date, or when it was found again
+    sent_at    = Column(DateTime, default=datetime.utcnow)
+
+
+class ResidentAddress(Base):
+    """One address on a community's list (core/resident_addresses.py). When
+    the admin turns on address checks, people can only sign up at an address
+    on the list. `key` is a hash of the cleaned-up address (street, unit,
+    ZIP); `building_key` leaves the unit out. A row without a unit stands
+    for the whole building. The address itself is encrypted."""
+    __tablename__ = "resident_addresses"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    key          = Column(String(64), nullable=False, unique=True, index=True)
+    building_key = Column(String(64), nullable=False, index=True)
+    has_unit     = Column(Boolean, default=False)
+    address      = Column(EncryptedText, nullable=False)    # cleaned-up, one line
+    branch_code  = Column(String(30), nullable=True)        # optional: the branch new accounts join
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+
+class TermsAcceptance(Base):
+    """Someone accepted a version of the terms (core/terms.py). Kinds:
+    "limits" (an admin's "what OpenOptOut can and can't do"), "notice" (a
+    person's "how OpenOptOut works for you"), "operator_terms" (the terms the
+    people running this server wrote), and "acting_for" (a parent confirmed
+    they may act for the person in subject_user_id). Ids, versions and dates
+    only; never names or details."""
+    __tablename__ = "terms_acceptances"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    user_id         = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind            = Column(String(20), nullable=False)
+    version         = Column(Integer, nullable=False)
+    subject_user_id = Column(Integer, nullable=True, index=True)   # acting_for: the person added
+    accepted_at     = Column(DateTime, default=datetime.utcnow)
+
+
+class PrivacyScoreSnapshot(Base):
+    """One person's privacy score on one day (core/privacy_score.py). Counts only, nothing personal."""
+    __tablename__ = "privacy_score_snapshots"
+
+    id        = Column(Integer, primary_key=True, index=True)
+    member_id = Column(Integer, ForeignKey("family_members.id", ondelete="CASCADE"), nullable=False, index=True)
+    day       = Column(Date, nullable=False, index=True)
+    score     = Column(Integer, nullable=False)
+    sites     = Column(Integer, nullable=False, default=0)
+    gone      = Column(Integer, nullable=False, default=0)
+    waiting   = Column(Integer, nullable=False, default=0)
+    exposed   = Column(Integer, nullable=False, default=0)
+
+
+class AccessLog(Base):
+    """
+    Staff viewing, exporting or deleting someone else's details (core/privacy_record.py).
+    Names are copied in so the record still reads after an account is deleted.
+    """
+    __tablename__ = "access_log"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    at          = Column(DateTime, default=datetime.utcnow, index=True)
+    actor_id    = Column(Integer, nullable=True, index=True)     # no FK: survives account deletion
+    actor_name  = Column(String, nullable=True)
+    member_id   = Column(Integer, nullable=True, index=True)
+    member_name = Column(String, nullable=True)
+    action      = Column(String(20), nullable=False)             # view | edit | export | delete
+    detail      = Column(String(200), nullable=True)
+
+
+class RequestEvent(Base):
+    """
+    One step in a removal's history: every change of RemovalRequest.status is
+    recorded here automatically (see the listener below), so the timeline can
+    show when a request was sent, removed, found again and sent again, cycle
+    after cycle, even though the request row itself only keeps the latest dates.
+    """
+    __tablename__ = "request_events"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    request_id = Column(Integer, ForeignKey("removal_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    at         = Column(DateTime, default=datetime.utcnow, index=True)
+    from_status = Column(String(20), nullable=True)
+    to_status   = Column(String(20), nullable=False)
+
+    request = relationship("RemovalRequest", back_populates="events")
+
+
+def _status_value(v):
+    return getattr(v, "value", v)
+
+
+from sqlalchemy import event as _sa_event
+
+
+@_sa_event.listens_for(RemovalRequest.status, "set", active_history=True)
+def _record_status_change(target, value, oldvalue, initiator):
+    new, old = _status_value(value), _status_value(oldvalue)
+    if new is None or new == old:
+        return
+    from sqlalchemy.orm.base import NO_VALUE, NEVER_SET
+    if oldvalue in (NO_VALUE, NEVER_SET):
+        old = None
+    target.events.append(RequestEvent(at=datetime.utcnow(), from_status=old, to_status=new))
 
 
 class EmailLog(Base):
@@ -501,6 +873,7 @@ class CaptchaChallenge(Base):
     screenshot     = Column(String(500), nullable=True)       # path to screenshot on disk
     status         = Column(String(30), default="pending", index=True)   # pending | resolved | dismissed
     token          = Column(Text, nullable=True)             # solution token if injected or manually provided
+    combo_enc      = Column(EncryptedText, nullable=True)    # the details being sent (JSON), for a live hand-off
     notes          = Column(Text, nullable=True)
     resolved_by    = Column(Integer, ForeignKey("users.id"), nullable=True)
     resolved_at    = Column(DateTime, nullable=True)
@@ -511,6 +884,50 @@ class CaptchaChallenge(Base):
     broker   = relationship("Broker")
     member   = relationship("FamilyMember")
     resolver = relationship("User")
+
+
+class SpecDraft(Base):
+    """
+    Opt-out steps drafted or repaired automatically (core/spec_drafter.py),
+    by the built-in rules or an AI helper (core/ai_helpers.py).
+
+    kind:   "new"     steps for a broker nobody wrote steps for
+            "repair"  a fix for steps that stopped working
+    status: "queued"            waiting to be drafted (a repair asked for by a failure)
+            "drafting"          being drafted now
+            "failed"            no draft could be made (`reason` says why)
+            "rehearsal_failed"  drafted, but the rehearsal didn't get through the form
+            "ready"             rehearsed; waiting for an admin to approve
+            "applied"           a selector-only fix that applied itself after a passing rehearsal
+            "approved"          an admin approved it
+            "rejected" | "reverted" | "superseded" (the broker's plugin was updated since)
+
+    An "applied" or "approved" draft is used instead of the broker's plugin
+    steps (interpreter/script_bridge.get_or_build_broker_spec) until it is
+    reverted or the plugin's version changes. Nothing here holds a family
+    member's details: drafts are made from public pages and rehearsed with
+    made-up ones.
+    """
+    __tablename__ = "spec_drafts"
+
+    id                 = Column(Integer, primary_key=True, index=True)
+    broker_id          = Column(Integer, ForeignKey("brokers.id"), nullable=False, index=True)
+    kind               = Column(String(10), nullable=False, default="new")
+    status             = Column(String(20), nullable=False, default="queued", index=True)
+    source             = Column(String(80), nullable=True)    # rules | claude | openai | antigravity | local:<id>
+    model              = Column(String(80), nullable=True)
+    spec_json          = Column(Text, nullable=True)          # the drafted BrokerSpec
+    previous_spec_json = Column(Text, nullable=True)          # what it replaces (repairs)
+    base_version       = Column(String(40), nullable=True)    # plugin version it was made against
+    reason             = Column(Text, nullable=True)          # the failure it fixes, or why drafting failed
+    notes              = Column(Text, nullable=True)          # the helper's explanation
+    warnings_json      = Column(Text, nullable=True)          # checks an admin should look at
+    confidence         = Column(String(10), nullable=True)
+    rehearsal_json     = Column(Text, nullable=True)          # {ok, reached, total, detail, trace}
+    screenshot_path    = Column(String, nullable=True)        # the form filled with made-up details
+    created_at         = Column(DateTime, default=datetime.utcnow, index=True)
+    decided_at         = Column(DateTime, nullable=True)
+    decided_by         = Column(String, nullable=True)
 
 
 def init_db():

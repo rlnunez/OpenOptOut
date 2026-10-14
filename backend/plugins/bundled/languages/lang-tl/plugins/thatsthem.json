@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa That's Them. Sinusunod ng isang tao ang mga hakbang sa checklist; nagbibigay ang OpenOptOut ng pang-isahang email address at kini-click nito ang anumang confirmation link.",
+ "instructions": "Tingnan ang {full_name} sa thatsthem.com. Kung nakalista ka, buksan ang thatsthem.com/optout, punan ang mga detalye mo ayon sa nakikita sa listing, at gamitin ang {contact_email} bilang email address. Huwag i-click ang alok na identity-theft protection sa page: may bayad na produkto iyon. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

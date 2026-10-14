@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no NumberGuru, que lista pessoas por número de telefone. Uma exclusão cobre todos os números salvos.",
+ "instructions": "Busque no https://www.numberguru.com/ cada um destes números: {all_phones}. Em qualquer página que mostre você, use o link \"Remove This Listing\" ou \"Opt Out\" e informe {contact_email} como seu e-mail. Depois toque em \"Já fiz isso\"."
+}

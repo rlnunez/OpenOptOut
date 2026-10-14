@@ -1,0 +1,4 @@
+{
+ "description": "Nuwber 的引导式退出。由一个人按清单步骤操作；OpenOptOut 提供一次性电子邮件地址，并自动点击确认链接。",
+ "instructions": "在 nuwber.com 找到你的页面（搜索 {full_name} 并按 {state} 筛选会有帮助），复制其地址。打开 nuwber.com/removal/link，粘贴地址，并填写 {contact_email} 作为电子邮件地址。Nuwber 会发送确认链接；OpenOptOut 会替你点击。然后点击“我已完成”。如果表单不接受该地址，请附上你的条目截图发邮件到 support@nuwber.com 要求删除。"
+}

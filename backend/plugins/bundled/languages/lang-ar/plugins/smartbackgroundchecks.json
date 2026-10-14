@@ -1,0 +1,4 @@
+{
+ "description": "إلغاء موجَّه لدى SmartBackgroundChecks. يتبع شخص الخطوات في قائمة المهام؛ ويوفّر OpenOptOut عنوان بريد إلكتروني لمرة واحدة وينقر أي رابط تأكيد.",
+ "instructions": "ابحث في smartbackgroundchecks.com عن {full_name}. إن كنت مدرجًا، افتح smartbackgroundchecks.com/optout واحذف سجلك، واستخدم {contact_email} حيث يُطلب بريد. عادةً ما يزيلك هذا من PeopleFinders أيضًا. ثم اضغط «لقد أنجزت هذا»."
+}

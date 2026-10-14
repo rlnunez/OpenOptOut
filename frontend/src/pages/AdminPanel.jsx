@@ -5,6 +5,7 @@ import {
   Briefcase, SlidersHorizontal, AlertTriangle, RotateCcw
 } from 'lucide-react'
 import api from '../api'
+import { tx, txn, txr } from '../i18n/tx'
 
 const ROLE_STYLES = {
   super_admin: 'bg-purple-900/40 text-purple-300 border-purple-700',
@@ -53,7 +54,7 @@ function CreateUserModal({ onClose, onCreated, isSuper }) {
       const { data } = await api.post('/admin/users', payload)
       onCreated(data); onClose()
     } catch (err) {
-      setError(err.response?.data?.detail ?? 'Failed to create user')
+      setError(err.response?.data?.detail ?? tx("Couldn't create the account. Check the details and try again."))
     } finally { setSaving(false) }
   }
 
@@ -61,59 +62,59 @@ function CreateUserModal({ onClose, onCreated, isSuper }) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-white font-semibold">Add user</h2>
+          <h2 className="text-white font-semibold">{tx("Add user")}</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-white"><X size={16} /></button>
         </div>
         {error && <p className="text-red-400 text-sm mb-3 bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
         <form onSubmit={submit} className="space-y-3">
-          <Field label="Full name" required>
+          <Field label={tx("Full name")} required>
             <input value={form.full_name} onChange={e => setForm(f => ({...f, full_name: e.target.value}))}
-              placeholder="Jane Smith" className={input} required autoFocus />
+              placeholder={tx("Jane Smith")} className={input} required autoFocus />
           </Field>
-          <Field label="Email" required>
+          <Field label={tx("Email")} required>
             <input type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))}
               placeholder="jane@example.com" className={input} required />
           </Field>
-          <Field label="Role">
+          <Field label={tx("Role")}>
             <div className="relative">
               <select value={form.role} onChange={e => setForm(f => ({...f, role: e.target.value}))}
-                className={`${input} appearance-none pr-7`}>
-                <option value="member">member — managed profile, no login</option>
-                <option value="parent">parent — can log in, manages profiles</option>
-                {isSuper && <option value="manager">manager — a parent plus the permissions you grant</option>}
-                {isSuper && <option value="super_admin">super_admin — full access</option>}
+                className={`${input} appearance-none pe-7`}>
+                <option value="member">{tx("member — managed profile, no login")}</option>
+                <option value="parent">{tx("parent — can log in, manages profiles")}</option>
+                {isSuper && <option value="manager">{tx("manager — a parent plus the permissions you grant")}</option>}
+                {isSuper && <option value="super_admin">{tx("super_admin — full access")}</option>}
               </select>
-              <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              <ChevronDown size={11} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
           </Field>
           {(branches.branches.length > 0 || branches.required) && (
-            <Field label="Branch" required={branches.required}>
+            <Field label={tx("Branch")} required={branches.required}>
               <div className="relative">
                 <select value={form.branch_id} onChange={e => setForm(f => ({...f, branch_id: e.target.value}))}
-                  className={`${input} appearance-none pr-7`} required={branches.required}>
-                  <option value="">{branches.required ? 'Choose a branch' : 'No branch'}</option>
+                  className={`${input} appearance-none pe-7`} required={branches.required}>
+                  <option value="">{branches.required ? tx("Choose a branch") : tx("No branch")}</option>
                   {branches.branches.map(b => (
                     <option key={b.id} value={b.id}>{b.name}{b.system_name ? ` — ${b.system_name}` : ''}</option>
                   ))}
                 </select>
-                <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                <ChevronDown size={11} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
               </div>
             </Field>
           )}
-          <Field label={`Password ${needsPassword ? '*' : '(optional)'}`}>
+          <Field label={tx("Password {v}", { v: needsPassword ? '*' : '(optional)' })}>
             <input type="password" value={form.password} onChange={e => setForm(f => ({...f, password: e.target.value}))}
-              placeholder={needsPassword ? 'Required for login' : 'Leave blank — no login'}
+              placeholder={needsPassword ? tx("Required for login") : tx("Leave blank — no login")}
               className={input} required={needsPassword} />
           </Field>
           {form.role === 'member' && (
-            <p className="text-slate-500 text-xs">Member profiles don't need a password — they're managed by a parent. You can upgrade them later.</p>
+            <p className="text-slate-500 text-xs">{tx("Member profiles don't need a password — they're managed by a parent. You can upgrade them later.")}</p>
           )}
           {form.role === 'manager' && (
-            <p className="text-slate-500 text-xs">New managers start with the manager defaults. Adjust them from the user's Permissions button.</p>
+            <p className="text-slate-500 text-xs">{tx("New managers start with the manager defaults. Adjust them from the user's Permissions button.")}</p>
           )}
           <div className="flex gap-2 pt-1">
-            <button type="button" onClick={onClose} className={cancelBtn}>Cancel</button>
-            <button type="submit" disabled={saving} className={primaryBtn}>{saving ? 'Creating…' : 'Create user'}</button>
+            <button type="button" onClick={onClose} className={cancelBtn}>{tx("Cancel")}</button>
+            <button type="submit" disabled={saving} className={primaryBtn}>{saving ? tx("Creating…") : tx("Create user")}</button>
           </div>
         </form>
       </div>
@@ -132,7 +133,7 @@ function GrantModal({ users, onClose, onGranted }) {
 
   const submit = async e => {
     e.preventDefault()
-    if (managerId === managedId) { setError("Can't grant access to own profile"); return }
+    if (managerId === managedId) { setError(tx("Can't grant access to own profile")); return }
     setSaving(true); setError('')
     try {
       const { data } = await api.post('/admin/access', {
@@ -143,7 +144,7 @@ function GrantModal({ users, onClose, onGranted }) {
       })
       onGranted(data); onClose()
     } catch (err) {
-      setError(err.response?.data?.detail ?? 'Failed to create grant')
+      setError(err.response?.data?.detail ?? tx("Couldn't give that access. Please try again."))
     } finally { setSaving(false) }
   }
 
@@ -153,43 +154,43 @@ function GrantModal({ users, onClose, onGranted }) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-white font-semibold">Grant profile access</h2>
+          <h2 className="text-white font-semibold">{tx("Grant profile access")}</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-white"><X size={16} /></button>
         </div>
         {error && <p className="text-red-400 text-sm mb-3 bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
         <form onSubmit={submit} className="space-y-3">
-          <Field label="Who gets access (manager)">
-            <UserSelect users={loginUsers} value={managerId} onChange={setManagerId} placeholder="Select manager…" />
+          <Field label={tx("Who gets access (manager)")}>
+            <UserSelect users={loginUsers} value={managerId} onChange={setManagerId} placeholder={tx("Select manager…")} />
           </Field>
           <div className="flex items-center justify-center gap-2 text-slate-600 text-xs">
             <div className="flex-1 h-px bg-slate-700"/>
-            can access profile of
+            {tx("can access profile of")}
             <div className="flex-1 h-px bg-slate-700"/>
           </div>
-          <Field label="Whose profile (managed)">
-            <UserSelect users={users} value={managedId} onChange={setManagedId} placeholder="Select profile…" />
+          <Field label={tx("Whose profile (managed)")}>
+            <UserSelect users={users} value={managedId} onChange={setManagedId} placeholder={tx("Select profile…")} />
           </Field>
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={canEdit} onChange={e => setCanEdit(e.target.checked)}
               className="w-3.5 h-3.5 rounded-sm accent-shield-500" />
-            <span className="text-slate-300 text-sm">Allow editing (not just viewing)</span>
+            <span className="text-slate-300 text-sm">{tx("Allow editing (not just viewing)")}</span>
           </label>
           <div>
             <label className="text-slate-400 text-xs mb-1 block">
-              Children limit override <span className="text-slate-600">(blank = use system default)</span>
+              {txr("Children limit override <0>(blank = use system default)</0>", [<span className="text-slate-600" />])}
             </label>
             <input type="number" min="0" value={childLimit}
               onChange={e => setChildLimit(e.target.value)}
-              placeholder="System default"
+              placeholder={tx("System default")}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500" />
             <p className="text-slate-600 text-xs mt-1">
-              Max number of member (child) profiles this parent can manage. 0 = unlimited.
+              {tx("Max number of member (child) profiles this parent can manage. 0 = unlimited.")}
             </p>
           </div>
           <div className="flex gap-2 pt-1">
-            <button type="button" onClick={onClose} className={cancelBtn}>Cancel</button>
+            <button type="button" onClick={onClose} className={cancelBtn}>{tx("Cancel")}</button>
             <button type="submit" disabled={saving || !managerId || !managedId} className={primaryBtn}>
-              {saving ? 'Granting…' : 'Grant access'}
+              {saving ? tx("Granting…") : tx("Grant access")}
             </button>
           </div>
         </form>
@@ -201,11 +202,11 @@ function GrantModal({ users, onClose, onGranted }) {
 function UserSelect({ users, value, onChange, placeholder }) {
   return (
     <div className="relative">
-      <select value={value} onChange={e => onChange(e.target.value)} className={`${input} appearance-none pr-7`} required>
+      <select value={value} onChange={e => onChange(e.target.value)} className={`${input} appearance-none pe-7`} required>
         <option value="">{placeholder}</option>
         {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
       </select>
-      <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+      <ChevronDown size={11} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
     </div>
   )
 }
@@ -230,16 +231,16 @@ function EditUserRow({ user, onUpdated, onDeleted, currentUserId, isSuper, onEdi
   }
 
   const del = async () => {
-    if (!confirm(`Delete ${user.full_name}? This removes all their data.`)) return
+    if (!confirm(tx("Delete {full_name}? This removes all their data.", { full_name: user.full_name }))) return
     await api.delete(`/admin/users/${user.id}`)
     onDeleted(user.id)
   }
 
   const setPassword = async () => {
-    const pw = prompt(`Set new password for ${user.full_name}:`)
+    const pw = prompt(tx("Set new password for {full_name}:", { full_name: user.full_name }))
     if (!pw) return
     await api.patch(`/admin/users/${user.id}`, { password: pw })
-    alert('Password updated.')
+    alert(tx("Password updated."))
   }
 
   return (
@@ -252,27 +253,27 @@ function EditUserRow({ user, onUpdated, onDeleted, currentUserId, isSuper, onEdi
         {editing ? (
           <div className="relative">
             <select value={role} onChange={e => setRole(e.target.value)}
-              className="bg-slate-700 border border-slate-600 rounded-sm px-2 py-1 text-xs text-slate-200 focus:outline-hidden appearance-none pr-6">
-              <option value="member">member</option>
-              <option value="parent">parent</option>
-              <option value="manager">manager</option>
-              <option value="super_admin">super_admin</option>
+              className="bg-slate-700 border border-slate-600 rounded-sm px-2 py-1 text-xs text-slate-200 focus:outline-hidden appearance-none pe-6">
+              <option value="member">{tx("member")}</option>
+              <option value="parent">{tx("parent")}</option>
+              <option value="manager">{tx("manager")}</option>
+              <option value="super_admin">{tx("super_admin")}</option>
             </select>
           </div>
         ) : <RoleBadge role={user.role} />}
         {user.role === 'manager' && (
           <p className="text-slate-500 text-[11px] mt-1">
-            {user.permissions.length} permission{user.permissions.length === 1 ? '' : 's'}
-            {(user.permissions_granted.length > 0 || user.permissions_revoked.length > 0) && ' · customized'}
+            {txn(user.permissions.length, "{n} permission", "{n} permissions")}
+            {(user.permissions_granted.length > 0 || user.permissions_revoked.length > 0) && tx("· customized")}
           </p>
         )}
       </td>
       <td className="px-4 py-3">
         <span className={`text-xs ${user.can_login ? 'text-emerald-400' : 'text-slate-600'}`}>
-          {user.can_login ? '✓ can log in' : 'no login'}
+          {user.can_login ? tx("✓ can log in") : tx("no login")}
         </span>
       </td>
-      <td className="px-4 py-3 text-slate-500 text-xs">{user.managing_count} managing</td>
+      <td className="px-4 py-3 text-slate-500 text-xs">{user.managing_count}{" "}{tx("managing")}</td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {editing ? (
@@ -283,11 +284,11 @@ function EditUserRow({ user, onUpdated, onDeleted, currentUserId, isSuper, onEdi
           ) : canAct && (
             <>
               {isSuper && user.role === 'manager' && (
-                <button onClick={() => onEditPermissions(user)} className="p-1 text-slate-500 hover:text-sky-300" title="Permissions"><SlidersHorizontal size={13} /></button>
+                <button onClick={() => onEditPermissions(user)} className="p-1 text-slate-500 hover:text-sky-300" title={tx("Permissions")}><SlidersHorizontal size={13} /></button>
               )}
-              {isSuper && <button onClick={() => setEditing(true)} className="p-1 text-slate-500 hover:text-shield-400" title="Edit role"><Edit3 size={13} /></button>}
-              <button onClick={setPassword} className="p-1 text-slate-500 hover:text-amber-400" title="Set password"><KeyRound size={13} /></button>
-              {!isSelf && <button onClick={del} className="p-1 text-slate-500 hover:text-red-400" title="Delete"><Trash2 size={13} /></button>}
+              {isSuper && <button onClick={() => setEditing(true)} className="p-1 text-slate-500 hover:text-shield-400" title={tx("Edit role")}><Edit3 size={13} /></button>}
+              <button onClick={setPassword} className="p-1 text-slate-500 hover:text-amber-400" title={tx("Set password")}><KeyRound size={13} /></button>
+              {!isSelf && <button onClick={del} className="p-1 text-slate-500 hover:text-red-400" title={tx("Delete")}><Trash2 size={13} /></button>}
             </>
           )}
         </div>
@@ -343,43 +344,43 @@ export default function AdminPanel() {
     <div className="p-4 md:p-6 max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-white text-xl font-semibold">Admin panel</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Manage users, roles, and profile access grants</p>
+          <h1 className="text-white text-xl font-semibold">{tx("Admin panel")}</h1>
+          <p className="text-slate-400 text-sm mt-0.5">{tx("Manage users, roles, and profile access grants")}</p>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
           {isSuper && (
             <button onClick={() => setPermTarget('defaults')}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
-              <SlidersHorizontal size={13} /> Manager defaults
+              <SlidersHorizontal size={13} />{" "}{tx("Manager defaults")}
             </button>
           )}
           <button onClick={() => setShowGrant(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
-            <Link2 size={13} /> Grant access
+            <Link2 size={13} />{" "}{tx("Grant access")}
           </button>
           <button onClick={() => setShowCreate(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 transition-colors">
-            <UserPlus size={13} /> Add user
+            <UserPlus size={13} />{" "}{tx("Add user")}
           </button>
         </div>
       </div>
 
-      {loading && <p className="text-slate-500 text-sm">Loading…</p>}
+      {loading && <p className="text-slate-500 text-sm">{tx("Loading…")}</p>}
 
       {/* Users table */}
       {!loading && (
         <div className="bg-slate-800 rounded-xl border border-slate-700/50 overflow-hidden mb-6">
           <div className="px-4 py-3 border-b border-slate-700/50">
-            <p className="text-slate-300 text-sm font-medium">Users ({users.length})</p>
+            <p className="text-slate-300 text-sm font-medium">{tx("Users ({length})", { length: users.length })}</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
             <thead>
               <tr className="text-slate-500 text-xs border-b border-slate-700/30">
-                <th className="text-left px-4 py-2 font-normal">Name</th>
-                <th className="text-left px-4 py-2 font-normal">Role</th>
-                <th className="text-left px-4 py-2 font-normal">Login</th>
-                <th className="text-left px-4 py-2 font-normal">Access</th>
+                <th className="text-start px-4 py-2 font-normal">{tx("Name")}</th>
+                <th className="text-start px-4 py-2 font-normal">{tx("Role")}</th>
+                <th className="text-start px-4 py-2 font-normal">{tx("Login")}</th>
+                <th className="text-start px-4 py-2 font-normal">{tx("Access")}</th>
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
@@ -404,24 +405,24 @@ export default function AdminPanel() {
       {!loading && (
         <div className="bg-slate-800 rounded-xl border border-slate-700/50 overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-700/50">
-            <p className="text-slate-300 text-sm font-medium">Profile access grants ({grants.length})</p>
-            <p className="text-slate-500 text-xs mt-0.5">Who can see and edit whose data</p>
+            <p className="text-slate-300 text-sm font-medium">{tx("Profile access grants ({length})", { length: grants.length })}</p>
+            <p className="text-slate-500 text-xs mt-0.5">{tx("Who can see and edit whose data")}</p>
           </div>
           {grants.length === 0 ? (
             <div className="px-4 py-8 text-center">
               <Link2 size={24} className="text-slate-700 mx-auto mb-2" />
-              <p className="text-slate-500 text-sm">No access grants yet.</p>
-              <p className="text-slate-600 text-xs mt-1">Grant a parent access to manage another person's profile.</p>
+              <p className="text-slate-500 text-sm">{tx("No access grants yet.")}</p>
+              <p className="text-slate-600 text-xs mt-1">{tx("Grant a parent access to manage another person's profile.")}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
               <thead>
                 <tr className="text-slate-500 text-xs border-b border-slate-700/30">
-                  <th className="text-left px-4 py-2 font-normal">Manager</th>
-                  <th className="text-left px-4 py-2 font-normal"></th>
-                  <th className="text-left px-4 py-2 font-normal">Can access profile of</th>
-                  <th className="text-left px-4 py-2 font-normal">Permissions</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Manager")}</th>
+                  <th className="text-start px-4 py-2 font-normal"></th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Can access profile of")}</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Permissions")}</th>
                   <th className="px-4 py-2"></th>
                 </tr>
               </thead>
@@ -434,11 +435,11 @@ export default function AdminPanel() {
                     <td className="px-4 py-2.5">
                       <div className="flex gap-1">
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-xs bg-blue-900/30 text-blue-400 border border-blue-800">
-                          <Eye size={9} /> view
+                          <Eye size={9} />{" "}{tx("view")}
                         </span>
                         {g.can_edit && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-xs bg-emerald-900/30 text-emerald-400 border border-emerald-800">
-                            <Edit3 size={9} /> edit
+                            <Edit3 size={9} />{" "}{tx("edit")}
                           </span>
                         )}
                       </div>
@@ -446,7 +447,7 @@ export default function AdminPanel() {
                     <td className="px-4 py-2.5">
                       <button onClick={() => revokeGrant(g.id)}
                         className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 transition-all p-1"
-                        title="Revoke">
+                        title={tx("Revoke")}>
                         <Link2Off size={13} />
                       </button>
                     </td>
@@ -478,11 +479,11 @@ export default function AdminPanel() {
           catalog={perms.catalog}
           defaults={permTarget === 'defaults' ? perms.builtin_defaults : perms.defaults}
           initial={permTarget === 'defaults' ? perms.defaults : permTarget.permissions}
-          title={permTarget === 'defaults' ? 'Manager defaults' : `Permissions for ${permTarget.full_name}`}
+          title={permTarget === 'defaults' ? tx("Manager defaults") : tx("Permissions for {full_name}", { full_name: permTarget.full_name })}
           subtitle={permTarget === 'defaults'
-            ? 'What every manager gets, unless you changed it for that manager.'
-            : 'Changes apply to this manager only. Anything left matching the defaults keeps following them.'}
-          resetLabel={permTarget === 'defaults' ? 'Restore built-in defaults' : 'Reset to manager defaults'}
+            ? tx("What every manager gets, unless you changed it for that manager.")
+            : tx("Changes apply to this manager only. Anything left matching the defaults keeps following them.")}
+          resetLabel={permTarget === 'defaults' ? tx("Restore built-in defaults") : tx("Reset to manager defaults")}
           onSave={savePermissions}
           onClose={() => setPermTarget(null)}
         />
@@ -507,7 +508,7 @@ function PermissionsModal({ catalog, defaults, initial, title, subtitle, resetLa
   const save = async () => {
     setSaving(true); setError('')
     try { await onSave(catalog.map(p => p.key).filter(k => selected.has(k))) }
-    catch (e) { setError(e.response?.data?.detail ?? 'Could not save permissions'); setSaving(false) }
+    catch (e) { setError(e.response?.data?.detail ?? tx("Could not save permissions")); setSaving(false) }
   }
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -518,7 +519,7 @@ function PermissionsModal({ catalog, defaults, initial, title, subtitle, resetLa
             <h2 className="text-white font-semibold">{title}</h2>
             <p className="text-slate-500 text-xs mt-0.5">{subtitle}</p>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-white" aria-label="Close"><X size={16} /></button>
+          <button onClick={onClose} className="text-slate-500 hover:text-white" aria-label={tx("Close")}><X size={16} /></button>
         </div>
         <div className="px-5 py-4 overflow-y-auto space-y-4">
           {error && <p className="text-red-400 text-sm bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
@@ -533,10 +534,10 @@ function PermissionsModal({ catalog, defaults, initial, title, subtitle, resetLa
                     <span className="min-w-0">
                       <span className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-slate-200 text-sm">{p.label}</span>
-                        {defaults.includes(p.key) && <span className="text-[10px] px-1 rounded-sm border border-slate-700 text-slate-500">default</span>}
+                        {defaults.includes(p.key) && <span className="text-[10px] px-1 rounded-sm border border-slate-700 text-slate-500">{tx("default")}</span>}
                         {p.sensitive && (
                           <span className="inline-flex items-center gap-0.5 text-[10px] px-1 rounded-sm border border-amber-800 text-amber-300">
-                            <AlertTriangle size={9} /> sensitive
+                            <AlertTriangle size={9} />{" "}{tx("sensitive")}
                           </span>
                         )}
                       </span>
@@ -548,8 +549,7 @@ function PermissionsModal({ catalog, defaults, initial, title, subtitle, resetLa
             </div>
           ))}
           <p className="text-slate-600 text-xs">
-            Always kept for super admins: roles and permissions, the setup wizard, enabling
-            plugins and the plugin-system switch, database migration, and resetting all requests.
+            {tx("Always kept for super admins: roles and permissions, the setup wizard, enabling plugins and the plugin-system switch, database migration, and resetting all requests.")}
           </p>
         </div>
         <div className="px-5 py-3 border-t border-slate-700/50 flex items-center justify-between gap-2">
@@ -558,10 +558,10 @@ function PermissionsModal({ catalog, defaults, initial, title, subtitle, resetLa
             <RotateCcw size={11} /> {resetLabel}
           </button>
           <div className="flex gap-2">
-            <button onClick={onClose} className="px-3 py-1.5 border border-slate-700 rounded-lg text-slate-400 text-sm hover:bg-slate-800">Cancel</button>
+            <button onClick={onClose} className="px-3 py-1.5 border border-slate-700 rounded-lg text-slate-400 text-sm hover:bg-slate-800">{tx("Cancel")}</button>
             <button onClick={save} disabled={saving}
               className="px-3 py-1.5 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white rounded-lg text-sm">
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? tx("Saving…") : tx("Save")}
             </button>
           </div>
         </div>
@@ -579,7 +579,7 @@ function Field({ label, required, children }) {
   return (
     <div>
       <label className="text-slate-400 text-xs mb-1 block">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+        {label}{required && <span className="text-red-500 ms-0.5">*</span>}
       </label>
       {children}
     </div>

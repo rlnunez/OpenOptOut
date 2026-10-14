@@ -1,0 +1,35 @@
+{
+  "broker_id": "callapp",
+  "name": "CallApp",
+  "spec_version": "1.0",
+  "method": "form",
+  "opt_out_url": "https://callapp.com/how-to/unlist-phone-number",
+  "lookup_by": "phone",
+  "steps": [
+    {
+      "kind": "navigate",
+      "url": "https://callapp.com/how-to/unlist-phone-number",
+      "timeout_ms": 20000
+    },
+    {
+      "kind": "autofill"
+    },
+    {
+      "kind": "solve_captcha",
+      "selector": "iframe[src*='recaptcha']",
+      "optional": true
+    },
+    {
+      "kind": "submit"
+    }
+  ],
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "CallApp's unlisting page asks for the phone number. Once unlisted, CallApp stops showing the number in its caller ID. If the page asks anything else, the opt-out moves to the checklist.",
+  "source": "CallApp support article 'Can I wipe my information from CallApp' and its unlisting page.",
+  "last_verified": ""
+}

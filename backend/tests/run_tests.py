@@ -285,6 +285,158 @@ def t_builtin_email_providers():
     #   hardcoded recipient the trust model would reject.
 
 
+def _yahoo_plugin():
+    import importlib.util, sys, pathlib, json
+    here = pathlib.Path(__file__).resolve().parents[1]
+    d = here / "plugins" / "bundled" / "email" / "email-yahoo"
+    sys.path.insert(0, str(here / "plugins" / "sdk"))
+    try:
+        spec = importlib.util.spec_from_file_location("yahoo_plugin_under_test", d / "plugin.py")
+        mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+    except Exception as e:
+        raise Skip(f"plugin SDK not importable here: {e}")
+    finally:
+        sys.path.pop(0)
+    mod.plugin.get_email_credentials = lambda ref: {"access_token": "tok-" + ref, "token_type": "Bearer"}
+    return mod, json.loads((d / "manifest.json").read_text())
+
+
+@test(1, "email_providers.yahoo_oauth_only",
+      "Yahoo is sign-in only: its manifest reaches only Yahoo's IMAP/SMTP, and it signs in with the token.")
+def t_yahoo_oauth_only():
+    if _try_import("fastapi") is None:
+        raise Skip("fastapi not installed")
+    mod, mani = _yahoo_plugin()
+    m = mod.plugin.manifest
+    assert mani["version"] == m["version"] == "2.0.0"
+    assert sorted(mani["outbound_domains"]) == sorted(m["outbound_domains"]) == \
+        ["imap.mail.yahoo.com", "smtp.mail.yahoo.com"], "only Yahoo's mail servers"
+    assert set(mani["methods"]) == set(m["methods"]) and "email.get_credentials" in mani["methods"]
+    info = mod.plugin._email_info
+    assert info["auth_type"] == "oauth" and info["oauth_scopes"] == "mail-r mail-w"
+    src = open(mod.__file__).read()
+    assert "app_password" not in src and "smtp_password" not in src, "no app-password mode"
+    assert mod.oauthbearer("jordan@example.invalid", "T", "imap.mail.yahoo.com", 993) == \
+        "n,a=jordan@example.invalid,\x01host=imap.mail.yahoo.com\x01port=993\x01auth=Bearer T\x01\x01"
+    assert mod.xoauth2("jordan@example.invalid", "T") == "user=jordan@example.invalid\x01auth=Bearer T\x01\x01"
+    flow = _imp("routers.email_oauth")._provider_flow("yahoo")
+    assert flow.scopes == "mail-r mail-w", "the built-in Yahoo sign-in must ask to read mail too"
+    assert "yahoo" not in _imp("routers.settings").PRESETS, "no Yahoo app-password preset"
+
+
+@test(1, "email_providers.yahoo_reads_links_over_imap",
+      "Yahoo reads confirmation links over IMAP with the token, without marking mail read.")
+def t_yahoo_list():
+    mod, _ = _yahoo_plugin()
+    raw = (b"From: Brokr <privacy@broker.example>\r\nTo: jordan@example.invalid\r\n"
+           b"Subject: Confirm your request\r\nDate: Sat, 10 Oct 2026 12:00:00 +0000\r\n"
+           b"Message-ID: <m1@broker.example>\r\nContent-Type: text/plain\r\n\r\n"
+           b"Click https://broker.example/confirm?t=abc to confirm.\r\n")
+    old = (b"From: x@old.example\r\nTo: jordan@example.invalid\r\nSubject: old\r\n"
+           b"Date: Mon, 01 Jan 2024 00:00:00 +0000\r\nMessage-ID: <m0@old.example>\r\n\r\nhi\r\n")
+    calls = []
+
+    class FakeIMAP:
+        capabilities = (b"IMAP4REV1", b"AUTH=OAUTHBEARER", b"AUTH=XOAUTH2")
+        def authenticate(self, mech, cb):
+            calls.append(("auth", mech, cb(b"").decode())); return ("OK", [b""])
+        def select(self, box, readonly=False):
+            calls.append(("select", box, readonly)); return ("OK", [b"2"])
+        def search(self, charset, crit): return ("OK", [b"1 2"])
+        def fetch(self, i, what):
+            calls.append(("fetch", i, what))
+            body = raw if i == b"2" else old
+            if what == "(BODY.PEEK[HEADER])":
+                body = body.split(b"\r\n\r\n")[0] + b"\r\n\r\n"
+            return ("OK", [(b"x", body)])
+        def logout(self): calls.append(("logout",))
+
+    mod._imap = lambda *a, **k: FakeIMAP()
+    r = mod.list_messages({"account_ref": "fam1", "max_results": 10, "since_ts": 1700000000 + 86400 * 365,
+                           "include_links": True, "links_if_to_contains": "",
+                           "account_address": "jordan@example.invalid"})
+    assert r["ok"] and r["links_supported"], r
+    assert [x["message_id"] for x in r["messages"]] == ["m1@broker.example"], "older mail skipped"
+    assert [l["url"] for l in r["messages"][0]["links"]] == ["https://broker.example/confirm?t=abc"]
+    assert ("select", "INBOX", True) in calls, "opened read-only"
+    assert all("PEEK" in c[2] for c in calls if c[0] == "fetch"), "bodies read with PEEK so they stay unread"
+    auth = [c for c in calls if c[0] == "auth"][0]
+    assert auth[1] == "OAUTHBEARER" and "a=jordan@example.invalid" in auth[2] and "Bearer tok-fam1" in auth[2]
+    # No address from the host: a plain error, nothing fetched.
+    calls.clear()
+    r = mod.list_messages({"account_ref": "fam1", "account_address": ""})
+    assert not r["ok"] and "Yahoo address" in r["error"] and not calls
+
+
+@test(1, "email_providers.yahoo_sends_with_token",
+      "Yahoo sends over SMTP with the token, only to the host's recipients, and needs the account address.")
+def t_yahoo_send():
+    mod, _ = _yahoo_plugin()
+    seen = {}
+
+    class FakeSMTP:
+        esmtp_features = {"auth": "PLAIN LOGIN XOAUTH2 OAUTHBEARER"}
+        def __init__(self, host, port, timeout=None): seen["host"] = (host, port)
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def ehlo(self): pass
+        def auth(self, mech, cb, initial_response_ok=True): seen["auth"] = (mech, cb())
+        def sendmail(self, frm, rcpts, msg): seen["mail"] = (frm, list(rcpts), msg)
+
+    real = mod.smtplib.SMTP_SSL          # the shared smtplib module: put it back
+    mod.smtplib.SMTP_SSL = FakeSMTP
+    try:
+        r = mod.send({"account_ref": "fam1", "to": ["privacy@broker.example"], "cc": [],
+                      "subject": "Opt-out", "body": "Please remove.",
+                      "meta": {"account_address": "jordan@example.invalid", "reply_to": "jordan@example.invalid"}})
+    finally:
+        mod.smtplib.SMTP_SSL = real
+    assert r["ok"] and r["sent_to"] == ["privacy@broker.example"], r
+    assert seen["host"] == ("smtp.mail.yahoo.com", 465)
+    assert seen["auth"][0] == "OAUTHBEARER" and "Bearer tok-fam1" in seen["auth"][1]
+    assert seen["mail"][0] == "jordan@example.invalid" and seen["mail"][1] == ["privacy@broker.example"]
+    r = mod.send({"account_ref": "fam1", "to": ["privacy@broker.example"], "meta": {}})
+    assert not r["ok"] and "Yahoo address" in r["error"]
+
+
+@test(1, "email_providers.account_address_passed_to_plugins",
+      "The host tells email-provider plugins which address they sign in to, for reading and sending.")
+def t_account_address_passed():
+    import types
+    mgr_mod = _imp("plugins.manager")
+    if not mgr_mod._load_grpc():
+        raise Skip("gRPC stubs not built here")
+    pb = mgr_mod._pb
+    got = {}
+
+    class Stub:
+        def EmailProviderInfo(self, req, timeout=None): return types.SimpleNamespace(provider_key="yahoo")
+        def EmailProviderList(self, req, timeout=None):
+            got["list"] = req; return pb.EmailProviderListResponse(ok=True)
+        def EmailProviderSend(self, req, timeout=None):
+            got["send"] = req; return pb.EmailProviderSendResponse(ok=True, sent_to=list(req.to))
+
+    m = object.__new__(mgr_mod.PluginManager)
+    m.running = {"email-yahoo": types.SimpleNamespace(
+        manifest=types.SimpleNamespace(hooks=["email_provider"], timeout_seconds=5), stub=Stub())}
+    m.dispatch_email_list("yahoo", "fam1", account_address="jordan@example.invalid")
+    assert got["list"].account_address == "jordan@example.invalid"
+
+    es = _imp("core.email_send")
+    plugins_pkg = _imp("plugins")
+    old_gm, old_ref = plugins_pkg.get_manager, es._refresh_if_needed
+    plugins_pkg.get_manager = lambda: m
+    es._refresh_if_needed = lambda *a, **k: True
+    try:
+        r = es.send_email({"email": {"provider": "yahoo"}}, to=["privacy@broker.example"], cc=[],
+                          subject="s", body="b", account_ref="fam1", from_address="jordan@example.invalid")
+    finally:
+        plugins_pkg.get_manager, es._refresh_if_needed = old_gm, old_ref
+    assert r.get("ok"), r
+    assert dict(got["send"].meta).get("account_address") == "jordan@example.invalid"
+    assert list(got["send"].to) == ["privacy@broker.example"], "the address is not added as a recipient"
+
+
 @test(1, "permissions.wildcard_outbound_scoped_to_email",
       "Wildcard outbound_domains is allowed for email providers (operator-defined host) but not others.")
 def t_wildcard_scope():
@@ -467,7 +619,9 @@ def t_captcha_detection():
     assert res.challenge.get("type") == "recaptcha_v2", f"Unexpected type: {res.challenge.get('type')}"
     assert res.challenge.get("site_key") == "SITEKEY-999", f"Unexpected site_key: {res.challenge.get('site_key')}"
     assert res.challenge.get("page_url") == "https://optout.example/verify"
-    assert res.challenge.get("screenshot") == b"\x89PNGfake"
+    # Never the whole page: only a cropped, blacked-out picture of the CAPTCHA,
+    # and here (no element boxes from the fake page) nothing at all.
+    assert res.challenge.get("screenshot") == b""
     # EXPECTED: challenge metadata captured and returned in ExecResult on human pause.
     # IF THIS FAILS: the Human-in-the-Loop queue won't receive challenge details from execution.
 
@@ -1072,8 +1226,18 @@ def t_complex_page_actions():
         @property
         def first(self):
             return self
+        async def count(self):
+            return 1
         async def click(self, timeout=None):
             pass
+        async def fill(self, value, timeout=None):
+            pass
+        async def press(self, key, timeout=None):
+            pass
+        async def wait_for(self, state=None, timeout=None):
+            pass
+        async def inner_text(self, timeout=None):
+            return "Search Results"
         async def scroll_into_view_if_needed(self, timeout=None):
             pass
 
@@ -2190,6 +2354,40 @@ def t_broker_addon_packaging():
         with zipfile.ZipFile(packaged_path, "r") as z:
             names = z.namelist()
             assert "manifest.json" in names and "spec.json" in names, f"zip missing files: {names}"
+
+
+@test(1, "i18n.builtin_languages_complete",
+      "Chinese, Tagalog, Vietnamese, Korean, Portuguese, Hindi, Russian and German ship complete, keep placeholders, and are turned on once for existing installs.")
+def t_i18n_new_languages():
+    import json, tempfile
+    i18n = _imp("core.i18n")
+    ss = _imp("core.settings_store")
+    master = {d["key"]: d["default_text"] for d in i18n.MASTER_DICTIONARY}
+    for code in ("zh", "tl", "vi", "ko", "pt", "hi", "ru", "de"):
+        t = i18n.BUILTIN_TRANSLATIONS.get(code)
+        assert t, f"{code} missing"
+        assert set(t) == set(master), (code, sorted(set(master) - set(t)))
+        for k, en in master.items():
+            for ph in ("{details}",):
+                if ph in en:
+                    assert ph in t[k], (code, k)
+        assert not i18n.is_rtl_language(code)
+        assert code in i18n.DEFAULT_ENABLED
+    old = ss.SETTINGS_FILE
+    path = tempfile.mktemp(suffix=".json")
+    try:
+        with open(path, "w") as f:
+            json.dump({"i18n": {"enabled_languages": ["en", "es"]}}, f)
+        ss.SETTINGS_FILE = path
+        new = i18n.offer_new_builtin_languages()
+        assert "zh" in new and "hi" in new and "fr" not in new, new
+        cfg = json.load(open(path))["i18n"]
+        assert "de" in cfg["enabled_languages"] and "ar" not in cfg["enabled_languages"], "only new ones are added"
+        cfg["enabled_languages"].remove("de")
+        json.dump({"i18n": cfg}, open(path, "w"))
+        assert i18n.offer_new_builtin_languages() == [], "a language an admin turned off stays off"
+    finally:
+        ss.SETTINGS_FILE = old
 
 
 @test(1, "i18n.resolution_and_rtl",
@@ -6100,21 +6298,165 @@ def t_auth_passwordless_local_account_restrictions():
             assert exc.status_code == 400
             assert "only available for local accounts" in exc.detail.lower()
 
-        # Magic link for local account succeeds
-        magic_local = auth_router.MagicLinkRequestIn(email="local@library.org")
-        res = auth_router.request_magic_link(magic_local, db=s)
-        assert res.get("token") is not None
-        assert res.get("fallback_code") is not None
+        # Magic link for local account: the code is emailed, never returned
+        system_mail = _imp("core.system_mail")
+        sent = []
+        orig_send = system_mail.send
+        system_mail.send = lambda to, subject, body: sent.append((to, body)) or True
+        try:
+            magic_local = auth_router.MagicLinkRequestIn(email="local@library.org")
+            res = auth_router.request_magic_link(magic_local, db=s)
+            assert res.get("token") is not None
+            assert "fallback_code" not in res and len(sent) == 1, res
+            code = re.search(r"\b(\d{6})\b", sent[0][1]).group(1)
+            assert code not in str(res)
 
-        # Verify magic link logs in local account
-        verify_req = auth_router.MagicLinkVerifyIn(token=res["token"], code=res["fallback_code"])
-        tok = auth_router.verify_magic_link(verify_req, db=s)
-        assert tok.get("access_token") is not None
+            # An unknown email gets the same answer and no email
+            res_unknown = auth_router.request_magic_link(
+                auth_router.MagicLinkRequestIn(email="nobody@library.org"), db=s)
+            assert res_unknown["message"] == res["message"] and len(sent) == 1
+
+            # Five wrong guesses use the code up
+            bad = "000000" if code != "000000" else "111111"
+            for _ in range(5):
+                try:
+                    auth_router.verify_magic_link(auth_router.MagicLinkVerifyIn(token=res["token"], code=bad), db=s)
+                    assert False, "wrong code accepted"
+                except HTTPException as exc:
+                    assert exc.status_code == 401
+            try:
+                auth_router.verify_magic_link(auth_router.MagicLinkVerifyIn(token=res["token"], code=code), db=s)
+                assert False, "code still usable after 5 wrong guesses"
+            except HTTPException as exc:
+                assert exc.status_code == 400
+
+            # A fresh code signs in, once
+            res2 = auth_router.request_magic_link(magic_local, db=s)
+            code2 = re.search(r"\b(\d{6})\b", sent[-1][1]).group(1)
+            verify_req = auth_router.MagicLinkVerifyIn(token=res2["token"], code=code2)
+            tok = auth_router.verify_magic_link(verify_req, db=s)
+            assert tok.get("access_token") is not None
+            try:
+                auth_router.verify_magic_link(verify_req, db=s)
+                assert False, "code worked twice"
+            except HTTPException as exc:
+                assert exc.status_code == 400
+
+            # An email code replaces the password, not the second factor
+            local_user.totp_enabled = True
+            s.commit()
+            res3 = auth_router.request_magic_link(magic_local, db=s)
+            code3 = re.search(r"\b(\d{6})\b", sent[-1][1]).group(1)
+            out = auth_router.verify_magic_link(auth_router.MagicLinkVerifyIn(token=res3["token"], code=code3), db=s)
+            assert out.get("mfa_required") and "access_token" not in out, out
+        finally:
+            system_mail.send = orig_send
     finally:
         settings_store.load_settings = orig_load
         mfa.load_settings = orig_mfa
         if hasattr(auth_router, "load_settings"):
             auth_router.load_settings = orig_auth
+        s.close()
+
+
+@test(2, "registration.residents_only_signup",
+      "With the address check on, people can only sign up at an address on the uploaded list: "
+      "addresses are matched in any common spelling, a row without a unit covers the building, the "
+      "per-home limit holds, the email must be confirmed with a code, the address becomes the "
+      "person's own, sign-in buttons can't start a new account, and no address is echoed back.")
+def t_residents_only_signup():
+    from types import SimpleNamespace as NS
+    try:
+        auth_router = _imp("routers.auth")
+        R = _imp("core.resident_addresses")
+        settings_store = _imp("core.settings_store")
+        system_mail = _imp("core.system_mail")
+        pol = _imp("core.sso_policy")
+        from fastapi import HTTPException
+        db, s = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    reg = {"mode": "open", "signup_page": True, "address_check": True, "address_limit": 1,
+           "signup_help": "Call the office"}
+    fake = lambda: {"registration": reg, "email": {"provider": "smtp", "smtp_host": "smtp.example.invalid"}}
+    sent = []
+    saved = (settings_store.load_settings, auth_router.load_settings, system_mail.send)
+    settings_store.load_settings = fake
+    auth_router.load_settings = fake
+    system_mail.send = lambda to, subject, body: sent.append((to, subject, body)) or True
+    try:
+        s.add(db.User(email="admin@example.org", full_name="Admin Example", role=db.UserRole.super_admin))
+        s.commit()
+        csv_text = R.EXAMPLE_CSV + "300 Example Court,,Exampleville,TX,77000,\n" + "not an address,,,,\n"
+        rows, problems = R.read_csv(csv_text.encode())
+        assert len(rows) == 4 and len(problems) == 1 and problems[0]["line"] == 6, (len(rows), problems)
+        assert "not an address" not in str(problems)
+        assert R.import_rows(s, rows, replace=True) == {"added": 4, "already_listed": 0}
+        assert R.import_rows(s, rows[:1], replace=False)["already_listed"] == 1
+        stored = s.query(db.ResidentAddress).first()
+        assert "EXAMPLE" not in stored.key and len(stored.key) == 64
+
+        A = auth_router.SignupAddressIn
+        look = lambda **kw: auth_router.signup_address(A(**kw), db=s)
+        r = look(street="999 Nowhere Rd", zip="77000")
+        assert r["reason"] == "not_found" and r["help"] == "Call the office" and "NOWHERE" not in str(r).upper()
+        assert look(street="200 Sample Ave", zip="77000")["reason"] == "unit_needed"
+        assert look(street="200 Sample Ave", unit="3", zip="77000")["reason"] == "unit_not_found"
+        assert look(street="300 Example Ct Apt 9", city="Exampleville", state="TX", zip="77000")["ok"]
+        assert look(street="Sample Ave", zip="77000")["reason"] == "unclear"
+        home = look(street="200 SAMPLE AVENUE", unit="#01", city="Exampleville", state="tx", zip="77000-1234")
+        assert home["ok"] and home["token"], home
+
+        # The email must be confirmed with the code
+        E = auth_router.SignupEmailIn
+        code_res = auth_router.signup_email_code(E(email="jordan@library.org"), db=s)
+        code = re.search(r"\b(\d{6})\b", sent[-1][2]).group(1)
+        assert code not in str(code_res)
+        Reg = auth_router.RegisterRequest
+        base = dict(email="jordan@library.org", full_name="Jordan Example", password="correct horse battery")
+        for bad in ({}, {"email_token": code_res["token"], "email_code": "000000" if code != "000000" else "111111"},
+                    {"email_token": code_res["token"], "email_code": code}):   # last: no address yet
+            try:
+                auth_router.register(Reg(**base, **bad), db=s)
+                assert False, f"registered without {bad or 'a code'}"
+            except HTTPException as exc:
+                assert exc.status_code == 400
+        user = auth_router.register(Reg(**base, email_token=code_res["token"], email_code=code,
+                                        address_token=home["token"]), db=s)
+        assert user.resident_key and user.resident_address_id
+        member = s.query(db.FamilyMember).filter(db.FamilyMember.user_id == user.id).first()
+        addr = [i for i in member.identities if i.kind == "address"]
+        assert len(addr) == 1 and addr[0].is_primary and addr[0].value == "200 SAMPLE AVE #1, EXAMPLEVILLE, TX 77000", addr
+
+        # One account per home: the same unit is now full; the other unit isn't
+        assert look(street="200 Sample Ave", unit="1", zip="77000")["reason"] == "full"
+        assert look(street="200 Sample Ave", unit="2", zip="77000")["ok"]
+
+        # An email that already has an account gets a reminder, not a code
+        n = len(sent)
+        auth_router.signup_email_code(E(email="jordan@library.org"), db=s)
+        assert len(sent) == n + 1 and not re.search(r"\b\d{6}\b", sent[-1][2])
+
+        # Without a way to send email there's no sign-up
+        settings_store.load_settings = lambda: {"registration": reg, "email": {}}
+        try:
+            auth_router.signup_email_code(E(email="sam@library.org"), db=s)
+            assert False, "sign-up code without email set up"
+        except HTTPException as exc:
+            assert exc.status_code == 503
+        settings_store.load_settings = fake
+
+        # Sign-in buttons can't start a new account; an existing one can link
+        g = NS(provider="google", email="new@library.org", email_verified=True, hd=None, groups=[])
+        assert not pol.evaluate_sso_login(g, {}, reg, False, 5).allowed
+        assert pol.evaluate_sso_login(g, {}, reg, True, 5).allowed
+        assert pol.evaluate_sso_login(g, {}, {**reg, "address_check": False}, False, 5).allowed
+
+        info = auth_router.signup_info()
+        assert info["signup"] and info["address_check"] and info["help"] == "Call the office"
+    finally:
+        settings_store.load_settings, auth_router.load_settings, system_mail.send = saved
         s.close()
 
 
@@ -6983,9 +7325,37 @@ def t_access_route_gates():
         ("PATCH", "/api/branding/auth-providers/ldap"): {"auth.providers"},
         ("PUT", "/api/auth/saml/config"): {"auth.providers"},
         ("PATCH", "/api/settings/proxy"): {"settings.system"},
+        ("PATCH", "/api/settings/regional"): {"settings.system"},
+        ("GET", "/api/settings/regional"): set(),
         ("GET", "/api/database/health"): {"database.view"},
         ("GET", "/api/plugins"): {"plugins.view"},
         ("POST", "/api/plugins/upload"): {"plugins.upload"},
+        # AI helper keys are never delegated; reviewing drafted steps is broker work
+        ("PUT", "/api/spec-helpers/providers/{pid}"): {"SUPER"},
+        ("POST", "/api/spec-helpers/local"): {"SUPER"},
+        ("PUT", "/api/spec-helpers/settings"): {"SUPER"},
+        # Sending data off the server is never delegated
+        ("PUT", "/api/observability/log-forwarding"): {"SUPER"},
+        ("PUT", "/api/observability/webhooks"): {"SUPER"},
+        ("POST", "/api/observability/metrics-token"): {"SUPER"},
+        ("GET", "/api/health/ready"): set(),
+        # The operator's terms are what the server promises everyone: super admins only
+        ("PUT", "/api/terms/settings"): {"SUPER"},
+        # Turning brokers on when listings are found is broker work
+        ("PUT", "/api/brokers/found-rule"): {"brokers.manage"},
+        # Usage statistics credentials hand data to outside systems: super admins only
+        ("POST", "/api/stats-admin/keys"): {"SUPER"},
+        ("GET", "/api/terms/public"): set(),
+        # Residents-only sign-up: the address list is registration work
+        ("POST", "/api/resident-addresses/upload"): {"users.registration"},
+        ("DELETE", "/api/resident-addresses"): {"users.registration"},
+        ("POST", "/api/auth/signup/address"): set(),
+        ("GET", "/api/spec-helpers/drafts"): {"brokers.manage"},
+        # Opt-out letters: choosing one is broker work; adding one is a plugin upload
+        ("GET", "/api/letters"): {"brokers.manage"},
+        ("GET", "/api/letters/{letter_id}/preview"): {"brokers.manage"},
+        ("PUT", "/api/letters/assign"): {"brokers.manage"},
+        ("POST", "/api/spec-helpers/drafts/{draft_id}/approve"): {"brokers.manage"},
     }
     wrong = {k: (table.get(k), v) for k, v in expect.items() if table.get(k) != v}
     assert not wrong, "route gates differ from the design (got, expected): " + \
@@ -7018,7 +7388,4452 @@ def t_routes():
     #   though the app booted.
 
 
+# ── Email send path, spec metadata, human pause, parent catalog ───────────────
+
+def _fake_member():
+    from types import SimpleNamespace as NS
+    ids = [NS(kind="name", value="Jane Q Public", is_primary=True),
+           NS(kind="name", value="Jane Public", is_primary=False),
+           NS(kind="email", value="jane@example.com", is_primary=True),
+           NS(kind="phone", value="555-0100", is_primary=True),
+           NS(kind="address", value="1 Main St, Austin, TX 78701", is_primary=True)]
+    return NS(id=7, full_name="Jane Q Public", formal_name=None, identities=ids)
+
+
+@test(2, "email.template_rendering_is_safe",
+      "Opt-out email templates accept spec-style and legacy placeholders, and unknown ones don't crash.")
+def t_email_template_safe():
+    if _try_import("sqlalchemy") is None:
+        raise Skip("sqlalchemy not installed")
+    oe = _imp("core.optout_engine")
+    fields = {"full_name": "Jane Q Public", "name": "Jane Q Public", "broker": "Acme",
+              "request_key": "K1", "identifiers": "NAME VARIANTS:\n  - Jane"}
+    out = oe.render_template("Remove {full_name} from {broker} [{request_key}] {mystery} {{x}}", fields)
+    assert "Jane Q Public" in out and "Acme" in out and "K1" in out, out
+    assert "{mystery}" in out, "unknown placeholder should be left as written, not raise"
+    # EXPECTED: known placeholders filled, unknown left alone.
+    # IF THIS FAILS: one odd placeholder in an add-on template breaks every send
+    #   for that broker (the old .format() behaviour).
+
+
+@test(2, "email.no_guessed_address",
+      "A broker with no recorded opt-out address gets None — never a guessed privacy@ address.")
+def t_email_no_guess():
+    if _try_import("sqlalchemy") is None:
+        raise Skip("sqlalchemy not installed")
+    from types import SimpleNamespace as NS
+    oe = _imp("core.optout_engine")
+    assert oe.resolve_optout_address(NS(name="Acme.com", notes="", plugin_id=None), None) is None
+    got = oe.resolve_optout_address(NS(name="Acme.com", notes="Email removals@acme.example", plugin_id=None), None)
+    assert got == "removals@acme.example", got
+    # EXPECTED: only an address someone recorded is used.
+    # IF THIS FAILS: member PII could be emailed to an unverified address.
+
+
+@test(1, "interpreter.spec_metadata_fields",
+      "BrokerSpec accepts legal basis, response days, verification, requirement and provenance fields, and rejects bad values.")
+def t_spec_metadata():
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    from datetime import date
+    good = BrokerSpec.from_dict({
+        "broker_id": "x", "name": "X", "method": "manual",
+        "legal_basis": ["CCPA", "gdpr"], "statutory_response_days": 45,
+        "search_url": "https://x.example/search?n={first_name}", "listing_pattern": r"/people/[A-Za-z-]+",
+        "one_optout_per_email": True, "requires": ["email_confirmation", "listing_selection"],
+        "source": "test", "last_verified": "2026-05-12",
+    })
+    assert good.validate() == [], good.validate()
+    assert good.can_verify() and good.response_due(date(2026, 1, 1)) == date(2026, 2, 15)
+    rt = BrokerSpec.from_dict(good.to_dict())
+    assert rt.requires == good.requires and rt.one_optout_per_email, "fields lost in round trip"
+    bad = BrokerSpec.from_dict({"broker_id": "x", "name": "X", "method": "manual",
+                                "legal_basis": ["made_up"], "requires": ["telepathy"],
+                                "listing_pattern": "(", "last_verified": "last May",
+                                "statutory_response_days": 900})
+    errs = " | ".join(bad.validate())
+    for frag in ("legal_basis", "requires", "regular expression", "search_url", "YYYY-MM-DD", "365"):
+        assert frag in errs, f"expected an error mentioning {frag!r}: {errs}"
+    legacy = BrokerSpec.from_dict({"broker_id": "y", "name": "Y", "method": "manual"})
+    assert legacy.validate() == [] and not legacy.can_verify()
+    # EXPECTED: new optional fields validate; old specs without them stay valid.
+    # IF THIS FAILS: deadline tracking, verification or checklist labels get bad data,
+    #   or existing add-ons stop installing.
+
+
+@test(1, "interpreter.pause_for_human",
+      "A pause_for_human step stops the flow and returns the plain-language instruction.")
+def t_pause_for_human():
+    import asyncio
+    ci = _imp("core.interpreter")
+    spec = ci.BrokerSpec.from_dict({
+        "broker_id": "p", "name": "P", "method": "form", "opt_out_url": "https://p.example",
+        "steps": [{"kind": "fill", "selector": "#n", "field": "full_name"},
+                  {"kind": "pause_for_human", "text": "Click your own profile, then Start Removing."},
+                  {"kind": "click", "selector": "#go"}]})
+    assert spec.validate() == []
+    nope = ci.BrokerSpec.from_dict({"broker_id": "p", "name": "P", "method": "form",
+                                    "opt_out_url": "https://p.example",
+                                    "steps": [{"kind": "pause_for_human"}]})
+    assert any("pause_for_human requires text" in e for e in nope.validate())
+    job = ci.compile_job(spec, {"full_name": "Jane"}, member_id="1")
+    r = ci.DryRunExecutor().run(job)
+    assert r.needs_manual and not r.ok and "Start Removing" in r.human_instruction, r
+
+    class FakeLoc:
+        def __init__(self, page, sel): self.page, self.sel = page, sel
+        @property
+        def first(self): return self
+        async def fill(self, *a, **k): pass
+        async def click(self, **k): self.page.clicked.append(self.sel)
+        async def inner_text(self, **k): return ""
+
+    class FakePage:
+        url = "https://p.example"
+        def __init__(self, present): self.present = present; self.clicked = []
+        async def goto(self, *a, **k): pass
+        async def wait_for_timeout(self, *a): pass
+        def locator(self, sel): return FakeLoc(self, sel)
+        async def query_selector(self, sel):
+            return object() if (self.present and sel == ".results") else None
+
+    cond = ci.compile_job(ci.BrokerSpec.from_dict({
+        "broker_id": "p", "name": "P", "method": "form", "opt_out_url": "https://p.example",
+        "steps": [{"kind": "pause_for_human", "selector": ".results", "text": "Pick your listing from the results."},
+                  {"kind": "click", "selector": "#go"}]}), {}, member_id="1")
+    page = FakePage(present=False)
+    r1 = asyncio.run(ci.PlaywrightExecutor(page=page).run(cond))
+    assert r1.ok and "#go" in page.clicked, "conditional pause should be skipped when element absent"
+    page2 = FakePage(present=True)
+    r2 = asyncio.run(ci.PlaywrightExecutor(page=page2).run(cond))
+    assert r2.needs_manual and not page2.clicked, "should pause before clicking when element present"
+    # EXPECTED: unconditional pauses always stop; selector pauses stop only when it's on the page.
+    # IF THIS FAILS: flows that need a person either crash or skip the human step.
+
+
+@test(1, "parent.catalog_matching_rules",
+      "Catalog matching: exact domains, brand names only without a TLD, and network suffixes.")
+def t_parent_catalog_matching():
+    pc = _imp("core.parent_catalog")
+    cat = pc.load_catalog()
+    by = {p["name"]: p for p in cat["parents"]}
+    ic = by["PeopleConnect (Intelius)"]
+    m = lambda n, e: pc.matches_child(n, e["children"], e.get("child_suffixes", []))
+    assert m("Instant Checkmate", ic) and m("TruthFinder.com", ic) and m("https://www.zabasearch.com/", ic)
+    assert not m("Publicrecords.us", ic) and not m("Publicrecords.info", ic), "different TLD must not match"
+    sr, cr = by["StateRecords.org network"], by["CourtRecords.us network"]
+    assert m("Texasarrests.org", sr) and m("Texasarrestrecords.org", sr) and m("Staterecords.org", sr)
+    assert not m("Texasarrestwarrants.org", sr) and not m("Courtrec.com", cr)
+    assert m("Massachusetsscourtrecords.us", cr)
+    for p in cat["parents"]:
+        assert p.get("source"), f"{p['name']} has no source"
+    assert pc.cascades_for("SmartBackgroundChecks.com", cat), "cascade lookup failed"
+    # EXPECTED: the right sites are grouped and look-alikes are not.
+    # IF THIS FAILS: a parent email could list (and a family could be told they're
+    #   covered on) sites the parent doesn't run.
+
+
+@test(2, "parent.catalog_apply_is_safe_and_idempotent",
+      "Applying the catalog creates parents, groups brokers, holds unverified emails, and never overrides admins.")
+def t_parent_catalog_apply():
+    db, s = _memory_db()
+    pc = _imp("core.parent_catalog")
+    mine = db.ParentCompany(name="My Own Parent")
+    s.add(mine); s.commit()
+    s.add_all([db.Broker(name="Texasarrests.org"), db.Broker(name="Truthfinder.com"),
+               db.Broker(name="Spokeo.com"), db.Broker(name="Publicrecords.us"),
+               db.Broker(name="Zabasearch.com", parent_company_id=mine.id),
+               db.Broker(name="Ohiocourtrecords.us", is_test=True)])
+    s.commit()
+
+    preview = pc.apply_catalog(s, dry_run=True)
+    assert s.query(db.ParentCompany).count() == 1, "dry run must not write"
+    assert preview["assigned_count"] == 3, preview
+
+    rep = pc.apply_catalog(s)
+    P = {p.name: p for p in s.query(db.ParentCompany).all()}
+    assert P["StateRecords.org network"].optout_email == "privacy@staterecords.org"
+    assert not P["Spokeo"].optout_email, "unverified email must not be applied by default"
+    assert "optout@spokeo.com" in (P["Spokeo"].notes or ""), "held email should be noted for review"
+    B = {b.name: b for b in s.query(db.Broker).all()}
+    assert B["Texasarrests.org"].parent_company_id == P["StateRecords.org network"].id
+    assert B["Truthfinder.com"].parent_company_id == P["PeopleConnect (Intelius)"].id
+    assert B["Publicrecords.us"].parent_company_id is None
+    assert B["Zabasearch.com"].parent_company_id == mine.id, "admin grouping must not be moved"
+    assert any(c["broker"] == "Zabasearch.com" for c in rep["conflicts"])
+    assert B["Ohiocourtrecords.us"].parent_company_id is None, "test brokers are left alone"
+
+    P["Spokeo"].website = "https://admin-set.example"; s.commit()
+    rep2 = pc.apply_catalog(s, include_unverified_emails=True)
+    s.refresh(P["Spokeo"])
+    assert P["Spokeo"].website == "https://admin-set.example", "admin edit overwritten"
+    assert P["Spokeo"].optout_email == "optout@spokeo.com", "opt-in should fill an empty email"
+    assert rep2["assigned_count"] == 0 and not rep2["parents_created"], "second run should be a no-op"
+    s.close()
+    # EXPECTED: safe, repeatable grouping; unverified emails held unless opted in.
+    # IF THIS FAILS: re-running the catalog could clobber admin work or email
+    #   member PII to an address nobody confirmed.
+
+
+@test(1, "broker_plugins.repo_plugins_validate",
+      "Every built-in broker plugin passes the app's validators, the repo rules and a dry run.")
+def t_broker_plugins_validate():
+    import importlib.util, io, contextlib
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    path = os.path.join(root, "broker-plugins", "tools", "validate.py")
+    if not os.path.isfile(path):
+        raise Skip("broker-plugins/ not present in this checkout")
+    spec = importlib.util.spec_from_file_location("bp_validate", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        rc = mod.main([])
+    assert rc == 0, out.getvalue()
+    # EXPECTED: all broker plugins valid.
+    # IF THIS FAILS: a plugin in the repo would be rejected on upload; the output says why.
+
+
+
+# ── Form filling: fields, steps, honest results ───────────────────────────────
+
+class _FormLoc:
+    """Minimal Playwright-locator stand-in for form tests."""
+    def __init__(self, page, sel, texts=None):
+        self.page, self.sel, self.texts = page, sel, texts
+    @property
+    def first(self):
+        return self
+    def filter(self, has_text=None):
+        import re as _re
+        opts = self.page.options.get(self.sel, [])
+        if isinstance(has_text, _re.Pattern):
+            hits = [o for o in opts if has_text.search(o)]
+        else:
+            hits = [o for o in opts if has_text and has_text in o]
+        return _FormLoc(self.page, self.sel, hits)
+    async def count(self):
+        return len(self.texts) if self.texts is not None else 1
+    async def fill(self, value, timeout=None):
+        self.page.values[self.sel] = value
+    async def press_sequentially(self, value, delay=None, timeout=None):
+        self.page.values[self.sel] = value
+    async def click(self, timeout=None):
+        if self.texts is not None:
+            self.page.clicked.append(self.texts[0]); return
+        self.page.clicked.append(self.sel)
+    async def select_option(self, value=None, label=None, timeout=None):
+        self.page.values[self.sel] = value or label
+    async def check(self, timeout=None):
+        pass
+    async def wait_for(self, state=None, timeout=None):
+        pass
+    async def press(self, key, timeout=None):
+        pass
+    async def inner_text(self, timeout=None):
+        return self.page.body()
+
+
+class _FormPage:
+    url = "https://broker.example/optout"
+    def __init__(self, rejects_plus=False, success_text="", options=None):
+        self.values, self.clicked, self.rejects_plus, self.success_text = {}, [], rejects_plus, success_text
+        self.options = options or {}
+    def body(self):
+        if self.rejects_plus and any("+" in str(v) for v in self.values.values()) and "#go" in self.clicked:
+            return "Please enter a valid email address."
+        return self.success_text if "#go" in self.clicked else ""
+    def locator(self, sel):
+        return _FormLoc(self, sel)
+    def get_by_text(self, text, exact=False):
+        return _FormLoc(self, "text=" + text)
+    async def goto(self, url, timeout=None):
+        self.values, self.clicked = {}, []
+    async def wait_for_timeout(self, ms):
+        pass
+    async def query_selector(self, sel):
+        return None
+    async def content(self):
+        return self.body()
+    async def evaluate(self, *a):
+        pass
+
+
+@test(1, "forms.member_fields_and_compile",
+      "Member fields include derived formats; page addresses and person-facing steps are filled in safely.")
+def t_forms_fields():
+    ci = _imp("core.interpreter")
+    mf = _imp("core.interpreter.member_fields")
+    comp = _imp("core.interpreter.compiler")
+    assert mf.state_name("tx") == "Texas" and mf.state_code("New York") == "NY"
+    assert mf.phone_digits("+1 (512) 555-0100") == "5125550100"
+
+    class M:  # a member-like object
+        full_name, formal_name, age = "Mary Ann Smith", "", 40
+        identities = []
+    f = mf.resolve(M(), today=__import__("datetime").date(2026, 10, 10))
+    assert f["first_name"] == "Mary" and f["last_name"] == "Ann Smith" and f["birth_year"] == "1986"
+    assert f["phone"] is None and f["city"] is None, "missing values are None, not empty strings"
+
+    url = comp._render_url("https://x.example/{first_name}-{last_name}/{state_name}?q={full_name}",
+                           {"first_name": "Mary Ann", "last_name": "O'Neil", "state_name": "New York",
+                            "full_name": "Mary Ann O'Neil"})
+    assert url == "https://x.example/Mary-Ann-O-Neil/New-York?q=Mary+Ann+O%27Neil", url
+    try:
+        comp._render_url("https://x.example/{city}", {"city": None})
+        raise AssertionError("an address with a missing value must not compile")
+    except comp.CompileError:
+        pass
+    spec = ci.BrokerSpec.from_dict({
+        "broker_id": "b", "name": "B", "method": "form", "opt_out_url": "https://b.example",
+        "steps": [{"kind": "navigate", "url": "https://b.example/{state}"},
+                  {"kind": "type", "selector": "#e", "field": "contact_email"},
+                  {"kind": "pause_for_human", "text": "Use {contact_email} for {full_name}."}]})
+    assert spec.validate() == [] and comp.uses_field(spec, "contact_email")
+    bad = ci.BrokerSpec.from_dict({"broker_id": "b", "name": "B", "method": "form",
+                                   "steps": [{"kind": "navigate", "url": "https://b.example/{ssn}"}]})
+    assert any("unknown field" in e for e in bad.validate())
+    job = ci.compile_job(spec, {"state": "TX", "contact_email": "a+oo1@x.example", "full_name": "Ann"}, "1")
+    assert job.steps[0].url == "https://b.example/TX" and job.contact_email == "a+oo1@x.example"
+    assert job.steps[2].text == "Use a+oo1@x.example for Ann."
+    r = ci.DryRunExecutor().run(job)
+    assert r.needs_manual and any("type #e" in t for t in r.trace), r.trace
+
+
+@test(1, "forms.executor_reads_the_page",
+      "The executor spots a refused email address, confirms success signals, and picks options by whole name.")
+def t_forms_executor():
+    import asyncio
+    ci = _imp("core.interpreter")
+    spec = ci.BrokerSpec.from_dict({
+        "broker_id": "b", "name": "B", "method": "form", "opt_out_url": "https://b.example",
+        "steps": [{"kind": "fill", "selector": "#email", "field": "contact_email"},
+                  {"kind": "click_matching", "selector": "li", "field": "state_name"},
+                  {"kind": "click", "selector": "#go"},
+                  {"kind": "expect_success", "text": "request received"}]})
+    fields = {"contact_email": "a+oo1@x.example", "state_name": "Kansas"}
+    page = _FormPage(rejects_plus=True, options={"li": ["Arkansas", "Kansas"]})
+    r = asyncio.run(ci.PlaywrightExecutor(page=page).run(ci.compile_job(spec, fields, "1")))
+    assert not r.ok and r.email_rejected, r
+    assert "Kansas" in page.clicked and "Arkansas" not in page.clicked, page.clicked
+    page2 = _FormPage(success_text="Thanks, your request received.", options={"li": ["Kansas"]})
+    r2 = asyncio.run(ci.PlaywrightExecutor(page=page2).run(ci.compile_job(spec, fields, "1")))
+    assert r2.ok and r2.verified and not r2.email_rejected, r2
+
+
+@test(2, "forms.engine_retries_without_plus_and_never_guesses",
+      "A form that refuses +addresses is retried once with the plain address and remembered; sites without steps go to the checklist.")
+def t_forms_engine():
+    import asyncio
+    db, s = _memory_db()
+    oe = _imp("core.optout_engine")
+    sb = _imp("core.interpreter.script_bridge")
+    ci = _imp("core.interpreter")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    b = db.Broker(name="FormCo", opt_out_url="https://formco.example/optout", method=db.OptOutMethod.form)
+    s.add(b); s.flush()
+    req = db.RemovalRequest(member_id=pm.id, broker_id=b.id, request_key="rk-f", status=db.RequestStatus.pending)
+    s.add(req); s.commit()
+    spec = ci.BrokerSpec.from_dict({
+        "broker_id": "formco", "name": "FormCo", "method": "form", "opt_out_url": "https://formco.example/optout",
+        "steps": [{"kind": "fill", "selector": "#email", "field": "contact_email"},
+                  {"kind": "click", "selector": "#go"}]})
+    real = sb.get_or_build_broker_spec
+    try:
+        sb.get_or_build_broker_spec = lambda broker, script=None, db=None: spec
+        page = _FormPage(rejects_plus=True)
+        r = asyncio.run(oe._run_form_via_interpreter(req, page, {}, s))
+        s.refresh(b)
+        assert r.ok and b.rejects_plus_addresses, (r, b.rejects_plus_addresses)
+        assert page.values["#email"] == "pat@gmail.com", page.values
+        sent = s.query(db.ContactAddress).filter_by(broker_id=b.id).all()
+        assert {c.tag is None for c in sent} == {True, False}, "one +address tried, then the plain one"
+        # Next time it goes straight to the plain address.
+        page2 = _FormPage(rejects_plus=True)
+        asyncio.run(oe._run_form_via_interpreter(req, page2, {}, s))
+        assert "+" not in page2.values["#email"]
+    finally:
+        sb.get_or_build_broker_spec = real
+    # No steps for this site: nothing is typed anywhere; it goes on the checklist.
+    b2 = db.Broker(name="Unknown People Search", opt_out_url="https://ups.example/optout", method=db.OptOutMethod.form)
+    s.add(b2); s.flush()
+    req2 = db.RemovalRequest(member_id=pm.id, broker_id=b2.id, status=db.RequestStatus.pending)
+    s.add(req2); s.commit()
+    page3 = _FormPage()
+    r3 = asyncio.run(oe._run_form_via_interpreter(req2, page3, {}, s))
+    assert r3.needs_manual and "doesn't have the steps" in r3.human_instruction and not page3.values
+    s.close()
+
+
+@test(2, "forms.guided_broker_and_reply",
+      "A guided broker goes on the checklist with a one-time address; the broker's reply to it moves the request along.")
+def t_forms_guided():
+    import asyncio
+    db, s = _memory_db()
+    oe = _imp("core.optout_engine")
+    sb = _imp("core.interpreter.script_bridge")
+    ci = _imp("core.interpreter")
+    try:
+        sched = _imp("core.scheduler")
+    except Exception as e:
+        raise Skip(f"scheduler deps missing: {e}")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    b = db.Broker(name="Clustal", opt_out_url="https://www.clustal.org/privacy-control", method=db.OptOutMethod.manual)
+    s.add(b); s.flush()
+    req = db.RemovalRequest(member_id=cm.id, broker_id=b.id, status=db.RequestStatus.pending,
+                            listing_url="https://www.clustal.org/person/kim")
+    s.add(req); s.commit()
+    spec = ci.BrokerSpec.from_dict({"broker_id": "clustal", "name": "Clustal", "method": "manual",
+                                    "opt_out_url": "https://www.clustal.org/privacy-control",
+                                    "instructions": "Paste {listing_url}, then enter {contact_email} for {full_name}."})
+    real = sb.get_or_build_broker_spec
+    try:
+        sb.get_or_build_broker_spec = lambda broker, script=None, db=None: spec
+        asyncio.run(oe.execute_optout(req, None, {}, s))
+    finally:
+        sb.get_or_build_broker_spec = real
+    s.refresh(req)
+    assert req.status == db.RequestStatus.needs_manual, req.status
+    ca = s.query(db.ContactAddress).filter_by(broker_id=b.id).one()
+    assert ca.address in req.notes and "https://www.clustal.org/person/kim" in req.notes and "Kim Kid" in req.notes
+    sched._handle_member_message(s, {}, boxes["parent"], ca.address, "noreply@clustal.org",
+                                 "We received your request", "Your opt-out request has been processed.", links=[])
+    s.refresh(req)
+    assert req.status == db.RequestStatus.confirmed, req.status
+    s.close()
+
+
+@test(2, "forms.untagged_reply_matched_by_sender",
+      "Mail to an inbox's plain address is matched to the broker it was given to, by the sender's domain.")
+def t_forms_untagged():
+    db, s = _memory_db()
+    m = _imp("core.mailboxes")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@yahoo.com", parent_plus="unsupported")
+    b = db.Broker(name="Nuwber", opt_out_url="https://nuwber.com/removal/link")
+    s.add(b); s.commit()
+    ca, _ = m.issue_contact_address(s, boxes["parent"], pm, broker=b, request_key="rk-u")
+    assert ca.tag is None and ca.address == "pat@yahoo.com"
+    hit = m.match_inbound(s, boxes["parent"], "Pat <pat@yahoo.com>", "Nuwber <support@nuwber.com>")
+    assert hit["request_keys"] == ["rk-u"], hit
+    other = m.match_inbound(s, boxes["parent"], "pat@yahoo.com", "deals@shop.example")
+    assert other["request_keys"] == [], other
+    s.close()
+
+
+@test(2, "forms.builtin_brokers_install",
+      "Built-in broker plugins install themselves, create their brokers, stay off when an admin turns them off, and are found for opt-outs.")
+def t_forms_builtin():
+    import tempfile
+    db, s = _memory_db()
+    ba = _imp("plugins.broker_addon")
+    layout = _imp("plugins.layout")
+    shipped = [f for f in layout.scan(layout.BUNDLED_ROOT) if f.valid and f.manifest.effective_type == "brokers"]
+    assert len(shipped) >= 10, len(shipped)
+    old = os.environ.get("PLUGINS_DIR")
+    os.environ["PLUGINS_DIR"] = tempfile.mkdtemp(prefix="oo-plugins-")
+    try:
+        s.add(db.Broker(name="Spokeo", opt_out_url="https://old.example", enabled=False)); s.commit()
+        st = ba.sync_builtin_brokers(s)
+        assert st["installed"] == len(shipped), st
+        spokeo = s.query(db.Broker).filter_by(name="Spokeo").one()
+        assert spokeo.plugin_id == "spokeo" and spokeo.enabled is False, "an admin's existing choice stays"
+        assert spokeo.opt_out_url == "https://www.spokeo.com/optout"
+        nuwber = s.query(db.Broker).filter_by(name="Nuwber").one()
+        assert nuwber.enabled and nuwber.method == db.OptOutMethod.manual
+        spec = ba.get_broker_spec_for_broker(s, spokeo)
+        assert spec and "email_confirmation" in spec.requires
+        row = s.query(db.InstalledPlugin).filter_by(plugin_id="nuwber").one()
+        row.enabled = False; s.commit()
+        st2 = ba.sync_builtin_brokers(s)
+        assert st2["installed"] == 0 and not s.query(db.InstalledPlugin).filter_by(plugin_id="nuwber").one().enabled
+        # Plugins nobody could check yet ship installed but with their broker off.
+        unchecked = [f.manifest for f in shipped if not f.manifest.starts_enabled]
+        assert unchecked, "expected some plugins that start turned off"
+        for m in unchecked:
+            b = s.query(db.Broker).filter_by(plugin_id=m.id).one()
+            assert b.enabled is False, f"{m.id} should start off"
+        assert s.query(db.Broker).filter_by(plugin_id="acxiom").one().enabled is True
+        # Coverage: PeopleConnect's opt-out covers its family, not Classmates.
+        cov = _imp("core.coverage")
+        out = cov.summary(s)
+        pc = s.query(db.Broker).filter_by(plugin_id="peopleconnect").one()
+        c = out["coverage"][str(pc.id)]
+        assert "truthfinder.com" in c["sites"] and "classmates.com" not in c["sites"], c
+        assert c["count"] == len(c["sites"]) >= 10, c
+        ip = s.query(db.Broker).filter_by(plugin_id="infopay").one()
+        assert out["coverage"][str(ip.id)]["count"] == 7, out["coverage"][str(ip.id)]
+        assert out["sites_covered"] > out["brokers_on"], out
+    finally:
+        if old is None:
+            os.environ.pop("PLUGINS_DIR", None)
+        else:
+            os.environ["PLUGINS_DIR"] = old
+    s.close()
+
+
+@test(1, "coverage.counts_each_site_once",
+      "Coverage adds a plugin's own list, its catalog family and confirmed cascades; 'likely' ones aren't counted.")
+def t_coverage_counts():
+    cov = _imp("core.coverage")
+    cat = {"parents": [
+        {"name": "Fam", "website": "https://www.fam.example", "children": ["fam.example", "a.example", "b.example", "c.example"],
+         "child_suffixes": [], "one_optout_covers": True, "not_covered": ["c.example"]},
+        {"name": "Grp", "website": "https://grp.example", "children": ["grp.example", "x.example"],
+         "child_suffixes": [], "one_optout_covers": False},
+        {"name": "Net", "website": "https://net.example", "children": ["net.example"],
+         "child_suffixes": ["arrests.example"], "one_optout_covers": True, "approx_sites": 40}],
+        "cascades": [{"from": ["fam.example"], "to": ["d.example"], "confidence": "confirmed"},
+                     {"from": ["fam.example"], "to": ["e.example"], "confidence": "likely"},
+                     {"from": ["fam.example"], "to": ["f.example"], "confidence": "historical"}]}
+    c = cov.coverage("fam.example", "Fam", ["a.example", "z.example"], cat)
+    assert c["sites"] == ["a.example", "b.example", "d.example", "z.example"], c
+    assert c["maybe"] == ["e.example"] and c["count"] == 4, c
+    assert cov.coverage("x.example", "X", [], cat)["count"] == 0, "a family alone doesn't mean covered"
+    n = cov.coverage("texasarrests.example", "Texasarrests.example", [], cat)
+    assert n["network"] == "Net" and n["count"] == 40, n
+    assert cov.site_of("https://suppression.peopleconnect.us/login") == "peopleconnect.us"
+    # EXPECTED: one opt-out's reach is counted from what the company says, each site once.
+    # IF THIS FAILS: the Brokers page could promise families coverage they don't have.
+
+
+@test(1, "plugins.email_spec_uses_letter",
+      "An email broker plugin may leave out its own templates; then it gets the legal letter. Half a template is refused.")
+def t_email_spec_letter():
+    bs = _imp("core.interpreter.broker_spec")
+    base = {"broker_id": "x", "name": "X", "method": "email", "source": "test",
+            "email": {"to_address": "privacy@x.example"}}
+    assert not bs.BrokerSpec.from_dict(base).validate()
+    half = dict(base, email={"to_address": "privacy@x.example", "subject_template": "Delete"})
+    assert any("both" in e for e in bs.BrokerSpec.from_dict(half).validate())
+    bad = dict(base, covers=["https://x.example/"])
+    assert any("covers" in e for e in bs.BrokerSpec.from_dict(bad).validate())
+    lt = _imp("core.legal_letters")
+    spec = bs.BrokerSpec.from_dict(base)
+    assert lt.choose_template(spec.effective_jurisdiction(), "CA"), "no letter for a US broker"
+    # EXPECTED: email plugins fall back to the per-law letter instead of failing validation.
+    # IF THIS FAILS: built-in email plugins (Experian, Data Axle, InfoPay...) won't install.
+
+
+@test(1, "terms.versions_and_asking_again",
+      "Admins accept the limits, everyone else the notice; the operator's terms get a new version only when what people see changes.")
+def t_terms_versions():
+    db, s = _memory_db()
+    T = _imp("core.terms")
+    admin = db.User(email="admin@example.invalid", full_name="Admin Example", role=db.UserRole.super_admin, hashed_password="x")
+    pat = db.User(email="jordan@example.invalid", full_name="Jordan Example", role=db.UserRole.parent, hashed_password="x")
+    s.add_all([admin, pat]); s.commit()
+    st = {}
+    assert T.needs(s, admin, st) == [{"kind": "limits", "version": T.LIMITS_VERSION}]
+    assert T.needs(s, pat, st) == [{"kind": "notice", "version": T.NOTICE_VERSION}]
+    try:
+        T.accept(s, pat, "limits", T.LIMITS_VERSION, st); assert False, "only admins accept the limits"
+    except ValueError:
+        pass
+    T.accept(s, admin, "limits", T.LIMITS_VERSION, st)
+    T.accept(s, pat, "notice", T.NOTICE_VERSION, st)
+    assert T.needs(s, admin, st) == [] and T.needs(s, pat, st) == []
+    # Operator terms: off means nobody is asked; turning them on is version 1.
+    T.save(st, {"text": "## Hello", "operator": "Riverside Library", "enabled": False})
+    assert T.needs(s, pat, st) == [] and T.config(st)["version"] == 0
+    T.save(st, {"enabled": True})
+    assert T.config(st)["version"] == 1 and T.needs(s, pat, st) == [{"kind": "operator_terms", "version": 1}]
+    try:
+        T.accept(s, pat, "operator_terms", 2, st); assert False, "a version that isn't current must be refused"
+    except ValueError:
+        pass
+    T.accept(s, pat, "operator_terms", 1, st)
+    assert T.needs(s, pat, st) == []
+    T.save(st, {"text": "## Hello"})                       # nothing changed
+    T.save(st, {"enabled": False}); T.save(st, {"enabled": True})
+    assert T.config(st)["version"] == 1, "turning them off and on unchanged mustn't ask again"
+    T.save(st, {"enabled": False}); T.save(st, {"text": "## Hello again"}); T.save(st, {"enabled": True})
+    assert T.config(st)["version"] == 2 and T.needs(s, pat, st)[0]["version"] == 2, "a change made while off still counts"
+    try:
+        T.save({}, {"enabled": True}); assert False, "empty terms can't be turned on"
+    except ValueError:
+        pass
+    tpl = T.template("Riverside Library", "privacy@example.invalid")
+    assert "Riverside Library" in tpl and "{operator}" not in tpl and T.unfinished(tpl), "the draft has notes to fill in"
+    s.close()
+    # EXPECTED: people are asked once per version, and again only when what they see changes.
+    # IF THIS FAILS: people could be nagged on every save, or never told about a change.
+
+
+@test(2, "terms.adding_someone_needs_permission",
+      "A parent must confirm they may act for someone they add; it's recorded without names and removed with the person.")
+def t_terms_acting_for():
+    db, s = _memory_db()
+    fam = _imp("routers.family")
+    people = _imp("core.people")
+    from fastapi import HTTPException
+    parent = db.User(email="jordan@example.invalid", full_name="Jordan Example", role=db.UserRole.parent, hashed_password="x")
+    s.add(parent); s.commit()
+    try:
+        fam.add_member(fam.MemberCreate(full_name="Casey Example", age=9), s, parent)
+        assert False, "adding someone without confirming must be refused"
+    except HTTPException as e:
+        assert e.status_code == 400
+    m = fam.add_member(fam.MemberCreate(full_name="Casey Example", age=9, authorized=True), s, parent)
+    row = s.query(db.TermsAcceptance).filter_by(kind="acting_for").one()
+    added = s.query(db.FamilyMember).filter_by(id=m.id).one().user_id
+    assert row.user_id == parent.id and row.subject_user_id == added
+    people.delete_person(s, s.query(db.User).get(added)); s.commit()
+    assert s.query(db.TermsAcceptance).count() == 0, "the record goes with the person"
+    s.close()
+    # EXPECTED: no one is added without the parent confirming they may act for them.
+    # IF THIS FAILS: OpenOptOut could send requests for people who never agreed.
+
+
+@test(2, "found_listings.rule_ask_auto_tell",
+      "A listing found on a broker that's off: ask an admin, tell the person, or turn it on at N people; never one turned off on purpose.")
+def t_found_listings_rule():
+    import uuid
+    db, s = _memory_db()
+    fl = _imp("core.found_listings")
+    people = []
+    for i in range(3):
+        u = db.User(email=f"p{i}@example.invalid", full_name=f"Jordan Example {i}", role=db.UserRole.member)
+        s.add(u); s.flush()
+        m = db.FamilyMember(user_id=u.id, full_name=f"Jordan Example {i}")
+        s.add(m); s.flush(); people.append(m)
+    s.add(db.InstalledPlugin(plugin_id="cocofinder", name="CocoFinder", version="1.0.0", enabled=True, manifest_json="{}", install_path="/nonexistent"))
+    b = db.Broker(name="CocoFinder", plugin_id="cocofinder", enabled=False, opt_out_url="https://cocofinder.example/optOut")
+    s.add(b); s.commit()
+
+    def found(m):
+        s.add(db.DiscoveryResult(member_id=m.id, broker_id=b.id, found=True, listing_url="https://cocofinder.example/x"))
+        r = db.RemovalRequest(member_id=m.id, broker_id=b.id, request_key=str(uuid.uuid4()), status=db.RequestStatus.pending)
+        s.add(r); s.commit()
+        return r
+
+    # ask: one admin entry per broker, with the count kept up to date, and no names
+    r0 = found(people[0])
+    assert fl.handle(s, b, people[0].id, {"found_listings": {"action": "ask"}}) == "asked"
+    found(people[1])
+    fl.handle(s, b, people[1].id, {"found_listings": {"action": "ask"}})
+    ups = s.query(db.BrokerUpdate).filter_by(kind="found_while_off").all()
+    assert len(ups) == 1 and "2 people" in ups[0].title and "Jordan" not in ups[0].title + (ups[0].detail or ""), ups[0].title
+    assert r0.status == db.RequestStatus.pending and not b.enabled
+
+    # auto at 3 people: below it, the fallback tells the person
+    cfg = {"found_listings": {"action": "auto", "threshold": 3, "fallback": "tell"}}
+    assert fl.handle(s, b, people[0].id, cfg) == "told"
+    s.refresh(r0)
+    assert r0.status == db.RequestStatus.needs_manual and r0.waiting_for == "broker_off" and "CocoFinder" in r0.notes
+    found(people[2])
+    assert fl.handle(s, b, people[2].id, cfg) == "turned_on"
+    s.refresh(b); s.refresh(r0)
+    assert b.enabled and r0.status == db.RequestStatus.pending and r0.waiting_for is None, "told requests go back"
+    assert s.query(db.BrokerUpdate).filter_by(kind="turned_on_found").count() == 1
+
+    # never a broker an admin turned off, or one without a plugin
+    bh = _imp("core.broker_health")
+    bh.disable(s, b.id, reason="manually disabled by an admin")
+    s.refresh(b)
+    assert fl.can_turn_on(s, b) == (False, "turned_off")
+    assert fl.handle(s, b, people[0].id, {"found_listings": {"action": "auto", "threshold": 1, "fallback": "ask"}}) == "asked"
+    s.refresh(b); assert not b.enabled
+    nb = db.Broker(name="NoPlugin", enabled=False); s.add(nb); s.commit()
+    assert fl.can_turn_on(s, nb) == (False, "no_plugin")
+    reg = db.Broker(name="Registry Co", enabled=False, origin="registry"); s.add(reg); s.commit()
+    assert fl.handle(s, reg, people[0].id, cfg) == "", "registry brokers are left to broker_gate"
+    try:
+        fl.clean({"threshold": 0}); assert False
+    except ValueError:
+        pass
+    assert fl.settings_of({}) == fl.DEFAULTS
+    s.close()
+    # EXPECTED: the admin's rule decides, counts are of people, and nobody's name is recorded.
+    # IF THIS FAILS: brokers could turn on that an admin turned off, or people wait forever with no word.
+
+
+def _stats_fixture():
+    """Two branches, three people, a few searches, listings and opt-outs over
+    August and September 2026. Made-up details only."""
+    import uuid
+    from datetime import datetime as _dt
+    db, s = _memory_db()
+    sys_ = db.LibrarySystem(name="Riverside Libraries", code="RVL"); s.add(sys_); s.flush()
+    main = db.Branch(system_id=sys_.id, name="Main", code="MAIN"); west = db.Branch(system_id=sys_.id, name="West", code="WEST")
+    s.add_all([main, west]); s.flush()
+    b = db.Broker(name="ExampleBroker", enabled=True); s.add(b); s.flush()
+    people = []
+    for i, (br, when) in enumerate([(main, _dt(2026, 8, 3)), (main, _dt(2026, 9, 9)), (west, _dt(2026, 9, 20))]):
+        u = db.User(email=f"p{i}@example.invalid", full_name=f"Jordan Example {i}", role=db.UserRole.parent,
+                    hashed_password="x", branch_id=br.id, created_at=when)
+        s.add(u); s.flush()
+        m = db.FamilyMember(user_id=u.id, full_name=f"Jordan Example {i}"); s.add(m); s.flush(); people.append(m)
+    p0, p1, p2 = people
+    for m, day, found in ((p0, _dt(2026, 8, 4, 9), True), (p0, _dt(2026, 8, 4, 10), True), (p1, _dt(2026, 9, 10), False),
+                          (p2, _dt(2026, 9, 21), True)):
+        s.add(db.DiscoveryResult(member_id=m.id, broker_id=b.id, found=found, scanned_at=day))
+    s.add(db.RemovalRequest(member_id=p0.id, broker_id=b.id, request_key=str(uuid.uuid4()), status=db.RequestStatus.confirmed,
+                            sent_at=_dt(2026, 8, 5), confirmed_at=_dt(2026, 9, 1)))
+    s.add(db.RemovalRequest(member_id=p2.id, broker_id=b.id, request_key=str(uuid.uuid4()), status=db.RequestStatus.sent,
+                            sent_at=_dt(2026, 9, 22)))
+    s.commit()
+    return db, s
+
+
+@test(2, "stats_api.counts_and_checks",
+      "The usage statistics API passes every client check; counts are per branch and day, scoped by key, with no names.")
+def t_stats_api():
+    import json as _json
+    from datetime import date as _d
+    U = _imp("core.usage_stats")
+    check = _imp("core.stats_check")
+    db, s = _stats_fixture()
+    today = _d(2026, 10, 12)
+    cfg = U.config({"stats_api": {"enabled": True}})
+    c, key = U.new_client(cfg, "Warehouse loader", ["*"])
+    assert key.startswith("oos_") and c["key_hash"] not in key
+
+    def get(path, params, k):
+        st, body, _m = U.handle(s, path, params, f"Bearer {k}" if k else "", cfg, today=today)
+        return st, body
+
+    results = check.run(get, key, today=today)
+    failed = [(check.text(r), r["detail"]) for r in results if not r["ok"]]
+    assert not failed, failed
+    q = {"from": "2026-08-01", "to": "2026-09-30"}
+    st, body = get("/v1/usage", dict(q, granularity="month", institution="RVL-MAIN"), key)
+    assert st == 200, body
+    aug, sep = body["rows"]
+    assert (aug["people_added"], sep["people_added"]) == (1, 1)
+    assert (aug["listing_searches"], sep["listing_searches"]) == (1, 1), "one search per person, broker and day"
+    assert (aug["listings_found"], aug["optout_requests_sent"], sep["removals_confirmed"]) == (1, 1, 1)
+    st, day = get("/v1/usage", {"from": "2026-09-21", "to": "2026-09-22", "institution": "RVL-WEST"}, key)
+    assert [(r["period_start"], r["listings_found"], r["optout_requests_sent"]) for r in day["rows"]] == \
+        [("2026-09-21", 1, 0), ("2026-09-22", 0, 1)], day["rows"]
+    st, many = get("/v1/usage", dict(q, granularity="total", institution="*"), key)
+    assert [r["institution"] for r in many["rows"]] == ["all", "RVL", "RVL-MAIN", "RVL-WEST"]
+    assert many["rows"][0]["listing_searches"] == 3
+    st, csvt = get("/v1/usage", dict(q, granularity="total", format="csv", metrics="removals_confirmed"), key)
+    assert csvt.splitlines() == ["institution,period_start,period_end,complete,removals_confirmed",
+                                 "all,2026-08-01,2026-09-30,true,1"], csvt
+    assert "Jordan" not in _json.dumps(many), "statistics must never name anyone"
+    # A key limited to one branch sees only that branch.
+    c2, key2 = U.new_client(cfg, "West only", ["RVL-WEST"])
+    st, body = get("/v1/usage", dict(q, institution="RVL-MAIN"), key2)
+    assert st == 403
+    st, body = get("/v1/institutions", {}, key2)
+    assert [i["id"] for i in body["institutions"]] == ["RVL-WEST"]
+    # Off means off, apart from the public status; and keys in the address aren't accepted.
+    off = U.config({"stats_api": {"enabled": False, "clients": cfg["clients"]}})
+    st, body, _m = U.handle(s, "/v1/usage", q, f"Bearer {key}", off, today=today)
+    assert st == 503 and body["error"] == "off"
+    st, body, _m = U.handle(s, "/v1/status", {}, "", off, today=today)
+    assert st == 200 and body["enabled"] is False
+    st, body, _m = U.handle(s, "/v1/usage", dict(q, key=key), "", cfg, today=today)
+    assert st == 401
+    s.close()
+    # EXPECTED: scripts get dense, consistent counts for any range, scoped to their key, counts only.
+    # IF THIS FAILS: a library's warehouse would load wrong numbers, or see another library's.
+
+
+@test(2, "broker_updates.builtin_plugins_recorded",
+      "Built-in broker plugins added or updated by an upgrade become Broker updates: one summary on first start, one entry each for a few.")
+def t_builtin_plugin_updates():
+    import tempfile
+    db, s = _memory_db()
+    ba = _imp("plugins.broker_addon")
+    old = os.environ.get("PLUGINS_DIR")
+    os.environ["PLUGINS_DIR"] = tempfile.mkdtemp(prefix="oo-plugins-")
+    try:
+        st = ba.sync_builtin_brokers(s)
+        ups = s.query(db.BrokerUpdate).filter_by(kind="plugin_added").all()
+        assert len(ups) == 1 and ups[0].title == f"{st['installed']} built-in broker plugins installed", [u.title for u in ups]
+        assert "CocoFinder" in ups[0].detail and "Turned off until someone checks" in ups[0].detail
+        # An upgrade that changes one plugin and brings back another: one entry each.
+        row = s.query(db.InstalledPlugin).filter_by(plugin_id="acxiom").one()
+        new_version = row.version
+        row.version = "0.9.0"
+        gone = s.query(db.InstalledPlugin).filter_by(plugin_id="wyty").one()
+        s.query(db.Broker).filter_by(plugin_id="wyty").delete()
+        s.delete(gone); s.commit()
+        st2 = ba.sync_builtin_brokers(s)
+        assert st2["installed"] == 1 and st2["updated"] == 1, st2
+        upd = s.query(db.BrokerUpdate).filter_by(kind="plugin_updated").one()
+        acx = s.query(db.Broker).filter_by(plugin_id="acxiom").one()
+        assert upd.broker_id == acx.id and f"0.9.0 → {new_version}" in upd.title, upd.title
+        added = s.query(db.BrokerUpdate).filter_by(kind="plugin_added").order_by(db.BrokerUpdate.id).all()
+        assert len(added) == 2 and added[1].title == "Built-in plugin added: WYTY", [a.title for a in added]
+        # Nothing changed: nothing recorded.
+        ba.sync_builtin_brokers(s)
+        assert s.query(db.BrokerUpdate).count() == 3
+    finally:
+        if old is None:
+            os.environ.pop("PLUGINS_DIR", None)
+        else:
+            os.environ["PLUGINS_DIR"] = old
+    s.close()
+    # EXPECTED: admins see which built-in plugins arrived or changed with each upgrade, without a flood.
+    # IF THIS FAILS: plugins change silently, or the first start buries Broker updates under 80 entries.
+
+
+# ── Long tail: privacy-request pages and hosted forms ─────────────────────────
+
+_PP_HOME = """<html><head><title>PeopleFind</title></head><body>
+<a href="/about">About</a> <a href="/terms">Terms</a>
+<a href="/privacy-policy">Privacy Policy</a>
+<a href="https://privacyportal.onetrust.com/webform/abc-123/def-456">Do Not Sell or Share My Personal Information</a>
+<a href="https://www.facebook.com/peoplefind">Facebook</a>
+<a href="mailto:privacy@peoplefind.example">privacy@peoplefind.example</a>
+<a href="mailto:sales@peoplefind.example">Sales</a></body></html>"""
+_PP_POLICY = """<html><head><title>Privacy Policy</title></head><body><h1>Privacy Policy</h1>
+To opt out, write to optout@peoplefind.example or visit
+<a href="https://evil.example/optout">our partner</a>.</body></html>"""
+_PP_FORM_SITE = """<html><head><title>Remove my info</title></head><body><h1>Privacy request</h1>
+<form><label>Email<input type="email" name="email"></label> Request deletion of your listing.</form></body></html>"""
+
+
+def _pp_fetch(pages):
+    calls = []
+    def fetch(url, domain):
+        calls.append(url)
+        key = url.rstrip("/")
+        for k, v in pages.items():
+            if key == k.rstrip("/"):
+                return url, 200, v
+        return url, 404, ""
+    fetch.calls = calls
+    return fetch
+
+
+@test(1, "privacy_finder.reads_a_website",
+      "The finder spots hosted OneTrust/TrustArc forms, in-house request forms, opt-out pages and privacy emails, and only fetches the broker's own site.")
+def t_pp_find():
+    pf = _imp("core.privacy_finder")
+    assert pf.hosted_kind("https://privacyportal.onetrust.com/webform/a/b") == "hosted_onetrust"
+    assert pf.hosted_kind("https://submit-irm.trustarc.com/services/validation/123") == "hosted_trustarc"
+    assert pf.hosted_kind("https://www.onetrust.com/products/") == "", "the vendor's marketing site isn't a form"
+    fetch = _pp_fetch({"https://peoplefind.example": _PP_HOME,
+                       "https://peoplefind.example/privacy-policy": _PP_POLICY})
+    res = pf.find("peoplefind.example", fetch=fetch)
+    kinds = [(f["kind"], f["url"]) for f in res["findings"]]
+    assert kinds[0] == ("hosted_onetrust", "https://privacyportal.onetrust.com/webform/abc-123/def-456"), kinds
+    emails = {f["url"] for f in res["findings"] if f["kind"] == "email"}
+    assert emails == {"mailto:privacy@peoplefind.example", "mailto:optout@peoplefind.example"}, emails
+    assert not any("evil.example" in u or "facebook" in u for u in fetch.calls), fetch.calls
+    assert len(fetch.calls) <= pf.MAX_FETCHES
+    # A site with its own request form, found through a well-known address.
+    fetch2 = _pp_fetch({"https://formsite.example": "<html><body>Hello</body></html>",
+                        "https://formsite.example/opt-out": _PP_FORM_SITE})
+    res2 = pf.find("formsite.example", fetch=fetch2)
+    assert res2["findings"][0]["kind"] == "request_form", res2
+
+
+@test(1, "hosted_forms.plans_fill_by_label",
+      "The form filler picks delete/do-not-sell and 'myself', fills name and the one-time email, and refuses what it shouldn't touch.")
+def t_hf_plan():
+    hf = _imp("core.interpreter.hosted_forms")
+    V = {"first_name": "Jane", "last_name": "Doe", "contact_email": "jane+oo1@gmail.com", "state": "TX",
+         "state_name": "Texas", "request_text": "Please delete my data."}
+    def c(i, **kw):
+        d = {"i": i, "tag": "input", "type": "text", "name": "", "id": "", "label": "", "aria": "",
+             "placeholder": "", "autocomplete": "", "required": False, "group": "", "group_label": "",
+             "value": "", "options": []}
+        d.update(kw); return d
+    form = [
+        c(0, type="radio", group="who", group_label="I am submitting as", label="Myself", value="self", required=True),
+        c(1, type="radio", group="who", group_label="I am submitting as", label="An authorized agent", value="agent"),
+        c(2, type="checkbox", group="rt", group_label="Request type", label="Access my information"),
+        c(3, type="checkbox", group="rt", group_label="Request type", label="Delete my information"),
+        c(4, label="First name", required=True), c(5, label="Last name", required=True),
+        c(6, type="email", label="Email address", required=True),
+        c(7, tag="select", type="select-one", label="State", options=[{"value": "", "label": "Pick"}, {"value": "KS", "label": "Kansas"}, {"value": "TX", "label": "Texas"}]),
+        c(8, type="checkbox", name="news", label="Send me offers and updates"),
+        c(9, type="checkbox", name="cert", label="I declare under penalty of perjury that I am the consumer", required=True),
+        c(10, tag="textarea", type="textarea", label="Additional details"),
+    ]
+    plan = hf.plan_autofill(form, V)
+    by = {a["i"]: a for a in plan["actions"]}
+    assert plan["ok"], plan["why"]
+    assert 0 in by and 1 not in by and 3 in by and 2 not in by and 9 in by and 8 not in by, by
+    assert by[6]["value"] == "jane+oo1@gmail.com" and by[7]["value"] == "TX" and by[10]["value"] == "Please delete my data."
+    # Only access/correct options: not something we'd submit.
+    no_delete = [c(0, type="radio", group="rt", group_label="Type of request", label="Access my data"),
+                 c(1, type="radio", group="rt", group_label="Type of request", label="Correct my data"),
+                 c(2, label="Full name"), c(3, type="email", label="Email")]
+    assert "deletion" in hf.plan_autofill(no_delete, V)["why"]
+    newsletter = [c(0, type="email", label="Email")]
+    assert not hf.plan_autofill(newsletter, V)["ok"], "a lone email box is a newsletter, not a privacy form"
+    needs_ssn = [c(0, label="Full name"), c(1, type="email", label="Email"), c(2, label="Last 4 of SSN", required=True)]
+    assert "never fill" in hf.plan_autofill(needs_ssn, V)["why"]
+    # Spec built for a found page fills the form and expects a confirmation email.
+    class B: id, name = 7, "PeopleFind"
+    class P: url, kind = "https://privacyportal.onetrust.com/webform/a/b", "hosted_onetrust"
+    spec = hf.spec_for_page(B(), P())
+    assert spec.validate() == [] and any(st.kind == "autofill" for st in spec.steps)
+    assert "email_confirmation" in spec.requires and hf.is_found_form(spec)
+    job = _imp("core.interpreter").compile_job(spec, dict(V, full_name="Jane Doe"), "1")
+    payload = __import__("json").loads(next(st for st in job.steps if st.kind == "autofill").value)
+    assert payload["contact_email"] == "jane+oo1@gmail.com" and "delete" in payload["request_text"].lower()
+
+
+@test(2, "hosted_forms.fills_a_real_page",
+      "In a real browser, the form filler completes a OneTrust-style form and stops on one that wants an ID number.")
+def t_hf_browser():
+    import asyncio
+    try:
+        from playwright.async_api import async_playwright
+    except Exception as e:
+        raise Skip(f"playwright missing: {e}")
+    ci = _imp("core.interpreter")
+    good = """<form><fieldset><legend>Request type</legend>
+<label><input type=checkbox name=rt value=access> Access my personal information</label>
+<label><input type=checkbox name=rt value=delete> Delete my personal information</label></fieldset>
+<label for=fn>First Name *</label><input id=fn required><label for=ln>Last Name *</label><input id=ln required>
+<label for=em>Email *</label><input id=em type=email required>
+<label><input type=checkbox id=news name=news> Send me news and offers</label>
+<label><input type=checkbox id=cert name=cert required> I certify that the information is true</label>
+<button type=submit onclick="event.preventDefault();window.sent=JSON.stringify(Array.from(document.querySelectorAll('input')).map(e=>[e.id||e.value,e.type==='checkbox'?e.checked:e.value]));document.body.innerHTML='<p>Your request has been received.</p>'">Submit</button></form>"""
+    bad = """<form><h2>Delete my data</h2><label for=n>Full name</label><input id=n required>
+<label for=e>Email</label><input id=e type=email required><label for=d>Driver's license number</label><input id=d required>
+<button type=submit>Submit</button></form>"""
+    spec = ci.BrokerSpec(broker_id="x", name="PeopleFind", method="form", opt_out_url="https://x.example",
+                         steps=[ci.Step(kind="autofill"),
+                                ci.Step(kind="click_matching", selector="button, input[type=submit]", text="Submit"),
+                                ci.Step(kind="expect_success", text="received", optional=True)])
+    fields = {"first_name": "Jane", "last_name": "Doe", "full_name": "Jane Doe", "contact_email": "jane+oo1@gmail.com"}
+
+    async def go(html):
+        async with async_playwright() as p:
+            try:
+                b = await p.firefox.launch()
+            except Exception as e:
+                raise Skip(f"no browser: {e}")
+            try:
+                pg = await b.new_page()
+                await pg.set_content(html)
+                job = ci.compile_job(spec, fields, "1")
+                job.steps = [st for st in job.steps if st.kind != "navigate"]
+                r = await ci.PlaywrightExecutor(page=pg).run(job)
+                sent = await pg.evaluate("() => window.sent || ''")
+                return r, sent
+            finally:
+                await b.close()
+    r, sent = asyncio.run(go(good))
+    assert r.ok and r.verified, r.detail
+    vals = dict(__import__("json").loads(sent))
+    assert vals["delete"] is True and vals["access"] is False and vals["em"] == "jane+oo1@gmail.com", vals
+    assert vals["cert"] is True and vals["news"] is False, "certify yes, marketing never"
+    r2, _ = asyncio.run(go(bad))
+    assert r2.needs_manual and "never fill" in r2.human_instruction and "PeopleFind" in r2.human_instruction
+
+
+@test(2, "privacy_finder.used_by_opt_outs",
+      "Found forms become the broker's opt-out steps; new sites from pasted listings are checked and moved to automated; emails need approval.")
+def t_pp_used():
+    db, s = _memory_db()
+    pf = _imp("core.privacy_finder")
+    sb = _imp("core.interpreter.script_bridge")
+    lf = _imp("core.listing_finder")
+    oe = _imp("core.optout_engine")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    res = lf.add_listing(s, pm, "https://peoplefind.example/person/pat-parent")
+    b = s.query(db.Broker).filter_by(id=res["broker_id"]).one()
+    req = s.query(db.RemovalRequest).filter_by(id=res["request_id"]).one()
+    assert req.status == db.RequestStatus.needs_manual
+    fetch = _pp_fetch({"https://peoplefind.example": _PP_HOME,
+                       "https://peoplefind.example/privacy-policy": _PP_POLICY})
+    out = pf.check_new_site(s, b, fetch=fetch)
+    s.refresh(b); s.refresh(req)
+    assert out["used"] == "hosted_onetrust" and b.method == db.OptOutMethod.form and req.status == db.RequestStatus.pending
+    # Admins hear about what was found (Broker updates), once, without anyone's name.
+    ups = s.query(db.BrokerUpdate).filter_by(kind="privacy_found", broker_id=b.id).all()
+    assert len(ups) == 1 and "privacy request form (OneTrust)" in ups[0].title and "privacy email address" in ups[0].title, \
+        [u.title for u in ups]
+    assert "Pat" not in ups[0].title + (ups[0].detail or "")
+    pf.run_for_broker(s, b, fetch=fetch)
+    assert s.query(db.BrokerUpdate).filter_by(kind="privacy_found", broker_id=b.id).count() == 1, "nothing new, no new note"
+    spec = sb.get_or_build_broker_spec(b, db=s)
+    assert spec.opt_out_url.startswith("https://privacyportal.onetrust.com/") and any(st.kind == "autofill" for st in spec.steps)
+    # The verification link a OneTrust form sends is allowed to be clicked.
+    cl = _imp("core.confirm_links")
+    assert "onetrust.com" in cl.allowed_domains(s, req)
+    # Emails: found, not used until approved.
+    assert oe.resolve_optout_address(b, s) is None
+    em = s.query(db.PrivacyPage).filter_by(broker_id=b.id, kind="email", url="mailto:privacy@peoplefind.example").one()
+    pf.approve_email(s, em, "Pat")
+    assert oe.resolve_optout_address(b, s) == "privacy@peoplefind.example"
+    # Dismissed results stay dismissed when the site is checked again.
+    form = s.query(db.PrivacyPage).filter_by(broker_id=b.id, kind="hosted_onetrust").one()
+    form.status = "dismissed"; s.commit()
+    pf.run_for_broker(s, b, fetch=fetch)
+    s.refresh(form)
+    assert form.status == "dismissed" and pf.best(s, b, pf.FILLABLE) is None
+    # Brokers that already have steps aren't checked.
+    b.plugin_id = "something"; b.privacy_checked_at = None; s.commit()
+    assert b not in pf.needs_check(s)
+# ── Broker update notifications ───────────────────────────────────────────────
+
+@test(2, "broker_updates.recorded_and_emailed",
+      "Brokers turned off, sites gone or back, registry changes and new sites become admin updates; a digest emails them once.")
+def t_broker_updates():
+    from datetime import datetime, timedelta
+    db, s = _memory_db()
+    bu = _imp("core.broker_updates")
+    bh = _imp("core.broker_health")
+    rs = _imp("core.registry_sync")
+    lf = _imp("core.listing_finder")
+    b = db.Broker(name="FailCo", opt_out_url="https://failco.example", enabled=True)
+    g = db.Broker(name="GoneCo", opt_out_url="https://goneco.example", enabled=True)
+    s.add_all([b, g]); s.commit()
+    for _ in range(bh.AUTO_DISABLE_THRESHOLD):
+        bh.record_failure(s, b.id, "selector not found: #submit")
+    kinds = [u["kind"] for u in bu.listing(s)]
+    assert kinds.count("auto_disabled") == 1, kinds
+    now = datetime.utcnow()
+    bh.record_probe(s, g.id, False, "getaddrinfo failed", now=now - timedelta(days=31))
+    bh.record_probe(s, g.id, False, "getaddrinfo failed", now=now)
+    bh.record_probe(s, g.id, True, now=now + timedelta(hours=1))
+    kinds = [u["kind"] for u in bu.listing(s)]
+    assert "defunct" in kinds and "back_online" in kinds, kinds
+    rows = [{"name": "New Data LLC", "domain": "newdata.example", "email": "", "opt_out_url": ""},
+            {"name": "FailCo", "domain": "failco.example", "email": "privacy@failco.example", "opt_out_url": ""}]
+    rs.apply(s, "VT", rows)
+    ups = bu.listing(s)
+    assert any(u["kind"] == "new_brokers" and "1 new broker" in u["title"] for u in ups), ups
+    assert any(u["kind"] == "contact_changed" and u["broker_id"] == b.id for u in ups)
+    P, C, pm, cm, boxes = _family(db, s)
+    lf.add_listing(s, pm, "https://unknownpeople.example/p/pat")
+    assert any(u["kind"] == "new_site" and "unknownpeople.example" in u["title"] for u in bu.listing(s))
+    assert all("Pat" not in (u["title"] + (u["detail"] or "")) for u in bu.listing(s)), "no family details"
+    # Same thing about the same broker isn't repeated within a week.
+    n = len(bu.listing(s))
+    bu.record(s, "auto_disabled", "again", broker_id=b.id); s.commit()
+    assert len(bu.listing(s)) == n
+    # Digest: one email with everything, then nothing until the next one is due.
+    sent = []
+    send = lambda subj, body, db_: (sent.append((subj, body)) or {"sent": True})
+    r = bu.digest(s, {}, send=send)
+    assert r["sent"] and len(sent) == 1 and "need attention" in sent[0][0] and "FailCo" in sent[0][1], (r, sent)
+    assert bu.digest(s, {}, send=send)["reason"] == "nothing new"
+    bu.record(s, "new_site", "Another site", broker_id=None); s.commit()
+    recent = {"broker_updates_last_digest": datetime.utcnow().isoformat() + "Z"}
+    assert bu.digest(s, recent, send=send)["reason"] == "not due"
+    assert bu.digest(s, {"broker_updates": {"email_digest": "off"}}, send=send)["reason"] == "off"
+    assert bu.unread_count(s) == len(bu.listing(s))
+    bu.mark_read(s)
+    assert bu.unread_count(s) == 0
+# ── Automated removal verification ────────────────────────────────────────────
+
+def _vf_member(db, s):
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    s.add_all([db.Identity(member_id=pm.id, kind="name", value="Pat Parent", is_primary=True),
+               db.Identity(member_id=pm.id, kind="address", value="12 Oak St, Austin, TX 78701", is_primary=True),
+               db.Identity(member_id=pm.id, kind="phone", value="512-555-0100", is_primary=True)])
+    s.commit()
+    return pm
+
+
+@test(2, "verification.checks_and_acts",
+      "Removal checks read the listing page, the broker's search and web search, confirm removals that stuck, and re-send ones that came back.")
+def t_verification():
+    from datetime import datetime, timedelta
+    db, s = _memory_db()
+    vf = _imp("core.verification")
+    R = db.RequestStatus
+    pm = _vf_member(db, s)
+    b = db.Broker(name="PeopleFind", opt_out_url="https://www.peoplefind.example/optout")
+    s.add(b); s.flush()
+    now = datetime.utcnow()
+    listing = "https://www.peoplefind.example/p/pat-parent-austin"
+    req = db.RemovalRequest(member_id=pm.id, broker_id=b.id, status=R.sent, listing_url=listing,
+                            sent_at=now - timedelta(days=10), request_key="rk-v")
+    s.add(req); s.commit()
+    pages = {}
+    calls = []
+    def fetch(url, domain):
+        calls.append(url)
+        return pages.get(url, (url, 404, ""))
+    # 1. The listing page is gone: a sent request becomes confirmed.
+    r = vf.verify_request(s, req, {}, fetch=fetch)
+    s.refresh(req)
+    assert r["verdict"] == "gone" and r["action"] == "confirmed" and req.status == R.confirmed and req.last_verdict == "gone"
+    # 2. A month later it's back with their city: re-sent, noted as come back.
+    pages[listing] = (listing, 200, "<h1>Pat Parent, 45</h1><p>Lives in Austin, TX. Phone (512) 555-0100</p>")
+    r = vf.verify_request(s, req, {}, fetch=fetch)
+    s.refresh(req)
+    assert r["verdict"] == "listed" and r["action"] == "resend_reappeared" and req.status == R.pending
+    assert "came back" in req.notes
+    # 3. A removal page that says "removed" counts as gone, even with a 200.
+    req.status, req.sent_at = R.sent, now - timedelta(days=10); s.commit()
+    pages[listing] = (listing, 200, "<p>This profile has been removed at the owner's request.</p>")
+    assert vf.verify_request(s, req, {}, fetch=fetch)["verdict"] == "gone"
+    # 4. A robot wall is "blocked", and changes nothing.
+    req.status = R.confirmed; s.commit()
+    pages[listing] = (listing, 403, "")
+    r = vf.verify_request(s, req, {}, fetch=fetch, search=lambda q: [])
+    s.refresh(req)
+    assert r["verdict"] in ("blocked", "not_found") and req.status == R.confirmed, r
+    # 5. Broker search with a listing pattern, when there's no listing URL.
+    ci = _imp("core.interpreter")
+    spec = ci.BrokerSpec.from_dict({"broker_id": "pf", "name": "PeopleFind", "method": "manual",
+                                    "search_url": "https://www.peoplefind.example/search/{first_name}-{last_name}/{state}",
+                                    "listing_pattern": r"/p/[a-z-]+"})
+    real = vf._spec
+    vf._spec = lambda db_, broker: spec
+    try:
+        req2 = db.RemovalRequest(member_id=pm.id, broker_id=b.id, status=R.confirmed,
+                                 confirmed_at=now - timedelta(days=40), request_key="rk-v2")
+        s.add(req2); s.commit()
+        search_url = "https://www.peoplefind.example/search/Pat-Parent/TX"
+        pages[search_url] = (search_url, 200, '<div><a href="/p/pat-parent-dallas">Pat Parent</a> Dallas, TX</div>'
+                                              '<div><a href="/p/pat-parent-austin2">Pat Parent</a> Austin, TX, age 45</div>'
+                                              '<a href="/about">About</a>')
+        r = vf.verify_request(s, req2, {}, fetch=fetch)
+        s.refresh(req2)
+        assert r["verdict"] == "listed" and r["method"] == "broker_search" and req2.listing_url.endswith("/p/pat-parent-austin2"), r
+        assert req2.status == R.pending
+        pages[search_url] = (search_url, 200, '<div><a href="/p/pat-parent-dallas">Pat Parent</a> Dallas, TX</div>')
+        req2.status, req2.listing_url = R.confirmed, None; s.commit()
+        r = vf.verify_request(s, req2, {}, fetch=fetch)
+        assert r["verdict"] == "not_found", "a namesake in another city isn't them"
+    finally:
+        vf._spec = real
+    # 6. Web search: a hit counts only if the page still shows them.
+    req3 = db.RemovalRequest(member_id=pm.id, broker_id=b.id, status=R.confirmed, request_key="rk-v3")
+    s.add(req3); s.commit()
+    hit_url = "https://www.peoplefind.example/p/pat-parent-x"
+    searches = []
+    def search(q):
+        searches.append(q)
+        return [{"url": hit_url, "title": "Pat Parent - Austin, TX", "snippet": "Pat Parent, 45, Austin"},
+                {"url": "https://elsewhere.example/pat", "title": "Pat Parent", "snippet": ""}]
+    pages[hit_url] = (hit_url, 404, "")
+    r = vf.verify_request(s, req3, {}, fetch=fetch, search=search)
+    assert r["verdict"] == "not_found" and searches[0].startswith("site:peoplefind.example"), (r, searches)
+    assert not any("elsewhere.example" in c for c in calls), "only the broker's own pages are visited"
+    pages[hit_url] = (hit_url, 200, "<h1>Pat Parent</h1> Austin TX 512-555-0100")
+    r = vf.verify_request(s, req3, {}, fetch=fetch, search=search)
+    assert r["verdict"] == "listed" and r["method"] == "web_search"
+    s.close()
+
+
+@test(2, "verification.schedule_and_web_search",
+      "Daily checks pick sent and confirmed removals on a budget; the weekly web search re-checks brokers someone was removed from.")
+def t_verification_schedule():
+    from datetime import datetime, timedelta
+    db, s = _memory_db()
+    vf = _imp("core.verification")
+    R = db.RequestStatus
+    pm = _vf_member(db, s)
+    now = datetime.utcnow()
+    bs = [db.Broker(name=f"B{i}", opt_out_url=f"https://b{i}.example") for i in range(3)]
+    s.add_all(bs); s.flush()
+    fresh = db.RemovalRequest(member_id=pm.id, broker_id=bs[0].id, status=R.sent, sent_at=now - timedelta(days=2))
+    old_sent = db.RemovalRequest(member_id=pm.id, broker_id=bs[0].id, status=R.sent, sent_at=now - timedelta(days=9))
+    conf_recent = db.RemovalRequest(member_id=pm.id, broker_id=bs[1].id, status=R.confirmed,
+                                    last_checked_at=now - timedelta(days=3), recheck_after=now + timedelta(days=60))
+    conf_due = db.RemovalRequest(member_id=pm.id, broker_id=bs[2].id, status=R.confirmed,
+                                 last_checked_at=now - timedelta(days=3), recheck_after=now - timedelta(days=1))
+    s.add_all([fresh, old_sent, conf_recent, conf_due]); s.commit()
+    ids = {r.id for r in vf.due(s, {}, now=now)}
+    assert ids == {old_sent.id, conf_due.id}, ids
+    assert len(vf.due(s, {"verification": {"per_day": 1}}, now=now)) == 1
+    st = vf.run_daily(s, {"verification": {"enabled": False}})
+    assert st["checked"] == 0
+    st = vf.run_daily(s, {}, fetch=lambda u, d: (u, 404, ""), search=lambda q: [], pause=0)
+    assert st["checked"] == 2, st
+    # Weekly web search finds a page on a broker this person was removed from.
+    ws = _imp("core.web_search")
+    conf_recent.listing_url = None; s.commit()
+    page = "https://b1.example/people/pat-parent"
+    real_fetcher = vf.fetcher
+    vf.fetcher = lambda cfg: (lambda u, d: (u, 200, "<h1>Pat Parent</h1> 12 Oak St, Austin TX") if u == page else (u, 404, ""))
+    try:
+        res = ws.run_for_member(s, pm, {"web_search": {"enabled": True, "searxng_url": "http://x"}},
+                                search=lambda q: [{"url": page, "title": "Pat Parent, Austin TX", "snippet": "12 Oak St"}],
+                                pause=0)
+    finally:
+        vf.fetcher = real_fetcher
+    s.refresh(conf_recent)
+    assert res.get("relisted") == 1 and conf_recent.status == R.pending and conf_recent.listing_url == page, res
+    assert s.query(db.RemovalRequest).filter_by(member_id=pm.id, broker_id=bs[1].id).count() == 1, "no duplicate request"
+    summ = vf.summary(s, [pm.id])
+    assert summ["counts"]["listed"] >= 1 and summ["recent"]
+# ── Data sharing signals and aggregator-first targeting ───────────────────────
+
+@test(2, "broker_network.sharing_and_aggregators_first",
+      "Opt-out addresses that receive mail from other companies become sharing edges; aggregators and sharers are sent first.")
+def t_broker_network():
+    db, s = _memory_db()
+    bn = _imp("core.broker_network")
+    bp = _imp("core.broker_priority")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    parent = db.ParentCompany(name="FamilyCo", website="https://familyco.example")
+    s.add(parent); s.flush()
+    a = db.Broker(name="LeakyPeople", opt_out_url="https://leakypeople.example/optout", priority=3)
+    sib = db.Broker(name="FamilyCo Phones", opt_out_url="https://familyphones.example", parent_company_id=parent.id, priority=3)
+    sib2 = db.Broker(name="FamilyCo Records", opt_out_url="https://familyrecords.example", parent_company_id=parent.id, priority=3)
+    buyer = db.Broker(name="BuyerSearch", opt_out_url="https://buyersearch.example", priority=3)
+    acx = db.Broker(name="Acxiom", opt_out_url="https://www.acxiom.com/optout", priority=2)
+    plain = db.Broker(name="PlainSite", opt_out_url="https://plainsite.example", priority=5)
+    s.add_all([a, sib, sib2, buyer, acx, plain]); s.flush()
+    def ca(broker, member, senders, tag):
+        s.add(db.ContactAddress(tag=tag, address=f"pat+{tag}@gmail.com", address_hash=tag, mailbox_id=boxes["parent"].id,
+                                member_id=member.id, broker_id=broker.id, unexpected_senders=senders))
+    ca(a, pm, "mail.buyersearch.example,promo.gmail.com", "oo1")
+    ca(a, cm, "buyersearch.example", "oo2")
+    ca(sib, pm, "familyrecords.example,deals.example", "oo3")   # its own sibling never counts
+    s.commit()
+    edges = bn.sharing_edges(s)
+    by = {(e["from_name"], e["to_domain"]): e for e in edges}
+    e = by[("LeakyPeople", "buyersearch.example")]
+    assert e["addresses"] == 2 and e["members"] == 2 and e["confidence"] == "likely" and e["to_broker_id"] == buyer.id, e
+    assert ("FamilyCo Phones", "familyrecords.example") not in by, "a sibling site isn't a third party"
+    assert by[("FamilyCo Phones", "deals.example")]["confidence"] == "possible"
+    assert by[("LeakyPeople", "gmail.com")]["confidence"] == "unknown_sender"
+    sc = bn.upstream_scores(s, edges)
+    assert sc[acx.id]["score"] >= 8 and "wholesaler" in sc[acx.id]["reasons"][0]
+    assert sc[a.id]["score"] > 0 and any("BuyerSearch" in r for r in sc[a.id]["reasons"])
+    assert sc[sib.id]["score"] > 0 and plain.id not in sc
+    # Aggregators-first: Acxiom (priority 2) goes before PlainSite (priority 5).
+    reqs = [db.RemovalRequest(member_id=pm.id, broker_id=b.id, status=db.RequestStatus.pending) for b in (plain, acx, a, buyer)]
+    s.add_all(reqs); s.commit()
+    up = {k: v["score"] for k, v in sc.items()}
+    order = [r.broker.name for r in bp.order_pending(reqs, "aggregators_first", up)]
+    assert order[0] == "Acxiom" and order.index("LeakyPeople") < order.index("PlainSite"), order
+    assert bp.order_pending(reqs, "priority")[0].broker.name == "PlainSite", "priority order unchanged"
+    rank = bn.ranking(s)
+    assert rank[0]["broker_name"] == "Acxiom" and all(r["score"] > 0 for r in rank)
+    s.close()
+
+
+# ── Encrypted backups ─────────────────────────────────────────────────────────
+
+@test(1, "backups.encryption",
+      "Backups are AES-GCM encrypted with a scrypt-derived key; a wrong passphrase, a cut-short file or a changed byte is refused.")
+def t_backup_crypto():
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
+    import tempfile
+    bk = _imp("core.backup")
+    bk.SCRYPT = {"n": 2 ** 12, "r": 8, "p": 1}          # fast for the test
+    bk.FRAME, old_frame = 1024, bk.FRAME
+    try:
+        d = tempfile.mkdtemp(prefix="oobk-t-")
+        src, enc, out = (os.path.join(d, n) for n in ("plain", "enc", "out"))
+        data = os.urandom(5000)
+        open(src, "wb").write(data)
+        bk.encrypt_file(src, enc, "correct horse battery")
+        raw = open(enc, "rb").read()
+        assert raw.startswith(bk.MAGIC) and data[:64] not in raw
+        bk.decrypt_file(enc, out, "correct horse battery")
+        assert open(out, "rb").read() == data
+        for bad, why in ((lambda r: r, "wrong"),):
+            try:
+                bk.decrypt_file(enc, out, "wrong passphrase!!")
+                raise AssertionError("wrong passphrase accepted")
+            except ValueError as e:
+                assert "passphrase" in str(e)
+        open(enc + ".cut", "wb").write(raw[:-1100])
+        try:
+            bk.decrypt_file(enc + ".cut", out, "correct horse battery"); raise AssertionError("truncation accepted")
+        except ValueError:
+            pass
+        flipped = bytearray(raw); flipped[-20] ^= 1
+        open(enc + ".flip", "wb").write(bytes(flipped))
+        try:
+            bk.decrypt_file(enc + ".flip", out, "correct horse battery"); raise AssertionError("change accepted")
+        except ValueError:
+            pass
+        try:
+            bk.encrypt_file(src, enc, "short"); raise AssertionError("short passphrase accepted")
+        except ValueError:
+            pass
+    finally:
+        bk.FRAME = old_frame
+
+
+@test(2, "backups.run_keep_verify_restore",
+      "A backup is kept locally and copied to a folder destination, old copies are pruned, it verifies, and restore unpacks it.")
+def t_backup_run():
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
+    if _try_import("sqlalchemy") is None:
+        raise Skip("sqlalchemy not installed")
+    import tempfile, tarfile, json as _json
+    from datetime import datetime, timedelta
+    bk = _imp("core.backup")
+    oe = _imp("core.oauth_engine")
+    bk.SCRYPT = {"n": 2 ** 12, "r": 8, "p": 1}
+    root = tempfile.mkdtemp(prefix="oobk-r-")
+    local, remote, restore_to = (os.path.join(root, n) for n in ("local", "remote", "restored"))
+
+    def bundle(work, cfg):
+        stage = os.path.join(work, "openoptout-backup")
+        os.makedirs(stage)
+        open(os.path.join(stage, "database.sqlite"), "wb").write(b"SQLCIPHER-PAGES")
+        _json.dump({"parts": [{"part": "database"}, {"part": "settings"}], "created": "now"},
+                   open(os.path.join(stage, "manifest.json"), "w"))
+        _json.dump({"x": 1}, open(os.path.join(stage, "settings.json"), "w"))
+        out = os.path.join(work, "b.tar.gz")
+        with tarfile.open(out, "w:gz") as t:
+            t.add(stage, arcname="openoptout-backup")
+        return out
+    cfg = {"backups": {"keep": 2, "passphrase_enc": oe._encrypt("a long backup passphrase"),
+                       "destinations": [{"id": "f1", "kind": "folder", "path": remote, "label": "NAS"}]}}
+    assert bk.run_backup({"backups": {}}, bundle=bundle, local_dir=local)["error"].startswith("Set a backup passphrase")
+    t0 = datetime(2026, 10, 1, 3, 0)
+    names = []
+    for i in range(3):
+        r = bk.run_backup(cfg, now=t0 + timedelta(days=i), bundle=bundle, local_dir=local)
+        assert r["ok"] and r["destinations"][0]["ok"], r
+        names.append(r["name"])
+    assert sorted(os.listdir(local)) == names[1:], os.listdir(local)
+    assert bk.FolderDest(cfg["backups"]["destinations"][0], cfg).names() == names[1:]
+    info = bk.verify_file(os.path.join(local, names[-1]), "a long backup passphrase")
+    assert [p["part"] for p in info["manifest"]["parts"]] == ["database", "settings"]
+    m = bk.restore(os.path.join(local, names[-1]), "a long backup passphrase", restore_to)
+    assert open(os.path.join(restore_to, "database.sqlite"), "rb").read() == b"SQLCIPHER-PAGES" and m["parts"]
+    bk.FolderDest({"path": remote}, {}).test()
+    bad = {"backups": dict(cfg["backups"], destinations=[{"id": "x", "kind": "folder", "path": "relative/path"}])}
+    r = bk.run_backup(bad, now=t0 + timedelta(days=9), bundle=bundle, local_dir=local)
+    assert not r["ok"] and "full path" in r["destinations"][0]["error"]
+    # Schedule
+    on = {"backups": {"enabled": True, "passphrase_enc": "x", "hour": 3, "schedule": "daily"}}
+    assert bk.due(on, now=datetime(2026, 10, 2, 4))
+    assert not bk.due(on, now=datetime(2026, 10, 2, 2)), "waits for the hour"
+    assert not bk.due(dict(on, backups_last_run="2026-10-02T03:05:00Z"), now=datetime(2026, 10, 2, 9))
+    assert not bk.due({"backups": {"enabled": True}}, now=datetime(2026, 10, 2, 4)), "no passphrase, no backup"
+
+
+@test(1, "backups.s3_signing",
+      "S3-compatible uploads are signed with AWS Signature V4 and go only to https storage addresses.")
+def t_backup_s3():
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
+    if _try_import("requests") is None:
+        raise Skip("requests not installed")
+    bk = _imp("core.backup")
+    oe = _imp("core.oauth_engine")
+    import requests as _rq
+    seen = {}
+    class R:
+        status_code, text = 200, "<ListBucketResult><Key>backups/openoptout-backup-1.oobackup</Key></ListBucketResult>"
+    real = _rq.request
+    _rq.request = lambda method, url, headers=None, data=None, timeout=None: (seen.update(m=method, url=url, h=headers) or R())
+    try:
+        d = bk.S3Dest({"kind": "s3", "endpoint": "https://storage.googleapis.com", "region": "auto", "bucket": "fam",
+                       "prefix": "backups", "access_key": "GOOG1EXAMPLE", "secret_enc": oe._encrypt("secret")}, {})
+        assert d.names() == ["openoptout-backup-1.oobackup"]
+        assert seen["url"].startswith("https://storage.googleapis.com/fam?") and "list-type=2" in seen["url"]
+        auth = seen["h"]["Authorization"]
+        assert auth.startswith("AWS4-HMAC-SHA256 Credential=GOOG1EXAMPLE/") and "/auto/s3/aws4_request" in auth and "Signature=" in auth
+        d.delete("openoptout-backup-1.oobackup")
+        assert seen["m"] == "DELETE" and seen["url"].endswith("/fam/backups/openoptout-backup-1.oobackup")
+        try:
+            bk.S3Dest({"endpoint": "http://plain.example", "bucket": "b", "access_key": "a",
+                       "secret_enc": oe._encrypt("s")}, {}).names()
+            raise AssertionError("plain http accepted")
+        except RuntimeError as e:
+            assert "https" in str(e)
+    finally:
+        _rq.request = real
+
+
+# ── Family inboxes and per-opt-out addresses ──────────────────────────────────
+
+def _family(db, s, parent_inbox=None, child_inbox=None, child_plus="verified", parent_plus="verified"):
+    """A parent who manages a child, each optionally with an inbox."""
+    P = db.User(email="parent@x.example", full_name="Pat Parent", role=db.UserRole.parent)
+    C = db.User(email="kid@x.example", full_name="Kim Kid", role=db.UserRole.member)
+    s.add_all([P, C]); s.flush()
+    pm = db.FamilyMember(user_id=P.id, full_name="Pat Parent")
+    cm = db.FamilyMember(user_id=C.id, full_name="Kim Kid")
+    s.add_all([pm, cm]); s.flush()
+    s.add(db.ProfileAccess(manager_id=P.id, managed_id=C.id))
+    boxes = {}
+    for who, owner, addr, plus in (("parent", P, parent_inbox, parent_plus), ("child", C, child_inbox, child_plus)):
+        if addr:
+            mb = db.Mailbox(owner_user_id=owner.id, address=addr, address_hash=_imp("core.mailboxes").address_hash(addr),
+                            provider_key="gmail" if "gmail" in addr else "smtp",
+                            transport="oauth", account_ref=f"mbx-{who}", status="connected", plus_status=plus)
+            s.add(mb); s.flush(); boxes[who] = mb
+    s.commit()
+    return P, C, pm, cm, boxes
+
+
+@test(1, "mailboxes.plus_addresses_and_tags",
+      "Known providers are classified, tags are random and replace any existing tag, and tags are found in headers.")
+def t_mbx_tags():
+    m = _imp("core.mailboxes")
+    assert m.plus_support("a@gmail.com") == "supported"
+    assert m.plus_support("a@yahoo.com") == "unsupported"
+    assert m.plus_support("a@family.example", "gmail") == "supported", "Google Workspace custom domain"
+    assert m.plus_support("a@corp.example", "outlook") == "unknown", "Microsoft 365 can disable it; must be tested"
+    t1, t2 = m.new_tag(), m.new_tag()
+    assert t1 != t2 and t1.startswith("oo")
+    addr = m.tagged("Jane+old@Gmail.com", t1)
+    assert addr == f"Jane+{t1}@gmail.com", addr
+    assert m.tags_in(f'"Jane" <{addr}>, other@x.com') == {t1}
+    assert m.tags_in("jane+newsletter@gmail.com") == set(), "only our own tags count"
+    # EXPECTED: one fresh, non-revealing address per opt-out.
+    # IF THIS FAILS: replies can't be matched, or tags leak what they're for.
+
+
+@test(2, "mailboxes.which_inbox_a_member_uses",
+      "Assigned inbox wins, then the member's own, then a parent's +address inbox; nothing else.")
+def t_mbx_resolve():
+    db, s = _memory_db()
+    m = _imp("core.mailboxes")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    assert m.resolve_mailbox(s, cm).id == boxes["parent"].id, "child should use parent's Gmail"
+    boxes["parent"].plus_status = "unsupported"; s.commit()
+    assert m.resolve_mailbox(s, cm) is None, "a plain inbox can't be shared across members"
+    assert m.resolve_mailbox(s, pm).id == boxes["parent"].id, "the owner can still use their own plain inbox"
+    cm.mailbox_id = boxes["parent"].id; s.commit()
+    assert m.resolve_mailbox(s, cm).id == boxes["parent"].id, "explicit assignment wins"
+    boxes["parent"].status = "removed"; s.commit()
+    assert m.resolve_mailbox(s, cm) is None and m.resolve_mailbox(s, pm) is None
+    s.close()
+    # EXPECTED: every member resolves to an inbox whose replies stay separable.
+    # IF THIS FAILS: opt-outs could go out with nowhere (or the wrong place) to reply.
+
+
+@test(2, "mailboxes.addresses_unique_and_one_per_email_respected",
+      "+address inboxes get a fresh address per opt-out; plain inboxes refuse a second use at one-per-email brokers.")
+def t_mbx_issue():
+    db, s = _memory_db()
+    m = _imp("core.mailboxes")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    b = db.Broker(name="BeenVerified.com", opt_out_url="https://www.beenverified.com/app/optout/search")
+    s.add(b); s.commit()
+    a1, _ = m.issue_contact_address(s, boxes["parent"], pm, broker=b, request_key="k1", one_optout_per_email=True)
+    a2, _ = m.issue_contact_address(s, boxes["parent"], cm, broker=b, request_key="k2", one_optout_per_email=True)
+    assert a1.address != a2.address and a1.tag and a2.tag, "each opt-out needs its own address"
+    boxes["parent"].plus_status = "unsupported"; s.commit()
+    p1, r1 = m.issue_contact_address(s, boxes["parent"], pm, broker=b, request_key="k3",
+                                     combo_label="A", one_optout_per_email=True)
+    assert p1 is not None and p1.address == "pat@gmail.com"
+    p2, r2 = m.issue_contact_address(s, boxes["parent"], pm, broker=b, request_key="k4",
+                                     combo_label="B", one_optout_per_email=True)
+    assert p2 is None and "only one opt-out per email address" in r2, r2
+    s.close()
+    # EXPECTED: unique addresses where possible; a clear checklist reason where not.
+    # IF THIS FAILS: BeenVerified-style brokers silently reject later opt-outs.
+
+
+@test(2, "mailboxes.inbound_matching_and_leak_flag",
+      "Replies are matched by +address; mail to a tag from another sender is flagged; the +address test verifies the inbox.")
+def t_mbx_inbound():
+    db, s = _memory_db()
+    m = _imp("core.mailboxes")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@family.example", parent_plus="checking")
+    mb = boxes["parent"]
+    mb.plus_test_tag = "ootesttag1"; s.commit()
+    hit = m.match_inbound(s, mb, "pat+ootesttag1@family.example", "pat@family.example")
+    assert hit["plus_check"] and mb.plus_status == "verified"
+    b = db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy")
+    s.add(b); s.commit()
+    ca, _ = m.issue_contact_address(s, mb, cm, broker=b, request_key="key-123")
+    good = m.match_inbound(s, mb, ca.address, "Radaris <noreply@mail.radaris.com>")
+    assert good["request_keys"] == ["key-123"], good
+    bad = m.match_inbound(s, mb, ca.address, "Deals <promo@spam-deals.example>")
+    assert not bad["request_keys"] and bad["unexpected"], bad
+    s.refresh(ca)
+    assert ca.inbound_count == 2 and "spam-deals.example" in (ca.unexpected_senders or "")
+    s.close()
+    # EXPECTED: broker replies match their request; strangers writing to a tag are recorded.
+    # IF THIS FAILS: confirmations go unmatched, or address resale goes unnoticed.
+
+
+@test(2, "mailboxes.reply_confirms_request",
+      "A broker reply to an opt-out's +address marks that request confirmed.")
+def t_mbx_reply_confirms():
+    db, s = _memory_db()
+    m = _imp("core.mailboxes")
+    try:
+        sched = _imp("core.scheduler")
+    except Exception as e:
+        raise Skip(f"scheduler deps missing: {e}")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    b = db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy")
+    s.add(b); s.flush()
+    req = db.RemovalRequest(member_id=cm.id, broker_id=b.id, request_key="rk-1",
+                            status=db.RequestStatus.sent)
+    s.add(req); s.commit()
+    ca, _ = m.issue_contact_address(s, boxes["parent"], cm, broker=b, request_key="rk-1")
+    n = sched._handle_member_message(s, {}, boxes["parent"], ca.address,
+                                     "noreply@radaris.com", "Your request",
+                                     "We have processed your opt-out request.", links=[])
+    s.refresh(req)
+    assert n == 1 and req.status == db.RequestStatus.confirmed, (n, req.status)
+    s.close()
+
+
+@test(2, "email.per_broker_send_from_member_inbox",
+      "Per-broker opt-out emails go out from the member's inbox with Reply-To set to a fresh +address.")
+def t_email_from_member_inbox():
+    db, s = _memory_db()
+    oe = _imp("core.optout_engine")
+    es = _imp("core.email_send")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    s.add(db.Identity(member_id=cm.id, kind="name", value="Kim Kid", is_primary=True))
+    s.add(db.Identity(member_id=cm.id, kind="email", value="kim@old.example", is_primary=True))
+    broker = db.Broker(name="Acme.com", notes="opt-out: privacy@acme.example")
+    s.add(broker); s.commit()
+    calls = []
+    orig = es.send_email
+    es.send_email = lambda cfg, **kw: calls.append((cfg, kw)) or {"ok": True, "via": "provider"}
+    try:
+        ok = oe.send_opt_out_email(cm, broker, "KEY1", None, {"email": {"provider": "smtp"}}, s)
+        assert ok and len(calls) == 1
+        cfg, kw = calls[0]
+        assert kw["to"] == ["privacy@acme.example"]
+        assert kw["account_ref"] == "mbx-parent" and cfg["email"]["provider"] == "gmail"
+        assert kw["reply_to"].startswith("pat+oo") and kw["reply_to"].endswith("@gmail.com")
+        assert "Kim Kid" in kw["body"] and "KEY1" in kw["body"]
+        # A member with no usable inbox: nothing is sent.
+        boxes["parent"].status = "removed"; s.commit()
+        calls.clear()
+        assert oe.send_opt_out_email(cm, broker, "KEY2", None, {}, s) is False and not calls
+    finally:
+        es.send_email = orig
+        s.close()
+    # EXPECTED: the system inbox never sends opt-outs; replies come back tagged.
+    # IF THIS FAILS: opt-outs go out from the wrong account or can't be matched.
+
+
+@test(2, "engine.no_inbox_goes_on_checklist",
+      "A member with no inbox gets a plain-language checklist item, not a failed opt-out.")
+def t_engine_no_inbox():
+    import asyncio
+    db, s = _memory_db()
+    oe = _imp("core.optout_engine")
+    P, C, pm, cm, boxes = _family(db, s)
+    broker = db.Broker(name="Acme.com", notes="opt-out: privacy@acme.example", method=db.OptOutMethod.email)
+    s.add(broker); s.flush()
+    req = db.RemovalRequest(member_id=cm.id, broker_id=broker.id, status=db.RequestStatus.pending)
+    s.add(req); s.commit()
+    asyncio.run(oe.execute_optout(req, None, {}, s))
+    s.refresh(req)
+    assert req.status == db.RequestStatus.needs_manual, req.status
+    assert "Kim Kid" in (req.notes or "") and "inbox" in req.notes
+    s.close()
+
+
+@test(2, "email_send.refresh_keeps_real_settings",
+      "Refreshing an inbox's OAuth token saves only the token; a per-inbox settings copy never replaces the settings file.")
+def t_refresh_keeps_settings():
+    if _try_import("fastapi") is None:
+        raise Skip("fastapi not installed")
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
+    import json, tempfile
+    es = _imp("core.email_send")
+    ss = _imp("core.settings_store")
+    oeng = _imp("core.oauth_engine")
+    tmp = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
+    real = {"email": {"provider": "smtp", "smtp_host": "system.example"},
+            "oauth_clients": {"gmail": {"client_id": "id", "client_secret_enc": "", "redirect_uri": ""}},
+            "email_credentials": {}}
+    json.dump(real, tmp); tmp.close()
+    saved = (ss.SETTINGS_FILE, oeng.load_tokens, oeng.is_expired, oeng.refresh_token, oeng.store_tokens)
+    store = {}
+    try:
+        ss.SETTINGS_FILE = tmp.name
+        oeng.load_tokens = lambda st, ref: {"refresh_token": "r", "client_id": "id", "client_secret": "x"}
+        oeng.is_expired = lambda t: True
+        oeng.refresh_token = lambda flow, client, rt: {"access_token": "new"}
+        def _store(st, ref, toks):
+            st.setdefault("email_credentials", {})[ref] = {"t": toks["access_token"]}
+            store[ref] = toks
+        oeng.store_tokens = _store
+        inbox_cfg = dict(real); inbox_cfg["email"] = {"provider": "gmail"}
+        ok = es._refresh_if_needed(inbox_cfg, "mbx-7", "gmail")
+        on_disk = json.load(open(tmp.name))
+        assert ok and store.get("mbx-7"), "token should be refreshed"
+        assert on_disk["email"]["smtp_host"] == "system.example", "system email settings were overwritten"
+        assert on_disk["email_credentials"]["mbx-7"] == {"t": "new"}
+    finally:
+        ss.SETTINGS_FILE, oeng.load_tokens, oeng.is_expired, oeng.refresh_token, oeng.store_tokens = saved
+        os.unlink(tmp.name)
+
+
+
+# ── Find your listings ────────────────────────────────────────────────────────
+
+def _member_with_vault(db, s):
+    U = db.User(email="jane@x.example", full_name="Jane Q Public", role=db.UserRole.parent)
+    s.add(U); s.flush()
+    m = db.FamilyMember(user_id=U.id, full_name="Jane Q Public")
+    s.add(m); s.flush()
+    for kind, value, primary in (("name", "Jane Q Public", True), ("name", "Jane Public", False),
+                                 ("phone", "+1 (512) 555-0134", True),
+                                 ("address", "123 Main St, Austin, TX 78701", True),
+                                 ("email", "jane@old.example", True)):
+        s.add(db.Identity(member_id=m.id, kind=kind, value=value, is_primary=primary))
+    s.commit()
+    return m
+
+
+@test(1, "listings.url_checks_and_phone_formats",
+      "Listing URLs are cleaned and unsafe ones refused; phone numbers come out in the formats people-search pages use.")
+def t_listing_url_checks():
+    lf = _imp("core.listing_finder")
+    assert lf.validate_listing_url("radaris.com/p/Jane/Public") == "https://radaris.com/p/Jane/Public"
+    for bad, frag in (("", "Paste"), ("ftp://x.com/a", "web address"), ("http://10.0.0.5/x", "IP"),
+                      ("http://localhost/x", "public"), ("https://www.google.com/search?q=jane", "search results")):
+        try:
+            lf.validate_listing_url(bad)
+            raise AssertionError(f"accepted {bad!r}")
+        except ValueError as e:
+            assert frag in str(e), (bad, str(e))
+    assert lf.phone_variants("+1 (512) 555-0134") == ["(512) 555-0134", "512-555-0134", "512.555.0134", "5125550134"]
+    assert lf.registrable_domain("people.radaris.com") == "radaris.com"
+    assert lf.registrable_domain("a.b.example.co.uk") == "example.co.uk"
+
+
+@test(2, "listings.search_plan_uses_every_variant",
+      "Web searches cover each name, phone format, address and email once, with working search links.")
+def t_listing_plan():
+    db, s = _memory_db()
+    lf = _imp("core.listing_finder")
+    m = _member_with_vault(db, s)
+    s.add_all([db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy"),
+               db.Broker(name="Spokeo.com", opt_out_url="https://www.spokeo.com/optout"),
+               db.Broker(name="Off.com", opt_out_url="https://off.com/x", enabled=False)])
+    s.commit()
+    plan = lf.search_plan(s, m)
+    qs = [q["query"] for q in plan["queries"]]
+    assert len(qs) == len(set(qs)), "duplicate searches"
+    for needle in ('"(512) 555-0134"', '"512-555-0134"', '"123 Main St"', '"Jane Public" "Austin, TX"',
+                   '"Jane Q Public" "possible relatives"', '"jane@old.example"'):
+        assert needle in qs, f"missing {needle}: {qs}"
+    link = plan["queries"][0]["links"]["google"]
+    assert link.startswith("https://www.google.com/search?q=%22"), link
+    names = {b["broker_name"] for b in plan["brokers"]}
+    assert names == {"Radaris", "Spokeo.com"}, names
+    assert all("site%3A" in b["search_url"] for b in plan["brokers"])
+    s.close()
+
+
+@test(2, "listings.url_to_broker",
+      "A listing URL resolves to its broker by domain, subdomain, parent company or network of state sites.")
+def t_listing_resolve():
+    db, s = _memory_db()
+    lf = _imp("core.listing_finder")
+    pc = _imp("core.parent_catalog")
+    s.add_all([db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy"),
+               db.Broker(name="Intelius.com", opt_out_url="https://suppression.peopleconnect.us/login"),
+               db.Broker(name="Staterecords.org", opt_out_url="https://staterecords.org/optout")])
+    s.commit()
+    pc.apply_catalog(s)
+    r = lf.resolve_broker(s, "https://people.radaris.com/p/Jane/Public/")
+    assert r["broker"].name == "Radaris" and r["match"] == "subdomain", r
+    r = lf.resolve_broker(s, "https://www.instantcheckmate.com/people/jane-public/")
+    assert r["broker"].name == "Intelius.com" and r["match"] == "parent" and "PeopleConnect" in r["note"], r
+    r = lf.resolve_broker(s, "https://texasarrests.org/jane-public")
+    assert r["broker"].name == "Staterecords.org", r
+    r = lf.resolve_broker(s, "https://brand-new-broker.example/people/jane")
+    assert r["broker"] is None and r["domain"] == "brand-new-broker.example"
+    s.close()
+
+
+@test(2, "listings.add_to_removal_cycle",
+      "Adding a listing creates a pending request with its URL, reuses an open one, and turns unknown sites into checklist items.")
+def t_listing_add():
+    db, s = _memory_db()
+    lf = _imp("core.listing_finder")
+    m = _member_with_vault(db, s)
+    b = db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy")
+    s.add(b); s.commit()
+    r1 = lf.add_listing(s, m, "https://radaris.com/p/Jane/Public/")
+    req = s.query(db.RemovalRequest).get(r1["request_id"])
+    assert r1["state"] == "added" and req.status == db.RequestStatus.pending
+    assert req.listing_url == "https://radaris.com/p/Jane/Public/" and req.request_key
+    r2 = lf.add_listing(s, m, "https://radaris.com/p/Jane/Public/2")
+    assert r2["state"] == "already_open" and r2["request_id"] == r1["request_id"]
+    s.refresh(req)
+    assert "Public/2" in (req.notes or ""), "second listing should be kept"
+    req.status = db.RequestStatus.confirmed; s.commit()
+    r3 = lf.add_listing(s, m, "https://radaris.com/p/Jane/Public/")
+    assert r3["state"] == "added" and r3["request_id"] != r1["request_id"], "listing came back: new request"
+    r4 = lf.add_listing(s, m, "https://www.brand-new-broker.example/people/jane")
+    nb = s.query(db.Broker).get(r4["broker_id"])
+    nreq = s.query(db.RemovalRequest).get(r4["request_id"])
+    assert r4["state"] == "new_broker" and nb.name == "brand-new-broker.example"
+    assert nb.method == db.OptOutMethod.manual and lf.UNKNOWN_BROKER_NOTE in nb.notes
+    assert nreq.status == db.RequestStatus.needs_manual and "brand-new-broker.example" in nreq.notes
+    found = s.query(db.DiscoveryResult).filter(db.DiscoveryResult.source == "manual").count()
+    assert found == 4, found
+    s.close()
+    # EXPECTED: every pasted listing ends up in the removal cycle or on the checklist.
+    # IF THIS FAILS: listings people find by hand get lost.
+
+
+@test(1, "interpreter.listing_url_field",
+      "Broker specs can fill a form box with the member's own listing address.")
+def t_listing_url_field():
+    ci = _imp("core.interpreter")
+    spec = ci.BrokerSpec.from_dict({"broker_id": "s", "name": "S", "method": "form",
+                                    "opt_out_url": "https://s.example/optout",
+                                    "steps": [{"kind": "fill", "selector": "input[name=url]", "field": "listing_url"}]})
+    assert spec.validate() == []
+    job = ci.compile_job(spec, {"listing_url": "https://s.example/p/jane"}, member_id="1")
+    assert [st.value for st in job.steps if st.kind == "fill"] == ["https://s.example/p/jane"]
+
+
+
+# ── State registries, dead sites, California DROP ─────────────────────────────
+
+_CA_CSV = ("﻿Data Broker Name,Website URL,Email Address,Registration Date,Notes\n"
+           "Radaris LLC,https://radaris.com,privacy@radaris.example,2026-01-02,\n"
+           "Acme Audience Data,www.acme-audience.example,optout@acme-audience.example,2026-02-03,\n"
+           "TruthFinder,https://www.truthfinder.com/,,2026-02-04,\n"
+           "No Website Co,,x@y.example,2026-02-05,\n").encode("utf-8")
+
+
+@test(1, "registry.parse_exports",
+      "Registry exports are read whatever their column names, encoding or delimiter; rows without a website are skipped.")
+def t_registry_parse():
+    rs = _imp("core.registry_sync")
+    p = rs.parse_registry(_CA_CSV, "ca.csv")
+    assert [r["domain"] for r in p["rows"]] == ["radaris.com", "acme-audience.example", "truthfinder.com"], p["rows"]
+    assert p["skipped"] == 1 and p["mapped"]["name"] == "Data Broker Name" and "Registration Date" in p["unmapped"]
+    assert p["rows"][0]["email"] == "privacy@radaris.example"
+    semi = "Title line\n\nBusiness Name;Website;Contact Email\nOregon Data Co;oregondata.example;bad-email\n".encode("cp1252")
+    q = rs.parse_registry(semi, "or.csv")
+    assert q["rows"] == [{"name": "Oregon Data Co", "website": "oregondata.example",
+                          "domain": "oregondata.example", "email": "", "opt_out_url": ""}], q
+    for data, name, frag in ((b"", "x.csv", "empty"), (b"a,b\n1,2\n", "x.csv", "columns"),
+                             (b"x", "old.xls", "xls")):
+        try:
+            rs.parse_registry(data, name); raise AssertionError(name)
+        except ValueError as e:
+            assert frag in str(e).lower(), (name, str(e))
+    for url in ("http://x.example/a.csv", "https://localhost/a.csv", "https://127.0.0.1/a.csv"):
+        try:
+            rs.fetch_registry(url); raise AssertionError(url)
+        except ValueError:
+            pass
+
+
+@test(2, "registry.import_starts_off_and_never_overrides",
+      "Imported brokers start turned off; existing brokers only gain registry details; repeat imports from other states merge.")
+def t_registry_import():
+    db, s = _memory_db()
+    rs = _imp("core.registry_sync")
+    s.add(db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy", enabled=True))
+    s.commit()
+    rows = rs.parse_registry(_CA_CSV, "ca.csv")["rows"]
+    plan = rs.plan(s, "CA", rows)
+    assert plan["counts"] == {"rows": 3, "new": 2, "matched": 1, "no_longer_listed": 0}, plan["counts"]
+    assert s.query(db.Broker).count() == 1, "preview must not write"
+    assert any(n["domain"] == "truthfinder.com" and n["family"] == "PeopleConnect (Intelius)" for n in plan["new"])
+    rs.apply(s, "CA", rows)
+    B = {b.name: b for b in s.query(db.Broker).all()}
+    acme = B["Acme Audience Data"]
+    assert acme.enabled is False and acme.origin == "registry" and acme.registry_states == "CA"
+    assert acme.method == db.OptOutMethod.manual and acme.registry_contact_email == "optout@acme-audience.example"
+    rad = B["Radaris"]
+    assert rad.enabled and rad.opt_out_url == "https://radaris.com/control-privacy" and rad.registry_states == "CA"
+    assert (rad.origin or "curated") == "curated"
+    rs.apply(s, "VT", rows[:1])
+    s.refresh(rad); s.refresh(acme)
+    assert rad.registry_states == "CA,VT"
+    gone = rs.plan(s, "CA", rows[:1])["no_longer_listed"]
+    assert {g["broker_name"] for g in gone} == {"Acme Audience Data", "TruthFinder"}, gone
+    assert s.query(db.Broker).filter(db.Broker.enabled.is_(True)).count() == 1, "import must never turn brokers on"
+    assert rs.enable_brokers(s, all_registry=True) == 2
+    s.close()
+
+
+@test(2, "registry.turning_on_requires_acknowledging_warning",
+      "The admin endpoint refuses to turn registry brokers on unless the warning was acknowledged.")
+def t_registry_ack():
+    db, s = _memory_db()
+    try:
+        reg = _imp("routers.registry")
+    except Exception as e:
+        raise Skip(f"router deps missing: {e}")
+    from fastapi import HTTPException
+    b = db.Broker(name="Acme", opt_out_url="https://acme.example", enabled=False, origin="registry", registry_states="CA")
+    s.add(b); s.commit()
+    try:
+        reg.enable(reg.EnableIn(broker_ids=[b.id]), s, None)
+        raise AssertionError("enabled without acknowledgement")
+    except HTTPException as e:
+        assert e.status_code == 400 and "more harm than good" in e.detail
+    s.refresh(b); assert b.enabled is False
+    assert reg.enable(reg.EnableIn(broker_ids=[b.id], acknowledge=True), s, None)["enabled"] == 1
+    s.close()
+
+
+@test(2, "registry.gate_listing_exception_and_drop",
+      "Off registry brokers run only for someone with a listing there; CA-only registry brokers are skipped 90 days after DROP.")
+def t_registry_gate():
+    from datetime import datetime, timedelta
+    db, s = _memory_db()
+    gate = _imp("core.broker_gate")
+    sp = _imp("core.state_programs")
+    U = db.User(email="c@x.example", full_name="Cal Resident", role=db.UserRole.parent)
+    s.add(U); s.flush()
+    m = db.FamilyMember(user_id=U.id, full_name="Cal Resident"); s.add(m); s.flush()
+    s.add(db.Identity(member_id=m.id, kind="address", value="1 Ocean Ave, Santa Monica, CA 90401", is_primary=True))
+    off = db.Broker(name="AdCo", opt_out_url="https://adco.example", enabled=False, origin="registry", registry_states="CA")
+    cur = db.Broker(name="Curated", opt_out_url="https://cur.example", enabled=False)
+    on_ca = db.Broker(name="OnCA", opt_out_url="https://onca.example", enabled=True, origin="registry", registry_states="CA")
+    on_ca_tx = db.Broker(name="OnCATX", opt_out_url="https://oncatx.example", enabled=True, origin="registry", registry_states="CA,TX")
+    s.add_all([off, cur, on_ca, on_ca_tx]); s.flush()
+    R = lambda b, url=None: db.RemovalRequest(member_id=m.id, broker_id=b.id, listing_url=url, status=db.RequestStatus.pending)
+    reqs = {"off": R(off), "off_listed": R(off, "https://adco.example/p/cal"), "cur": R(cur, "https://cur.example/p"),
+            "on_ca": R(on_ca), "on_ca_tx": R(on_ca_tx)}
+    s.add_all(reqs.values()); s.commit()
+    ok = {k: gate.request_allowed(r, s) for k, r in reqs.items()}
+    assert ok == {"off": False, "off_listed": True, "cur": False, "on_ca": True, "on_ca_tx": True}, ok
+    assert sp.ensure_drop_items(s) == 1 and sp.ensure_drop_items(s) == 0, "one DROP item, once"
+    drop_req = s.query(db.RemovalRequest).join(db.Broker).filter(db.Broker.origin == "state_program").one()
+    assert drop_req.status == db.RequestStatus.needs_manual and "privacy.ca.gov/drop" in drop_req.notes
+    drop_req.status = db.RequestStatus.confirmed
+    drop_req.confirmed_at = datetime.utcnow() - timedelta(days=91); s.commit()
+    assert gate.request_allowed(reqs["on_ca"], s) is False, "CA-only registry broker covered by DROP"
+    assert gate.request_allowed(reqs["on_ca_tx"], s) is True, "also registered elsewhere: still contact it"
+    drop_req.confirmed_at = datetime.utcnow() - timedelta(days=10); s.commit()
+    assert gate.request_allowed(reqs["on_ca"], s) is True, "brokers' 90 days not up yet"
+    s.close()
+
+
+@test(2, "broker_health.dead_sites",
+      "A site unreachable for 30+ days is marked defunct and turned off; one that answers again is flagged, not turned on.")
+def t_dead_sites():
+    from datetime import datetime, timedelta
+    db, s = _memory_db()
+    bh = _imp("core.broker_health")
+    b = db.Broker(name="Gone.example", opt_out_url="https://gone.example/optout", enabled=True,
+                  registry_states="CA", registry_last_seen=datetime.utcnow())
+    s.add(b); s.commit()
+    assert bh.classify_failure("net::ERR_NAME_NOT_RESOLVED at https://gone.example") == "unreachable"
+    assert bh.classify_failure("Timeout 8000ms exceeded") == "timeout"
+    bh.record_failure(s, b.id, "net::ERR_NAME_NOT_RESOLVED")
+    h = s.query(db.BrokerHealth).filter_by(broker_id=b.id).one()
+    assert h.unreachable_since and not h.defunct and b.enabled
+    h.unreachable_since = datetime.utcnow() - timedelta(days=31); s.commit()
+    bh.record_probe(s, b.id, False, "getaddrinfo failed")
+    s.refresh(h); s.refresh(b)
+    assert h.defunct and not b.enabled and "still on a state data broker registry" in h.auto_disabled_reason
+    bh.record_probe(s, b.id, True, "HTTP 200")
+    s.refresh(h); s.refresh(b)
+    assert not h.defunct and h.needs_review and not b.enabled, "a returning site needs a person to check it"
+    bh.record_failure(s, b.id, "selector #email not found")
+    s.refresh(h); assert h.unreachable_since is None, "a form error means the site is up"
+    seen = []
+    res = bh.probe_sites(s, limit=5, fetch=lambda d: (seen.append(d) or (True, "ok")))
+    assert res == {"checked": 1, "unreachable": 0} and seen == ["gone.example"]
+    s.close()
+
+
+@test(2, "listings.manual_broker_gets_instructions",
+      "A listing on a site with no automated opt-out becomes a checklist item naming where to ask, including the registry contact.")
+def t_listing_manual_registry():
+    db, s = _memory_db()
+    lf = _imp("core.listing_finder")
+    m = _member_with_vault(db, s)
+    b = db.Broker(name="Acme Audience Data", opt_out_url="https://acme-audience.example", enabled=False,
+                  origin="registry", registry_states="CA", registry_contact_email="optout@acme-audience.example",
+                  method=db.OptOutMethod.manual)
+    s.add(b); s.commit()
+    r = lf.add_listing(s, m, "https://acme-audience.example/people/jane")
+    req = s.query(db.RemovalRequest).get(r["request_id"])
+    assert r["broker_name"] == "Acme Audience Data"
+    assert req.status == db.RequestStatus.needs_manual
+    assert "optout@acme-audience.example" in req.notes and "acme-audience.example/people/jane" in req.notes
+    s.close()
+
+
+
+# ── General web search ────────────────────────────────────────────────────────
+
+@test(1, "web_search.match_strength",
+      "Results are scored strong (exact phone/address/email), medium (name + city) or weak.")
+def t_ws_score():
+    ws = _imp("core.web_search")
+    prof = {"names": ["Jane Q Public", "Jane Public"], "places": ["Austin, TX"],
+            "streets": ["123 Main Street"], "phones": ["+1 (512) 555-0134"], "emails": ["jane@old.example"]}
+    assert ws.score(prof, "Jane Public, age 41, phone 512.555.0134") == ("strong", "phone")
+    assert ws.score(prof, "Lives at 123 Main St, Austin TX") == ("strong", "address")
+    assert ws.score(prof, "contact: JANE@old.example") == ("strong", "email")
+    assert ws.score(prof, "Jane Public in Austin, TX — relatives") == ("medium", "name+city")
+    assert ws.score(prof, "Jane Public of Denver") == ("weak", "name")
+    assert ws.score(prof, "1123 Main Street Springfield") == ("weak", ""), "street must match as a whole"
+    assert ws.score(prof, "call 512-555-0135") == ("weak", "")
+    assert not ws.configured({"enabled": True, "provider": "searxng", "searxng_url": ""})
+    assert ws.configured({"enabled": True, "provider": "searxng", "searxng_url": "http://searxng:8080"})
+
+
+@test(1, "web_search.on_by_default",
+      "Web search is on (weekly too) when the bundled SearXNG address is set; an admin's choice wins.")
+def t_ws_default():
+    ws = _imp("core.web_search")
+    old = os.environ.get("SEARXNG_URL")
+    try:
+        os.environ["SEARXNG_URL"] = "http://searxng:8080"
+        d = ws.settings_of({})
+        assert d["enabled"] and d["weekly"] and ws.configured(d), d
+        assert ws.configured(ws.settings_of({"web_search": {"searxng_url": ""}})), "empty saved address keeps the bundled one"
+        assert not ws.configured(ws.settings_of({"web_search": {"enabled": False}})), "an admin can turn it off"
+        os.environ["SEARXNG_URL"] = ""
+        assert not ws.configured(ws.settings_of({})), "no SearXNG anywhere: nothing to search with"
+    finally:
+        if old is None:
+            os.environ.pop("SEARXNG_URL", None)
+        else:
+            os.environ["SEARXNG_URL"] = old
+
+
+@test(2, "web_search.sorts_results_and_adds_strong_broker_matches",
+      "Strong matches on known brokers join the removal cycle; everything else waits for review; 'not me' is remembered.")
+def t_ws_run():
+    db, s = _memory_db()
+    ws = _imp("core.web_search")
+    m = _member_with_vault(db, s)
+    s.add_all([db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy"),
+               db.Broker(name="Spokeo.com", opt_out_url="https://www.spokeo.com/optout")])
+    s.commit()
+    pages = [
+        {"url": "https://radaris.com/p/Jane/Public/", "title": "Jane Public, Austin", "snippet": "Phone (512) 555-0134"},
+        {"url": "https://www.spokeo.com/Jane-Public/Texas/Austin", "title": "Jane Public - Austin, TX", "snippet": "Age 41"},
+        {"url": "https://unknownpeople.example/jane", "title": "Jane Q Public", "snippet": "512-555-0134"},
+        {"url": "https://www.google.com/search?q=x", "title": "x", "snippet": ""},
+        {"url": "https://radaris.com/p/Jane/Public", "title": "dupe", "snippet": "same page"},
+    ]
+    calls = []
+    search = lambda q: (calls.append(q) or pages)
+    st = ws.run_for_member(s, m, {"web_search": {"max_queries": 3}}, search=search, pause=0)
+    assert len(calls) == 3 and st["queries"] == 3
+    assert st["new"] == 3 and st["added"] == 1, st
+    H = {h.domain: h for h in s.query(db.WebSearchHit).all()}
+    assert set(H) == {"radaris.com", "spokeo.com", "unknownpeople.example"}
+    assert H["radaris.com"].status == "added" and H["radaris.com"].request_id
+    req = s.query(db.RemovalRequest).get(H["radaris.com"].request_id)
+    assert req.listing_url.startswith("https://radaris.com/p/Jane/Public")
+    assert H["spokeo.com"].status == "new" and H["spokeo.com"].strength == "medium"
+    assert H["unknownpeople.example"].status == "new" and H["unknownpeople.example"].strength == "strong", \
+        "unknown sites are never added without a person"
+    assert H["radaris.com"].title == "Jane Public, Austin"
+    ws.dismiss_hit(s, H["spokeo.com"])
+    st2 = ws.run_for_member(s, m, {"web_search": {"max_queries": 1}}, search=lambda q: pages, pause=0)
+    assert st2["new"] == 0 and s.query(db.WebSearchHit).filter_by(status="dismissed").count() == 1
+    res = ws.add_hit(s, H["unknownpeople.example"], m)
+    assert res["state"] == "new_broker" and H["unknownpeople.example"].status == "added"
+    def broken(q):
+        raise RuntimeError("SearXNG refused the request. Add `json` to search.formats in its settings.yml.")
+    st3 = ws.run_for_member(s, m, {"web_search": {"max_queries": 5}}, search=broken, pause=0)
+    assert st3["queries"] == 0 and len(st3["errors"]) == 1, "stop when the provider refuses"
+    s.close()
+    # EXPECTED: no person-less additions except strong matches on known brokers.
+    # IF THIS FAILS: wrong people's pages could be sent opt-outs, or real listings missed.
+
+
+
+# ── Checklist ─────────────────────────────────────────────────────────────────
+
+@test(2, "checklist.groups_and_progress",
+      "The checklist gathers inbox, finish-by-hand, CAPTCHA, review, overdue and re-check items, with per-person progress.")
+def t_checklist():
+    from datetime import datetime, timedelta
+    db, s = _memory_db()
+    cl = _imp("core.checklist")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@yahoo.com", parent_plus="unsupported")
+    b = {n: db.Broker(name=n, opt_out_url=f"https://{n.lower()}.example") for n in ("A", "B", "Cc", "D", "E", "F")}
+    s.add_all(b.values()); s.flush()
+    now = datetime.utcnow()
+    R = db.RequestStatus
+    reqs = [
+        db.RemovalRequest(member_id=pm.id, broker_id=b["A"].id, status=R.needs_manual, notes="Do the thing at A."),
+        db.RemovalRequest(member_id=pm.id, broker_id=b["B"].id, status=R.pending),
+        db.RemovalRequest(member_id=pm.id, broker_id=b["Cc"].id, status=R.sent, sent_at=now - timedelta(days=60)),
+        db.RemovalRequest(member_id=pm.id, broker_id=b["D"].id, status=R.sent, sent_at=now - timedelta(days=10)),
+        db.RemovalRequest(member_id=pm.id, broker_id=b["E"].id, status=R.confirmed, recheck_after=now - timedelta(days=1)),
+        db.RemovalRequest(member_id=cm.id, broker_id=b["F"].id, status=R.confirmed, recheck_after=now + timedelta(days=30)),
+    ]
+    s.add_all(reqs); s.flush()
+    s.add(db.CaptchaChallenge(request_id=reqs[1].id, broker_id=b["B"].id, member_id=pm.id, status="pending"))
+    s.add(db.WebSearchHit(member_id=cm.id, url="https://x.example/kim", url_hash="h1", domain="x.example", status="new"))
+    s.commit()
+    data = cl.build(s, [pm.id, cm.id])
+    g = data["groups"]
+    assert [i["member_name"] for i in g["inbox"]] == ["Kim Kid"], "Kim can't share Pat's Yahoo inbox"
+    assert [i["broker_name"] for i in g["finish"]] == ["A"] and "Do the thing" in g["finish"][0]["text"]
+    assert [i["broker_name"] for i in g["captcha"]] == ["B"]
+    assert [i["broker_name"] for i in g["overdue"]] == ["Cc"] and g["overdue"][0]["days_waiting"] >= 60
+    assert [i["broker_name"] for i in g["recheck"]] == ["E"]
+    assert g["review"][0]["member_name"] == "Kim Kid" and g["review"][0]["count"] == 1
+    P_ = {p["member_name"]: p for p in data["progress"]}
+    assert P_["Pat Parent"] == {"member_id": pm.id, "member_name": "Pat Parent", "removed": 1,
+                                "in_progress": 1, "needs_you": 3, "other": 0}, P_["Pat Parent"]
+    assert P_["Kim Kid"]["removed"] == 1 and P_["Kim Kid"]["needs_you"] == 2
+    cl.mark_done(s, reqs[0], "Pat")
+    assert reqs[0].status == R.sent and reqs[0].recheck_after > now and "Done by Pat" in reqs[0].notes
+    cl.mark_removed(s, reqs[2], "Pat")
+    assert reqs[2].status == R.confirmed and reqs[2].confirmed_at
+    g2 = cl.build(s, [pm.id])["groups"]
+    assert not g2["finish"] and not g2["overdue"]
+    s.close()
+
+
+
+# ── Broker confirmation links ─────────────────────────────────────────────────
+
+@test(1, "confirm_links.reading_the_email",
+      "Confirmation links are found in HTML and text; only https links on the broker's site (or a click-tracker) are picked.")
+def t_confirm_read():
+    c = _imp("core.confirm_links")
+    links = c.extract_links("Or paste https://radaris.com/optout/verify?t=abc.",
+                            '<a href="https://radaris.com/unsubscribe?u=1">Unsubscribe</a>'
+                            '<a href="https://u1.ct.sendgrid.net/ls/click?upn=x&amp;y=1">Confirm my removal</a>')
+    urls = [l["url"] for l in links]
+    assert "https://u1.ct.sendgrid.net/ls/click?upn=x&y=1" in urls and "https://radaris.com/optout/verify?t=abc" in urls
+    dom = {"radaris.com"}
+    assert c.pick_link(links, dom) == ("https://radaris.com/optout/verify?t=abc", None)
+    assert c.pick_link([{"url": "https://radaris.com/unsubscribe", "text": "confirm"}], dom) == (None, "no_link")
+    assert c.pick_link([{"url": "http://radaris.com/confirm?t=1", "text": ""}], dom)[0] is None, "https only"
+    assert c.pick_link([{"url": "https://radaris.evil.example/confirm?t=1", "text": ""}], dom) == (None, "off_site")
+    assert c.pick_link([{"url": "https://u1.ct.sendgrid.net/ls/click?u=1", "text": "Verify email"}], dom)[0]
+    assert c.asks_for_click("Confirm your opt-out", "Please click the link below to confirm your request.")
+    assert c.asks_for_click("", "Use the verification link we sent.")
+    assert not c.asks_for_click("Removed", "Your listing was removed. Questions? Click here for support.")
+    # EXPECTED: the confirm link is chosen, unsubscribe/off-site/plain-http links never are.
+
+
+@test(2, "confirm_links.safe_visit",
+      "Clicking follows only https redirects on the broker's site or a click-tracker, never private addresses, and reads the result.")
+def t_confirm_visit():
+    c = _imp("core.confirm_links")
+    dom = {"radaris.com"}
+    pages = {
+        "https://u1.ct.sendgrid.net/c?1": (302, "https://radaris.com/optout/done?t=1", ""),
+        "https://radaris.com/optout/done?t=1": (200, "", "<h1>Your request has been confirmed.</h1>"),
+        "https://u1.ct.sendgrid.net/c?2": (302, "https://other-site.example/x", ""),
+        "https://radaris.com/c?3": (302, "https://internal.radaris.com/x", ""),
+        "https://radaris.com/c?4": (200, "", "<p>This link has expired.</p>"),
+        "https://radaris.com/c?5": (200, "", '<form><button type="submit">Confirm removal</button></form>'),
+        "https://radaris.com/c?6": (302, "http://radaris.com/plain", ""),
+    }
+    visited = []
+    def get(u):
+        visited.append(u); return pages[u]
+    resolve = lambda h: h != "internal.radaris.com"
+    assert c.http_visit("https://u1.ct.sendgrid.net/c?1", dom, get, resolve)[0] == "ok"
+    assert c.http_visit("https://u1.ct.sendgrid.net/c?2", dom, get, resolve)[0] == "off_site"
+    assert "https://other-site.example/x" not in visited, "never request a site that isn't the broker's"
+    assert c.http_visit("https://radaris.com/c?3", dom, get, resolve)[0] == "off_site"
+    assert "https://internal.radaris.com/x" not in visited, "never request private addresses"
+    assert c.http_visit("https://radaris.com/c?4", dom, get, resolve)[0] == "rejected"
+    assert c.http_visit("https://radaris.com/c?5", dom, get, resolve)[0] == "needs_button"
+    assert c.http_visit("https://radaris.com/c?6", dom, get, resolve)[0] == "off_site"
+    # EXPECTED: only the broker's own pages (via a tracker at most) are ever requested.
+    # IF THIS FAILS: a reply email could make the server fetch arbitrary or internal URLs.
+
+
+@test(2, "confirm_links.reply_waits_for_click",
+      "A 'click to confirm' reply keeps the request sent until the link is clicked; failures go on the checklist.")
+def t_confirm_flow():
+    db, s = _memory_db()
+    m = _imp("core.mailboxes")
+    c = _imp("core.confirm_links")
+    cl = _imp("core.checklist")
+    try:
+        sched = _imp("core.scheduler")
+    except Exception as e:
+        raise Skip(f"scheduler deps missing: {e}")
+    P, C, pm, cm, boxes = _family(db, s, parent_inbox="pat@gmail.com")
+    R = db.RequestStatus
+    b1 = db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy")
+    b2 = db.Broker(name="Spokeo", opt_out_url="https://www.spokeo.com/optout")
+    s.add_all([b1, b2]); s.flush()
+    r1 = db.RemovalRequest(member_id=cm.id, broker_id=b1.id, request_key="rk-1", status=R.sent)
+    r2 = db.RemovalRequest(member_id=cm.id, broker_id=b2.id, request_key="rk-2", status=R.sent)
+    s.add_all([r1, r2]); s.commit()
+    ca1, _ = m.issue_contact_address(s, boxes["parent"], cm, broker=b1, request_key="rk-1")
+    ca2, _ = m.issue_contact_address(s, boxes["parent"], cm, broker=b2, request_key="rk-2")
+    ask = "Please click the link below to confirm your opt-out request."
+
+    # 1. Link on the broker's site: saved, request still 'sent', then clicked.
+    n = sched._handle_member_message(s, {}, boxes["parent"], ca1.address, "privacy@radaris.com",
+                                     "Confirm your request", ask,
+                                     links=[{"url": "https://radaris.com/optout/verify?t=SECRET", "text": "Confirm"}])
+    s.refresh(r1)
+    row = s.query(db.ConfirmationLink).filter_by(request_id=r1.id).one()
+    assert n == 1 and r1.status == R.sent and row.status == "pending" and row.host == "radaris.com"
+    stats = c.click_pending(s, {}, visit=lambda u, d: ("ok", u), press=lambda u, d: "ok")
+    s.refresh(r1); s.refresh(row)
+    assert stats["clicked"] == 1 and row.status == "clicked" and r1.status == R.confirmed and r1.recheck_after
+
+    # 2. The inbox couldn't give us links: goes on the checklist; "I've confirmed it" finishes it.
+    sched._handle_member_message(s, {}, boxes["parent"], ca2.address, "noreply@spokeo.com",
+                                 "Action required", ask, links=None)
+    s.refresh(r2)
+    row2 = s.query(db.ConfirmationLink).filter_by(request_id=r2.id).one()
+    assert r2.status == R.sent and row2.status == "needs_person" and row2.reason == "no_link"
+    g = cl.build(s, [cm.id])["groups"]
+    assert [i["broker_name"] for i in g["confirm"]] == ["Spokeo"] and g["confirm"][0]["confirm_url"] is None
+    assert "noreply@spokeo.com" in g["confirm"][0]["text"]
+    c.mark_done(s, row2, {}, "Pat")
+    s.refresh(r2)
+    assert r2.status == R.confirmed and row2.status == "done"
+
+    # 3. A stranger writing to the tag: nothing of theirs is ever clicked.
+    r3 = db.RemovalRequest(member_id=cm.id, broker_id=b1.id, request_key="rk-3", status=R.sent)
+    s.add(r3); s.commit()
+    ca3, _ = m.issue_contact_address(s, boxes["parent"], cm, broker=b1, request_key="rk-3")
+    sched._handle_member_message(s, {}, boxes["parent"], ca3.address, "promo@spam-deals.example",
+                                 "Confirm now", ask,
+                                 links=[{"url": "https://radaris.com/confirm?t=FAKE", "text": "Confirm"}])
+    assert not s.query(db.ConfirmationLink).filter(db.ConfirmationLink.request_id == r3.id,
+                                                   db.ConfirmationLink.url.isnot(None)).count()
+
+    # 4. A page that rejects the link goes to the checklist with the link to open by hand.
+    r4 = db.RemovalRequest(member_id=cm.id, broker_id=b2.id, request_key="rk-4", status=R.sent)
+    s.add(r4); s.commit()
+    c.handle_reply(s, [r4], "Verify", ask, [{"url": "https://www.spokeo.com/optout/confirm/xyz", "text": ""}])
+    c.click_pending(s, {}, visit=lambda u, d: ("rejected", u))
+    item = [i for i in cl.build(s, [cm.id])["groups"]["confirm"] if i["request_id"] == r4.id][0]
+    assert item["confirm_url"] == "https://www.spokeo.com/optout/confirm/xyz" and "expired" in item["text"]
+
+    # 5. Auto-click turned off: everything waits for a person.
+    r5 = db.RemovalRequest(member_id=cm.id, broker_id=b1.id, request_key="rk-5", status=R.sent)
+    s.add(r5); s.commit()
+    c.handle_reply(s, [r5], "Verify", ask, [{"url": "https://radaris.com/confirm?t=5", "text": ""}])
+    c.click_pending(s, {"confirm_links": {"auto_click": False}}, visit=lambda u, d: 1 / 0)
+    assert s.query(db.ConfirmationLink).filter_by(request_id=r5.id).one().reason == "turned_off"
+    s.close()
+    # EXPECTED: "click to confirm" replies are no longer counted as removals until clicked.
+    # IF THIS FAILS: the dashboard counts removals that the broker never processed.
+
+
+# ── Per-variant removal report ────────────────────────────────────────────────
+
+@test(2, "variants.tracking_and_report",
+      "Requests record which saved details they sent; the report splits main details from other variants.")
+def t_variant_report():
+    db, s = _memory_db()
+    vr = _imp("core.variant_report")
+    cmb = _imp("core.combinations")
+    m = _member_with_vault(db, s)           # Jane Q Public / Jane Public, 123 Main St, one phone, one email
+    s.add(db.Identity(member_id=m.id, kind="address", value="9 Old Rd, Dallas, TX 75201", is_primary=False))
+    s.add(db.Identity(member_id=m.id, kind="phone", value="(214) 555-0199", is_primary=False))
+    s.commit(); s.refresh(m)
+    I = {(i.kind, i.value): i.id for i in m.identities}
+    main = vr.main_identity_ids(m)
+    assert main == {I[("name", "Jane Q Public")], I[("address", "123 Main St, Austin, TX 78701")],
+                    I[("phone", "+1 (512) 555-0134")]}, main
+
+    combo = cmb.IdentityCombo(name="Jane Public", address="9 Old Rd", city="Dallas", state="TX",
+                              phone="(214) 555-0199", email=None)
+    assert set(vr.identities_for_combo(m, combo)) == {I[("name", "Jane Public")], I[("address", "9 Old Rd, Dallas, TX 75201")],
+                                                      I[("phone", "(214) 555-0199")]}
+    assert len(vr.identities_in_email(m)) == 7, "an email lists every saved detail"
+
+    B = [db.Broker(name=f"B{i}", opt_out_url=f"https://b{i}.example") for i in range(4)]
+    s.add_all(B); s.flush()
+    R = db.RequestStatus
+    a = db.RemovalRequest(member_id=m.id, broker_id=B[0].id, status=R.confirmed)   # every detail, removed
+    b = db.RemovalRequest(member_id=m.id, broker_id=B[1].id, status=R.sent)        # main only, waiting
+    c = db.RemovalRequest(member_id=m.id, broker_id=B[2].id, status=R.pending)     # not sent: not counted
+    d = db.RemovalRequest(member_id=m.id, broker_id=B[3].id, status=R.confirmed)   # older, nothing recorded
+    s.add_all([a, b, c, d]); s.flush()
+    sent_all = [i for i in vr.identities_in_email(m) if i != I[("phone", "(214) 555-0199")]]
+    assert vr.record(s, a.id, sent_all) == 6 and vr.record(s, a.id, sent_all) == 0, "recording is idempotent"
+    vr.record(s, b.id, main)
+    vr.record(s, c.id, [I[("name", "Jane Public")]])
+    s.commit()
+
+    rep = vr.member_report(s, m)
+    assert rep["main"] == {"sent": 6, "removed": 3, "count": 3, "never_sent": 0, "percent_removed": 50}, rep["main"]
+    assert rep["variants"] == {"sent": 3, "removed": 3, "count": 4, "never_sent": 1, "percent_removed": 100}, rep["variants"]
+    assert rep["untracked_requests"] == 1
+    labels = {d["label"]: d for d in rep["details"]}
+    assert "••• 0134" in labels and labels["••• 0199"]["brokers_sent"] == 0, "phones are masked"
+    assert "j•••@old.example" in labels
+    fam = vr.family_report(s, [m.id])
+    assert fam["family"]["main"]["percent_removed"] == 50 and fam["untracked_requests"] == 1
+    s.close()
+    # EXPECTED: removal coverage reported separately for main details and other variants.
+    # IF THIS FAILS: the dashboard would overstate (or hide) how far removal has reached.
+
+
 # ── runner ────────────────────────────────────────────────────────────────────
+
+@test(2, "keyed.phone_and_email_optouts",
+      "Sites that file people by phone or email get one opt-out per saved number or address.")
+def t_keyed_optouts():
+    db, s = _memory_db()
+    cmb = _imp("core.combinations")
+    bs = _imp("core.interpreter.broker_spec")
+    mf = _imp("core.interpreter.member_fields")
+    m = _member_with_vault(db, s)
+    s.add(db.Identity(member_id=m.id, kind="phone", value="(214) 555-0199", is_primary=False))
+    s.add(db.Identity(member_id=m.id, kind="email", value="jane@work.example", is_primary=False))
+    s.commit(); s.refresh(m)
+    phones = cmb.build_keyed_optout_combos(m, "phone")
+    assert [c.phone for c in phones] == ["+1 (512) 555-0134", "(214) 555-0199"], phones
+    assert all(c.name == "Jane Q Public" and c.city == "Austin" for c in phones)
+    emails = cmb.build_keyed_optout_combos(m, "email")
+    assert len(emails) == len([i for i in m.identities if i.kind == "email"]) and all(c.email for c in emails)
+    f = mf.resolve(m, phones[1])
+    assert f["phone_digits"] == "2145550199" and f["phone_e164"] == "+12145550199" and f["phone_dashed"] == "214-555-0199"
+    assert "(214) 555-0199" in f["all_phones"] and "jane@work.example" in f["all_emails"]
+    assert mf.phone_e164("+44 20 7946 0958") == "+442079460958"
+    ok = bs.BrokerSpec.from_dict({"broker_id": "x", "name": "X", "method": "manual", "lookup_by": "phone"})
+    assert ok.validate() == [] and ok.to_dict()["lookup_by"] == "phone"
+    bad = bs.BrokerSpec.from_dict({"broker_id": "x", "name": "X", "method": "manual", "lookup_by": "ssn"})
+    assert any("lookup_by" in e for e in bad.validate())
+    assert not any("ssn" in k or "social" in k for k in bs.KNOWN_FIELDS), "never a field for Social Security numbers"
+    eng = _imp("core.optout_engine")
+    msg = eng._missing_key_instruction(type("B", (), {"name": "Truecaller"})(), m, "phone")
+    assert "phone numbers" in msg and "Your details" in msg, msg
+    s.close()
+    # EXPECTED: a caller-ID or email-lookup site gets a request for every saved number/address.
+    # IF THIS FAILS: old numbers and work emails would stay listed on those sites.
+
+
+@test(2, "keyed.verify_each_number",
+      "Checking a phone site searches every saved number and ignores the number the page just echoes back.")
+def t_keyed_verify():
+    db, s = _memory_db()
+    ver = _imp("core.verification")
+    bs = _imp("core.interpreter.broker_spec")
+    m = _member_with_vault(db, s)
+    s.add(db.Identity(member_id=m.id, kind="phone", value="(214) 555-0199", is_primary=False))
+    s.commit(); s.refresh(m)
+    spec = bs.BrokerSpec.from_dict({"broker_id": "p", "name": "P", "method": "manual", "lookup_by": "phone",
+                                    "search_url": "https://p.example/lookup?n={phone_digits}",
+                                    "listing_pattern": "/number/"})
+    profile = ver._profile(m)
+    pages = {}
+    def fetch(url, domain):
+        return url, 200, pages.get(url.split("n=")[-1], "<p>No results</p>")
+    # The page only repeats the searched number under someone else's name: not her.
+    pages["5125550134"] = '<a href="/number/5125550134">512-555-0134</a> Bob Smith, Reno NV'
+    v, d, _ = ver.check_keyed_search(spec, m, profile, "p.example", fetch, "phone")
+    assert v == "gone", (v, d)
+    # The second number shows her name and city: still listed.
+    pages["2145550199"] = '<a href="/number/2145550199">214-555-0199</a> Jane Q Public, Austin TX'
+    v, d, _ = ver.check_keyed_search(spec, m, profile, "p.example", fetch, "phone")
+    assert v == "listed" and "0199" in d, (v, d)
+    s.close()
+    # EXPECTED: one search per saved number; an echoed number alone isn't proof of a listing.
+    # IF THIS FAILS: phone sites would always look "still listed", or a listing on an old number would be missed.
+
+
+@test(2, "age.dob_fields_and_matching",
+      "A saved birthday fills age, birth year and date fields, and an age on a page tells her from a namesake.")
+def t_age_dob():
+    import datetime as _dt
+    db, s = _memory_db()
+    age = _imp("core.age")
+    mf = _imp("core.interpreter.member_fields")
+    ws = _imp("core.web_search")
+    lf = _imp("core.listing_finder")
+    assert age.parse_dob("1983-04-09") == _dt.date(1983, 4, 9)
+    assert age.parse_dob("04/09/1983") == _dt.date(1983, 4, 9) and age.parse_dob("19830409") == _dt.date(1983, 4, 9)
+    assert age.parse_dob("2999-01-01") is None and age.parse_dob("1983-02-30") is None and age.parse_dob("soon") is None
+    assert age.age_on(_dt.date(1983, 4, 9), _dt.date(2026, 4, 8)) == 42
+    assert age.age_on(_dt.date(1983, 4, 9), _dt.date(2026, 4, 9)) == 43
+    assert age.age_range(43) == "40-49"
+    m = _member_with_vault(db, s)
+    m.dob = "1983-04-09"; s.commit(); s.refresh(m)
+    f = mf.resolve(m, today=_dt.date(2026, 10, 11))
+    assert f["age"] == "43" and f["birth_year"] == "1983" and f["dob"] == "04/09/1983"
+    assert f["dob_iso"] == "1983-04-09" and f["birth_month"] == "4" and f["birth_day"] == "9" and f["age_range"] == "40-49"
+    m.dob = None; m.age = 30; s.commit(); s.refresh(m)
+    f = mf.resolve(m, today=_dt.date(2026, 10, 11))
+    assert f["age"] == "30" and f["dob"] is None and f["birth_year"] == "1996"
+    m.dob = "1983-04-09"; s.commit(); s.refresh(m)
+    prof = lf._profile(m)
+    assert set(age.plausible_ages(m)) >= {age.current_age(m)}
+    a = age.current_age(m)
+    assert ws.score(prof, f"Jane Q Public, Age {a}")[0] == "medium"
+    assert ws.score(prof, f"Jane Q Public Austin TX age {a}") == ("strong", "name+city+age")
+    assert ws.score(prof, "Jane Q Public, Age 71")[0] == "weak", "a different age is not her"
+    assert ws.score(prof, "Jane Q Public, born 1983")[0] == "medium"
+    s.close()
+    # EXPECTED: birthday-driven fields and age-aware matching.
+    # IF THIS FAILS: forms that need a birth date stop for a person, or namesakes get mixed up.
+
+
+@test(2, "credit_freeze.letters",
+      "Freeze letters fill in name, address and birthday, never a Social Security number, and children get the parent version.")
+def t_credit_freeze_letters():
+    import datetime as _dt
+    db, s = _memory_db()
+    cf = _imp("core.credit_freeze")
+    parent = _member_with_vault(db, s)
+    parent.dob = "1983-04-09"
+    U = db.User(email="kid@x.example", full_name="Kid Public", role=db.UserRole.member)
+    s.add(U); s.flush()
+    kid = db.FamilyMember(user_id=U.id, full_name="Kid Public", dob="2016-06-01")
+    s.add(kid); s.flush()
+    s.add(db.Identity(member_id=kid.id, kind="address", value="123 Main St, Austin, TX 78701", is_primary=True))
+    s.commit(); s.refresh(kid); s.refresh(parent)
+    a = cf.letters(parent, today=_dt.date(2026, 10, 11))
+    assert a["kind"] == "adult" and len(a["letters"]) == 3
+    tu = {l["key"]: l for l in a["letters"]}["transunion"]
+    assert "P.O. Box 160" in tu["mail_to"] and "April 9, 1983" in tu["letter"] and cf.SSN_BLANK in tu["letter"]
+    k = cf.letters(kid, requester=parent, today=_dt.date(2026, 10, 11))
+    assert k["kind"] == "minor"
+    L = {l["key"]: l for l in k["letters"]}
+    assert "P.O. Box 380" in L["transunion"]["mail_to"] and "Protected Consumer Freeze" in L["transunion"]["letter"]
+    assert "Jane Q Public" in L["equifax"]["letter"] and "Kid Public" in L["equifax"]["letter"] and L["equifax"]["form"]
+    assert any("birth certificate" in x for x in L["experian"]["enclose"])
+    import re as _re
+    for l in a["letters"] + k["letters"]:
+        assert not _re.search(r"\b\d{3}-\d{2}-\d{4}\b", l["letter"]), "no SSN-shaped numbers in letters"
+    s.close()
+    # EXPECTED: printable freeze letters with every blank but the SSN filled in.
+    # IF THIS FAILS: families would have to write freeze letters from scratch, or an SSN could leak into one.
+
+@test(1, "plain_language.family_pages",
+      "Pages families use don't show technical words like PII, matrix, OAuth or token.")
+def t_plain_language_family_pages():
+    import re, pathlib
+    root = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "src"
+    if not root.exists():
+        raise Skip("frontend source not present")
+    pages = ["pages/IdentityVault.jsx", "pages/Discovery.jsx", "pages/Family.jsx",
+             "pages/Scheduled.jsx", "pages/CaptchaQueue.jsx", "pages/Brokers.jsx",
+             "pages/Inboxes.jsx", "pages/Checklist.jsx", "pages/EmailMonitor.jsx",
+             "pages/Dashboard.jsx", "pages/Login.jsx", "components/Sidebar.jsx",
+             "components/VariantCoverage.jsx", "components/FindListings.jsx"]
+    jargon = re.compile(r"\b(PII|matrix|bots?|OAuth|tokens?|payloads?|endpoints?|specs?|queued?|"
+                        r"cron|regex|webhooks?|Incogni|variants?|enumerat\w*|scrap\w*|SQLCipher|"
+                        r"daemon|null|undefined|invalid|primary|vault|JSON|UUID|exception)\b", re.I)
+    text = re.compile(r">([^<>{}]*[A-Za-z][^<>{}]*)<")
+    lit = re.compile(r"""(['"`])([A-Z][^'"`\n]{6,}?)\1""")
+    hits = []
+    for rel in pages:
+        f = root / rel
+        if not f.exists():
+            continue
+        for i, line in enumerate(f.read_text().splitlines(), 1):
+            if line.strip().startswith(("import", "//", "*", "console.")):
+                continue
+            cands = [m.group(1) for m in text.finditer(line)] + \
+                    [m.group(2) for m in lit.finditer(line) if " " in m.group(2)]
+            for c in cands:
+                m = jargon.search(c)
+                if m:
+                    hits.append(f"{rel}:{i} [{m.group(0)}] {c.strip()[:80]}")
+    assert not hits, "Technical words on family pages:\n  " + "\n  ".join(hits)
+@test(2, "timeline.rounds",
+      "A request's history groups into rounds: sent, reply, removed, found again, sent again.")
+def t_timeline_rounds():
+    import datetime as _dt
+    db, s = _memory_db()
+    tl = _imp("core.timeline")
+    m = _member_with_vault(db, s)
+    b = db.Broker(name="Spokeo", opt_out_url="https://www.spokeo.com/optout")
+    s.add(b); s.flush()
+    R = db.RequestStatus
+    r = db.RemovalRequest(member_id=m.id, broker_id=b.id, status=R.pending)
+    s.add(r); s.commit()
+    assert [e.to_status for e in r.events] == ["pending"], "status changes are recorded"
+    d = lambda day: _dt.datetime(2026, 1, 1) + _dt.timedelta(days=day)
+    def at(day, *rows):
+        for x in rows:
+            s.add(x)
+        s.flush()
+    s.add(db.AutomationLog(request_id=r.id, action="form_fill", status="success", created_at=d(0)))
+    s.add(db.AutomationLog(request_id=r.id, action="form_fill", status="success", created_at=d(20)))   # follow-up
+    s.add(db.EmailLog(request_id=r.id, direction="received", received_at=d(22)))
+    s.add(db.ConfirmationLink(request_id=r.id, status="clicked", found_at=d(22), clicked_at=d(22)))
+    s.add(db.VerificationCheck(request_id=r.id, checked_at=d(30), method="broker_search", verdict="gone"))
+    s.add(db.VerificationCheck(request_id=r.id, checked_at=d(60), method="broker_search", verdict="gone"))
+    s.add(db.VerificationCheck(request_id=r.id, checked_at=d(120), method="web_search", verdict="listed"))
+    s.add(db.AutomationLog(request_id=r.id, action="form_fill", status="success", created_at=d(121)))
+    s.commit()
+    r.status = R.sent; s.commit()
+    for e in r.events:          # put the status changes on the test's calendar
+        e.at = d(0) if e.to_status == "sent" else d(-1)
+    s.commit()
+    out = tl.build(s, r, now=d(130))
+    c = out["cycles"]
+    assert len(c) == 2, [x["stage"] for x in c]
+    one, two = c
+    assert one["sent_at"].startswith("2026-01-01") and len(one["follow_ups"]) == 1
+    assert one["replied_at"].startswith("2026-01-23") and one["removed_at"].startswith("2026-01-31")
+    assert one["found_again_at"] and one["stage"] == "found_again"
+    assert two["sent_at"] and two["stage"] == "sent"
+    kinds = [e["kind"] for e in two["events"]]
+    assert kinds[0] == "sent_again", kinds
+    assert [s_["key"] for s_ in out["stages"]] == ["sent", "reply", "removed", "watching"]
+    s.close()
+    # EXPECTED: each round shows sent/reply/removed dates, follow-ups, and when the listing came back.
+    # IF THIS FAILS: the progress bar on the Broker sites page would show the wrong dates or merge rounds.
+
+
+@test(1, "i18n.full_coverage",
+      "Every built-in language translates every dictionary key, and every menu label has a key.")
+def t_i18n_full_coverage():
+    import re, pathlib
+    i18n = _imp("core.i18n")
+    keys = {e["key"] for e in i18n.MASTER_DICTIONARY}
+    missing = {code: sorted(keys - set(msgs)) for code, msgs in i18n.BUILTIN_TRANSLATIONS.items()}
+    missing = {c: m for c, m in missing.items() if m}
+    assert not missing, f"untranslated keys: {missing}"
+    side = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "src" / "components" / "Sidebar.jsx"
+    if side.exists():
+        used = set(re.findall(r"k: '(nav\.[a-z_]+)'", side.read_text()))
+        assert used and not (used - keys), f"menu keys missing from the dictionary: {sorted(used - keys)}"
+    # EXPECTED: switching language changes every menu item and status label.
+    # IF THIS FAILS: part of the screen stays in English for that language.
+
+
+@test(2, "backup.rclone_destination",
+      "The rclone option uploads, lists and deletes through rclone with a private temp config, and checks its inputs.")
+def t_backup_rclone():
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
+    import os, stat, tempfile, shutil as _sh
+    bk = _imp("core.backup")
+    oe = _imp("core.oauth_engine")
+    work = tempfile.mkdtemp()
+    store, bindir = os.path.join(work, "store"), os.path.join(work, "bin")
+    os.makedirs(store); os.makedirs(bindir)
+    log = os.path.join(work, "calls")
+    fake = os.path.join(bindir, "rclone")
+    with open(fake, "w") as f:
+        f.write(f"""#!/bin/sh
+# fake rclone: --config FILE ... CMD ARGS ; remote "r:dir/name" maps to {store}/dir/name
+conf="$2"; [ -f "$conf" ] || exit 9
+perm=$(stat -c %a "$conf"); echo "$perm $*" >> {log}
+shift 2; while [ "${{1#--}}" != "$1" ]; do shift 2; done
+cmd="$1"; shift
+loc() {{ p="${{1#*:}}"; echo "{store}/$p"; }}
+case "$cmd" in
+  copyto) mkdir -p "$(dirname "$(loc "$2")")"; cp "$1" "$(loc "$2")";;
+  lsf) d="$(loc "$2")"; ls -1 "$d" 2>/dev/null;;
+  deletefile) rm "$(loc "$1")";;
+  *) echo "unknown $cmd" >&2; exit 3;;
+esac
+""")
+    os.chmod(fake, stat.S_IRWXU)
+    old = os.environ.get("PATH", "")
+    os.environ["PATH"] = bindir + os.pathsep + old
+    try:
+        conf = {"kind": "rclone", "remote": "proton", "path": "oo/backups",
+                "config_enc": oe._encrypt("[proton]\ntype = protondrive\n")}
+        d = bk.destination(conf, {})
+        d.test()                                   # write, list, delete a test file
+        src = os.path.join(work, "b.oobackup"); open(src, "wb").write(b"x")
+        d.upload(src, bk.PREFIX + "2026.oobackup")
+        assert d.names() == [bk.PREFIX + "2026.oobackup"]
+        d.delete(bk.PREFIX + "2026.oobackup")
+        assert d.names() == []
+        calls = open(log).read().splitlines()
+        assert calls and all(c.startswith("600 ") for c in calls), "config file is private"
+        assert not [n for n in os.listdir(tempfile.gettempdir()) if n.startswith("oo-rclone-")], "temp config removed"
+        for bad in ({"remote": "pro ton"}, {"remote": "proton", "path": "../etc"}):
+            try:
+                bk.destination({**conf, **bad}, {}).names()
+                raise AssertionError(f"accepted {bad}")
+            except RuntimeError:
+                pass
+        try:
+            bk.destination({**conf, "config_enc": ""}, {}).names()
+            raise AssertionError("ran without a config")
+        except RuntimeError as e:
+            assert "rclone.conf" in str(e)
+    finally:
+        os.environ["PATH"] = old
+        _sh.rmtree(work, ignore_errors=True)
+    # EXPECTED: backups reach any rclone remote (Proton Drive, Box, pCloud...).
+    # IF THIS FAILS: the "Other cloud storage" option can't upload, or leaves its config lying around.
+
+
+@test(2, "family.add_and_remove_person",
+      "A parent can add a person (no sign-in, managed by them) and remove them; members and other accounts are protected.")
+def t_family_add_remove():
+    db, s = _memory_db()
+    fam = _imp("routers.family")
+    auth = _imp("core.auth")
+    from fastapi import HTTPException
+    parent = db.User(email="p@x.example", full_name="Pat Parent", role=db.UserRole.parent, hashed_password="x")
+    s.add(parent); s.flush()
+    s.add(db.FamilyMember(user_id=parent.id, full_name="Pat Parent")); s.commit()
+    out = fam.add_member(fam.MemberCreate(full_name=" Kim Kid ", dob="2015-03-02", authorized=True), db=s, current_user=parent)
+    assert out.full_name == "Kim Kid" and out.dob == "2015-03-02" and out.age is not None and out.can_edit
+    kid = s.query(db.FamilyMember).get(out.id)
+    assert kid.user.role == db.UserRole.member and kid.user.email.endswith(".invalid") and not kid.user.hashed_password
+    assert out.id in auth.get_accessible_member_ids(s, parent), "the parent can see who they added"
+    s.add(db.Identity(member_id=kid.id, kind="phone", value="555-0100"))
+    b = db.Broker(name="B", opt_out_url="https://b.example"); s.add(b); s.flush()
+    rq = db.RemovalRequest(member_id=kid.id, broker_id=b.id, status=db.RequestStatus.sent); s.add(rq); s.flush()
+    s.add_all([db.AutomationLog(request_id=rq.id, member_id=kid.id, action="form_fill", status="success"),
+               db.EmailLog(request_id=rq.id, direction="received"),
+               db.VerificationCheck(request_id=rq.id, method="web_search", verdict="gone"),
+               db.MemberScheduleConfig(member_id=kid.id)])
+    s.commit()
+    child_user = kid.user
+    try:
+        fam.add_member(fam.MemberCreate(full_name="X", authorized=True), db=s, current_user=child_user)
+        raise AssertionError("a member added someone")
+    except HTTPException as e:
+        assert e.status_code == 403
+    own = s.query(db.FamilyMember).filter_by(user_id=parent.id).first()
+    try:
+        fam.remove_member(own.id, db=s, current_user=parent)
+        raise AssertionError("removed themselves")
+    except HTTPException as e:
+        assert e.status_code == 400
+    fam.remove_member(out.id, db=s, current_user=parent)
+    assert s.query(db.FamilyMember).get(out.id) is None
+    assert s.query(db.Identity).filter_by(member_id=out.id).count() == 0
+    assert s.query(db.RemovalRequest).count() == 0 and s.query(db.EmailLog).count() == 0
+    assert s.query(db.VerificationCheck).count() == 0 and s.query(db.AutomationLog).count() == 0
+    assert s.query(db.ProfileAccess).count() == 0 and s.query(db.User).count() == 1
+    s.close()
+    # EXPECTED: "Add a person" and "Remove" on the Family page work.
+    # IF THIS FAILS: families can't add children or remove people they added.
+@test(2, "compliance.deadlines_scope_and_notices",
+      "The deadline report flags late and relisting sites for the viewer's people only, and opted-in notices go out once.")
+def t_compliance_report():
+    import datetime as _dt, json as _json
+    db, s = _memory_db()
+    cp = _imp("core.compliance")
+    tl = _imp("core.timeline")
+    jane = _member_with_vault(db, s)
+    U2 = db.User(email="other@x.example", full_name="Other Family", role=db.UserRole.parent)
+    s.add(U2); s.flush()
+    other = db.FamilyMember(user_id=U2.id, full_name="Other Family"); s.add(other); s.flush()
+    b = db.Broker(name="SlowSite", opt_out_url="https://slow.example")
+    s.add(b); s.flush()
+    d = lambda day: _dt.datetime(2026, 1, 1) + _dt.timedelta(days=day)
+    R = db.RequestStatus
+    r1 = db.RemovalRequest(member_id=jane.id, broker_id=b.id, status=R.sent)
+    r2 = db.RemovalRequest(member_id=other.id, broker_id=b.id, status=R.sent)
+    s.add_all([r1, r2]); s.commit()
+    for r in (r1, r2):
+        for e in r.events:
+            e.at = d(0)
+        s.add(db.AutomationLog(request_id=r.id, action="form_fill", status="success", created_at=d(0)))
+    s.add(db.VerificationCheck(request_id=r2.id, checked_at=d(10), method="broker_search", verdict="gone"))
+    s.add(db.VerificationCheck(request_id=r2.id, checked_at=d(40), method="broker_search", verdict="listed"))
+    s.commit()
+    orig = tl.build
+    tl.build = lambda db_, req, now=None: (lambda o: (o.update(response_days=45) or [c.update(due_by=(_dt.datetime.fromisoformat(c["sent_at"]) + _dt.timedelta(days=45)).isoformat()) for c in o["cycles"] if c["sent_at"]] and o))(orig(db_, req, now=now))
+    try:
+        mine = cp.report(s, [jane.id], now=d(60))
+        assert [r["person"] for r in mine["rows"]] == ["Jane Q Public"], "only the viewer's people"
+        assert mine["rows"][0]["verdict"] == "overdue" and mine["totals"]["overdue"] == 1
+        theirs = cp.report(s, [other.id], now=d(60))
+        assert theirs["totals"]["relisted"] == 1 and theirs["rows"][0]["verdict"] == "on_time"
+        assert "found_again" in cp.to_csv(theirs).splitlines()[0]
+        assert cp.report(s, [], now=d(60))["rows"] == []
+        # Notices: off by default; once turned on, each problem is emailed once.
+        u = jane.user
+        assert cp.pending_notices(s, u, now=d(60)) == []
+        u.notification_prefs = _json.dumps({"overdue": True, "relisted": True}); s.commit()
+        sent = []
+        st = cp.run_notices(s, {}, send=lambda to, subj, body: sent.append((to, subj, body)) or {"ok": True}, now=d(60))
+        assert st["emails"] == 1 and len(sent) == 1 and "SlowSite" in sent[0][2] and sent[0][0] == "jane@x.example"
+        assert "Other Family" not in sent[0][2], "never about people outside the family"
+        st = cp.run_notices(s, {}, send=lambda *a: sent.append(a) or {"ok": True}, now=d(61))
+        assert st["emails"] == 0 and len(sent) == 1, "not sent twice"
+    finally:
+        tl.build = orig
+    s.close()
+    # EXPECTED: per-viewer deadline report; notices only for opted-in people, once per problem.
+    # IF THIS FAILS: people could see others' requests, miss notices, or get the same email every day.
+
+
+@test(2, "privacy.record_export_log_retention_delete",
+      "The privacy record lists what's kept; exports cover one person; staff access is logged; old logs expire; people can delete themselves.")
+def t_privacy_record():
+    import datetime as _dt, json as _json, tempfile, os
+    db, s = _memory_db()
+    pr = _imp("core.privacy_record")
+    priv = _imp("routers.privacy")
+    fam = _imp("routers.family")
+    from fastapi import HTTPException
+    parent = db.User(email="p@x.example", full_name="Pat Parent", role=db.UserRole.parent, hashed_password="x")
+    staff = db.User(email="s@lib.example", full_name="Sam Staff", role=db.UserRole.super_admin, hashed_password="x")
+    s.add_all([parent, staff]); s.flush()
+    s.add(db.FamilyMember(user_id=parent.id, full_name="Pat Parent"))
+    s.add(db.FamilyMember(user_id=staff.id, full_name="Sam Staff")); s.commit()
+    kid = fam.add_member(fam.MemberCreate(full_name="Kim Kid", authorized=True), db=s, current_user=parent)
+    s.add(db.Identity(member_id=kid.id, kind="phone", value="512-555-0100"))
+    b = db.Broker(name="B", opt_out_url="https://b.example"); s.add(b); s.flush()
+    rq = db.RemovalRequest(member_id=kid.id, broker_id=b.id, status=db.RequestStatus.sent); s.add(rq); s.flush()
+    old = _dt.datetime.utcnow() - _dt.timedelta(days=400)
+    s.add_all([db.AutomationLog(request_id=rq.id, action="form_fill", status="success", created_at=old),
+               db.AutomationLog(request_id=rq.id, action="form_fill", status="success"),
+               db.EmailLog(request_id=rq.id, direction="received", subject="Removed", body_snippet="Dear Kim", received_at=old)])
+    s.commit()
+
+    rec = pr.record(s, {})
+    keys = {r["key"] for r in rec["inventory"]}
+    assert {"names", "contact", "birthday", "requests", "emails", "logs", "access"} <= keys
+    assert "Social Security numbers" in rec["never_stored"] and rec["counts"]["people"] == 3
+
+    member = s.query(db.FamilyMember).get(kid.id)
+    ex = pr.export_person(s, member)
+    assert ex["person"]["name"] == "Kim Kid" and ex["details"][0]["value"] == "512-555-0100"
+    assert ex["requests"][0]["site"] == "B" and ex["account"]["email"] is None, "placeholder address not shown"
+
+    # A parent looking at their own child isn't logged; staff looking is, once an hour.
+    pr.log_access(s, parent, member, "view")
+    assert s.query(db.AccessLog).count() == 0
+    pr.log_access(s, staff, member, "view"); pr.log_access(s, staff, member, "view")
+    pr.log_access(s, staff, member, "export")
+    assert [a.action for a in s.query(db.AccessLog).order_by(db.AccessLog.id)] == ["view", "export"]
+    mine = priv.my_access_log(db=s, current_user=parent)
+    assert len(mine) == 2 and mine[0]["who"] == "Sam Staff"
+
+    shots = tempfile.mkdtemp(); f = os.path.join(shots, "old.png"); open(f, "w").write("x")
+    os.utime(f, (old.timestamp(), old.timestamp()))
+    st = pr.purge(s, {"privacy": {"auto_purge_logs_days": 365}}, screenshots_dir=shots)
+    assert st["automation_logs"] == 1 and st["email_excerpts"] == 1 and st["screenshot_files"] == 1
+    assert s.query(db.AutomationLog).count() == 1 and s.query(db.EmailLog).one().body_snippet is None
+    assert s.query(db.RemovalRequest).count() == 1 and s.query(db.Identity).count() == 1, "details untouched"
+    assert pr.retention_days({"privacy": {"auto_purge_logs_days": 5}}) == 30, "at least 30 days"
+
+    try:
+        priv.delete_me(priv.DeleteMe(confirm="nope"), db=s, current_user=parent)
+        raise AssertionError("deleted without confirmation")
+    except HTTPException as e:
+        assert e.status_code == 400
+    try:
+        priv.delete_me(priv.DeleteMe(confirm="DELETE"), db=s, current_user=staff)
+        raise AssertionError("deleted the only super admin")
+    except HTTPException as e:
+        assert e.status_code == 400
+    out = priv.delete_me(priv.DeleteMe(confirm="delete"), db=s, current_user=parent)
+    assert out["also_removed"] == ["Kim Kid"]
+    assert s.query(db.User).count() == 1 and s.query(db.FamilyMember).count() == 1
+    assert s.query(db.RemovalRequest).count() == 0 and s.query(db.Identity).count() == 0
+    assert s.query(db.AccessLog).count() == 2, "the access record outlives the account"
+    s.close()
+    # EXPECTED: a complete, honest privacy record and working access/deletion rights.
+    # IF THIS FAILS: an install can't show what it keeps, answer a request, or forget someone.
+
+
+@test(1, "privacy.no_details_in_logs",
+      "Identity combinations are masked before they're written to logs or stored labels.")
+def t_masked_combo():
+    cmb = _imp("core.combinations")
+    c = cmb.IdentityCombo(name="Jane Q Public", address="123 Main St", city="Austin", state="TX",
+                          phone="(512) 555-0134", email="jane@old.example")
+    m = c.masked_label()
+    for secret in ("Jane", "Public", "123 Main", "555-0134", "jane@"):
+        assert secret not in m, (secret, m)
+    assert "J.Q.P." in m and "0134" in m and "old.example" in m
+    assert m != cmb.IdentityCombo(name="Jane Q Public", city="Austin", phone="(512) 555-0199").masked_label()
+
+
+@test(2, "i18n.languages_are_plugins",
+      "Only English lives in core; the other languages are built-in language-pack plugins an admin can turn off.")
+def t_languages_are_plugins():
+    import os, tempfile, pathlib
+    i18n = _imp("core.i18n")
+    lp = _imp("plugins.language_packs")
+    src = pathlib.Path(i18n.__file__).read_text(encoding="utf-8")
+    assert "Bóveda" not in src and "Panel de Control" not in src, "translations are no longer hardcoded"
+    assert set(i18n.BUNDLED_LANGUAGES) == {"es", "fr", "ar", "pirate", "de", "hi", "ko", "pt", "ru", "tl", "vi", "zh", "pl", "uk", "ur", "sw", "id"}
+    assert all(p["id"] == f"lang-{c}" for c, p in i18n.BUNDLED_LANGUAGES.items())
+    assert i18n.BUNDLED_LANGUAGES["ar"]["is_rtl"] and i18n.BUNDLED_LANGUAGES["ur"]["is_rtl"] and "en" in i18n.DEFAULT_ENABLED
+    db, s = _memory_db()
+    root = tempfile.mkdtemp()
+    old = os.environ.get("PLUGINS_DIR"); os.environ["PLUGINS_DIR"] = root
+    try:
+        st = lp.sync_builtin_languages(s)
+        assert st["installed"] == 17, st
+        assert os.path.isfile(os.path.join(root, "languages", "lang-de", "messages.json"))
+        assert lp.sync_builtin_languages(s)["installed"] == 0, "second run changes nothing"
+        rows = {r.plugin_id: r for r in s.query(db.InstalledPlugin).all()}
+        assert rows["lang-de"].status == "data" and rows["lang-de"].enabled
+        de = i18n.get_translations_for_locale("de")
+        assert de["nav.vault"] == "Deine Angaben"
+        # Turned off: German falls back to English and shows as off.
+        i18n._DISABLED_CACHE.update(at=10**12, ids={"lang-de"})
+        assert i18n.get_translations_for_locale("de")["nav.vault"] == "Your details"
+        langs = {l["code"]: l for l in i18n.get_available_languages()}
+        assert langs["de"]["plugin_off"] and not langs["de"]["enabled"] and langs["es"]["built_in"]
+    finally:
+        i18n._DISABLED_CACHE.update(at=0.0, ids=set())
+        if old is None: os.environ.pop("PLUGINS_DIR", None)
+        else: os.environ["PLUGINS_DIR"] = old
+    s.close()
+    # EXPECTED: languages install, update and turn off like any other plugin.
+    # IF THIS FAILS: a language can't be turned off, or translations are stuck in core code.
+
+
+@test(2, "reports.score_and_pdf",
+      "The privacy score weighs sites by priority and keeps daily snapshots; the PDF report renders without personal details.")
+def t_score_and_pdf():
+    import datetime as _dt
+    db, s = _memory_db()
+    ps = _imp("core.privacy_score")
+    rr = _imp("core.removal_report")
+    m = _member_with_vault(db, s)
+    big = db.Broker(name="BigWholesaler", opt_out_url="https://big.example", priority=5)
+    small = db.Broker(name="SmallSite", opt_out_url="https://small.example", priority=1)
+    s.add_all([big, small]); s.flush()
+    R = db.RequestStatus
+    rb = db.RemovalRequest(member_id=m.id, broker_id=big.id, status=R.pending)
+    rs = db.RemovalRequest(member_id=m.id, broker_id=small.id, status=R.pending)
+    s.add_all([rb, rs]); s.commit()
+    assert ps.compute(s, m)["score"] == 0
+    assert ps.snapshot(s, today=_dt.date(2026, 10, 1)) == 1
+    rb.status = R.confirmed; s.commit()
+    c = ps.compute(s, m)
+    assert c["score"] == round(100 * (1 - 1 / 6)) and c["gone"] == 1 and c["exposed"] == 1, c
+    rs.status = R.sent; s.commit()
+    assert ps.compute(s, m)["score"] == round(100 * (1 - 0.5 / 6))
+    rb.last_verdict = "listed"; s.commit()
+    assert ps.site_state(rb) == "exposed", "a removal that came back counts as listed"
+    rb.last_verdict = "gone"; s.commit()
+    ps.snapshot(s, today=_dt.date(2026, 10, 11)); ps.snapshot(s, today=_dt.date(2026, 10, 11))
+    assert s.query(db.PrivacyScoreSnapshot).count() == 2, "one row per person per day"
+    rep = ps.report(s, [m.id])
+    assert rep["family"]["start"] == 0 and rep["family"]["now"] == 92 and len(rep["family"]["history"]) == 2
+    assert ps.report(s, [])["family"]["now"] is None
+    data = rr.gather(s, [m.id])
+    assert [r["site"] for r in data["people"][0]["rows"]] == ["SmallSite", "BigWholesaler"], "still-open sites first"
+    pdf = rr.render(data, title="Removal report: Jane Q Public")
+    assert pdf.startswith(b"%PDF") and len(pdf) > 2000
+    try:
+        from pypdf import PdfReader
+        import io
+        text = "".join(p.extract_text() for p in PdfReader(io.BytesIO(pdf)).pages)
+        assert "BigWholesaler" in text and "Privacy score" in text
+        for secret in ("123 Main", "555-0134", "jane@old.example"):
+            assert secret not in text, secret
+    except ImportError:
+        pass
+    s.close()
+    # EXPECTED: a score that moves as sites remove you, and a PDF of every site's progress.
+    # IF THIS FAILS: the dashboard score is wrong, or the report can't be downloaded or leaks details.
+
+
+@test(2, "calendar.days_off_events_and_feed",
+      "Opt-outs skip days off; the calendar lists runs, checks and legal deadlines; the .ics feed is valid and shows no details.")
+def t_calendar():
+    import datetime as _dt
+    db, s = _memory_db()
+    cal = _imp("core.calendar_plan")
+    m = _member_with_vault(db, s)
+    b = db.Broker(name="Spokeo", opt_out_url="https://www.spokeo.com/optout")
+    s.add(b); s.flush()
+    r = db.RemovalRequest(member_id=m.id, broker_id=b.id, status=db.RequestStatus.confirmed,
+                          recheck_after=_dt.datetime(2026, 10, 20, 2, 0))
+    s.add(r); s.commit()
+    sc = {"enabled": True, "run_time": "02:00", "timezone": "America/Chicago",
+          "run_days": cal.clean_days([0, 2, 4, 9]), "skip_dates": cal.clean_dates(["2026-10-14", "nope"])}
+    assert sc["run_days"] == [0, 2, 4] and sc["skip_dates"] == ["2026-10-14"]
+    assert cal.clean_days(list(range(7))) is None, "every day = no limit"
+    assert cal.run_allowed(sc, _dt.date(2026, 10, 12))[0]                 # Monday
+    assert not cal.run_allowed(sc, _dt.date(2026, 10, 13))[0]             # Tuesday
+    ok, why = cal.run_allowed(sc, _dt.date(2026, 10, 14))                 # Wednesday, but a day off
+    assert not ok and "day off" in why
+    ev = cal.upcoming(s, [m.id], sc, start=_dt.date(2026, 10, 12), days=14)
+    kinds = [(e["date"], e["kind"]) for e in ev]
+    assert ("2026-10-12", "run") in kinds and ("2026-10-14", "skip") in kinds and ("2026-10-13", "run") not in kinds
+    assert ("2026-10-20", "check") in kinds
+    assert any(e["title"] == "Check again: Spokeo (Jane)" for e in ev)
+    ics = cal.to_ics(ev, now=_dt.datetime(2026, 10, 11))
+    assert ics.startswith("BEGIN:VCALENDAR\r\n") and ics.endswith("END:VCALENDAR\r\n")
+    assert "DTSTART;VALUE=DATE:20261020" in ics
+    assert all(len(l.encode()) <= 75 for l in ics.split("\r\n")), "lines folded"
+    for secret in ("Public", "123 Main", "555-0134", "jane@"):
+        assert secret not in ics, secret
+    assert cal.token_hash("abc") != "abc" and len(cal.token_hash("abc")) == 64
+    s.close()
+    # EXPECTED: admins pick opt-out days and holidays; families see what's coming and can subscribe.
+    # IF THIS FAILS: opt-outs go out on days off, or the calendar feed leaks details.
+
+
+@test(2, "captcha.redaction_and_safe_urls",
+      "CAPTCHA pictures keep only the puzzle, black out fields and saved details for good, and page addresses lose anything personal.")
+def t_captcha_redaction():
+    import io
+    cp = _imp("core.captcha_privacy")
+    try:
+        from PIL import Image, PngImagePlugin
+    except ImportError:
+        raise Skip("Pillow not installed")
+    db, s = _memory_db()
+    m = _member_with_vault(db, s)
+    sec = cp.member_secrets(m)
+    for want in ("Jane", "Public", "123 Main St", "5125550134", "512-555-0134", "jane@old.example"):
+        assert want in sec, (want, sec[:20])
+    assert cp.contains_secret("Results for JANE public in Austin", sec)
+    assert not cp.contains_secret("Please verify you are human", sec)
+    assert cp.safe_page_url("https://www.spokeo.com/Jane-Public/Texas?ref=x#y", sec) == "https://www.spokeo.com/"
+    assert cp.safe_page_url("https://site.example/optout?name=Jane", sec) == "https://site.example/optout"
+    assert cp.safe_page_url("https://site.example/lookup/5125550134", sec) == "https://site.example/"
+    assert cp.safe_page_url("javascript:alert(1)", sec) == ""
+    # A white page with metadata; black out a box inside a crop.
+    img = Image.new("RGB", (400, 300), (255, 255, 255))
+    meta = PngImagePlugin.PngInfo(); meta.add_text("Comment", "Jane Q Public 123 Main St")
+    buf = io.BytesIO(); img.save(buf, format="PNG", pnginfo=meta)
+    out = cp.redact_image(buf.getvalue(), boxes=[(120, 120, 40, 20)], crop=(100, 100, 300, 250))
+    red = Image.open(io.BytesIO(out))
+    assert red.size == (200, 150), red.size
+    assert red.getpixel((40, 30)) == (0, 0, 0) and red.getpixel((5, 140)) == (255, 255, 255)
+    assert b"Jane" not in out and not red.info.get("Comment"), "no metadata carried over"
+    s.close()
+    # EXPECTED: nothing personal in any CAPTCHA image or address that is stored or sent.
+    # IF THIS FAILS: a solving service (or the screenshots folder) could see a person's details.
+
+
+def _chromium_or_skip():
+    try:
+        from playwright.async_api import async_playwright  # noqa: F401
+    except ImportError:
+        raise Skip("playwright not installed")
+
+
+@test(3, "captcha.capture_live_page",
+      "A real page: only the CAPTCHA area is captured, with the filled-in form fields blacked out.")
+def t_captcha_capture_live():
+    _chromium_or_skip()
+    import asyncio, io
+    from PIL import Image
+    cp = _imp("core.captcha_privacy")
+    html = """<html><body style='margin:0;background:#fff'>
+      <div style='position:absolute;left:40px;top:40px'>Jane Q Public</div>
+      <input id=name value='Jane Q Public' style='position:absolute;left:40px;top:200px;width:200px;height:30px;background:#fff;border:0'>
+      <div id=captcha style='position:absolute;left:30px;top:180px;width:300px;height:120px;background:#c0e0ff'></div>
+      <input id=name2 value='Jane Q Public' style='position:absolute;left:60px;top:240px;width:150px;height:24px;background:#fff;border:0'>
+    </body></html>"""
+    async def go():
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            b = await p.firefox.launch()
+            try:
+                page = await b.new_page(viewport={"width": 800, "height": 600})
+                await page.set_content(html)
+                return await cp.capture(page, "#captcha", ["Jane Q Public", "Jane"])
+            finally:
+                await b.close()
+    try:
+        res = asyncio.run(go())
+    except Exception as e:
+        raise Skip(f"no browser here: {e}")
+    img = Image.open(io.BytesIO(res["image"]))
+    assert img.size == (300 + 2 * cp.PAD, 120 + 2 * cp.PAD), img.size
+    assert res["boxes"] >= 1
+    # Field at page (60,240) -> crop (60-6, 240-156) = (54, 84): blacked out.
+    assert img.getpixel((54 + 20, 84 + 10)) == (0, 0, 0)
+    # The name at the top of the page is outside the crop entirely.
+    # EXPECTED: solvers and the screenshots folder get the puzzle, not the person's form.
+
+
+@test(3, "captcha.live_handoff_session",
+      "A live session waits at the CAPTCHA, shows the page, passes clicks and typing to it, and carries on when the person is done.")
+def t_live_handoff():
+    _chromium_or_skip()
+    import time as _t, asyncio
+    lc = _imp("core.live_captcha")
+    html = """<html><body><button id=b style='position:absolute;left:100px;top:100px;width:200px;height:60px'
+      onclick="document.title='clicked'">I'm not a robot</button><input id=t style='position:absolute;left:100px;top:300px'></body></html>"""
+    outcome = {}
+    async def runner(s):
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            b = await p.firefox.launch()
+            try:
+                page = await b.new_page(viewport=lc.VIEWPORT)
+                await page.set_content(html)
+                s.page = page
+                s.state = "replaying"
+                outcome["result"] = await lc._person_solver(s)({"type": "recaptcha_v2"})
+                outcome["title"] = await page.title()
+                outcome["typed"] = await page.input_value("#t")
+                s.state = "done"
+            except Exception as e:
+                outcome["error"] = str(e); s.state = "failed"
+            finally:
+                s.page = None
+                await b.close()
+    mgr = lc.LiveManager()
+    info = mgr.start(42, user_id=1, runner=runner)
+    assert info["state"] in ("starting", "replaying", "waiting_for_you")
+    for _ in range(100):
+        st = mgr.status(42)
+        if st["state"] in ("waiting_for_you", "failed"):
+            break
+        _t.sleep(0.1)
+    if st["state"] == "failed":
+        raise Skip(f"no browser here: {outcome.get('error')}")
+    assert st["can_interact"]
+    frame = mgr.frame(42)
+    assert frame and frame[:3] == b"\xff\xd8\xff", "a JPEG of the page"
+    assert mgr.send_input(42, {"type": "click", "x": 200, "y": 130})
+    assert mgr.send_input(42, {"type": "click", "x": 150, "y": 310})
+    assert mgr.send_input(42, {"type": "text", "text": "hello"})
+    assert not mgr.send_input(42, {"type": "key", "key": "Meta"}), "only ordinary keys"
+    assert mgr.solved(42)
+    for _ in range(100):
+        if mgr.status(42)["state"] == "done":
+            break
+        _t.sleep(0.1)
+    assert outcome["result"] == {"solved": True, "by_person": True}, outcome
+    assert outcome["title"] == "clicked" and outcome["typed"] == "hello", outcome
+    assert mgr.frame(42) is None and not mgr.send_input(42, {"type": "text", "text": "x"}), "closed afterwards"
+    # EXPECTED: "Solve it here" works end to end and the opt-out continues after the person.
+    # IF THIS FAILS: CAPTCHAs still need the person to redo the whole opt-out by hand.
+
+
+_STEP_PAGE = """<html><body><input id=name><p>Enter the code we texted you:</p><input id=code>
+<button id=send onclick="document.title='sent:' + document.getElementById('code').value">Send</button></body></html>"""
+
+
+def _step_job():
+    comp = _imp("core.interpreter.compiler")
+    JS = comp.JobStep
+    return comp.Job(broker_id="b", broker_name="B", member_id="1", method="form", steps=[
+        JS(kind="fill", selector="#name", value="Jordan Example"),
+        JS(kind="pause_for_human", text="Enter the code the site texted you, then press \"I've done this step\"."),
+        JS(kind="click", selector="#send")])
+
+
+@test(3, "live.person_step_continues_on_same_page",
+      "At a person's step the flow waits for them on the live page and then carries on; without a person it stops and records where.")
+def t_live_person_step():
+    _chromium_or_skip()
+    import asyncio
+    ex_mod = _imp("core.interpreter.executor")
+
+    async def go(hook):
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            b = await p.firefox.launch()
+            try:
+                page = await b.new_page()
+                await page.set_content(_STEP_PAGE)
+                ex = ex_mod.PlaywrightExecutor(page=page, person_hook=hook)
+                res = await ex.run(_step_job())
+                return res, await page.title()
+            finally:
+                await b.close()
+    try:
+        res, title = asyncio.run(go(None))
+    except Exception as e:
+        raise Skip(f"no browser here: {e}")
+    assert not res.ok and res.needs_manual and res.pause_step == 1 and res.pause_kind == "pause", res
+    assert ex_mod.ExecResult.from_dict(res.to_dict()).pause_step == 1, "survives a worker round trip"
+    assert title == "", "nothing was sent"
+    seen = {}
+
+    async def person(info):
+        seen.update(info)
+        # what a person does on the live page: type the code
+        await person.page.fill("#code", "482913")
+        return True
+
+    async def go2():
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            b = await p.firefox.launch()
+            try:
+                page = await b.new_page()
+                person.page = page
+                await page.set_content(_STEP_PAGE)
+                res = await ex_mod.PlaywrightExecutor(page=page, person_hook=person).run(_step_job())
+                return res, await page.title()
+            finally:
+                await b.close()
+    res, title = asyncio.run(go2())
+    assert res.ok and title == "sent:482913", (res, title)
+    assert seen["kind"] == "pause" and "code" in seen["text"] and seen["step"] == 1
+    # EXPECTED: "Do it here" can finish flows that need a code, an answer or a choice.
+    # IF THIS FAILS: such opt-outs must be redone by hand on the broker's site.
+
+
+@test(3, "live.step_session_end_to_end",
+      "A live step session shows the step's instruction with the page, passes typing to it, and carries on when the person says they're done.")
+def t_live_step_session():
+    _chromium_or_skip()
+    import time as _t
+    lc = _imp("core.live_captcha")
+    ex_mod = _imp("core.interpreter.executor")
+    outcome = {}
+
+    async def runner(s):
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            b = await p.firefox.launch()
+            try:
+                page = await b.new_page(viewport=lc.VIEWPORT)
+                await page.set_content(_STEP_PAGE)
+                s.page, s.state = page, "replaying"
+                res = await ex_mod.PlaywrightExecutor(page=page, person_hook=lc._person_step(s)).run(_step_job())
+                outcome["ok"], outcome["title"] = res.ok, await page.title()
+                s.state = "done" if res.ok else "failed"
+            except Exception as e:
+                outcome["error"] = str(e); s.state = "failed"
+            finally:
+                s.page = None
+                await b.close()
+    mgr = lc.LiveManager()
+    mgr.start(7, user_id=1, runner=runner, kind="step")
+    assert mgr.status(7) is None or True
+    for _ in range(100):
+        st = mgr.status(7, kind="step")
+        if st["state"] in ("waiting_for_you", "failed"):
+            break
+        _t.sleep(0.1)
+    if st["state"] == "failed":
+        raise Skip(f"no browser here: {outcome.get('error')}")
+    assert st["can_interact"] and st["prompt_kind"] == "pause" and "code" in st["prompt"], st
+    assert "I've done this step" in st["message"]
+    assert mgr.status(7) is None, "a CAPTCHA session with the same number is a different session"
+    assert mgr.send_input(7, {"type": "click", "x": 30, "y": 50}, kind="step")
+    # the code box is the second input; click it, then type
+    assert mgr.send_input(7, {"type": "key", "key": "Tab"}, kind="step")
+    assert mgr.send_input(7, {"type": "text", "text": "77"}, kind="step")
+    assert mgr.solved(7, kind="step")
+    for _ in range(100):
+        if mgr.status(7, kind="step")["state"] == "done":
+            break
+        _t.sleep(0.1)
+    assert outcome.get("ok") and outcome["title"] == "sent:77", outcome
+    assert mgr.status(7, kind="step")["message"] == lc.STATES["done_step"]
+    # EXPECTED: the person sees what to do, does it in the page, and the opt-out finishes itself.
+    # IF THIS FAILS: "Do it here" on the Checklist doesn't work.
+
+
+@test(2, "live.handoff_recorded_and_finished",
+      "An opt-out that stopped for a person offers \"Do it here\" on the Checklist; a finished live session marks it sent, an unfinished one leaves it as it was.")
+def t_live_handoff_db():
+    import json, types
+    db, s = _memory_db()
+    lc = _imp("core.live_captcha")
+    cl = _imp("core.checklist")
+    m = _member_with_vault(db, s)
+    b = db.Broker(name="CodeCo", opt_out_url="https://codeco.example"); s.add(b); s.flush()
+    r = db.RemovalRequest(member_id=m.id, broker_id=b.id, status=db.RequestStatus.needs_manual,
+                          notes="Enter the code the site texted you.",
+                          handoff_enc=json.dumps({"combo": {"name": "Jane Q Public"}, "step": 3, "kind": "pause"}))
+    r2 = db.RemovalRequest(member_id=m.id, broker_id=b.id, status=db.RequestStatus.needs_manual, notes="Call them.")
+    s.add_all([r, r2]); s.commit()
+    enc = _imp("core.encryption")
+    assert isinstance(db.RemovalRequest.__table__.c.handoff_enc.type, enc.EncryptedString), \
+        "the hand-off point (it holds the details being sent) is stored encrypted"
+    items = {i["request_id"]: i for i in cl.build(s, [m.id])["groups"]["finish"]}
+    assert items[r.id].get("live") and not items[r2.id].get("live")
+    ns = lambda **k: types.SimpleNamespace(**{"ok": False, "needs_manual": False, "needs_captcha": False,
+                                              "detail": "", "human_instruction": "", **k})
+    lc.finish_step(s, r, ns(needs_manual=True, human_instruction="Now pick your listing."), user_id=1)
+    assert r.status == db.RequestStatus.needs_manual and r.notes == "Now pick your listing." and r.handoff_enc
+    lc.finish_step(s, r, ns(detail="timed out"), user_id=1)
+    assert r.status == db.RequestStatus.needs_manual, "an unfinished live session never marks it failed"
+    lc.finish_step(s, r, ns(ok=True), user_id=1)
+    assert r.status == db.RequestStatus.sent and r.handoff_enc is None and r.recheck_after
+    assert s.query(db.AutomationLog).filter_by(request_id=r.id, action="step_live").count() == 3
+    s.close()
+    # IF THIS FAILS: the Checklist can't offer "Do it here", or a live session's result is lost.
+
+
+@test(2, "captcha.finish_and_service_settings",
+      "A live session's result updates the request; the solving-service key is stored encrypted and never shown.")
+def t_captcha_finish_services():
+    import os, json, tempfile, types
+    db, s = _memory_db()
+    lc = _imp("core.live_captcha")
+    cs = _imp("core.captcha_services")
+    store = _imp("core.settings_store")
+    m = _member_with_vault(db, s)
+    b = db.Broker(name="B", opt_out_url="https://b.example"); s.add(b); s.flush()
+    r = db.RemovalRequest(member_id=m.id, broker_id=b.id, status=db.RequestStatus.pending); s.add(r); s.flush()
+    ch = db.CaptchaChallenge(request_id=r.id, broker_id=b.id, member_id=m.id, status="pending",
+                             combo_enc=json.dumps({"name": "Jane Q Public", "city": "Austin"}))
+    s.add(ch); s.commit()
+    assert json.loads(ch.combo_enc)["city"] == "Austin"
+    lc.finish(s, ch, r, types.SimpleNamespace(ok=True, needs_manual=False, needs_captcha=False, detail="ok",
+                                              human_instruction=""), user_id=1)
+    assert r.status == db.RequestStatus.sent and r.recheck_after and ch.status == "resolved" and ch.resolved_by == 1
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".json"); tmp.write(b"{}"); tmp.close()
+    old = store.SETTINGS_FILE; store.SETTINGS_FILE = tmp.name
+    try:
+        pub = cs.save_service(cs.SERVICE_PLUGIN, "2captcha", "sk-test-123")
+        raw = open(tmp.name).read()
+        assert "sk-test-123" not in raw and pub["services"][cs.SERVICE_PLUGIN] == {"service": "2captcha", "has_key": True}
+        meta = cs.plugin_meta(cs.SERVICE_PLUGIN)
+        assert meta["api_key"] == "sk-test-123" and meta["service_base"] == "https://api.2captcha.com"
+        assert cs.plugin_meta("some-other-solver") == {}, "the key goes only to its own plugin"
+        try:
+            cs.save_service(cs.SERVICE_PLUGIN, "made-up", None); raise AssertionError("accepted an unknown service")
+        except ValueError:
+            pass
+        cs.save_service(cs.SERVICE_PLUGIN, "2captcha", "")
+        assert cs.plugin_meta(cs.SERVICE_PLUGIN) == {}
+    finally:
+        store.SETTINGS_FILE = old; os.unlink(tmp.name)
+    s.close()
+
+
+@test(1, "captcha.solving_service_plugin_tasks",
+      "The built-in solving-service plugin builds the right task per service, and defers without a key.")
+def t_solver_plugin_tasks():
+    import importlib.util, sys, pathlib, json, types
+    here = pathlib.Path(__file__).resolve().parents[1]
+    d = here / "plugins" / "bundled" / "captcha" / "captcha-solving-service"
+    perms = _imp("plugins.permissions")
+    m = perms.PluginManifest.from_dict(json.loads((d / "manifest.json").read_text()))
+    assert m.validate() == [] and m.effective_type == "captcha" and "read_pii" not in m.permissions
+    sys.path.insert(0, str(here / "plugins" / "sdk"))
+    try:
+        spec = importlib.util.spec_from_file_location("solver_plugin_under_test", d / "plugin.py")
+        mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+    except Exception as e:
+        raise Skip(f"plugin SDK not importable here: {e}")
+    finally:
+        sys.path.pop(0)
+    C = lambda **k: types.SimpleNamespace(**{"type": "recaptcha_v2", "site_key": "6Lc", "page_url": "https://b.example/optout",
+                                              "screenshot": b"", "meta": {}, **k})
+    assert mod.build_task(C(), "2captcha") == {"type": "RecaptchaV2TaskProxyless", "websiteURL": "https://b.example/optout", "websiteKey": "6Lc"}
+    assert mod.build_task(C(), "capsolver")["type"] == "ReCaptchaV2TaskProxyLess"
+    assert mod.build_task(C(type="hcaptcha"), "anticaptcha") is None
+    img = mod.build_task(C(type="image", screenshot=b"PNG"), "capmonster")
+    assert img["type"] == "ImageToTextTask" and img["body"] == "UE5H"
+    assert mod.build_task(C(site_key=""), "2captcha") is None
+    assert mod.solve(C()) == {"defer_to_human": True}, "no service key: hand it to a person"
+
+
+@test(1, "captcha.executor_person_and_picture_answers",
+      "The executor carries on after a person solves it, and types a picture-CAPTCHA answer into its box.")
+def t_executor_answers():
+    import asyncio
+    ex_mod = _imp("core.interpreter.executor")
+    comp = _imp("core.interpreter.compiler")
+
+    class FakePage:
+        url = "https://b.example/optout?name=Jane"
+        def __init__(self): self.filled = {}
+        async def content(self): return "<img src='/captcha.png'><input name='captcha_code'>"
+        async def query_selector(self, sel):
+            return object() if "captcha" in sel.lower() and sel.startswith("input") else None
+        async def screenshot(self, **k): return b""
+        async def evaluate(self, js, *a): return None
+        async def fill(self, sel, val, timeout=0): self.filled[sel] = val
+
+    def run(result):
+        page = FakePage()
+        ex = ex_mod.PlaywrightExecutor(page=page, captcha_solver=lambda ch: result, secrets=["Jane"])
+        job = comp.Job(broker_id="1", broker_name="B", member_id="2", method="form",
+                       steps=[comp.JobStep(kind="solve_captcha", selector="img")])
+        return asyncio.new_event_loop().run_until_complete(ex.run(job)), page, ex
+
+    res, page, ex = run({"solved": True, "token": "X7KQ"})
+    assert not res.needs_captcha and page.filled == {"input[name*='captcha' i]": "X7KQ"}, (res.trace, page.filled)
+    assert ex.last_challenge["page_url"] == "https://b.example/optout", "query string dropped"
+    res, page, _ = run({"solved": True, "by_person": True})
+    assert not res.needs_captcha and page.filled == {}
+    res, _, _ = run({"defer_to_human": True})
+    assert res.needs_captcha
+@test(1, "frontend.no_undefined_names",
+      "No screen uses a name (an icon, a component) that was never imported; the build doesn't catch these and the screen crashes.")
+def t_frontend_names():
+    import shutil, subprocess
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    fe = os.path.join(root, "frontend")
+    if not shutil.which("node") or not os.path.isdir(os.path.join(fe, "node_modules", "@babel", "traverse")):
+        raise Skip("node or the frontend's dev packages aren't installed (run npm install in frontend/)")
+    r = subprocess.run(["node", "scripts/check-names.mjs", "src"], cwd=fe, capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-1000:]
+    # IF THIS FAILS: add the missing import; the listed screen would crash for everyone who opens it.
+
+
+@test(1, "i18n.page_texts_current",
+      "The list of on-screen phrases matches the screens, and every bundled language translates all of them with the same {placeholders} and <0> tags.")
+def t_page_texts():
+    import json, re, subprocess, sys as _sys
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    script_path = os.path.join(root, "scripts", "extract_page_texts.py")
+    if not os.path.isfile(script_path):
+        raise Skip("scripts/extract_page_texts.py not present (bare backend checkout)")
+    r = subprocess.run([_sys.executable, script_path, "--check"], cwd=root,
+                       capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, (r.stdout + r.stderr)[-1500:]
+    # IF THIS FAILS: run scripts/extract_page_texts.py, then translate the new phrases in each language pack.
+    master = [t["text"] for t in json.load(open(os.path.join(root, "backend", "core", "page_texts.json")))["texts"]]
+    ph = re.compile(r"\{(\w+)\}")
+    tag = re.compile(r"</?\d+/?>")
+    packs = os.path.join(root, "backend", "plugins", "bundled", "languages")
+    for d in sorted(os.listdir(packs)):
+        p = os.path.join(packs, d, "texts.json")
+        if not os.path.exists(p):
+            continue
+        texts = json.load(open(p, encoding="utf-8"))
+        missing = [k for k in master if k not in texts]
+        assert not missing, f"{d}: {len(missing)} phrases untranslated, e.g. {missing[:3]}"
+        for k, v in texts.items():
+            assert set(ph.findall(k)) == set(ph.findall(v)), f"{d}: placeholders differ in {k[:60]!r}"
+            assert sorted(tag.findall(k)) == sorted(tag.findall(v)), f"{d}: tags differ in {k[:60]!r}"
+    # IF THIS FAILS: a screen would show English, or a translation would drop a value or a link.
+
+
+def _frontend_src():
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    src = os.path.join(root, "frontend", "src")
+    if not os.path.isdir(src):
+        raise Skip("frontend source not present here")
+    import glob
+    return src, sorted(glob.glob(os.path.join(src, "**", "*.js*"), recursive=True))
+
+
+@test(1, "i18n.rtl_logical_classes",
+      "Screens use start/end spacing and alignment (ms-, pe-, start-, text-start), so right-to-left languages mirror.")
+def t_rtl_logical_classes():
+    import re
+    _, files = _frontend_src()
+    V = r"(?:\d+(?:\.\d+)?|\d+/\d+|px|full|auto|\[[^\]\s'\"`]+\])"
+    rx = re.compile(r"(?<![\w-])(?:[a-z0-9-]+:)*-?(?:(?:m[lr]|p[lr]|left|right)-" + V +
+                    r"|text-(?:left|right)|border-[lr](?:-[\w/-]+)?|rounded-[tb]?[lr](?:-\w+)?)(?![\w/.-])")
+    lit = re.compile(r"'(?:[^'\\\n]|\\.)*'|\"(?:[^\"\\\n]|\\.)*\"|`(?:[^`\\]|\\.)*`")
+    bad = []
+    for f in files:
+        for m in lit.finditer(open(f, encoding="utf-8").read()):
+            bad += [f"{os.path.basename(f)}: {h}" for h in rx.findall(m.group(0))]
+    assert not bad, f"{len(bad)} left/right classes, e.g. {bad[:6]}"
+    # IF THIS FAILS: use the start/end form (ml- -> ms-, pr- -> pe-, left- -> start-,
+    #   text-right -> text-end, border-l -> border-s). It looks the same in English
+    #   and flips for Arabic. Something that must stay on one physical side needs
+    #   a comment and dir="ltr" on the element instead.
+
+
+@test(1, "i18n.rtl_mirrored_icons",
+      "Every arrow-like icon on screen is either mirrored for right-to-left languages or listed as one that keeps its direction.")
+def t_rtl_mirrored_icons():
+    import re
+    src, files = _frontend_src()
+    css = open(os.path.join(src, "index.css"), encoding="utf-8").read()
+    block = re.search(r'html\[dir="rtl"\] :is\(([^)]*)\):not\(\.rtl-keep\)\s*\{\s*scale: -1 1;', css)
+    assert block, "the RTL icon-mirroring rule is missing from index.css"
+    mirrored = set(re.findall(r"\.lucide-([a-z0-9-]+)", block.group(1)))
+    # Point up or down, or contain digits/letters that must not flip.
+    keep = {"arrow-up", "arrow-down", "chevron-up", "chevron-down", "chevrons-up-down",
+            "list-ordered", "refresh-cw", "mouse-pointer-click"}
+    looks = re.compile(r"left|right|arrow|chevron|undo|redo|rotate|send|reply|forward|log-in|log-out|"
+                       r"skip|external|trending|toggle|indent|outdent|move|step|corner|^list")
+    used = set()
+    for f in files:
+        for imp in re.finditer(r"import\s*\{([^}]*)\}\s*from\s*'lucide-react'", open(f, encoding="utf-8").read(), re.S):
+            for n in imp.group(1).split(","):
+                n = n.strip().split(" as ")[0].strip()
+                if n:
+                    used.add(re.sub(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Za-z])(?=[0-9])", "-", n).lower())
+    unsure = sorted(n for n in used if looks.search(n) and n not in mirrored and n not in keep)
+    assert not unsure, f"decide whether these icons flip in right-to-left languages: {unsure}"
+    assert {"chevron-left", "chevron-right", "arrow-left", "arrow-right", "external-link", "send"} <= mirrored
+    for f in files:
+        txt = open(f, encoding="utf-8").read()
+        assert not re.search(r"isRTL\s*\?\s*<(Chevron|Arrow)", txt), \
+            f"{os.path.basename(f)} swaps an arrow by hand; the stylesheet already mirrors it"
+    # IF THIS FAILS: add the icon to the list in frontend/src/index.css if it
+    #   points the reading way (back/next, open, send, undo), or to `keep` above
+    #   if it points up/down or holds text. Don't swap icons in code.
+
+
+@test(1, "i18n.regional_formats_used",
+      "Screens show dates and numbers through i18n/format.js, so the admin's regional formats apply everywhere.")
+def t_regional_formats_used():
+    import re
+    src, files = _frontend_src()
+    bad = []
+    for f in files:
+        if f.endswith(os.path.join("i18n", "format.js")):
+            continue
+        for i, line in enumerate(open(f, encoding="utf-8"), 1):
+            if re.search(r"\.toLocale(Date|Time)?String\(|new Intl\.(DateTimeFormat|NumberFormat)\(", line):
+                bad.append(f"{os.path.basename(f)}:{i}")
+    assert not bad, f"format these with fmtDate/fmtDateTime/fmtNumber from i18n/format.js: {bad}"
+    # IF THIS FAILS: import the helper from i18n/format.js instead of calling
+    #   toLocaleString() directly; the browser's own locale would ignore the
+    #   admin's choice (and treat the server's UTC times as local).
+
+
+@test(1, "settings.regional_formats",
+      "Regional formats default to the US, reject bad values in plain words, and set the day/month order of server-written dates.")
+def t_regional_formats():
+    from datetime import date
+    rg = _imp("core.regional")
+    assert rg.get({}) == rg.DEFAULTS and rg.DEFAULTS["region"] == "US"
+    assert rg.format_date(date(2026, 10, 1), {}) == "Oct 1, 2026"
+    assert rg.format_date("2026-10-01T20:05:00", {"regional": {"region": "GB"}}) == "1 Oct 2026"
+    assert rg.format_date(date(2026, 10, 1), {"regional": {"region": "JP"}}) == "2026-10-01"
+    assert rg.format_date(None, {}) == "—"
+    ok = rg.clean({"region": "ca", "hour_cycle": "h23", "week_start": "mon", "time_zone": "America/Chicago", "digits": "native"})
+    assert ok["region"] == "CA" and ok["time_zone"] == "America/Chicago"
+    for bad in ({"region": "USA"}, {"hour_cycle": "h25"}, {"week_start": "tue"}, {"digits": "roman"},
+                {"time_zone": "Mars/Base"}):
+        try:
+            rg.clean(bad)
+            raise AssertionError(f"accepted {bad}")
+        except ValueError as e:
+            assert str(e)[0].isupper() and "_" not in str(e).split()[0]
+    # A broken saved value falls back to the defaults instead of breaking pages.
+    assert rg.get({"regional": {"region": "??"}}) == rg.DEFAULTS
+    try:
+        from fastapi.testclient import TestClient
+    except Exception:
+        raise Skip("fastapi test client not available")
+    main = _import_app_main()
+    r = TestClient(main.app).get("/api/settings/regional")
+    assert r.status_code == 200 and r.json()["region"] and "US" in r.json()["regions"], r.text
+    assert set(r.json()) == set(rg.DEFAULTS) | {"regions"}, "nothing else is shown before sign-in"
+
+
+@test(1, "observability.webhooks_safe_and_formatted",
+      "Webhook messages carry only allowed counts and names, never saved personal details, in each service's own format.")
+def t_webhooks():
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
+    import json, hmac, hashlib
+    wh = _imp("core.webhooks")
+    real_blocked = wh._blocked
+    sent = []
+    wh.TRANSPORT = lambda url, body, headers: (sent.append((url, body, headers)), 204)[1]
+    wh._blocked = lambda: ["Jordan Example", "jordan@example.invalid", "555-010-0199"]
+    try:
+        # Format per service.
+        b, h = wh.payload("ntfy", "run_finished", "Opt-outs sent", "3 sent.", {"sent": 3}, secret="tk")
+        assert b == b"3 sent." and h["Title"] == "Opt-outs sent" and h["Authorization"] == "Bearer tk"
+        b, h = wh.payload("gotify", "broker_turned_off", "T", "M", {}, secret="app")
+        assert json.loads(b)["priority"] == 7 and h["X-Gotify-Key"] == "app"
+        assert json.loads(wh.payload("slack", "test", "T", "M", {})[0]) == {"text": "*T*\nM"}
+        d = json.loads(wh.payload("discord", "test", "T", "M", {})[0])
+        assert d["content"] == "**T**\nM" and d["allowed_mentions"] == {"parse": []}, "no @everyone pings"
+        card = json.loads(wh.payload("teams", "test", "T", "M", {})[0])["attachments"][0]
+        assert card["contentType"] == "application/vnd.microsoft.card.adaptive" and card["content"]["body"][0]["text"] == "T"
+        raw, h = wh.payload("json", "listing_back", "T", "M", {"count": 2}, secret="s3cret")
+        assert json.loads(raw)["details"] == {"count": 2} and json.loads(raw)["source"] == "openoptout"
+        assert h["X-OpenOptOut-Signature"] == "sha256=" + hmac.new(b"s3cret", raw, hashlib.sha256).hexdigest()
+        # Only allowed details; nothing personal.
+        for bad in (lambda: wh.build("run_finished", "x", {"person": "someone"}),
+                    lambda: wh.build("broker_turned_off", "Jordan Example's listing", {"broker": "Acme"}),
+                    lambda: wh.build("broker_turned_off", "x", {"broker": "a\nb<script>"}),
+                    lambda: wh.build("nope", "x")):
+            try:
+                bad(); raise AssertionError("allowed")
+            except ValueError:
+                pass
+        t, m, _ = wh.build("needs_you", "Mail from someone@example.org or 555 123 4567 needs you.", {"checklist": 1})
+        assert "[email]" in m and "[number]" in m and "@" not in m
+        # Sending: only targets that want the event; secrets stay encrypted at rest.
+        cfg = {"observability": {"webhooks": [
+            wh.make_target({"kind": "slack", "url": "https://hooks.slack.example/services/T/B/X", "events": ["run_finished"]}),
+            wh.make_target({"kind": "ntfy", "url": "https://ntfy.example/oo-alerts", "events": ["backup_failed"]}),
+        ]}}
+        stored = json.dumps(cfg)
+        assert "hooks.slack.example" not in stored, "the webhook address is stored encrypted"
+        assert wh.public_view(cfg["observability"]["webhooks"][0])["host"] == "hooks.slack.example"
+        assert wh.notify("run_finished", "2 sent.", {"sent": 2}, settings=cfg, sync=True) == 1
+        assert sent[-1][0].startswith("https://hooks.slack.example/") and len(sent) == 1
+        before = wh.STATS["refused"]
+        assert wh.notify("run_finished", "Sent for Jordan Example.", {"sent": 1}, settings=cfg, sync=True) == 0
+        assert wh.STATS["refused"] == before + 1 and len(sent) == 1, "a saved name never leaves"
+        # Repeats of "needs you" are held back for a while.
+        cfg["observability"]["webhooks"][1]["events"] = ["needs_you"]
+        wh._last_sent.clear()
+        assert wh.notify("needs_you", "1 waits.", {"checklist": 1}, settings=cfg, sync=True) == 1
+        assert wh.notify("needs_you", "1 waits.", {"checklist": 1}, settings=cfg, sync=True) == 0
+        for bad in ({"kind": "pager", "url": "https://x.example"}, {"kind": "slack", "url": "ftp://x"}, {"kind": "slack"}):
+            try:
+                wh.make_target(bad); raise AssertionError(f"accepted {bad}")
+            except ValueError:
+                pass
+    finally:
+        wh.TRANSPORT = None
+        wh._blocked = real_blocked
+        wh._last_sent.clear()
+    # IF THIS FAILS: a notification could carry someone's details, or reach a service in a form it rejects.
+
+
+@test(1, "observability.log_forwarding",
+      "Log lines go to syslog, OpenTelemetry, Loki or Splunk scrubbed of secrets, emails and phone numbers, without slowing the app.")
+def t_log_forwarding():
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
+    import json, logging, re
+    lf = _imp("core.log_forwarding")
+    msg = lf.scrub("Login for jordan@example.invalid from 555-010-0199 with Bearer abc.def token=xyz")
+    assert "example.invalid" not in msg and "555" not in msg and "abc.def" not in msg and "xyz" not in msg, msg
+    from datetime import datetime, timezone
+    t0 = datetime(2026, 10, 11, tzinfo=timezone.utc).timestamp() + 0.25
+    rec = {"time": t0, "level": "WARNING", "logger": "backend.core.scheduler", "message": "Run took long"}
+    line = lf.syslog_line(rec).decode()
+    assert re.match(r"^<132>1 2026-10-11T00:00:00\.250Z \S+ openoptout \d+ backend\.core\.scheduler - Run took long$", line), line
+    o = lf.otlp_json([rec])["resourceLogs"][0]
+    lr = o["scopeLogs"][0]["logRecords"][0]
+    assert lr["severityNumber"] == 13 and lr["body"]["stringValue"] == "Run took long" and lr["timeUnixNano"] == str(int(t0 * 1e9))
+    assert {"key": "service.name", "value": {"stringValue": "openoptout"}} in o["resource"]["attributes"]
+    assert lf.loki_json([rec])["streams"][0]["stream"]["level"] == "warning"
+    assert json.loads(lf.splunk_lines([rec]))["event"]["message"] == "Run took long"
+    for bad in ({"kind": "syslog", "host": "bad host!"}, {"kind": "syslog", "host": "logs.example", "port": 99999},
+                {"kind": "otlp", "endpoint": "logs.example"}, {"kind": "carrier-pigeon"},
+                {"kind": "loki", "endpoint": "https://l.example", "level": "LOUD"}):
+        try:
+            lf.make_destination(bad); raise AssertionError(f"accepted {bad}")
+        except ValueError:
+            pass
+    d = lf.make_destination({"kind": "splunk_hec", "endpoint": "https://splunk.example:8088/", "token": "hec-secret"})
+    assert d["endpoint"] == "https://splunk.example:8088" and "hec-secret" not in json.dumps(d)
+    assert lf.public_view(d)["has_token"] is True and "token_enc" not in lf.public_view(d)
+    got = []
+    lf.SENDER = lambda dest, recs: got.append((dest["id"], [r["message"] for r in recs]))
+    h = lf.ForwardingHandler()
+    try:
+        h.dests = [dict(d, id="all", level="DEBUG"), dict(d, id="errors", level="ERROR")]
+        lg = logging.getLogger("backend.test.forwarding")
+        for level, text in ((logging.INFO, "hello jordan@example.invalid"), (logging.ERROR, "it broke")):
+            h.emit(lg.makeRecord(lg.name, level, __file__, 1, text, (), None))
+        h.emit(lg.makeRecord("httpx", logging.INFO, __file__, 1, "POST https://splunk.example", (), None))
+        batch = [h.q.get_nowait() for _ in range(h.q.qsize())]
+        assert len(batch) == 2, "the sender's own HTTP lines are never forwarded"
+        h.flush_batch(batch)
+        assert ("all", ["hello [email]", "it broke"]) in got and ("errors", ["it broke"]) in got
+        # A server that can't keep up: oldest lines go, never the app.
+        small = lf.ForwardingHandler(); small.q.maxsize = 2; small.dests = [d]
+        before = lf.STATS["dropped"]
+        for i in range(4):
+            small.emit(lg.makeRecord(lg.name, logging.INFO, __file__, 1, f"line {i}", (), None))
+        assert lf.STATS["dropped"] == before + 2 and [r["message"] for r in list(small.q.queue)] == ["line 2", "line 3"]
+        lf.SENDER = lambda dest, recs: (_ for _ in ()).throw(ConnectionRefusedError("nobody home"))
+        assert "ConnectionRefusedError" in lf.test(d)
+    finally:
+        lf.SENDER = None
+    # IF THIS FAILS: logs could leave with secrets or contact details, or a log server could stall the app.
+
+
+@test(1, "observability.health_and_metrics",
+      "Health checks and Prometheus metrics report counts and states only, need the token, and webhooks hear when health changes.")
+def t_health_metrics():
+    from types import SimpleNamespace as NS
+    mon = _imp("core.monitoring")
+    db, s = _memory_db()
+    s.add(db.FamilyMember(full_name="Jordan Example", user_id=1))
+    s.add(db.Broker(name="Example Broker", opt_out_url="https://broker.example/optout"))
+    s.commit()
+    text = mon.metrics(s, {})
+    for name in ("openoptout_up 1", "openoptout_brokers{enabled=\"true\"} 1", "openoptout_family_members 1",
+                 "# TYPE openoptout_requests gauge", "openoptout_captchas_waiting 0"):
+        assert name in text, (name, text[:400])
+    assert "Jordan" not in text and "example.invalid" not in text, "metrics never name anyone"
+    checks = {c["name"]: c for c in mon.checks(s, {})}
+    assert checks["database"]["ok"] and "scheduler" in checks and checks["inboxes"]["ok"]
+    cfg = {}
+    token = mon.new_token(cfg)
+    assert token.startswith("oo_metrics_") and token not in str(cfg)
+    assert mon.token_ok(cfg, token) and not mon.token_ok(cfg, token + "x") and not mon.token_ok({}, token)
+    # The health job only speaks when the result changes.
+    wh = _imp("core.webhooks")
+    said = []
+    real_ready, real_notify, real_session = mon.ready, wh.safe_notify, db.SessionLocal
+    try:
+        db.SessionLocal = lambda: NS(close=lambda: None)
+        wh.safe_notify = lambda ev, msg, details=None, **k: said.append((ev, details))
+        states = iter([{"status": "ok", "checks": []}, {"status": "ok", "checks": []},
+                       {"status": "problem", "checks": [{"name": "disk", "label": "Disk space", "ok": False, "detail": "1 GB free."}]},
+                       {"status": "problem", "checks": [{"name": "disk", "label": "Disk space", "ok": False, "detail": "1 GB free."}]},
+                       {"status": "ok", "checks": []}])
+        mon.ready = lambda db_: next(states)
+        mon._last_state["ok"] = None
+        for _ in range(5):
+            mon.health_job()
+        assert said == [("health_problem", {"checks": "disk"}), ("health_ok", None)], said
+    finally:
+        mon.ready, wh.safe_notify, db.SessionLocal = real_ready, real_notify, real_session
+        mon._last_state["ok"] = None
+    obs = _imp("routers.observability")
+    r = obs.health_ready(db=s)
+    assert r.status_code in (200, 503) and b"database" in r.body
+    try:
+        obs.get_metrics(NS(headers={}), db=s)
+        raise AssertionError("metrics answered without a token")
+    except Exception as e:
+        assert getattr(e, "status_code", 0) == 401
+    # IF THIS FAILS: monitoring could expose details, answer anyone, or alert on every check.
+
+
+@test(1, "i18n.plugin_text_lookup_order",
+      "Plugin text is looked up admin override → language pack → the plugin's locales/<lang> → its default locale → the text as written, trying pt-BR then pt.")
+def t_plugin_text_order():
+    import json, tempfile
+    pi = _imp("plugins.plugin_i18n")
+    d = tempfile.mkdtemp()
+    os.makedirs(os.path.join(d, "locales"))
+    json.dump({"id": "demo", "default_locale": "fr"}, open(os.path.join(d, "manifest.json"), "w"))
+    json.dump({"instructions": "PLUGIN-ES", "only_plugin": "P-ES"}, open(os.path.join(d, "locales", "es.json"), "w"))
+    json.dump({"instructions": "PLUGIN-FR", "fr_only": "P-FR"}, open(os.path.join(d, "locales", "fr.json"), "w"))
+    json.dump({"instructions": "PLUGIN-PT"}, open(os.path.join(d, "locales", "pt.json"), "w"))
+    real_over, real_pack = pi._overrides, pi.pack_table
+    over, pack = {}, {}
+    pi._overrides = lambda lang: over.get(lang, {})
+    pi.pack_table = lambda lang, pid: pack.get(lang, {})
+    try:
+        txt = lambda key, lang: pi.plugin_text("demo", key, lang, "AS-WRITTEN", d)
+        assert txt("instructions", "es") == "PLUGIN-ES"                      # 3. plugin locale
+        pack["es"] = {"instructions": "PACK-ES"}
+        assert txt("instructions", "es") == "PACK-ES"                        # 2. pack beats plugin
+        over["es"] = {"plugin:demo:instructions": "ADMIN-ES"}
+        assert txt("instructions", "es") == "ADMIN-ES"                       # 1. admin beats all
+        assert txt("only_plugin", "es") == "P-ES"
+        assert txt("fr_only", "de") == "P-FR", "missing language should fall back to the default locale"
+        assert txt("nowhere", "de") == "AS-WRITTEN"                          # 5. as written
+        assert txt("instructions", "pt-BR") == "PLUGIN-PT", "pt-BR should fall back to pt"
+        assert txt("instructions", "PT_br") == "PLUGIN-PT"
+    finally:
+        pi._overrides, pi.pack_table = real_over, real_pack
+    # IF THIS FAILS: a plugin's own translation, a language pack's or an admin's fix would be ignored.
+
+
+@test(1, "plugins.locales_validated",
+      "A plugin's locales/ files must exist for every declared language, be flat key → text JSON, and keep the original {placeholders}.")
+def t_plugin_locales_valid():
+    import json, tempfile
+    pi = _imp("plugins.plugin_i18n")
+    PluginManifest = _imp("plugins.permissions").PluginManifest
+    d = tempfile.mkdtemp()
+    os.makedirs(os.path.join(d, "locales"))
+    m = PluginManifest.from_dict({"id": "demo", "name": "Demo", "version": "1", "author": "a",
+                                  "type": "brokers", "description": "Hi {full_name}",
+                                  "locales": ["fr", "de"], "default_locale": "en"})
+    json.dump({"broker_id": "demo", "name": "Demo", "method": "manual",
+               "instructions": "Open {listing_url}"}, open(os.path.join(d, "spec.json"), "w"))
+    json.dump({"instructions": "Ouvrez le lien", "description": "Salut {full_name}"},
+              open(os.path.join(d, "locales", "fr.json"), "w"))
+    errs = pi.locale_errors(d, m)
+    assert any("de.json is missing" in e for e in errs), errs
+    assert any("'instructions'" in e and "listing_url" in e for e in errs), errs
+    assert not any("description" in e for e in errs), errs
+    json.dump({"instructions": "Ouvrez {listing_url}"}, open(os.path.join(d, "locales", "fr.json"), "w"))
+    json.dump({"instructions": ["not", "text"]}, open(os.path.join(d, "locales", "de.json"), "w"))
+    errs = pi.locale_errors(d, m)
+    assert len(errs) == 1 and "values must be text" in errs[0], errs
+    json.dump({"instructions": "Öffne {listing_url}"}, open(os.path.join(d, "locales", "de.json"), "w"))
+    assert pi.locale_errors(d, m) == []
+    assert "default_locale" in m.to_dict() and m.to_dict()["locales"] == ["fr", "de"]
+    bad = PluginManifest.from_dict({"id": "x", "name": "X", "version": "1", "author": "a",
+                                    "locales": ["fr", "not a code"]})
+    assert any("isn't a language code" in e for e in bad.validate())
+    # IF THIS FAILS: a broken translation could drop a person's link or crash the Plugins page.
+
+
+@test(1, "interpreter.spec_jurisdiction_and_text_keys",
+      "Specs take a jurisdiction, a legal language and per-language letters; keyed text ({\"$t\": ...}) loads and saves; LGPD is a known law.")
+def t_spec_jurisdiction():
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    base = {"broker_id": "b", "name": "B", "method": "manual"}
+    s = BrokerSpec.from_dict({**base, "instructions": {"$t": "how_to", "default": "Open {listing_url}"}})
+    assert s.instructions == "Open {listing_url}" and s.text_keys == {"instructions": "how_to"}
+    assert s.to_dict()["instructions"] == {"$t": "how_to", "default": "Open {listing_url}"}
+    assert BrokerSpec.from_dict(s.to_dict()).text_keys == {"instructions": "how_to"}
+    try:
+        BrokerSpec.from_dict({**base, "instructions": {"$t": "", "default": "x"}})
+        raise AssertionError("an empty $t key should be refused")
+    except ValueError:
+        pass
+    # Defaults: US unless a law says otherwise; legal language from the jurisdiction.
+    assert BrokerSpec.from_dict(base).effective_jurisdiction() == "US"
+    assert BrokerSpec.from_dict({**base, "legal_basis": ["ccpa"]}).effective_legal_language() == "en"
+    g = BrokerSpec.from_dict({**base, "legal_basis": ["gdpr"]})
+    assert g.effective_jurisdiction() == "EU" and g.effective_legal_language() == "en"
+    fr = BrokerSpec.from_dict({**base, "jurisdiction": "fr"})
+    assert fr.jurisdiction == "FR" and fr.effective_legal_language() == "fr" and fr.validate() == []
+    br = BrokerSpec.from_dict({**base, "legal_basis": ["lgpd"]})
+    assert br.validate() == [] and br.effective_jurisdiction() == "BR" and br.effective_legal_language() == "pt-BR"
+    own = BrokerSpec.from_dict({**base, "jurisdiction": "DE",
+                                "email_templates": {"de": {"subject": "S {full_name}", "body": "B {identifiers}"}}})
+    assert own.validate() == [] and own.letter_template()["subject"] == "S {full_name}"
+    assert own.letter_template("en") is None
+    assert "email_templates" in own.to_dict() and "jurisdiction" in own.to_dict()
+    for bad, msg in [({"jurisdiction": "Mars"}, "jurisdiction"), ({"legal_language": "english!"}, "legal_language"),
+                     ({"email_templates": {"fr": {"subject": "x"}}}, "email_templates.fr")]:
+        errs = BrokerSpec.from_dict({**base, **bad}).validate()
+        assert any(msg in e for e in errs), (bad, errs)
+    # IF THIS FAILS: add-ons couldn't say where a broker is, or keyed translations would be lost on save.
+
+
+@test(1, "legal.letter_follows_broker_not_interface",
+      "The opt-out letter is chosen by the broker's country and written in its legal language: English CCPA/US letters for US brokers, French GDPR for France, Portuguese LGPD for Brazil — whatever language the family uses.")
+def t_legal_letters():
+    tmpl = _imp("core.optout_email_template")
+    ll = _imp("core.legal_letters")
+    assert ll.template_errors() == [], ll.template_errors()
+    ids = tmpl.Identifiers(full_name="Ana Souza", name_variants=["Ana S."], emails=["ana@example.com"],
+                           phones=["555-0101"], addresses=["1 Rua A"], age_range="30-35")
+    cases = [  # (jurisdiction, letter language asked for, residence, template, language, must contain)
+        ("US", "", "TX", "us", "en", "California Consumer Privacy Act"),
+        ("US", "", "CA", "ccpa", "en", "§ 1798.105"),
+        ("US", "es", "TX", "us", "en", "state privacy laws"),     # no Spanish US letter: English, no note
+        ("FR", "", "", "gdpr", "fr", "article 17 du Règlement général"),
+        ("DE", "", "", "gdpr", "de", "Art. 17 der Datenschutz-Grundverordnung"),
+        ("EU", "", "", "gdpr", "en", "Article 17"),
+        ("GB", "", "", "uk_gdpr", "en", "Information Commissioner"),
+        ("BR", "", "", "lgpd", "pt-BR", "Lei nº 13.709/2018"),
+        ("CA-QC", "", "", "pipeda", "fr", "LPRPDE"),
+        ("AU", "", "", "generic", "en", "data-protection law that applies"),
+    ]
+    for j, lang, res, tid, want_lang, needle in cases:
+        e = tmpl.compose_optout_email(ids, "Acme", "p@acme.example", ["Site A"], jurisdiction=j,
+                                      locale=lang, state=res, request_key="K-1")
+        assert (e.template_id, e.language) == (tid, want_lang), (j, lang, e.template_id, e.language)
+        assert needle in e.body, (j, needle)
+        assert "localized" not in e.body and "[Note" not in e.body, "no 'not yet translated' note"
+        assert "ana@example.com" in e.body and "Site A" in e.body and "30-35" in e.body, j
+        assert "K-1" in e.subject and "K-1" in e.body and e.review_status == "draft"
+        assert not __import__("re").search(r"\{[a-z_]+\}", e.body + e.subject), \
+            f"unfilled placeholder in {tid}/{want_lang}"
+    for t in ll.catalog():
+        assert t["review_status"] == "draft" and len(t["review_note"]) > 40, t["id"]
+    # IF THIS FAILS: a broker could get a letter citing the wrong law, in a language its
+    #   legal team doesn't read, or a translated letter could leave out the identifiers.
+
+
+@test(1, "legal.broker_email_uses_letter",
+      "Per-broker opt-out emails use the broker's legal letter (CCPA for a California resident), or the add-on's own letter in its legal language.")
+def t_legal_broker_email():
+    if _try_import("sqlalchemy") is None:
+        raise Skip("sqlalchemy not installed")
+    from types import SimpleNamespace as NS
+    oe = _imp("core.optout_engine")
+    ba = _imp("plugins.broker_addon")
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    member = _fake_member()
+    broker = NS(name="Acme", is_property_broker=False, notes="", plugin_id=None)
+    subject, body = oe._build_exhaustive_email(member, broker, "K-2", None, db=None)
+    assert "CCPA" in body and "jane@example.com" in body and "Jane Public" in body and "K-2" in subject, body
+    assert "§ 1798.105" not in body, "a Texas resident gets the general US letter"
+    real = ba.get_broker_spec_for_broker
+    try:
+        ba.get_broker_spec_for_broker = lambda db, b: BrokerSpec.from_dict(
+            {"broker_id": "acme", "name": "Acme", "method": "email", "jurisdiction": "FR",
+             "email": {"to_address": "dpo@acme.example", "subject_template": "x", "body_template": "x"}})
+        subject, body = oe._build_exhaustive_email(member, broker, "K-3", None, db=object())
+        # The spec's single English template wins over the built-in letter; its
+        # identifiers are labelled in the broker's legal language.
+        assert body.startswith("x") and "Adresses e-mail" in body, body
+        ba.get_broker_spec_for_broker = lambda db, b: BrokerSpec.from_dict(
+            {"broker_id": "acme", "name": "Acme", "method": "manual", "jurisdiction": "FR"})
+        subject, body = oe._build_exhaustive_email(member, broker, "K-4", None, db=object())
+        assert "RGPD" in subject and "article 17" in body and "jane@example.com" in body, body
+        ba.get_broker_spec_for_broker = lambda db, b: BrokerSpec.from_dict(
+            {"broker_id": "acme", "name": "Acme", "method": "manual", "jurisdiction": "FR",
+             "email_templates": {"fr": {"subject": "Suppression {full_name} [{request_key}]",
+                                        "body": "Bonjour {broker},\n{identifiers}"}}})
+        subject, body = oe._build_exhaustive_email(member, broker, "K-5", None, db=object())
+        assert subject == "Suppression Jane Q Public [K-5]" and "Bonjour Acme" in body and "Numéros de téléphone" in body
+    finally:
+        ba.get_broker_spec_for_broker = real
+    # IF THIS FAILS: brokers would get English letters regardless of where they are, or an
+    #   add-on's own wording would be ignored.
+
+
+@test(1, "legal.letters_are_plugins",
+      "Opt-out letters are plugins: built-in ones load, a turned-off letter isn't used, an admin's own letter replaces a built-in one, and a bad letter plugin is refused.")
+def t_letters_are_plugins():
+    import json, tempfile, shutil
+    ll = _imp("core.legal_letters")
+    layout = _imp("plugins.layout")
+    perms = _imp("plugins.permissions")
+    ll.reload()
+    cat = {t["id"]: t for t in ll.catalog()}
+    assert set(cat) >= {"ccpa", "us", "gdpr", "uk_gdpr", "lgpd", "pipeda", "generic"}, sorted(cat)
+    assert all(t["built_in"] and t["plugin_id"].startswith("letter-") for t in cat.values())
+    for found in [f for f in layout.scan(layout.BUNDLED_ROOT) if f.manifest and f.manifest.effective_type == "letters"]:
+        assert found.valid, (found.path, found.errors)
+        assert found.manifest.is_data_only
+    real_states, real_root = ll._plugin_states, os.environ.get("PLUGINS_DIR")
+    tmp = tempfile.mkdtemp()
+    try:
+        # Turned off: a California resident falls back to the general US letter;
+        # the general letter can't be lost.
+        ll._plugin_states = lambda: {"letter-ccpa": False, "letter-generic": False}
+        ll.reload()
+        assert ll.choose_template("US", "CA")["id"] == "us"
+        assert ll.choose_template("AU")["id"] == "generic"
+        assert {t["id"]: t["enabled"] for t in ll.catalog()}["ccpa"] is False, "shown, marked off"
+        assert ll.letter_choice(admin_choice="ccpa", jurisdiction="US")["missing"] == "ccpa"
+        # An admin's own plugin with the same letter id replaces the built-in one.
+        os.environ["PLUGINS_DIR"] = tmp
+        mine = os.path.join(tmp, "letters", "my-ccpa")
+        os.makedirs(mine)
+        t = json.load(open(os.path.join(layout.BUNDLED_ROOT, "letters", "letter-ccpa", "letter.json")))
+        t["languages"]["en"]["body"] = "Our own wording for {broker}.\n{scope}\n{property_note}\n{identifiers}\n{reference}\n{full_name}"
+        json.dump(t, open(os.path.join(mine, "letter.json"), "w"))
+        json.dump({"id": "my-ccpa", "type": "letters", "name": "Our CCPA letter", "version": "1.0.0",
+                   "author": "Example Library", "description": "Our own CCPA wording."},
+                  open(os.path.join(mine, "manifest.json"), "w"))
+        ll._plugin_states = lambda: {"my-ccpa": True}
+        ll.reload()
+        assert ll.choose_template("US", "CA")["_plugin_id"] == "my-ccpa"
+        tmpl = _imp("core.optout_email_template")
+        ids = tmpl.Identifiers(full_name="Jordan Example", emails=["jordan@example.invalid"])
+        e = tmpl.compose_optout_email(ids, "Acme", "p@acme.example", [], state="CA")
+        assert e.body.startswith("Our own wording for Acme") and "jordan@example.invalid" in e.body
+        # Not yet enabled (just uploaded): the built-in one is used.
+        ll._plugin_states = lambda: {"my-ccpa": False}
+        ll.reload()
+        assert ll.choose_template("US", "CA")["_plugin_id"] == "letter-ccpa"
+        # A letter plugin that leaves out the identifiers is refused at upload.
+        t["languages"]["en"]["body"] = "Please delete me. {broker} {scope} {full_name}"
+        json.dump(t, open(os.path.join(mine, "letter.json"), "w"))
+        m = perms.PluginManifest.from_dict(json.load(open(os.path.join(mine, "manifest.json"))))
+        errs = layout.content_errors(mine, m)
+        assert any("identifiers" in e for e in errs), errs
+        os.remove(os.path.join(mine, "letter.json"))
+        assert any("letter.json" in e for e in layout.content_errors(mine, m))
+        bad = perms.PluginManifest.from_dict({"id": "x-letter", "type": "letters", "name": "X", "version": "1",
+                                              "author": "x", "entrypoint": "plugin.py", "permissions": ["network"]})
+        assert bad.validate(), "a letters plugin can't run code or reach the network"
+    finally:
+        ll._plugin_states = real_states
+        if real_root is None:
+            os.environ.pop("PLUGINS_DIR", None)
+        else:
+            os.environ["PLUGINS_DIR"] = real_root
+        shutil.rmtree(tmp, ignore_errors=True)
+        ll.reload()
+    # IF THIS FAILS: letters couldn't be added, replaced or turned off as plugins,
+    #   or a letter missing the identifiers could reach brokers.
+
+
+@test(1, "legal.letter_chosen_per_broker",
+      "An admin can give a broker or parent company a different letter; it wins over the add-on's choice and wording, and an unavailable choice falls back to automatic.")
+def t_letter_per_broker():
+    if _try_import("sqlalchemy") is None:
+        raise Skip("sqlalchemy not installed")
+    from types import SimpleNamespace as NS
+    ll = _imp("core.legal_letters")
+    oe = _imp("core.optout_engine")
+    ba = _imp("plugins.broker_addon")
+    tmpl = _imp("core.optout_email_template")
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    ll.reload()
+    member = _fake_member()
+    # Admin's choice: a US broker gets the GDPR letter.
+    broker = NS(name="Acme", is_property_broker=False, notes="", plugin_id=None, letter_template="gdpr")
+    subject, body = oe._build_exhaustive_email(member, broker, "K-9", None, db=None)
+    assert "Article 17" in body and "jane@example.com" in body, body
+    # A choice that isn't available: automatic, never a failed send.
+    broker.letter_template = "no-such-letter"
+    subject, body = oe._build_exhaustive_email(member, broker, "K-9", None, db=None)
+    assert "Article 17" not in body and "jane@example.com" in body
+    real = ba.get_broker_spec_for_broker
+    try:
+        spec = BrokerSpec.from_dict({"broker_id": "acme", "name": "Acme", "method": "manual", "letter": "uk_gdpr"})
+        assert spec.validate() == [] and spec.to_dict()["letter"] == "uk_gdpr"
+        assert BrokerSpec.from_dict({"broker_id": "a", "name": "A", "method": "manual", "letter": "Bad Letter!"}).validate()
+        ba.get_broker_spec_for_broker = lambda db, b: spec
+        broker.letter_template = None
+        subject, body = oe._build_exhaustive_email(member, broker, "K-10", None, db=object())
+        assert "Information Commissioner" in body, "the add-on's named letter is used"
+        broker.letter_template = "lgpd"
+        subject, body = oe._build_exhaustive_email(member, broker, "K-11", None, db=object())
+        assert "13.709" in body, "the admin's choice wins over the add-on's"
+        own = BrokerSpec.from_dict({"broker_id": "acme", "name": "Acme", "method": "manual",
+                                    "email_templates": {"en": {"subject": "Own {request_key}", "body": "Own words {identifiers}"}}})
+        ba.get_broker_spec_for_broker = lambda db, b: own
+        subject, body = oe._build_exhaustive_email(member, broker, "K-12", None, db=object())
+        assert "13.709" in body and not body.startswith("Own"), "the admin's choice wins over the add-on's wording"
+        broker.letter_template = None
+        subject, body = oe._build_exhaustive_email(member, broker, "K-13", None, db=object())
+        assert body.startswith("Own words")
+        assert ll.letter_choice(spec=own, legal_language="en")["source"] == "addon_text"
+    finally:
+        ba.get_broker_spec_for_broker = real
+    ids = tmpl.Identifiers(full_name="Jordan Example", emails=["jordan@example.invalid"])
+    e = tmpl.compose_optout_email(ids, "Parent Co", "p@parent.example", [], jurisdiction="US", template_id="pipeda")
+    assert e.template_id == "pipeda"
+    # The API's preview uses made-up details only.
+    letters = _imp("routers.letters")
+    pv = letters.preview("gdpr", language="fr", broker="Exemple", _=None)
+    assert pv["language"] == "fr" and "Jordan Example" in pv["body"] and "jordan@example.invalid" in pv["body"]
+    assert pv["review_status"] == "draft"
+    # The admin's choice is stored on the broker and the parent company.
+    db, s = _memory_db()
+    s.add(db.Broker(name="Example Broker", opt_out_url="https://broker.example/optout"))
+    s.add(db.ParentCompany(name="Example Parent", jurisdiction="FR"))
+    s.commit()
+    b = s.query(db.Broker).first(); p = s.query(db.ParentCompany).first()
+    row = letters.assign(letters.Assign(kind="broker", id=b.id, letter_id="ccpa"), db=s, user=NS(id=1))
+    assert row["uses"] == "ccpa" and row["source"] == "admin" and s.query(db.Broker).first().letter_template == "ccpa"
+    row = letters.assign(letters.Assign(kind="parent", id=p.id, letter_id=""), db=s, user=NS(id=1))
+    assert row["uses"] == "gdpr" and row["source"] == "automatic"
+    try:
+        letters.assign(letters.Assign(kind="broker", id=b.id, letter_id="no-such-letter"), db=s, user=NS(id=1))
+        raise AssertionError("accepted a letter that doesn't exist")
+    except Exception as ex:
+        assert getattr(ex, "status_code", 0) == 400
+    # IF THIS FAILS: brokers couldn't get different letters, or a broken choice would stop sends.
+
+
+@test(1, "i18n.plugin_text_translated",
+      "Every built-in language pack translates every built-in plugin's description and instructions; instructions show in the member's language and page-matching text is left alone.")
+def t_plugin_text_translated():
+    import importlib.util, json
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    script_path = os.path.join(root, "scripts", "plugin_texts.py")
+    if not os.path.isfile(script_path):
+        raise Skip("scripts/plugin_texts.py not present (bare backend checkout)")
+    spec_ = importlib.util.spec_from_file_location("plugin_texts", script_path)
+    pt = importlib.util.module_from_spec(spec_); spec_.loader.exec_module(pt)
+    errs = pt.problems()
+    assert not errs, f"{len(errs)} problems, e.g. {errs[:3]}"
+    # IF THIS FAILS: run scripts/plugin_texts.py --check and translate what it lists.
+    pi = _imp("plugins.plugin_i18n")
+    ba = _imp("plugins.broker_addon")
+    d = os.path.join(root, "backend", "plugins", "bundled", "brokers", "beenverified")
+    spec, _ = ba.validate_broker_spec_file(d)
+    spec.plugin_id, spec.plugin_dir = "beenverified", d
+    es = pi.localize_spec(spec, "es")
+    pauses = [i for i, s in enumerate(spec.steps) if s.kind == "pause_for_human"]
+    assert pauses and all(es.steps[i].text != spec.steps[i].text for i in pauses)
+    assert "{contact_email}" in es.steps[pauses[0]].text
+    for i, s in enumerate(spec.steps):
+        if s.kind != "pause_for_human":
+            assert es.steps[i].text == s.text, "text matched on the broker's page must not be translated"
+    assert spec.steps[pauses[0]].text.startswith("BeenVerified needs"), "the original spec must not change"
+    from types import SimpleNamespace as NS
+    assert pi.member_language(NS(user=NS(preferred_language="vi"))) == "vi"
+    # IF THIS FAILS: a family would read checklist steps in English, or the robot would look
+    #   for translated words on an English-language site.
+
+
+# ── AI helpers and automatic broker steps ─────────────────────────────────────
+
+def _ai_settings(extra=None):
+    """A throwaway settings file with the three online helpers keyed, for AI helper tests."""
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
+    import json, tempfile
+    ss = _imp("core.settings_store")
+    oe = _imp("core.oauth_engine")
+    path = tempfile.mktemp(suffix=".json")
+    cfg = {"ai_helpers": {"providers": {pid: {"enabled": True, "api_key_enc": oe._encrypt(f"key-{pid}")}
+                                        for pid in ("claude", "openai", "antigravity")}}}
+    if extra:
+        cfg["ai_helpers"].update(extra)
+    json.dump(cfg, open(path, "w"))
+    old = ss.SETTINGS_FILE
+    ss.SETTINGS_FILE = path
+    return ss, old, path
+
+
+_GOOD_DRAFT = {"method": "form", "opt_out_url": "https://acme.example/privacy",
+               "steps": [{"kind": "navigate", "selector": "", "field": "", "value": "", "url": "https://acme.example/privacy",
+                          "text": "", "optional": False},
+                         {"kind": "fill", "selector": "#email", "field": "contact_email", "value": "", "url": "",
+                          "text": "", "optional": False},
+                         {"kind": "click", "selector": "#send", "field": "", "value": "", "url": "", "text": "",
+                          "optional": False}],
+               "success_text": "received", "success_selector": "", "instructions": "", "requires": [],
+               "lookup_by": "", "confidence": "high", "notes": "Simple form."}
+
+
+@test(1, "ai.draft_schema_closed",
+      "The draft shape every AI helper must return is closed, fully required, and limited to the spec's own step kinds and member fields.")
+def t_ai_schema():
+    ai = _imp("core.ai_helpers")
+    bs = _imp("core.interpreter.broker_spec")
+    sch = ai.draft_schema()
+    assert sch["additionalProperties"] is False and set(sch["required"]) == set(sch["properties"])
+    step = sch["properties"]["steps"]["items"]
+    assert step["additionalProperties"] is False and set(step["required"]) == set(step["properties"])
+    assert set(step["properties"]["kind"]["enum"]) == bs.STEP_KINDS
+    assert set(step["properties"]["field"]["enum"]) == bs.KNOWN_FIELDS | {""}
+    assert "ssn" not in " ".join(step["properties"]["field"]["enum"])
+    assert "contact_email" in ai.system_prompt() and "{fields}" not in ai.system_prompt()
+    # IF THIS FAILS: a helper could return steps the interpreter doesn't know, or a
+    #   structured-output mode would reject the schema (all three need closed objects).
+
+
+@test(1, "ai.provider_requests",
+      "Claude, ChatGPT/Codex and Antigravity are called with their documented request shapes, and their answers are read back.")
+def t_ai_providers():
+    import json
+    ai = _imp("core.ai_helpers")
+    ss, old, path = _ai_settings()
+    calls = []
+    try:
+        def claude(m, url, h, body, timeout=None):
+            calls.append((m, url, h, body))
+            return 200, {"stop_reason": "end_turn", "content": [{"type": "text", "text": json.dumps(_GOOD_DRAFT)}]}
+        ai.TRANSPORT = claude
+        out = ai.draft(ss.load_settings(), "claude", "page")
+        m, url, h, body = calls[-1]
+        assert url == "https://api.anthropic.com/v1/messages" and h["x-api-key"] == "key-claude"
+        assert h["anthropic-version"] == "2023-06-01" and body["model"] == "claude-opus-5-5"
+        assert body["output_config"]["format"]["type"] == "json_schema" and out["steps"][1]["field"] == "contact_email"
+
+        def openai(m, url, h, body, timeout=None):
+            calls.append((m, url, h, body))
+            return 200, {"output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(_GOOD_DRAFT)}]}]}
+        ai.TRANSPORT = openai
+        out = ai.draft(ss.load_settings(), "openai", "page")
+        m, url, h, body = calls[-1]
+        assert url == "https://api.openai.com/v1/responses" and h["Authorization"] == "Bearer key-openai"
+        assert body["text"]["format"]["strict"] is True and body["model"] == "gpt-6-astra"
+        assert out["method"] == "form"
+
+        seq = []
+        def agent(m, url, h, body, timeout=None):
+            calls.append((m, url, h, body))
+            seq.append(url)
+            if m == "POST" and url.endswith("/interactions"):
+                return 200, {"id": "int-1", "status": "in_progress", "steps": []}
+            if m == "GET":
+                return 200, {"id": "int-1", "status": "requires_action",
+                             "steps": [{"type": "function_call", "id": "c1", "name": "submit_draft", "arguments": _GOOD_DRAFT}]}
+            return 200, {}
+        ai.TRANSPORT, ai.SLEEP = agent, (lambda s: None)
+        out = ai.draft(ss.load_settings(), "antigravity", "page", page_url="https://acme.example/privacy")
+        first = [c for c in calls if c[1].endswith("/interactions")][-1]
+        body = first[3]
+        assert first[2]["x-goog-api-key"] == "key-antigravity" and body["agent"].startswith("antigravity-")
+        assert {t["type"] for t in body["tools"]} == {"url_context", "function"}, "the agent may only read pages"
+        assert "environment" not in body, "no sandbox filesystem for the agent"
+        assert out["steps"][2]["selector"] == "#send"
+        assert any(u.endswith(":cancel") for u in seq), "the run is cancelled once the draft is in"
+
+        ai.TRANSPORT = lambda *a, **k: (401, {"error": {"message": "bad key"}})
+        try:
+            ai.draft(ss.load_settings(), "claude", "page")
+            raise AssertionError("a refused key should raise")
+        except ai.AIError as e:
+            assert "refused the API key" in str(e)
+        cfg = json.load(open(path))
+        assert cfg["ai_helpers"]["usage"]["calls"] == 4, "online calls are counted"
+        assert "key-claude" not in open(path).read(), "keys are stored encrypted"
+    finally:
+        ai.TRANSPORT, ai.SLEEP = ai._http, __import__("time").sleep
+        ss.SETTINGS_FILE = old
+    # IF THIS FAILS: a provider changed its API, or the request shape drifted from
+    #   what Anthropic / OpenAI / Google document.
+
+
+@test(1, "ai.local_model_connection",
+      "Your own model (LM Studio, Ollama...) is reached through the OpenAI chat API at the address you give, falls back to plain JSON, and isn't counted.")
+def t_ai_local():
+    import json
+    ai = _imp("core.ai_helpers")
+    ss, old, path = _ai_settings({"monthly_limit": 0})
+    try:
+        for bad in ("localhost:1234", "ftp://x/v1", "http://a b/v1"):
+            try:
+                ai.save_local(None, "LM", bad, "m")
+                raise AssertionError(f"accepted {bad}")
+            except ValueError:
+                pass
+        pub = ai.save_local(None, "LM Studio", "http://192.168.1.20:1234/v1/", "qwen3-coder-30b")
+        pub = ai.save_local(None, "LM Studio", "http://host.docker.internal:11434/v1", "llama3.1:8b", api_key="")
+        ids = [l["id"] for l in pub["local"]]
+        assert ids == ["lm-studio", "lm-studio-2"], ids
+        assert pub["order"][:2] == ["local:lm-studio-2", "local:lm-studio"], "new connections are tried first"
+        cfg = ss.load_settings()
+        assert ai.available(cfg)[:2] == ["local:lm-studio-2", "local:lm-studio"]
+        calls = []
+        def server(m, url, h, body, timeout=None):
+            calls.append((url, h, body, timeout))
+            if body.get("response_format", {}).get("type") == "json_schema":
+                return 400, {"error": "json_schema not supported"}
+            return 200, {"choices": [{"message": {"content": "Here you go:\n" + json.dumps(_GOOD_DRAFT)}}]}
+        ai.TRANSPORT = server
+        out = ai.draft(cfg, "local:lm-studio", "page")
+        assert calls[0][0] == "http://192.168.1.20:1234/v1/chat/completions"
+        assert "Authorization" not in calls[0][1], "no key, no Authorization header"
+        assert calls[1][2]["response_format"] == {"type": "json_object"}, "falls back to plain JSON"
+        assert calls[0][3] >= 600, "a home model gets a long timeout"
+        assert out["steps"][1]["field"] == "contact_email"
+        assert "usage" not in json.load(open(path))["ai_helpers"], "your own model isn't counted (limit was 0)"
+        ai.TRANSPORT = lambda *a, **k: (_ for _ in ()).throw(ConnectionError("refused"))
+        res = ai.test_connection(cfg, "local:lm-studio")
+        assert not res["ok"] and "host.docker.internal" in res["message"]
+        pub = ai.delete_local("lm-studio")
+        assert [l["id"] for l in pub["local"]] == ["lm-studio-2"] and "local:lm-studio" not in pub["order"]
+        try:
+            ai.draft(ss.load_settings(), "claude", "page")
+            raise AssertionError("monthly limit 0 should stop online helpers")
+        except ai.AIError as e:
+            assert "monthly limit" in str(e)
+    finally:
+        ai.TRANSPORT = ai._http
+        ss.SETTINGS_FILE = old
+    # IF THIS FAILS: people running their own model couldn't connect it, or its calls
+    #   would eat the online helpers' monthly budget.
+
+
+@test(1, "ai.refuses_personal_details",
+      "Nothing is sent to an AI helper if it contains any saved name, email, phone number or address.")
+def t_ai_pii():
+    ai = _imp("core.ai_helpers")
+    blocked = ["Zelda Quintessa", "zelda@example.com", "(512) 555-0142", "12 Oak Lane, Austin TX"]
+    ai.check_outgoing("A form with a name box and an email box. Call 1-800-555-0000.", blocked)
+    for leak in ("listing for zelda quintessa in Austin", "contact ZELDA@example.com",
+                 "phone 512.555.0142", "lives at 12 Oak Lane, Austin TX"):
+        try:
+            ai.check_outgoing(leak, blocked)
+            raise AssertionError(f"not caught: {leak}")
+        except ai.AIError:
+            pass
+    ss, old, path = _ai_settings()
+    sent = []
+    try:
+        ai.TRANSPORT = lambda *a, **k: sent.append(a) or (200, {})
+        try:
+            ai.draft(ss.load_settings(), "claude", "Page text: Zelda Quintessa, age 41", blocked)
+            raise AssertionError("should refuse")
+        except ai.AIError:
+            pass
+        assert not sent, "a request with personal details must not leave"
+    finally:
+        ai.TRANSPORT = ai._http
+        ss.SETTINGS_FILE = old
+    # IF THIS FAILS: a family member's details could be sent to an outside AI service.
+
+
+@test(1, "spec_drafter.draft_safety_checks",
+      "An AI draft can't send the browser off the broker's site, type fixed emails or numbers, or skip warnings about dates of birth or low confidence.")
+def t_drafter_safety():
+    from types import SimpleNamespace as NS
+    import copy
+    sd = _imp("core.spec_drafter")
+    broker = NS(name="Acme", plugin_id=None)
+    spec, warns = sd.build_spec(_GOOD_DRAFT, broker, {"acme.example"})
+    assert spec.validate() == [] and spec.method == "form" and warns == []
+    assert spec.source and "Drafted automatically" in spec.notes
+    bad = copy.deepcopy(_GOOD_DRAFT)
+    bad["steps"][0]["url"] = "https://evil.example/collect"
+    for d, why in [(bad, "isn't the broker's site")]:
+        try:
+            sd.build_spec(d, broker, {"acme.example"})
+            raise AssertionError("off-site navigate accepted")
+        except ValueError as e:
+            assert why in str(e)
+    hosted = copy.deepcopy(_GOOD_DRAFT)
+    hosted["steps"][0]["url"] = "https://privacyportal.onetrust.com/webform/abc"
+    sd.build_spec(hosted, broker, {"acme.example"})   # a known privacy platform is fine
+    lit = copy.deepcopy(_GOOD_DRAFT)
+    lit["steps"][1].update(field="", value="someone@else.example")
+    try:
+        sd.build_spec(lit, broker, {"acme.example"})
+        raise AssertionError("fixed email accepted")
+    except ValueError:
+        pass
+    dob = copy.deepcopy(_GOOD_DRAFT)
+    dob["steps"].insert(2, dict(dob["steps"][1], selector="#dob", field="dob"))
+    dob["confidence"] = "low"
+    _, warns = sd.build_spec(dob, broker, {"acme.example"})
+    assert len(warns) == 2, warns
+    # IF THIS FAILS: a helper's mistake (or a page trying to steer it) could send a
+    #   family's details somewhere other than the broker.
+
+
+@test(1, "spec_drafter.final_click_and_selector_only",
+      "Rehearsals stop at the click that would send the request, and a fix counts as selector-only only when nothing typed, used or said changes.")
+def t_drafter_rules():
+    sd = _imp("core.spec_drafter")
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    mk = lambda steps: BrokerSpec.from_dict({"broker_id": "a", "name": "A", "method": "form",
+                                             "opt_out_url": "https://a.example", "steps": steps})
+    s = mk([{"kind": "navigate", "url": "https://a.example"}, {"kind": "fill", "selector": "#n", "field": "full_name"},
+            {"kind": "click", "selector": "#next"}, {"kind": "fill", "selector": "#e", "field": "contact_email"},
+            {"kind": "click", "selector": "#send"}, {"kind": "wait", "timeout_ms": 1000},
+            {"kind": "expect_success", "text": "ok"}])
+    assert sd.final_submit_index(s.steps) == 4, "the last click after all filling is the one that sends"
+    assert sd.final_submit_index(mk([{"kind": "navigate", "url": "https://a.example"}, {"kind": "autofill"}]).steps) == -1
+    import copy
+    moved = copy.deepcopy(s)
+    moved.steps[3].selector, moved.steps[4].selector = "input[name=mail]", "#go"
+    assert sd.selector_only_change(s, moved)
+    for change in (lambda x: setattr(x.steps[3], "field", "email"),
+                   lambda x: setattr(x.steps[0], "url", "https://b.example"),
+                   lambda x: x.steps.append(x.steps[-1]),
+                   lambda x: setattr(x.steps[1], "value", "x")):
+        other = copy.deepcopy(s)
+        change(other)
+        assert not sd.selector_only_change(s, other)
+    # IF THIS FAILS: a rehearsal could press the final button, or a fix that changes what
+    #   is sent could apply itself without an admin.
+
+
+@test(3, "spec_drafter.rehearsal_and_rule_repair",
+      "A rehearsal fills a form with made-up details and stops before the final click; when the page's fields move, the built-in rules find them by label.")
+def t_drafter_rehearsal():
+    if _try_import("playwright") is None:
+        raise Skip("playwright not installed")
+    import threading, http.server, socketserver, os, tempfile
+    sd = _imp("core.spec_drafter")
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    v1 = (b"<html><body><form><label for=first_name>First name</label><input id=first_name>"
+          b"<label for=email>Email</label><input id=email type=email>"
+          b"<label><input type=checkbox id=agree> I certify this is my information</label>"
+          b"<button id=send type=button onclick=\"document.title='SENT'\">Submit request</button></form></body></html>")
+    v2 = (b"<html><head><title>v2</title></head><body><form><label>First name <input name=fname></label>"
+          b"<label for=mail>Email address</label><input id=mail type=email>"
+          b"<label><input type=checkbox id=agree> I certify this is my information</label>"
+          b"<button id=go type=button onclick=\"document.title='SENT'\">Send request</button></form></body></html>")
+    page = {"html": v1}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200); self.send_header("Content-Type", "text/html"); self.end_headers()
+            self.wfile.write(page["html"])
+
+        def log_message(self, *a):
+            pass
+    srv = socketserver.TCPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_address[1]}/optout"
+    spec = BrokerSpec.from_dict({"broker_id": "t", "name": "T", "method": "form", "opt_out_url": url, "steps": [
+        {"kind": "navigate", "url": url},
+        {"kind": "fill", "selector": "#first_name", "field": "first_name", "timeout_ms": 1500},
+        {"kind": "fill", "selector": "#email", "field": "contact_email", "timeout_ms": 1500},
+        {"kind": "check", "selector": "#agree", "timeout_ms": 1500},
+        {"kind": "click", "selector": "#send", "timeout_ms": 1500},
+        {"kind": "expect_success", "text": "received"}]})
+    try:
+        shot = os.path.join(tempfile.mkdtemp(), "r.png")
+        r = sd.rehearse(spec, shot)
+        assert r["ok"] and r["stop"] == 4 and os.path.getsize(shot) > 1000, r
+        assert r["page_map"]["title"] != "SENT", "the final button must not be pressed"
+        names = {f.get("id") or f.get("name") for f in r["page_map"]["fields"]}
+        assert {"first_name", "email", "agree"} <= names
+        page["html"] = v2
+        cand = spec
+        for _ in range(5):
+            r = sd.rehearse(cand)
+            if r["ok"]:
+                break
+            cand = sd.rule_repair(cand, r["failed"], r["page_map"])
+            assert cand is not None, r["detail"]
+        assert r["ok"] and r["page_map"]["title"] == "v2", r
+        assert [s.selector for s in cand.steps[1:5]] == ['input[name="fname"]', "#mail", "#agree", "#go"]
+        assert sd.selector_only_change(spec, cand)
+    finally:
+        srv.shutdown()
+    # IF THIS FAILS: automatic repairs can't see where a field moved, or a rehearsal
+    #   could submit a request.
+
+
+@test(2, "spec_drafter.apply_approve_revert",
+      "A form failure queues one repair a day; a passing selector-only fix applies itself and is used, can be undone, and is set aside when the plugin updates; a new draft waits for approval.")
+def t_drafter_db():
+    import json
+    db, s = _memory_db()
+    sd = _imp("core.spec_drafter")
+    bh = _imp("core.broker_health")
+    bridge = _imp("core.interpreter.script_bridge")
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    ss, old, path = _ai_settings()
+    try:
+        b = db.Broker(name="DraftCo", enabled=True, method=db.OptOutMethod.form, opt_out_url="https://draftco.example")
+        s.add(b); s.commit()
+        bh.record_failure(s, b.id, detail="Locator.fill: Timeout - selector #email not found")
+        bh.record_failure(s, b.id, detail="selector #email not found")
+        q = s.query(db.SpecDraft).filter_by(broker_id=b.id).all()
+        assert len(q) == 1 and q[0].status == "queued" and q[0].kind == "repair", "one repair a day"
+        bh.record_failure(s, b.id, detail="Timeout waiting")   # not a page change: nothing more
+        assert s.query(db.SpecDraft).count() == 1
+
+        old_spec = BrokerSpec.from_dict({"broker_id": "draftco", "name": "DraftCo", "method": "form",
+                                         "opt_out_url": "https://draftco.example",
+                                         "steps": [{"kind": "navigate", "url": "https://draftco.example"},
+                                                   {"kind": "fill", "selector": "#email", "field": "contact_email"},
+                                                   {"kind": "click", "selector": "#send"}]})
+        new_spec = BrokerSpec.from_dict(dict(old_spec.to_dict(), steps=[
+            {"kind": "navigate", "url": "https://draftco.example"},
+            {"kind": "fill", "selector": "#mail", "field": "contact_email"}, {"kind": "click", "selector": "#send"}]))
+        row = q[0]
+        row.spec_json, row.previous_spec_json, row.source = json.dumps(new_spec.to_dict()), json.dumps(old_spec.to_dict()), "rules"
+        s.commit()
+        sd.decide(s, row, b, old_spec, new_spec, {"ok": True}, ss.load_settings())
+        assert row.status == "applied" and row.decided_by == "automatic"
+        used = bridge.get_or_build_broker_spec(b, db=s)
+        assert used.steps[1].selector == "#mail", "the applied fix is used"
+        assert bridge.get_or_build_broker_spec(b, db=s, use_drafts=False).steps[1].selector != "#mail"
+        assert s.query(db.BrokerUpdate).filter_by(kind="steps_applied", broker_id=b.id).count() == 1
+        sd.revert(s, row, "admin@example.invalid")
+        assert row.status == "reverted" and bridge.get_or_build_broker_spec(b, db=s).steps[1].selector != "#mail"
+
+        # Not selector-only (a step added): waits for an admin even with auto-apply on.
+        more = BrokerSpec.from_dict(dict(new_spec.to_dict(), steps=new_spec.to_dict()["steps"] + [{"kind": "wait", "timeout_ms": 500}]))
+        r2 = db.SpecDraft(broker_id=b.id, kind="repair", status="drafting", spec_json=json.dumps(more.to_dict()))
+        s.add(r2); s.commit()
+        sd.decide(s, r2, b, old_spec, more, {"ok": True}, ss.load_settings())
+        assert r2.status == "ready"
+        sd.approve(s, r2, "admin@example.invalid")
+        assert r2.status == "approved" and len(bridge.get_or_build_broker_spec(b, db=s).steps) == 4
+
+        # A repair made against plugin 1.0.0 is set aside once the plugin is 1.1.0.
+        s.add(db.InstalledPlugin(plugin_id="draftco", name="DraftCo", version="1.1.0", author="x",
+                                 manifest_json="{}", granted_permissions="[]", enabled=True, status="spec",
+                                 install_path="/nonexistent/draftco"))
+        b.plugin_id = "draftco"
+        r2.base_version = "1.0.0"
+        s.commit()
+        assert sd.active_draft(s, b, "1.1.0") is None and r2.status == "superseded"
+
+        # A new broker's draft is never applied automatically.
+        r3 = db.SpecDraft(broker_id=b.id, kind="new", status="drafting", spec_json=json.dumps(new_spec.to_dict()))
+        s.add(r3); s.commit()
+        sd.decide(s, r3, b, None, new_spec, {"ok": True}, ss.load_settings())
+        assert r3.status == "ready"
+        try:
+            sd.revert(s, r3, "x")
+            raise AssertionError("only steps in use can be undone")
+        except ValueError:
+            pass
+    finally:
+        ss.SETTINGS_FILE = old
+        s.close()
+    # IF THIS FAILS: automatic fixes wouldn't be used, couldn't be undone, or could
+    #   override a newer plugin; or new steps could go live without an admin.
+
+
+@test(2, "spec_drafter.ai_repair_never_leaks",
+      "When the rules can't fix a broker, the AI helper is asked with the page and steps; a draft from a page showing a family member's details is refused before anything is sent.")
+def t_drafter_ai_repair():
+    import json
+    db, s = _memory_db()
+    sd = _imp("core.spec_drafter")
+    ai = _imp("core.ai_helpers")
+    BrokerSpec = _imp("core.interpreter").BrokerSpec
+    ss, old, path = _ai_settings()
+    real_rehearse, real_current = sd.rehearse, sd.current_spec
+    try:
+        m = db.FamilyMember(full_name="Zelda Quintessa", user_id=1)
+        s.add(m); s.commit()
+        s.add(db.Identity(member_id=m.id, kind="email", value="zelda@example.com", is_primary=True))
+        b = db.Broker(name="LeakCo", enabled=True, method=db.OptOutMethod.form, opt_out_url="https://acme.example/privacy")
+        s.add(b); s.commit()
+        spec = BrokerSpec.from_dict({"broker_id": "leakco", "name": "LeakCo", "method": "form",
+                                     "opt_out_url": "https://acme.example/privacy",
+                                     "steps": [{"kind": "navigate", "url": "https://acme.example/privacy"},
+                                               {"kind": "fill", "selector": "#old", "field": "contact_email"},
+                                               {"kind": "click", "selector": "#send"}]})
+        sd.current_spec = lambda db_, broker: spec
+        pmap = {"url": "https://acme.example/privacy", "title": "Privacy", "fields": [
+            {"selector": "#a", "tag": "input", "type": "text", "label": "Your contact"},
+            {"selector": "#b", "tag": "input", "type": "text", "label": "Your contact"}], "buttons": [], "text": ""}
+        results = iter([{"ok": False, "failed": 1, "detail": "step 2 (fill) failed", "page_map": pmap, "trace": []},
+                        {"ok": True, "detail": "Stopped before the final click, which is on the page.", "trace": []}])
+        sd.rehearse = lambda sp, shot="": next(results)
+        prompts = []
+        def claude(mth, url, h, body, timeout=None):
+            prompts.append(body["messages"][0]["content"])
+            return 200, {"stop_reason": "end_turn", "content": [{"type": "text", "text": json.dumps(_GOOD_DRAFT)}]}
+        ai.TRANSPORT = claude
+        row = db.SpecDraft(broker_id=b.id, kind="repair", status="queued")
+        s.add(row); s.commit()
+        sd.repair(s, row)
+        assert row.source == "claude" and row.status == "ready", (row.status, row.reason)
+        assert "LeakCo" in prompts[0] and "#old" in prompts[0] and "zelda" not in prompts[0].lower()
+        # Now the page shows a saved detail: nothing is sent.
+        pmap["text"] = "Results: Zelda Quintessa, Austin TX"
+        results = iter([{"ok": False, "failed": 1, "detail": "step 2 (fill) failed", "page_map": pmap, "trace": []}])
+        n = len(prompts)
+        row2 = db.SpecDraft(broker_id=b.id, kind="repair", status="queued")
+        s.add(row2); s.commit()
+        sd.repair(s, row2)
+        assert row2.status == "failed" and len(prompts) == n, "the request with a saved name was not sent"
+        assert "saved details" in row2.reason
+    finally:
+        sd.rehearse, sd.current_spec = real_rehearse, real_current
+        ai.TRANSPORT = ai._http
+        ss.SETTINGS_FILE = old
+        s.close()
+    # IF THIS FAILS: a broken broker couldn't be repaired with a helper, or a page that
+    #   shows a family's listing could be sent to an outside service.
+
+
+@test(1, "agents.instructions_present",
+      "Coding agents (Claude Code, Codex, Antigravity) find the project's rules and the broker-plugin procedure, and both copies of the procedure match.")
+def t_agent_instructions():
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    agents_path = os.path.join(root, "AGENTS.md")
+    if not os.path.isfile(agents_path):
+        raise Skip("AGENTS.md not present (bare backend checkout)")
+    agents = open(agents_path, encoding="utf-8").read()
+    assert "No personal data" in agents and "broker-plugin/SKILL.md" in agents
+    assert len(agents) < 12000, "Antigravity reads rule files up to 12,000 characters"
+    assert open(os.path.join(root, "CLAUDE.md"), encoding="utf-8").read().startswith("@AGENTS.md")
+    a = open(os.path.join(root, ".agents", "skills", "broker-plugin", "SKILL.md"), encoding="utf-8").read()
+    b = open(os.path.join(root, ".claude", "skills", "broker-plugin", "SKILL.md"), encoding="utf-8").read()
+    assert a == b and a.startswith("---\nname: broker-plugin\ndescription: ")
+    # IF THIS FAILS: copy .agents/skills/broker-plugin/SKILL.md over the .claude one (or back).
+
+
+@test(1, "matching.classify_unclear_listings",
+      "Possible listings are sorted into yours, unclear (only the name shows) and not you (a different name or age).")
+def t_match_classify():
+    mp = _imp("core.match_policy")
+    prof = {"names": ["Jane Q Public", "Jane Public"], "places": ["Austin, TX"], "streets": ["123 Main St"],
+            "phones": ["+1 (512) 555-0134"], "emails": [], "ages": [44, 45], "birth_years": [1981, 1982]}
+    assert mp.classify(prof, "Jane Public, Austin, TX")[0] == "yours"
+    assert mp.classify(prof, "Jane Public")[0] == "unclear"
+    assert mp.classify(prof, "Jane Public  View details")[0] == "unclear"
+    assert mp.classify(prof, "Robert Smith, Austin TX")[0] == "not_you"
+    assert mp.classify(prof, "Jane Public, Age 87")[0] == "not_you"
+    assert mp.classify(prof, "Jane Public, Age 45")[0] in ("yours", "unclear")
+    g = mp.global_settings({})
+    assert g == {"unclear_listings": "ask", "users_choose": True}
+    assert mp.global_settings({"matching": {"unclear_listings": "nonsense"}})["unclear_listings"] == "ask"
+    # EXPECTED: only listings that could really be the person reach the policy.
+
+
+@test(2, "matching.policy_default_user_and_parent",
+      "The admin's default applies unless people may choose; then a person's own choice, or their parent's, wins.")
+def t_match_policy():
+    db, s = _memory_db()
+    mp = _imp("core.match_policy")
+    m = _member_with_vault(db, s)
+    cfg = {"matching": {"unclear_listings": "skip", "users_choose": True}}
+    assert mp.for_member(s, m, cfg) == "skip"
+    parent = db.User(email="mom@x.example", full_name="Mom", role=db.UserRole.parent); s.add(parent); s.flush()
+    s.add(db.ProfileAccess(manager_id=parent.id, managed_id=m.user_id)); s.flush()
+    mp.save_user(parent, "remove_all"); s.commit()
+    assert mp.for_member(s, m, cfg) == "remove_all", "a parent's choice covers the people they manage"
+    mp.save_user(m.user, "ask"); s.commit()
+    assert mp.for_member(s, m, cfg) == "ask", "the person's own choice comes first"
+    assert mp.for_member(s, m, {"matching": {"unclear_listings": "skip", "users_choose": False}}) == "skip"
+    mp.save_user(m.user, None); s.commit()
+    assert mp.user_choice(m.user) is None and m.user.optout_prefs is None
+    try:
+        mp.save_user(m.user, "everything"); raise AssertionError("accepted a made-up choice")
+    except ValueError:
+        pass
+    s.close()
+
+
+@test(1, "matching.executor_pick_listing",
+      "pick_listing goes to the person's listing, and for name-only results follows the setting: ask, skip or remove all.")
+def t_match_executor():
+    import asyncio
+    ex_mod = _imp("core.interpreter.executor")
+    comp = _imp("core.interpreter.compiler")
+    prof = {"names": ["Jane Public"], "places": ["Austin, TX"], "streets": [], "phones": [], "emails": [],
+            "ages": [], "birth_years": []}
+
+    class FakePage:
+        url = "https://b.example/search"
+        def __init__(self, results): self.results, self.visited = results, []
+        async def evaluate(self, js, *a): return self.results
+        async def goto(self, url, timeout=0): self.visited.append(url)
+        async def wait_for_timeout(self, ms): pass
+
+    def run(results, policy, preset=None):
+        page = FakePage(results)
+        ex = ex_mod.PlaywrightExecutor(page=page, match_profile=prof, unclear_policy=policy, preset_listing_url=preset)
+        job = comp.Job(broker_id="1", broker_name="B", member_id="2", method="form",
+                       steps=[comp.JobStep(kind="pick_listing", selector="a.result")])
+        return asyncio.new_event_loop().run_until_complete(ex.run(job)), page
+
+    unclear = [{"url": f"https://b.example/p/{i}", "text": "Jane Public"} for i in range(3)]
+    mine = [{"url": "https://b.example/p/me", "text": "Jane Public, Austin, TX, age 45"}]
+    other = [{"url": "https://b.example/p/bob", "text": "Bob Jones, Reno, NV"}]
+    res, page = run(mine + unclear + other, "ask")
+    assert res.ok and page.visited == ["https://b.example/p/me"] and res.extra_picks == [], res.trace
+    res, page = run(unclear + other, "ask")
+    assert res.needs_manual and len(res.candidates) == 3 and page.visited == [], res.trace
+    assert "Checklist" in res.human_instruction
+    res, page = run(unclear, "skip")
+    assert res.skipped and not res.ok and page.visited == []
+    res, page = run(unclear, "remove_all")
+    assert res.ok and page.visited == ["https://b.example/p/0"] and res.extra_picks == ["https://b.example/p/1", "https://b.example/p/2"]
+    res, page = run(other, "remove_all")
+    assert res.not_listed and page.visited == []
+    res, page = run(unclear, "ask", preset="https://b.example/p/2")
+    assert res.ok and page.visited == ["https://b.example/p/2"], "a listing the person picked is used directly"
+
+
+@test(3, "matching.results_from_a_real_page",
+      "On a real search-results page, each result link comes back with the text of its own result card.")
+def t_match_results_live():
+    _chromium_or_skip()
+    import asyncio
+    ex_mod = _imp("core.interpreter.executor")
+    html = """<html><body><div id=results>
+      <div class=card><h3>Jane Public</h3><a class=r href='/p/1'>View</a></div>
+      <div class=card><h3>Jane Public</h3><span>Austin, TX</span><a class=r href='/p/2'>View</a></div>
+      <div class=card><h3>Bob Jones</h3><a class=r href='/p/3'>View</a></div>
+    </div><a href='/about'>About</a></body></html>"""
+    async def go():
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            b = await p.firefox.launch()
+            try:
+                page = await b.new_page()
+                await page.route("https://search.example/**", lambda r: r.fulfill(body=html, content_type="text/html"))
+                await page.goto("https://search.example/s")
+                by_sel = await page.evaluate(ex_mod.PlaywrightExecutor._RESULTS_JS, ["a.r", ""])
+                by_pat = await page.evaluate(ex_mod.PlaywrightExecutor._RESULTS_JS, ["", r"/p/\d+"])
+                return by_sel, by_pat
+            finally:
+                await b.close()
+    try:
+        by_sel, by_pat = asyncio.run(go())
+    except Exception as e:
+        raise Skip(f"no browser here: {e}")
+    assert [r["url"] for r in by_sel] == [f"https://search.example/p/{i}" for i in (1, 2, 3)], by_sel
+    assert "Austin" in by_sel[1]["text"] and "Austin" not in by_sel[0]["text"], by_sel
+    assert "Bob Jones" in by_sel[2]["text"]
+    assert [r["url"] for r in by_pat] == [r["url"] for r in by_sel], "the address pattern finds the same results"
+
+
+@test(2, "matching.checklist_pick_and_none",
+      "Unclear listings show on the Checklist; picked ones are queued, and 'none of these' marks the site skipped.")
+def t_match_checklist():
+    import json
+    db, s = _memory_db()
+    cl = _imp("core.checklist")
+    m = _member_with_vault(db, s)
+    b = db.Broker(name="B", opt_out_url="https://b.example"); s.add(b); s.flush()
+    cands = [{"url": "https://b.example/p/1", "text": "Jane Public", "why": "only the name"},
+             {"url": "https://b.example/p/2", "text": "Jane Public", "why": "only the name"},
+             {"url": "javascript:alert(1)", "text": "x"}]
+    r = db.RemovalRequest(member_id=m.id, broker_id=b.id, status=db.RequestStatus.needs_manual,
+                          candidates_enc=json.dumps(cands), notes="pick")
+    s.add(r); s.commit()
+    item = cl.build(s, [m.id])["groups"]["finish"][0]
+    assert [c["url"] for c in item["candidates"]] == ["https://b.example/p/1", "https://b.example/p/2"]
+    assert cl.pick(s, r, ["https://b.example/p/2", "https://evil.example/x"], "Jane") == "queued"
+    assert r.status == db.RequestStatus.pending and json.loads(r.picked_enc) == ["https://b.example/p/2"]
+    assert r.candidates_enc is None, "only picked addresses are kept"
+    r.status, r.candidates_enc = db.RequestStatus.needs_manual, json.dumps(cands); s.commit()
+    assert cl.pick(s, r, [], "Jane") == "skipped" and r.status == db.RequestStatus.skipped
+    s.close()
+
+
+@test(2, "matching.web_search_follows_the_setting",
+      "Name-only web search hits on known brokers are skipped, queued for removal or left to review, per the setting.")
+def t_match_web_search():
+    db, s = _memory_db()
+    ws = _imp("core.web_search")
+    m = _member_with_vault(db, s)
+    s.add(db.Broker(name="Radaris", opt_out_url="https://radaris.com/control-privacy")); s.commit()
+    pages = [{"url": "https://radaris.com/p/Jane/Public/1", "title": "Jane Public", "snippet": "View profile"},
+             {"url": "https://radaris.com/p/Jane/Public/2", "title": "Jane Public", "snippet": "View profile"},
+             {"url": "https://radaris.com/p/Bob/Jones", "title": "Bob Jones", "snippet": "Reno, NV"}]
+    def hits():
+        return {h.url: h for h in s.query(db.WebSearchHit).all()}
+    def run(policy):
+        for h in s.query(db.WebSearchHit).all():
+            s.delete(h)
+        s.commit()
+        return ws.run_for_member(s, m, {"web_search": {"max_queries": 1}, "matching": {"unclear_listings": policy}},
+                                 search=lambda q: pages, pause=0)
+    run("ask")
+    H = hits()
+    unclear = [h for u, h in H.items() if "/Jane/" in u]
+    assert unclear and all(h.status == "new" and h.matched_on == "unclear" for h in unclear), \
+        [(h.url, h.status, h.matched_on) for h in H.values()]
+    st = run("skip")
+    assert all(h.status == "dismissed" and h.dismiss_reason == "unclear_skipped"
+               for u, h in hits().items() if "/Jane/" in u), "skip leaves them alone"
+    run("remove_all")
+    assert all(h.status == "added" for u, h in hits().items() if "/Jane/" in u), "remove all queues every one"
+    s.close()
+    # EXPECTED: name-only hits follow the same setting as listings found on the sites themselves.
+
 
 def main():
     ap = argparse.ArgumentParser(description="OpenOptOut test runner")

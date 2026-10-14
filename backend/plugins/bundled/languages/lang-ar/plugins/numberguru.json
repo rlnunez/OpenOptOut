@@ -1,0 +1,4 @@
+{
+ "description": "إلغاء موجَّه لدى NumberGuru، الذي يعرض الأشخاص حسب رقم الهاتف. إلغاء واحد يشمل كل الأرقام المحفوظة.",
+ "instructions": "ابحث في https://www.numberguru.com/ عن كل رقم من هذه الأرقام: {all_phones}. في أي صفحة تظهر فيها، استخدم رابط «Remove This Listing» أو «Opt Out» وأعطِ {contact_email} بريدًا لك. ثم اضغط «لقد أنجزت هذا»."
+}

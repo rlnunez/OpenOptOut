@@ -1,0 +1,4 @@
+{
+ "description": "Kujiondoa kwa kuelekezwa kwa SearchBug. Mtu hufuata hatua kwenye orodha ya ukaguzi; OpenOptOut hutoa anwani ya barua pepe ya mara moja na kubofya kiungo cha uthibitisho.",
+ "instructions": "Fungua https://www.searchbug.com/privacy-requests.aspx na ufuate hatua za tovuti kwa {full_name}. Tumia {contact_email} popote inapoomba anwani ya barua pepe, ili jibu liweze kulinganishwa. Kisha bonyeza \"Nimefanya hili\"."
+}

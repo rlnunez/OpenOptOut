@@ -1,0 +1,4 @@
+{
+ "description": "Wspomagana rezygnacja z SearchPeopleFree. Użytkownik wykonuje kroki z listy zadań; OpenOptOut zapewnia jednorazowy adres e-mail i klika link potwierdzający.",
+ "instructions": "Search searchpeoplefree.com by name, phone number, address and email; people are often listed more than once. For each record, use searchpeoplefree.com/opt-out, giving {contact_email} as the email address. Następnie naciśnij „Zrobione”."
+}

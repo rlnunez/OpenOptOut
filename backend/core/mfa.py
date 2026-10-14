@@ -20,7 +20,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Tuple, Any
 
-from .settings_store import load_settings, encrypt_password, decrypt_password, SETTINGS_FILE
+from .settings_store import load_settings, save_settings, encrypt_password, decrypt_password, SETTINGS_FILE
 
 # Known NIST FIPS 140-2 and FIPS 140-3 AAGUIDs (published by Yubico & certification bodies)
 YUBICO_FIPS_AAGUIDS: Dict[str, str] = {
@@ -410,8 +410,7 @@ def get_system_install_date(db: Any) -> datetime:
         earliest = db.query(User).order_by(User.created_at.asc()).first()
         if earliest and earliest.created_at:
             s["installed_at"] = earliest.created_at.isoformat()
-            with open(SETTINGS_FILE, "w") as f:
-                json.dump(s, f, indent=2)
+            save_settings(s)
             return earliest.created_at
     except Exception:
         pass
@@ -419,8 +418,7 @@ def get_system_install_date(db: Any) -> datetime:
     now = datetime.utcnow()
     s["installed_at"] = now.isoformat()
     try:
-        with open(SETTINGS_FILE, "w") as f:
-            json.dump(s, f, indent=2)
+        save_settings(s)
     except Exception:
         pass
     return now

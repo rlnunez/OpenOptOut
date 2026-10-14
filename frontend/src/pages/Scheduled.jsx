@@ -5,16 +5,19 @@ import {
 } from 'lucide-react'
 import api from '../api'
 import Badge from '../components/Badge'
+import { tx, txn } from '../i18n/tx'
+import { fmtDate } from '../i18n/format'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function daysLabel(days) {
   if (days === null || days === undefined) return '—'
-  if (days < 0)  return { text: `${Math.abs(days)}d overdue`, cls: 'text-red-400' }
-  if (days === 0) return { text: 'due today',  cls: 'text-orange-400' }
-  if (days <= 7)  return { text: `${days}d`,   cls: 'text-amber-400' }
-  if (days <= 30) return { text: `${days}d`,   cls: 'text-yellow-400' }
-  return               { text: `${days}d`,     cls: 'text-slate-400' }
+  if (days < 0)  return { text: txn(Math.abs(days), "{n} day late", "{n} days late"), cls: 'text-red-400' }
+  if (days === 0) return { text: 'today',  cls: 'text-orange-400' }
+  const t = txn(days, "in {n} day", "in {n} days")
+  if (days <= 7)  return { text: t, cls: 'text-amber-400' }
+  if (days <= 30) return { text: t, cls: 'text-yellow-400' }
+  return               { text: t, cls: 'text-slate-400' }
 }
 
 function UrgencyBar({ days }) {
@@ -64,14 +67,14 @@ function RecheckRow({ req, onRequeue, onSnooze }) {
         <Badge value={req.broker_difficulty} />
       </td>
       <td className="px-4 py-3 text-slate-500 text-xs">
-        {req.confirmed_at ? new Date(req.confirmed_at).toLocaleDateString() : '—'}
+        {fmtDate(req.confirmed_at)}
       </td>
       <td className="px-4 py-3">
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={requeue} disabled={acting} title="Re-queue for opt-out"
+        <div className="flex items-center gap-1">
+          <button onClick={requeue} disabled={acting} title={tx("Send the opt-out again")}
             className="flex items-center gap-1 px-2 py-1 text-xs text-shield-400 border border-shield-800 bg-shield-900/20 rounded-sm hover:bg-shield-800/30 transition-colors disabled:opacity-40">
             {acting ? <RefreshCw size={10} className="animate-spin" /> : <RotateCcw size={10} />}
-            Re-queue
+            {tx("Send again")}
           </button>
           <SnoozeMenu reqId={req.id} onSnooze={onSnooze} />
         </div>
@@ -83,24 +86,24 @@ function RecheckRow({ req, onRequeue, onSnooze }) {
 function SnoozeMenu({ reqId, onSnooze }) {
   const [open, setOpen] = useState(false)
   const options = [
-    { days: 7,  label: '7 days' },
-    { days: 30, label: '30 days' },
-    { days: 60, label: '60 days' },
-    { days: 90, label: '90 days' },
+    { days: 7,  label: tx("7 days") },
+    { days: 30, label: tx("30 days") },
+    { days: 60, label: tx("60 days") },
+    { days: 90, label: tx("90 days") },
   ]
   return (
     <div className="relative">
       <button onClick={() => setOpen(o => !o)}
         className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 border border-slate-700 rounded-sm hover:bg-slate-700 transition-colors">
-        <AlarmClock size={10} /> Snooze <ChevronDown size={9} />
+        <AlarmClock size={10} aria-hidden="true" />{" "}{tx("Check later")}{" "}<ChevronDown size={9} aria-hidden="true" />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-10 min-w-28 overflow-hidden">
+        <div className="absolute end-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-10 min-w-28 overflow-hidden">
           {options.map(o => (
             <button key={o.days}
               onClick={() => { onSnooze(reqId, o.days); setOpen(false) }}
-              className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
-              +{o.label}
+              className="w-full text-start px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
+              {tx("In {label}", { label: o.label })}
             </button>
           ))}
         </div>
@@ -167,29 +170,29 @@ export default function Scheduled() {
     <div className="p-4 md:p-6 max-w-5xl">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-white text-xl font-semibold">Scheduled re-checks</h1>
+          <h1 className="text-white text-xl font-semibold">{tx("Check again")}</h1>
           <p className="text-slate-400 text-sm mt-0.5">
-            Track confirmed removals that need periodic re-verification
+            {tx("Brokers often put people back. These removals are due for another look (OpenOptOut checks most of them automatically).")}
           </p>
         </div>
         <button onClick={load} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
-          <RefreshCw size={13} /> Refresh
+          <RefreshCw size={13} />{" "}{tx("Refresh")}
         </button>
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-        <SummaryCard label="Overdue"        value={overdue.length}  icon={AlertTriangle} color="text-red-400" />
-        <SummaryCard label={`Due in ${daysAhead}d`} value={upcoming.length} icon={Clock} color="text-amber-400" />
-        <SummaryCard label="Total confirmed" value={overdue.length + upcoming.length} icon={CheckCircle} color="text-emerald-400" />
+        <SummaryCard label={tx("Due now")}        value={overdue.length}  icon={AlertTriangle} color="text-red-400" />
+        <SummaryCard label={tx("Due in the next {daysAhead} days", { daysAhead })} value={upcoming.length} icon={Clock} color="text-amber-400" />
+        <SummaryCard label={tx("Removals shown")} value={overdue.length + upcoming.length} icon={CheckCircle} color="text-emerald-400" />
       </div>
 
       {/* Tabs + filters */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700/50 flex-wrap">
           {[
-            { key: 'overdue',  label: `Overdue (${overdue.length})` },
-            { key: 'upcoming', label: `Upcoming (${upcoming.length})` },
+            { key: 'overdue',  label: tx("Due now ({length})", { length: overdue.length }) },
+            { key: 'upcoming', label: tx("Coming up ({length})", { length: upcoming.length }) },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`px-3 py-1.5 text-sm rounded transition-colors ${
@@ -205,10 +208,10 @@ export default function Scheduled() {
           {tab === 'upcoming' && (
             <select value={daysAhead} onChange={e => setDaysAhead(parseInt(e.target.value))}
               className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-slate-300 focus:outline-hidden">
-              <option value={7}>Next 7 days</option>
-              <option value={30}>Next 30 days</option>
-              <option value={60}>Next 60 days</option>
-              <option value={90}>Next 90 days</option>
+              <option value={7}>{tx("Next 7 days")}</option>
+              <option value={30}>{tx("Next 30 days")}</option>
+              <option value={60}>{tx("Next 60 days")}</option>
+              <option value={90}>{tx("Next 90 days")}</option>
             </select>
           )}
 
@@ -216,7 +219,7 @@ export default function Scheduled() {
           {members.length > 1 && (
             <select value={memberFilter} onChange={e => setMemberFilter(e.target.value)}
               className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-slate-300 focus:outline-hidden">
-              <option value="">All members</option>
+              <option value="">{tx("Everyone")}</option>
               {members.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           )}
@@ -226,12 +229,12 @@ export default function Scheduled() {
       {/* Table */}
       <div className="bg-slate-800 rounded-xl border border-slate-700/50 overflow-hidden">
         {loading ? (
-          <p className="text-slate-500 text-sm p-6">Loading…</p>
+          <p className="text-slate-500 text-sm p-6">{tx("Loading…")}</p>
         ) : rows.length === 0 ? (
           <div className="text-center py-12">
             <CalendarClock size={28} className="text-slate-700 mx-auto mb-2" />
             <p className="text-slate-400 text-sm">
-              {tab === 'overdue' ? 'No overdue re-checks — all clear.' : `No re-checks due in the next ${daysAhead} days.`}
+              {tab === 'overdue' ? tx("Nothing is due right now.") : tx("Nothing is due in the next {daysAhead} days.", { daysAhead })}
             </p>
           </div>
         ) : (
@@ -239,13 +242,13 @@ export default function Scheduled() {
             <table className="w-full text-sm">
             <thead>
               <tr className="text-slate-500 text-xs border-b border-slate-700/50">
-                <th className="text-left px-4 py-3 font-normal">Broker</th>
-                <th className="text-left px-4 py-3 font-normal">Member</th>
-                <th className="text-left px-4 py-3 font-normal">
-                  {tab === 'overdue' ? 'Overdue by' : 'Due in'}
+                <th className="text-start px-4 py-3 font-normal">{tx("Site")}</th>
+                <th className="text-start px-4 py-3 font-normal">{tx("Person")}</th>
+                <th className="text-start px-4 py-3 font-normal">
+                  {tab === 'overdue' ? tx("Late by") : tx("Due")}
                 </th>
-                <th className="text-left px-4 py-3 font-normal">Difficulty</th>
-                <th className="text-left px-4 py-3 font-normal">Confirmed</th>
+                <th className="text-start px-4 py-3 font-normal">{tx("Difficulty")}</th>
+                <th className="text-start px-4 py-3 font-normal">{tx("Removed on")}</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -263,12 +266,12 @@ export default function Scheduled() {
         <div className="mt-3 flex justify-end">
           <button
             onClick={async () => {
-              if (!confirm(`Re-queue all ${rows.length} overdue removals?`)) return
+              if (!confirm(tx("Send all {length} opt-outs that are due again?", { length: rows.length }))) return
               await Promise.all(rows.map(r => api.post(`/requests/${r.id}/requeue`)))
               load()
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-shield-400 border border-shield-800 bg-shield-900/20 rounded-lg hover:bg-shield-800/30 transition-colors">
-            <RotateCcw size={13} /> Re-queue all overdue
+            <RotateCcw size={13} aria-hidden="true" />{" "}{tx("Send all due ones again")}
           </button>
         </div>
       )}

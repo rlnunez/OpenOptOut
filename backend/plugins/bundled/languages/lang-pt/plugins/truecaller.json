@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no Truecaller, que lista pessoas por número de telefone. Uma exclusão cobre todos os números salvos.",
+ "instructions": "O Truecaller mostra seu nome para quem você liga. Abra https://www.truecaller.com/unlisting e retire cada um destes números, um de cada vez, com o código do país: {all_phones}. Conclua a verificação de robô em cada um. Se você mesmo usa o app Truecaller, desative primeiro sua conta no app e depois desinstale, senão a retirada não vale. Depois toque em \"Já fiz isso\"."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei Clustal. Eine Person folgt den Schritten der Checkliste; OpenOptOut stellt eine Einmal-E-Mail-Adresse bereit und klickt Bestätigungslinks an.",
+ "instructions": "Such auf clustal.org nach {full_name}, öffne „view full record“ und kopier die Adresse dieser Seite (die Adresse des Suchergebnisses funktioniert nicht). Öffne clustal.org/privacy-control, füg sie ein, drück „remove my info“, gib {contact_email} ein und drück noch einmal „remove my info“. Clustal schickt einen Link zum Abschließen; OpenOptOut klickt ihn für dich an. Drück dann „Ich habe das erledigt“."
+}

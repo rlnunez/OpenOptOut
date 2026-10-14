@@ -1,0 +1,3 @@
+{
+ "description": "Proveedor de correo Yahoo Mail. La persona inicia sesión con Yahoo (OAuth 2.0); el correo se envía por el SMTP de Yahoo y se lee por su IMAP con ese token de inicio de sesión (SASL OAUTHBEARER). Sin contraseñas de aplicación. Lee los enlaces de confirmación del cuerpo de los mensajes sin marcarlos como leídos. Clase de proveedor de correo de confianza; el sistema lo inspecciona en busca de destinatarios ocultos e impone el destinatario al enviar."
+}

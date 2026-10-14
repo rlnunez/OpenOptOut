@@ -1,0 +1,18 @@
+{
+  "broker_id": "spydialer",
+  "name": "Spy Dialer",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://www.spydialer.com/",
+  "lookup_by": "phone",
+  "instructions": "Open https://www.spydialer.com/ and click \"Do Not Sell Or Share My Personal Information\" at the bottom. Press Start, choose your state, finish the robot check, then add {full_name}, your address, each of these numbers ({all_phones}) and {email}. Press \"Opt-Out My Info\" and wait for \"Your submitted data has been blocked from future sharing\". Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "Spy Dialer takes several names, addresses, numbers and emails in one go, so one visit covers every number.",
+  "source": "Steps per DeleteMe's Spy Dialer opt-out guide.",
+  "last_verified": ""
+}

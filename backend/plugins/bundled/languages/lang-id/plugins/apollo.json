@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out for Apollo.io, which lists people by email address. One opt-out covers every saved email address.",
+ "instructions": "Apollo files people by work email. Buka https://www.apollo.io/privacy-policy/remove, enter each of these addresses (one at a time), finish the robot check, and open the link Apollo sends to that address: {all_emails}. Kemudian tekan \"Saya sudah melakukan ini\"."
+}

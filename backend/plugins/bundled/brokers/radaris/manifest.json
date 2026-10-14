@@ -1,0 +1,12 @@
+{
+  "id": "radaris",
+  "type": "brokers",
+  "broker_id": "radaris",
+  "name": "Radaris",
+  "version": "1.2.0",
+  "author": "OpenOptOut contributors",
+  "description": "Opt-out for Radaris (radaris.com). Fills the name search automatically, then hands the listing pick and confirmation to a person.",
+  "spec_file": "spec.json",
+  "difficulty": "medium",
+  "is_property_broker": false
+}

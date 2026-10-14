@@ -282,6 +282,14 @@ class ResultIngestionService:
                             req.status = RequestStatus.needs_manual
                         else:
                             req.status = RequestStatus.submitted
+                            # Distributed jobs submit the member's first (primary) value
+                            # of each kind; record those for the per-variant report.
+                            try:
+                                from ..variant_report import record, identities_in_email
+                                if getattr(req, "member", None) is not None:
+                                    record(db, req.id, identities_in_email(req.member, limit=1))
+                            except Exception:
+                                pass
                         req.sent_at = datetime.utcnow()
 
                         # Broker health success update
@@ -289,7 +297,7 @@ class ResultIngestionService:
 
                     elif result_env.status == "captcha":
                         req.status = RequestStatus.needs_manual
-                        req.notes = ((req.notes or "") + " [Paused for human CAPTCHA resolution]").strip()
+                        req.notes = ((req.notes or "") + " Stopped at a CAPTCHA (the site asked to prove a person is there).").strip()
 
                         # Route to CaptchaChallenge queue
                         try:
@@ -402,6 +410,15 @@ class ResultIngestionService:
 
                 out["discovery_listings_saved"] = saved_count
                 out["chained_requests"] = chained_count
+                if saved_count:
+                    try:
+                        db.flush()
+                        b = db.query(Broker).filter(Broker.id == broker_id_int).first()
+                        if b is not None and not b.enabled:
+                            from ..found_listings import handle
+                            handle(db, b, member_id_int)
+                    except Exception as fl_err:
+                        log.debug("found-listing rule skipped: %s", fl_err)
 
                 # Record AutomationLog
                 try:

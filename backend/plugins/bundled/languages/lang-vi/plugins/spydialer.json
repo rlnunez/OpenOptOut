@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho Spy Dialer, trang liệt kê người theo số điện thoại. Một lần gỡ áp dụng cho mọi số đã lưu.",
+ "instructions": "Mở https://www.spydialer.com/ và bấm \"Do Not Sell Or Share My Personal Information\" ở cuối trang. Bấm Start, chọn bang của bạn, hoàn tất bước kiểm tra robot, rồi thêm {full_name}, địa chỉ của bạn, từng số sau ({all_phones}) và {email}. Bấm \"Opt-Out My Info\" và chờ tới khi thấy \"Your submitted data has been blocked from future sharing\". Sau đó bấm \"Tôi đã làm xong\"."
+}

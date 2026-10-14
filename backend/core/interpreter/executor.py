@@ -21,7 +21,27 @@ Result shape is uniform across executors so the engine treats them identically:
 from dataclasses import dataclass, field
 from typing import Optional
 
+import re
+
 from .compiler import Job, JobStep
+
+# A form saying the email address it was given isn't acceptable.
+EMAIL_REJECTED = re.compile(
+    r"(not a valid|invalid|enter a valid|incorrect|unsupported|not supported|not allowed|isn't valid|is not valid)"
+    r"[^.\n]{0,30}\be-?mail\b|"
+    r"\be-?mail\b[^.\n]{0,40}(is invalid|is not valid|isn't valid|not allowed|not supported|"
+    r"can(no|')t contain|must not contain|special characters)",
+    re.I)
+
+# Visible CAPTCHA widgets. Invisible reCAPTCHA (v3 / size=invisible) is left
+# alone: it never asks a person anything.
+CAPTCHA_SELECTORS = (
+    "iframe[src*='recaptcha'][src*='anchor']:not([src*='size=invisible'])",
+    "iframe[src*='hcaptcha'][src*='checkbox']",
+    ".h-captcha:not([data-size='invisible'])",
+    "#captcha",
+)
+TURNSTILE = "iframe[src*='challenges.cloudflare.com']"
 
 
 @dataclass
@@ -34,6 +54,19 @@ class ExecResult:
     needs_manual: bool = False      # broker requires human action
     trace: list[str] = field(default_factory=list)   # human-readable per-step log
     challenge: Optional[dict] = None  # challenge metadata for human/solver path (type, site_key, page_url, etc.)
+    human_instruction: str = ""     # what the person must do, when a pause_for_human step stopped the flow
+    # pick_listing outcomes (core/match_policy.py)
+    candidates: list = field(default_factory=list)   # unclear matches for the person to choose from
+    extra_picks: list = field(default_factory=list)  # more listings to remove in separate runs
+    skipped: bool = False           # unclear matches left alone by setting
+    not_listed: bool = False        # the search showed nobody who could be this person
+    verified: bool = False          # the page showed the spec's success signal
+    email_rejected: bool = False    # the form refused the contact address (e.g. a "+" address)
+    # Where a person took over in a form flow, so they can pick it up live
+    # (core/live_captcha.py): the step index and "pause" (a pause_for_human
+    # step) or "form" (a form OpenOptOut wasn't sure how to fill). -1 = none.
+    pause_step: int = -1
+    pause_kind: str = ""
 
     def to_dict(self) -> dict:
         d = {
@@ -47,6 +80,14 @@ class ExecResult:
         }
         if self.challenge is not None:
             d["challenge"] = dict(self.challenge)
+        if self.human_instruction:
+            d["human_instruction"] = self.human_instruction
+        if self.verified:
+            d["verified"] = True
+        if self.email_rejected:
+            d["email_rejected"] = True
+        if self.pause_step >= 0:
+            d["pause_step"], d["pause_kind"] = self.pause_step, self.pause_kind
         return d
 
     @classmethod
@@ -60,7 +101,16 @@ class ExecResult:
             needs_manual=bool(d.get("needs_manual", False)),
             trace=list(d.get("trace", [])),
             challenge=dict(d["challenge"]) if d.get("challenge") is not None else None,
+            human_instruction=str(d.get("human_instruction", "")),
+            verified=bool(d.get("verified", False)),
+            email_rejected=bool(d.get("email_rejected", False)),
+            pause_step=int(d.get("pause_step", -1)),
+            pause_kind=str(d.get("pause_kind", "")),
         )
+
+
+class NeedsPerson(Exception):
+    """A step decided a person should take over (e.g. autofill wasn't sure)."""
 
 
 class JobExecutor:
@@ -105,6 +155,11 @@ class DryRunExecutor(JobExecutor):
                                   needs_captcha=True,
                                   detail="paused for CAPTCHA (handoff not yet wired)",
                                   trace=trace)
+            if s.kind == "pause_for_human" and not s.selector:
+                trace.append(f"[{i}] pause_for_human -> {s.text}")
+                return ExecResult(ok=False, steps_run=i, steps_total=total,
+                                  needs_manual=True, human_instruction=s.text,
+                                  detail="paused for a person to finish", trace=trace)
             trace.append(self._describe(i, s))
         return ExecResult(ok=True, steps_run=total, steps_total=total,
                           detail="dry run complete — all steps coherent", trace=trace)
@@ -113,9 +168,9 @@ class DryRunExecutor(JobExecutor):
     def _describe(i: int, s: JobStep) -> str:
         if s.kind == "navigate":
             return f"[{i}] navigate -> {s.url}"
-        if s.kind == "fill":
+        if s.kind in ("fill", "type"):
             shown = (s.value[:20] + "…") if len(s.value) > 20 else s.value
-            return f"[{i}] fill {s.selector} = {shown!r}"
+            return f"[{i}] {s.kind} {s.selector} = {shown!r}"
         if s.kind in ("select", "check", "click"):
             return f"[{i}] {s.kind} {s.selector}" + (f" = {s.value!r}" if s.value else "")
         if s.kind in ("wait_for",):
@@ -134,6 +189,15 @@ class DryRunExecutor(JobExecutor):
             return f"[{i}] scroll {s.selector or 'window'}"
         if s.kind == "expect_success":
             return f"[{i}] expect_success {s.selector or s.text!r}"
+        if s.kind == "pause_for_human":
+            return f"[{i}] pause_for_human if {s.selector} present -> {s.text}"
+        if s.kind == "autofill":
+            import json as _json
+            try:
+                keys = sorted(_json.loads(s.value or "{}"))
+            except ValueError:
+                keys = []
+            return f"[{i}] autofill form by its labels ({', '.join(keys)})"
         return f"[{i}] {s.kind}"
 
 
@@ -149,7 +213,8 @@ class PlaywrightExecutor(JobExecutor):
     """
 
     def __init__(self, page=None, email_sender=None, captcha_solver=None,
-                 plugin_form_handler=None):
+                 plugin_form_handler=None, secrets=None, match_profile=None,
+                 unclear_policy="ask", preset_listing_url=None, listing_pattern="", person_hook=None):
         # page: a Playwright Page (async). email_sender: callable(EmailJob)->ok.
         # captcha_solver: callable(challenge_dict) -> result_dict | None, where
         #   result is {"solved": bool, "token": str, "defer_to_human": bool}.
@@ -161,10 +226,84 @@ class PlaywrightExecutor(JobExecutor):
         self.captcha_solver = captcha_solver
         self.plugin_form_handler = plugin_form_handler
         self._current_frame = None
+        # The person's saved details: blacked out of any CAPTCHA image and kept
+        # out of any page address before either is stored or sent anywhere.
+        self.secrets = list(secrets or [])
+        # Picking a listing from search results (pick_listing steps).
+        self.match_profile = match_profile or {}
+        self.unclear_policy = unclear_policy or "ask"
+        self.preset_listing_url = preset_listing_url
+        self.listing_pattern = listing_pattern or ""
+        self._pick_outcome = None
+        # A person on a live page (core/live_captcha.py): called at a
+        # pause_for_human step, or when a form needs filling by hand, with
+        # {"kind", "text", "step"}; returns True once they've done it, and the
+        # flow carries on from the same page. Without it, the flow stops there.
+        self.person_hook = person_hook
 
     def _target(self):
         """Current interaction target: either an active iframe locator or the main page."""
         return self._current_frame if self._current_frame is not None else self.page
+
+    def _loc(self, selector: str):
+        """First element matching selector in the current page or iframe.
+        (Locators work the same on a Page and a FrameLocator, which has no
+        fill()/click() of its own.)"""
+        return self._target().locator(selector).first
+
+    _DESCRIBE_JS = """(els) => els.map((el, i) => {
+        const visible = !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)
+                        && getComputedStyle(el).visibility !== 'hidden';
+        const txt = (n) => (n ? (n.innerText || n.textContent || '') : '').replace(/\\s+/g, ' ').trim();
+        let label = '';
+        if (el.id) { const l = document.querySelector('label[for="' + CSS.escape(el.id) + '"]'); if (l) label = txt(l); }
+        if (!label) { const l = el.closest('label'); if (l) label = txt(l); }
+        if (!label && el.getAttribute('aria-labelledby')) {
+            label = el.getAttribute('aria-labelledby').split(/\\s+/).map(id => txt(document.getElementById(id))).join(' ');
+        }
+        const fs = el.closest('fieldset'); const legend = fs ? txt(fs.querySelector('legend')) : '';
+        const grp = el.closest('[role=radiogroup], [role=group]');
+        const groupLabel = legend || (grp ? (grp.getAttribute('aria-label') || txt(grp.querySelector('label, legend, h3, h4, p'))) : '');
+        const opts = el.tagName === 'SELECT' ? Array.from(el.options).map(o => ({value: o.value, label: txt(o)})) : [];
+        return {i, visible, tag: el.tagName.toLowerCase(), type: (el.type || '').toLowerCase(), name: el.name || '',
+                id: el.id || '', label: label.slice(0, 200), aria: el.getAttribute('aria-label') || '',
+                placeholder: el.getAttribute('placeholder') || '', autocomplete: el.getAttribute('autocomplete') || '',
+                required: !!(el.required || el.getAttribute('aria-required') === 'true'),
+                value: el.type === 'radio' || el.type === 'checkbox' ? (el.value || '') : '',
+                group: el.type === 'radio' || el.type === 'checkbox' ? (el.name || '') : '',
+                group_label: groupLabel.slice(0, 200), options: opts};
+    })"""
+
+    async def _autofill(self, s, trace, i):
+        """Fill a privacy-request form by reading its labels (see hosted_forms)."""
+        import json as _json
+        from .hosted_forms import plan_autofill
+        controls = self._target().locator("input, select, textarea")
+        desc = await controls.evaluate_all(self._DESCRIBE_JS)
+        desc = [d for d in desc if d.get("visible")]
+        values = _json.loads(s.value or "{}")
+        plan = plan_autofill(desc, values)
+        if not plan["ok"]:
+            raise NeedsPerson(plan["why"])
+        for a in plan["actions"]:
+            loc = controls.nth(a["i"])
+            if a["op"] == "fill":
+                await loc.fill(a["value"], timeout=8000)
+            elif a["op"] == "select":
+                await loc.select_option(a["value"], timeout=8000)
+            elif a["op"] == "check":
+                await loc.check(timeout=8000, force=True)
+        trace.append(f"[{i}] autofill: {', '.join(plan['mapped'])}")
+
+    async def _turnstile_passed(self, wait_ms: int = 15000) -> bool:
+        """Cloudflare Turnstile usually passes by itself; give it a moment."""
+        try:
+            await self.page.wait_for_function(
+                "() => { const i = document.querySelector('input[name=\"cf-turnstile-response\"]');"
+                " return !!(i && i.value); }", timeout=wait_ms)
+            return True
+        except Exception:
+            return False
 
     async def _get_page_context(self, stage_index: int = 0) -> dict:
         """Gather rich page state for fill_form plugins (roadmap item 3)."""
@@ -209,6 +348,7 @@ class PlaywrightExecutor(JobExecutor):
 
         trace = []
         self._current_frame = None
+        self._verified = False
 
         # Extension point: a fill_form plugin may take over this broker entirely
         # (multi-form / complex wizard flow, roadmap item 3). Supports multi-stage
@@ -257,21 +397,98 @@ class PlaywrightExecutor(JobExecutor):
                 trace.append(f"fill_form plugin takeover failed ({e}); using default steps")
 
         total = len(job.steps)
+        extra_picks = []
         for i, s in enumerate(job.steps):
+            if s.kind == "pick_listing":
+                try:
+                    out = await self._pick_listing(s, trace, i)
+                except Exception as e:
+                    if s.optional:
+                        continue
+                    return ExecResult(ok=False, steps_run=i, steps_total=total, trace=trace,
+                                      detail=f"step {i} (pick_listing) failed: {e}")
+                if out.get("stop") is not None:
+                    r = out["stop"]
+                    r.steps_run, r.steps_total, r.trace = i, total, trace
+                    return r
+                extra_picks = out.get("extra", [])
+                continue
+            if s.kind == "pause_for_human":
+                if await self._should_pause_for_human(s):
+                    trace.append(f"[{i}] pause_for_human -> {s.text}")
+                    if self.person_hook is not None and \
+                            await self._maybe_await(self.person_hook({"kind": "pause", "text": s.text, "step": i})):
+                        trace.append(f"[{i}] done by a person on the live page")
+                        continue
+                    return ExecResult(ok=False, steps_run=i, steps_total=total,
+                                      needs_manual=True, human_instruction=s.text,
+                                      detail="paused for a person to finish", trace=trace,
+                                      pause_step=i, pause_kind="pause")
+                trace.append(f"[{i}] pause_for_human skipped ({s.selector} not on page)")
+                continue
             try:
                 paused = await self._run_step(s, trace, i)
                 if paused:
                     return ExecResult(ok=False, steps_run=i, steps_total=total,
                                       needs_captcha=True, detail="paused for CAPTCHA",
                                       trace=trace, challenge=getattr(self, "last_challenge", None))
+            except NeedsPerson as e:
+                trace.append(f"[{i}] {s.kind}: needs a person ({e})")
+                if self.person_hook is not None and await self._maybe_await(self.person_hook({
+                        "kind": "form", "step": i,
+                        "text": (f"OpenOptOut didn't fill in this form, because {e}. Fill in what's missing "
+                                 f"in the page below, asking for your data to be deleted, then press "
+                                 f"\"I've done this step\". OpenOptOut sends it.")})):
+                    trace.append(f"[{i}] form finished by a person on the live page")
+                    continue
+                site = getattr(self.page, "url", "") if isinstance(getattr(self.page, "url", ""), str) else ""
+                return ExecResult(ok=False, steps_run=i, steps_total=total, needs_manual=True, trace=trace,
+                                  pause_step=i, pause_kind="form",
+                                  detail=f"form needs a person: {e}",
+                                  human_instruction=(f"OpenOptOut found {job.broker_name}'s privacy request form"
+                                                     + (f" at {site}" if site else "")
+                                                     + f" but didn't fill it in, because {e}. Fill it in "
+                                                     f"yourself, asking for your data to be deleted, then press "
+                                                     f"\"I've done this\"."))
             except Exception as e:
                 if s.optional:
                     trace.append(f"[{i}] {s.kind} optional-failed: {e}")
                     continue
+                if await self._email_rejected(job):
+                    return ExecResult(ok=False, steps_run=i, steps_total=total, email_rejected=True,
+                                      detail="the form refused the email address", trace=trace)
                 return ExecResult(ok=False, steps_run=i, steps_total=total,
                                   detail=f"step {i} ({s.kind}) failed: {e}", trace=trace)
-        return ExecResult(ok=True, steps_run=total, steps_total=total,
-                          detail="form flow complete", trace=trace)
+        if await self._email_rejected(job):
+            return ExecResult(ok=False, steps_run=total, steps_total=total, email_rejected=True,
+                              detail="the form refused the email address", trace=trace)
+        verified = self._verified
+        if job.success_selector or job.success_text:
+            try:
+                if job.success_selector:
+                    await self.page.locator(job.success_selector).first.wait_for(timeout=10000)
+                if job.success_text and job.success_text not in (await self.page.content()):
+                    raise RuntimeError("success text not on the page")
+                verified = True
+            except Exception as e:
+                return ExecResult(ok=False, steps_run=total, steps_total=total,
+                                  detail=f"the broker's page didn't confirm the request ({e})", trace=trace)
+        return ExecResult(ok=True, steps_run=total, steps_total=total, verified=verified,
+                          detail="form flow complete", trace=trace, extra_picks=extra_picks)
+
+    async def _email_rejected(self, job) -> bool:
+        """Did the form complain about the email address we gave it?"""
+        if not job.contact_email:
+            return False
+        texts = []
+        for tgt in (self.page, self._current_frame):
+            if tgt is None:
+                continue
+            try:
+                texts.append(await tgt.locator("body").inner_text(timeout=2000))
+            except Exception:
+                pass
+        return any(EMAIL_REJECTED.search(t or "") for t in texts)
 
     async def _run_plugin_actions(self, actions: list, trace: list):
         """Execute the BrowserActions a fill_form plugin returned. Reuses the
@@ -323,85 +540,182 @@ class PlaywrightExecutor(JobExecutor):
             await self.page.wait_for_timeout(1500)   # let the page settle
 
         elif s.kind == "fill":
-            target = self._target()
-            await target.fill(s.selector, s.value, timeout=s.timeout_ms or 8000)
+            await self._loc(s.selector).fill(s.value, timeout=s.timeout_ms or 8000)
+
+        elif s.kind == "autofill":
+            await self._autofill(s, trace, i)
+
+        elif s.kind == "type":
+            # Key by key: React/MUI inputs ignore a programmatic fill.
+            loc = self._loc(s.selector)
+            await loc.click(timeout=s.timeout_ms or 8000)
+            await loc.fill("", timeout=s.timeout_ms or 8000)
+            await loc.press_sequentially(s.value, delay=35, timeout=max(s.timeout_ms or 8000, 60 * len(s.value)))
 
         elif s.kind == "select":
-            target = self._target()
-            await target.select_option(s.selector, s.value, timeout=s.timeout_ms or 8000)
+            loc = self._loc(s.selector)
+            try:
+                await loc.select_option(s.value, timeout=s.timeout_ms or 8000)
+            except Exception:
+                await loc.select_option(label=s.value, timeout=s.timeout_ms or 8000)
 
         elif s.kind == "check":
-            target = self._target()
-            await target.check(s.selector, timeout=s.timeout_ms or 8000)
+            await self._loc(s.selector).check(timeout=s.timeout_ms or 8000)
 
         elif s.kind == "click":
-            target = self._target()
-            await target.click(s.selector, timeout=s.timeout_ms or 8000)
+            await self._loc(s.selector).click(timeout=s.timeout_ms or 8000)
             await self.page.wait_for_timeout(500)
 
         elif s.kind == "click_matching":
             target = self._target()
             matching_text = s.text or s.value
+            exact = re.compile(r"^\s*" + re.escape(matching_text) + r"\s*$", re.I)
             if s.selector:
-                locator = target.locator(s.selector).filter(has_text=matching_text).first
+                # Whole-text match first, so "Kansas" never picks "Arkansas".
+                locator = target.locator(s.selector).filter(has_text=exact)
+                if not await locator.count():
+                    locator = target.locator(s.selector).filter(has_text=matching_text)
+                locator = locator.first
             else:
-                locator = target.locator(f"text={matching_text}").first
+                locator = target.get_by_text(matching_text, exact=True).first
             await locator.click(timeout=s.timeout_ms or 8000)
             await self.page.wait_for_timeout(1000)
 
         elif s.kind == "press":
-            target = self._target()
-            await target.press(s.selector or "body", s.value or "Enter", timeout=s.timeout_ms or 8000)
+            if s.selector:
+                await self._loc(s.selector).press(s.value or "Enter", timeout=s.timeout_ms or 8000)
+            else:
+                await self.page.keyboard.press(s.value or "Enter")
             await self.page.wait_for_timeout(500)
 
         elif s.kind == "scroll":
             if s.selector:
-                target = self._target()
-                await target.locator(s.selector).first.scroll_into_view_if_needed(timeout=s.timeout_ms or 8000)
+                await self._loc(s.selector).scroll_into_view_if_needed(timeout=s.timeout_ms or 8000)
             else:
                 await self.page.evaluate("window.scrollBy(0, 500)")
 
         elif s.kind == "wait_for":
-            target = self._target()
-            await target.wait_for_selector(s.selector, timeout=s.timeout_ms or 8000)
+            await self._loc(s.selector).wait_for(state="visible", timeout=s.timeout_ms or 8000)
 
         elif s.kind == "wait":
             await self.page.wait_for_timeout(s.timeout_ms or 1000)
 
         elif s.kind == "submit":
-            target = self._target()
             if s.selector:
-                await target.click(s.selector, timeout=s.timeout_ms or 8000)
+                await self._loc(s.selector).click(timeout=s.timeout_ms or 8000)
             else:
                 await self.page.evaluate(
                     "() => { const f = document.querySelector('form'); if (f) f.submit(); }")
             await self.page.wait_for_timeout(2000)
 
         elif s.kind == "expect_success":
-            target = self._target()
             if s.selector:
-                await target.wait_for_selector(s.selector, timeout=s.timeout_ms or 8000)
+                await self._loc(s.selector).wait_for(timeout=s.timeout_ms or 8000)
             elif s.text:
-                content = await self.page.content()
-                if s.text not in content:
+                body = await self._target().locator("body").inner_text(timeout=s.timeout_ms or 8000)
+                if s.text.lower() not in (body or "").lower():
                     raise RuntimeError(f"success text not found: {s.text!r}")
+            self._verified = True
 
         # Best-effort CAPTCHA detection AFTER the action: if a known CAPTCHA
         # widget appeared, try to solve it (via the solver hook) or pause for
         # the human path.
         try:
-            for sel in ("iframe[src*='recaptcha']", ".g-recaptcha",
-                        "iframe[src*='hcaptcha']", ".h-captcha", "#captcha"):
-                if await self.page.query_selector(sel):
-                    return await self._handle_captcha(sel, trace, i)
+            if s.kind not in ("wait", "expect_success"):
+                for sel in CAPTCHA_SELECTORS:
+                    el = await self.page.query_selector(sel)
+                    if el and await el.is_visible():
+                        return await self._handle_captcha(sel, trace, i)
+                if await self.page.query_selector(TURNSTILE) and not await self._turnstile_passed():
+                    return await self._handle_captcha(TURNSTILE, trace, i)
         except Exception:
             pass
 
         trace.append(f"[{i}] {s.kind} {s.selector or s.url}".rstrip())
         return False
 
+    _RESULTS_JS = """
+    ([sel, pattern]) => {
+      let links = [];
+      try { links = sel ? [...document.querySelectorAll(sel)] : [...document.querySelectorAll('a[href]')]; } catch (e) {}
+      if (!sel && pattern) { const rx = new RegExp(pattern, 'i'); links = links.filter(a => rx.test(a.href)); }
+      const seen = new Set(), out = [];
+      for (const a of links) {
+        const href = a.href || (a.closest('a') && a.closest('a').href) || '';
+        if (!href || seen.has(href)) continue;
+        seen.add(href);
+        // The text of this result: grow outwards from the link until we reach
+        // the element that holds this result and no other.
+        let box = a;
+        while (box.parentElement && box.parentElement !== document.body &&
+               [...box.parentElement.querySelectorAll('a[href]')].filter(x => links.includes(x) && x.href !== href).length === 0)
+          box = box.parentElement;
+        out.push({url: href, text: (box.innerText || a.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 600)});
+        if (out.length >= 25) break;
+      }
+      return out;
+    }
+    """
+
+    async def _pick_listing(self, s: JobStep, trace: list, i: int) -> dict:
+        """
+        Pick this person's listing from the site's search results and go to it.
+        Returns {"extra": [more listing urls]} to carry on, or {"stop": ExecResult}.
+        """
+        from ..match_policy import classify, MAX_REMOVE_ALL
+        if self.preset_listing_url:
+            await self.page.goto(self.preset_listing_url, timeout=s.timeout_ms or 20000)
+            await self.page.wait_for_timeout(1500)
+            trace.append(f"[{i}] pick_listing -> the listing chosen earlier")
+            return {"extra": []}
+        found = await self._target().evaluate(self._RESULTS_JS, [s.selector or "", self.listing_pattern])
+        sorted_ = {"yours": [], "unclear": [], "not_you": []}
+        for c in found or []:
+            verdict, why = classify(self.match_profile, c.get("text", ""))
+            sorted_[verdict].append({**c, "verdict": verdict, "why": why})
+        n = {k: len(v) for k, v in sorted_.items()}
+        trace.append(f"[{i}] pick_listing: {n['yours']} yours, {n['unclear']} unclear, {n['not_you']} not you")
+        chosen = [c["url"] for c in sorted_["yours"]]
+        if not chosen and sorted_["unclear"]:
+            policy = self.unclear_policy
+            if policy == "skip":
+                return {"stop": ExecResult(ok=False, skipped=True, candidates=sorted_["unclear"],
+                                           detail=(f"Skipped: {n['unclear']} possible listing(s) show only the name, "
+                                                   f"so OpenOptOut couldn't tell which is you (your setting: skip)."))}
+            if policy == "ask":
+                return {"stop": ExecResult(ok=False, needs_manual=True, candidates=sorted_["unclear"],
+                                           detail="unclear matches: asking the person",
+                                           human_instruction=(f"{n['unclear']} possible listing(s) show only the name. "
+                                                              f"Pick the ones that are you (or none) on the Checklist."))}
+            chosen = [c["url"] for c in sorted_["unclear"][:MAX_REMOVE_ALL]]
+        if not chosen:
+            return {"stop": ExecResult(ok=False, not_listed=True,
+                                       detail="the search shows nobody who could be this person")}
+        await self.page.goto(chosen[0], timeout=s.timeout_ms or 20000)
+        await self.page.wait_for_timeout(1500)
+        return {"extra": chosen[1:]}
+
+    async def _should_pause_for_human(self, s: JobStep) -> bool:
+        """A pause_for_human step always pauses, unless it names a selector,
+        in which case it pauses only when that element is on the page."""
+        if not s.selector:
+            return True
+        try:
+            target = self._target()
+            el = await target.query_selector(s.selector) if hasattr(target, "query_selector") \
+                else await target.locator(s.selector).count()
+            return bool(el)
+        except Exception:
+            return True   # can't tell — safer to hand it to a person
+
     async def _detect_challenge(self, selector: str) -> dict:
-        """Gather what we can about the CAPTCHA for the solver hook."""
+        """
+        Gather what a solver needs about the CAPTCHA, without personal details:
+        its type and site key, the page address without query or saved
+        details, and (for picture CAPTCHAs) a cropped, blacked-out image of
+        just the puzzle (core/captcha_privacy.py).
+        """
+        from ..captcha_privacy import capture, safe_page_url
         ctype, site_key = "other", ""
         try:
             content = await self.page.content()
@@ -410,6 +724,10 @@ class PlaywrightExecutor(JobExecutor):
                 ctype = "hcaptcha"
             elif "recaptcha" in low:
                 ctype = "recaptcha_v2"
+            elif "challenges.cloudflare.com" in low or "cf-turnstile" in low:
+                ctype = "turnstile"
+            elif re.search(r"<img[^>]+captcha", low):
+                ctype = "image"
             # Try to read a site-key attribute from a common widget.
             try:
                 el = await self.page.query_selector("[data-sitekey]")
@@ -419,15 +737,27 @@ class PlaywrightExecutor(JobExecutor):
                 pass
         except Exception:
             pass
-        screenshot = b""
+        shot = {"image": b"", "boxes": 0}
         try:
-            screenshot = await self.page.screenshot()
+            shot = await capture(self.page, selector, self.secrets)
         except Exception:
             pass
+        raw_url = getattr(self.page, "url", "") if isinstance(getattr(self.page, "url", ""), str) else ""
+        answer = ""
+        if ctype == "image":
+            try:
+                for sel in ("input[name*='captcha' i]", "input[id*='captcha' i]", "input[placeholder*='code' i]",
+                            "input[name*='security' i]", "input[aria-label*='captcha' i]"):
+                    if await self.page.query_selector(sel):
+                        answer = sel
+                        break
+            except Exception:
+                pass
         return {
             "type": ctype, "site_key": site_key,
-            "page_url": getattr(self.page, "url", "") if isinstance(getattr(self.page, "url", ""), str) else "",
-            "screenshot": screenshot, "meta": {"selector": selector},
+            "page_url": safe_page_url(raw_url, self.secrets),
+            "screenshot": shot["image"],
+            "meta": {"selector": selector, "answer_selector": answer, "blacked_out": str(shot["boxes"])},
         }
 
     async def _handle_captcha(self, selector: str, trace: list, i: int) -> bool:
@@ -449,6 +779,19 @@ class PlaywrightExecutor(JobExecutor):
         if not result or result.get("defer_to_human") or not result.get("solved"):
             trace.append(f"[{i}] CAPTCHA solver deferred — pausing for human")
             return True
+        if result.get("by_person"):
+            # A person solved it in this very page (core/live_captcha.py).
+            trace.append(f"[{i}] CAPTCHA solved by a person — continuing")
+            return False
+        text = result.get("text") or (result.get("token") if challenge.get("type") == "image" else "")
+        if text and challenge.get("meta", {}).get("answer_selector"):
+            try:
+                await self.page.fill(challenge["meta"]["answer_selector"], text, timeout=8000)
+                trace.append(f"[{i}] picture CAPTCHA answered — continuing")
+                return False
+            except Exception as e:
+                trace.append(f"[{i}] couldn't type the CAPTCHA answer ({e}) — pausing for human")
+                return True
         token = result.get("token", "")
         if not token:
             trace.append(f"[{i}] CAPTCHA solver returned no token — pausing for human")

@@ -1,0 +1,3 @@
+{
+ "description": "Envía correos de baja y lee las confirmaciones mediante Microsoft Graph con OAuth 2.0. Clase de proveedor de correo de confianza; el sistema lo inspecciona en busca de destinatarios ocultos e impone el destinatario al enviar."
+}

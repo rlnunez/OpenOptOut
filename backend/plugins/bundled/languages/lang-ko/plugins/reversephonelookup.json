@@ -1,0 +1,4 @@
+{
+ "description": "전화번호로 사람을 게시하는 ReversePhoneLookup.com의 안내형 거부. 한 번의 거부로 저장된 모든 전화번호가 처리됩니다.",
+ "instructions": "https://www.reversephonelookup.com/ 을 열고 맨 아래의 \"Do Not Sell or Share My Personal Information\"을 누르세요. {contact_email}과(와) 다음 번호 중 하나를 입력하세요(오류가 나면 숫자만): {all_phones}. 로봇 확인을 마치고 제출하면, 이메일로 오는 확인 링크는 저희가 누릅니다. 번호마다 반복한 뒤 \"완료했어요\"를 누르세요."
+}

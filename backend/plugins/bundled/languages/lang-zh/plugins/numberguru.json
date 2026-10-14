@@ -1,0 +1,4 @@
+{
+ "description": "NumberGuru 的引导式退出，该网站按电话号码列出个人信息。一次退出即可涵盖所有已保存的号码。",
+ "instructions": "在 https://www.numberguru.com/ 搜索以下每个号码：{all_phones}。在任何显示你信息的页面上，使用“Remove This Listing”或“Opt Out”链接，邮箱填写 {contact_email}。然后点击“我已完成”。"
+}

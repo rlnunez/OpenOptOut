@@ -1,0 +1,4 @@
+{
+ "description": "Social Catfish کے لیے رہنمائی شدہ آپٹ آؤٹ۔ ایک فرد چیک لسٹ کے اقدامات پر عمل کرتا ہے؛ OpenOptOut ایک وقتی ای میل ایڈریس فراہم کرتا ہے اور تصدیقی لنک پر کلک کرتا ہے۔",
+ "instructions": "Search socialcatfish.com and note the address of every page that shows you. کھولیں socialcatfish.com/opt-out, scroll to the section for removing pages, emails, phone numbers and addresses, and ask only for things it already shows. Give {contact_email} as your email; Social Catfish emails a confirmation link that OpenOptOut clicks for you. پھر \"میں نے یہ کر لیا\" دبائیں۔"
+}

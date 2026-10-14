@@ -1,0 +1,18 @@
+{
+  "broker_id": "experian-marketing",
+  "name": "Experian Marketing",
+  "spec_version": "1.0",
+  "method": "email",
+  "email": {
+    "to_address": "optout@experian.com"
+  },
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "This removes the person from Experian's marketing lists (Experian marks them Do Not Mail for five years). It does not touch credit reports. Prescreened credit offers are a separate opt-out at optoutprescreen.com.",
+  "source": "Experian's own page on opting out of direct mail marketing, which gives this address.",
+  "last_verified": ""
+}

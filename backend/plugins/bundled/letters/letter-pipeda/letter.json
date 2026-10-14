@@ -1,0 +1,25 @@
+{
+  "id": "pipeda",
+  "title": "Canada — PIPEDA",
+  "law": "Personal Information Protection and Electronic Documents Act (S.C. 2000, c. 5)",
+  "legal_basis": [
+    "pipeda"
+  ],
+  "jurisdictions": [
+    "CA"
+  ],
+  "deadline_days": 30,
+  "default_language": "en",
+  "review_status": "draft",
+  "review_note": "Draft wording, not reviewed by a lawyer. Provisions cited: Schedule 1, principles 4.3.8 (withdrawing consent) and 4.5.3 (destroying information no longer needed), and section 8(3) (30 days, written for access requests). A lawyer should confirm the deadline to cite, and whether Quebec's Law 25 or Alberta/BC private-sector laws should be cited instead for brokers there. The French version is a machine-quality translation that needs review.",
+  "languages": {
+    "en": {
+      "subject": "Withdrawal of consent and request to delete personal information (PIPEDA) — {full_name}{ref_tag}",
+      "body": "To the Privacy Officer at {broker},\n\nI am writing to withdraw my consent to the collection, use and disclosure of my personal information by {broker}, as Principle 4.3.8 of Schedule 1 to the Personal Information Protection and Electronic Documents Act (PIPEDA) allows, and to ask that you destroy or erase the personal information you hold about me, which is no longer needed for any purpose I agreed to (Principle 4.5.3).\n\n{scope}\n\n{property_note}\n\nPlease delete all records matching ANY of the following identifiers:\n\n{identifiers}\n\nI am asking you to:\n  1. Delete all personal information about me from {broker} and every property listed above.\n  2. Stop disclosing, selling or licensing my personal information to third parties.\n  3. Not collect or publish my information again from other sources.\n  4. Confirm in writing, to the sending email address, once this is done.\n\nPlease respond within 30 days (PIPEDA, section 8(3)). If you need more information to locate my records, tell me what is reasonably necessary; please do not require me to create an account or send government ID.\n\nIf I do not receive a satisfactory answer, I may file a complaint with the Office of the Privacy Commissioner of Canada.\n\n{reference}\n\nSincerely,\n{full_name}\n"
+    },
+    "fr": {
+      "subject": "Retrait du consentement et demande de suppression de renseignements personnels (LPRPDE) — {full_name}{ref_tag}",
+      "body": "À l'attention du responsable de la protection des renseignements personnels de {broker},\n\nJe vous écris pour retirer mon consentement à la collecte, à l'utilisation et à la communication de mes renseignements personnels par {broker}, comme le permet le principe 4.3.8 de l'annexe 1 de la Loi sur la protection des renseignements personnels et les documents électroniques (LPRPDE), et pour vous demander de détruire ou d'effacer les renseignements personnels que vous détenez à mon sujet, qui ne sont plus nécessaires à aucune fin à laquelle j'ai consenti (principe 4.5.3).\n\n{scope}\n\n{property_note}\n\nVeuillez supprimer toutes les fiches correspondant à L'UN QUELCONQUE des identifiants suivants :\n\n{identifiers}\n\nJe vous demande de :\n  1. Supprimer tous les renseignements personnels me concernant de {broker} et de chacun des sites mentionnés ci-dessus.\n  2. Cesser de communiquer, de vendre ou de céder mes renseignements personnels à des tiers.\n  3. Ne pas recueillir ni publier à nouveau mes renseignements à partir d'autres sources.\n  4. Me confirmer par écrit, à l'adresse courriel d'envoi, que la suppression a été effectuée.\n\nJe vous prie de répondre dans un délai de 30 jours (LPRPDE, paragraphe 8(3)). Si vous avez besoin d'information supplémentaire pour retrouver mes fiches, indiquez-moi ce qui est raisonnablement nécessaire ; je vous prie de ne pas exiger la création d'un compte ni l'envoi d'une pièce d'identité délivrée par le gouvernement.\n\nÀ défaut de réponse satisfaisante, je pourrai déposer une plainte auprès du Commissariat à la protection de la vie privée du Canada.\n\n{reference}\n\nVeuillez agréer mes salutations distinguées.\n\n{full_name}\n"
+    }
+  }
+}

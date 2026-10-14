@@ -1,0 +1,4 @@
+{
+ "description": "TransUnion (TLOxp) 的引导式退出。由一个人按清单步骤操作；OpenOptOut 提供一次性电子邮件地址，并自动点击确认链接。",
+ "instructions": "打开 https://service.transunion.com/dss/ccpa_optout.page，按网站的步骤为 {full_name} 操作。该网站要求提供社会安全号或驾照号码，OpenOptOut 从不填写这些；只有在你愿意提供时才完成。如要求填写电子邮件地址，请填 {contact_email}。然后点击“我已完成”。"
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour Social Catfish. Une personne suit les étapes de la liste ; OpenOptOut fournit une adresse e-mail à usage unique et clique sur les liens de confirmation.",
+ "instructions": "Cherchez sur socialcatfish.com et notez l'adresse de chaque page qui vous concerne. Ouvrez socialcatfish.com/opt-out, descendez jusqu'à la section pour retirer pages, e-mails, numéros et adresses, et ne demandez que ce qui est déjà affiché. Donnez {contact_email} comme e-mail ; Social Catfish envoie un lien de confirmation sur lequel OpenOptOut clique pour vous. Puis appuyez sur « C'est fait »."
+}

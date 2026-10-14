@@ -124,8 +124,34 @@ def _inspect(plugin_dir: str, folder_type: Optional[str]) -> FoundPlugin:
         manifest = read_manifest(plugin_dir)
     except Exception as e:
         return FoundPlugin(plugin_dir, folder_type, None, [f"unreadable manifest.json: {e}"])
-    errors = manifest.validate() + placement_errors(manifest, folder_type)
+    errors = manifest.validate() + placement_errors(manifest, folder_type) \
+        + content_errors(plugin_dir, manifest)
     return FoundPlugin(plugin_dir, folder_type, manifest, errors)
+
+
+def content_errors(plugin_dir: str, manifest: PluginManifest) -> list[str]:
+    """Problems with what a plugin carries besides code: its locales/ and,
+    for a letters plugin, its letter.json."""
+    errs = locale_errors(plugin_dir, manifest)
+    if manifest.effective_type == "letters":
+        try:
+            from ..core.legal_letters import plugin_letter_errors
+        except (ImportError, ValueError):
+            from core.legal_letters import plugin_letter_errors
+        try:
+            errs += plugin_letter_errors(plugin_dir)
+        except Exception as e:
+            errs.append(f"letter.json couldn't be checked: {e}")
+    return errs
+
+
+def locale_errors(plugin_dir: str, manifest: PluginManifest) -> list[str]:
+    """Problems with the plugin's locales/ translations (see plugin_i18n)."""
+    from .plugin_i18n import locale_errors as _errs
+    try:
+        return _errs(plugin_dir, manifest)
+    except Exception as e:
+        return [f"locales/ couldn't be checked: {e}"]
 
 
 def scan(root: str) -> list[FoundPlugin]:

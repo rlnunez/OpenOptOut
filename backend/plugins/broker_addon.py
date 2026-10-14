@@ -103,6 +103,15 @@ def inspect_broker_addon(plugin_dir: str, manifest: PluginManifest) -> Dict[str,
         "opt_out_url": spec.opt_out_url if spec else "",
         "steps_count": len(spec.steps) if (spec and spec.steps) else 0,
         "has_email_spec": bool(spec and spec.email),
+        # What the person may have to do, and how trustworthy the flow is —
+        # shown to admins before they enable the add-on.
+        "requires": list(spec.requires) if spec else [],
+        "legal_basis": list(spec.legal_basis) if spec else [],
+        "statutory_response_days": spec.statutory_response_days if spec else 0,
+        "one_optout_per_email": bool(spec and spec.one_optout_per_email),
+        "can_verify": bool(spec and spec.can_verify()),
+        "source": spec.source if spec else "",
+        "last_verified": spec.last_verified if spec else "",
         "captcha_plugin_id": manifest.captcha_plugin_id,
         "is_property_broker": manifest.is_property_broker,
         "difficulty": manifest.difficulty or "medium",
@@ -237,12 +246,135 @@ def get_broker_spec_for_broker(db, broker) -> Optional[BrokerSpec]:
         spec_filename = manifest_data.get("spec_file") or DEFAULT_SPEC_FILE
         spec, errors = validate_broker_spec_file(plugin_row.install_path, spec_filename)
         if spec:
+            # So its instructions can be shown in each person's language.
+            spec.plugin_id = plugin_row.plugin_id
+            spec.plugin_dir = plugin_row.install_path
             return spec
         log.warning("Broker add-on %s has spec errors: %s", plugin_row.plugin_id, errors)
     except Exception as e:
         log.warning("Failed to load spec for broker add-on %s: %s", plugin_row.plugin_id, e)
 
     return None
+
+
+def sync_builtin_brokers(db) -> dict:
+    """
+    Install the broker add-ons that ship with the app
+    (backend/plugins/bundled/brokers/), so the curated opt-out steps work out
+    of the box. Called at startup.
+
+    * New ones are installed and turned on; their broker is created turned on,
+      unless the manifest says "starts_enabled": false (a plugin nobody could
+      check against the live site yet). Then the broker starts off.
+    * Updated ones (an app upgrade) are refreshed in place.
+    * One an admin turned off stays off, and an admin's own add-on with the
+      same id is never replaced.
+    """
+    from . import layout
+    try:
+        from ..models.database import InstalledPlugin, Broker
+    except (ImportError, ValueError):
+        from models.database import InstalledPlugin, Broker
+    from datetime import datetime
+    stats = {"installed": 0, "updated": 0, "skipped": 0}
+    added, updated = [], []          # (name, version, broker_id, starts_enabled) for Broker updates
+    try:
+        first_run = db.query(InstalledPlugin).filter(InstalledPlugin.status == "spec").count() == 0
+    except Exception:
+        first_run = False
+    root = layout.plugins_root()
+    for found in layout.scan(layout.BUNDLED_ROOT):
+        m = found.manifest if found.valid else None
+        if m is None or m.effective_type != "brokers":
+            continue
+        try:
+            row = db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == m.id).first()
+            if row is not None and os.path.isdir(row.install_path or "") \
+                    and not layout.is_bundled_copy(row.install_path):
+                stats["skipped"] += 1          # an admin's own add-on
+                continue
+            dest = layout.sync_bundled(found.path, root, m)
+            spec, errs = validate_broker_spec_file(dest, m.spec_file or DEFAULT_SPEC_FILE)
+            if not spec:
+                log.error("Built-in broker add-on %s is invalid: %s", m.id, errs)
+                continue
+            if row is None:
+                row = InstalledPlugin(
+                    plugin_id=m.id, name=m.name, version=m.version, author=m.author,
+                    description=m.description, manifest_json=json.dumps(m.to_dict()),
+                    granted_permissions="[]", enabled=True, status="spec", install_path=dest,
+                    enabled_at=datetime.utcnow(), code_hash=layout.dir_hash(dest))
+                db.add(row)
+                db.commit()
+                existed = db.query(Broker).filter(
+                    (Broker.plugin_id == m.id) | (Broker.name.ilike(spec.name.strip()))).first() is not None
+                b = sync_broker_from_addon(db, m, dest, enabled=not existed and m.starts_enabled)
+                stats["installed"] += 1
+                added.append((m.name, m.version, getattr(b, "id", None), bool(getattr(b, "enabled", False))))
+            elif row.version != m.version or row.install_path != dest:
+                if row.version != m.version:
+                    bid = db.query(Broker.id).filter(Broker.plugin_id == m.id).scalar()
+                    updated.append((m.name, f"{row.version} → {m.version}", bid, bool(row.enabled)))
+                row.version, row.name, row.description = m.version, m.name, m.description
+                row.manifest_json = json.dumps(m.to_dict())
+                row.install_path, row.code_hash = dest, layout.dir_hash(dest)
+                db.commit()
+                if row.enabled:
+                    sync_broker_from_addon(db, m, dest, enabled=False)
+                stats["updated"] += 1
+        except Exception as e:
+            db.rollback()
+            log.error("Could not install built-in broker add-on %s: %s", m.id, e)
+    if stats["installed"] or stats["updated"]:
+        log.info("Built-in broker add-ons: %s", stats)
+    try:
+        _record_updates(db, added, updated, first_run)
+    except Exception as e:                  # a note for admins must never stop the upgrade
+        db.rollback()
+        log.warning("Broker updates not recorded for built-in plugins: %s", type(e).__name__)
+    return stats
+
+
+# More than this many in one upgrade are listed in one Broker updates entry.
+ONE_BY_ONE = 3
+
+
+def _record_updates(db, added, updated, first_run: bool) -> None:
+    """Tell admins (Broker updates) which built-in broker plugins an upgrade
+    added or changed. The very first start installs every plugin, so that is
+    one entry, not eighty."""
+    try:
+        from ..core.broker_updates import record
+    except (ImportError, ValueError):
+        from core.broker_updates import record
+    if added:
+        off = [a[0] for a in added if not a[3]]
+        off_note = (f"Turned off until someone checks their opt-out page: {', '.join(off)}. "
+                    "Turn them on from the Brokers page once checked.") if off else ""
+        if first_run or len(added) > ONE_BY_ONE:
+            title = (f"{len(added)} built-in broker plugins installed" if first_run
+                     else f"{len(added)} built-in broker plugins added with this upgrade")
+            names = ", ".join(sorted(a[0] for a in added))
+            record(db, "plugin_added", title, (f"Added: {names}." + (f"\n{off_note}" if off_note else "")))
+        else:
+            for name, version, bid, on in added:
+                record(db, "plugin_added", f"Built-in plugin added: {name}",
+                       "Turned on." if on else "Turned off until someone checks its opt-out page. "
+                                               "Turn it on from the Brokers page once checked.",
+                       broker_id=bid)
+    if updated:
+        if len(updated) > ONE_BY_ONE:
+            names = ", ".join(sorted(f"{u[0]} ({u[1]})" for u in updated))
+            record(db, "plugin_updated", f"{len(updated)} built-in broker plugins updated with this upgrade",
+                   f"Their opt-out steps changed: {names}.")
+        else:
+            for name, change, bid, on in updated:
+                record(db, "plugin_updated", f"{name}'s built-in plugin was updated ({change})",
+                       "Its opt-out steps changed with this upgrade. Any automatic repair made for the "
+                       "older version is set aside." + ("" if on else " The plugin is turned off."),
+                       broker_id=bid)
+    if added or updated:
+        db.commit()
 
 
 def package_broker_addon(addon_dir: str, output_zip_path: str) -> str:

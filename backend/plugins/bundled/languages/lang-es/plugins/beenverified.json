@@ -1,0 +1,4 @@
+{
+ "description": "Baja de BeenVerified (beenverified.com). Busca a la persona y luego alguien elige su ficha; el enlace de confirmación de BeenVerified se pulsa automáticamente.",
+ "steps.7.text": "BeenVerified necesita que elijas tu ficha. Ve a beenverified.com/svc/optout/search, busca {full_name} en {state_name}, haz clic en tu propio registro y resuelve el CAPTCHA. En el formulario de eliminación elige «No» en lo de tener cuenta, revisa tus datos y escribe {contact_email} como dirección de correo. BeenVerified permite una baja por dirección de correo, y esta es solo para esta baja. OpenOptOut hará clic en el enlace de confirmación que BeenVerified le envíe."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer Nuwber. A sailor follows the steps on the checklist; OpenOptOut hands over a one-time email address an' clicks any confirmation link.",
+ "instructions": "Find yer page on nuwber.com (searching {full_name} an' filtering by {state} helps) an' copy its address. Open nuwber.com/removal/link, paste it, an' enter {contact_email} as the email address. Nuwber emails a link to confirm; OpenOptOut clicks it fer ye. Then smash \"I've done this\". If the form won't take the address, email support@nuwber.com with a screenshot of yer listing an' ask to be removed."
+}

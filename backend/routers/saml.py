@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 from ..models.database import get_db, User
 from ..core.auth import require_super_admin
 from ..core.access import require_permission
-from ..core.settings_store import load_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
 from ..core import saml_sp, rate_limit
 from .auth import _resolve_external_user, _sso_redirect
 
@@ -184,6 +184,5 @@ def save_config(body: SamlConfigIn, request: Request,
         raise HTTPException(400, "Add the identity provider's metadata before enabling SAML.")
 
     ap["saml"] = cfg
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(s, f, indent=2)
+    save_settings(s)
     return _public_view(cfg, request)

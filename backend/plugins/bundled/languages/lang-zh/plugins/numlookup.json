@@ -1,0 +1,4 @@
+{
+ "description": "NumLookup 的引导式退出，该网站按电话号码列出个人信息。一次退出即可涵盖所有已保存的号码。",
+ "instructions": "打开 https://www.numlookup.com/opt_out，输入以下号码之一，完成机器人验证并选择删除你的信息：{all_phones}。选择手动提交删除请求（无需账户），填写 {full_name}、{contact_email} 和该号码。表单可能要求带照片的证件。你可以遮住除姓名和照片外的所有内容。然后点击“我已完成”。"
+}

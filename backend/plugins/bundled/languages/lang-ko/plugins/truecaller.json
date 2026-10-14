@@ -1,0 +1,4 @@
+{
+ "description": "전화번호로 사람을 게시하는 Truecaller의 안내형 거부. 한 번의 거부로 저장된 모든 전화번호가 처리됩니다.",
+ "instructions": "Truecaller는 내가 전화한 사람에게 내 이름을 보여 줍니다. https://www.truecaller.com/unlisting 을 열고 다음 번호를 국가 번호와 함께 하나씩 등록 해제하세요: {all_phones}. 번호마다 로봇 확인을 마치세요. 직접 Truecaller 앱을 쓴다면 먼저 앱에서 계정을 비활성화하고 앱을 삭제하세요. 그러지 않으면 등록 해제가 유지되지 않습니다. 그런 다음 \"완료했어요\"를 누르세요."
+}

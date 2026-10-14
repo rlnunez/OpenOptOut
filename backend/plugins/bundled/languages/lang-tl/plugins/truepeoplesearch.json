@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa TruePeopleSearch. Sinusunod ng isang tao ang mga hakbang sa checklist; nagbibigay ang OpenOptOut ng pang-isahang email address at kini-click nito ang anumang confirmation link.",
+ "instructions": "Buksan ang truepeoplesearch.com/removal. Ilagay ang {full_name}, ang lungsod at estado mo ({city}, {state}) at ang {contact_email} bilang email address, tapos sagutan ang mga CAPTCHA. Kung nakalista ang record mo, pindutin ang button para alisin ito. Iki-click ng OpenOptOut ang anumang confirmation link na ipapadala sa address na iyon. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

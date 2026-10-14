@@ -1,0 +1,4 @@
+{
+ "description": "Widerspruch bei BeenVerified (beenverified.com). Sucht nach der Person, dann wählt jemand den eigenen Eintrag; der Bestätigungslink von BeenVerified wird automatisch angeklickt.",
+ "steps.7.text": "BeenVerified will, dass du deinen Eintrag auswählst. Geh auf beenverified.com/svc/optout/search, such nach {full_name} in {state_name}, klick deinen eigenen Eintrag an und löse das CAPTCHA. Wähl im Löschformular bei der Frage nach einem Konto „No“, prüf deine Angaben und gib {contact_email} als E-Mail-Adresse ein. BeenVerified erlaubt einen Widerspruch pro E-Mail-Adresse, und diese ist nur für diesen Widerspruch. OpenOptOut klickt den Bestätigungslink an, den BeenVerified dorthin schickt."
+}

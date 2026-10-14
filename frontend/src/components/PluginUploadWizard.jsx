@@ -4,6 +4,7 @@ import {
   Info, ArrowLeft, Package, X,
 } from 'lucide-react'
 import api from '../api'
+import { tx, txr } from '../i18n/tx'
 
 /**
  * Plugin upload wizard: pick a .zip, see what kind of plugin it is and which
@@ -42,7 +43,7 @@ export default function PluginUploadWizard({ onClose, onInstalled, expectedType,
       const { data } = await api.post(`/plugins/upload/inspect${query}`, formData(f))
       setPlan(data); setStep('review')
     } catch (e) {
-      setError(e.response?.data?.detail || 'Could not read that file')
+      setError(e.response?.data?.detail || tx("Could not read that file"))
     } finally { setBusy(false) }
   }
 
@@ -53,7 +54,7 @@ export default function PluginUploadWizard({ onClose, onInstalled, expectedType,
       setResult(data); setStep('done')
       onInstalled?.(data)
     } catch (e) {
-      setError(e.response?.data?.detail || 'Install failed')
+      setError(e.response?.data?.detail || tx("Install failed"))
     } finally { setBusy(false) }
   }
 
@@ -67,15 +68,15 @@ export default function PluginUploadWizard({ onClose, onInstalled, expectedType,
       onClick={e => e.stopPropagation()}>
       <div className="px-5 py-4 border-b border-slate-700/50 flex items-center justify-between">
         <div>
-          <h3 className="text-white font-semibold">Upload a plugin</h3>
+          <h3 className="text-white font-semibold">{tx("Upload a plugin")}</h3>
           <p className="text-slate-500 text-xs mt-0.5">
-            {step === 'choose' && 'Step 1 of 3 — choose a .zip bundle'}
-            {step === 'review' && 'Step 2 of 3 — check where it goes'}
-            {step === 'done' && 'Step 3 of 3 — installed'}
+            {step === 'choose' && tx("Step 1 of 3 — choose a .zip bundle")}
+            {step === 'review' && tx("Step 2 of 3 — check where it goes")}
+            {step === 'done' && tx("Step 3 of 3 — installed")}
           </p>
         </div>
         {onClose && (
-          <button onClick={onClose} className="p-1 text-slate-500 hover:text-white" aria-label="Close">
+          <button onClick={onClose} className="p-1 text-slate-500 hover:text-white" aria-label={tx("Close")}>
             <X size={16} />
           </button>
         )}
@@ -99,17 +100,17 @@ export default function PluginUploadWizard({ onClose, onInstalled, expectedType,
                 ${dragOver ? 'border-shield-500 bg-shield-900/20' : 'border-slate-700 hover:border-slate-600'}`}>
               <Upload size={22} className="text-slate-500 mx-auto mb-2" />
               <p className="text-slate-300 text-sm">
-                {busy ? 'Checking…' : 'Drag & drop a plugin .zip here, or click to browse'}
+                {busy ? tx("Checking…") : tx("Drag & drop a plugin .zip here, or click to browse")}
               </p>
               <p className="text-slate-600 text-xs mt-1">
-                Nothing is installed until you confirm on the next step.
+                {tx("Nothing is installed until you confirm on the next step.")}
               </p>
               <input ref={fileRef} type="file" accept=".zip" className="hidden" disabled={busy}
                 onChange={e => { inspect(e.target.files?.[0]); e.target.value = '' }} />
             </div>
             {expectedType && (
               <p className="text-slate-500 text-xs">
-                Only <span className="text-slate-300">{expectedType}</span> plugins can be uploaded here.
+                {txr("Only <0/> plugins can be uploaded here.", [<span className="text-slate-300">{expectedType}</span>])}
               </p>
             )}
           </>
@@ -121,67 +122,67 @@ export default function PluginUploadWizard({ onClose, onInstalled, expectedType,
               <div className="flex items-center gap-2">
                 <Package size={15} className="text-shield-400" />
                 <p className="text-slate-100 text-sm font-medium">{plan.name}</p>
-                <span className="text-slate-600 text-xs">v{plan.version}</span>
+                <span className="text-slate-600 text-xs">{"v"}{plan.version}</span>
               </div>
               <p className="text-slate-500 text-xs mt-1">{plan.author}{plan.description ? ` · ${plan.description}` : ''}</p>
             </div>
 
             <div className="rounded-lg border border-slate-700/60 bg-slate-800/60 px-3 py-3">
               <p className="text-slate-400 text-xs mb-2">
-                Detected type: <span className="text-slate-100 font-medium">{plan.type_label}</span>
+                {txr("Detected type: <0/>", [<span className="text-slate-100 font-medium">{plan.type_label}</span>])}
                 {plan.type_inferred && (
-                  <span className="text-amber-300/90"> (worked out from its hooks — its manifest doesn't declare a type)</span>
+                  <span className="text-amber-300/90">{" "}{tx("(worked out from its hooks — its manifest doesn't declare a type)")}</span>
                 )}
               </p>
-              <p className="text-slate-500 text-[11px] uppercase tracking-wide mb-1">Will be installed into</p>
+              <p className="text-slate-500 text-[11px] uppercase tracking-wide mb-1">{tx("Will be installed into")}</p>
               <FolderTree types={types} target={plan.type} pluginId={plan.plugin_id} />
             </div>
 
             {plan.data_only ? (
               <p className="flex items-start gap-2 text-slate-400 text-xs">
                 <Info size={13} className="shrink-0 mt-0.5 text-slate-500" />
-                This is a data-only plugin: it contains no code and is never run as a program.
+                {tx("This is a data-only plugin: it contains no code and is never run as a program.")}
               </p>
             ) : (
               <div className="text-xs text-slate-400 space-y-1">
-                <p>Requests permissions: {plan.permissions.length
+                <p>{tx("Requests permissions:")}{" "}{plan.permissions.length
                   ? plan.permissions.map(p => <code key={p} className="mx-0.5 px-1 rounded-sm bg-slate-800 text-slate-300">{p}</code>)
-                  : <span className="text-slate-500">none</span>}</p>
+                  : <span className="text-slate-500">{tx("none")}</span>}</p>
                 {plan.outbound_domains?.length > 0 && (
-                  <p>Network access to: {plan.outbound_domains.join(', ')}</p>
+                  <p>{tx("Network access to:")}{" "}{plan.outbound_domains.join(', ')}</p>
                 )}
               </div>
             )}
 
             {plan.code_warnings?.length > 0 && (
               <div className="px-3 py-2 rounded-lg border border-amber-800/60 bg-amber-900/10 text-amber-200/90 text-xs space-y-1">
-                <p className="font-medium">Code inspection found things to review:</p>
+                <p className="font-medium">{tx("Code inspection found things to review:")}</p>
                 <ul className="list-disc ms-4">{plan.code_warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
               </div>
             )}
 
             {plan.problems.length > 0 ? (
               <div className="px-3 py-2 rounded-lg border border-red-800 bg-red-900/20 text-red-300 text-xs space-y-1">
-                <p className="font-medium">This plugin can't be installed:</p>
+                <p className="font-medium">{tx("This plugin can't be installed:")}</p>
                 <ul className="list-disc ms-4">{plan.problems.map((p, i) => <li key={i}>{p}</li>)}</ul>
               </div>
             ) : (
               <p className="flex items-start gap-2 text-slate-400 text-xs">
                 <AlertTriangle size={13} className="shrink-0 mt-0.5 text-amber-400" />
-                It will be installed disabled. {plan.enable_requires_super_admin
-                  ? 'A super admin has to review and enable it before it does anything.'
-                  : 'Enable it from the Plugins page to grant its permissions and run it.'}
+                {tx("It will be installed disabled.")}{" "}{plan.enable_requires_super_admin
+                  ? tx("A super admin has to review and enable it before it does anything.")
+                  : tx("Enable it from the Plugins page to grant its permissions and run it.")}
               </p>
             )}
 
             <div className="flex justify-between gap-2 pt-1">
               <button onClick={restart} disabled={busy}
                 className="flex items-center gap-1 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
-                <ArrowLeft size={13} /> Choose another
+                <ArrowLeft size={13} />{" "}{tx("Choose another")}
               </button>
               <button onClick={install} disabled={busy || !plan.can_install}
                 className="px-3 py-1.5 text-sm bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white rounded-lg">
-                {busy ? 'Installing…' : `Install into ${plan.destination}`}
+                {busy ? tx("Installing…") : tx("Install into {destination}", { destination: plan.destination })}
               </button>
             </div>
           </>
@@ -192,22 +193,22 @@ export default function PluginUploadWizard({ onClose, onInstalled, expectedType,
             <div className="flex items-start gap-2">
               <CheckCircle2 size={16} className="text-emerald-400 shrink-0 mt-0.5" />
               <div>
-                <p className="text-slate-100 text-sm">Installed into <code className="text-slate-300">{result.destination}</code></p>
+                <p className="text-slate-100 text-sm">{txr("Installed into <0/>", [<code className="text-slate-300">{result.destination}</code>])}</p>
                 <p className="text-slate-500 text-xs mt-1">
                   {result.enable_requires_super_admin
-                    ? 'It is disabled until a super admin reviews and enables it.'
-                    : 'It is disabled. Enable it on the Plugins page when you are ready.'}
+                    ? tx("It is disabled until a super admin reviews and enables it.")
+                    : tx("It is disabled. Enable it on the Plugins page when you are ready.")}
                 </p>
               </div>
             </div>
             <div className="flex justify-end gap-2">
               <button onClick={restart}
                 className="px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
-                Upload another
+                {tx("Upload another")}
               </button>
               {onClose && (
                 <button onClick={onClose} className="px-3 py-1.5 text-sm bg-shield-600 hover:bg-shield-700 text-white rounded-lg">
-                  Done
+                  {tx("Done")}
                 </button>
               )}
             </div>
@@ -230,7 +231,7 @@ function FolderTree({ types, target, pluginId }) {
   const list = types.length ? types : [{ type: target, folder: `${target}/` }]
   return (
     <div className="font-mono text-xs leading-6">
-      <p className="text-slate-500 flex items-center gap-1.5"><FolderOpen size={12} /> plugins/</p>
+      <p className="text-slate-500 flex items-center gap-1.5"><FolderOpen size={12} />{" "}{"plugins/"}</p>
       {list.map(t => {
         const hit = t.type === target
         return (
@@ -240,7 +241,7 @@ function FolderTree({ types, target, pluginId }) {
             </p>
             {hit && (
               <p className="ms-5 flex items-center gap-1.5 text-emerald-300">
-                <Package size={12} /> {pluginId}/ <span className="text-emerald-400/70 font-sans">← here</span>
+                <Package size={12} /> {pluginId}/ <span className="text-emerald-400/70 font-sans">{tx("← here")}</span>
               </p>
             )}
           </div>

@@ -1,0 +1,4 @@
+{
+ "description": "Whitepages کے لیے رہنمائی شدہ آپٹ آؤٹ۔ ایک فرد چیک لسٹ کے اقدامات پر عمل کرتا ہے؛ OpenOptOut ایک وقتی ای میل ایڈریس فراہم کرتا ہے اور تصدیقی لنک پر کلک کرتا ہے۔",
+ "instructions": "Whitepages confirms by phone, so you need to do this one. کھولیں whitepages.com/suppression-requests, paste {listing_url}, press Next, then \"Remove Me\". Pick a reason, press Next, and enter the phone number Whitepages shows for you. Answer the automated call and enter the code it gives you. When the page says your request was received, press \"I've done this\"."
+}

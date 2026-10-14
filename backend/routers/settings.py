@@ -14,7 +14,7 @@ from cryptography.fernet import Fernet
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, require_super_admin
 from ..core.access import require_permission
-from ..core.settings_store import load_settings, SETTINGS_FILE, get_secret_key
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE, get_secret_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -41,8 +41,7 @@ def _decrypt(v: str) -> str:
         return ""
 
 def _save(data: dict):
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    save_settings(data)
 
 
 # ── Email presets ─────────────────────────────────────────────────────────────
@@ -57,11 +56,6 @@ PRESETS = {
         "imap_host": "outlook.office365.com","imap_port": 993, "imap_ssl": True,
         "smtp_host": "smtp.office365.com",   "smtp_port": 587, "smtp_tls": True,
         "note": "For highest security, connect via OAuth above. If using SMTP, works with Outlook.com, Hotmail, and Microsoft 365. If you have 2FA enabled, create an App Password at account.microsoft.com/security.",
-    },
-    "yahoo": {
-        "imap_host": "imap.mail.yahoo.com",  "imap_port": 993, "imap_ssl": True,
-        "smtp_host": "smtp.mail.yahoo.com",  "smtp_port": 587, "smtp_tls": True,
-        "note": "Yahoo requires an App Password. Go to myaccount.yahoo.com → Security → Generate app password. Select 'Other app' and name it OpenOptOut.",
     },
     "fastmail": {
         "imap_host": "imap.fastmail.com",    "imap_port": 993, "imap_ssl": True,
@@ -149,10 +143,11 @@ class SchedulerConfig(BaseModel):
     auto_recheck:          Optional[bool] = True
     pause_before_send:     Optional[bool] = True
     # Order in which throttled brokers are dispatched each day:
-    #   "priority" (default) — highest broker priority (1..5) first
+    #   "aggregators_first" (default) — brokers that feed others first
+    #   "priority"       — highest broker priority (1..5) first
     #   "fifo"           — oldest pending first
     #   "easy_first"     — easiest brokers first (quick wins)
-    dispatch_order:        Optional[str]  = "priority"
+    dispatch_order:        Optional[str]  = "aggregators_first"
     # ── Job spread configuration ──
     # spread_mode: burst | window | rate | distributed
     spread_mode:                Optional[str] = "burst"
@@ -165,6 +160,10 @@ class SchedulerConfig(BaseModel):
     rate_interval_minutes:      Optional[int] = 20
     # distributed mode
     distributed_interval_minutes: Optional[int] = 60
+    # Calendar: which weekdays opt-outs go out (0 = Monday … 6 = Sunday; empty
+    # or missing = every day) and dates to skip, like holidays ("YYYY-MM-DD").
+    run_days:                   Optional[List[int]] = None
+    skip_dates:                 Optional[List[str]] = None
 
 
 class PrivacyDataSettings(BaseModel):
@@ -251,6 +250,38 @@ def get_settings(_: User = Depends(get_current_user)):
 def save_appearance(data: AppearanceSettings, _: User = Depends(require_permission("branding.manage"))):
     s = load_settings(); s["appearance"] = data.model_dump(); _save(s)
     return s["appearance"]
+
+
+# ── Regional formats ──────────────────────────────────────────────────────────
+
+class RegionalSettings(BaseModel):
+    region:     Optional[str] = None
+    hour_cycle: Optional[str] = None
+    week_start: Optional[str] = None
+    time_zone:  Optional[str] = None
+    digits:     Optional[str] = None
+
+
+@router.get("/regional")
+def get_regional():
+    """How dates, times and numbers are shown. Public: the screens need it
+    before sign-in, and it holds nothing about anyone."""
+    from ..core import regional
+    return {**regional.get(load_settings()), "regions": regional.REGIONS}
+
+
+@router.patch("/regional")
+def save_regional(data: RegionalSettings, _: User = Depends(require_permission("settings.system"))):
+    from ..core import regional
+    s = load_settings()
+    merged = {**regional.get(s), **{k: v for k, v in data.model_dump().items() if v is not None}}
+    try:
+        s["regional"] = regional.clean(merged)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    _save(s)
+    regional._cache["value"] = None
+    return s["regional"]
 
 
 # ── Email ─────────────────────────────────────────────────────────────────────
@@ -379,7 +410,15 @@ def test_connection(_: User = Depends(require_permission("email.manage"))):
 
 @router.patch("/scheduler")
 def save_scheduler(data: SchedulerConfig, _: User = Depends(require_permission("scheduler.manage"))):
-    s = load_settings(); s["scheduler"] = data.model_dump(); _save(s)
+    from ..core.calendar_plan import clean_days, clean_dates
+    s = load_settings()
+    new = data.model_dump(exclude_unset=True)
+    if "run_days" in new:
+        new["run_days"] = clean_days(new["run_days"])
+    if "skip_dates" in new:
+        new["skip_dates"] = clean_dates(new["skip_dates"])
+    s["scheduler"] = {**(s.get("scheduler") or {}), **new}   # fields not sent keep their values
+    _save(s)
     # reload live scheduler to pick up changes
     from ..core.scheduler import reload_scheduler
     import threading
@@ -391,15 +430,22 @@ def save_scheduler(data: SchedulerConfig, _: User = Depends(require_permission("
 
 @router.patch("/privacy")
 def save_privacy(data: PrivacyDataSettings, _: User = Depends(require_permission("settings.system"))):
-    s = load_settings(); s["privacy"] = data.model_dump(); _save(s)
+    s = load_settings()
+    d = data.model_dump()
+    if d.get("auto_purge_logs_days") is not None and d["auto_purge_logs_days"] < 30:
+        raise HTTPException(400, "Keep logs for at least 30 days.")
+    s["privacy"] = {**(s.get("privacy") or {}), **d}   # keeps the last-run record
+    _save(s)
     return s["privacy"]
 
 
 @router.get("/export")
 def export_data(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     from ..models.database import FamilyMember
-    from ..core.auth import get_accessible_member_ids
-    ids     = get_accessible_member_ids(db, current_user)
+    from ..core.compliance import own_member_ids
+    # Your own family only: a manager's export must not include every patron
+    # in their branches (staff use /api/privacy/export/{id} per request).
+    ids     = own_member_ids(db, current_user)
     members = db.query(FamilyMember).filter(FamilyMember.id.in_(ids)).all()
     out = [{
         "full_name":  m.full_name, "age": m.age,
@@ -419,8 +465,17 @@ def export_data(current_user: User = Depends(get_current_user), db: Session = De
 
 @router.delete("/danger/reset-requests", status_code=204)
 def reset_requests(_: User = Depends(require_super_admin), db: Session = Depends(get_db)):
-    from ..models.database import RemovalRequest, EmailLog
-    db.query(EmailLog).delete(); db.query(RemovalRequest).delete(); db.commit()
+    from ..models import database as m
+    # Children first: their rows point at the requests.
+    for model in (m.ConfirmationLink, m.RequestEvent, m.RequestVariant, m.VerificationCheck,
+                  m.CaptchaChallenge, m.EmailLog, m.AutomationLog):
+        db.query(model).delete(synchronize_session=False)
+    if hasattr(m, "NoticeSent"):
+        db.query(m.NoticeSent).delete(synchronize_session=False)
+    db.query(m.WebSearchHit).filter(m.WebSearchHit.request_id.isnot(None)).update(
+        {m.WebSearchHit.request_id: None}, synchronize_session=False)
+    db.query(m.RemovalRequest).delete(synchronize_session=False)
+    db.commit()
 
 
 from datetime import datetime
@@ -459,11 +514,11 @@ def save_vault_limits(
     _: User = Depends(require_permission("settings.system")),
 ):
     # Sanity caps — prevent absurd values that would generate millions of combos
-    if data.max_names               > 20:  raise HTTPException(400, "max_names cannot exceed 20")
-    if data.max_addresses           > 30:  raise HTTPException(400, "max_addresses cannot exceed 30")
-    if data.max_phones              > 20:  raise HTTPException(400, "max_phones cannot exceed 20")
-    if data.max_emails              > 20:  raise HTTPException(400, "max_emails cannot exceed 20")
-    if data.max_children_per_parent < 0:   raise HTTPException(400, "max_children_per_parent cannot be negative")
+    if data.max_names               > 20:  raise HTTPException(400, "Names can go up to 20 per person.")
+    if data.max_addresses           > 30:  raise HTTPException(400, "Addresses can go up to 30 per person.")
+    if data.max_phones              > 20:  raise HTTPException(400, "Phone numbers can go up to 20 per person.")
+    if data.max_emails              > 20:  raise HTTPException(400, "Email addresses can go up to 20 per person.")
+    if data.max_children_per_parent < 0:   raise HTTPException(400, "The number of children per parent can't be below 0.")
 
     s = load_settings()
     s["vault_limits"] = data.model_dump()
@@ -732,6 +787,9 @@ class AutomationConfig(BaseModel):
     rotate_user_agents:   bool = True
     custom_user_agents:   list[str] = []
     inter_submission_delay_seconds: float = 1.5
+    # Try a best-guess fill on broker sites OpenOptOut has no steps for. Off by
+    # default: guessing can type a person's details into the wrong form.
+    best_guess_forms: bool = False
 
 
 @router.get("/automation", response_model=AutomationConfig)
@@ -742,6 +800,7 @@ def get_automation(_: User = Depends(get_current_user)):
         rotate_user_agents=a.get("rotate_user_agents", True),
         custom_user_agents=a.get("custom_user_agents", []),
         inter_submission_delay_seconds=a.get("inter_submission_delay_seconds", 1.5),
+        best_guess_forms=bool(a.get("best_guess_forms", False)),
     )
 
 
@@ -911,7 +970,7 @@ def allow_plugin_system(req: PluginDenyRequest, _: User = Depends(require_super_
     plugin deliberately afterward.
     """
     if not req.confirm:
-        raise HTTPException(400, "Re-allowing the plugin system requires confirm=true")
+        raise HTTPException(400, "Confirm that you want to allow plugins again.")
     s = load_settings()
     p = s.setdefault("plugins", {})
     p["denied"] = False
@@ -919,3 +978,48 @@ def allow_plugin_system(req: PluginDenyRequest, _: User = Depends(require_super_
     return {"denied": False,
             "message": "Plugin system deny lifted. Enable the system and plugins deliberately to resume."}
 
+
+
+# ── Unclear matches (core/match_policy.py) ────────────────────────────────────
+
+class MatchingGlobal(BaseModel):
+    unclear_listings: str
+    users_choose: bool = True
+
+
+class MatchingMine(BaseModel):
+    unclear_listings: Optional[str] = None     # None: use the default
+
+
+@router.get("/matching")
+def get_matching(user: User = Depends(get_current_user)):
+    """What happens when a site shows only a name: the default, and this person's own choice."""
+    from ..core import match_policy as mp
+    from ..core.access import has_permission
+    g = mp.global_settings(load_settings())
+    mine = mp.user_choice(user) if g["users_choose"] else None
+    return {**g, "mine": mine, "effective": mine or g["unclear_listings"],
+            "choices": [{"value": c, "label": mp.LABELS[c]} for c in mp.CHOICES],
+            "can_set_default": has_permission(user, "settings.system")}
+
+
+@router.patch("/matching")
+def save_matching(data: MatchingGlobal, _: User = Depends(require_permission("settings.system"))):
+    from ..core import match_policy as mp
+    try:
+        return mp.save_global(data.unclear_listings, data.users_choose)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.patch("/matching/mine")
+def save_my_matching(data: MatchingMine, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    from ..core import match_policy as mp
+    if not mp.global_settings(load_settings())["users_choose"]:
+        raise HTTPException(403, "Your administrator has set this for everyone.")
+    try:
+        mp.save_user(user, data.unclear_listings)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    db.commit()
+    return {"mine": mp.user_choice(user)}

@@ -1,0 +1,3 @@
+{
+ "description": "Provedor de e-mail Yahoo Mail. A pessoa entra com o Yahoo (OAuth 2.0); o e-mail é enviado pelo SMTP do Yahoo e lido pelo IMAP dele com esse token de login (SASL OAUTHBEARER). Sem senhas de app. Lê os links de confirmação no corpo das mensagens sem marcá-las como lidas. Classe confiável de provedor de e-mail; o sistema inspeciona em busca de destinatários ocultos e impõe o destinatário no envio."
+}

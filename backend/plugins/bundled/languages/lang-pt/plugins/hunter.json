@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no Hunter, que lista pessoas por endereço de e-mail. Uma exclusão cobre todos os endereços salvos.",
+ "instructions": "O Hunter mostra e-mails de trabalho das pessoas. Abra https://hunter.io/ e clique em \"Do Not Sell My Info\" no rodapé. Para cada um destes endereços, reivindique-o, abra o link que o Hunter manda para ele e toque em \"Delete my information\": {all_emails}. Depois toque em \"Já fiz isso\"."
+}

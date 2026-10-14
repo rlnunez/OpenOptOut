@@ -10,6 +10,7 @@ import { useBranding } from '../hooks/useBranding'
 import { useAccessibility } from '../context/AccessibilityContext'
 import api from '../api'
 import { performWebAuthnAuthenticate, performWebAuthnRegister } from '../utils/webauthn'
+import { tx } from '../i18n/tx'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
@@ -57,7 +58,7 @@ export default function Login() {
   const [mandateStep, setMandateStep]         = useState('intro') // 'intro' | 'setup_totp' | 'setup_webauthn' | 'show_codes'
   const [mandateTotpData, setMandateTotpData] = useState(null)
   const [mandateTotpCode, setMandateTotpCode] = useState('')
-  const [mandateKeyName, setMandateKeyName]   = useState('Primary Security Key')
+  const [mandateKeyName, setMandateKeyName]   = useState('My security key')
   const [backupCodes, setBackupCodes]         = useState([])
   const [pendingToken, setPendingToken]       = useState(null)
   const [copiedCodes, setCopiedCodes]         = useState(false)
@@ -68,7 +69,7 @@ export default function Login() {
   const [setupMfaMode, setSetupMfaMode]         = useState('choose')  // 'choose' | 'totp' | 'webauthn' | 'codes'
   const [setupTotpData, setSetupTotpData]       = useState(null)
   const [setupTotpCode, setSetupTotpCode]       = useState('')
-  const [setupKeyName, setSetupKeyName]         = useState('Primary Security Key')
+  const [setupKeyName, setSetupKeyName]         = useState('My security key')
   const [setupBackupCodes, setSetupBackupCodes] = useState([])
   const [setupCopiedCodes, setSetupCopiedCodes] = useState(false)
   const [setupCopiedSecret, setSetupCopiedSecret] = useState(false)
@@ -111,7 +112,7 @@ export default function Login() {
       const ap = r.data
       setSip2Enabled(ap.sip2_enabled || false)
       setOidcProviders((ap.oidc_providers || []).filter(p => p.enabled))
-      setSaml(ap.saml_enabled ? { label: ap.saml_label || 'Single sign-on' } : null)
+      setSaml(ap.saml_enabled ? { label: ap.saml_label || tx("Single sign-on") } : null)
       if (ap.session_policy) {
         setSessionPolicy(ap.session_policy)
       }
@@ -124,11 +125,55 @@ export default function Login() {
     }).catch(() => {}).finally(() => setLoadingProviders(false))
   }, [])
 
+  // Is there a public sign-up page? (Admin → Branding → Registration)
+  const [signupOpen, setSignupOpen] = useState(false)
+  useEffect(() => {
+    api.get('/auth/signup-info').then(r => setSignupOpen(!!r.data.signup)).catch(() => {})
+  }, [])
+
   // Keep tab in sync if branding changes
   useEffect(() => {
     if (!showStaff && showPatron) setTab('patron')
     if (showStaff && !showPatron) setTab('staff')
   }, [showStaff, showPatron])
+
+  // After a password or an email code: ask for the second factor, or for MFA
+  // set-up, when the server says so. Returns true if it did.
+  const askSecondStep = res => {
+    if (res?.mfa_required) {
+      const allowed = res.allowed_methods || { totp: true, webauthn: true, backup_codes: true }
+      const methods = res.methods || {}
+      const canWebauthn = !!methods.webauthn && allowed.webauthn !== false
+      const canTotp = !!methods.totp && allowed.totp !== false
+      const canBackup = !!methods.has_backup_codes && allowed.backup_codes !== false
+
+      setMfaChallenge({
+        ticket: res.mfa_ticket,
+        totpEnabled: canTotp,
+        webauthnEnabled: canWebauthn,
+        hasBackupCodes: canBackup,
+        allowedMethods: allowed,
+      })
+      if (canWebauthn) {
+        setMfaMethod('webauthn')
+      } else if (canTotp) {
+        setMfaMethod('totp')
+      } else if (canBackup) {
+        setMfaMethod('backup')
+      }
+      return true
+    }
+    if (res?.mfa_mandated) {
+      setMfaMandate({
+        ticket: res.mfa_ticket,
+        message: res.detail || res.message,
+        allowedMethods: res.allowed_methods || { totp: true, webauthn: true, backup_codes: true },
+      })
+      setMandateStep('intro')
+      return true
+    }
+    return false
+  }
 
   const submitStaff = async e => {
     e.preventDefault(); setError(''); setLoading(true)
@@ -139,42 +184,11 @@ export default function Login() {
     }
     try {
       const res = await login(email, password, rememberStaff)
-      if (res?.mfa_required) {
-        const allowed = res.allowed_methods || { totp: true, webauthn: true, backup_codes: true }
-        const methods = res.methods || {}
-        const canWebauthn = !!methods.webauthn && allowed.webauthn !== false
-        const canTotp = !!methods.totp && allowed.totp !== false
-        const canBackup = !!methods.has_backup_codes && allowed.backup_codes !== false
-
-        setMfaChallenge({
-          ticket: res.mfa_ticket,
-          totpEnabled: canTotp,
-          webauthnEnabled: canWebauthn,
-          hasBackupCodes: canBackup,
-          allowedMethods: allowed,
-        })
-        if (canWebauthn) {
-          setMfaMethod('webauthn')
-        } else if (canTotp) {
-          setMfaMethod('totp')
-        } else if (canBackup) {
-          setMfaMethod('backup')
-        }
-        return
-      }
-      if (res?.mfa_mandated) {
-        setMfaMandate({
-          ticket: res.mfa_ticket,
-          message: res.detail || res.message,
-          allowedMethods: res.allowed_methods || { totp: true, webauthn: true, backup_codes: true },
-        })
-        setMandateStep('intro')
-        return
-      }
+      if (askSecondStep(res)) return
       navigate('/')
     } catch (err) {
       // 429 = too many failed attempts; the server says how long to wait
-      setError(err.response?.status === 429 ? err.response.data.detail : 'Invalid email or password')
+      setError(err.response?.status === 429 ? err.response.data.detail : tx("That email and password don't match. Check them and try again."))
     } finally {
       setLoading(false)
     }
@@ -201,7 +215,7 @@ export default function Login() {
       await completeMfaLogin(loginRes.access_token)
       navigate('/')
     } catch (err) {
-      const msg = err.response?.data?.detail || err.message || 'Passkey authentication failed.'
+      const msg = err.response?.data?.detail || err.message || tx("Couldn't sign in with your passkey. Try again, or use your password.")
       setError(msg)
     } finally {
       setLoading(false)
@@ -211,7 +225,7 @@ export default function Login() {
   const handleRequestMagicLink = async e => {
     if (e) e.preventDefault()
     if (!email.trim()) {
-      setError('Please enter your email address to receive a sign-in code.')
+      setError(tx("Type your email address and we will send you a sign-in code."))
       return
     }
     setError('')
@@ -221,13 +235,10 @@ export default function Login() {
         email: email.trim(),
       })
       setMagicLinkToken(data.token || '')
-      setMagicLinkMessage(data.message || 'A 6-digit sign-in code has been sent to your email.')
-      if (data.fallback_code) {
-        setMagicLinkCode(data.fallback_code)
-      }
+      setMagicLinkMessage(data.message || tx("We sent a 6-digit sign-in code to your email."))
       setStaffAuthMode('magic_link_verify')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to send sign-in code.')
+      setError(err.response?.data?.detail || tx("Couldn't send the sign-in code. Please try again in a minute."))
     } finally {
       setLoading(false)
     }
@@ -236,7 +247,7 @@ export default function Login() {
   const handleVerifyMagicLink = async e => {
     if (e) e.preventDefault()
     if (!magicLinkCode.trim()) {
-      setError('Please enter the 6-digit verification code.')
+      setError(tx("Type the 6-digit code from the email."))
       return
     }
     setError('')
@@ -250,10 +261,11 @@ export default function Login() {
         code: magicLinkCode.trim(),
         remember_me: rememberStaff,
       })
+      if (askSecondStep(data)) return
       await completeMfaLogin(data.access_token)
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid or expired sign-in code.')
+      setError(err.response?.data?.detail || tx("That code didn't work. It may be mistyped or too old. Ask for a new one."))
     } finally {
       setLoading(false)
     }
@@ -267,7 +279,7 @@ export default function Login() {
       localStorage.setItem('token', data.access_token)
       window.location.href = '/'
     } catch (err) {
-      setError(err.response?.data?.detail ?? 'Library card authentication failed')
+      setError(err.response?.data?.detail ?? tx("Couldn't sign in with that library card. Check the number and PIN."))
     } finally { setLoading(false) }
   }
 
@@ -278,8 +290,8 @@ export default function Login() {
   const [setupConfirm, setSetupConfirm] = useState('')
   const submitSetup = async e => {
     e.preventDefault(); setError('')
-    if (password.length < 8) { setError('Use a password of at least 8 characters'); return }
-    if (password !== setupConfirm) { setError('Passwords do not match'); return }
+    if (password.length < 8) { setError(tx("Use a password of at least 8 characters")); return }
+    if (password !== setupConfirm) { setError(tx("The two passwords don't match.")); return }
     setLoading(true)
     try {
       await api.post('/auth/register', { email, full_name: setupName, password })
@@ -302,7 +314,7 @@ export default function Login() {
       setSetupStep('mfa')
       setSetupMfaMode('choose')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Could not create the administrator account')
+      setError(err.response?.data?.detail || tx("Couldn't create the admin account. Please try again."))
     } finally { setLoading(false) }
   }
 
@@ -314,7 +326,7 @@ export default function Login() {
       setSetupTotpData(data)
       setSetupMfaMode('totp')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to initialize authenticator app setup.')
+      setError(err.response?.data?.detail || tx("Couldn't start setting up the code app. Please try again."))
     } finally {
       setLoading(false)
     }
@@ -333,7 +345,7 @@ export default function Login() {
       setSetupBackupCodes(data.backup_codes || setupTotpData?.backup_codes || [])
       setSetupMfaMode('codes')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid verification code. Please check your app.')
+      setError(err.response?.data?.detail || tx("That code didn't work. Codes change every 30 seconds, so use the newest one."))
     } finally {
       setLoading(false)
     }
@@ -346,15 +358,15 @@ export default function Login() {
       const credential = await performWebAuthnRegister(optData.options)
       const { data: regData } = await api.post('/auth/mfa/webauthn/register', {
         credential,
-        name: setupKeyName.trim() || 'Primary Security Key',
+        name: setupKeyName.trim() || 'My security key',
       })
       setSetupBackupCodes(regData.backup_codes || [])
       setSetupMfaMode('codes')
     } catch (err) {
       if (err.name === 'NotAllowedError') {
-        setError('Security key interaction was cancelled or timed out.')
+        setError(tx("The security key step was cancelled or took too long. Try again."))
       } else {
-        setError(err.response?.data?.detail || err.message || 'Failed to register security key.')
+        setError(err.response?.data?.detail || err.message || tx("Couldn't add the security key. Please try again."))
       }
     } finally {
       setWebauthnLoading(false)
@@ -394,7 +406,7 @@ export default function Login() {
       await completeMfaLogin(data.access_token)
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid authenticator code')
+      setError(err.response?.data?.detail || tx("That code didn't work. Codes change every 30 seconds, so use the newest one."))
     } finally {
       setLoading(false)
     }
@@ -412,7 +424,7 @@ export default function Login() {
       await completeMfaLogin(data.access_token)
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid or already-used backup recovery code')
+      setError(err.response?.data?.detail || tx("That backup code didn't work. Each one works only once."))
     } finally {
       setLoading(false)
     }
@@ -433,9 +445,9 @@ export default function Login() {
       navigate('/')
     } catch (err) {
       if (err.name === 'NotAllowedError') {
-        setError('Security key interaction was cancelled or timed out.')
+        setError(tx("The security key step was cancelled or took too long. Try again."))
       } else {
-        setError(err.response?.data?.detail || err.message || 'Security key authentication failed.')
+        setError(err.response?.data?.detail || err.message || tx("Couldn't sign in with the security key. Try again, or use another way."))
       }
     } finally {
       setWebauthnLoading(false)
@@ -452,7 +464,7 @@ export default function Login() {
       setMandateTotpData(data)
       setMandateStep('setup_totp')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to initialize authenticator setup.')
+      setError(err.response?.data?.detail || tx("Couldn't start setting up the code app. Please try again."))
     } finally {
       setLoading(false)
     }
@@ -472,7 +484,7 @@ export default function Login() {
       setPendingToken(data.access_token)
       setMandateStep('show_codes')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid verification code. Please check your app.')
+      setError(err.response?.data?.detail || tx("That code didn't work. Codes change every 30 seconds, so use the newest one."))
     } finally {
       setLoading(false)
     }
@@ -487,7 +499,7 @@ export default function Login() {
       const credential = await performWebAuthnRegister(optData.options)
       const { data: regData } = await api.post('/auth/mfa/webauthn/register', {
         credential,
-        key_name: mandateKeyName || 'Primary Security Key'
+        key_name: mandateKeyName || 'My security key'
       }, {
         headers: { 'X-MFA-Ticket': mfaMandate.ticket }
       })
@@ -496,9 +508,9 @@ export default function Login() {
       setMandateStep('show_codes')
     } catch (err) {
       if (err.name === 'NotAllowedError') {
-        setError('Security key registration was cancelled or timed out.')
+        setError(tx("The security key step was cancelled or took too long. Try again."))
       } else {
-        setError(err.response?.data?.detail || err.message || 'Failed to register security key.')
+        setError(err.response?.data?.detail || err.message || tx("Couldn't add the security key. Please try again."))
       }
     } finally {
       setWebauthnLoading(false)
@@ -525,9 +537,9 @@ export default function Login() {
   }
 
   const name         = branding?.system_name   || 'OpenOptOut'
-  const tagline      = branding?.tagline        || 'Your personal data removal service'
+  const tagline      = branding?.tagline        || tx("Your personal data removal service")
   const staffLabel   = branding?.staff_tab_label  || 'Staff'
-  const patronLabel  = branding?.patron_tab_label || 'Library Card'
+  const patronLabel  = branding?.patron_tab_label || tx("Library Card")
   const staffWelcome = branding?.staff_welcome  || branding?.welcome_message
   const patronWelcome= branding?.patron_welcome || branding?.welcome_message
 
@@ -536,7 +548,7 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 relative">
       {/* Quick Accessibility Bar */}
-      <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+      <div className="absolute top-4 end-4 flex items-center gap-2 z-10">
         <button
           type="button"
           onClick={() => setDyslexicFont(!dyslexicFont)}
@@ -546,10 +558,10 @@ export default function Login() {
               : 'bg-slate-900/80 text-slate-400 border-slate-800 hover:text-white'
           }`}
           aria-pressed={dyslexicFont}
-          title="Dyslexia-Friendly Font (OpenDyslexic)"
+          title={tx("Dyslexia-Friendly Font (OpenDyslexic)")}
         >
           <BookOpen size={13} className={dyslexicFont ? 'text-purple-400' : 'text-slate-400'} />
-          <span>Dyslexia Font</span>
+          <span>{tx("Dyslexia Font")}</span>
         </button>
 
         <button
@@ -561,10 +573,10 @@ export default function Login() {
               : 'bg-slate-900/80 text-slate-400 border-slate-800 hover:text-white'
           }`}
           aria-pressed={highContrast}
-          title="High Contrast Mode (WCAG 2.2 AAA)"
+          title={tx("High Contrast Mode (WCAG 2.2 AAA)")}
         >
           <Eye size={13} className={highContrast ? 'text-yellow-400' : 'text-slate-400'} />
-          <span>Contrast</span>
+          <span>{tx("Contrast")}</span>
         </button>
       </div>
 
@@ -585,36 +597,35 @@ export default function Login() {
 
           {/* 1. First-run setup: create administrator account + optional MFA step */}
           {needsSetup === null ? (
-            <div className="text-center text-slate-500 text-sm py-6">Loading…</div>
+            <div className="text-center text-slate-500 text-sm py-6">{tx("Loading…")}</div>
           ) : needsSetup ? (
             setupStep === 'account' ? (
               <div>
                 <div className="flex items-center justify-between mb-3 text-xs text-slate-400">
-                  <span className="font-semibold text-shield-400">Step 1 of 2</span>
-                  <span>Create Account</span>
+                  <span className="font-semibold text-shield-400">{tx("Step 1 of 2")}</span>
+                  <span>{tx("Create Account")}</span>
                 </div>
                 <div className="mb-4">
-                  <h2 className="text-white font-semibold text-sm">Welcome — let's set up your system</h2>
+                  <h2 className="text-white font-semibold text-sm">{tx("Welcome — let's set up your system")}</h2>
                   <p className="text-slate-500 text-xs mt-1">
-                    No accounts exist yet. Create the administrator account below. This first account
-                    has full super-admin access; you can add more users afterward.
+                    {tx("No accounts exist yet. Create the administrator account below. This first account has full super-admin access; you can add more users afterward.")}
                   </p>
                 </div>
                 <form onSubmit={submitSetup} className="space-y-3">
-                  <input className={inp} placeholder="Your name" value={setupName}
+                  <input className={inp} placeholder={tx("Your name")} value={setupName}
                     onChange={e => setSetupName(e.target.value)} required />
-                  <input className={inp} type="email" placeholder="Admin email" value={email}
+                  <input className={inp} type="email" placeholder={tx("Admin email")} value={email}
                     onChange={e => setEmail(e.target.value)} required />
-                  <input className={inp} type="password" placeholder="Password (min 8 characters)"
+                  <input className={inp} type="password" placeholder={tx("Password (min 8 characters)")}
                     value={password} onChange={e => setPw(e.target.value)} required />
-                  <input className={inp} type="password" placeholder="Confirm password"
+                  <input className={inp} type="password" placeholder={tx("Confirm password")}
                     value={setupConfirm} onChange={e => setSetupConfirm(e.target.value)} required />
 
                   {/* Accessibility & Typography Options for New Account */}
                   <div className="pt-2 border-t border-slate-800 space-y-2">
                     <p className="text-slate-400 text-xs font-medium flex items-center gap-1.5">
                       <BookOpen size={13} className="text-purple-400" />
-                      <span>Accessibility & Typography</span>
+                      <span>{tx("Accessibility & Typography")}</span>
                     </p>
 
                     <label className="flex items-start gap-2.5 p-2.5 rounded-lg border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer transition-colors">
@@ -626,18 +637,18 @@ export default function Login() {
                       />
                       <div className="space-y-0.5 text-start">
                         <span className="text-xs font-semibold text-white flex items-center gap-1.5">
-                          <span>Dyslexia-Friendly Font (OpenDyslexic)</span>
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">OpenDyslexic</span>
+                          <span>{tx("Dyslexia-Friendly Font (OpenDyslexic)")}</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">{"OpenDyslexic"}</span>
                         </span>
                         <p className="text-[11px] text-slate-400 leading-normal">
-                          Switches typography to OpenDyslexic with weighted bottoms to enhance reading flow.
+                          {tx("Switches typography to OpenDyslexic with weighted bottoms to enhance reading flow.")}
                         </p>
                       </div>
                     </label>
 
                     {dyslexicFont && (
                       <div className="p-2 rounded border border-purple-500/30 bg-purple-950/20 text-[11px] text-purple-200" style={{ fontFamily: "'OpenDyslexic', system-ui, sans-serif" }}>
-                        OpenDyslexic typography is active and will be saved to your profile.
+                        {tx("OpenDyslexic typography is active and will be saved to your profile.")}
                       </div>
                     )}
 
@@ -650,11 +661,11 @@ export default function Login() {
                       />
                       <div className="space-y-0.5 text-start">
                         <span className="text-xs font-semibold text-white flex items-center gap-1.5">
-                          <span>High Contrast Mode (WCAG 2.2 AAA)</span>
+                          <span>{tx("High Contrast Mode (WCAG 2.2 AAA)")}</span>
                           <span className="text-[10px] px-1 py-0.2 rounded bg-yellow-400/20 text-yellow-300 font-mono">7:1+</span>
                         </span>
                         <p className="text-[11px] text-slate-400 leading-normal">
-                          Enforces maximum visual contrast across the interface.
+                          {tx("Enforces maximum visual contrast across the interface.")}
                         </p>
                       </div>
                     </label>
@@ -663,7 +674,7 @@ export default function Login() {
                   {error && <p className="text-red-400 text-xs">{error}</p>}
                   <button type="submit" disabled={loading}
                     className="w-full bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white text-sm rounded-lg py-2 flex items-center justify-center gap-1.5 font-medium transition-colors">
-                    {loading ? 'Creating account…' : <><span>Create administrator account</span><ChevronRight size={15} /></>}
+                    {loading ? tx("Creating account…") : <><span>{tx("Create administrator account")}</span><ChevronRight size={15} /></>}
                   </button>
                 </form>
               </div>
@@ -673,17 +684,17 @@ export default function Login() {
                 <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-800">
                   <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
                     <Check size={13} />
-                    <span>Step 1: Account Created</span>
+                    <span>{tx("Step 1: Account Created")}</span>
                   </div>
-                  <span className="text-shield-400 font-semibold">Step 2: MFA Setup (Optional)</span>
+                  <span className="text-shield-400 font-semibold">{tx("Step 2: MFA Setup (Optional)")}</span>
                 </div>
 
                 <div>
                   <h2 className="text-white font-semibold text-sm flex items-center gap-2">
-                    <Lock size={15} className="text-shield-400" /> Protect Your Super Admin Account
+                    <Lock size={15} className="text-shield-400" />{" "}{tx("Protect Your Super Admin Account")}
                   </h2>
                   <p className="text-slate-400 text-xs mt-1">
-                    Super Admin accounts control all system data and policies. You can set up at least one MFA method now, or skip and set it up within your 3-day compliance window.
+                    {tx("Super Admin accounts control all system data and policies. You can set up at least one MFA method now, or skip and set it up within your 3-day compliance window.")}
                   </p>
                 </div>
 
@@ -702,9 +713,9 @@ export default function Login() {
                           <Smartphone size={16} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-slate-200 text-xs font-semibold">Authenticator App (TOTP)</p>
+                          <p className="text-slate-200 text-xs font-semibold">{tx("Authenticator App (TOTP)")}</p>
                           <p className="text-slate-400 text-[11px] mt-0.5">
-                            Google Authenticator, Yubico Authenticator, 1Password, or Bitwarden on your mobile phone.
+                            {tx("Google Authenticator, Yubico Authenticator, 1Password, or Bitwarden on your mobile phone.")}
                           </p>
                         </div>
                       </div>
@@ -714,7 +725,7 @@ export default function Login() {
                         disabled={loading}
                         className="w-full bg-slate-700 hover:bg-slate-600 text-white text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 font-medium transition-colors">
                         {loading ? <RefreshCw size={12} className="animate-spin" /> : <Smartphone size={12} />}
-                        Set up Authenticator App
+                        {tx("Set up Authenticator App")}
                       </button>
                     </div>
 
@@ -725,9 +736,9 @@ export default function Login() {
                           <Fingerprint size={16} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-slate-200 text-xs font-semibold">Security Key & Biometrics</p>
+                          <p className="text-slate-200 text-xs font-semibold">{tx("Security Key & Biometrics")}</p>
                           <p className="text-slate-400 text-[11px] mt-0.5">
-                            YubiKey, Titan Key, Mac Touch ID, Windows Hello, or mobile Face ID / Android via QR code.
+                            {tx("YubiKey, Titan Key, Mac Touch ID, Windows Hello, or mobile Face ID / Android via QR code.")}
                           </p>
                         </div>
                       </div>
@@ -736,7 +747,7 @@ export default function Login() {
                         onClick={() => { setError(''); setSetupMfaMode('webauthn') }}
                         className="w-full bg-slate-700 hover:bg-slate-600 text-white text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 font-medium transition-colors">
                         <Fingerprint size={12} />
-                        Register Security Key or Biometrics
+                        {tx("Register Security Key or Biometrics")}
                       </button>
                     </div>
 
@@ -744,13 +755,13 @@ export default function Login() {
                     <div className="pt-2 border-t border-slate-800 space-y-2">
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
                         <Clock size={12} className="text-slate-400 shrink-0" />
-                        <span>You have a 3-day grace period to configure this later in Settings.</span>
+                        <span>{tx("You have a 3-day grace period to configure this later in Settings.")}</span>
                       </div>
                       <button
                         type="button"
                         onClick={skipSetupMfa}
                         className="w-full border border-slate-700 hover:border-slate-600 bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1 font-medium transition-colors">
-                        <span>Skip for now</span>
+                        <span>{tx("Skip for now")}</span>
                         <ChevronRight size={13} />
                       </button>
                     </div>
@@ -764,20 +775,20 @@ export default function Login() {
                         type="button"
                         onClick={() => { setError(''); setSetupMfaMode('choose') }}
                         className="text-slate-400 hover:text-slate-200 text-xs flex items-center gap-1">
-                        <ArrowLeft size={12} /> Back to options
+                        <ArrowLeft size={12} />{" "}{tx("Back to options")}
                       </button>
                       <button
                         type="button"
                         onClick={skipSetupMfa}
                         className="text-slate-500 hover:text-slate-300 text-xs">
-                        Skip for now
+                        {tx("Skip for now")}
                       </button>
                     </div>
 
                     {setupTotpData && (
                       <div className="space-y-3">
                         <div className="p-3 bg-slate-800/90 border border-slate-700 rounded-lg space-y-1.5">
-                          <label className="text-[11px] font-medium text-slate-400">Secret Key (Base32)</label>
+                          <label className="text-[11px] font-medium text-slate-400">{tx("Secret Key (Base32)")}</label>
                           <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg p-2 font-mono text-xs text-shield-300">
                             <span className="truncate flex-1 tracking-wider">{setupTotpData.secret}</span>
                             <button
@@ -788,13 +799,13 @@ export default function Login() {
                             </button>
                           </div>
                           <p className="text-slate-500 text-[11px]">
-                            Enter this key in your authenticator app (Google Authenticator, Yubico Authenticator).
+                            {tx("Enter this key in your authenticator app (Google Authenticator, Yubico Authenticator).")}
                           </p>
                         </div>
 
                         <form onSubmit={handleActivateSetupTotp} className="space-y-3">
                           <div>
-                            <label className="text-[11px] font-medium text-slate-400 block mb-1">Enter 6-digit verification code</label>
+                            <label className="text-[11px] font-medium text-slate-400 block mb-1">{tx("Enter 6-digit verification code")}</label>
                             <input
                               type="text"
                               inputMode="numeric"
@@ -813,7 +824,7 @@ export default function Login() {
                             disabled={loading || setupTotpCode.trim().length !== 6}
                             className="w-full bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white text-xs py-2 rounded-lg font-medium flex items-center justify-center gap-1.5">
                             {loading ? <RefreshCw size={12} className="animate-spin" /> : <Check size={13} />}
-                            Verify & Enable Authenticator
+                            {tx("Verify & Enable Authenticator")}
                           </button>
                         </form>
                       </div>
@@ -828,22 +839,22 @@ export default function Login() {
                         type="button"
                         onClick={() => { setError(''); setSetupMfaMode('choose') }}
                         className="text-slate-400 hover:text-slate-200 text-xs flex items-center gap-1">
-                        <ArrowLeft size={12} /> Back to options
+                        <ArrowLeft size={12} />{" "}{tx("Back to options")}
                       </button>
                       <button
                         type="button"
                         onClick={skipSetupMfa}
                         className="text-slate-500 hover:text-slate-300 text-xs">
-                        Skip for now
+                        {tx("Skip for now")}
                       </button>
                     </div>
 
                     <div className="space-y-3">
                       <div>
-                        <label className="text-[11px] font-medium text-slate-400 block mb-1">Key or Device Label</label>
+                        <label className="text-[11px] font-medium text-slate-400 block mb-1">{tx("Key or Device Label")}</label>
                         <input
                           className={inp}
-                          placeholder="e.g. Primary YubiKey, Mac Touch ID"
+                          placeholder={tx("e.g. My YubiKey, or Mac fingerprint")}
                           value={setupKeyName}
                           onChange={e => setSetupKeyName(e.target.value)}
                         />
@@ -854,10 +865,10 @@ export default function Login() {
                         disabled={webauthnLoading}
                         className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs py-2 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-colors">
                         {webauthnLoading ? <RefreshCw size={12} className="animate-spin" /> : <Fingerprint size={14} />}
-                        Tap Security Key or Touch Sensor
+                        {tx("Tap Security Key or Touch Sensor")}
                       </button>
                       <p className="text-slate-500 text-[11px] text-center">
-                        When prompted, touch your YubiKey or authenticate with Mac Touch ID / Face ID.
+                        {tx("When prompted, touch your YubiKey or authenticate with Mac Touch ID / Face ID.")}
                       </p>
                     </div>
                   </div>
@@ -867,22 +878,22 @@ export default function Login() {
                   <div className="space-y-3 pt-1">
                     <div className="p-3 bg-emerald-950/30 border border-emerald-800 rounded-lg text-emerald-300 text-xs flex items-center gap-2">
                       <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
-                      <span className="font-semibold">MFA Successfully Configured!</span>
+                      <span className="font-semibold">{tx("MFA Successfully Configured!")}</span>
                     </div>
 
                     <div className="p-3 bg-slate-800/90 border border-slate-700 rounded-lg space-y-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-semibold text-slate-300">Backup Recovery Codes</label>
+                        <label className="text-xs font-semibold text-slate-300">{tx("Backup Recovery Codes")}</label>
                         <button
                           type="button"
                           onClick={copySetupCodes}
                           className="text-xs text-shield-400 hover:text-shield-300 flex items-center gap-1 font-medium">
                           {setupCopiedCodes ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                          {setupCopiedCodes ? 'Copied!' : 'Copy all'}
+                          {setupCopiedCodes ? tx("Copied!") : tx("Copy all")}
                         </button>
                       </div>
                       <p className="text-slate-400 text-[11px]">
-                        Save these one-time codes in a safe place. They will let you access your account if your authenticator is lost.
+                        {tx("Save these one-time codes in a safe place. They will let you access your account if your authenticator is lost.")}
                       </p>
                       <div className="grid grid-cols-2 gap-1.5 p-2 bg-slate-900 border border-slate-800 rounded-lg font-mono text-[11px] text-slate-300">
                         {setupBackupCodes.map((c, i) => (
@@ -895,7 +906,7 @@ export default function Login() {
                       type="button"
                       onClick={finishSetupMfa}
                       className="w-full bg-shield-600 hover:bg-shield-700 text-white text-xs py-2 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-colors">
-                      <span>Complete Setup & Continue</span>
+                      <span>{tx("Complete Setup & Continue")}</span>
                       <ChevronRight size={14} />
                     </button>
                   </div>
@@ -907,10 +918,10 @@ export default function Login() {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Lock size={16} className="text-shield-400" />
-                <h2 className="text-white font-semibold text-sm">Two-Factor Authentication</h2>
+                <h2 className="text-white font-semibold text-sm">{tx("Two-Factor Authentication")}</h2>
               </div>
               <p className="text-slate-400 text-xs mb-4">
-                Verify your identity to complete sign-in.
+                {tx("Verify your identity to complete sign-in.")}
               </p>
 
               {error && (
@@ -926,7 +937,7 @@ export default function Login() {
                     type="button"
                     onClick={() => { setMfaMethod('webauthn'); setError('') }}
                     className={`flex-1 py-1.5 rounded-sm flex items-center justify-center gap-1.5 transition-colors ${mfaMethod === 'webauthn' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-slate-200'}`}>
-                    <Fingerprint size={13} /> Key / Touch ID
+                    <Fingerprint size={13} />{" "}{tx("Key / Touch ID")}
                   </button>
                 )}
                 {mfaChallenge.totpEnabled && (
@@ -934,7 +945,7 @@ export default function Login() {
                     type="button"
                     onClick={() => { setMfaMethod('totp'); setError('') }}
                     className={`flex-1 py-1.5 rounded-sm flex items-center justify-center gap-1.5 transition-colors ${mfaMethod === 'totp' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-slate-200'}`}>
-                    <Smartphone size={13} /> Authenticator
+                    <Smartphone size={13} />{" "}{tx("Authenticator")}
                   </button>
                 )}
                 {mfaChallenge.hasBackupCodes && (
@@ -942,7 +953,7 @@ export default function Login() {
                     type="button"
                     onClick={() => { setMfaMethod('backup'); setError('') }}
                     className={`flex-1 py-1.5 rounded-sm flex items-center justify-center gap-1.5 transition-colors ${mfaMethod === 'backup' ? 'bg-slate-700 text-white font-medium' : 'text-slate-400 hover:text-slate-200'}`}>
-                    <Key size={13} /> Backup
+                    <Key size={13} />{" "}{tx("Backup")}
                   </button>
                 )}
               </div>
@@ -952,8 +963,8 @@ export default function Login() {
                 <div className="space-y-3">
                   <div className="p-3 bg-slate-800/80 rounded-lg border border-slate-700/60 text-center">
                     <Fingerprint size={28} className="mx-auto text-shield-400 mb-2" />
-                    <p className="text-slate-300 text-xs font-medium">Security Key, Biometrics, or Phone</p>
-                    <p className="text-slate-500 text-[11px] mt-1">Touch YubiKey, use Mac Touch ID, or scan QR code with iPhone (Face ID) / Android</p>
+                    <p className="text-slate-300 text-xs font-medium">{tx("Security Key, Biometrics, or Phone")}</p>
+                    <p className="text-slate-500 text-[11px] mt-1">{tx("Touch YubiKey, use Mac Touch ID, or scan QR code with iPhone (Face ID) / Android")}</p>
                   </div>
                   <button
                     type="button"
@@ -961,7 +972,7 @@ export default function Login() {
                     disabled={webauthnLoading}
                     className="w-full py-2.5 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
                     {webauthnLoading ? <RefreshCw size={14} className="animate-spin" /> : <Fingerprint size={14} />}
-                    {webauthnLoading ? 'Waiting for touch or phone scan…' : 'Use Security Key / Touch ID / Phone'}
+                    {webauthnLoading ? tx("Waiting for touch or phone scan…") : tx("Use a security key, fingerprint or phone")}
                   </button>
                 </div>
               )}
@@ -970,7 +981,7 @@ export default function Login() {
               {mfaMethod === 'totp' && (
                 <form onSubmit={handleVerifyTotp} className="space-y-3">
                   <div>
-                    <label className="text-slate-400 text-xs mb-1 block">6-digit Authenticator Code</label>
+                    <label className="text-slate-400 text-xs mb-1 block">{tx("6-digit Authenticator Code")}</label>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -987,7 +998,7 @@ export default function Login() {
                     type="submit"
                     disabled={loading || totpCode.trim().length < 6}
                     className="w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
-                    {loading ? 'Verifying…' : 'Verify Code'}
+                    {loading ? tx("Verifying…") : tx("Check code")}
                   </button>
                 </form>
               )}
@@ -996,11 +1007,11 @@ export default function Login() {
               {mfaMethod === 'backup' && (
                 <form onSubmit={handleVerifyBackup} className="space-y-3">
                   <div>
-                    <label className="text-slate-400 text-xs mb-1 block">8-character Backup Recovery Code</label>
+                    <label className="text-slate-400 text-xs mb-1 block">{tx("8-character Backup Recovery Code")}</label>
                     <input
                       type="text"
                       autoFocus
-                      placeholder="e.g. 9b4f2a1c"
+                      placeholder={tx("e.g. 9b4f2a1c")}
                       value={backupCode}
                       onChange={e => setBackupCode(e.target.value.toLowerCase())}
                       className={`${inp} text-center font-mono tracking-wider`}
@@ -1010,7 +1021,7 @@ export default function Login() {
                     type="submit"
                     disabled={loading || !backupCode.trim()}
                     className="w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
-                    {loading ? 'Verifying…' : 'Verify Recovery Code'}
+                    {loading ? tx("Verifying…") : tx("Use backup code")}
                   </button>
                 </form>
               )}
@@ -1019,7 +1030,7 @@ export default function Login() {
                 type="button"
                 onClick={() => { setMfaChallenge(null); setError('') }}
                 className="w-full mt-3 py-1.5 text-xs text-slate-500 hover:text-slate-400 flex items-center justify-center gap-1 transition-colors">
-                <ArrowLeft size={12} /> Cancel and return to sign in
+                <ArrowLeft size={12} />{" "}{tx("Cancel and return to sign in")}
               </button>
             </div>
           ) : mfaMandate ? (
@@ -1027,10 +1038,10 @@ export default function Login() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <ShieldAlert size={16} className="text-amber-400" />
-                <h2 className="text-white font-semibold text-sm">MFA Setup Mandated</h2>
+                <h2 className="text-white font-semibold text-sm">{tx("MFA Setup Mandated")}</h2>
               </div>
               <p className="text-slate-400 text-xs mb-4">
-                Multi-Factor Authentication is required for administrator accounts after 3 days of installation. Please configure an authentication method to continue.
+                {tx("Multi-Factor Authentication is required for administrator accounts after 3 days of installation. Please configure an authentication method to continue.")}
               </p>
 
               {error && (
@@ -1047,13 +1058,13 @@ export default function Login() {
                       type="button"
                       onClick={startMandateTotp}
                       disabled={loading}
-                      className="w-full p-3 bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl text-left transition-colors flex items-center gap-3">
+                      className="w-full p-3 bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl text-start transition-colors flex items-center gap-3">
                       <div className="p-2 bg-shield-500/10 text-shield-400 rounded-lg shrink-0">
                         <Smartphone size={18} />
                       </div>
                       <div>
-                        <p className="text-slate-200 text-xs font-medium">Authenticator App (TOTP)</p>
-                        <p className="text-slate-500 text-[11px] mt-0.5">Google Authenticator, 1Password, Yubico</p>
+                        <p className="text-slate-200 text-xs font-medium">{tx("Authenticator App (TOTP)")}</p>
+                        <p className="text-slate-500 text-[11px] mt-0.5">{tx("Google Authenticator, 1Password, Yubico")}</p>
                       </div>
                     </button>
                   )}
@@ -1062,13 +1073,13 @@ export default function Login() {
                     <button
                       type="button"
                       onClick={() => setMandateStep('setup_webauthn')}
-                      className="w-full p-3 bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl text-left transition-colors flex items-center gap-3">
+                      className="w-full p-3 bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl text-start transition-colors flex items-center gap-3">
                       <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg shrink-0">
                         <Fingerprint size={18} />
                       </div>
                       <div>
-                        <p className="text-slate-200 text-xs font-medium">Security Key / Touch ID / Phone (WebAuthn)</p>
-                        <p className="text-slate-500 text-[11px] mt-0.5">YubiKey, Mac Touch ID, iPhone Face ID, Android</p>
+                        <p className="text-slate-200 text-xs font-medium">{tx("Security Key / Touch ID / Phone (WebAuthn)")}</p>
+                        <p className="text-slate-500 text-[11px] mt-0.5">{tx("YubiKey, Mac Touch ID, iPhone Face ID, Android")}</p>
                       </div>
                     </button>
                   )}
@@ -1077,7 +1088,7 @@ export default function Login() {
                     type="button"
                     onClick={() => { setMfaMandate(null); setError('') }}
                     className="w-full mt-2 py-1.5 text-xs text-slate-500 hover:text-slate-400 flex items-center justify-center gap-1 transition-colors">
-                    <ArrowLeft size={12} /> Back to sign in
+                    <ArrowLeft size={12} />{" "}{tx("Back to sign in")}
                   </button>
                 </div>
               )}
@@ -1086,7 +1097,7 @@ export default function Login() {
               {mandateStep === 'setup_totp' && mandateTotpData && (
                 <div className="space-y-3">
                   <div>
-                    <label className="text-slate-400 text-xs mb-1 block">Secret Key</label>
+                    <label className="text-slate-400 text-xs mb-1 block">{tx("Secret Key")}</label>
                     <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg p-2 font-mono text-xs text-shield-300">
                       <span className="truncate flex-1 tracking-wider">{mandateTotpData.secret}</span>
                       <button
@@ -1097,13 +1108,13 @@ export default function Login() {
                       </button>
                     </div>
                     <p className="text-slate-500 text-[11px] mt-1">
-                      Enter this key in your authenticator app or password manager.
+                      {tx("Enter this key in your authenticator app or password manager.")}
                     </p>
                   </div>
 
                   <form onSubmit={handleActivateMandateTotp} className="space-y-3">
                     <div>
-                      <label className="text-slate-400 text-xs mb-1 block">Enter 6-digit code to verify</label>
+                      <label className="text-slate-400 text-xs mb-1 block">{tx("Enter 6-digit code to verify")}</label>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -1120,7 +1131,7 @@ export default function Login() {
                       type="submit"
                       disabled={loading || mandateTotpCode.trim().length < 6}
                       className="w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
-                      {loading ? 'Activating…' : 'Confirm & Activate'}
+                      {loading ? tx("Activating…") : tx("Turn it on")}
                     </button>
                   </form>
 
@@ -1128,7 +1139,7 @@ export default function Login() {
                     type="button"
                     onClick={() => { setMandateStep('intro'); setError('') }}
                     className="w-full py-1 text-xs text-slate-500 hover:text-slate-400 flex items-center justify-center gap-1 transition-colors">
-                    <ArrowLeft size={12} /> Choose a different method
+                    <ArrowLeft size={12} />{" "}{tx("Choose a different method")}
                   </button>
                 </div>
               )}
@@ -1137,21 +1148,21 @@ export default function Login() {
               {mandateStep === 'setup_webauthn' && (
                 <div className="space-y-3">
                   <div>
-                    <label className="text-slate-400 text-xs mb-1 block">Key or Device Name</label>
+                    <label className="text-slate-400 text-xs mb-1 block">{tx("Key or Device Name")}</label>
                     <input
                       type="text"
                       value={mandateKeyName}
                       onChange={e => setMandateKeyName(e.target.value)}
-                      placeholder="e.g. Primary YubiKey / Mac Touch ID"
+                      placeholder={tx("e.g. My YubiKey, or Mac fingerprint")}
                       className={inp}
                     />
                   </div>
 
                   <div className="p-3 bg-slate-800/80 rounded-lg border border-slate-700/60 text-center">
                     <Fingerprint size={28} className="mx-auto text-emerald-400 mb-2" />
-                    <p className="text-slate-300 text-xs font-medium">Ready to register hardware</p>
+                    <p className="text-slate-300 text-xs font-medium">{tx("Ready to register hardware")}</p>
                     <p className="text-slate-500 text-[11px] mt-1">
-                      Click below, then touch your YubiKey, use Mac Touch ID, or scan the on-screen QR code with your iPhone (Face ID) or Android phone.
+                      {tx("Click below, then touch your YubiKey, use Mac Touch ID, or scan the on-screen QR code with your iPhone (Face ID) or Android phone.")}
                     </p>
                   </div>
 
@@ -1161,14 +1172,14 @@ export default function Login() {
                     disabled={webauthnLoading}
                     className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
                     {webauthnLoading ? <RefreshCw size={14} className="animate-spin" /> : <Fingerprint size={14} />}
-                    {webauthnLoading ? 'Waiting for touch or phone scan…' : 'Register Key / Touch ID / Phone'}
+                    {webauthnLoading ? tx("Waiting for touch or phone scan…") : tx("Add a security key, fingerprint or phone")}
                   </button>
 
                   <button
                     type="button"
                     onClick={() => { setMandateStep('intro'); setError('') }}
                     className="w-full py-1 text-xs text-slate-500 hover:text-slate-400 flex items-center justify-center gap-1 transition-colors">
-                    <ArrowLeft size={12} /> Choose a different method
+                    <ArrowLeft size={12} />{" "}{tx("Choose a different method")}
                   </button>
                 </div>
               )}
@@ -1178,10 +1189,10 @@ export default function Login() {
                 <div className="space-y-3">
                   <div className="p-2.5 bg-emerald-950/40 border border-emerald-800 rounded-lg">
                     <p className="text-emerald-300 text-xs font-semibold flex items-center gap-1.5">
-                      <Check size={14} /> MFA Enrolled Successfully
+                      <Check size={14} />{" "}{tx("MFA Enrolled Successfully")}
                     </p>
                     <p className="text-emerald-400/80 text-[11px] mt-1">
-                      Save these one-time recovery codes in a secure place. If you ever lose access to your device or key, you can use these to sign in.
+                      {tx("Save these one-time recovery codes in a secure place. If you ever lose access to your device or key, you can use these to sign in.")}
                     </p>
                   </div>
 
@@ -1196,14 +1207,14 @@ export default function Login() {
                     onClick={copyCodes}
                     className="w-full py-1.5 border border-slate-700 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors">
                     {copiedCodes ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-                    {copiedCodes ? 'Codes Copied to Clipboard' : 'Copy All Recovery Codes'}
+                    {copiedCodes ? tx("Codes copied") : tx("Copy all backup codes")}
                   </button>
 
                   <button
                     type="button"
                     onClick={finishMandatedLogin}
                     className="w-full py-2 bg-shield-600 hover:bg-shield-700 text-white rounded-lg text-sm font-medium transition-colors">
-                    Continue to Dashboard
+                    {tx("Continue to Dashboard")}
                   </button>
                 </div>
               )}
@@ -1249,18 +1260,18 @@ export default function Login() {
                       {saml && (
                         <button onClick={() => { window.location.href = '/api/auth/saml/login' }}
                           className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-slate-700 rounded-lg text-slate-300 text-sm hover:bg-slate-800 transition-colors">
-                          Sign in with {saml.label}
+                          {tx("Sign in with {label}", { label: saml.label })}
                         </button>
                       )}
                       {oidcProviders.map(p => (
                         <button key={p.key} onClick={() => oidcLogin(p.key)}
                           className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-slate-700 rounded-lg text-slate-300 text-sm hover:bg-slate-800 transition-colors">
-                          Sign in with {p.label}
+                          {tx("Sign in with {label}", { label: p.label })}
                         </button>
                       ))}
                       <div className="flex items-center gap-2 my-3">
                         <div className="flex-1 h-px bg-slate-800" />
-                        <span className="text-slate-600 text-xs">or local sign-in</span>
+                        <span className="text-slate-600 text-xs">{tx("or local sign-in")}</span>
                         <div className="flex-1 h-px bg-slate-800" />
                       </div>
                     </div>
@@ -1270,7 +1281,7 @@ export default function Login() {
                   {passwordless.enabled && passwordless.enforce_passwordless_local && (
                     <div className="mb-3 px-3 py-2 bg-shield-950/40 border border-shield-800/80 rounded-lg text-shield-300 text-xs flex items-center gap-2">
                       <Fingerprint size={15} className="text-shield-400 shrink-0" />
-                      <span>Passwordless authentication required for local accounts.</span>
+                      <span>{tx("Passwordless authentication required for local accounts.")}</span>
                     </div>
                   )}
 
@@ -1278,11 +1289,11 @@ export default function Login() {
                   {staffAuthMode === 'magic_link_verify' ? (
                     <form onSubmit={handleVerifyMagicLink} className="space-y-3">
                       <div className="text-center space-y-1 mb-2">
-                        <p className="text-slate-300 text-xs font-medium">Verification Code Sent</p>
+                        <p className="text-slate-300 text-xs font-medium">{tx("Verification Code Sent")}</p>
                         <p className="text-slate-500 text-[11px]">{magicLinkMessage}</p>
                       </div>
                       <div>
-                        <label className="text-slate-400 text-xs mb-1 block">6-digit sign-in code</label>
+                        <label className="text-slate-400 text-xs mb-1 block">{tx("6-digit sign-in code")}</label>
                         <input
                           type="text"
                           inputMode="numeric"
@@ -1302,20 +1313,20 @@ export default function Login() {
                         disabled={loading || magicLinkCode.trim().length !== 6}
                         className="w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
                         {loading ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
-                        Verify & Sign In
+                        {tx("Verify & Sign In")}
                       </button>
                       <button
                         type="button"
                         onClick={() => { setError(''); setStaffAuthMode(passwordless.enforce_passwordless_local ? 'passkey' : 'password') }}
                         className="w-full py-1 text-xs text-slate-500 hover:text-slate-400 flex items-center justify-center gap-1 transition-colors">
-                        <ArrowLeft size={12} /> Back
+                        <ArrowLeft size={12} />{" "}{tx("Back")}
                       </button>
                     </form>
                   ) : staffAuthMode === 'magic_link_request' ? (
                     /* 2. Magic Link Request Form */
                     <form onSubmit={handleRequestMagicLink} className="space-y-3">
                       <div>
-                        <label className="text-slate-400 text-xs mb-1 block">Account Email</label>
+                        <label className="text-slate-400 text-xs mb-1 block">{tx("Account Email")}</label>
                         <input
                           type="email"
                           value={email}
@@ -1331,7 +1342,7 @@ export default function Login() {
                         disabled={loading || !email.trim()}
                         className="w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
                         {loading ? <RefreshCw size={14} className="animate-spin" /> : <Mail size={14} />}
-                        Send Sign-In Code
+                        {tx("Send Sign-In Code")}
                       </button>
                       <div className="flex items-center justify-between pt-1 text-xs">
                         {passwordless.allow_passkey && (
@@ -1339,7 +1350,7 @@ export default function Login() {
                             type="button"
                             onClick={() => { setError(''); setStaffAuthMode('passkey') }}
                             className="text-shield-400 hover:text-shield-300">
-                            Sign in with Passkey instead
+                            {tx("Sign in with Passkey instead")}
                           </button>
                         )}
                         {!passwordless.enforce_passwordless_local && (
@@ -1347,7 +1358,7 @@ export default function Login() {
                             type="button"
                             onClick={() => { setError(''); setStaffAuthMode('password') }}
                             className="text-slate-500 hover:text-slate-400">
-                            Use password
+                            {tx("Use password")}
                           </button>
                         )}
                       </div>
@@ -1356,13 +1367,13 @@ export default function Login() {
                     /* 3. Enforced Passwordless (Passkey is primary) */
                     <div className="space-y-3">
                       <div>
-                        <label className="text-slate-400 text-xs mb-1 block">Account Email</label>
+                        <label className="text-slate-400 text-xs mb-1 block">{tx("Account Email")}</label>
                         <input
                           type="email"
                           value={email}
                           onChange={e => setEmail(e.target.value)}
                           className={inp}
-                          placeholder="you@example.com (or leave empty for resident Passkey)"
+                          placeholder={tx("you@example.com (or leave empty for resident Passkey)")}
                           autoComplete="username webauthn"
                           autoFocus
                         />
@@ -1375,7 +1386,7 @@ export default function Login() {
                             onChange={e => setRememberStaff(e.target.checked)}
                             className="rounded border-slate-700 bg-slate-900 text-shield-600 focus:ring-shield-500"
                           />
-                          <span>Remember my email on this device</span>
+                          <span>{tx("Remember my email on this device")}</span>
                         </label>
                       )}
                       {passwordless.allow_passkey && (
@@ -1385,7 +1396,7 @@ export default function Login() {
                           disabled={loading}
                           className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
                           {loading ? <RefreshCw size={14} className="animate-spin" /> : <Fingerprint size={16} />}
-                          Sign In with Passkey / Security Key
+                          {tx("Sign In with Passkey / Security Key")}
                         </button>
                       )}
                       {passwordless.allow_magic_link && (
@@ -1393,7 +1404,7 @@ export default function Login() {
                           type="button"
                           onClick={() => { setError(''); setStaffAuthMode('magic_link_request') }}
                           className="w-full py-2 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-300 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-2">
-                          <Mail size={14} /> Send sign-in code to email instead
+                          <Mail size={14} />{" "}{tx("Send sign-in code to email instead")}
                         </button>
                       )}
                     </div>
@@ -1402,12 +1413,12 @@ export default function Login() {
                     <>
                       <form onSubmit={submitStaff} className="space-y-3">
                         <div>
-                          <label className="text-slate-400 text-xs mb-1 block">Email</label>
+                          <label className="text-slate-400 text-xs mb-1 block">{tx("Email")}</label>
                           <input type="email" value={email} onChange={e => setEmail(e.target.value)}
                             required className={inp} placeholder="you@example.com" autoFocus />
                         </div>
                         <div>
-                          <label className="text-slate-400 text-xs mb-1 block">Password</label>
+                          <label className="text-slate-400 text-xs mb-1 block">{tx("Password")}</label>
                           <input type="password" value={password} onChange={e => setPw(e.target.value)}
                             required className={inp} />
                         </div>
@@ -1419,19 +1430,19 @@ export default function Login() {
                               onChange={e => setRememberStaff(e.target.checked)}
                               className="rounded border-slate-700 bg-slate-900 text-shield-600 focus:ring-shield-500"
                             />
-                            <span>Remember my email on this device</span>
+                            <span>{tx("Remember my email on this device")}</span>
                           </label>
                         )}
                         <button type="submit" disabled={loading}
                           className="w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
-                          {loading ? 'Signing in…' : `Sign in`}
+                          {loading ? tx("Signing in…") : tx("Sign in")}
                         </button>
                       </form>
 
                       {passwordless.enabled && (passwordless.allow_passkey || passwordless.allow_magic_link) && (
                         <div className="mt-4 pt-3 border-t border-slate-800 space-y-2">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-slate-500 text-[11px] font-medium uppercase tracking-wider">Passwordless options</span>
+                            <span className="text-slate-500 text-[11px] font-medium uppercase tracking-wider">{tx("Passwordless options")}</span>
                           </div>
                           {passwordless.allow_passkey && (
                             <button
@@ -1440,7 +1451,7 @@ export default function Login() {
                               disabled={loading}
                               className="w-full py-2 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-2">
                               {loading ? <RefreshCw size={13} className="animate-spin" /> : <Fingerprint size={14} className="text-emerald-400" />}
-                              Sign in with Passkey / Security Key
+                              {tx("Sign in with Passkey / Security Key")}
                             </button>
                           )}
                           {passwordless.allow_magic_link && (
@@ -1448,7 +1459,7 @@ export default function Login() {
                               type="button"
                               onClick={() => { setError(''); setStaffAuthMode('magic_link_request') }}
                               className="w-full py-1.5 text-xs text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1.5 transition-colors">
-                              <Mail size={13} /> Email me a one-time sign-in code
+                              <Mail size={13} />{" "}{tx("Email me a one-time sign-in code")}
                             </button>
                           )}
                         </div>
@@ -1463,15 +1474,15 @@ export default function Login() {
               {tab === 'patron' && (
                 <form onSubmit={submitPatron} className="space-y-3">
                   <div>
-                    <label className="text-slate-400 text-xs mb-1 block">Library card number</label>
+                    <label className="text-slate-400 text-xs mb-1 block">{tx("Library card number")}</label>
                     <input value={barcode} onChange={e => setBarcode(e.target.value)}
-                      required className={inp} placeholder="Enter your barcode" autoFocus
+                      required className={inp} placeholder={tx("Enter your barcode")} autoFocus
                       inputMode="numeric" />
                   </div>
                   <div>
-                    <label className="text-slate-400 text-xs mb-1 block">PIN</label>
+                    <label className="text-slate-400 text-xs mb-1 block">{tx("PIN")}</label>
                     <input type="password" value={pin} onChange={e => setPin(e.target.value)}
-                      required className={inp} placeholder="Library PIN"
+                      required className={inp} placeholder={tx("Library PIN")}
                       inputMode="numeric" />
                   </div>
                   {sessionPolicy?.remember_me_enabled !== false && (
@@ -1482,36 +1493,41 @@ export default function Login() {
                         onChange={e => setRememberPatron(e.target.checked)}
                         className="rounded border-slate-700 bg-slate-900 text-shield-600 focus:ring-shield-500"
                       />
-                      <span>Keep me signed in on this device</span>
+                      <span>{tx("Keep me signed in on this device")}</span>
                     </label>
                   )}
                   <button type="submit" disabled={loading || !sip2Enabled}
                     className="w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
-                    {loading ? 'Signing in…' : 'Sign in with library card'}
+                    {loading ? tx("Signing in…") : tx("Sign in with library card")}
                   </button>
                   {!loadingProviders && !sip2Enabled && (
                     <p className="text-amber-400 text-xs text-center">
-                      Library card login is not yet configured. Contact your administrator.
+                      {tx("Library card login is not yet configured. Contact your administrator.")}
                     </p>
                   )}
                 </form>
               )}
 
+              {signupOpen && (
+                <p className="mt-4 text-center text-sm text-slate-400">
+                  {tx("New here?")}{" "}
+                  <a href="/signup" className="text-shield-400 hover:text-shield-300 font-medium">{tx("Create an account")}</a>
+                </p>
+              )}
+
               {/* Footer */}
               <div className="mt-4 flex items-center justify-between text-xs text-slate-600">
-                {branding?.terms_url
-                  ? <a href={branding.terms_url} target="_blank" rel="noopener noreferrer" className="hover:text-slate-400">Terms</a>
-                  : <span />}
+                <a href="/terms" className="hover:text-slate-400">{tx("Terms")}</a>
                 {branding?.contact_email
                   ? <a href={`mailto:${branding.contact_email}`} className="hover:text-slate-400">{branding.contact_email}</a>
-                  : <span>Contact your administrator for access</span>}
+                  : <span>{tx("Contact your administrator for access")}</span>}
               </div>
             </div>
           )}
         </div>
 
         {branding?.show_powered_by && (
-          <p className="text-center text-slate-700 text-xs mt-4">Powered by OpenOptOut</p>
+          <p className="text-center text-slate-700 text-xs mt-4">{tx("Powered by OpenOptOut")}</p>
         )}
       </div>
     </div>

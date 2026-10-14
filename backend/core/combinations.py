@@ -60,6 +60,21 @@ class IdentityCombo:
         if self.email:   parts.append(self.email)
         return " | ".join(parts)
 
+    def masked_label(self) -> str:
+        """
+        For logs and stored labels: enough to tell combinations apart without
+        writing the details in the clear ("J.P. · Austin · •••0134 · 3f9a2c1b").
+        """
+        import hashlib, re
+        bits = [".".join(w[0].upper() for w in (self.name or "").split() if w) + "."]
+        if self.city: bits.append(self.city)
+        if self.phone:
+            d = re.sub(r"\D", "", self.phone)
+            bits.append("•••" + d[-4:])
+        if self.email: bits.append("•••@" + self.email.split("@")[-1])
+        bits.append(hashlib.sha256(self.label().encode()).hexdigest()[:8])
+        return " · ".join(bits)
+
     def as_dict(self) -> dict:
         return {k: v for k, v in {
             "name": self.name, "address": self.address,
@@ -168,6 +183,34 @@ def build_email_optout_combos(member) -> list[IdentityCombo]:
             phone=phones[0] if phones else None,
         ))
     return _deduplicate(combos)
+
+
+def build_keyed_optout_combos(member, key: str) -> list[IdentityCombo]:
+    """
+    For sites that file people by one detail instead of by name: caller-ID
+    apps and reverse phone lookups (key "phone"), email-lookup and business
+    contact sites (key "email"). One opt-out per saved number or address,
+    under the main name and address, since each one is a separate listing there.
+    """
+    if key not in ("phone", "email"):
+        raise ValueError(f"can't build opt-outs keyed by {key!r}")
+    limits = get_vault_limits()
+    names = _get_values(member, "name", 1)
+    name = names[0] if names else (getattr(member, "full_name", "") or "")
+    addresses = _get_values(member, "address", 1)
+    p = _parse_address(addresses[0]) if addresses else {"address": None, "city": None, "state": None, "zip": None}
+    base = dict(name=name, address=p["address"], city=p["city"] or None,
+                state=p["state"] or None, zip=p["zip"] or None)
+    combos = [IdentityCombo(**base, **{key: v}) for v in _get_values(member, key, limits[key])]
+    return _deduplicate(combos)
+
+
+def build_phone_optout_combos(member) -> list[IdentityCombo]:
+    return build_keyed_optout_combos(member, "phone")
+
+
+def build_email_lookup_combos(member) -> list[IdentityCombo]:
+    return build_keyed_optout_combos(member, "email")
 
 
 # ── Stats for the UI ──────────────────────────────────────────────────────────

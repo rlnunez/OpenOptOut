@@ -1,0 +1,4 @@
+{
+ "description": "Lusha 的引导式退出，该网站按电子邮件地址列出个人信息。一次退出即可涵盖所有已保存的地址。",
+ "instructions": "打开 https://www.lusha.com/privacy-center/request-removal/，为 {full_name} 提交删除请求，附上以下每个地址和号码：{all_emails}；{all_phones}。回复邮箱使用 {contact_email}。然后点击“我已完成”。"
+}

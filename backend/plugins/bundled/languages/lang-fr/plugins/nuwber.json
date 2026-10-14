@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour Nuwber. Une personne suit les étapes de la liste ; OpenOptOut fournit une adresse e-mail à usage unique et clique sur les liens de confirmation.",
+ "instructions": "Trouvez votre page sur nuwber.com (chercher {full_name} et filtrer par {state} aide) et copiez son adresse. Ouvrez nuwber.com/removal/link, collez-la et saisissez {contact_email} comme adresse e-mail. Nuwber envoie un lien de confirmation ; OpenOptOut clique dessus pour vous. Puis appuyez sur « C'est fait ». Si le formulaire refuse l'adresse, écrivez à support@nuwber.com avec une capture d'écran de votre fiche et demandez à être retiré(e)."
+}

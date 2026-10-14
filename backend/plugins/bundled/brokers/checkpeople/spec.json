@@ -1,0 +1,20 @@
+{
+  "broker_id": "checkpeople",
+  "name": "CheckPeople",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://checkpeople.com/opt-out",
+  "instructions": "Open https://checkpeople.com/opt-out and follow the site's steps for {full_name}. Use {contact_email} wherever it asks for an email address, so the reply is matched. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "email_confirmation",
+    "listing_selection"
+  ],
+  "notes": "The site emails a link first; the link opens the next step, which asks for a date of birth and legal name and then shows records to pick. Removal takes 5 to 7 days. compliance@checkpeople.com takes requests by email.",
+  "source": "Process per redact.dev's CheckPeople removal guide (updated 2026-10-05).",
+  "last_verified": ""
+}

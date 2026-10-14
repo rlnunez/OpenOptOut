@@ -232,6 +232,12 @@ def run_cert_checks(send_email=True, db=None) -> dict:
                     "You'll get one reminder per milestone (30, 14, 7, 3, and 1 day, and on "
                     "expiry), not a daily repeat.")
             result = send_admin_email(subject, body, db=db)
+            try:
+                from .webhooks import safe_notify
+                safe_notify("certificate_expiring", st.get("message", "") or "A certificate needs attention.",
+                            {"source": str(LABELS.get(source, source))[:120]}, key=key)
+            except Exception:
+                pass
             if result.get("sent"):
                 notified[key] = _now()
                 sent.append(key)

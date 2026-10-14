@@ -3,7 +3,8 @@ Internationalization (i18n) and Right-to-Left (RTL) Engine (Roadmap Item 17).
 
 Provides:
   - Master English dictionary with categorized keys and screen locations ("where it appears")
-  - Out-of-the-box translations for multiple languages (including Arabic for RTL and Spanish/French)
+  - English in core; every other language as a language-pack plugin (built-in ones in
+    plugins/bundled/languages/, community ones in <plugins_root>/languages/)
   - In-system translation replacement interface allowing super admins/managers to override wording
   - Discovery of community language pack add-ons (<plugins_root>/languages/<id>/)
   - Dynamic RTL detection and metadata
@@ -13,6 +14,7 @@ Provides:
 import json
 import logging
 import os
+import re
 from typing import Dict, List, Optional, Any
 
 try:
@@ -37,6 +39,10 @@ KNOWN_LANGUAGES = {
     "vi": {"name": "Vietnamese", "native_name": "Tiếng Việt", "is_rtl": False},
     "fa": {"name": "Persian", "native_name": "فارسی", "is_rtl": True},
     "ur": {"name": "Urdu", "native_name": "اردو", "is_rtl": True},
+    "pl": {"name": "Polish", "native_name": "Polski", "is_rtl": False},
+    "uk": {"name": "Ukrainian", "native_name": "Українська", "is_rtl": False},
+    "sw": {"name": "Swahili", "native_name": "Kiswahili", "is_rtl": False},
+    "id": {"name": "Indonesian", "native_name": "Bahasa Indonesia", "is_rtl": False},
     "pt": {"name": "Portuguese", "native_name": "Português", "is_rtl": False},
     "it": {"name": "Italian", "native_name": "Italiano", "is_rtl": False},
     "ja": {"name": "Japanese", "native_name": "日本語", "is_rtl": False},
@@ -51,14 +57,14 @@ KNOWN_LANGUAGES = {
 MASTER_DICTIONARY: List[Dict[str, str]] = [
     # ── Navigation & Shell ──────────────────────────────────────────
     {"key": "nav.dashboard", "default_text": "Dashboard", "location": "Navigation / Sidebar", "description": "Sidebar link to main metrics dashboard"},
-    {"key": "nav.requests", "default_text": "Removal Requests", "location": "Navigation / Sidebar", "description": "Sidebar link to broker removal requests table"},
-    {"key": "nav.vault", "default_text": "Identity Vault", "location": "Navigation / Sidebar", "description": "Sidebar link to manage personal data identities"},
-    {"key": "nav.family", "default_text": "Family Members", "location": "Navigation / Sidebar", "description": "Sidebar link to manage protected family profiles"},
-    {"key": "nav.brokers", "default_text": "Data Brokers", "location": "Navigation / Sidebar", "description": "Sidebar link to broker directory and status"},
+    {"key": "nav.requests", "default_text": "Removal requests", "location": "Navigation / Sidebar", "description": "Sidebar link to broker removal requests table"},
+    {"key": "nav.vault", "default_text": "Your details", "location": "Navigation / Sidebar", "description": "Sidebar link to manage personal data identities"},
+    {"key": "nav.family", "default_text": "Family members", "location": "Navigation / Sidebar", "description": "Sidebar link to manage protected family profiles"},
+    {"key": "nav.brokers", "default_text": "Broker sites", "location": "Navigation / Sidebar", "description": "Sidebar link to broker directory and status"},
     {"key": "nav.settings", "default_text": "Settings", "location": "Navigation / Sidebar", "description": "Sidebar link to platform configuration"},
     {"key": "nav.translations", "default_text": "Translations", "location": "Navigation / Sidebar", "description": "Admin link to in-system translation editor"},
     {"key": "nav.plugins", "default_text": "Plugins", "location": "Navigation / Sidebar", "description": "Sidebar link to plugins and add-on catalog"},
-    {"key": "nav.logout", "default_text": "Log Out", "location": "Navigation / User Menu", "description": "Button to log out of current session"},
+    {"key": "nav.logout", "default_text": "Sign out", "location": "Navigation / User Menu", "description": "Button to log out of current session"},
     {"key": "nav.welcome_tour", "default_text": "Welcome Tour", "location": "Navigation / User Menu", "description": "Button to re-open the guided onboarding walkthrough"},
     {"key": "nav.language", "default_text": "Language", "location": "Header / Language Picker", "description": "Label for active language switcher"},
 
@@ -69,7 +75,7 @@ MASTER_DICTIONARY: List[Dict[str, str]] = [
     {"key": "common.edit", "default_text": "Edit", "location": "Global / Table Actions", "description": "Edit row action"},
     {"key": "common.loading", "default_text": "Loading...", "location": "Global / States", "description": "Asynchronous loading indicator"},
     {"key": "common.success", "default_text": "Success", "location": "Global / Notifications", "description": "Success banner title"},
-    {"key": "common.error", "default_text": "Error", "location": "Global / Notifications", "description": "Error banner title"},
+    {"key": "common.error", "default_text": "Problem", "location": "Global / Notifications", "description": "Error banner title"},
     {"key": "common.next", "default_text": "Next", "location": "Global / Wizards", "description": "Next step button"},
     {"key": "common.back", "default_text": "Back", "location": "Global / Wizards", "description": "Previous step button"},
     {"key": "common.finish", "default_text": "Finish", "location": "Global / Wizards", "description": "Complete wizard button"},
@@ -87,9 +93,9 @@ MASTER_DICTIONARY: List[Dict[str, str]] = [
     {"key": "dashboard.start_optout_all", "default_text": "Run Automated Opt-Outs", "location": "Dashboard / Quick Actions", "description": "Trigger automated batch removal run"},
 
     # ── Identity Vault Screen ──────────────────────────────────────
-    {"key": "vault.title", "default_text": "Identity Vault", "location": "Identity Vault / Header", "description": "Page heading for personal data management"},
-    {"key": "vault.description", "default_text": "The personal identifiers below are used solely to submit opt-out requests and are encrypted at rest.", "location": "Identity Vault / Header", "description": "Privacy assurance subtext"},
-    {"key": "vault.add_name", "default_text": "Add Name Variant", "location": "Identity Vault / Names", "description": "Button to add alias or previous name"},
+    {"key": "vault.title", "default_text": "Your details", "location": "Identity Vault / Header", "description": "Page heading for personal data management"},
+    {"key": "vault.description", "default_text": "We use these details only to find and remove your listings. They're stored encrypted.", "location": "Identity Vault / Header", "description": "Privacy assurance subtext"},
+    {"key": "vault.add_name", "default_text": "Add a name", "location": "Identity Vault / Names", "description": "Button to add alias or previous name"},
     {"key": "vault.add_address", "default_text": "Add Address", "location": "Identity Vault / Addresses", "description": "Button to add current or historical address"},
     {"key": "vault.add_phone", "default_text": "Add Phone Number", "location": "Identity Vault / Phones", "description": "Button to add phone number"},
     {"key": "vault.add_email", "default_text": "Add Email Address", "location": "Identity Vault / Emails", "description": "Button to add email identity"},
@@ -100,11 +106,11 @@ MASTER_DICTIONARY: List[Dict[str, str]] = [
     {"key": "tutorial.lang_step_title", "default_text": "Choose Your Preferred Language", "location": "Welcome Tutorial / Step 1", "description": "Step 1 title for language selection"},
     {"key": "tutorial.lang_step_desc", "default_text": "Select your language below. The interface, notifications, and layout will adapt immediately.", "location": "Welcome Tutorial / Step 1", "description": "Explanation of language options"},
     {"key": "tutorial.pii_step_title", "default_text": "Protect Your Identity", "location": "Welcome Tutorial / Step 2", "description": "Step 2 title for profile information"},
-    {"key": "tutorial.pii_step_desc", "default_text": "Provide your name and city/state so automated agents can locate and scrub your listings.", "location": "Welcome Tutorial / Step 2", "description": "Why PII is collected"},
-    {"key": "tutorial.email_step_title", "default_text": "Opt-Out Communications", "location": "Welcome Tutorial / Step 3", "description": "Step 3 title for email configuration"},
-    {"key": "tutorial.email_step_desc", "default_text": "OpenOptOut dispatches removal requests using dedicated inboxes and monitors broker responses.", "location": "Welcome Tutorial / Step 3", "description": "Explanation of email handling"},
+    {"key": "tutorial.pii_step_desc", "default_text": "Add your name and city so we can find the sites that list you and ask them to remove it.", "location": "Welcome Tutorial / Step 2", "description": "Why PII is collected"},
+    {"key": "tutorial.email_step_title", "default_text": "Your removal email", "location": "Welcome Tutorial / Step 3", "description": "Step 3 title for email configuration"},
+    {"key": "tutorial.email_step_desc", "default_text": "We send removal requests from an inbox you connect, and read the replies for you.", "location": "Welcome Tutorial / Step 3", "description": "Explanation of email handling"},
     {"key": "tutorial.tour_step_title", "default_text": "Platform Tour & Quick Navigation", "location": "Welcome Tutorial / Step 4", "description": "Step 4 title for UI walkthrough"},
-    {"key": "tutorial.tour_step_desc", "default_text": "Explore your dashboard to view verified removals, manage family profiles, and monitor broker health.", "location": "Welcome Tutorial / Step 4", "description": "Tour summary"},
+    {"key": "tutorial.tour_step_desc", "default_text": "See what's been removed, manage your family, and check what needs you.", "location": "Welcome Tutorial / Step 4", "description": "Tour summary"},
     {"key": "tutorial.skip", "default_text": "Skip Tutorial", "location": "Welcome Tutorial / Footer", "description": "Button to dismiss the tutorial"},
     {"key": "tutorial.start_protecting", "default_text": "Start Protecting My Data", "location": "Welcome Tutorial / Step 4", "description": "Completion button"},
 
@@ -123,10 +129,10 @@ MASTER_DICTIONARY: List[Dict[str, str]] = [
     # ── Patron Demographics & ILS Import ──────────────────────────
     {"key": "ils.import_prompt_title", "default_text": "Import details from your library card?", "location": "Welcome Tutorial & Identity Vault / Banner", "description": "Prompt asking patron whether to import ILS information"},
     {"key": "ils.import_prompt_desc", "default_text": "Your library account has information available ({details}). Would you like to import it for prefilling, or enter your details manually?", "location": "Welcome Tutorial / Banner", "description": "Prompt description in welcome tour"},
-    {"key": "ils.import_vault_desc", "default_text": "Your library account has information available ({details}). Would you like to import it into your Identity Vault, or enter your details manually?", "location": "Identity Vault / Banner", "description": "Prompt description in Identity Vault"},
+    {"key": "ils.import_vault_desc", "default_text": "Your library account has some of your details ({details}). Would you like to add them to Your details, or type them in yourself?", "location": "Identity Vault / Banner", "description": "Prompt description in Identity Vault"},
     {"key": "ils.import_action_import", "default_text": "Import my information", "location": "Welcome Tutorial & Identity Vault / Buttons", "description": "Button to import ILS profile info"},
     {"key": "ils.import_action_discard", "default_text": "Let me enter it", "location": "Welcome Tutorial & Identity Vault / Buttons", "description": "Button to enter info manually and keep fields blank"},
-    {"key": "ils.import_success", "default_text": "Information imported into Identity Vault.", "location": "Global / Notifications", "description": "Confirmation message after ILS import"},
+    {"key": "ils.import_success", "default_text": "Your details were imported.", "location": "Global / Notifications", "description": "Confirmation message after ILS import"},
     {"key": "sip2.field_mapping_title", "default_text": "Patron Field Mapping & Consent", "location": "Settings / SIP2 Provider", "description": "Heading for SIP2 demographic field mapping"},
     {"key": "sip2.field_mapping_desc", "default_text": "Import demographic information from the ILS into patron accounts.", "location": "Settings / SIP2 Provider", "description": "Description for field mapping"},
     {"key": "sip2.patron_choice_title", "default_text": "Patron-Driven Import (Consent Choice)", "location": "Settings / SIP2 Provider", "description": "Heading for patron consent option"},
@@ -162,433 +168,179 @@ MASTER_DICTIONARY: List[Dict[str, str]] = [
     {"key": "a11y.dyslexic_font", "default_text": "Dyslexia-Friendly Font (OpenDyslexic)", "location": "Global / Accessibility", "description": "Toggle label for OpenDyslexic font family"},
     {"key": "a11y.dyslexic_font_desc", "default_text": "Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.", "location": "Global / Accessibility", "description": "Description of dyslexia-friendly font option"},
     {"key": "a11y.dyslexic_font_short", "default_text": "Dyslexia Font", "location": "Navigation / Sidebar", "description": "Short label for sidebar dyslexia font toggle"},
+    # ── Added with the plain-language pass ──
+    {"key": "nav.checklist", "default_text": "Checklist", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.discovery", "default_text": "Find listings", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.email_monitor", "default_text": "Replies", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.scheduled", "default_text": "Check again", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.captcha", "default_text": "CAPTCHAs", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.inboxes", "default_text": "Email inboxes", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.help", "default_text": "Help", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.credit_freeze", "default_text": "Freeze credit", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.admin", "default_text": "Admin", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.admin_panel", "default_text": "Admin panel", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.broker_updates", "default_text": "Broker updates", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.broker_health", "default_text": "Broker health", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.spec_helpers", "default_text": "Automatic broker steps", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.letters", "default_text": "Opt-out letters", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.monitoring", "default_text": "Monitoring and alerts", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.terms", "default_text": "Terms", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.usage_stats", "default_text": "Usage statistics", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.broker_priority", "default_text": "Broker priority", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.data_sharing", "default_text": "Data sharing", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.parent_companies", "default_text": "Parent companies", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.registries", "default_text": "State registries", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.websearch", "default_text": "Web search", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.branding", "default_text": "Branding", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.reporting", "default_text": "Reporting", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.database", "default_text": "Database", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.worker_fleet", "default_text": "Worker fleet", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.logs", "default_text": "System logs", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.plugin_upload", "default_text": "Add a plugin", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.plugin_docs", "default_text": "Plugin guide", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.add_brokers", "default_text": "Add brokers", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "status.pending", "default_text": "Waiting to send", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.sent", "default_text": "Sent", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.submitted", "default_text": "Sent", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.confirmed", "default_text": "Removed", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.rejected", "default_text": "Refused", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.failed", "default_text": "Didn't work", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.needs_manual", "default_text": "Needs you", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.recheck_due", "default_text": "Check again", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.resistant", "default_text": "Often refuses", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.compliant", "default_text": "Usually removes", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.inconsistent", "default_text": "Mixed results", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.undetermined", "default_text": "Not known yet", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.form", "default_text": "Web form", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.email", "default_text": "Email", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.manual", "default_text": "By hand", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.phone", "default_text": "By phone", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.easy", "default_text": "Easy", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.medium", "default_text": "Medium", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.hard", "default_text": "Hard", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.running", "default_text": "Running", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.done", "default_text": "Done", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.error", "default_text": "Problem", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.success", "default_text": "Worked", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.failure", "default_text": "Didn't work", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.captcha", "default_text": "CAPTCHA", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    {"key": "status.skipped", "default_text": "Skipped", "location": "Status labels / Badges", "description": "Status label shown on badges"},
+    # ── Added with the plain-language pass ──
+    {"key": "nav.backups", "default_text": "Backups", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    # ── Added with the plain-language pass ──
+    {"key": "nav.deadlines", "default_text": "Deadline report", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    # ── Added with the plain-language pass ──
+    {"key": "nav.privacy_record", "default_text": "Privacy record", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.calendar", "default_text": "Calendar", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
 ]
 
-# Built-in Spanish translations
-BUILTIN_SPANISH = {
-    "nav.dashboard": "Panel de Control",
-    "nav.requests": "Solicitudes de Eliminación",
-    "nav.vault": "Bóveda de Identidad",
-    "nav.family": "Miembros de la Familia",
-    "nav.brokers": "Brokers de Datos",
-    "nav.settings": "Configuración",
-    "nav.translations": "Traducciones",
-    "nav.plugins": "Complementos",
-    "nav.logout": "Cerrar Sesión",
-    "nav.welcome_tour": "Guía de Bienvenida",
-    "nav.language": "Idioma",
+# ── Built-in languages ────────────────────────────────────────────────────────
+# English is the only language in core (MASTER_DICTIONARY above). Every other
+# language ships as a language-pack plugin in plugins/bundled/languages/
+# (lang-<code>/manifest.json + messages.json), the same format a community
+# pack uses. At startup they're copied into <plugins_root>/languages/ and
+# registered as plugins (plugins/language_packs.py), so an admin can turn one
+# off or replace it like any other plugin.
 
-    "common.save": "Guardar",
-    "common.cancel": "Cancelar",
-    "common.delete": "Eliminar",
-    "common.edit": "Editar",
-    "common.loading": "Cargando...",
-    "common.success": "Éxito",
-    "common.error": "Error",
-    "common.next": "Siguiente",
-    "common.back": "Atrás",
-    "common.finish": "Finalizar",
-    "common.search": "Buscar...",
-    "common.enabled": "Habilitado",
-    "common.disabled": "Deshabilitado",
+# ── Page text ────────────────────────────────────────────────────────────────
+# Phrases on the screens are written in English in the frontend, wrapped in
+# tx("..."), and the English text is the key. The list of them is generated
+# from the code (scripts/extract_page_texts.mjs) into page_texts.json; each
+# language pack translates them in texts.json ({english: translation}).
 
-    "dashboard.title": "Resumen de Protección de Privacidad",
-    "dashboard.subtitle": "Monitoreo y eliminación de registros personales en brokers de datos comerciales.",
-    "dashboard.total_brokers": "Brokers Rastreados",
-    "dashboard.confirmed_removals": "Eliminaciones Confirmadas",
-    "dashboard.pending_requests": "En Progreso",
-    "dashboard.protection_score": "Cobertura de Protección",
-    "dashboard.start_optout_all": "Ejecutar Eliminaciones Automáticas",
+_PLACEHOLDER = re.compile(r"\{(\w+)\}")
 
-    "vault.title": "Bóveda de Identidad",
-    "vault.description": "Los identificadores a continuación se utilizan únicamente para enviar solicitudes de exclusión y se cifran en reposo.",
-    "vault.add_name": "Agregar Variante de Nombre",
-    "vault.add_address": "Agregar Dirección",
-    "vault.add_phone": "Agregar Teléfono",
-    "vault.add_email": "Agregar Correo Electrónico",
 
-    "tutorial.welcome_title": "Bienvenido a OpenOptOut",
-    "tutorial.welcome_desc": "Tomemos un momento para personalizar su experiencia y configurar sus protecciones de privacidad.",
-    "tutorial.lang_step_title": "Elija su Idioma Preferido",
-    "tutorial.lang_step_desc": "Seleccione su idioma a continuación. La interfaz, las notificaciones y el diseño se adaptarán de inmediato.",
-    "tutorial.pii_step_title": "Proteja su Identidad",
-    "tutorial.pii_step_desc": "Proporcione su nombre y ciudad/estado para que los agentes automatizados puedan localizar y eliminar sus listados.",
-    "tutorial.email_step_title": "Comunicaciones de Exclusión",
-    "tutorial.email_step_desc": "OpenOptOut envía solicitudes de eliminación utilizando buzones dedicados y monitorea las respuestas de los brokers.",
-    "tutorial.tour_step_title": "Recorrido por la Plataforma",
-    "tutorial.tour_step_desc": "Explore su panel para ver eliminaciones verificadas, administrar perfiles familiares y supervisar el estado de los brokers.",
-    "tutorial.skip": "Omitir Tutorial",
-    "tutorial.start_protecting": "Comenzar a Proteger mis Datos",
+def _load_page_texts() -> List[Dict[str, Any]]:
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "page_texts.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f).get("texts", [])
+    except (OSError, ValueError):
+        return []
 
-    "i18n.manager_title": "Administrador de Idiomas y Traducción",
-    "i18n.manager_desc": "Gestione idiomas disponibles, personalice términos e inspeccione dónde aparece cada texto.",
-    "i18n.active_languages": "Idiomas Activos",
-    "i18n.add_language": "Agregar Idioma",
-    "i18n.filter_by_location": "Filtrar por Ubicación de Pantalla",
-    "i18n.source_english": "Inglés Original",
-    "i18n.translated_text": "Texto Traducido / Reemplazo Personalizado",
-    "i18n.where_it_appears": "Dónde Aparece",
-    "i18n.save_translations": "Guardar Traducciones Personalizadas",
-    "i18n.reset_defaults": "Restablecer a Valores Predeterminados",
 
-    "ils.import_prompt_title": "¿Importar información de su tarjeta de biblioteca?",
-    "ils.import_prompt_desc": "Su cuenta de biblioteca tiene información disponible ({details}). ¿Desea importarla para rellenar automáticamente o ingresar sus datos manualmente?",
-    "ils.import_vault_desc": "Su cuenta de biblioteca tiene información disponible ({details}). ¿Desea importarla a su Bóveda de Identidad o ingresar sus datos manualmente?",
-    "ils.import_action_import": "Importar mi información",
-    "ils.import_action_discard": "Permítanme ingresarla",
-    "ils.import_success": "Información importada en la Bóveda de Identidad.",
-    "sip2.field_mapping_title": "Mapeo de Campos de Usuarios y Consentimiento",
-    "sip2.field_mapping_desc": "Importar información demográfica del ILS a las cuentas de usuarios.",
-    "sip2.patron_choice_title": "Importación Impulsada por el Usuario (Elección de Consentimiento)",
-    "sip2.patron_choice_desc": "Cuando está habilitado, los usuarios eligen 'Importar mi información' o 'Permítanme ingresarla' después de iniciar sesión. Los campos no forzados permanecen vacíos hasta que se elijan.",
-    "sip2.consent_required": "Consentimiento Requerido",
-    "sip2.auto_import_all": "Importación Automática Total",
-    "sip2.forced_fields_label": "Campos Forzados (separados por comas, ej. library, name)",
-    "sip2.forced_fields_desc": "Los campos indicados aquí se importan automáticamente al iniciar sesión. Los campos no listados dependen de la elección del usuario.",
-    "a11y.title": "Configuración de Accesibilidad",
-    "a11y.high_contrast": "Modo de Alto Contraste (WCAG 2.2 AAA)",
-    "a11y.high_contrast_desc": "Mejora el contraste de texto y bordes superando una relación de 7:1.",
-    "a11y.large_text": "Texto Grande y Tamaño de Objetivos",
-    "a11y.large_text_desc": "Aumenta el tamaño de fuente y objetivos táctiles a un mínimo de 44x44px.",
-    "a11y.reduced_motion": "Movimiento Reducido",
-    "a11y.reduced_motion_desc": "Desactiva animaciones, transiciones y efectos visuales continuos.",
-    "a11y.skip_to_content": "Saltar al contenido principal",
-    "nav.breadcrumbs": "Migas de pan",
-    "tutorial.a11y_section_title": "Opciones de Tema y Accesibilidad",
-    "tutorial.a11y_section_desc": "Personalice el tema de color, alto contraste, tipografía para dislexia y escala de texto según sus necesidades.",
-    "a11y.theme": "Tema de Color",
-    "a11y.theme_light": "Claro",
-    "a11y.theme_gray": "Gris Neutro",
-    "a11y.theme_dark": "Oscuro",
-    "a11y.theme_system": "Sistema (Automático)",
-    "a11y.theme_space": "Explorador Espacial",
-    "a11y.theme_lcars": "Explorador Espacial",
-    "a11y.font_size": "Tamaño de Fuente y Escala",
-    "a11y.font_preview_label": "Vista Previa en Vivo",
-    "a11y.font_preview_sample": "Este texto previsualiza el tamaño de fuente seleccionado en tiempo real. Todas las tablas, formularios y menús se ajustan proporcionalmente.",
-    "a11y.contrast_checkbox_desc": "Aplica contraste máximo (21:1) adaptado a su tema. El tema claro muestra negro puro sobre blanco; el tema oscuro muestra blanco puro sobre negro con bordes de alta visibilidad.",
-    "a11y.dyslexic_font": "Tipografía para Dislexia (OpenDyslexic)",
-    "a11y.dyslexic_font_desc": "Cambia la tipografía en toda la plataforma a OpenDyslexic con bases reforzadas para facilitar la lectura.",
-    "a11y.dyslexic_font_short": "Fuente Dislexia",
-}
+PAGE_TEXTS = _load_page_texts()
+PAGE_TEXT_SET = {t["text"] for t in PAGE_TEXTS}
 
-# Built-in Arabic translations (RTL Demonstration)
-BUILTIN_ARABIC = {
-    "nav.dashboard": "لوحة التحكم",
-    "nav.requests": "طلبات الحذف",
-    "nav.vault": "خزينة الهوية",
-    "nav.family": "أفراد العائلة",
-    "nav.brokers": "وسطاء البيانات",
-    "nav.settings": "الإعدادات",
-    "nav.translations": "الترجمات واللغات",
-    "nav.plugins": "الإضافات",
-    "nav.logout": "تسجيل الخروج",
-    "nav.welcome_tour": "جولة ترحيبية",
-    "nav.language": "اللغة",
 
-    "common.save": "حفظ",
-    "common.cancel": "إلغاء",
-    "common.delete": "حذف",
-    "common.edit": "تعديل",
-    "common.loading": "جار التحميل...",
-    "common.success": "نجاح",
-    "common.error": "خطأ",
-    "common.next": "التالي",
-    "common.back": "السابق",
-    "common.finish": "إنهاء",
-    "common.search": "بحث...",
-    "common.enabled": "مفعّل",
-    "common.disabled": "معطّل",
+def placeholders(text: str) -> set:
+    return set(_PLACEHOLDER.findall(text or ""))
 
-    "dashboard.title": "نظرة عامة على حماية الخصوصية",
-    "dashboard.subtitle": "مراقبة وإزالة السجلات الشخصية عبر وسطاء البيانات التجارية.",
-    "dashboard.total_brokers": "الوسطاء المتبعون",
-    "dashboard.confirmed_removals": "عمليات الحذف المؤكدة",
-    "dashboard.pending_requests": "قيد التنفيذ",
-    "dashboard.protection_score": "تغطية الحماية",
-    "dashboard.start_optout_all": "تشغيل الحذف الآلي",
 
-    "vault.title": "خزينة الهوية",
-    "vault.description": "المعرّفات أدناه تُستخدم فقط لتقديم طلبات الإزالة ويتم تشفيرها أثناء التخزين.",
-    "vault.add_name": "إضافة اسم بديل",
-    "vault.add_address": "إضافة عنوان",
-    "vault.add_phone": "إضافة رقم هاتف",
-    "vault.add_email": "إضافة بريد إلكتروني",
+def clean_texts(texts: Dict[str, Any]) -> Dict[str, str]:
+    """Only known phrases, and only translations that keep every {placeholder}."""
+    return {k: v for k, v in (texts or {}).items()
+            if k in PAGE_TEXT_SET and isinstance(v, str) and v.strip() and placeholders(v) == placeholders(k)}
 
-    "tutorial.welcome_title": "مرحبًا بك في OpenOptOut",
-    "tutorial.welcome_desc": "لنستغرق لحظة لتخصيص تجربتك وضبط تدابير حماية خصوصيتك.",
-    "tutorial.lang_step_title": "اختر لغتك المفضلة",
-    "tutorial.lang_step_desc": "حدد لغتك أدناه. ستتكيف الواجهة والإشعارات وتخطيط الاتجاه (يمين إلى يسار) فورًا.",
-    "tutorial.pii_step_title": "احمِ هويتك الشخصية",
-    "tutorial.pii_step_desc": "أدخل اسمك والمدينة والولاية ليتمكن النظام من البحث عن بياناتك وإزالتها تلقائيًا.",
-    "tutorial.email_step_title": "إعدادات البريد لطلبات الإزالة",
-    "tutorial.email_step_desc": "يقوم النظام بإرسال مراسلات الحذف ومراقبة تأكيدات الوسطاء عبر صناديق بريد مخصصة.",
-    "tutorial.tour_step_title": "جولة تعريفية في النظام",
-    "tutorial.tour_step_desc": "استكشف لوحة التحكم لمتابعة عمليات الحذف وإدارة سجلات أفراد العائلة.",
-    "tutorial.skip": "تخطي الجولة",
-    "tutorial.start_protecting": "ابدأ بحماية بياناتي",
 
-    "i18n.manager_title": "إدارة اللغات والترجمة",
-    "i18n.manager_desc": "إدارة اللغات المتاحة وتخصيص النصوص ومعاينة أماكن ظهور الكلمات في الواجهة.",
-    "i18n.active_languages": "اللغات المفعّلة",
-    "i18n.add_language": "إضافة لغة جديدة",
-    "i18n.filter_by_location": "تصفية حسب موقع الشاشة",
-    "i18n.source_english": "النص الإنجليزي الأصلي",
-    "i18n.translated_text": "النص المترجم / التعديل المخصص",
-    "i18n.where_it_appears": "مكان الظهور في الواجهة",
-    "i18n.save_translations": "حفظ التعديلات المخصصة",
-    "i18n.reset_defaults": "إعادة التعيين إلى الإعدادات الافتراضية",
+def _bundled_languages_dir() -> str:
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "plugins", "bundled", "languages")
 
-    "ils.import_prompt_title": "هل تريد استيراد معلوماتك من بطاقة المكتبة؟",
-    "ils.import_prompt_desc": "يتوفر في حسابك لدى المكتبة بيانات ({details}). هل ترغب في استيرادها للملء التلقائي أم إدخال بياناتك يدويًا؟",
-    "ils.import_vault_desc": "يتوفر في حساب المكتبة بيانات ({details}). هل ترغب في استيرادها إلى خزينة الهوية أم إدخال بياناتك يدويًا؟",
-    "ils.import_action_import": "استيراد معلوماتي",
-    "ils.import_action_discard": "سأقوم بإدخالها يدويًا",
-    "ils.import_success": "تم استيراد المعلومات بنجاح إلى خزينة الهوية.",
-    "sip2.field_mapping_title": "مطابقة حقول المشتركين والموافقة",
-    "sip2.field_mapping_desc": "استيراد المعلومات الديموغرافية من نظام المكتبة إلى حسابات المشتركين.",
-    "sip2.patron_choice_title": "استيراد باختيار المشترك (خيار الموافقة)",
-    "sip2.patron_choice_desc": "عند التفعيل، يختار المشتركون 'استيراد معلوماتي' أو 'سأقوم بإدخالها يدويًا' بعد تسجيل الدخول. تظل الحقول غير الإلزامية فارغة حتى يختار المشترك.",
-    "sip2.consent_required": "الموافقة مطلوبة",
-    "sip2.auto_import_all": "استيراد تلقائي للكل",
-    "sip2.forced_fields_label": "الحقول الإلزامية (مفصولة بفواصل، مثل library, name)",
-    "sip2.forced_fields_desc": "تُستورد الحقول المذكورة هنا تلقائيًا عند تسجيل الدخول. وتظل بقية الحقول اختيارية للمشترك.",
-    "a11y.title": "إعدادات إمكانية الوصول",
-    "a11y.high_contrast": "وضع التباين العالي (WCAG 2.2 AAA)",
-    "a11y.high_contrast_desc": "تحسين تباين النص والحدود لتجاوز نسبة 7:1 لضعاف البصر.",
-    "a11y.large_text": "نص كبير وحجم عناصر موسع",
-    "a11y.large_text_desc": "تكبير الخط وعناصر النقر إلى 44×44 بكسل على الأقل لتسهيل الحركة.",
-    "a11y.reduced_motion": "تقليل الحركة",
-    "a11y.reduced_motion_desc": "تعطيل الرسوم المتحركة والانتقالات والمؤشرات النابضة.",
-    "a11y.skip_to_content": "الانتقال إلى المحتوى الرئيسي",
-    "nav.breadcrumbs": "مسار التنقل",
-    "tutorial.a11y_section_title": "خيارات المظهر وإمكانية الوصول",
-    "tutorial.a11y_section_desc": "تخصيص سمة الألوان والتباين العالي وخط عسر القراءة وحجم الخط لتناسب احتياجاتك.",
-    "a11y.theme": "سمة الألوان",
-    "a11y.theme_light": "فاتح",
-    "a11y.theme_gray": "رمادي محايد",
-    "a11y.theme_dark": "داكن",
-    "a11y.theme_system": "النظام (تلقائي)",
-    "a11y.theme_space": "مستكشف الفضاء",
-    "a11y.theme_lcars": "مستكشف الفضاء",
-    "a11y.font_size": "حجم الخط وتكبير النصوص",
-    "a11y.font_preview_label": "معاينة مباشرة",
-    "a11y.font_preview_sample": "يعرض هذا النص حجم الخط المحدد في الوقت الفعلي. تتكيف جميع الجداول والنماذج والقوائم بشكل متناسب.",
-    "a11y.contrast_checkbox_desc": "يفرض أعلى تباين (21:1) متكيف مع السمة المحددة. تعرض السمة الفاتحة نصوصًا سوداء على خلفية بيضاء، بينما تعرض السمة الداكنة نصوصًا بيضاء ساطعة على خلفية سوداء.",
-    "a11y.dyslexic_font": "خط ملائم لعسر القراءة (OpenDyslexic)",
-    "a11y.dyslexic_font_desc": "تغيير خط المنصة إلى OpenDyslexic بقواعد ثقيلة لتحسين تدفق القراءة ومنع التشويش.",
-    "a11y.dyslexic_font_short": "خط عسر القراءة",
-}
 
-# Built-in French translations
-BUILTIN_FRENCH = {
-    "nav.dashboard": "Tableau de bord",
-    "nav.requests": "Demandes de suppression",
-    "nav.vault": "Coffre-fort d'identité",
-    "nav.family": "Membres de la famille",
-    "nav.brokers": "Courtiers de données",
-    "nav.settings": "Paramètres",
-    "nav.translations": "Traductions",
-    "nav.plugins": "Extensions",
-    "nav.logout": "Déconnexion",
-    "nav.welcome_tour": "Visite guidée",
-    "nav.language": "Langue",
+def _read_pack(pkg_path: str) -> Optional[Dict[str, Any]]:
+    """manifest + messages of one language pack directory, or None."""
+    manifest_file = os.path.join(pkg_path, "manifest.json")
+    if not os.path.isfile(manifest_file):
+        return None
+    with open(manifest_file, "r", encoding="utf-8") as f:
+        manifest = json.load(f)
+    code = manifest.get("language_code") or manifest.get("id", "").replace("lang-", "").replace("lang_", "")
+    if not code:
+        return None
+    texts = {}
+    texts_path = os.path.join(pkg_path, "texts.json")
+    if os.path.isfile(texts_path):
+        with open(texts_path, "r", encoding="utf-8") as tf:
+            texts = json.load(tf)
+    messages = {}
+    for msg_name in ("messages.json", "translations.json"):
+        msg_path = os.path.join(pkg_path, msg_name)
+        if os.path.isfile(msg_path):
+            with open(msg_path, "r", encoding="utf-8") as mf:
+                messages = json.load(mf)
+            break
+    known = {d["key"] for d in MASTER_DICTIONARY}
+    return {
+        "code": code,
+        "id": manifest.get("id", os.path.basename(pkg_path)),
+        # Folder of the pack; plugins/<plugin_id>.json in it translates other
+        # plugins' text (see plugins/plugin_i18n.py).
+        "path": pkg_path,
+        "name": manifest.get("language_name") or manifest.get("name", code),
+        "native_name": manifest.get("native_name") or manifest.get("language_name") or manifest.get("name", code),
+        "author": manifest.get("author", ""),
+        "version": manifest.get("version", "1.0"),
+        "is_rtl": bool(manifest.get("is_rtl", code in RTL_LANGUAGES)),
+        "messages": {k: v for k, v in messages.items() if k in known and isinstance(v, str) and v},
+        "texts": clean_texts(texts),
+    }
 
-    "common.save": "Enregistrer",
-    "common.cancel": "Annuler",
-    "common.delete": "Supprimer",
-    "common.edit": "Modifier",
-    "common.loading": "Chargement...",
-    "common.success": "Succès",
-    "common.error": "Erreur",
-    "common.next": "Suivant",
-    "common.back": "Retour",
-    "common.finish": "Terminer",
-    "common.search": "Rechercher...",
-    "common.enabled": "Activé",
-    "common.disabled": "Désactivé",
 
-    "dashboard.title": "Aperçu de la protection de la vie privée",
-    "dashboard.subtitle": "Surveillance et purge des dossiers personnels chez les courtiers de données.",
-    "dashboard.total_brokers": "Courtiers surveillés",
-    "dashboard.confirmed_removals": "Suppressions confirmées",
-    "dashboard.pending_requests": "En cours",
-    "dashboard.protection_score": "Couverture de protection",
-    "dashboard.start_optout_all": "Lancer les suppressions automatiques",
+def _load_bundled_languages() -> Dict[str, Dict[str, Any]]:
+    out = {}
+    d = _bundled_languages_dir()
+    if not os.path.isdir(d):
+        return out
+    for entry in sorted(os.listdir(d)):
+        try:
+            pack = _read_pack(os.path.join(d, entry))
+            if pack:
+                out[pack["code"]] = pack
+        except Exception as e:
+            log.warning("Built-in language pack %s couldn't be loaded: %s", entry, e)
+    return out
 
-    "tutorial.welcome_title": "Bienvenue sur OpenOptOut",
-    "tutorial.welcome_desc": "Prenons un moment pour personnaliser votre expérience et configurer vos protections de confidentialité.",
-    "tutorial.lang_step_title": "Choisissez votre langue préférée",
-    "tutorial.lang_step_desc": "Sélectionnez votre langue ci-dessous. L'interface s'adaptera immédiatement.",
-    "tutorial.pii_step_title": "Protégez votre identité",
-    "tutorial.pii_step_desc": "Indiquez votre nom et votre ville pour que les agents puissent trouver et supprimer vos fiches.",
-    "tutorial.skip": "Passer le tutoriel",
-    "tutorial.start_protecting": "Commencer à protéger mes données",
 
-    "ils.import_prompt_title": "Importer les détails de votre carte de bibliothèque ?",
-    "ils.import_prompt_desc": "Votre compte de bibliothèque contient des informations disponibles ({details}). Souhaitez-vous les importer pour préremplir le formulaire ou saisir vos données manuellement ?",
-    "ils.import_vault_desc": "Votre compte de bibliothèque contient des informations disponibles ({details}). Souhaitez-vous les importer dans votre coffre-fort d'identité ou les saisir manuellement ?",
-    "ils.import_action_import": "Importer mes informations",
-    "ils.import_action_discard": "Je préfère les saisir moi-même",
-    "ils.import_success": "Informations importées dans le coffre-fort d'identité.",
-    "sip2.field_mapping_title": "Mappage des Champs Usagers et Consentement",
-    "sip2.field_mapping_desc": "Importer les données démographiques du SIGB dans les comptes usagers.",
-    "sip2.patron_choice_title": "Importation Pilotée par l'Usager (Consentement)",
-    "sip2.patron_choice_desc": "Lorsque cette option est activée, les usagers choisissent 'Importer mes informations' ou 'Je préfère les saisir moi-même' après la connexion. Les champs non obligatoires restent vides sans action de leur part.",
-    "sip2.consent_required": "Consentement Requis",
-    "sip2.auto_import_all": "Importation Automatique Complète",
-    "sip2.forced_fields_label": "Champs Obligatoires (séparés par des virgules, ex: library, name)",
-    "sip2.forced_fields_desc": "Les champs indiqués ici sont automatiquement importés lors de la connexion. Les autres champs sont soumis au choix de l'usager.",
-    "a11y.title": "Paramètres d'accessibilité",
-    "a11y.high_contrast": "Mode Contraste Élevé (WCAG 2.2 AAA)",
-    "a11y.high_contrast_desc": "Améliore le contraste du texte et des bordures pour dépasser le ratio de 7:1.",
-    "a11y.large_text": "Grand Texte et Cibles Élargies",
-    "a11y.large_text_desc": "Augmente la taille de police et les zones tactiles à 44x44px minimum.",
-    "a11y.reduced_motion": "Mouvement Réduit",
-    "a11y.reduced_motion_desc": "Désactive les animations, transitions et clignotements.",
-    "a11y.skip_to_content": "Passer au contenu principal",
-    "nav.breadcrumbs": "Fil d'Ariane",
-    "tutorial.a11y_section_title": "Options de Thème et d'Accessibilité",
-    "tutorial.a11y_section_desc": "Personnalisez le thème de couleur, le contraste élevé, la police pour dyslexie et la taille du texte selon vos besoins.",
-    "a11y.theme": "Thème de Couleur",
-    "a11y.theme_light": "Clair",
-    "a11y.theme_gray": "Gris Neutre",
-    "a11y.theme_dark": "Sombre",
-    "a11y.theme_system": "Système (Automatique)",
-    "a11y.theme_space": "Explorateur Spatial",
-    "a11y.theme_lcars": "Explorateur Spatial",
-    "a11y.font_size": "Taille de Police et Mise à l'Échelle",
-    "a11y.font_preview_label": "Aperçu en Direct",
-    "a11y.font_preview_sample": "Ce texte donne un aperçu en temps réel de votre taille de police. Les tableaux, formulaires et menus s'adaptent proportionnellement.",
-    "a11y.contrast_checkbox_desc": "Applique un contraste maximal (21:1) adapté au thème choisi. Le thème clair affiche du noir pur sur fond blanc ; le thème sombre affiche du blanc pur sur fond noir.",
-    "a11y.dyslexic_font": "Police adaptée à la dyslexie (OpenDyslexic)",
-    "a11y.dyslexic_font_desc": "Remplace la typographie par OpenDyslexic avec une assise renforcée pour améliorer la fluidité de lecture.",
-    "a11y.dyslexic_font_short": "Police Dyslexie",
-}
+BUNDLED_LANGUAGES = _load_bundled_languages()
+# code -> messages for every built-in language pack (kept under this name for
+# callers and tests that predate the move to plugins).
+BUILTIN_TRANSLATIONS = {code: pack["messages"] for code, pack in BUNDLED_LANGUAGES.items()}
 
-# Built-in Pirate translations (Ahoy, matey!)
-BUILTIN_PIRATE = {
-    # Navigation & Shell
-    "nav.dashboard": "Captain's Quarters",
-    "nav.requests": "Broadside Demands",
-    "nav.vault": "Treasure Chest",
-    "nav.family": "Shipmates & Crew",
-    "nav.brokers": "Data Scallywags",
-    "nav.settings": "Ship's Rigging",
-    "nav.translations": "Parley Tongues",
-    "nav.plugins": "Cannon Upgrades",
-    "nav.logout": "Abandon Ship",
-    "nav.welcome_tour": "Maiden Voyage",
-    "nav.language": "Pirate Tongue",
-
-    # Common UI Controls
-    "common.save": "Stash It!",
-    "common.cancel": "Belay That!",
-    "common.delete": "Send to Davy Jones",
-    "common.edit": "Scrape & Refit",
-    "common.loading": "Weighin' Anchor...",
-    "common.success": "Shiver Me Timbers!",
-    "common.error": "Blimey! Foul Waters!",
-    "common.next": "Aye, Onward!",
-    "common.back": "Heave Ho, Back!",
-    "common.finish": "Drop Anchor!",
-    "common.search": "Scour the Horizon...",
-    "common.enabled": "Hoist High",
-    "common.disabled": "Struck Down",
-
-    # Dashboard Screen
-    "dashboard.title": "Pirate Privacy Lookout",
-    "dashboard.subtitle": "Trackin' and scuttlin' yer personal charts across greedy data scallywags.",
-    "dashboard.total_brokers": "Spotted Scallywags",
-    "dashboard.confirmed_removals": "Scuttled Records",
-    "dashboard.pending_requests": "Cannons Firin'",
-    "dashboard.protection_score": "Hull Armor",
-    "dashboard.start_optout_all": "Fire Full Broadside!",
-
-    # Identity Vault Screen
-    "vault.title": "Identity Treasure Chest",
-    "vault.description": "Yer secret marks and parchment below be guarded under lock and key, only used to scuttle landlubbers' records.",
-    "vault.add_name": "Add Pirate Moniker",
-    "vault.add_address": "Mark Port of Call",
-    "vault.add_phone": "Add Carrier Gull",
-    "vault.add_email": "Add Message Bottle",
-
-    # Onboarding / Welcome Tutorial Modal
-    "tutorial.welcome_title": "Ahoy! Welcome aboard OpenOptOut",
-    "tutorial.welcome_desc": "Avast ye! Let's rig yer ship and batten down the hatches to guard yer booty.",
-    "tutorial.lang_step_title": "Pick Yer Ship's Tongue",
-    "tutorial.lang_step_desc": "Select how ye parley. The flags and compass will adapt right quick!",
-    "tutorial.pii_step_title": "Armour Yer Identity",
-    "tutorial.pii_step_desc": "Give us yer pirate name and home port so our deckhands can hunt down yer stolen manifests.",
-    "tutorial.email_step_title": "Parley Dispatches",
-    "tutorial.email_step_desc": "OpenOptOut fires broadside missives from private bottles and watches the scallywags' surrender notes.",
-    "tutorial.tour_step_title": "Rigging Inspection & Ship's Tour",
-    "tutorial.tour_step_desc": "Scour the captain's deck to view scuttled charts, rally yer crew, and inspect scallywags.",
-    "tutorial.skip": "Set Sail Without Map",
-    "tutorial.start_protecting": "Commence Plundering Data!",
-
-    # Translation Manager Screen
-    "i18n.manager_title": "Tongues & Sea Lore Quarters",
-    "i18n.manager_desc": "Chart available languages, tweak yer pirate slang, and spy where each scroll appears.",
-    "i18n.active_languages": "Hoisted Flags",
-    "i18n.add_language": "Hail New Language",
-    "i18n.filter_by_location": "Spy by Ship Deck",
-    "i18n.source_english": "King's English",
-    "i18n.translated_text": "Pirate Parchment",
-    "i18n.where_it_appears": "Deck Location",
-    "i18n.save_translations": "Stash Yer Slang",
-    "i18n.reset_defaults": "Return to Navy Charts",
-
-    # Patron Demographics & ILS Import
-    "ils.import_prompt_title": "Plunder details from yer Library scroll?",
-    "ils.import_prompt_desc": "Yer harbor library holds parchment on ye ({details}). Shall we haul 'em aboard to rig yer profile, or will ye scribe 'em by hand?",
-    "ils.import_vault_desc": "Yer harbor library holds parchment on ye ({details}). Shall we haul 'em into yer Treasure Chest, or will ye scribe 'em with yer own quill?",
-    "ils.import_action_import": "Aye, Plunder Me Scroll!",
-    "ils.import_action_discard": "Nay, I'll Quill It Meself",
-    "ils.import_success": "Booty hauled into the Identity Treasure Chest!",
-    "sip2.field_mapping_title": "Library Scroll Mapping & Parley Consent",
-    "sip2.field_mapping_desc": "Haul patron charts from the harbor ILS into crew accounts.",
-    "sip2.patron_choice_title": "Crew-Driven Plunder (Parley Choice)",
-    "sip2.patron_choice_desc": "When hoisted, sailors click 'Aye, Plunder Me Scroll!' or 'Nay, I'll Quill It Meself'. Unpressed scrolls remain blank.",
-    "sip2.consent_required": "Parley Consent Required",
-    "sip2.auto_import_all": "Full Broadside Auto-Plunder",
-    "sip2.forced_fields_label": "Ironclad Fields (e.g. library, name)",
-    "sip2.forced_fields_desc": "Scrolls listed here are hauled aboard automatically upon boardin'. Others remain crew-driven.",
-
-    # Accessibility & Assistive Navigation (WCAG 2.2 AAA)
-    "a11y.title": "Ship's Eyeglass & Helm Rigging",
-    "a11y.high_contrast": "High Contrast Beacon (WCAG 2.2 AAA)",
-    "a11y.high_contrast_desc": "Strikes blinding lanternlight across charts for sharp sight.",
-    "a11y.large_text": "Mighty Runes & Broad Pegs",
-    "a11y.large_text_desc": "Heaves up the lettering and expands helm levers to 44px.",
-    "a11y.reduced_motion": "Calm Waters",
-    "a11y.reduced_motion_desc": "Stills the rolling waves and calms rockin' animations.",
-    "a11y.skip_to_content": "Leap straight onto the Main Deck",
-    "nav.breadcrumbs": "Sea Trail",
-    "tutorial.a11y_section_title": "Ship's Colors & Eyeglass Rigging",
-    "tutorial.a11y_section_desc": "Rig yer color flags, high contrast lanterns, heavy-keeled anchor runes, and mighty lettering to suit yer voyage.",
-    "a11y.theme": "Ship's Colors",
-    "a11y.theme_light": "Daylight Sun",
-    "a11y.theme_gray": "Foggy Sea",
-    "a11y.theme_dark": "Midnight Tide",
-    "a11y.theme_system": "Sea Sky (Auto)",
-    "a11y.theme_space": "Void Voyager",
-    "a11y.theme_lcars": "Void Voyager",
-    "a11y.font_size": "Rune Sizing & Lettering",
-    "a11y.font_preview_label": "Spyglass Preview",
-    "a11y.font_preview_sample": "This parchment previews yer chosen lettering size right quick. All manifests, logs, and sea charts will heave up proportionally.",
-    "a11y.contrast_checkbox_desc": "Strikes maximum blinding contrast (21:1) fittin' yer chosen sea flags. Daylight turns parchment stark white with ink-black runes; midnight turns it pitch-black with gold lanternlight.",
-    "a11y.dyslexic_font": "OpenDyslexic Sea Runes",
-    "a11y.dyslexic_font_desc": "Heaves heavy-keeled anchor runes across all ship manifests so words stop tossin' and turnin' in rough seas.",
-    "a11y.dyslexic_font_short": "Anchor Runes",
-}
-
-BUILTIN_TRANSLATIONS = {
-    "es": BUILTIN_SPANISH,
-    "ar": BUILTIN_ARABIC,
-    "fr": BUILTIN_FRENCH,
-    "pirate": BUILTIN_PIRATE,
-}
+# Built-in languages are offered to every install once (see
+# offer_new_builtin_languages); an admin who turns one off keeps it off.
+DEFAULT_ENABLED = ["en"] + sorted(BUNDLED_LANGUAGES)
 
 
 def is_rtl_language(lang_code: str) -> bool:
@@ -602,7 +354,7 @@ def get_i18n_settings() -> Dict[str, Any]:
     settings = settings_store.load_settings()
     i18n_cfg = settings.get("i18n", {})
     return {
-        "enabled_languages": i18n_cfg.get("enabled_languages", ["en", "es", "ar", "fr", "pirate"]),
+        "enabled_languages": i18n_cfg.get("enabled_languages", list(DEFAULT_ENABLED)),
         "default_language": i18n_cfg.get("default_language", "en"),
         "custom_languages": i18n_cfg.get("custom_languages", {}),
         "custom_translations": i18n_cfg.get("custom_translations", {}),
@@ -613,14 +365,46 @@ def save_i18n_settings(cfg: Dict[str, Any]) -> None:
     """Persist i18n configuration to settings store."""
     settings = settings_store.load_settings()
     settings["i18n"] = cfg
-    with open(settings_store.SETTINGS_FILE, "w", encoding="utf-8") as f:
-        json.dump(settings, f, indent=2)
+    settings_store.save_settings(settings)
+
+
+_DISABLED_CACHE = {"at": 0.0, "ids": set()}
+
+
+def _disabled_language_plugins() -> set:
+    """Plugin ids of language packs an admin turned off on the Plugins page
+    (cached for 30 seconds; never creates a database just to ask)."""
+    import time
+    if time.monotonic() - _DISABLED_CACHE["at"] < 30:
+        return _DISABLED_CACHE["ids"]
+    url = os.getenv("DATABASE_URL", "sqlite:///./privacy_pipeline.db")
+    if url.startswith("sqlite:///") and not os.path.exists(url[len("sqlite:///"):]):
+        return set()
+    ids = _query_disabled()
+    _DISABLED_CACHE.update(at=time.monotonic(), ids=ids)
+    return ids
+
+
+def _query_disabled() -> set:
+    try:
+        try:
+            from ..models.database import SessionLocal, InstalledPlugin
+        except (ImportError, ValueError):
+            from models.database import SessionLocal, InstalledPlugin
+        db = SessionLocal()
+        try:
+            return {r.plugin_id for r in db.query(InstalledPlugin).filter(InstalledPlugin.enabled == False).all()}  # noqa: E712
+        finally:
+            db.close()
+    except Exception:
+        return set()
 
 
 def scan_language_plugins() -> Dict[str, Dict[str, Any]]:
     """
-    Scan <plugins_root>/languages/ for installed language pack plugins.
-    Returns { lang_code: { manifest, messages } }.
+    Language packs installed under <plugins_root>/languages/ (built-in copies
+    and community packs), minus any an admin turned off. Returns
+    { lang_code: {id, name, native_name, author, version, is_rtl, messages} }.
     """
     try:
         from ..plugins import layout
@@ -629,50 +413,33 @@ def scan_language_plugins() -> Dict[str, Dict[str, Any]]:
             from plugins import layout
         except ImportError:
             layout = None
-
     if not layout:
         return {}
-    root = layout.plugins_root()
-    lang_dir = os.path.join(root, "languages")
+    lang_dir = os.path.join(layout.plugins_root(), "languages")
     found_packs = {}
     if not os.path.isdir(lang_dir):
         return found_packs
-
-    for entry in os.listdir(lang_dir):
+    disabled = _disabled_language_plugins()
+    for entry in sorted(os.listdir(lang_dir)):
         pkg_path = os.path.join(lang_dir, entry)
         if not os.path.isdir(pkg_path) or entry.startswith("."):
             continue
-        manifest_file = os.path.join(pkg_path, "manifest.json")
-        if not os.path.isfile(manifest_file):
-            continue
         try:
-            with open(manifest_file, "r", encoding="utf-8") as f:
-                manifest = json.load(f)
-            code = manifest.get("language_code") or manifest.get("id", "").replace("lang-", "").replace("lang_", "")
-            if not code:
-                continue
-
-            # Look for messages.json or translations.json
-            messages = {}
-            for msg_name in ("messages.json", "translations.json"):
-                msg_path = os.path.join(pkg_path, msg_name)
-                if os.path.isfile(msg_path):
-                    with open(msg_path, "r", encoding="utf-8") as mf:
-                        messages = json.load(mf)
-                    break
-
-            found_packs[code] = {
-                "id": manifest.get("id", entry),
-                "name": manifest.get("name", code),
-                "author": manifest.get("author", ""),
-                "version": manifest.get("version", "1.0"),
-                "is_rtl": bool(manifest.get("is_rtl", is_rtl_language(code))),
-                "messages": messages,
-            }
+            pack = _read_pack(pkg_path)
+            if pack and pack["id"] not in disabled:
+                found_packs[pack["code"]] = pack
         except Exception as e:
             log.warning("Failed scanning language pack at %s: %s", pkg_path, e)
-
     return found_packs
+
+
+def _builtin_pack(code: str, disabled: Optional[set] = None) -> Optional[Dict[str, Any]]:
+    pack = BUNDLED_LANGUAGES.get(code)
+    if pack is None:
+        return None
+    if pack["id"] in (disabled if disabled is not None else _disabled_language_plugins()):
+        return None
+    return pack
 
 
 def get_available_languages() -> List[Dict[str, Any]]:
@@ -696,11 +463,18 @@ def get_available_languages() -> List[Dict[str, Any]]:
             "enabled": code in enabled_set,
         }
 
-    # 2. Installed language packs
+    # 2. Language packs: built in (shipped as plugins) and installed
+    disabled = _disabled_language_plugins()
+    for code, pack in BUNDLED_LANGUAGES.items():
+        entry = catalog.setdefault(code, {"code": code, "name": pack["name"], "native_name": pack["native_name"],
+                                          "is_rtl": pack["is_rtl"], "enabled": code in enabled_set})
+        entry.update(source="plugin", built_in=True, plugin_id=pack["id"], plugin_off=pack["id"] in disabled)
+        if entry["plugin_off"]:
+            entry["enabled"] = False
     for code, pack in plugin_packs.items():
         if code in catalog:
             catalog[code]["source"] = "plugin"
-            catalog[code]["name"] = pack["name"]
+            catalog[code]["plugin_id"] = pack["id"]
         else:
             catalog[code] = {
                 "code": code,
@@ -726,8 +500,16 @@ def get_available_languages() -> List[Dict[str, Any]]:
 
 
 def get_dictionary() -> List[Dict[str, str]]:
-    """Returns the master UI dictionary with locations and descriptions."""
-    return MASTER_DICTIONARY
+    """
+    Everything translatable, with where it appears: the keyed dictionary
+    (menus, badges, onboarding) and then every phrase on the screens, whose
+    key is its English text.
+    """
+    return MASTER_DICTIONARY + [
+        {"key": t["text"], "default_text": t["text"], "location": "Screen: " + ", ".join(t.get("where", [])[:3]),
+         "description": t.get("note", "")}
+        for t in PAGE_TEXTS
+    ]
 
 
 def get_translations_for_locale(locale: str) -> Dict[str, str]:
@@ -735,8 +517,8 @@ def get_translations_for_locale(locale: str) -> Dict[str, str]:
     Resolve complete translation dictionary for a given language code.
     Resolution order (highest precedence wins):
       1. Default English text from MASTER_DICTIONARY
-      2. Built-in translations (e.g. Spanish, Arabic, French)
-      3. Installed language pack add-on messages (<plugins_root>/languages/<id>/)
+      2. The built-in language pack (plugins/bundled/languages/lang-<code>/)
+      3. Installed language packs (<plugins_root>/languages/<id>/), e.g. an admin's own
       4. Admin custom replacements / overrides from settings
     """
     code = (locale or "en").lower().strip()
@@ -752,14 +534,18 @@ def get_translations_for_locale(locale: str) -> Dict[str, str]:
         result.update(custom_overrides)
         return result
 
-    # 2. Built-in translations
-    if code in BUILTIN_TRANSLATIONS:
-        result.update(BUILTIN_TRANSLATIONS[code])
+    # 2. Built-in language pack (unless an admin turned it off)
+    disabled = _disabled_language_plugins()
+    pack = _builtin_pack(code, disabled)
+    if pack is not None:
+        result.update(pack["messages"])
+        result.update(pack.get("texts", {}))
 
-    # 3. Language pack add-on messages
+    # 3. Installed language packs (an admin's own pack for the same code wins)
     plugin_packs = scan_language_plugins()
-    if code in plugin_packs and plugin_packs[code]["messages"]:
+    if code in plugin_packs:
         result.update(plugin_packs[code]["messages"])
+        result.update(plugin_packs[code].get("texts", {}))
 
     # 4. In-system custom translations / overrides (highest precedence)
     result.update(custom_overrides)
@@ -830,3 +616,27 @@ def register_custom_language(code: str, name: str, native_name: str, is_rtl: boo
         "source": "custom",
         "enabled": True,
     }
+
+
+def offer_new_builtin_languages() -> List[str]:
+    """
+    Turn on built-in languages added since this install last looked, once.
+    Called at startup. Languages an admin already turned off stay off, because
+    each code is only ever offered one time.
+    """
+    settings = settings_store.load_settings()
+    i18n_cfg = settings.get("i18n")
+    if not i18n_cfg or "enabled_languages" not in i18n_cfg:
+        return []          # never saved: the defaults already include them
+    offered = set(i18n_cfg.get("builtins_offered") or ["en", "es", "ar", "fr", "pirate"])
+    new = [c for c in DEFAULT_ENABLED if c not in offered]
+    if not new:
+        return []
+    enabled = list(i18n_cfg["enabled_languages"])
+    enabled += [c for c in new if c not in enabled]
+    i18n_cfg["enabled_languages"] = enabled
+    i18n_cfg["builtins_offered"] = sorted(offered | set(new))
+    settings["i18n"] = i18n_cfg
+    settings_store.save_settings(settings)
+    log.info("Turned on newly built-in languages: %s", ", ".join(new))
+    return new

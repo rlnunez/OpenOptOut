@@ -17,7 +17,7 @@ def main() -> None:
         check=True,
     )
     subprocess.run(
-        [sys.executable, "-m", "playwright", "install", "--with-deps", "chromium"],
+        [sys.executable, "-m", "playwright", "install", "--with-deps", "firefox"],
         stdout=subprocess.DEVNULL,
         check=True,
     )

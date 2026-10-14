@@ -31,7 +31,8 @@ class ParentIn(BaseModel):
     name: str
     optout_email: Optional[str] = None
     cc_emails: Optional[str] = None
-    locale: Optional[str] = "en"
+    locale: Optional[str] = ""          # letter language; "" = usual for the jurisdiction
+    jurisdiction: Optional[str] = ""    # "US", "FR", "BR", ...; "" = US
     website: Optional[str] = None
     notes: Optional[str] = None
 
@@ -42,6 +43,8 @@ class ParentOut(BaseModel):
     optout_email: Optional[str] = None
     cc_emails: Optional[str] = None
     locale: str
+    jurisdiction: str = ""
+    letter: dict = {}                   # which letter is sent, its language and review status
     website: Optional[str] = None
     notes: Optional[str] = None
     honor_status: str
@@ -62,11 +65,34 @@ class ChildBroker(BaseModel):
     priority: Optional[int] = None
 
 
+def _letter_info(p: ParentCompany) -> dict:
+    """The letter this parent gets (for a person outside California)."""
+    from ..core.legal_letters import choose_template, letter_language
+    j = getattr(p, "jurisdiction", None) or "US"
+    t = choose_template(j)
+    lang = letter_language(t, p.locale or "", j)
+    return {"id": t["id"], "title": t.get("title", t["id"]), "language": lang,
+            "review_status": t.get("review_status", "draft")}
+
+
+def _clean_legal(body: "ParentIn") -> tuple[str, str]:
+    """(jurisdiction, letter language) from the form, or a 400 in plain words."""
+    from ..core.interpreter.broker_spec import JURISDICTION, LANGUAGE_CODE
+    j = (body.jurisdiction or "").strip().upper()
+    lang = (body.locale or "").strip()
+    if j and not JURISDICTION.match(j):
+        raise HTTPException(400, "Country should be a code like US, FR, BR or EU")
+    if lang and not LANGUAGE_CODE.match(lang):
+        raise HTTPException(400, "Letter language should be a code like en, fr or pt-BR")
+    return j, lang
+
+
 def _parent_out(p: ParentCompany) -> ParentOut:
     stats = pc.parent_stats(p)
     return ParentOut(
         id=p.id, name=p.name, optout_email=p.optout_email, cc_emails=p.cc_emails,
-        locale=p.locale or "en", website=p.website, notes=p.notes,
+        locale=p.locale or "", jurisdiction=getattr(p, "jurisdiction", None) or "",
+        letter=_letter_info(p), website=p.website, notes=p.notes,
         honor_status=stats["honor_status"], emails_sent=stats["emails_sent"],
         emails_confirmed=stats["emails_confirmed"], emails_failed=stats["emails_failed"],
         confirm_rate=stats["confirm_rate"], child_count=stats["child_count"],
@@ -88,9 +114,10 @@ def create_parent(body: ParentIn, db: Session = Depends(get_db),
         raise HTTPException(400, "Parent company name cannot be empty")
     if db.query(ParentCompany).filter(ParentCompany.name.ilike(body.name.strip())).first():
         raise HTTPException(400, f"Parent company '{body.name}' already exists")
+    j, lang = _clean_legal(body)
     p = ParentCompany(
         name=body.name.strip(), optout_email=body.optout_email, cc_emails=body.cc_emails,
-        locale=body.locale or "en", website=body.website, notes=body.notes,
+        locale=lang, jurisdiction=j or None, website=body.website, notes=body.notes,
     )
     db.add(p); db.commit(); db.refresh(p)
     return _parent_out(p)
@@ -108,7 +135,9 @@ def update_parent(parent_id: int, body: ParentIn, db: Session = Depends(get_db),
     p.name = body.name.strip()
     p.optout_email = body.optout_email
     p.cc_emails = body.cc_emails
-    p.locale = body.locale or "en"
+    j, lang = _clean_legal(body)
+    p.locale = lang
+    p.jurisdiction = j or None
     p.website = body.website
     p.notes = body.notes
     db.commit(); db.refresh(p)
@@ -170,6 +199,24 @@ def unassign_children(body: AssignIn, db: Session = Depends(get_db),
         b.parent_company_id = None
     db.commit()
     return {"unassigned": len(rows)}
+
+
+@router.post("/apply-catalog")
+def apply_parent_catalog(dry_run: bool = Query(True),
+                         include_unverified_emails: bool = Query(False),
+                         db: Session = Depends(get_db),
+                         user: User = Depends(get_current_user)):
+    """
+    Create the built-in parent companies (PeopleConnect/Intelius, BeenVerified,
+    Whitepages, Spokeo, and the StateRecords/CourtRecords networks) and group
+    matching brokers under them. Previews by default (dry_run=true); pass
+    dry_run=false to apply. Never overwrites admin edits or moves a broker that
+    is already grouped elsewhere.
+    """
+    _admin(user)
+    from ..core.parent_catalog import apply_catalog
+    return apply_catalog(db, dry_run=dry_run,
+                         include_unverified_emails=include_unverified_emails)
 
 
 @router.get("/unassigned/brokers", response_model=List[ChildBroker])

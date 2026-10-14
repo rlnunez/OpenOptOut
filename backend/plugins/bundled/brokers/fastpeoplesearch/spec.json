@@ -1,0 +1,18 @@
+{
+  "broker_id": "fastpeoplesearch",
+  "name": "FastPeopleSearch",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://www.fastpeoplesearch.com/optout",
+  "instructions": "Search fastpeoplesearch.com for {full_name}. If you're listed, open fastpeoplesearch.com/optout and follow the steps to remove your record; you may need to solve a CAPTCHA. If it asks for an email address, use {contact_email}, so OpenOptOut can click any confirmation link for you. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "one_optout_per_email": false,
+  "search_url": "https://www.fastpeoplesearch.com/name/{first_name}-{last_name}_{city}-{state}",
+  "source": "Process per BADBOOL's FastPeopleSearch entry (search, then the opt-out page; may need a CAPTCHA).",
+  "last_verified": ""
+}

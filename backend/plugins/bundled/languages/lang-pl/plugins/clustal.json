@@ -1,0 +1,4 @@
+{
+ "description": "Wspomagana rezygnacja z Clustal. Użytkownik wykonuje kroki z listy zadań; OpenOptOut zapewnia jednorazowy adres e-mail i klika link potwierdzający.",
+ "instructions": "Search clustal.org for {full_name}, open \"view full record\", and copy that page's address (the search result's address won't work). Otwórz clustal.org/privacy-control, paste it, press \"remove my info\", enter {contact_email} and press \"remove my info\" again. Clustal emails a link to finish; OpenOptOut clicks it for you. Następnie naciśnij „Zrobione”."
+}

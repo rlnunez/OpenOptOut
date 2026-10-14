@@ -1,0 +1,36 @@
+{
+  "broker_id": "BROKER_ID",
+  "name": "Broker Name",
+  "method": "form",
+  "spec_version": "1.0",
+  "opt_out_url": "https://example.com/optout",
+  "steps": [
+    {
+      "kind": "wait_for",
+      "selector": "form",
+      "timeout_ms": 10000
+    },
+    {
+      "kind": "fill",
+      "selector": "input[name=email]",
+      "field": "contact_email"
+    },
+    {
+      "kind": "click",
+      "selector": "button[type=submit]"
+    },
+    {
+      "kind": "expect_success",
+      "text": "request has been received"
+    }
+  ],
+  "legal_basis": [
+    "ccpa"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "one_optout_per_email": false,
+  "source": "Where these details came from",
+  "last_verified": "",
+  "notes": ""
+}

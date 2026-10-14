@@ -1,0 +1,4 @@
+{
+ "description": "Kujiondoa kwa kuelekezwa kwa Clustal. Mtu hufuata hatua kwenye orodha ya ukaguzi; OpenOptOut hutoa anwani ya barua pepe ya mara moja na kubofya kiungo cha uthibitisho.",
+ "instructions": "Search clustal.org for {full_name}, open \"view full record\", and copy that page's address (the search result's address won't work). Fungua clustal.org/privacy-control, paste it, press \"remove my info\", enter {contact_email} and press \"remove my info\" again. Clustal emails a link to finish; OpenOptOut clicks it for you. Kisha bonyeza \"Nimefanya hili\"."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour Spy Dialer, qui répertorie les gens par numéro de téléphone. Une seule désinscription couvre tous les numéros enregistrés.",
+ "instructions": "Ouvrez https://www.spydialer.com/ et cliquez sur « Do Not Sell Or Share My Personal Information » en bas de page. Appuyez sur Start, choisissez votre État, terminez la vérification anti-robot, puis ajoutez {full_name}, votre adresse, chacun de ces numéros ({all_phones}) et {email}. Appuyez sur « Opt-Out My Info » et attendez « Your submitted data has been blocked from future sharing ». Puis appuyez sur « C'est fait »."
+}

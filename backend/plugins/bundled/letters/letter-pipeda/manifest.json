@@ -1,0 +1,9 @@
+{
+  "id": "letter-pipeda",
+  "type": "letters",
+  "name": "Canada PIPEDA letter",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Request under Canada's PIPEDA, in English and French (French for Quebec). Draft wording awaiting a lawyer's review.",
+  "api_version": "1.0"
+}

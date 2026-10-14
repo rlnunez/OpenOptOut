@@ -413,7 +413,7 @@ def update_branch(
 ):
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
     if not branch:
-        raise HTTPException(404, "Branch not found")
+        raise HTTPException(404, "That branch is gone. Refresh the page.")
     assert_branch_in_scope(db, current_user, branch_id)
 
     if data.system_id is not None:
@@ -450,7 +450,7 @@ def delete_branch(
 ):
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
     if not branch:
-        raise HTTPException(404, "Branch not found")
+        raise HTTPException(404, "That branch is gone. Refresh the page.")
     assert_branch_in_scope(db, current_user, branch_id)
     # Unlink assigned users before deletion
     db.query(User).filter(User.branch_id == branch_id).update({
@@ -753,7 +753,7 @@ def set_manager_scopes(
 ):
     target = db.query(User).filter(User.id == user_id).first()
     if not target:
-        raise HTTPException(404, "User not found")
+        raise HTTPException(404, "That account is gone. Refresh the page.")
     if target.role != UserRole.manager:
         raise HTTPException(400, "Scopes can only be assigned to managers")
 
@@ -818,7 +818,7 @@ def override_patron_branch(
 
     branch = db.query(Branch).filter(Branch.id == data.branch_id).first()
     if not branch:
-        raise HTTPException(404, "Branch not found")
+        raise HTTPException(404, "That branch is gone. Refresh the page.")
 
     target.branch_id = branch.id
     target.branch_source = "staff_override"

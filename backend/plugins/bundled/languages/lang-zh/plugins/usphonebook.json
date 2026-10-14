@@ -1,0 +1,4 @@
+{
+ "description": "USPhoneBook 的引导式退出。由一个人按清单步骤操作；OpenOptOut 提供一次性电子邮件地址，并自动点击确认链接。",
+ "instructions": "在 usphonebook.com 查找你的电话号码。如果有你的信息，打开 usphonebook.com/opt-out 并按步骤操作，需要填写邮箱的地方使用 {contact_email}。如果退出页面一直卡住，请发邮件到 support+optout@usphonebook.com 要求删除。然后点击“我已完成”。"
+}

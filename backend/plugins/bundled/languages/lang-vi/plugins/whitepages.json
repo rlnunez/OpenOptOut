@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho Whitepages. Một người làm theo các bước trong danh sách; OpenOptOut cung cấp địa chỉ email dùng một lần và tự bấm mọi liên kết xác nhận.",
+ "instructions": "Whitepages xác nhận qua điện thoại, nên bạn cần tự làm mục này. Mở whitepages.com/suppression-requests, dán {listing_url}, bấm Next, rồi \"Remove Me\". Chọn một lý do, bấm Next và nhập số điện thoại Whitepages hiển thị cho bạn. Nghe cuộc gọi tự động và nhập mã được đọc. Khi trang báo đã nhận yêu cầu, bấm \"Tôi đã làm xong\"."
+}

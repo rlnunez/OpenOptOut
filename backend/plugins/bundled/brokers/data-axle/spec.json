@@ -1,0 +1,18 @@
+{
+  "broker_id": "data-axle",
+  "name": "Data Axle",
+  "spec_version": "1.0",
+  "method": "email",
+  "email": {
+    "to_address": "privacyteam@data-axle.com"
+  },
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "Data Axle (formerly Infogroup) sells consumer and business contact lists. Its privacy policy also links a web form; email is the simpler route.",
+  "source": "Data Axle's privacy policy, which gives this address for consumer requests.",
+  "last_verified": ""
+}

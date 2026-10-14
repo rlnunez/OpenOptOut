@@ -1,0 +1,4 @@
+{
+ "description": "إلغاء موجَّه لدى Spy Dialer، الذي يعرض الأشخاص حسب رقم الهاتف. إلغاء واحد يشمل كل الأرقام المحفوظة.",
+ "instructions": "افتح https://www.spydialer.com/ وانقر «Do Not Sell Or Share My Personal Information» أسفل الصفحة. اضغط Start واختر ولايتك وأكمل التحقق من أنك لست روبوتًا، ثم أضف {full_name} وعنوانك وكل رقم من هذه الأرقام ({all_phones}) و{email}. اضغط «Opt-Out My Info» وانتظر ظهور «Your submitted data has been blocked from future sharing». ثم اضغط «لقد أنجزت هذا»."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no Nuwber. Uma pessoa segue os passos da lista; o OpenOptOut fornece um endereço de e-mail de uso único e clica em qualquer link de confirmação.",
+ "instructions": "Encontre sua página no nuwber.com (buscar {full_name} e filtrar por {state} ajuda) e copie o endereço. Abra nuwber.com/removal/link, cole e digite {contact_email} como endereço de e-mail. O Nuwber envia um link de confirmação; o OpenOptOut clica nele por você. Depois toque em \"Já fiz isso\". Se o formulário não aceitar o endereço, escreva para support@nuwber.com com uma captura de tela do seu cadastro e peça a remoção."
+}

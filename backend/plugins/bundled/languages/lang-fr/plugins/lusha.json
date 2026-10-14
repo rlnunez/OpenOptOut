@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour Lusha, qui répertorie les gens par adresse e-mail. Une seule désinscription couvre toutes les adresses enregistrées.",
+ "instructions": "Ouvrez https://www.lusha.com/privacy-center/request-removal/ et envoyez une demande de suppression pour {full_name} avec chacune de ces adresses et chacun de ces numéros : {all_emails} ; {all_phones}. Utilisez {contact_email} pour les réponses. Puis appuyez sur « C'est fait »."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Baja de Radaris (radaris.com). Rellena la búsqueda por nombre automáticamente y luego deja a una persona la elección de la ficha y la confirmación.",
+ "steps.7.text": "Radaris necesita que termines tú este paso. Ve a radaris.com/control-privacy, busca {full_name} y tu ciudad, haz clic en tu propio perfil y pulsa el botón azul «Start Removing». Escribe {contact_email} como dirección de correo y envía. Radaris manda un enlace a esa dirección; OpenOptOut lo pulsa por ti."
+}

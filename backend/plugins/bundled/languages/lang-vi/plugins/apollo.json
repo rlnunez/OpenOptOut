@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho Apollo.io, trang liệt kê người theo địa chỉ email. Một lần gỡ áp dụng cho mọi địa chỉ đã lưu.",
+ "instructions": "Apollo lưu người theo email công việc. Mở https://www.apollo.io/privacy-policy/remove, nhập từng địa chỉ sau (mỗi lần một địa chỉ), hoàn tất bước kiểm tra robot và mở liên kết Apollo gửi tới địa chỉ đó: {all_emails}. Sau đó bấm \"Tôi đã làm xong\"."
+}

@@ -1,0 +1,12 @@
+{
+  "id": "hiya",
+  "type": "brokers",
+  "broker_id": "hiya",
+  "name": "Hiya",
+  "version": "1.0.0",
+  "author": "OpenOptOut contributors",
+  "description": "Guided opt-out for Hiya, which lists people by phone number. One opt-out covers every saved phone number.",
+  "spec_file": "spec.json",
+  "difficulty": "medium",
+  "is_property_broker": false
+}

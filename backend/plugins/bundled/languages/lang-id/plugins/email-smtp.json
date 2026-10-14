@@ -1,0 +1,3 @@
+{
+ "description": "A server-agnostic email provider: sends via SMTP and reads confirmations via IMAP against ANY server the operator configures (host, port, TLS). Use it for self-hosted / on-premises mail, or any provider without a dedicated plugin. No server is hardcoded — the SMTP/IMAP host and port come from the stored account settings. Trusted email-provider class; host inspects for hidden recipients and enforces the recipient at send time."
+}

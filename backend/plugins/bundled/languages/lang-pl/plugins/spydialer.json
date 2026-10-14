@@ -1,0 +1,4 @@
+{
+ "description": "Wspomagana rezygnacja z Spy Dialer, który kataloguje osoby według numeru telefonu. Jedna rezygnacja obejmuje każdy zapisany numer.",
+ "instructions": "Otwórz https://www.spydialer.com/ and click \"Do Not Sell Or Share My Personal Information\" at the bottom. Press Start, choose your state, finish the robot check, then add {full_name}, your address, each of these numbers ({all_phones}) and {email}. Press \"Opt-Out My Info\" and wait for \"Your submitted data has been blocked from future sharing\". Następnie naciśnij „Zrobione”."
+}

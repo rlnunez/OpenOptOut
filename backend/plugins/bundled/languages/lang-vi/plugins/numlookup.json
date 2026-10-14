@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho NumLookup, trang liệt kê người theo số điện thoại. Một lần gỡ áp dụng cho mọi số đã lưu.",
+ "instructions": "Mở https://www.numlookup.com/opt_out, nhập một trong các số sau, hoàn tất bước kiểm tra robot và chọn xóa thông tin của bạn: {all_phones}. Chọn gửi yêu cầu xóa thủ công (không cần tài khoản) và điền {full_name}, {contact_email} cùng số điện thoại. Biểu mẫu có thể yêu cầu giấy tờ có ảnh. Bạn có thể che mọi thứ trên đó trừ tên và ảnh. Sau đó bấm \"Tôi đã làm xong\"."
+}

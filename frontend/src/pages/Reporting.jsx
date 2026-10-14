@@ -5,7 +5,10 @@ import {
   CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 import api from '../api'
+import { downloadReport } from '../components/PrivacyScore'
 import { useAuth, can } from '../hooks/useAuth'
+import { tx } from '../i18n/tx'
+import { fmtDate } from '../i18n/format'
 
 function StatCard({ label, value, sub, icon: Icon, color = 'text-slate-300' }) {
   return (
@@ -70,7 +73,7 @@ export default function Reporting() {
 
   const exportCSV = () => {
     const rows = [
-      ['Member', 'Total', 'Confirmed', 'Pending', 'Failed', 'Rate'],
+      [tx("Person"), tx("Total"), tx("Removed"), tx("Waiting"), tx("Didn't work"), tx("Removed %")],
       ...perMember.map(m => [m.member, m.total, m.confirmed, m.pending, m.failed, `${m.rate}%`]),
     ]
     const csv  = rows.map(r => r.join(',')).join('\n')
@@ -85,41 +88,45 @@ export default function Reporting() {
     <div className="p-4 md:p-6 max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-white text-xl font-semibold">Usage reporting</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Institutional metrics for administrators and managers</p>
+          <h1 className="text-white text-xl font-semibold">{tx("Usage reporting")}</h1>
+          <p className="text-slate-400 text-sm mt-0.5">{tx("Institutional metrics for administrators and managers")}</p>
         </div>
         <div className="flex gap-2">
           <select value={months} onChange={e => setMonths(parseInt(e.target.value))}
             className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:outline-hidden">
-            <option value={3}>Last 3 months</option>
-            <option value={6}>Last 6 months</option>
-            <option value={12}>Last 12 months</option>
-            <option value={24}>Last 24 months</option>
+            <option value={3}>{tx("Last 3 months")}</option>
+            <option value={6}>{tx("Last 6 months")}</option>
+            <option value={12}>{tx("Last 12 months")}</option>
+            <option value={24}>{tx("Last 24 months")}</option>
           </select>
           <button onClick={load} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
-            <RefreshCw size={13} /> Refresh
+            <RefreshCw size={13} />{" "}{tx("Refresh")}
           </button>
           <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 transition-colors">
-            <Download size={13} /> Export CSV
+            <Download size={13} />{" "}{tx("Export CSV")}
+          </button>
+          <button onClick={() => downloadReport('all').catch(() => alert(tx("Couldn't make the report. Please try again.")))}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
+            <Download size={13} />{" "}{tx("Removal report (PDF)")}
           </button>
         </div>
       </div>
 
-      {loading && <p className="text-slate-500 text-sm">Loading…</p>}
+      {loading && <p className="text-slate-500 text-sm">{tx("Loading…")}</p>}
 
       {!loading && summary && (
         <>
           {/* KPI cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-            <StatCard label="Total users"       value={summary.total_users}      icon={Users}       color="text-slate-300"   sub={`+${summary.month_new_users} this month`} />
-            <StatCard label="Opt-outs sent"     value={summary.total_sent}       icon={Send}        color="text-shield-400"  sub={`${summary.month_sent} this month`} />
-            <StatCard label="Confirmed removed" value={summary.total_confirmed}  icon={CheckCircle} color="text-emerald-400" sub={`${summary.success_rate}% success rate`} />
-            <StatCard label="Brokers tracked"   value={summary.total_brokers}    icon={TrendingUp}  color="text-amber-400"   sub={`${summary.total_pending} pending`} />
+            <StatCard label={tx("Total users")}       value={summary.total_users}      icon={Users}       color="text-slate-300"   sub={tx("+{month_new_users} this month", { month_new_users: summary.month_new_users })} />
+            <StatCard label={tx("Opt-outs sent")}     value={summary.total_sent}       icon={Send}        color="text-shield-400"  sub={tx("{month_sent} this month", { month_sent: summary.month_sent })} />
+            <StatCard label={tx("Confirmed removed")} value={summary.total_confirmed}  icon={CheckCircle} color="text-emerald-400" sub={tx("{success_rate}% success rate", { success_rate: summary.success_rate })} />
+            <StatCard label={tx("Brokers tracked")}   value={summary.total_brokers}    icon={TrendingUp}  color="text-amber-400"   sub={`${summary.total_pending} pending`} />
           </div>
 
           {/* Enrollment trend */}
           {enrollments.length > 0 && (
-            <ChartCard title="User enrollments over time">
+            <ChartCard title={tx("User enrollments over time")}>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={enrollments}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME.grid} />
@@ -134,7 +141,7 @@ export default function Reporting() {
 
           {/* Opt-out trend */}
           {optouts.length > 0 && (
-            <ChartCard title="Opt-outs sent vs confirmed">
+            <ChartCard title={tx("Opt-outs sent vs confirmed")}>
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={optouts}>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME.grid} />
@@ -151,7 +158,7 @@ export default function Reporting() {
 
           {/* Broker compliance */}
           {compliance.length > 0 && (
-            <ChartCard title="Broker compliance rates (top 20 by volume)">
+            <ChartCard title={tx("Broker compliance rates (top 20 by volume)")}>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={compliance} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME.grid} horizontal={false} />
@@ -171,26 +178,26 @@ export default function Reporting() {
           {/* Per-member table */}
           <div className="bg-slate-800 rounded-xl border border-slate-700/50 overflow-hidden mb-4">
             <div className="px-4 py-3 border-b border-slate-700/50 flex items-center justify-between">
-              <p className="text-slate-300 text-sm font-medium">Per-member summary</p>
+              <p className="text-slate-300 text-sm font-medium">{tx("Per-member summary")}</p>
               <p className="text-slate-500 text-xs">{perMember.length} {perMember.length === 1 ? 'member' : 'members'}</p>
             </div>
             {!fullMemberList && (
               <p className="px-4 py-2 text-slate-500 text-xs border-b border-slate-700/50">
                 {canNameMembers
-                  ? 'Showing only members you have access to.'
-                  : "Showing only your own and shared profiles. Listing other members needs the \u201cView all members' data\u201d permission."}
+                  ? tx("Showing only members you have access to.")
+                  : tx("Showing only your own and shared profiles. Listing other members needs the “View all members' data” permission.")}
               </p>
             )}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
               <thead>
                 <tr className="text-slate-500 text-xs border-b border-slate-700/30">
-                  <th className="text-left px-4 py-2 font-normal">Member</th>
-                  <th className="text-left px-4 py-2 font-normal">Total</th>
-                  <th className="text-left px-4 py-2 font-normal">Confirmed</th>
-                  <th className="text-left px-4 py-2 font-normal">Pending</th>
-                  <th className="text-left px-4 py-2 font-normal">Failed</th>
-                  <th className="text-left px-4 py-2 font-normal">Rate</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Person")}</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Total")}</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Removed")}</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Waiting")}</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Didn't work")}</th>
+                  <th className="text-start px-4 py-2 font-normal">{tx("Removed %")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -213,7 +220,7 @@ export default function Reporting() {
                   </tr>
                 ))}
                 {perMember.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-500 text-sm">No members to show.</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-500 text-sm">{tx("No members to show.")}</td></tr>
                 )}
               </tbody>
             </table>
@@ -223,17 +230,17 @@ export default function Reporting() {
           {/* Scheduler health */}
           {Object.keys(health).length > 0 && (
             <div className="bg-slate-800 rounded-xl border border-slate-700/50 p-4">
-              <p className="text-slate-300 text-sm font-medium mb-3">Scheduler health (last 30 days)</p>
+              <p className="text-slate-300 text-sm font-medium mb-3">{tx("Scheduler health (last 30 days)")}</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {Object.entries(health).map(([type, h]) => (
                   <div key={type} className="bg-slate-900 rounded-lg px-3 py-2.5">
                     <p className="text-slate-500 text-xs capitalize mb-1">{type.replace('_', ' ')}</p>
-                    <p className="text-slate-200 text-sm font-medium">{h.total} runs</p>
+                    <p className="text-slate-200 text-sm font-medium">{h.total}{" "}{tx("runs")}</p>
                     <div className="flex gap-2 text-xs mt-1">
-                      <span className="text-emerald-400">{h.ok} ok</span>
-                      {h.error > 0 && <span className="text-red-400">{h.error} err</span>}
+                      <span className="text-emerald-400">{h.ok}{" "}{tx("ok")}</span>
+                      {h.error > 0 && <span className="text-red-400">{h.error}{" "}{tx("err")}</span>}
                     </div>
-                    {h.last_run && <p className="text-slate-700 text-xs mt-1">{new Date(h.last_run).toLocaleDateString()}</p>}
+                    {h.last_run && <p className="text-slate-700 text-xs mt-1">{fmtDate(h.last_run)}</p>}
                   </div>
                 ))}
               </div>

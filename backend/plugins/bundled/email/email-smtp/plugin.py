@@ -39,10 +39,10 @@ import email as email_mod
 from email.mime.text import MIMEText
 from email.utils import parsedate_to_datetime
 
-from openoptout_sdk import Plugin, manifest
+from openoptout_sdk import Plugin, manifest, wants_links, links_from_mime, extract_links
 
 plugin = Plugin(manifest(
-    id="email-smtp", name="Generic SMTP / IMAP Email Provider", version="1.0.0",
+    id="email-smtp", name="Generic SMTP / IMAP Email Provider", version="1.2.0",
     author="OpenOptOut",
     permissions=["email_provider", "read_pii", "network", "settings_read"],
     hooks=["email_provider"],
@@ -97,6 +97,9 @@ def send(req):
     if cc:
         msg["Cc"] = ", ".join(cc)
     msg["Subject"] = req.get("subject", "")
+    reply_to = (req.get("meta") or {}).get("reply_to", "")
+    if reply_to:
+        msg["Reply-To"] = reply_to     # host-supplied; not a recipient
     recipients = to + cc           # explicit list = host-supplied only
 
     try:
@@ -118,6 +121,18 @@ def send(req):
         return {"ok": True, "message_id": "", "sent_to": recipients}
     except Exception as e:
         return {"ok": False, "error": f"SMTP send failed ({host}:{port}): {str(e) or type(e).__name__}"}
+
+
+def _plain_snippet(raw: bytes, n: int = 400) -> str:
+    msg = email_mod.message_from_bytes(raw)
+    for part in (msg.walk() if msg.is_multipart() else [msg]):
+        if part.get_content_type() == "text/plain":
+            try:
+                return " ".join(part.get_payload(decode=True).decode(
+                    part.get_content_charset() or "utf-8", "replace").split())[:n]
+            except Exception:
+                return ""
+    return ""
 
 
 @plugin.email_list
@@ -152,15 +167,24 @@ def list_messages(req):
                 ts = int(parsedate_to_datetime(hdr.get("Date")).timestamp())
             except Exception:
                 pass
-            out.append({
+            to_h = ", ".join(filter(None, [hdr.get("To", ""), hdr.get("Delivered-To", "")]))
+            item = {
                 "message_id": (hdr.get("Message-ID") or i.decode()).strip("<>"),
                 "from": hdr.get("From", ""),
+                "to": to_h,
                 "subject": hdr.get("Subject", ""),
                 "snippet": "",
                 "received_ts": ts,
-            })
+            }
+            if wants_links(req, to_h):
+                # BODY.PEEK leaves the message unread for the person.
+                typ, full = M.fetch(i, "(BODY.PEEK[])")
+                if full and full[0] and isinstance(full[0], tuple):
+                    item["links"] = links_from_mime(full[0][1])
+                    item["snippet"] = _plain_snippet(full[0][1])
+            out.append(item)
         M.logout()
-        return {"ok": True, "messages": out}
+        return {"ok": True, "messages": out, "links_supported": bool(req.get("include_links"))}
     except Exception as e:
         return {"ok": False, "error": f"IMAP list failed ({imap_host}:{imap_port}): {str(e) or type(e).__name__}"}
 

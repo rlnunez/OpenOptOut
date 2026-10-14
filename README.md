@@ -3,8 +3,9 @@
 **Open-source personal data removal pipeline.** Automated opt-out submission, confirmation tracking, and continuous defense against quiet data-broker re-listings.
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+[![Data Brokers](https://img.shields.io/badge/Data%20Brokers-80%20built--in-orange.svg)](backend/plugins/bundled/brokers)
 [![WCAG 2.2 AAA](https://img.shields.io/badge/Accessibility-WCAG_2.2_AAA-green.svg)](ACCESSIBILITY.md)
-[![Security Policy](https://img.shields.io/badge/Security-Policy-brightgreen.svg)](SECURITY.md)
+[![Languages](https://img.shields.io/badge/Languages-17%20packs-informational.svg)](backend/plugins/bundled/languages)
 
 OpenOptOut is a free, self-hostable privacy automation platform built for two audiences from the same codebase:
 - **Families** — Single system with role-based access so parents can manage their children's data and spouses can coordinate removals together.
@@ -81,8 +82,12 @@ Comprehensive architectural specifications and deployment guides:
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System architecture, pipeline stages, APScheduler jobs, failure diagnostics, and repository layout |
 | [`docs/HTTPS.md`](docs/HTTPS.md) | Production HTTPS setup: built-in Caddy/Traefik front door, Cloudflare DNS/Tunnel, InCommon, and reverse proxies |
 | [`docs/SSO.md`](docs/SSO.md) | Single sign-on integration: OIDC, SAML 2.0, Active Directory / LDAP, and library card (SIP2/SIP2S) logins |
+| [`docs/COMMUNITIES.md`](docs/COMMUNITIES.md) | Residents-only sign-up for a district, apartment complex or other housing community: a sign-up page that checks addresses against an uploaded list |
 | [`docs/DATABASE.md`](docs/DATABASE.md) | PostgreSQL scaling, enterprise auth (mTLS, IAM, Kerberos), SQLite migration, and SQLCipher encryption at rest |
-| [`docs/EMAIL_SETUP.md`](docs/EMAIL_SETUP.md) | Dedicated removal inbox integration: OAuth 2.0 (Gmail/Outlook), App Passwords, and IMAP/SMTP setup |
+| [`docs/EMAIL_SETUP.md`](docs/EMAIL_SETUP.md) | System notification inbox vs. family inboxes, one address per opt-out (+addresses), OAuth and app-password setup |
+| [`docs/WEB_SEARCH.md`](docs/WEB_SEARCH.md) | Optional server-side web search for each family member (self-hosted SearXNG), with automatic adds and a review list |
+| [`docs/STATE_REGISTRIES.md`](docs/STATE_REGISTRIES.md) | Importing the CA, VT, TX and OR data broker registries (off by default), dead-site detection, and California DROP |
+| [`docs/BUILTIN_INBOX.md`](docs/BUILTIN_INBOX.md) | Proposal: a built-in receive-only inbox that gives every opt-out its own address on a family-owned domain |
 | [`docs/ROLES.md`](docs/ROLES.md) | Role-based access control (RBAC): Super Admin, Admin, Manager, Parent, and Member permission boundaries |
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Local developer environment setup, Playwright browser dependencies, and unit test execution |
 | [`docs/NATIVE_INSTALL.md`](docs/NATIVE_INSTALL.md) | Container-free production deployment (systemd + nginx on Linux, Windows Service + IIS on Windows) |
@@ -94,6 +99,8 @@ Comprehensive architectural specifications and deployment guides:
 | [`docs/MISSION.md`](docs/MISSION.md) | Mission statement, library advocacy notes, and Article VII Library Bill of Rights context |
 | [`docs/LEGISLATION.md`](docs/LEGISLATION.md) | Plain-language advocacy guide and policy principles for comprehensive data-broker legislation |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Comprehensive item-by-item architectural roadmap and implementation status |
+| [`broker-plugins/README.md`](broker-plugins/README.md) | One-folder-per-broker plugins, spec fields, and the validate/package tools |
+| [`CREDITS.md`](CREDITS.md) | The open-source projects and volunteer lists OpenOptOut learns from, and how each is used |
 
 ---
 
@@ -101,7 +108,7 @@ Comprehensive architectural specifications and deployment guides:
 
 We welcome community contributions, particularly:
 - **Security & Architectural Reviews** — Review our sandboxing, cryptography, and auth architecture (see [`CONTRIBUTING.md`](CONTRIBUTING.md)).
-- **Broker Selectors & Plugins** — Map new broker form selectors or build gRPC plugins to expand coverage.
+- **Broker Selectors & Plugins** — Map new broker form selectors or build gRPC plugins to expand coverage (see [`broker-plugins/README.md`](broker-plugins/README.md)).
 - **Accessibility Enhancements** — Verify workflows with screen readers and assistive devices (see [`ACCESSIBILITY.md`](ACCESSIBILITY.md)).
 - **Bug Reports & Test Cases** — Help strengthen reliability across platforms.
 
@@ -114,5 +121,7 @@ All community members and contributors are expected to uphold our [`CODE_OF_COND
 **GNU Affero General Public License v3.0 (AGPL-3.0).** Copyright © 2026 Robert Nunez.
 
 You are free to use, study, modify, and self-host this software. If you run a modified version as a network service, you must make your modified source code available to users of that service. See [`LICENSE`](LICENSE) for the complete license terms.
+
+OpenOptOut builds on the work of volunteers and other open-source projects. See [`CREDITS.md`](CREDITS.md) for who they are and how their work is used.
 
 *Disclaimer: OpenOptOut submits opt-out requests on your behalf but cannot guarantee compliance from third-party data brokers. Re-check your listings periodically. OpenOptOut is not a legal service and does not provide legal advice.*

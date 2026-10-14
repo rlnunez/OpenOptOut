@@ -1,0 +1,4 @@
+{
+ "description": "Wspomagana rezygnacja z Cyber Background Checks. Użytkownik wykonuje kroki z listy zadań; OpenOptOut zapewnia jednorazowy adres e-mail i klika link potwierdzający.",
+ "instructions": "Search cyberbackgroundchecks.com for {full_name}. If you're listed, open cyberbackgroundchecks.com/removal and remove the record, giving {contact_email} as the email address. Następnie naciśnij „Zrobione”."
+}

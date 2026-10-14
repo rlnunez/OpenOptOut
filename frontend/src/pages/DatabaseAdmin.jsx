@@ -7,6 +7,18 @@ import {
 } from 'lucide-react'
 import api from '../api'
 import { useAuth } from '../hooks/useAuth'
+import { tx, txr } from '../i18n/tx'
+import { fmtMB, fmtNumber } from '../i18n/format'
+
+function Field({ label, hint, children }) {
+  return (
+    <div>
+      <label className="text-slate-400 text-xs mb-1 block">{label}</label>
+      {children}
+      {hint && <p className="text-slate-500 text-xs mt-1">{hint}</p>}
+    </div>
+  )
+}
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
@@ -43,7 +55,7 @@ function TableRow({ table }) {
   const [open, setOpen] = useState(false)
   const size = table.size_bytes
     ? table.size_bytes > 1_048_576
-      ? `${(table.size_bytes / 1_048_576).toFixed(1)} MB`
+      ? `${fmtMB(table.size_bytes)} MB`
       : `${Math.round(table.size_bytes / 1024)} KB`
     : null
 
@@ -55,13 +67,13 @@ function TableRow({ table }) {
           {open ? <ChevronDown size={12} className="text-slate-500" /> : <ChevronRight size={12} className="text-slate-500" />}
           {table.name}
         </td>
-        <td className="px-4 py-2.5 text-slate-300 text-sm text-right">{table.row_count?.toLocaleString() ?? '—'}</td>
-        <td className="px-4 py-2.5 text-slate-500 text-sm text-right">{size ?? '—'}</td>
+        <td className="px-4 py-2.5 text-slate-300 text-sm text-end">{fmtNumber(table.row_count)}</td>
+        <td className="px-4 py-2.5 text-slate-500 text-sm text-end">{size ?? '—'}</td>
       </tr>
       {open && (
         <tr className="bg-slate-900/30">
           <td colSpan={3} className="px-8 py-2">
-            <p className="text-slate-600 text-xs">Columns: {table.columns.join(', ')}</p>
+            <p className="text-slate-600 text-xs">{tx("Columns:")}{" "}{table.columns.join(', ')}</p>
           </td>
         </tr>
       )}
@@ -106,7 +118,7 @@ function MigrationTool() {
       await api.post(`/database/migrate-to-postgres?target_url=${encodeURIComponent(targetUrl)}`)
       fetchStatus()
     } catch (err) {
-      alert(err.response?.data?.detail ?? 'Migration failed to start')
+      alert(err.response?.data?.detail ?? tx("Migration failed to start"))
       setRunning(false)
     }
   }
@@ -116,8 +128,8 @@ function MigrationTool() {
       <div className="px-5 py-4 border-b border-slate-700/50 flex items-center gap-2.5">
         <ArrowRight size={15} className="text-shield-400" />
         <div>
-          <p className="text-slate-200 text-sm font-medium">Migrate to PostgreSQL</p>
-          <p className="text-slate-500 text-xs mt-0.5">Copy all data from SQLite to a Postgres database</p>
+          <p className="text-slate-200 text-sm font-medium">{tx("Migrate to PostgreSQL")}</p>
+          <p className="text-slate-500 text-xs mt-0.5">{tx("Copy all data from SQLite to a Postgres database")}</p>
         </div>
       </div>
       <div className="px-5 py-4 space-y-4">
@@ -125,8 +137,8 @@ function MigrationTool() {
           <div className="flex items-start gap-2 px-3 py-2.5 bg-emerald-900/20 border border-emerald-800 rounded-lg text-emerald-300 text-sm">
             <CheckCircle size={13} className="shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium">Migration complete — {status.total_rows?.toLocaleString()} rows copied</p>
-              <p className="text-xs mt-1 text-emerald-500">Update DATABASE_URL in .env and restart the container.</p>
+              <p className="font-medium">{tx("Migration complete — {v} rows copied", { v: fmtNumber(status.total_rows) })}</p>
+              <p className="text-xs mt-1 text-emerald-500">{tx("Update DATABASE_URL in .env and restart the container.")}</p>
             </div>
           </div>
         )}
@@ -134,40 +146,40 @@ function MigrationTool() {
         {!status?.done && (
           <>
             <div>
-              <label className="text-slate-400 text-xs mb-1 block">Target PostgreSQL connection string</label>
+              <label className="text-slate-400 text-xs mb-1 block">{tx("Target PostgreSQL connection string")}</label>
               <input value={targetUrl} onChange={e => setTargetUrl(e.target.value)}
                 placeholder="postgresql://user:password@host:5432/openoptout"
                 className={inp} disabled={running} />
               <p className="text-slate-600 text-xs mt-1">
-                The target database must exist and be empty. The schema will be created automatically.
+                {tx("The target database must exist and be empty. The schema will be created automatically.")}
               </p>
             </div>
 
             <div className="bg-slate-900 rounded-lg px-3 py-2.5 text-xs space-y-1">
-              <p className="text-slate-400 font-medium">Before migrating:</p>
-              <p className="text-slate-500">✓ Create an empty Postgres database</p>
-              <p className="text-slate-500">✓ Stop any running opt-out jobs (Settings → Scheduler → disable)</p>
-              <p className="text-slate-500">✓ Take a backup of your SQLite file</p>
-              <p className="text-slate-500">✓ Test the connection string below</p>
+              <p className="text-slate-400 font-medium">{tx("Before migrating:")}</p>
+              <p className="text-slate-500">{tx("✓ Create an empty Postgres database")}</p>
+              <p className="text-slate-500">{tx("✓ Stop any running opt-out jobs (Settings → Scheduler → disable)")}</p>
+              <p className="text-slate-500">{tx("✓ Take a backup of your SQLite file")}</p>
+              <p className="text-slate-500">{tx("✓ Test the connection string below")}</p>
             </div>
 
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)}
                 className="w-3.5 h-3.5 rounded-sm accent-shield-500" disabled={running} />
-              <span className="text-slate-300 text-sm">I have backed up my SQLite database and the target Postgres DB is empty</span>
+              <span className="text-slate-300 text-sm">{tx("I have backed up my SQLite database and the target Postgres DB is empty")}</span>
             </label>
 
             <button onClick={startMigration} disabled={running || !targetUrl.trim() || !confirmed}
               className="flex items-center gap-1.5 px-4 py-2 bg-shield-600 text-white text-sm rounded-lg hover:bg-shield-700 disabled:opacity-40 transition-colors">
               {running ? <RefreshCw size={13} className="animate-spin" /> : <Play size={13} />}
-              {running ? 'Migrating…' : 'Start migration'}
+              {running ? tx("Migrating…") : tx("Start migration")}
             </button>
           </>
         )}
 
         {status?.progress?.length > 0 && (
           <div>
-            <p className="text-slate-500 text-xs mb-1.5 uppercase tracking-wide">Migration log</p>
+            <p className="text-slate-500 text-xs mb-1.5 uppercase tracking-wide">{tx("Migration log")}</p>
             <div ref={logRef}
               className="bg-slate-900 border border-slate-700 rounded-lg p-3 h-48 overflow-y-auto font-mono text-xs text-slate-400 space-y-0.5">
               {status.progress.map((line, i) => (
@@ -178,7 +190,7 @@ function MigrationTool() {
               {running && <p className="text-shield-400 animate-pulse">▌</p>}
             </div>
             {status.error && (
-              <p className="text-red-400 text-xs mt-2">Error: {status.error}</p>
+              <p className="text-red-400 text-xs mt-2">{tx("Problem:")}{" "}{status.error}</p>
             )}
           </div>
         )}
@@ -216,7 +228,7 @@ function ConnectionConfig({ readOnly = false }) {
     }).catch(() => {})
   }, [])
 
-  if (!config) return <p className="text-slate-500 text-sm">Loading…</p>
+  if (!config) return <p className="text-slate-500 text-sm">{tx("Loading…")}</p>
 
   const save = async () => {
     setSaving(true)
@@ -244,33 +256,31 @@ function ConnectionConfig({ readOnly = false }) {
       <div className="flex items-start gap-2 px-3 py-2.5 bg-blue-900/10 border border-blue-800 rounded-lg">
         <Shield size={13} className="text-blue-400 shrink-0 mt-0.5" />
         <p className="text-blue-300 text-xs">
-          Secrets (passwords, private keys, certificates) are never stored here. They come from
-          environment variables or mounted files controlled outside the application. This screen
-          configures only <em>how</em> to connect and <em>where</em> to find those secrets.
+          {txr("Secrets (passwords, private keys, certificates) are never stored here. They come from environment variables or mounted files controlled outside the application. This screen configures only <0>how</0> to connect and <1>where</1> to find those secrets.", [<em />, <em />])}
         </p>
       </div>
 
       <label className="flex items-center gap-2 cursor-pointer">
         <div onClick={() => setConfig(c => ({...c, enabled: !c.enabled}))}
           className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${config.enabled ? 'bg-shield-600' : 'bg-slate-700'}`}>
-          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.enabled ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'}`} />
         </div>
-        <span className="text-slate-300 text-sm">Use structured connection config (instead of DATABASE_URL)</span>
+        <span className="text-slate-300 text-sm">{tx("Use structured connection config (instead of DATABASE_URL)")}</span>
       </label>
 
       {config.enabled && (
         <>
           {/* Auth method picker */}
           <div>
-            <label className="text-slate-400 text-xs mb-1 block">Authentication method</label>
+            <label className="text-slate-400 text-xs mb-1 block">{tx("Authentication method")}</label>
             <div className="relative">
               <select value={config.auth_method} onChange={e => setConfig(c => ({...c, auth_method: e.target.value}))}
-                className={inp + ' appearance-none pr-8'}>
+                className={inp + ' appearance-none pe-8'}>
                 {Object.entries(methods).map(([key, m]) => (
                   <option key={key} value={key}>{m.label}</option>
                 ))}
               </select>
-              <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              <ChevronDown size={12} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
             {method.note && (
               <p className="text-slate-500 text-xs mt-1.5 bg-slate-900 rounded-lg px-3 py-2">{method.note}</p>
@@ -279,25 +289,25 @@ function ConnectionConfig({ readOnly = false }) {
 
           {/* Connection basics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Host"><input value={config.host || ''} onChange={e => setConfig(c => ({...c, host: e.target.value}))} placeholder="db.internal.example.org" className={inp} /></Field>
-            <Field label="Port"><input type="number" value={config.port || 5432} onChange={e => setConfig(c => ({...c, port: parseInt(e.target.value)}))} className={inp} /></Field>
-            <Field label="Database name"><input value={config.dbname || ''} onChange={e => setConfig(c => ({...c, dbname: e.target.value}))} placeholder="openoptout" className={inp} /></Field>
-            <Field label="Username"><input value={config.user || ''} onChange={e => setConfig(c => ({...c, user: e.target.value}))} placeholder="openoptout_svc" className={inp} /></Field>
+            <Field label={tx("Host")}><input value={config.host || ''} onChange={e => setConfig(c => ({...c, host: e.target.value}))} placeholder="db.internal.example.org" className={inp} /></Field>
+            <Field label={tx("Port")}><input type="number" value={config.port || 5432} onChange={e => setConfig(c => ({...c, port: parseInt(e.target.value)}))} className={inp} /></Field>
+            <Field label={tx("Database name")}><input value={config.dbname || ''} onChange={e => setConfig(c => ({...c, dbname: e.target.value}))} placeholder="openoptout" className={inp} /></Field>
+            <Field label={tx("Username")}><input value={config.user || ''} onChange={e => setConfig(c => ({...c, user: e.target.value}))} placeholder="openoptout_svc" className={inp} /></Field>
           </div>
 
           {/* SSL mode */}
-          <Field label="SSL mode" hint="verify-full is strongest; requires a CA certificate">
+          <Field label={tx("SSL mode")} hint={tx("verify-full is strongest; requires a CA certificate")}>
             <div className="relative">
               <select value={config.sslmode} onChange={e => setConfig(c => ({...c, sslmode: e.target.value}))}
-                className={inp + ' appearance-none pr-8'}>
-                <option value="disable">disable — no encryption (not recommended)</option>
-                <option value="allow">allow</option>
-                <option value="prefer">prefer</option>
-                <option value="require">require — encrypt, no cert check</option>
-                <option value="verify-ca">verify-ca — encrypt + verify CA</option>
-                <option value="verify-full">verify-full — encrypt + verify CA + hostname</option>
+                className={inp + ' appearance-none pe-8'}>
+                <option value="disable">{tx("disable — no encryption (not recommended)")}</option>
+                <option value="allow">{tx("allow")}</option>
+                <option value="prefer">{tx("prefer")}</option>
+                <option value="require">{tx("require — encrypt, no cert check")}</option>
+                <option value="verify-ca">{tx("verify-ca — encrypt + verify CA")}</option>
+                <option value="verify-full">{tx("verify-full — encrypt + verify CA + hostname")}</option>
               </select>
-              <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              <ChevronDown size={12} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
           </Field>
 
@@ -306,22 +316,22 @@ function ConnectionConfig({ readOnly = false }) {
             <div className="bg-slate-900 rounded-lg p-3 space-y-3">
               <div className="flex items-center gap-1.5">
                 <FileKey size={12} className="text-slate-400" />
-                <p className="text-slate-400 text-xs font-medium">Certificate file paths</p>
-                <span className="text-slate-600 text-xs">— mount these read-only</span>
+                <p className="text-slate-400 text-xs font-medium">{tx("Certificate file paths")}</p>
+                <span className="text-slate-600 text-xs">{tx("— mount these read-only")}</span>
               </div>
               {needsCA && (
-                <Field label="CA certificate path" hint="PEM file used to verify the server certificate">
+                <Field label={tx("CA certificate path")} hint={tx("PEM file used to verify the server certificate")}>
                   <input value={config.sslrootcert || ''} onChange={e => setConfig(c => ({...c, sslrootcert: e.target.value}))}
                     placeholder="/certs/ca.pem" className={inp} />
                 </Field>
               )}
               {needsCerts && (
                 <>
-                  <Field label="Client certificate path">
+                  <Field label={tx("Client certificate path")}>
                     <input value={config.sslcert || ''} onChange={e => setConfig(c => ({...c, sslcert: e.target.value}))}
                       placeholder="/certs/client-cert.pem" className={inp} />
                   </Field>
-                  <Field label="Client private key path" hint="Must be chmod 600, owned by the app user">
+                  <Field label={tx("Client private key path")} hint={tx("Must be chmod 600, owned by the app user")}>
                     <input value={config.sslkey || ''} onChange={e => setConfig(c => ({...c, sslkey: e.target.value}))}
                       placeholder="/certs/client-key.pem" className={inp} />
                   </Field>
@@ -332,7 +342,7 @@ function ConnectionConfig({ readOnly = false }) {
 
           {/* IAM region */}
           {needsIAM && (
-            <Field label="IAM region" hint="Cloud region for IAM token generation">
+            <Field label={tx("IAM region")} hint={tx("Cloud region for IAM token generation")}>
               <input value={config.iam_region || ''} onChange={e => setConfig(c => ({...c, iam_region: e.target.value}))}
                 placeholder="us-east-1" className={inp} />
             </Field>
@@ -342,23 +352,23 @@ function ConnectionConfig({ readOnly = false }) {
           <div className="bg-slate-900 rounded-lg p-3">
             <div className="flex items-center gap-1.5 mb-2">
               <Lock size={12} className="text-slate-400" />
-              <p className="text-slate-400 text-xs font-medium">Detected secrets</p>
-              <span className="text-slate-600 text-xs">— from env vars & mounted files</span>
+              <p className="text-slate-400 text-xs font-medium">{tx("Detected secrets")}</p>
+              <span className="text-slate-600 text-xs">{tx("— from env vars & mounted files")}</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {needsPassword && (
                 <>
-                  <SecretStatusPill ok={secretStatus.db_password_env}  label="DB_PASSWORD (env)" />
+                  <SecretStatusPill ok={secretStatus.db_password_env}  label={tx("DB_PASSWORD (env)")} />
                   <SecretStatusPill ok={secretStatus.db_password_file} label="DB_PASSWORD_FILE" />
                 </>
               )}
-              {needsCA    && <SecretStatusPill ok={secretStatus.sslrootcert_exists} label="CA cert file exists" />}
-              {needsCerts && <SecretStatusPill ok={secretStatus.sslcert_exists}     label="Client cert exists" />}
-              {needsCerts && <SecretStatusPill ok={secretStatus.sslkey_exists}      label="Client key exists" />}
+              {needsCA    && <SecretStatusPill ok={secretStatus.sslrootcert_exists} label={tx("CA cert file exists")} />}
+              {needsCerts && <SecretStatusPill ok={secretStatus.sslcert_exists}     label={tx("Client cert exists")} />}
+              {needsCerts && <SecretStatusPill ok={secretStatus.sslkey_exists}      label={tx("Client key exists")} />}
             </div>
             {needsPassword && !secretStatus.db_password_env && !secretStatus.db_password_file && (
               <p className="text-amber-400 text-xs mt-2">
-                No password secret detected. Set DB_PASSWORD or DB_PASSWORD_FILE before connecting.
+                {tx("No password secret detected. Set DB_PASSWORD or DB_PASSWORD_FILE before connecting.")}
               </p>
             )}
           </div>
@@ -368,8 +378,8 @@ function ConnectionConfig({ readOnly = false }) {
             <div className={`px-3 py-2.5 rounded-lg border text-sm ${testResult.connected ? 'border-emerald-800 bg-emerald-900/10 text-emerald-300' : 'border-red-800 bg-red-900/10 text-red-300'}`}>
               {testResult.connected ? (
                 <div>
-                  <p className="font-medium">✓ Connected to PostgreSQL {testResult.server_version}</p>
-                  {testResult.ssl_active && <p className="text-xs mt-0.5">TLS active: {testResult.ssl_version}</p>}
+                  <p className="font-medium">{tx("✓ Connected to PostgreSQL")}{" "}{testResult.server_version}</p>
+                  {testResult.ssl_active && <p className="text-xs mt-0.5">{tx("TLS active:")}{" "}{testResult.ssl_version}</p>}
                 </div>
               ) : (
                 <p>✗ {testResult.error || testResult.message}</p>
@@ -383,17 +393,17 @@ function ConnectionConfig({ readOnly = false }) {
             <button onClick={test} disabled={testing}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-40">
               {testing ? <RefreshCw size={13} className="animate-spin" /> : <Play size={13} />}
-              {testing ? 'Testing…' : 'Test connection'}
+              {testing ? tx("Testing…") : tx("Test connection")}
             </button>
             <button onClick={save} disabled={saving}
               className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 disabled:opacity-40 transition-colors">
               {saving ? <RefreshCw size={13} className="animate-spin" /> : null}
-              {saving ? 'Saving…' : 'Save config'}
+              {saving ? tx("Saving…") : tx("Save config")}
             </button>
           </div>
-          <p className="text-slate-600 text-xs text-right">Restart the container for changes to take effect.</p>
+          <p className="text-slate-600 text-xs text-end">{tx("Restart the container for changes to take effect.")}</p>
           </>}
-          {readOnly && <p className="text-slate-600 text-xs text-right">Only a super admin can test or change the connection.</p>}
+          {readOnly && <p className="text-slate-600 text-xs text-end">{tx("Only a super admin can test or change the connection.")}</p>}
         </>
       )}
     </div>
@@ -430,15 +440,15 @@ export default function DatabaseAdmin() {
     <div className="p-4 md:p-6 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-white text-xl font-semibold">Database</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Health, statistics, and migration tools</p>
+          <h1 className="text-white text-xl font-semibold">{tx("Database")}</h1>
+          <p className="text-slate-400 text-sm mt-0.5">{tx("Health, statistics, and migration tools")}</p>
         </div>
         <button onClick={load} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
-          <RefreshCw size={13} /> Refresh
+          <RefreshCw size={13} />{" "}{tx("Refresh")}
         </button>
       </div>
 
-      {loading && <p className="text-slate-500 text-sm">Loading…</p>}
+      {loading && <p className="text-slate-500 text-sm">{tx("Loading…")}</p>}
 
       {!loading && health && (
         <>
@@ -447,18 +457,18 @@ export default function DatabaseAdmin() {
             <span className={`w-2.5 h-2.5 rounded-full ${connected ? 'bg-emerald-400' : 'bg-red-400'}`} />
             <div className="flex-1">
               <p className={`text-sm font-medium ${connected ? 'text-emerald-300' : 'text-red-300'}`}>
-                {connected ? 'Connected' : 'Connection failed'} — {health.db_type === 'postgres' ? 'PostgreSQL' : 'SQLite'}
-                {health.sqlcipher && ' + SQLCipher'}
+                {connected ? tx("Connected") : tx("Connection failed")} — {health.db_type === 'postgres' ? 'PostgreSQL' : 'SQLite'}
+                {health.sqlcipher && tx("+ SQLCipher")}
               </p>
               <p className="text-slate-500 text-xs">
-                {health.ping_ms != null && `Ping: ${health.ping_ms}ms`}
-                {health.file_size_mb != null && ` · File: ${health.file_size_mb}MB`}
-                {health.pg_size && ` · Size: ${health.pg_size}`}
+                {health.ping_ms != null && tx("Ping: {ping_ms}ms", { ping_ms: health.ping_ms })}
+                {health.file_size_mb != null && tx("· File: {file_size_mb}MB", { file_size_mb: health.file_size_mb })}
+                {health.pg_size && tx("· Size: {pg_size}", { pg_size: health.pg_size })}
               </p>
             </div>
             <div className="flex gap-2 text-xs">
               <span className={`px-2 py-0.5 rounded-sm border ${health.field_encryption ? 'text-emerald-400 border-emerald-800 bg-emerald-900/20' : 'text-slate-500 border-slate-700'}`}>
-                {health.field_encryption ? '🔒 field enc' : 'field enc off'}
+                {health.field_encryption ? tx("🔒 field enc") : tx("field enc off")}
               </span>
             </div>
           </div>
@@ -472,16 +482,16 @@ export default function DatabaseAdmin() {
 
           {/* KPI cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-            <StatCard label="Users"       value={health.table_counts?.users?.toLocaleString()}              icon={Database} />
-            <StatCard label="Members"     value={health.table_counts?.family_members?.toLocaleString()}     icon={Database} />
-            <StatCard label="Opt-outs"    value={health.table_counts?.removal_requests?.toLocaleString()}   icon={Database} color="text-shield-400" />
-            <StatCard label="Brokers"     value={health.table_counts?.brokers?.toLocaleString()}            icon={Database} color="text-amber-400" />
+            <StatCard label={tx("Users")}       value={fmtNumber(health.table_counts?.users)}              icon={Database} />
+            <StatCard label={tx("Members")}     value={fmtNumber(health.table_counts?.family_members)}     icon={Database} />
+            <StatCard label={tx("Opt-outs")}    value={fmtNumber(health.table_counts?.removal_requests)}   icon={Database} color="text-shield-400" />
+            <StatCard label={tx("Brokers")}     value={fmtNumber(health.table_counts?.brokers)}            icon={Database} color="text-amber-400" />
           </div>
 
           {/* Connection pool (Postgres only) */}
           {isPG && Object.keys(health.pool || {}).length > 0 && (
             <div className="bg-slate-800 rounded-xl border border-slate-700/50 p-4 mb-5">
-              <p className="text-slate-400 text-xs uppercase tracking-wide mb-3">Connection pool</p>
+              <p className="text-slate-400 text-xs uppercase tracking-wide mb-3">{tx("Connection pool")}</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                 {Object.entries(health.pool).map(([k, v]) => (
                   <div key={k} className="bg-slate-900 rounded-lg px-3 py-2">
@@ -496,9 +506,9 @@ export default function DatabaseAdmin() {
           {/* Tabs */}
           <div className="flex gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700/50 mb-4 w-fit">
             {[
-              { key: 'tables',     label: 'Tables' },
-              { key: 'connection', label: 'Connection' },
-              ...(isSQLite && isSuper ? [{ key: 'migrate', label: 'Migrate to Postgres' }] : []),
+              { key: 'tables',     label: tx("Tables") },
+              { key: 'connection', label: tx("Connection") },
+              ...(isSQLite && isSuper ? [{ key: 'migrate', label: tx("Migrate to Postgres") }] : []),
             ].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)}
                 className={`px-3 py-1.5 text-sm rounded-sm transition-colors ${tab === t.key ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
@@ -513,9 +523,9 @@ export default function DatabaseAdmin() {
                 <table className="w-full text-sm">
                 <thead>
                   <tr className="text-slate-500 text-xs border-b border-slate-700/50">
-                    <th className="text-left px-4 py-3 font-normal">Table</th>
-                    <th className="text-right px-4 py-3 font-normal">Rows</th>
-                    <th className="text-right px-4 py-3 font-normal">Size</th>
+                    <th className="text-start px-4 py-3 font-normal">{tx("Table")}</th>
+                    <th className="text-end px-4 py-3 font-normal">{tx("Rows")}</th>
+                    <th className="text-end px-4 py-3 font-normal">{tx("Size")}</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -23,6 +23,27 @@ def load_settings() -> dict:
         return json.load(f)
 
 
+def save_settings(data: dict) -> None:
+    """Atomically write settings JSON to disk using a temporary file."""
+    import tempfile
+    dir_name = os.path.dirname(os.path.abspath(SETTINGS_FILE))
+    os.makedirs(dir_name, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=dir_name, prefix="settings_", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, SETTINGS_FILE)
+    except Exception:
+        if os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+        raise
+
+
 def get_secret_key() -> str:
     key = os.getenv("SECRET_KEY")
     if not key:

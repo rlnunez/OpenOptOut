@@ -1,0 +1,4 @@
+{
+ "description": "Apollo.io 的引导式退出，该网站按电子邮件地址列出个人信息。一次退出即可涵盖所有已保存的地址。",
+ "instructions": "Apollo 按工作邮箱收录个人信息。打开 https://www.apollo.io/privacy-policy/remove，逐个输入以下每个地址，完成机器人验证，然后打开 Apollo 发送到该地址的链接：{all_emails}。然后点击“我已完成”。"
+}

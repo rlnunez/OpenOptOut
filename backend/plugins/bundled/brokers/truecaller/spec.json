@@ -1,0 +1,18 @@
+{
+  "broker_id": "truecaller",
+  "name": "Truecaller",
+  "spec_version": "1.0",
+  "method": "manual",
+  "opt_out_url": "https://www.truecaller.com/unlisting",
+  "lookup_by": "phone",
+  "instructions": "Truecaller shows your name to people you call. Open https://www.truecaller.com/unlisting and unlist each of these numbers, one at a time, with the country code: {all_phones}. Finish the robot check for each. If you use the Truecaller app yourself, deactivate your account in the app first, then uninstall it, or the unlisting won't stick. Then press \"I've done this\".",
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "Unlisting is per number and usually takes about 24 hours. A number can come back if someone with Truecaller uploads their contacts again, so it's rechecked like any other listing.",
+  "source": "Truecaller's unlisting page; steps per meprism's 2026 Truecaller opt-out guide.",
+  "last_verified": ""
+}

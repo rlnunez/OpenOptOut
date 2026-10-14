@@ -1,0 +1,4 @@
+{
+ "description": "Exclusão guiada no TruePeopleSearch. Uma pessoa segue os passos da lista; o OpenOptOut fornece um endereço de e-mail de uso único e clica em qualquer link de confirmação.",
+ "instructions": "Abra truepeoplesearch.com/removal. Digite {full_name}, sua cidade e estado ({city}, {state}) e {contact_email} como endereço de e-mail, e resolva os CAPTCHAs. Se seu registro aparecer, toque no botão para removê-lo. O OpenOptOut clica em qualquer link de confirmação enviado para esse endereço. Depois toque em \"Já fiz isso\"."
+}

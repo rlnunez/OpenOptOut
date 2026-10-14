@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei Hunter, das Personen nach E-Mail-Adresse auflistet. Ein Widerspruch gilt für alle gespeicherten Adressen.",
+ "instructions": "Hunter zeigt berufliche E-Mail-Adressen von Personen. Öffne https://hunter.io/ und klick unten auf „Do Not Sell My Info“. Beanspruche jede dieser Adressen, öffne den Link, den Hunter dorthin schickt, und drück „Delete my information“: {all_emails}. Drück dann „Ich habe das erledigt“."
+}

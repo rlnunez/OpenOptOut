@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer Social Catfish. A sailor follows the steps on the checklist; OpenOptOut hands over a one-time email address an' clicks any confirmation link.",
+ "instructions": "Search socialcatfish.com an' note the address of every page that shows ye. Open socialcatfish.com/opt-out, scroll to the section fer removing pages, emails, phone numbers an' addresses, an' ask only fer things it already shows. Give {contact_email} as yer email; Social Catfish emails a confirmation link that OpenOptOut clicks fer ye. Then smash \"I've done this\"."
+}

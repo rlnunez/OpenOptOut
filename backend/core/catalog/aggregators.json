@@ -1,0 +1,16 @@
+{
+  "_about": "Companies that collect and resell personal data in bulk to other brokers and people-search sites. Opting out of them first cuts off data that would otherwise be re-scraped into downstream listings. Facts only, in our own words; sources per entry. 'weight' is how much an opt-out here is worth relative to an ordinary people-search site.",
+  "aggregators": [
+    {"name": "Acxiom", "domains": ["acxiom.com"], "weight": 8, "role": "Marketing data wholesaler (consumer profiles sold to marketers and other brokers)", "source": "BADBOOL Acxiom entry; Acxiom privacy notice"},
+    {"name": "LexisNexis", "domains": ["lexisnexis.com", "lexisnexisrisk.com"], "weight": 8, "role": "Public-records and identity data supplier to background-check and risk companies", "source": "BADBOOL LexisNexis entry"},
+    {"name": "Epsilon", "domains": ["epsilon.com"], "weight": 6, "role": "Marketing data and audience broker", "source": "Epsilon consumer privacy page"},
+    {"name": "Oracle Advertising", "domains": ["oracle.com"], "weight": 4, "role": "Former audience data marketplace (Oracle exited ad data in 2024; keep for older records)", "source": "Oracle announcement, 2024"},
+    {"name": "Experian Marketing", "domains": ["experian.com"], "weight": 6, "role": "Marketing lists and consumer data (separate from credit reports)", "source": "Experian consumer opt-out page"},
+    {"name": "Equifax Marketing", "domains": ["equifax.com"], "weight": 5, "role": "Marketing and identity data (separate from credit reports)", "source": "Equifax privacy page"},
+    {"name": "TransUnion", "domains": ["transunion.com", "tlo.com"], "weight": 6, "role": "Identity and public-records data, including TLO background data", "source": "TransUnion privacy center"},
+    {"name": "Data Axle", "domains": ["data-axle.com", "dataaxleusa.com", "infogroup.com"], "weight": 6, "role": "Business and consumer list compiler (formerly Infogroup)", "source": "Data Axle privacy page"},
+    {"name": "LiveRamp", "domains": ["liveramp.com"], "weight": 5, "role": "Identity graph that links records across data providers", "source": "LiveRamp privacy page"},
+    {"name": "CoreLogic", "domains": ["corelogic.com"], "weight": 4, "role": "Property and deed records supplier to property and people-search sites", "source": "CoreLogic privacy page"},
+    {"name": "PeopleConnect (Intelius)", "domains": ["peopleconnect.us", "intelius.com"], "weight": 6, "role": "Runs and supplies a large family of people-search sites (see the parent-company catalog)", "source": "BADBOOL Intelius entry"}
+  ]
+}

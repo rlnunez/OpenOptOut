@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei FamilyTreeNow. Eine Person folgt den Schritten der Checkliste; OpenOptOut stellt eine Einmal-E-Mail-Adresse bereit und klickt Bestätigungslinks an.",
+ "instructions": "Such auf familytreenow.com nach {full_name}. Wenn du dort stehst, öffne familytreenow.com/optout und folg den Schritten zum Löschen deines Eintrags; nimm {contact_email}, falls nach einer E-Mail-Adresse gefragt wird. Drück dann „Ich habe das erledigt“."
+}

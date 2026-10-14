@@ -1,0 +1,4 @@
+{
+ "description": "Opt-out dengan panduan untuk ReversePhoneLookup.com, yang mencantumkan orang berdasarkan nomor telepon. Satu opt-out mencakup setiap nomor telepon yang disimpan.",
+ "instructions": "Buka https://www.reversephonelookup.com/ and click \"Do Not Sell or Share My Personal Information\" at the bottom. Enter {contact_email} and one of these numbers (digits only if it complains): {all_phones}. Finish the robot check and submit; we'll click the confirmation link it emails. Repeat for each number, then press \"I've done this\"."
+}

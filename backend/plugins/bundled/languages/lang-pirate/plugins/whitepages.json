@@ -1,0 +1,4 @@
+{
+ "description": "Guided opt-out fer Whitepages. A sailor follows the steps on the checklist; OpenOptOut hands over a one-time email address an' clicks any confirmation link.",
+ "instructions": "Whitepages confirms by phone, so ye need to do this one. Open whitepages.com/suppression-requests, paste {listing_url}, smash Next, then \"Remove Me\". Pick a reason, smash Next, an' enter the phone number Whitepages shows fer ye. Answer the automated call an' enter the code it gives ye. When the page says yer request was received, smash \"I've done this\"."
+}

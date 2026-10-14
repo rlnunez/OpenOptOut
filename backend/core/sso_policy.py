@@ -28,6 +28,8 @@ Rules, in order:
        provider has auto_provision enabled (on by default for institution
        directories — LDAP, SIP2, SAML — off by default for OIDC);
      - registration mode "domain" applies its domain list;
+     - with the residents-only address check on, new accounts start on the
+       sign-up page, not a sign-in button (unless auto_provision);
      - the role comes from the provider's default_role, but SUPER ADMIN IS
        NEVER AUTO-GRANTED — it's capped to "parent" and an admin can promote
        the account manually.
@@ -144,6 +146,13 @@ def evaluate_sso_login(result, provider_cfg: dict, registration_cfg: dict,
     if closed and not auto_provision_enabled(provider, cfg):
         return _deny("New accounts aren't open for self-registration. Ask an "
                      "administrator to invite you or enable sign-up for this provider.")
+
+    # Residents-only sign-up: the address is checked on the sign-up page, so a
+    # new account can't start from a sign-in button. Linking afterwards works
+    # (rule 6). Directories the admin set to create accounts are exempt.
+    if reg.get("address_check") and not auto_provision_enabled(provider, cfg):
+        return _deny("To join, create an account on the sign-up page first. It asks for your "
+                     "home address. After that you can use this sign-in button too.")
 
     if mode == "domain":
         gdomains = _list(reg.get("allowed_domains"))

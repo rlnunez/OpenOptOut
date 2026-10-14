@@ -1,0 +1,97 @@
+{
+  "broker_id": "mylife",
+  "name": "MyLife",
+  "spec_version": "1.0",
+  "method": "form",
+  "opt_out_url": "https://www.mylife.com/privacyrequest",
+  "steps": [
+    {
+      "kind": "navigate",
+      "url": "https://www.mylife.com/privacyrequest",
+      "timeout_ms": 30000
+    },
+    {
+      "kind": "frame",
+      "selector": "iframe[src*='jotform.com']"
+    },
+    {
+      "kind": "wait_for",
+      "selector": "input[id='first_6']",
+      "timeout_ms": 30000
+    },
+    {
+      "kind": "fill",
+      "selector": "input[id='first_6']",
+      "field": "first_name"
+    },
+    {
+      "kind": "fill",
+      "selector": "input[id='last_6']",
+      "field": "last_name"
+    },
+    {
+      "kind": "fill",
+      "selector": "input[id='input_7']",
+      "field": "contact_email"
+    },
+    {
+      "kind": "fill",
+      "selector": "input[id='input_15']",
+      "field": "birth_year",
+      "optional": true
+    },
+    {
+      "kind": "fill",
+      "selector": "input[id='input_11_addr_line1']",
+      "field": "street"
+    },
+    {
+      "kind": "fill",
+      "selector": "input[id='input_11_city']",
+      "field": "city"
+    },
+    {
+      "kind": "fill",
+      "selector": "input[id='input_11_state']",
+      "field": "state"
+    },
+    {
+      "kind": "fill",
+      "selector": "input[id='input_11_postal']",
+      "field": "zip"
+    },
+    {
+      "kind": "select",
+      "selector": "select[id='input_21']",
+      "field": "state_name",
+      "optional": true
+    },
+    {
+      "kind": "solve_captcha",
+      "selector": "iframe[src*='recaptcha']"
+    },
+    {
+      "kind": "click",
+      "selector": "button[type='submit']"
+    },
+    {
+      "kind": "expect_success",
+      "selector": ".form-all .thankyou, .form-thank-you, .thank-you-message",
+      "optional": true,
+      "timeout_ms": 15000
+    },
+    {
+      "kind": "frame",
+      "selector": "main"
+    }
+  ],
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "source": "Flow and selectors from Blake104/OptOut (AGPL-3.0) mylife.yml, verified upstream 2026-05-10 (the form is a JotForm embed at mylife.jotform.com). Email fallback per BADBOOL: privacy@mylife.com with your name and a link to your profile.",
+  "notes": "MyLife's /privacy-portal/ form is broken and /optout/ is gone; /privacyrequest is the working one. Birth year comes from the member's age, so it can be a year off; the field is optional. MyLife may push people toward an account and an ID upload: never needed for this form. Profiles often reappear after 60 to 90 days, so re-run.",
+  "last_verified": ""
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Покрокова відмова для USPhoneBook. Користувач виконує кроки з контрольного списку; OpenOptOut надає одноразову адресу ел. пошти та переходить за посиланням підтвердження.",
+ "instructions": "Look up your phone number on usphonebook.com. If you're listed, open usphonebook.com/opt-out and follow the steps, using {contact_email} where it asks for an email. If the opt-out page just hangs, email support+optout@usphonebook.com and ask to be removed. Потім натисніть «Я це зробив(-ла)»."
+}

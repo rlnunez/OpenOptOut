@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa Truecaller, na naglilista ng mga tao ayon sa numero ng telepono. Saklaw ng isang opt-out ang lahat ng naka-save na numero.",
+ "instructions": "Ipinapakita ng Truecaller ang pangalan mo sa mga tinatawagan mo. Buksan ang https://www.truecaller.com/unlisting at i-unlist ang bawat isa sa mga numerong ito, isa-isa, kasama ang country code: {all_phones}. Tapusin ang robot check para sa bawat isa. Kung ginagamit mo mismo ang Truecaller app, i-deactivate muna ang account mo sa app, tapos i-uninstall ito, kung hindi ay hindi mananatili ang pag-unlist. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

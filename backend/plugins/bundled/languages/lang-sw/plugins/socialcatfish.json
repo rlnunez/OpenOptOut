@@ -1,0 +1,4 @@
+{
+ "description": "Kujiondoa kwa kuelekezwa kwa Social Catfish. Mtu hufuata hatua kwenye orodha ya ukaguzi; OpenOptOut hutoa anwani ya barua pepe ya mara moja na kubofya kiungo cha uthibitisho.",
+ "instructions": "Search socialcatfish.com and note the address of every page that shows you. Fungua socialcatfish.com/opt-out, scroll to the section for removing pages, emails, phone numbers and addresses, and ask only for things it already shows. Give {contact_email} as your email; Social Catfish emails a confirmation link that OpenOptOut clicks for you. Kisha bonyeza \"Nimefanya hili\"."
+}

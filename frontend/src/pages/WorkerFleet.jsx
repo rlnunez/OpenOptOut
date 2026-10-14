@@ -5,14 +5,15 @@ import {
   Search, Trash2, ArrowUpRight, Gauge
 } from 'lucide-react'
 import api from '../api'
+import { tx } from '../i18n/tx'
 
 function fmtUptime(seconds) {
-  if (!seconds || seconds <= 0) return '< 1m'
+  if (!seconds || seconds <= 0) return tx("< 1m")
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
   const s = Math.floor(seconds % 60)
-  if (h > 0) return `${h}h ${m}m`
-  if (m > 0) return `${m}m ${s}s`
+  if (h > 0) return tx("{h}h {m}m", { h, m })
+  if (m > 0) return tx("{m}m {s}s", { m, s })
   return `${s}s`
 }
 
@@ -66,13 +67,13 @@ export default function WorkerFleet() {
       await api.post(`/workers/${workerId}/drain`, { drain: !isCurrentlyDraining })
       setBanner({
         type: 'success',
-        msg: `Worker '${workerId}' drain instruction set to ${!isCurrentlyDraining}.`,
+        msg: tx("Worker '{workerId}' drain instruction set to {v}.", { workerId, v: !isCurrentlyDraining }),
       })
       await loadData(false)
     } catch (err) {
       setBanner({
         type: 'error',
-        msg: `Failed to update drain signal for ${workerId}: ${err?.response?.data?.detail || err.message}`,
+        msg: `Couldn't change ${workerId}: ${err?.response?.data?.detail || tx("please try again.")}`,
       })
     } finally {
       setActionBusy(null)
@@ -86,13 +87,13 @@ export default function WorkerFleet() {
       await api.delete(`/workers/${workerId}`)
       setBanner({
         type: 'success',
-        msg: `Worker '${workerId}' successfully removed from fleet registry.`,
+        msg: tx("Worker '{workerId}' successfully removed from fleet registry.", { workerId }),
       })
       await loadData(false)
     } catch (err) {
       setBanner({
         type: 'error',
-        msg: `Failed to deregister worker: ${err?.response?.data?.detail || err.message}`,
+        msg: `Couldn't remove the worker: ${err?.response?.data?.detail || tx("please try again.")}`,
       })
     } finally {
       setActionBusy(null)
@@ -106,13 +107,13 @@ export default function WorkerFleet() {
       const rep = res.data?.report || {}
       setBanner({
         type: 'success',
-        msg: `Lease sweep complete: ${rep.inspected || 0} inspected, ${rep.reclaimed_retried || 0} retried, ${rep.reclaimed_dead_lettered || 0} dead-lettered.`,
+        msg: tx("Lease sweep complete: {v} inspected, {v2} retried, {v3} dead-lettered.", { v: rep.inspected || 0, v2: rep.reclaimed_retried || 0, v3: rep.reclaimed_dead_lettered || 0 }),
       })
       await loadData(false)
     } catch (err) {
       setBanner({
         type: 'error',
-        msg: `Lease reclamation failed: ${err?.response?.data?.detail || err.message}`,
+        msg: `Couldn't take back its jobs: ${err?.response?.data?.detail || tx("please try again.")}`,
       })
     } finally {
       setActionBusy(null)
@@ -142,10 +143,10 @@ export default function WorkerFleet() {
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2.5">
             <Server className="text-shield-400" size={24} />
-            Worker Fleet & Telemetry
+            {tx("Worker Fleet & Telemetry")}
           </h1>
           <p className="text-slate-400 text-sm mt-1">
-            Real-time control plane visibility into distributed browser worker nodes, capacity utilization, and queue depths.
+            {tx("Real-time control plane visibility into distributed browser worker nodes, capacity utilization, and queue depths.")}
           </p>
         </div>
 
@@ -157,7 +158,7 @@ export default function WorkerFleet() {
               onChange={(e) => setAutoRefresh(e.target.checked)}
               className="rounded-sm bg-slate-800 border-slate-700 text-shield-500 focus:ring-0"
             />
-            Auto-refresh (5s)
+            {tx("Auto-refresh (5s)")}
           </label>
 
           <button
@@ -166,17 +167,17 @@ export default function WorkerFleet() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors"
           >
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-            Refresh
+            {tx("Refresh")}
           </button>
 
           <button
             onClick={handleReclaimLeases}
             disabled={actionBusy === 'reclaim'}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-300 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/60 rounded-lg transition-colors"
-            title="Scan and reclaim orphaned leases from unresponsive or crashed workers"
+            title={tx("Scan and reclaim orphaned leases from unresponsive or crashed workers")}
           >
             <Layers size={13} />
-            {actionBusy === 'reclaim' ? 'Sweeping...' : 'Reclaim Stalled Leases'}
+            {actionBusy === 'reclaim' ? tx("Sweeping...") : tx("Reclaim Stalled Leases")}
           </button>
         </div>
       </div>
@@ -193,9 +194,9 @@ export default function WorkerFleet() {
           <span>{banner.msg}</span>
           <button
             onClick={() => setBanner(null)}
-            className="text-xs opacity-70 hover:opacity-100 ml-4 underline"
+            className="text-xs opacity-70 hover:opacity-100 ms-4 underline"
           >
-            Dismiss
+            {tx("Dismiss")}
           </button>
         </div>
       )}
@@ -205,7 +206,7 @@ export default function WorkerFleet() {
         {/* Active Nodes */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs uppercase tracking-wider font-semibold">Active Nodes</span>
+            <span className="text-xs uppercase tracking-wider font-semibold">{tx("Active Nodes")}</span>
             <Server size={18} className="text-sky-400" />
           </div>
           <div className="mt-3 flex items-baseline gap-2">
@@ -213,19 +214,19 @@ export default function WorkerFleet() {
               {stats?.online_nodes ?? 0}
             </span>
             <span className="text-xs text-slate-400">
-              / {stats?.total_nodes ?? 0} registered
+              {tx("/ {v} registered", { v: stats?.total_nodes ?? 0 })}
             </span>
           </div>
           <div className="mt-2 text-xs flex items-center gap-1.5 text-emerald-400">
             <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            {stats?.online_nodes ? `${stats.online_nodes} online & operational` : 'No active workers'}
+            {stats?.online_nodes ? tx("{online_nodes} online & operational", { online_nodes: stats.online_nodes }) : tx("No active workers")}
           </div>
         </div>
 
         {/* Slot Capacity & Utilization */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs uppercase tracking-wider font-semibold">Slot Utilization</span>
+            <span className="text-xs uppercase tracking-wider font-semibold">{tx("Slot Utilization")}</span>
             <Gauge size={18} className="text-indigo-400" />
           </div>
           <div className="mt-3 flex items-baseline gap-2">
@@ -233,7 +234,7 @@ export default function WorkerFleet() {
               {stats?.active_slots ?? 0}
             </span>
             <span className="text-xs text-slate-400">
-              / {stats?.total_slots ?? 0} concurrent slots
+              {tx("/ {v} concurrent slots", { v: stats?.total_slots ?? 0 })}
             </span>
           </div>
           <div className="mt-2">
@@ -244,7 +245,7 @@ export default function WorkerFleet() {
               />
             </div>
             <span className="text-[11px] text-slate-400 mt-1 block">
-              {stats?.utilization_pct ?? 0}% fleet load ({stats?.idle_slots ?? 0} slots idle)
+              {tx("{v}% fleet load ({v2} slots idle)", { v: stats?.utilization_pct ?? 0, v2: stats?.idle_slots ?? 0 })}
             </span>
           </div>
         </div>
@@ -252,41 +253,41 @@ export default function WorkerFleet() {
         {/* Fleet Task Throughput */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs uppercase tracking-wider font-semibold">Total Processed</span>
+            <span className="text-xs uppercase tracking-wider font-semibold">{tx("Total Processed")}</span>
             <Activity size={18} className="text-emerald-400" />
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-white">
               {stats?.total_jobs_completed ?? 0}
             </span>
-            <span className="text-xs text-emerald-400 font-medium">completed</span>
+            <span className="text-xs text-emerald-400 font-medium">{tx("completed")}</span>
           </div>
           <div className="mt-2 text-xs text-slate-400 flex items-center justify-between">
-            <span>Failures: {stats?.total_jobs_failed ?? 0}</span>
-            <span className="text-slate-500">Uptime aggregated</span>
+            <span>{tx("Failures:")}{" "}{stats?.total_jobs_failed ?? 0}</span>
+            <span className="text-slate-500">{tx("Uptime aggregated")}</span>
           </div>
         </div>
 
-        {/* Queue Backlog */}
+        {/* Jobs waiting */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs uppercase tracking-wider font-semibold">Queue Backlog</span>
+            <span className="text-xs uppercase tracking-wider font-semibold">{tx("Queue Backlog")}</span>
             <Layers size={18} className="text-amber-400" />
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl font-bold text-white">
               {totalQueueDepth}
             </span>
-            <span className="text-xs text-slate-400">pending tasks</span>
+            <span className="text-xs text-slate-400">{tx("pending tasks")}</span>
           </div>
           <div className="mt-2 text-xs flex items-center justify-between">
-            <span className="text-cyan-400">{inFlightCount} in-flight</span>
+            <span className="text-cyan-400">{inFlightCount}{" "}{tx("in-flight")}</span>
             {dlqCount > 0 ? (
               <span className="text-red-400 font-semibold flex items-center gap-1">
-                <AlertTriangle size={12} /> {dlqCount} in DLQ
+                <AlertTriangle size={12} />{" "}{tx("{dlqCount} in DLQ", { dlqCount })}
               </span>
             ) : (
-              <span className="text-slate-500">DLQ empty</span>
+              <span className="text-slate-500">{tx("DLQ empty")}</span>
             )}
           </div>
         </div>
@@ -296,65 +297,65 @@ export default function WorkerFleet() {
       <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4">
         <h2 className="text-sm font-semibold text-slate-200 mb-3 flex items-center gap-2">
           <Layers size={16} className="text-slate-400" />
-          Distributed Queue Channels
+          {tx("Distributed Queue Channels")}
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-lg p-3">
-            <span className="text-[11px] text-red-400 uppercase font-semibold block">Critical</span>
+            <span className="text-[11px] text-red-400 uppercase font-semibold block">{tx("Critical")}</span>
             <span className="text-lg font-bold text-white mt-1 block">
               {queueDepths.removal_critical || 0}
             </span>
-            <span className="text-[10px] text-slate-500">Priority removal</span>
+            <span className="text-[10px] text-slate-500">{tx("Priority removal")}</span>
           </div>
 
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-lg p-3">
-            <span className="text-[11px] text-amber-400 uppercase font-semibold block">High</span>
+            <span className="text-[11px] text-amber-400 uppercase font-semibold block">{tx("High")}</span>
             <span className="text-lg font-bold text-white mt-1 block">
               {queueDepths.removal_high || 0}
             </span>
-            <span className="text-[10px] text-slate-500">Removal</span>
+            <span className="text-[10px] text-slate-500">{tx("Removal")}</span>
           </div>
 
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-lg p-3">
-            <span className="text-[11px] text-sky-400 uppercase font-semibold block">Normal</span>
+            <span className="text-[11px] text-sky-400 uppercase font-semibold block">{tx("Normal")}</span>
             <span className="text-lg font-bold text-white mt-1 block">
               {queueDepths.removal_normal || 0}
             </span>
-            <span className="text-[10px] text-slate-500">Standard batch</span>
+            <span className="text-[10px] text-slate-500">{tx("Standard batch")}</span>
           </div>
 
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-lg p-3">
-            <span className="text-[11px] text-purple-400 uppercase font-semibold block">Discovery</span>
+            <span className="text-[11px] text-purple-400 uppercase font-semibold block">{tx("Discovery")}</span>
             <span className="text-lg font-bold text-white mt-1 block">
               {queueDepths.discovery || 0}
             </span>
-            <span className="text-[10px] text-slate-500">Query crawler</span>
+            <span className="text-[10px] text-slate-500">{tx("Query crawler")}</span>
           </div>
 
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-lg p-3">
-            <span className="text-[11px] text-yellow-400 uppercase font-semibold block">Retry</span>
+            <span className="text-[11px] text-yellow-400 uppercase font-semibold block">{tx("Retry")}</span>
             <span className="text-lg font-bold text-white mt-1 block">
               {queueDepths.retry || 0}
             </span>
-            <span className="text-[10px] text-slate-500">Transient retry</span>
+            <span className="text-[10px] text-slate-500">{tx("Transient retry")}</span>
           </div>
 
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-lg p-3">
-            <span className="text-[11px] text-emerald-400 uppercase font-semibold block">Results</span>
+            <span className="text-[11px] text-emerald-400 uppercase font-semibold block">{tx("Results")}</span>
             <span className="text-lg font-bold text-white mt-1 block">
               {stats?.results_depth || 0}
             </span>
-            <span className="text-[10px] text-slate-500">Pending ingestion</span>
+            <span className="text-[10px] text-slate-500">{tx("Pending ingestion")}</span>
           </div>
 
           <div className={`rounded-lg p-3 border ${dlqCount > 0 ? 'bg-red-950/30 border-red-800/60' : 'bg-slate-950/60 border-slate-800/80'}`}>
             <span className={`text-[11px] uppercase font-semibold block ${dlqCount > 0 ? 'text-red-400' : 'text-slate-400'}`}>
-              Dead Letter
+              {tx("Dead Letter")}
             </span>
             <span className={`text-lg font-bold mt-1 block ${dlqCount > 0 ? 'text-red-300' : 'text-white'}`}>
               {dlqCount}
             </span>
-            <span className="text-[10px] text-slate-500">Exhausted/Tampered</span>
+            <span className="text-[10px] text-slate-500">{tx("Exhausted/Tampered")}</span>
           </div>
         </div>
       </div>
@@ -380,36 +381,36 @@ export default function WorkerFleet() {
           </div>
 
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <input
               type="text"
-              placeholder="Search worker ID or host..."
+              placeholder={tx("Search worker ID or host...")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg pl-8 pr-3 py-1.5 w-full sm:w-60 focus:outline-hidden focus:border-shield-500"
+              className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg ps-8 pe-3 py-1.5 w-full sm:w-60 focus:outline-hidden focus:border-shield-500"
             />
           </div>
         </div>
 
         {/* Table Content */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-start text-xs">
             <thead className="bg-slate-950/60 text-slate-400 font-semibold border-b border-slate-800">
               <tr>
-                <th className="py-3 px-4">Worker Node</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4">Active Slots</th>
-                <th className="py-3 px-4">Throughput</th>
-                <th className="py-3 px-4">Host Telemetry</th>
-                <th className="py-3 px-4">Uptime & Heartbeat</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3 px-4">{tx("Worker Node")}</th>
+                <th className="py-3 px-4">{tx("Status")}</th>
+                <th className="py-3 px-4">{tx("Active Slots")}</th>
+                <th className="py-3 px-4">{tx("Throughput")}</th>
+                <th className="py-3 px-4">{tx("Host Telemetry")}</th>
+                <th className="py-3 px-4">{tx("Uptime & Heartbeat")}</th>
+                <th className="py-3 px-4 text-end">{tx("Actions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {filteredWorkers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-slate-500">
-                    No worker nodes matching current filter or search criteria.
+                    {tx("No worker nodes matching current filter or search criteria.")}
                   </td>
                 </tr>
               ) : (
@@ -449,25 +450,25 @@ export default function WorkerFleet() {
                         {w.status === 'online' && (
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            Online
+                            {tx("Online")}
                           </span>
                         )}
                         {w.status === 'busy' && (
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-950/60 text-indigo-400 border border-indigo-800/60">
                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                            Busy (At Max)
+                            {tx("Busy (At Max)")}
                           </span>
                         )}
                         {w.status === 'draining' && (
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-950/60 text-amber-400 border border-amber-800/60">
                             <PowerOff size={11} />
-                            Draining
+                            {tx("Draining")}
                           </span>
                         )}
                         {w.status === 'offline' && (
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
                             <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                            Offline
+                            {tx("Offline")}
                           </span>
                         )}
                       </td>
@@ -491,23 +492,23 @@ export default function WorkerFleet() {
 
                       {/* Throughput */}
                       <td className="py-3 px-4">
-                        <span className="text-emerald-400 font-medium">{w.jobs_completed || 0} ok</span>
+                        <span className="text-emerald-400 font-medium">{w.jobs_completed || 0}{" "}{tx("ok")}</span>
                         {w.jobs_failed > 0 && (
-                          <span className="text-red-400 ml-2">{w.jobs_failed} failed</span>
+                          <span className="text-red-400 ms-2">{w.jobs_failed}{" "}{tx("failed")}</span>
                         )}
                       </td>
 
                       {/* Host Telemetry */}
                       <td className="py-3 px-4 text-slate-400">
-                        <div>{telemetry.platform || 'Linux'} {telemetry.cpu_count ? `(${telemetry.cpu_count} vCPU)` : ''}</div>
+                        <div>{telemetry.platform || 'Linux'} {telemetry.cpu_count ? tx("({cpu_count} vCPU)", { cpu_count: telemetry.cpu_count }) : ''}</div>
                         {telemetry.load_avg_1m !== undefined && (
                           <div className="text-[10px] text-slate-500 mt-0.5">
-                            Load: {telemetry.load_avg_1m} / {telemetry.load_avg_5m}
+                            {tx("Load: {load_avg_1m} / {load_avg_5m}", { load_avg_1m: telemetry.load_avg_1m, load_avg_5m: telemetry.load_avg_5m })}
                           </div>
                         )}
                         {telemetry.mem_total_mb && (
                           <div className="text-[10px] text-slate-500">
-                            RAM: {telemetry.mem_used_pct}% of {Math.round(telemetry.mem_total_mb / 1024)}GB
+                            {tx("RAM: {mem_used_pct}% of {n}GB", { mem_used_pct: telemetry.mem_used_pct, n: Math.round(telemetry.mem_total_mb / 1024) })}
                           </div>
                         )}
                       </td>
@@ -519,12 +520,12 @@ export default function WorkerFleet() {
                           <span>{fmtUptime(w.uptime_seconds)}</span>
                         </div>
                         <div className="text-[10px] text-slate-500 mt-0.5">
-                          Ping: {w.heartbeat_age_seconds !== undefined ? `${w.heartbeat_age_seconds}s ago` : 'just now'}
+                          {tx("Ping:")}{" "}{w.heartbeat_age_seconds !== undefined ? tx("{heartbeat_age_seconds}s ago", { heartbeat_age_seconds: w.heartbeat_age_seconds }) : tx("just now")}
                         </div>
                       </td>
 
                       {/* Actions */}
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-4 text-end">
                         <div className="flex items-center justify-end gap-2">
                           {!isOffline && (
                             <button
@@ -535,10 +536,10 @@ export default function WorkerFleet() {
                                   ? 'bg-amber-900/40 text-amber-300 hover:bg-amber-900/60'
                                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                               }`}
-                              title={isDraining ? 'Cancel drain signal' : 'Signal worker to drain and exit'}
+                              title={isDraining ? tx("Cancel drain signal") : tx("Signal worker to drain and exit")}
                             >
                               <Power size={13} />
-                              <span className="hidden sm:inline">{isDraining ? 'Resume' : 'Drain'}</span>
+                              <span className="hidden sm:inline">{isDraining ? tx("Resume") : tx("Drain")}</span>
                             </button>
                           )}
 
@@ -547,10 +548,10 @@ export default function WorkerFleet() {
                               onClick={() => handleDeregister(w.worker_id)}
                               disabled={isBusy}
                               className="p-1.5 rounded-sm bg-red-950/30 text-red-400 hover:bg-red-900/50 transition-colors text-xs flex items-center gap-1"
-                              title="Deregister offline node"
+                              title={tx("Deregister offline node")}
                             >
                               <Trash2 size={13} />
-                              <span className="hidden sm:inline">Prune</span>
+                              <span className="hidden sm:inline">{tx("Prune")}</span>
                             </button>
                           )}
                         </div>

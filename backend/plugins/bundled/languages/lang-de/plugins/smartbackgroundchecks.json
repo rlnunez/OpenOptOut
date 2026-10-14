@@ -1,0 +1,4 @@
+{
+ "description": "Geführter Widerspruch bei SmartBackgroundChecks. Eine Person folgt den Schritten der Checkliste; OpenOptOut stellt eine Einmal-E-Mail-Adresse bereit und klickt Bestätigungslinks an.",
+ "instructions": "Such auf smartbackgroundchecks.com nach {full_name}. Wenn du dort stehst, öffne smartbackgroundchecks.com/optout und lösch deinen Eintrag; nimm {contact_email}, wo nach einer E-Mail gefragt wird. Meist verschwindest du dadurch auch bei PeopleFinders. Drück dann „Ich habe das erledigt“."
+}

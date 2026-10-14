@@ -29,7 +29,7 @@ from cryptography.fernet import Fernet
 
 from ..models.database import get_db, User
 from ..core.auth import get_current_user
-from ..core.settings_store import load_settings, SETTINGS_FILE, get_secret_key
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE, get_secret_key
 
 router = APIRouter(prefix="/api/wizard", tags=["wizard"])
 
@@ -56,8 +56,7 @@ def _load() -> dict:
 
 
 def _save(data: dict):
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    save_settings(data)
 
 
 def _wizard_state(s: dict) -> dict:
@@ -246,6 +245,7 @@ def save_email(body: EmailStep, db: Session = Depends(get_db),
 class BrandingStep(BaseModel):
     system_name: Optional[str] = None
     primary_color: Optional[str] = None
+    operator: Optional[str] = None      # who runs this server (core/terms.py)
     # Logos are uploaded directly via POST /api/branding/logo; GET /api/branding/config inspects disk directly.
 
 
@@ -262,6 +262,14 @@ def save_branding(body: BrandingStep, db: Session = Depends(get_db),
     if body.primary_color is not None:
         b["primary_color"] = body.primary_color.strip()
     s["branding"] = b
+    if body.operator:
+        # Who runs this server, named in what people are told at first
+        # sign-in (core/terms.py). Editable later on the Terms page.
+        from ..core.terms import save as save_terms
+        try:
+            save_terms(s, {"operator": body.operator})
+        except ValueError as e:
+            raise HTTPException(400, str(e))
     _save(s)
     _mark_step("branding", "done")
     return {"ok": True}

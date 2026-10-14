@@ -8,6 +8,8 @@ import {
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import PluginUploadWizard from '../components/PluginUploadWizard'
+import { tx, txn, txr } from '../i18n/tx'
+import { fmtDateTime } from '../i18n/format'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
@@ -18,12 +20,12 @@ const RISK_STYLES = {
 }
 
 const STATUS_STYLES = {
-  running:  { label: 'Running',  cls: 'text-emerald-400', dot: 'bg-emerald-400' },
-  stopped:  { label: 'Stopped',  cls: 'text-slate-400',   dot: 'bg-slate-500' },
-  data:     { label: 'Enabled (data only)', cls: 'text-emerald-400', dot: 'bg-emerald-400' },
-  starting: { label: 'Starting', cls: 'text-blue-400',    dot: 'bg-blue-400 animate-pulse' },
-  crashed:  { label: 'Crashed',  cls: 'text-red-400',     dot: 'bg-red-400' },
-  disabled: { label: 'Disabled', cls: 'text-amber-400',   dot: 'bg-amber-400' },
+  running:  { label: tx("Running"),  cls: 'text-emerald-400', dot: 'bg-emerald-400' },
+  stopped:  { label: tx("Stopped"),  cls: 'text-slate-400',   dot: 'bg-slate-500' },
+  data:     { label: tx("Enabled (data only)"), cls: 'text-emerald-400', dot: 'bg-emerald-400' },
+  starting: { label: tx("Starting"), cls: 'text-blue-400',    dot: 'bg-blue-400 animate-pulse' },
+  crashed:  { label: tx("Crashed"),  cls: 'text-red-400',     dot: 'bg-red-400' },
+  disabled: { label: tx("Disabled"), cls: 'text-amber-400',   dot: 'bg-amber-400' },
 }
 
 // ── Sandbox posture banner ────────────────────────────────────────────────────
@@ -33,9 +35,9 @@ function SandboxBanner({ status }) {
       <div className="flex items-start gap-2 px-4 py-3 rounded-xl border border-amber-800 bg-amber-900/10 mb-5">
         <Ban size={15} className="text-amber-400 shrink-0 mt-0.5" />
         <div>
-          <p className="text-amber-300 text-sm font-medium">Plugin system not active</p>
+          <p className="text-amber-300 text-sm font-medium">{tx("Plugin system not active")}</p>
           <p className="text-amber-500/80 text-xs mt-0.5">
-            {status?.reason || 'Enable it in Settings → Plugins, ensure gRPC is installed, and restart.'}
+            {status?.reason || tx("Turn it on in Settings → Plugins, then restart OpenOptOut. (The server also needs the gRPC package, which the standard install includes.)")}
           </p>
         </div>
       </div>
@@ -47,11 +49,11 @@ function SandboxBanner({ status }) {
       <Shield size={15} className={`${full ? 'text-emerald-400' : 'text-amber-400'} shrink-0 mt-0.5`} />
       <div className="flex-1">
         <p className={`text-sm font-medium ${full ? 'text-emerald-300' : 'text-amber-300'}`}>
-          Sandbox: {full ? 'Full isolation active' : 'Partial isolation'}
+          {tx("Sandbox:")}{" "}{full ? tx("Full isolation active") : tx("Partial isolation")}
         </p>
         <p className={`text-xs mt-0.5 ${full ? 'text-emerald-500/80' : 'text-amber-500/80'}`}>
-          Controls: {status.sandbox?.controls || 'none'} · Platform: {status.sandbox?.platform}
-          {!full && ' — untrusted third-party plugins are NOT fully contained. Deploy on Linux with bubblewrap for full isolation.'}
+          {tx("Controls: {v} · Platform: {platform}", { v: status.sandbox?.controls || 'none', platform: status.sandbox?.platform })}
+          {!full && tx("— untrusted third-party plugins are NOT fully contained. Deploy on Linux with bubblewrap for full isolation.")}
         </p>
       </div>
     </div>
@@ -69,11 +71,11 @@ function MonitorBanner({ status }) {
       <div className={`flex items-start gap-2 px-4 py-3 rounded-xl border ${fullDetect ? 'border-slate-700 bg-slate-800/40' : 'border-amber-800 bg-amber-900/10'}`}>
         <Eye size={15} className={`${fullDetect ? 'text-slate-400' : 'text-amber-400'} shrink-0 mt-0.5`} />
         <div>
-          <p className="text-slate-200 text-sm font-medium">Runtime monitor</p>
+          <p className="text-slate-200 text-sm font-medium">{tx("Runtime monitor")}</p>
           <p className="text-slate-500 text-xs mt-0.5">
             {fullDetect
-              ? 'Watching for process spawns, external file writes, network sockets, and memory abuse.'
-              : (mon.note || 'Limited detection on this host — run only trusted plugins.')}
+              ? tx("Watching for process spawns, external file writes, network sockets, and memory abuse.")
+              : (mon.note || tx("Limited detection on this host — run only trusted plugins."))}
           </p>
         </div>
       </div>
@@ -81,12 +83,12 @@ function MonitorBanner({ status }) {
         <ShieldAlert size={15} className={`${lockdown ? 'text-amber-400' : 'text-slate-500'} shrink-0 mt-0.5`} />
         <div>
           <p className="text-slate-200 text-sm font-medium">
-            Lockdown mode {lockdown ? 'ON' : 'off'}
+            {tx("Lockdown mode {v}", { v: lockdown ? 'ON' : 'off' })}
           </p>
           <p className="text-slate-500 text-xs mt-0.5">
             {lockdown
-              ? 'Any single violation auto-disables the offending plugin immediately.'
-              : 'Plugins auto-disable on violation by default. Enable lockdown in Settings for the strictest posture.'}
+              ? tx("If a plugin breaks a single rule, it's switched off straight away.")
+              : tx("Plugins that break a rule are switched off. For the strictest setting, turn on lockdown in Settings.")}
           </p>
         </div>
       </div>
@@ -108,7 +110,7 @@ function ViolationsFeed({ violations }) {
       <div className="flex items-center gap-2 mb-3">
         <AlertTriangle size={14} className="text-red-400" />
         <p className="text-slate-300 text-xs font-medium uppercase tracking-wide">
-          Security violations ({violations.length})
+          {tx("Security violations ({length})", { length: violations.length })}
         </p>
       </div>
       <div className="space-y-2">
@@ -125,10 +127,10 @@ function ViolationsFeed({ violations }) {
                 </div>
                 <p className="text-xs opacity-75 mt-0.5 font-mono break-all">{v.detail}</p>
                 {v.action_taken && (
-                  <p className="text-[11px] opacity-70 mt-0.5">Action: {v.action_taken.replace('_', ' ')}</p>
+                  <p className="text-[11px] opacity-70 mt-0.5">{tx("Action:")}{" "}{v.action_taken.replace('_', ' ')}</p>
                 )}
               </div>
-              <span className="text-[11px] opacity-60 shrink-0">{new Date(v.created_at).toLocaleString()}</span>
+              <span className="text-[11px] opacity-60 shrink-0">{fmtDateTime(v.created_at)}</span>
             </div>
           )
         })}
@@ -188,7 +190,7 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
       })
       onEnabled()
     } catch (e) {
-      setError(e.response?.data?.detail || 'Failed to enable plugin')
+      setError(e.response?.data?.detail || tx("Couldn't turn the plugin on. Please try again."))
     } finally { setSaving(false) }
   }
 
@@ -200,8 +202,8 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
       <div className="bg-slate-900 rounded-2xl border border-slate-700 max-w-lg w-full max-h-[85vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-slate-700/50">
-          <h3 className="text-white font-semibold">Enable {plugin.name}</h3>
-          <p className="text-slate-500 text-xs mt-0.5">v{plugin.version} · {plugin.author}</p>
+          <h3 className="text-white font-semibold">{tx("Enable")}{" "}{plugin.name}</h3>
+          <p className="text-slate-500 text-xs mt-0.5">{tx("v{version} ·", { version: plugin.version })}{" "}{plugin.author}</p>
         </div>
 
         <div className="px-5 py-4 space-y-4">
@@ -209,14 +211,13 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
           <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg border border-amber-800 bg-amber-900/10">
             <AlertTriangle size={13} className="text-amber-400 shrink-0 mt-0.5" />
             <p className="text-amber-300/90 text-xs">
-              Enabling runs this plugin's code in a sandboxed subprocess. You are trusting the
-              author. Only enable plugins from sources you trust, and grant the fewest permissions needed.
-              {hasHigh && ' This plugin requests HIGH-RISK permissions — review them carefully.'}
+              {tx("Enabling runs this plugin's code in a sandboxed subprocess. You are trusting the author. Only enable plugins from sources you trust, and grant the fewest permissions needed.")}
+              {hasHigh && tx("This plugin requests HIGH-RISK permissions — review them carefully.")}
             </p>
           </div>
 
           <div>
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">Requested permissions</p>
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">{tx("Requested permissions")}</p>
             <div className="space-y-1.5">
               {plugin.permissions_requested.map(p => {
                 const meta = permInfo?.[p] || { label: p, risk: 'low', description: '' }
@@ -239,20 +240,17 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
               })}
             </div>
             <p className="text-slate-600 text-xs mt-2">
-              Hooks this plugin declares ({plugin.hooks.join(', ') || 'none'}) require their matching
-              permissions — unchecking those will be rejected.
+              {tx("Hooks this plugin declares ({v}) require their matching permissions — unchecking those will be rejected.", { v: plugin.hooks.join(', ') || 'none' })}
             </p>
           </div>
 
           {/* Declared API access — the exact host methods the plugin may call. */}
           <div>
             <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">
-              Declared API access
+              {tx("Declared API access")}
             </p>
             <p className="text-slate-500 text-xs mb-2">
-              This plugin may ONLY call the host methods it declares below. If it attempts any
-              other method, it is flagged as a violation, disabled immediately, and cannot run
-              again until you re-approve it.
+              {tx("This plugin may ONLY call the host methods it declares below. If it attempts any other method, it is flagged as a violation, disabled immediately, and cannot run again until you re-approve it.")}
             </p>
             <div className="flex flex-wrap gap-1.5">
               {(plugin.methods && plugin.methods.length > 0)
@@ -261,13 +259,13 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
                       <Lock size={10} className="text-slate-500" /> {m}
                     </span>
                   ))
-                : <span className="text-slate-600 text-xs">No host methods declared (cannot call storage, settings, log, or events).</span>
+                : <span className="text-slate-600 text-xs">{tx("No host methods declared (cannot call storage, settings, log, or events).")}</span>
               }
             </div>
 
             {plugin.events && plugin.events.length > 0 && (
               <div className="mt-3">
-                <p className="text-slate-500 text-xs mb-1">Event types it expects to receive:</p>
+                <p className="text-slate-500 text-xs mb-1">{tx("Event types it expects to receive:")}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {plugin.events.map(ev => (
                     <span key={ev} className="px-2 py-0.5 rounded-sm border border-slate-700 bg-slate-800 text-slate-400 text-xs font-mono">{ev}</span>
@@ -279,7 +277,7 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
             {plugin.outbound_domains && plugin.outbound_domains.length > 0 && (
               <div className="mt-3">
                 <p className="text-red-400/80 text-xs mb-1 flex items-center gap-1">
-                  <Globe size={11} /> Declared outbound domains (network egress):
+                  <Globe size={11} />{" "}{tx("Declared outbound domains (network egress):")}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {plugin.outbound_domains.map(d => (
@@ -294,9 +292,7 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
             <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg border border-red-800 bg-red-900/15">
               <ShieldAlert size={13} className="text-red-400 shrink-0 mt-0.5" />
               <p className="text-red-300/90 text-xs">
-                This plugin was disabled for calling a host method it had NOT declared. Re-enabling
-                means you have reviewed its declared API access above and accept it. Enabling here
-                re-approves the current manifest.
+                {tx("This plugin was disabled for calling a host method it had NOT declared. Re-enabling means you have reviewed its declared API access above and accept it. Enabling here re-approves the current manifest.")}
               </p>
             </div>
           )}
@@ -309,47 +305,36 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
               <div className="flex items-start gap-2 px-3 py-2.5 bg-red-900/30">
                 <ShieldAlert size={15} className="text-red-400 shrink-0 mt-0.5" />
                 <p className="text-red-200 text-sm font-medium">
-                  Read PII + Network — the exfiltration-risk combination
+                  {tx("Read PII + Network — the exfiltration-risk combination")}
                 </p>
               </div>
               <div className="px-3 py-3 space-y-2.5">
                 {piiNetworkBlocked ? (
                   <p className="text-red-300 text-xs">
-                    <strong>Blocked.</strong> This plugin's manifest did not declare the narrow
-                    exception for requesting both permissions together. It cannot be granted —
-                    the plugin author must update the manifest to request this exception with a
-                    written justification before you can consider granting it. Uncheck one of
-                    "Read personal data" or "Network access" to proceed without this combination.
+                    {txr("<0>Blocked.</0> This plugin's manifest did not declare the narrow exception for requesting both permissions together. It cannot be granted — the plugin author must update the manifest to request this exception with a written justification before you can consider granting it. Uncheck one of \"Read personal data\" or \"Network access\" to proceed without this combination.", [<strong />])}
                   </p>
                 ) : (
                   <>
                     <p className="text-red-300/90 text-xs">
-                      This plugin can see member data <em>and</em> reach the network — the only
-                      combination in the plugin system that can send that data somewhere. The
-                      author declared a narrow exception with the justification below.
+                      {txr("This plugin can see member data <0>and</0> reach the network — the only combination in the plugin system that can send that data somewhere. The author declared a narrow exception with the justification below.", [<em />])}
                     </p>
                     <div className="px-2.5 py-2 rounded-sm bg-slate-900/60 border border-red-900/50">
-                      <p className="text-slate-400 text-[11px] uppercase tracking-wide mb-1">Author's justification</p>
-                      <p className="text-slate-300 text-xs">{plugin.pii_network_justification || '(none provided)'}</p>
+                      <p className="text-slate-400 text-[11px] uppercase tracking-wide mb-1">{tx("Author's justification")}</p>
+                      <p className="text-slate-300 text-xs">{plugin.pii_network_justification || tx("(none provided)")}</p>
                     </div>
                     <div className="px-2.5 py-2 rounded-sm bg-slate-900/60 border border-red-900/50">
-                      <p className="text-slate-400 text-[11px] uppercase tracking-wide mb-1">Declared outbound domains</p>
+                      <p className="text-slate-400 text-[11px] uppercase tracking-wide mb-1">{tx("Declared outbound domains")}</p>
                       <p className="text-slate-300 text-xs font-mono">{(plugin.outbound_domains || []).join(', ') || '(none)'}</p>
                     </div>
                     <p className="text-red-300/80 text-xs">
-                      If granted, this plugin runs under <strong>heavy monitoring</strong>: tighter
-                      network-socket tolerance and continuous egress byte-volume tracking, with
-                      immediate disable if it sends more than a few MB or contacts anything outside
-                      the domains above.
+                      {txr("If granted, this plugin runs under <0>heavy monitoring</0>: tighter network-socket tolerance and continuous egress byte-volume tracking, with immediate disable if it sends more than a few MB or contacts anything outside the domains above.", [<strong />])}
                     </p>
                     <label className="flex items-start gap-2.5 pt-1 cursor-pointer">
                       <input type="checkbox" checked={confirmPiiNetwork}
                         onChange={e => setConfirmPiiNetwork(e.target.checked)}
                         className="mt-0.5 w-3.5 h-3.5 rounded-sm accent-red-500" />
                       <span className="text-red-200 text-xs">
-                        I understand this plugin will be able to see member personal data and send
-                        it over the network, and I accept the justification above. Grant this
-                        specific combination.
+                        {tx("I understand this plugin will be able to see member personal data and send it over the network, and I accept the justification above. Grant this specific combination.")}
                       </span>
                     </label>
                   </>
@@ -364,13 +349,9 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
               <div className="flex items-start gap-2">
                 <ShieldAlert size={14} className="text-amber-400 shrink-0 mt-0.5" />
                 <div className="text-amber-200 text-xs space-y-1">
-                  <p className="font-medium">Remote CAPTCHA solver (uses the network)</p>
+                  <p className="font-medium">{tx("Remote CAPTCHA solver (uses the network)")}</p>
                   <p className="text-amber-300/90">
-                    This solver has network access, so it sends CAPTCHA challenges — and possibly
-                    page context — to an outside service to be solved. That data leaves your server.
-                    Declared outbound domains: <span className="font-mono">{(plugin.outbound_domains || []).join(', ') || '(none)'}</span>.
-                    A <strong>local</strong> solver (one without network access) keeps everything
-                    on-box and leaks nothing — prefer that when possible.
+                    {txr("This solver has network access, so it sends CAPTCHA challenges — and possibly page context — to an outside service to be solved. That data leaves your server. Declared outbound domains: <0/>. A <1>local</1> solver (one without network access) keeps everything on-box and leaks nothing — prefer that when possible.", [<span className="font-mono">{(plugin.outbound_domains || []).join(', ') || '(none)'}</span>, <strong />])}
                   </p>
                 </div>
               </div>
@@ -381,9 +362,7 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
               <div className="flex items-start gap-2">
                 <ShieldCheck size={14} className="text-emerald-400 shrink-0 mt-0.5" />
                 <p className="text-emerald-200/90 text-xs">
-                  <span className="font-medium">Local CAPTCHA solver.</span> This solver has no
-                  network access, so it runs entirely on your server (a bundled model or a local
-                  human-in-the-loop) — nothing about the challenge leaves your system.
+                  {txr("<0>Local CAPTCHA solver.</0> This solver has no network access, so it runs entirely on your server (a bundled model or a local human-in-the-loop) — nothing about the challenge leaves your system.", [<span className="font-medium" />])}
                 </p>
               </div>
             </div>
@@ -397,11 +376,11 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
         </div>
 
         <div className="px-5 py-4 border-t border-slate-700/50 flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-1.5 text-sm text-slate-400 hover:text-slate-200">Cancel</button>
+          <button onClick={onClose} className="px-4 py-1.5 text-sm text-slate-400 hover:text-slate-200">{tx("Cancel")}</button>
           <button onClick={enable} disabled={saving || !canSubmit}
             className="flex items-center gap-1.5 px-4 py-1.5 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white text-sm rounded-lg">
             {saving ? <RefreshCw size={13} className="animate-spin" /> : <Play size={13} />}
-            {saving ? 'Enabling…' : 'Grant & enable'}
+            {saving ? tx("Enabling…") : tx("Grant & enable")}
           </button>
         </div>
       </div>
@@ -425,18 +404,18 @@ function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onView
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <p className="text-slate-100 text-sm font-medium truncate">{plugin.name}</p>
-                <span className="text-slate-600 text-xs">v{plugin.version}</span>
+                <span className="text-slate-600 text-xs">{"v"}{plugin.version}</span>
               </div>
               <p className="text-slate-500 text-xs mt-0.5 line-clamp-2">{plugin.description}</p>
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                 <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
                 <span className={`text-xs ${st.cls}`}>{st.label}</span>
                 {plugin.crash_count > 0 && (
-                  <span className="text-red-400 text-xs">· {plugin.crash_count} crash{plugin.crash_count > 1 ? 'es' : ''}</span>
+                  <span className="text-red-400 text-xs">· {txn(plugin.crash_count, "{n} crash", "{n} crashes")}</span>
                 )}
                 {plugin.needs_reapproval && (
                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm border border-red-800 bg-red-900/20 text-red-300 text-[10px]">
-                    <ShieldAlert size={9} /> re-approval required
+                    <ShieldAlert size={9} />{" "}{tx("re-approval required")}
                   </span>
                 )}
                 <span className="text-slate-600 text-xs">· {plugin.author}</span>
@@ -449,12 +428,12 @@ function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onView
             {canManage && (plugin.enabled ? (
               <button onClick={() => onDisable(plugin)}
                 className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-amber-400 border border-amber-800/50 rounded-lg hover:bg-amber-900/20">
-                <Square size={11} /> Disable
+                <Square size={11} />{" "}{tx("Disable")}
               </button>
             ) : (
               <button onClick={() => onEnable(plugin)}
                 className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-emerald-400 border border-emerald-800/50 rounded-lg hover:bg-emerald-900/20">
-                <Play size={11} /> Enable
+                <Play size={11} />{" "}{tx("Enable")}
               </button>
             ))}
             <button onClick={() => setExpanded(e => !e)}
@@ -477,11 +456,11 @@ function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onView
         <div className="px-5 py-4 border-t border-slate-700/50 bg-slate-900/30 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <div>
-              <p className="text-slate-500 mb-1">Hooks</p>
+              <p className="text-slate-500 mb-1">{tx("Hooks")}</p>
               <p className="text-slate-300">{plugin.hooks.join(', ') || 'none'}</p>
             </div>
             <div>
-              <p className="text-slate-500 mb-1">Granted permissions</p>
+              <p className="text-slate-500 mb-1">{tx("Granted permissions")}</p>
               <p className="text-slate-300">{plugin.permissions_granted.join(', ') || 'none'}</p>
             </div>
           </div>
@@ -494,12 +473,12 @@ function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onView
           <div className="flex gap-2">
             <button onClick={() => onViewAudit(plugin)}
               className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-400 border border-slate-700 rounded-lg hover:bg-slate-700/50">
-              <Activity size={11} /> Audit log
+              <Activity size={11} />{" "}{tx("Audit log")}
             </button>
             {canManage && (
               <button onClick={() => onUninstall(plugin)}
                 className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-red-400 border border-red-800/50 rounded-lg hover:bg-red-900/20">
-                <Trash2 size={11} /> Uninstall
+                <Trash2 size={11} />{" "}{tx("Uninstall")}
               </button>
             )}
           </div>
@@ -521,18 +500,18 @@ function AuditModal({ plugin, onClose }) {
       <div className="bg-slate-900 rounded-2xl border border-slate-700 max-w-lg w-full max-h-[80vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-slate-700/50">
-          <h3 className="text-white font-semibold">Audit log — {plugin.name}</h3>
+          <h3 className="text-white font-semibold">{tx("Audit log —")}{" "}{plugin.name}</h3>
         </div>
         <div className="px-5 py-4">
-          {loading ? <p className="text-slate-500 text-sm">Loading…</p>
-            : rows.length === 0 ? <p className="text-slate-500 text-sm">No audit entries.</p>
+          {loading ? <p className="text-slate-500 text-sm">{tx("Loading…")}</p>
+            : rows.length === 0 ? <p className="text-slate-500 text-sm">{tx("No audit entries.")}</p>
             : (
               <div className="space-y-1.5">
                 {rows.map((r, i) => (
                   <div key={i} className="flex items-start gap-3 px-3 py-2 rounded-lg bg-slate-800/50 text-xs">
                     <span className="text-slate-300 font-mono w-32 shrink-0">{r.action}</span>
                     <span className="text-slate-500 flex-1">{r.detail}</span>
-                    <span className="text-slate-600 shrink-0">{new Date(r.created_at).toLocaleString()}</span>
+                    <span className="text-slate-600 shrink-0">{fmtDateTime(r.created_at)}</span>
                   </div>
                 ))}
               </div>
@@ -593,7 +572,7 @@ export default function Plugins() {
   }
   const doDisable = async (p) => { await api.post(`/plugins/${p.plugin_id}/disable`); load() }
   const doUninstall = async (p) => {
-    if (!confirm(`Uninstall ${p.name}? This stops it and removes its registration.`)) return
+    if (!confirm(tx("Uninstall {name}? This stops it and removes its registration.", { name: p.name }))) return
     await api.delete(`/plugins/${p.plugin_id}?remove_files=false`); load()
   }
 
@@ -606,22 +585,22 @@ export default function Plugins() {
     <div className="p-4 md:p-6 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-white text-xl font-semibold">Plugins</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Extend OpenOptOut with sandboxed, permission-gated plugins</p>
+          <h1 className="text-white text-xl font-semibold">{tx("Plugins")}</h1>
+          <p className="text-slate-400 text-sm mt-0.5">{tx("Extend OpenOptOut with sandboxed, permission-gated plugins")}</p>
         </div>
         <div className="flex gap-2">
           <Link to="/plugin-help"
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
-            <BookOpen size={13} /> Docs
+            <BookOpen size={13} />{" "}{tx("Docs")}
           </Link>
           {canUpload && (
             <button onClick={() => setShowUpload(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
-              <Upload size={13} /> Upload plugin
+              <Upload size={13} />{" "}{tx("Upload plugin")}
             </button>
           )}
           <button onClick={load} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
-            <RefreshCw size={13} /> Refresh
+            <RefreshCw size={13} />{" "}{tx("Refresh")}
           </button>
         </div>
       </div>
@@ -630,25 +609,25 @@ export default function Plugins() {
       <MonitorBanner status={status} />
       <ViolationsFeed violations={violations} />
 
-      {loading ? <p className="text-slate-500 text-sm">Loading…</p> : (
+      {loading ? <p className="text-slate-500 text-sm">{tx("Loading…")}</p> : (
         <>
           {/* Installed */}
           <div className="mb-6">
             <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">
-              Installed ({installed.length})
+              {tx("Installed ({length})", { length: installed.length })}
             </p>
             {installed.length === 0 ? (
               <div className="text-center py-10 border border-dashed border-slate-700 rounded-xl">
                 <Package size={24} className="text-slate-700 mx-auto mb-2" />
-                <p className="text-slate-500 text-sm">No plugins installed yet.</p>
-                <p className="text-slate-600 text-xs mt-1">Upload a .zip bundle, or put a plugin folder in its type folder (plugins/&lt;type&gt;/&lt;id&gt;/).</p>
+                <p className="text-slate-500 text-sm">{tx("No plugins installed yet.")}</p>
+                <p className="text-slate-600 text-xs mt-1">{tx("Upload a .zip bundle, or put a plugin folder in its type folder (plugins/<type>/<id>/).")}</p>
               </div>
             ) : (
               <div className="space-y-5">
                 {groups.map(g => (
                   <div key={g.type}>
                     <p className="text-slate-500 text-xs mb-2">
-                      {g.label} <span className="font-mono text-slate-600">· plugins/{g.folder}</span>
+                      {g.label} <span className="font-mono text-slate-600">{tx("· plugins/")}{g.folder}</span>
                     </p>
                     <div className="space-y-3">
                       {g.plugins.map(p => (
@@ -667,7 +646,7 @@ export default function Plugins() {
           {available.length > 0 && (
             <div>
               <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">
-                Discovered on disk ({available.length})
+                {tx("Discovered on disk ({length})", { length: available.length })}
               </p>
               <div className="space-y-2">
                 {available.map(p => (
@@ -675,16 +654,16 @@ export default function Plugins() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-slate-200 text-sm truncate">{p.name}</p>
-                        <span className="text-slate-600 text-xs">v{p.version}</span>
+                        <span className="text-slate-600 text-xs">{"v"}{p.version}</span>
                         {!p.valid && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm border border-red-800 bg-red-900/20 text-red-300 text-[10px]">
-                            <XCircle size={9} /> invalid
+                            <XCircle size={9} />{" "}{tx("invalid")}
                           </span>
                         )}
                       </div>
                       <p className="text-slate-500 text-xs mt-0.5">
-                        {p.author} · {p.type_label} · {p.permissions.length} permissions
-                        {p.legacy_location && <span className="text-amber-300/90"> · will be moved to plugins/{p.destination}</span>}
+                        {tx("{author} · {type_label} · {length} permissions", { author: p.author, type_label: p.type_label, length: p.permissions.length })}
+                        {p.legacy_location && <span className="text-amber-300/90">{" "}{tx("· will be moved to plugins/")}{p.destination}</span>}
                       </p>
                       {!p.valid && p.errors?.length > 0 && (
                         <p className="text-red-400/80 text-xs mt-1">{p.errors.join('; ')}</p>
@@ -692,7 +671,7 @@ export default function Plugins() {
                     </div>
                     {canManage && <button onClick={() => doInstall(p.path)} disabled={!p.valid}
                       className="flex items-center gap-1 px-3 py-1.5 text-xs bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white rounded-lg shrink-0">
-                      <Package size={11} /> Install
+                      <Package size={11} />{" "}{tx("Install")}
                     </button>}
                   </div>
                 ))}

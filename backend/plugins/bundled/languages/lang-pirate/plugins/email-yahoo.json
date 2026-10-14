@@ -1,0 +1,3 @@
+{
+ "description": "Yahoo Mail email provider. The sailor signs in with Yahoo (OAuth 2.0); mail be sent over Yahoo's SMTP an' read over its IMAP with that sign-in token (SASL OAUTHBEARER). No app passwords. Reads confirmation links from message bodies without marking them read. Trusted email-provider class; host inspects fer hidden recipients an' enforces the recipient at send time."
+}

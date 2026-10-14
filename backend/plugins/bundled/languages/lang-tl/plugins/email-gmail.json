@@ -1,0 +1,3 @@
+{
+ "description": "Nagpapadala ng mga opt-out email at nagbabasa ng mga kumpirmasyon sa pamamagitan ng Gmail API gamit ang OAuth 2.0. Isang reference na email-provider plugin. Pinagkakatiwalaang klase: nagpapadala ito ng mga identifier ng miyembro sa Gmail, kaya nagdedeklara ito ng read_pii + network, at sinusuri ito ng host para sa mga nakatagong recipient at ipinapatupad ang tunay na recipient sa pagpapadala."
+}

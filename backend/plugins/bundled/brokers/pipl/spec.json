@@ -1,0 +1,34 @@
+{
+  "broker_id": "pipl",
+  "name": "Pipl",
+  "spec_version": "1.0",
+  "method": "form",
+  "opt_out_url": "https://pipl.com/personal-information-removal-request",
+  "steps": [
+    {
+      "kind": "navigate",
+      "url": "https://pipl.com/personal-information-removal-request",
+      "timeout_ms": 30000
+    },
+    {
+      "kind": "autofill"
+    },
+    {
+      "kind": "solve_captcha",
+      "selector": "iframe[src*='recaptcha'], iframe[src*='hcaptcha'], iframe[src*='challenges.cloudflare.com']",
+      "optional": true
+    },
+    {
+      "kind": "submit"
+    }
+  ],
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [],
+  "notes": "The form asks for name, email, request type and a message, with a simple math question and a reCAPTCHA. The math question usually needs a person. privacy@pipl.com takes requests by email.",
+  "source": "Process per redact.dev's Pipl removal guide (updated 2026-09-10).",
+  "last_verified": ""
+}

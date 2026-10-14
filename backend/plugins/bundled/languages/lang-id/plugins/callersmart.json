@@ -1,0 +1,4 @@
+{
+ "description": "Opt-out dengan panduan untuk CallerSmart, yang mencantumkan orang berdasarkan nomor telepon. Satu opt-out mencakup setiap nomor telepon yang disimpan.",
+ "instructions": "Buka https://www.callersmart.com/data. For each of these numbers, enter the number and {contact_email}, finish the robot check, then type the 6-digit code CallerSmart texts or calls to that phone: {all_phones}. Kemudian tekan \"Saya sudah melakukan ini\"."
+}

@@ -1,0 +1,4 @@
+{
+ "description": "Désinscription guidée pour Hunter, qui répertorie les gens par adresse e-mail. Une seule désinscription couvre toutes les adresses enregistrées.",
+ "instructions": "Hunter affiche les adresses e-mail professionnelles. Ouvrez https://hunter.io/ et cliquez sur « Do Not Sell My Info » en bas de page. Pour chacune de ces adresses, revendiquez-la, ouvrez le lien que Hunter y envoie, puis appuyez sur « Delete my information » : {all_emails}. Puis appuyez sur « C'est fait »."
+}

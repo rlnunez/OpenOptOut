@@ -1,0 +1,4 @@
+{
+ "description": "إلغاء موجَّه لدى FastPeopleSearch. يتبع شخص الخطوات في قائمة المهام؛ ويوفّر OpenOptOut عنوان بريد إلكتروني لمرة واحدة وينقر أي رابط تأكيد.",
+ "instructions": "ابحث في fastpeoplesearch.com عن {full_name}. إن كنت مدرجًا، افتح fastpeoplesearch.com/optout واتبع الخطوات لحذف سجلك؛ قد تحتاج إلى حل CAPTCHA. إذا طُلب عنوان بريد، استخدم {contact_email} حتى يتمكن OpenOptOut من نقر أي رابط تأكيد نيابةً عنك. ثم اضغط «لقد أنجزت هذا»."
+}

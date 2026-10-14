@@ -1,0 +1,12 @@
+{
+  "id": "BROKER_ID",
+  "type": "brokers",
+  "broker_id": "BROKER_ID",
+  "name": "Broker Name",
+  "version": "1.0.0",
+  "author": "Your name",
+  "description": "Opt-out for Broker Name (domain).",
+  "spec_file": "spec.json",
+  "difficulty": "medium",
+  "is_property_broker": false
+}

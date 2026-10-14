@@ -1,0 +1,4 @@
+{
+ "description": "BeenVerified（beenverified.com）的退出。先搜索此人，再由人选择自己的条目；BeenVerified 的确认链接会被自动点击。",
+ "steps.7.text": "BeenVerified 需要你选择自己的条目。前往 beenverified.com/svc/optout/search，在 {state_name} 搜索 {full_name}，点击你自己的记录并完成 CAPTCHA。在删除表单中，“是否有账户”选择“No”，核对你的信息，并填写 {contact_email} 作为电子邮件地址。BeenVerified 每个邮箱地址只允许一次退出，这个地址仅用于本次退出。OpenOptOut 会点击 BeenVerified 发到该地址的确认链接。"
+}

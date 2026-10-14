@@ -1,0 +1,4 @@
+{
+ "description": "USA-Official 안내형 거부. 사람이 체크리스트의 단계를 따라 하고, OpenOptOut이 일회용 이메일 주소를 제공하며 확인 링크를 대신 누릅니다.",
+ "instructions": "https://usa-official.com을(를) 열고 {full_name}을(를) 검색해 자신의 기록을 연 다음, 그 기록의 거부 링크나 \"Control\" 링크를 사용하세요. 이메일 주소를 물으면 언제나 {contact_email}을(를) 입력하세요. 그런 다음 \"완료했어요\"를 누르세요."
+}

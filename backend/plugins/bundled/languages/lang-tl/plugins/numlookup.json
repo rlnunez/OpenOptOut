@@ -1,0 +1,4 @@
+{
+ "description": "Ginagabayang opt-out para sa NumLookup, na naglilista ng mga tao ayon sa numero ng telepono. Saklaw ng isang opt-out ang lahat ng naka-save na numero.",
+ "instructions": "Buksan ang https://www.numlookup.com/opt_out, ilagay ang isa sa mga numerong ito, tapusin ang robot check at piliing alisin ang impormasyon mo: {all_phones}. Piliing ipadala nang mano-mano ang removal request (hindi mo kailangan ng account) at punan ang {full_name}, {contact_email} at ang numero. Baka humingi ang form ng ID na may litrato. Puwede mong takpan ang lahat dito maliban sa pangalan at litrato mo. Pagkatapos, pindutin ang \"Nagawa ko na ito\"."
+}

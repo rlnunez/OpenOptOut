@@ -1,0 +1,36 @@
+{
+  "broker_id": "epsilon",
+  "name": "Epsilon",
+  "spec_version": "1.0",
+  "method": "form",
+  "opt_out_url": "https://legal.epsilon.com/dsr",
+  "steps": [
+    {
+      "kind": "navigate",
+      "url": "https://legal.epsilon.com/dsr",
+      "timeout_ms": 30000
+    },
+    {
+      "kind": "autofill"
+    },
+    {
+      "kind": "solve_captcha",
+      "selector": "iframe[src*='recaptcha'], iframe[src*='hcaptcha'], iframe[src*='challenges.cloudflare.com']",
+      "optional": true
+    },
+    {
+      "kind": "submit"
+    }
+  ],
+  "legal_basis": [
+    "ccpa",
+    "cpra"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "email_confirmation"
+  ],
+  "notes": "Epsilon is a marketing data wholesaler. Its request form (run by OneTrust) asks for country and request type before the personal details, then emails a confirmation link. If anything looks unclear the opt-out stops for a person. privacy@epsilon.com takes requests by email.",
+  "source": "Process per redact.dev's Epsilon removal guide (updated 2026-09-10).",
+  "last_verified": ""
+}

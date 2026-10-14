@@ -1,0 +1,4 @@
+{
+ "description": "Gỡ dữ liệu có hướng dẫn cho Clustal. Một người làm theo các bước trong danh sách; OpenOptOut cung cấp địa chỉ email dùng một lần và tự bấm mọi liên kết xác nhận.",
+ "instructions": "Tìm {full_name} trên clustal.org, mở \"view full record\" và sao chép địa chỉ trang đó (địa chỉ của kết quả tìm kiếm sẽ không dùng được). Mở clustal.org/privacy-control, dán vào, bấm \"remove my info\", nhập {contact_email} và bấm \"remove my info\" lần nữa. Clustal gửi một liên kết để hoàn tất; OpenOptOut bấm giúp bạn. Sau đó bấm \"Tôi đã làm xong\"."
+}

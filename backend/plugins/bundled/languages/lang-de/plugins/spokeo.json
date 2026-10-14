@@ -1,0 +1,3 @@
+{
+ "description": "Widerspruch bei Spokeo (spokeo.com). Füllt die Adresse des Eintrags und eine Einmal-E-Mail automatisch aus; das reCAPTCHA von Spokeo geht an einen CAPTCHA-Löser oder in die CAPTCHA-Warteschlange."
+}
