@@ -10546,7 +10546,10 @@ def t_frontend_names():
 def t_page_texts():
     import json, re, subprocess, sys as _sys
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    r = subprocess.run([_sys.executable, "scripts/extract_page_texts.py", "--check"], cwd=root,
+    script_path = os.path.join(root, "scripts", "extract_page_texts.py")
+    if not os.path.isfile(script_path):
+        raise Skip("scripts/extract_page_texts.py not present (bare backend checkout)")
+    r = subprocess.run([_sys.executable, script_path, "--check"], cwd=root,
                        capture_output=True, text=True, timeout=120)
     assert r.returncode == 0, (r.stdout + r.stderr)[-1500:]
     # IF THIS FAILS: run scripts/extract_page_texts.py, then translate the new phrases in each language pack.
@@ -11168,7 +11171,10 @@ def t_letter_per_broker():
 def t_plugin_text_translated():
     import importlib.util, json
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    spec_ = importlib.util.spec_from_file_location("plugin_texts", os.path.join(root, "scripts", "plugin_texts.py"))
+    script_path = os.path.join(root, "scripts", "plugin_texts.py")
+    if not os.path.isfile(script_path):
+        raise Skip("scripts/plugin_texts.py not present (bare backend checkout)")
+    spec_ = importlib.util.spec_from_file_location("plugin_texts", script_path)
     pt = importlib.util.module_from_spec(spec_); spec_.loader.exec_module(pt)
     errs = pt.problems()
     assert not errs, f"{len(errs)} problems, e.g. {errs[:3]}"
@@ -11643,7 +11649,10 @@ def t_drafter_ai_repair():
       "Coding agents (Claude Code, Codex, Antigravity) find the project's rules and the broker-plugin procedure, and both copies of the procedure match.")
 def t_agent_instructions():
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    agents = open(os.path.join(root, "AGENTS.md"), encoding="utf-8").read()
+    agents_path = os.path.join(root, "AGENTS.md")
+    if not os.path.isfile(agents_path):
+        raise Skip("AGENTS.md not present (bare backend checkout)")
+    agents = open(agents_path, encoding="utf-8").read()
     assert "No personal data" in agents and "broker-plugin/SKILL.md" in agents
     assert len(agents) < 12000, "Antigravity reads rule files up to 12,000 characters"
     assert open(os.path.join(root, "CLAUDE.md"), encoding="utf-8").read().startswith("@AGENTS.md")

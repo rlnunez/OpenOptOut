@@ -58,8 +58,8 @@ ENV WITH_ENCRYPTION=${WITH_ENCRYPTION}
 RUN python3 install_deps.py
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-RUN playwright install firefox && \
-    playwright install-deps firefox
+RUN playwright install chromium firefox && \
+    playwright install-deps chromium firefox
 
 COPY . .
 
