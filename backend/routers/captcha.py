@@ -7,12 +7,15 @@ Operators and family managers can review challenges, inspect screenshots,
 complete the challenge manually on the broker's site, or submit solution tokens.
 """
 
+import logging
 import os
 from datetime import datetime
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from ..models.database import (
     get_db, CaptchaChallenge, RemovalRequest, RequestStatus,
@@ -338,7 +341,8 @@ def live_start(challenge_id: int, db: Session = Depends(get_db), current_user: U
     try:
         return MANAGER.start(challenge_id, current_user.id)
     except RuntimeError as e:
-        raise HTTPException(429, str(e))
+        logger.warning("Live captcha session start failed: %s", e)
+        raise HTTPException(429, "Too many live sessions are open right now. Try again in a few minutes.")
 
 
 @router.get("/challenges/{challenge_id}/live")
@@ -419,7 +423,9 @@ def save_solving(data: SolvingIn, _=Depends(require_super_admin)):
     try:
         return cs.save_service(cs.SERVICE_PLUGIN, data.service, data.api_key)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        logger.warning("Captcha save service failed: %s", e)
+        safe_msg = "Choose one of the listed services." if str(e) == "Choose one of the listed services." else "Invalid captcha service selection."
+        raise HTTPException(400, safe_msg)
 
 
 @router.post("/solving/install")

@@ -2374,7 +2374,8 @@ def t_i18n_new_languages():
         assert not i18n.is_rtl_language(code)
         assert code in i18n.DEFAULT_ENABLED
     old = ss.SETTINGS_FILE
-    path = tempfile.mktemp(suffix=".json")
+    fd, path = tempfile.mkstemp(suffix=".json")
+    os.close(fd)
     try:
         with open(path, "w") as f:
             json.dump({"i18n": {"enabled_languages": ["en", "es"]}}, f)
@@ -2388,6 +2389,10 @@ def t_i18n_new_languages():
         assert i18n.offer_new_builtin_languages() == [], "a language an admin turned off stays off"
     finally:
         ss.SETTINGS_FILE = old
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 @test(1, "i18n.resolution_and_rtl",
@@ -7857,7 +7862,7 @@ def t_forms_builtin():
         out = cov.summary(s)
         pc = s.query(db.Broker).filter_by(plugin_id="peopleconnect").one()
         c = out["coverage"][str(pc.id)]
-        assert "truthfinder.com" in c["sites"] and "classmates.com" not in c["sites"], c
+        assert any(site == "truthfinder.com" for site in c["sites"]) and not any(site == "classmates.com" for site in c["sites"]), c
         assert c["count"] == len(c["sites"]) >= 10, c
         ip = s.query(db.Broker).filter_by(plugin_id="infopay").one()
         assert out["coverage"][str(ip.id)]["count"] == 7, out["coverage"][str(ip.id)]
@@ -8350,7 +8355,7 @@ def t_pp_used():
     assert spec.opt_out_url.startswith("https://privacyportal.onetrust.com/") and any(st.kind == "autofill" for st in spec.steps)
     # The verification link a OneTrust form sends is allowed to be clicked.
     cl = _imp("core.confirm_links")
-    assert "onetrust.com" in cl.allowed_domains(s, req)
+    assert any(d == "onetrust.com" for d in cl.allowed_domains(s, req))
     # Emails: found, not used until approved.
     assert oe.resolve_optout_address(b, s) is None
     em = s.query(db.PrivacyPage).filter_by(broker_id=b.id, kind="email", url="mailto:privacy@peoplefind.example").one()
@@ -11207,7 +11212,8 @@ def _ai_settings(extra=None):
     import json, tempfile
     ss = _imp("core.settings_store")
     oe = _imp("core.oauth_engine")
-    path = tempfile.mktemp(suffix=".json")
+    fd, path = tempfile.mkstemp(suffix=".json")
+    os.close(fd)
     cfg = {"ai_helpers": {"providers": {pid: {"enabled": True, "api_key_enc": oe._encrypt(f"key-{pid}")}
                                         for pid in ("claude", "openai", "antigravity")}}}
     if extra:

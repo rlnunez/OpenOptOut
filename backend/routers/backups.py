@@ -16,6 +16,7 @@ holds everything, including the keys that unlock the database.
 """
 
 import json
+import logging
 import os
 import secrets
 import threading
@@ -30,6 +31,8 @@ from ..core.auth import require_super_admin
 from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
 from ..core import backup as bk
 from ..core import oauth_engine as oe
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/backups", tags=["backups"])
 _RUN = {"running": False}
@@ -225,7 +228,8 @@ def test_dest(dest_id: str, _=Depends(require_super_admin)):
     try:
         bk.destination(d, cfg).test()
     except Exception as e:
-        return {"ok": False, "message": f"That didn't work: {str(e)[:300]}"}
+        log.warning("Backup destination test failed: %s", e)
+        return {"ok": False, "message": "That didn't work. Check the connection details and try again."}
     # Remember what the SFTP server presented the first time (host key pinning)
     # and the Drive folder we created.
     cfg = load_settings()
@@ -300,10 +304,11 @@ def _local(name: str) -> str:
     base = os.path.basename(name)
     if base != name or not (base.startswith(bk.PREFIX) and base.endswith(bk.SUFFIX)):
         raise HTTPException(400, "Not a backup file name.")
-    path = os.path.join(bk.LOCAL_DIR, base)
-    if not os.path.isfile(path):
+    target_dir = os.path.realpath(bk.LOCAL_DIR)
+    resolved = os.path.realpath(os.path.join(target_dir, base))
+    if not resolved.startswith(target_dir + os.sep) or not os.path.isfile(resolved):
         raise HTTPException(404, "That backup isn't on this server any more.")
-    return path
+    return resolved
 
 
 @router.get("/files/{name}")
@@ -316,6 +321,10 @@ def verify(name: str, _=Depends(require_super_admin)):
     try:
         info = bk.verify_file(_local(name), bk.passphrase(load_settings()))
     except ValueError as e:
-        return {"ok": False, "message": str(e)}
+        log.warning("Backup verification failed: %s", e)
+        return {"ok": False, "message": "Could not verify backup file. The passphrase or archive may be invalid."}
+    except Exception as e:
+        log.warning("Backup verification error: %s", e)
+        return {"ok": False, "message": "Could not verify backup file."}
     parts = [p["part"] for p in info["manifest"].get("parts", [])]
     return {"ok": True, "message": f"This backup opens with your passphrase and holds: {', '.join(parts)}."}

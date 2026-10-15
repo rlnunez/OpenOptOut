@@ -177,8 +177,9 @@ def _pii_free(text: str) -> bool:
         return False
 
 
-def payload(kind: str, event: str, title: str, message: str, details: dict, secret: str = "") -> tuple:
+def payload(kind: str, event: str, title: str, message: str, details: dict, secret: Optional[str] = None) -> tuple:  # nosec B107
     """(body bytes, headers) for one service."""
+    secret = secret or ""
     now = datetime.now(timezone.utc).isoformat()
     h = {"Content-Type": "application/json", "User-Agent": "OpenOptOut"}
     prio = "high" if event in ("health_problem", "broker_turned_off", "backup_failed", "plugin_turned_off") else "default"

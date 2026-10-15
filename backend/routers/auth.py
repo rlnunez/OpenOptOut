@@ -282,7 +282,15 @@ def signup_address(req: SignupAddressIn, db: Session = Depends(get_db)):
     try:
         c = R.clean(req.street, req.unit or "", req.city or "", req.state or "", req.zip)
     except R.AddressError as e:
-        return {"ok": False, "reason": "unclear", "message": str(e), "help": cfg["help"]}
+        logger.info("Signup address validation failed: %s", e)
+        safe_messages = {
+            "Start the street address with the house or building number.": "Start the street address with the house or building number.",
+            "Add the street name after the number.": "Add the street name after the number.",
+            "Add the 5-digit ZIP code.": "Add the 5-digit ZIP code.",
+            "The address is empty.": "The address is empty.",
+        }
+        msg = safe_messages.get(str(e), "Please check your street address and ZIP code.")
+        return {"ok": False, "reason": "unclear", "message": msg, "help": cfg["help"]}
     status_, row = R.match(db, c)
     if status_ != "ok":
         messages = {

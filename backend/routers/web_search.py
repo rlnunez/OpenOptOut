@@ -10,6 +10,7 @@ General web search. See core/web_search.py.
   POST /api/web-search/hits/{hit_id}/dismiss  "Not me" (remembered)
 """
 
+import logging
 import threading
 from typing import Optional
 
@@ -22,6 +23,8 @@ from ..core.auth import get_current_user, assert_can_view, assert_can_edit
 from ..core.access import require_permission
 from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
 from ..core import web_search as wsm
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/web-search", tags=["web-search"])
 _admin = require_permission("settings.system")   # privacy & automation settings
@@ -140,7 +143,15 @@ def add(hit_id: int, db: Session = Depends(get_db), user: User = Depends(get_cur
     try:
         return wsm.add_hit(db, h, member)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        logger.warning("Add web search hit failed: %s", e)
+        safe_messages = {
+            "Paste the web address of the page that shows your information.",
+            "That doesn't look like a web address. It should start with https://",
+            "Please paste the site's web address, not a numeric IP address.",
+            "That address isn't a public website.",
+        }
+        detail = str(e) if str(e) in safe_messages else "Please provide a valid website address."
+        raise HTTPException(400, detail)
 
 
 class DismissIn(BaseModel):

@@ -4,11 +4,13 @@ from sqlalchemy import func
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
-import csv, io, json
+import csv, io, json, logging
 
 from ..models.database import get_db, Broker, RemovalRequest, RequestStatus, BrokerStatus, OptOutMethod, Difficulty
 from ..core.auth import get_current_user, User, get_accessible_member_ids, _has
 from ..core.access import require_permission, has_permission
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/brokers", tags=["brokers"])
 
@@ -137,7 +139,15 @@ def put_found_rule(req: FoundRule, db: Session = Depends(get_db), user: User = D
         cur.update({k: v for k, v in req.model_dump(exclude_unset=True).items() if v is not None})
         s["found_listings"] = fl.clean(cur)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        logger.warning("Found rule update failed: %s", e)
+        safe_messages = {
+            "Choose one of: turn it on, ask an admin, or tell the person.": "Choose one of: turn it on, ask an admin, or tell the person.",
+            "Choose what happens until then: ask an admin, or tell the person.": "Choose what happens until then: ask an admin, or tell the person.",
+            "The number of people must be a whole number.": "The number of people must be a whole number.",
+            "The number of people must be between 1 and 100,000.": "The number of people must be between 1 and 100,000.",
+        }
+        detail = safe_messages.get(str(e), "Invalid found-listings rule configuration.")
+        raise HTTPException(400, detail)
     save_settings(s)
     turned_on = fl.apply_now(db, s)
     return {**s["found_listings"], "turned_on": turned_on, "waiting": fl.waiting(db)}

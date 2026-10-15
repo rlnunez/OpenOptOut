@@ -19,10 +19,13 @@ automatically (core/ai_helpers.py, core/spec_drafter.py).
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tempfile
 import threading
 from typing import List, Optional
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -66,7 +69,8 @@ def put_settings(body: OptionsIn, _=Depends(require_super_admin)):
     try:
         return ai.save_options(**body.model_dump())
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        logger.warning("Spec helpers settings update failed: %s", e)
+        raise HTTPException(400, "Invalid settings for AI helpers.")
 
 
 @router.put("/providers/{pid}")
@@ -75,7 +79,8 @@ def put_provider(pid: str, body: ProviderIn, _=Depends(require_super_admin)):
     try:
         return ai.save_provider(pid, body.enabled, body.model, body.api_key)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        logger.warning("Spec helpers provider update failed: %s", e)
+        raise HTTPException(400, "Invalid AI helper provider configuration.")
 
 
 @router.post("/providers/{pid}/test")
@@ -88,7 +93,8 @@ def test_provider(pid: str, _=Depends(require_super_admin)):
     try:
         return ai.test_connection(cfg, pid)
     except ai.AIError as e:
-        return {"ok": False, "message": str(e)}
+        logger.warning("Spec helpers provider connection test failed: %s", e)
+        return {"ok": False, "message": "Connection test failed. Check the endpoint URL and API key."}
 
 
 class LocalIn(BaseModel):
@@ -106,7 +112,8 @@ def add_local(body: LocalIn, _=Depends(require_super_admin)):
     try:
         return ai.save_local(None, body.name, body.base_url, body.model, body.api_key, body.enabled)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        logger.warning("Spec helpers add local failed: %s", e)
+        raise HTTPException(400, "Invalid local model configuration. Check the URL and model name.")
 
 
 @router.put("/local/{local_id}")
@@ -115,7 +122,8 @@ def change_local(local_id: str, body: LocalIn, _=Depends(require_super_admin)):
     try:
         return ai.save_local(local_id, body.name, body.base_url, body.model, body.api_key, body.enabled)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        logger.warning("Spec helpers change local failed: %s", e)
+        raise HTTPException(400, "Invalid local model configuration. Check the URL and model name.")
 
 
 @router.delete("/local/{local_id}")
@@ -226,7 +234,8 @@ def export_draft(draft_id: int, db: Session = Depends(get_db), _=Depends(_broker
     try:
         export_plugin(r, broker, out)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        logger.warning("Spec helpers export draft failed: %s", e)
+        raise HTTPException(400, "Could not export draft plugin. Check the draft steps.")
     return FileResponse(out, media_type="application/zip", filename=os.path.basename(out))
 
 
@@ -236,7 +245,8 @@ def _decide(fn, draft_id: int, db, user):
     try:
         getattr(sd, fn)(db, r, getattr(user, "email", "admin"))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        logger.warning("Spec helpers draft decision failed: %s", e)
+        raise HTTPException(400, "Draft action could not be completed.")
     return _row(r, db.query(Broker).filter(Broker.id == r.broker_id).first())
 
 

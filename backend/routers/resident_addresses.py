@@ -4,6 +4,7 @@ Admin: the community's address list for residents-only sign-up
 Counts only; addresses never leave the server except as the admin's own
 check of one address.
 """
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -14,6 +15,8 @@ from sqlalchemy.orm import Session
 from ..core import resident_addresses as R
 from ..core.access import require_permission
 from ..models.database import ResidentAddress, User, get_db
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/resident-addresses", tags=["registration"])
 gate = Depends(require_permission("users.registration"))
@@ -44,7 +47,14 @@ async def upload(file: UploadFile = File(...), replace: bool = Form(True), db: S
     try:
         rows, problems = R.read_csv(data)
     except R.AddressError as e:
-        raise HTTPException(400, str(e))
+        logger.warning("Address CSV read failed: %s", e)
+        safe_messages = {
+            "The file is too big. Split it into files under 30 MB.",
+            "The file is empty.",
+        }
+        msg = str(e)
+        detail = msg if msg in safe_messages or msg.startswith("Couldn't find the address columns") or msg.startswith("The file has more than") else "Invalid address CSV format."
+        raise HTTPException(400, detail)
     if not rows:
         raise HTTPException(400, "No usable addresses were found in the file.")
     out = R.import_rows(db, rows, replace=replace)
@@ -57,7 +67,15 @@ def check(req: CheckIn, db: Session = Depends(get_db)):
     try:
         c = R.clean(req.street, req.unit or "", req.city or "", req.state or "", req.zip)
     except R.AddressError as e:
-        return {"status": "unclear", "message": str(e)}
+        logger.info("Address check validation failed: %s", e)
+        safe_messages = {
+            "Start the street address with the house or building number.",
+            "Add the street name after the number.",
+            "Add the 5-digit ZIP code.",
+            "The address is empty.",
+        }
+        msg = str(e)
+        return {"status": "unclear", "message": msg if msg in safe_messages else "Please check your street address and ZIP code."}
     status, row = R.match(db, c)
     return {"status": status, "cleaned": R.one_line(c),
             "accounts": R.accounts_at(db, R.keys(c)[0]) if status == "ok" else 0,

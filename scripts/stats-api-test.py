@@ -40,7 +40,10 @@ def main():
     base = a.base.rstrip("/")
     if not base.startswith("https://"):
         print("Note: use HTTPS outside a test setup; the key travels with every request.\n")
-    ctx = ssl._create_unverified_context() if a.insecure else ssl.create_default_context()
+    ctx = ssl.create_default_context()
+    if a.insecure:
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE  # nosec B323
 
     def get(path, params, key):
         url = base + path + ("?" + urllib.parse.urlencode(params) if params else "")

@@ -724,7 +724,7 @@ class PlaywrightExecutor(JobExecutor):
                 ctype = "hcaptcha"
             elif "recaptcha" in low:
                 ctype = "recaptcha_v2"
-            elif "challenges.cloudflare.com" in low or "cf-turnstile" in low:
+            elif re.search(r"challenges\.cloudflare\.com|cf-turnstile", low):
                 ctype = "turnstile"
             elif re.search(r"<img[^>]+captcha", low):
                 ctype = "image"

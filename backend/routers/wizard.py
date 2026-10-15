@@ -19,9 +19,12 @@ The frontend uses it to resume where the operator left off and to show the summa
 """
 
 import json
+import logging
 import os
 import base64
 from fastapi import APIRouter, Depends, HTTPException
+
+logger = logging.getLogger(__name__)
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional, List
@@ -269,7 +272,10 @@ def save_branding(body: BrandingStep, db: Session = Depends(get_db),
         try:
             save_terms(s, {"operator": body.operator})
         except ValueError as e:
-            raise HTTPException(400, str(e))
+            logger.warning("Wizard save operator failed: %s", e)
+            msg = str(e)
+            detail = msg if msg == "The operator is too long (200 characters at most)." else "Invalid operator name."
+            raise HTTPException(400, detail)
     _save(s)
     _mark_step("branding", "done")
     return {"ok": True}

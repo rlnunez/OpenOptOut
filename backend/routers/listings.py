@@ -8,6 +8,7 @@ core/listing_finder.py.
   POST /api/listings/{member_id}        add a listing URL to the member's removal cycle
 """
 
+import logging
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -15,6 +16,8 @@ from sqlalchemy.orm import Session
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, assert_can_view, assert_can_edit
 from ..core import listing_finder as lf
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/listings", tags=["listings"])
 
@@ -34,7 +37,15 @@ def resolve(body: UrlIn, db: Session = Depends(get_db), user: User = Depends(get
     try:
         url = lf.validate_listing_url(body.url)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        logger.warning("Resolve listing URL failed: %s", e)
+        safe_messages = {
+            "Paste the web address of the page that shows your information.",
+            "That doesn't look like a web address. It should start with https://",
+            "Please paste the site's web address, not a numeric IP address.",
+            "That address isn't a public website.",
+        }
+        detail = str(e) if str(e) in safe_messages else "Please provide a valid website address."
+        raise HTTPException(400, detail)
     hit = lf.resolve_broker(db, url)
     b = hit["broker"]
     return {"domain": hit["domain"], "match": hit["match"], "note": hit["note"],
@@ -63,7 +74,15 @@ def add(member_id: int, body: UrlIn, background: BackgroundTasks, db: Session = 
     try:
         res = lf.add_listing(db, member, body.url)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        logger.warning("Add listing failed: %s", e)
+        safe_messages = {
+            "Paste the web address of the page that shows your information.",
+            "That doesn't look like a web address. It should start with https://",
+            "Please paste the site's web address, not a numeric IP address.",
+            "That address isn't a public website.",
+        }
+        detail = str(e) if str(e) in safe_messages else "Please provide a valid website address."
+        raise HTTPException(400, detail)
     if res.get("state") == "new_broker":
         background.add_task(_check_new_site, res["broker_id"])
     return res

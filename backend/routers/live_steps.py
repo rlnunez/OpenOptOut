@@ -16,12 +16,15 @@ live from the Checklist. See core/live_captcha.py (kind "step").
 Anyone who can see the family member can use it; each opening is recorded
 in the privacy record's access log.
 """
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from ..core.auth import get_current_user, assert_can_view
 from ..models.database import get_db, RemovalRequest, RequestStatus, User
 from .captcha import LiveInput
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/live-steps", tags=["live-steps"])
 KIND = "step"
@@ -47,7 +50,8 @@ def start(request_id: int, db: Session = Depends(get_db), user: User = Depends(g
     try:
         return MANAGER.start(request_id, user.id, kind=KIND)
     except RuntimeError as e:
-        raise HTTPException(429, str(e))
+        logger.warning("Live step session start failed: %s", e)
+        raise HTTPException(429, "Too many live sessions are open right now. Try again in a few minutes.")
 
 
 @router.get("/{request_id}")

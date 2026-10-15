@@ -11,6 +11,7 @@ Usage statistics web service (core/usage_stats.py).
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timedelta
 from typing import List, Optional
 
@@ -23,6 +24,8 @@ from ..core import usage_stats as U
 from ..core.auth import require_super_admin
 from ..core.settings_store import load_settings, save_settings
 from ..models.database import get_db, User
+
+logger = logging.getLogger(__name__)
 
 api_router = APIRouter(tags=["usage statistics"])
 router = APIRouter(prefix="/api/stats-admin", tags=["usage statistics"])
@@ -116,7 +119,10 @@ def add_key(req: KeyIn, db: Session = Depends(get_db), _: User = Depends(require
     try:
         c, key = U.new_client(cfg, req.name, req.institutions)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        logger.warning("Stats key generation failed: %s", e)
+        safe_msg = "Give the key a name, like the script or system that will use it."
+        detail = safe_msg if str(e) == safe_msg else "Invalid key name or institutions."
+        raise HTTPException(400, detail)
     s["stats_api"] = cfg
     _save(s)
     return {"client": U.public_client(c), "key": key}

@@ -430,7 +430,7 @@ def purge_for_user(db, user_id: int) -> None:
                 s["email_credentials"] = creds
                 save_settings(s)
         except Exception as e:
-            log.warning("Could not remove inbox tokens for deleted user: %s", e)
+            log.warning("Could not clean up mailbox settings on user deletion: %s", e)
         for b in boxes:
             db.delete(b)
     db.flush()

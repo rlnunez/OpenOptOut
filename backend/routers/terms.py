@@ -11,6 +11,7 @@ Terms and limits (core/terms.py).
 from __future__ import annotations
 
 import json
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -21,6 +22,8 @@ from ..core import terms as T
 from ..core.auth import get_current_user, require_super_admin
 from ..core.settings_store import load_settings, save_settings
 from ..models.database import get_db, User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/terms", tags=["terms"])
 
@@ -66,7 +69,16 @@ def accept(req: Accept, db: Session = Depends(get_db), user: User = Depends(get_
     try:
         T.accept(db, user, req.kind, req.version, s)
     except ValueError as e:
-        raise HTTPException(409 if "changed" in str(e) else 400, str(e))
+        logger.warning("Terms acceptance failed: %s", e)
+        safe_messages = {
+            "These terms changed while you were reading. Reload the page to see the new ones.": 409,
+            "That isn't something to accept.": 400,
+            "Only an admin accepts these.": 400,
+        }
+        msg = str(e)
+        code = safe_messages.get(msg, 400)
+        detail = msg if msg in safe_messages else "Unable to accept terms at this time."
+        raise HTTPException(code, detail)
     return {"needs": T.needs(db, user, s)}
 
 
@@ -98,7 +110,14 @@ def put_settings(req: TermsIn, db: Session = Depends(get_db), _: User = Depends(
     try:
         T.save(s, req.model_dump(exclude_unset=True))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        logger.warning("Terms settings update failed: %s", e)
+        safe_messages = {
+            "The terms are too long (40,000 characters at most).",
+            "Write the terms (or start from the template) before turning them on.",
+        }
+        msg = str(e)
+        detail = msg if msg in safe_messages or msg.startswith("The ") or msg.startswith("Fill in the notes") else "Invalid terms settings."
+        raise HTTPException(400, detail)
     _save(s)
     return get_settings(db, _)
 

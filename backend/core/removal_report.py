@@ -12,7 +12,7 @@ from __future__ import annotations
 import io
 from datetime import datetime
 from typing import Iterable, Optional
-from xml.sax.saxutils import escape
+from html import escape
 
 STATUS_TEXT = {
     "pending": "Waiting to send", "sent": "Sent", "submitted": "Sent", "confirmed": "Removed",

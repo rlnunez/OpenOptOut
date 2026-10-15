@@ -19,9 +19,12 @@ Everything here sends data off the server, so only super admins set it up.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+
+logger = logging.getLogger(__name__)
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -113,7 +116,20 @@ def _upsert(listname: str, item_id: Optional[str], build):
     try:
         new = build(old)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        logger.warning("Observability destination configuration failed: %s", e)
+        safe_messages = {
+            "Choose a service from the list.",
+            "Paste the address the service gave you.",
+            "The address must start with https:// (or http:// on your own network).",
+            "The webhook address cannot target cloud metadata endpoints.",
+            "Give the destination a name.",
+            "Choose a transport from the list.",
+            "Enter a server address or host name.",
+            "Enter a valid port number between 1 and 65535.",
+        }
+        msg = str(e)
+        detail = msg if msg in safe_messages or msg.startswith("The address must start with") else "Invalid destination configuration."
+        raise HTTPException(400, detail)
     items = [new if x["id"] == new["id"] else x for x in items] if old else items + [new]
     _obs(s)[listname] = items
     _save(s)

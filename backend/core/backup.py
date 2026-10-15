@@ -767,7 +767,7 @@ def restore(path: str, pw: str, to_dir: str) -> dict:
             for m in tar.getmembers():
                 if m.name.startswith("/") or ".." in m.name.split("/") or m.issym() or m.islnk():
                     raise ValueError("unsafe path in backup")
-            tar.extractall(work, filter="data") if hasattr(tarfile, "data_filter") else tar.extractall(work)
+            tar.extractall(work, filter="data") if hasattr(tarfile, "data_filter") else tar.extractall(work)  # nosec B202
         root = os.path.join(work, "openoptout-backup")
         with open(os.path.join(root, "manifest.json")) as f:
             manifest = json.load(f)

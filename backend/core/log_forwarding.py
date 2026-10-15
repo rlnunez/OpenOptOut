@@ -200,9 +200,10 @@ def _send_syslog(d: dict, records: List[dict]) -> None:
         raw = socket.create_connection((host.strip("[]"), port), timeout=10)
         if transport == "tls":
             ctx = ssl.create_default_context()
+            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
             if not d.get("verify_tls", True):
                 ctx.check_hostname = False
-                ctx.verify_mode = ssl.CERT_NONE
+                ctx.verify_mode = ssl.CERT_NONE  # nosec B323
             raw = ctx.wrap_socket(raw, server_hostname=host.strip("[]"))
         sock = raw
         _sockets[d["id"]] = sock
