@@ -2192,9 +2192,11 @@ def t_network_health_circuit_breaker():
 
     # 5. Distributed worker offline protection
     q = queue_mod.InProcessJobQueue()
+    test_key = "test-circuit-breaker-key"
     env = env_mod.create_removal_envelope(
         job={"broker_id": "test_broker", "broker_name": "TestBroker", "member_id": "m-123", "steps": []},
         priority="high",
+        secret_key=test_key,
     )
     q.enqueue(env)
     assert q.queue_depth(queue_mod.CHANNEL_REMOVAL_HIGH) == 1
@@ -2204,6 +2206,7 @@ def t_network_health_circuit_breaker():
         concurrency=1,
         dry_run=True,
         enable_heartbeat=False,
+        secret_key=test_key,
     )
     worker = worker_mod.WorkerDaemon(config=cfg, queue=q, registry=reg)
 
@@ -2226,6 +2229,7 @@ def t_network_health_circuit_breaker():
         env2 = env_mod.create_removal_envelope(
             job={"broker_id": "test_offline", "broker_name": "TestOffline", "member_id": "m-456", "steps": []},
             priority="high",
+            secret_key=test_key,
         )
         q.enqueue(env2)
 
@@ -2237,6 +2241,7 @@ def t_network_health_circuit_breaker():
                 status="network_offline",
                 error="net::ERR_INTERNET_DISCONNECTED",
                 worker_id="worker-circuit-breaker",
+                secret_key=test_key,
             )
         worker.execute_envelope = mock_execute_offline
 
@@ -9988,7 +9993,25 @@ def t_backup_rclone():
     import os, stat, tempfile, shutil as _sh
     bk = _imp("core.backup")
     oe = _imp("core.oauth_engine")
-    work = tempfile.mkdtemp()
+    # Create work dir on an executable mount (Docker container mounts /tmp with noexec)
+    exec_base = None
+    for candidate in [None, os.path.expanduser("~"), "/data", "/app"]:
+        if candidate and not os.path.exists(candidate):
+            continue
+        try:
+            td = tempfile.mkdtemp(dir=candidate)
+            test_sh = os.path.join(td, "x")
+            with open(test_sh, "w") as fp:
+                fp.write("#!/bin/sh\n")
+            os.chmod(test_sh, stat.S_IRWXU)
+            is_exec = os.access(test_sh, os.X_OK)
+            _sh.rmtree(td, ignore_errors=True)
+            if is_exec:
+                exec_base = candidate
+                break
+        except Exception:
+            continue
+    work = tempfile.mkdtemp(dir=exec_base)
     store, bindir = os.path.join(work, "store"), os.path.join(work, "bin")
     os.makedirs(store); os.makedirs(bindir)
     log = os.path.join(work, "calls")
