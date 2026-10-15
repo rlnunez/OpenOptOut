@@ -1,0 +1,57 @@
+# Git metadata and CI workflows
+.git/
+.github/
+
+# Environment, secrets, and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+certs/
+secrets/
+openoptout_settings.json
+privacyshield_settings.json
+test_email_accounts.json
+.test_email_accounts.json
+
+# Databases and persistent data volumes
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Python cache, virtual environments, and build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+build/
+venv/
+.venv/
+env/
+
+# Node dependencies, cache, and build outputs
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+.vite/
+npm-debug.log*
+
+# Documentation, scratch, editor, and logs
+.vscode/
+.idea/
+*.swp
+*.swo
+*.log
+logs/
+
+# Operating system files
+.DS_Store
+Thumbs.db
