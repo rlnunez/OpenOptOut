@@ -36,7 +36,7 @@ RUN apt-get update && \
 # pCloud, MEGA, Nextcloud...). Debian's package is too old for some of these,
 # so a pinned release is fetched and checked against its published SHA-256.
 # Best-effort: without it, only that one backup option is unavailable.
-ARG RCLONE_VERSION=v1.68.2
+ARG RCLONE_VERSION=v1.75.2
 RUN set -e; arch="$(dpkg --print-architecture)"; \
     case "$arch" in amd64|arm64|arm) ;; armhf) arch=arm-v7 ;; *) echo "WARN: no rclone for $arch"; exit 0 ;; esac; \
     base="https://downloads.rclone.org/${RCLONE_VERSION}"; f="rclone-${RCLONE_VERSION}-linux-${arch}.zip"; \
