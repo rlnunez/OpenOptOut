@@ -8291,7 +8291,18 @@ def t_hf_browser():
 <label for=em>Email *</label><input id=em type=email required>
 <label><input type=checkbox id=news name=news> Send me news and offers</label>
 <label><input type=checkbox id=cert name=cert required> I certify that the information is true</label>
-<button type=submit onclick="event.preventDefault();window.sent=JSON.stringify(Array.from(document.querySelectorAll('input')).map(e=>[e.id||e.value,e.type==='checkbox'?e.checked:e.value]));document.body.innerHTML='<p>Your request has been received.</p>'">Submit</button></form>"""
+<button type=submit>Submit</button></form>
+<script>
+document.querySelector('form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    window.sent = JSON.stringify(Array.from(document.querySelectorAll('input')).map(function(el) {
+        return [el.id || el.value, el.type === 'checkbox' ? el.checked : el.value];
+    }));
+    var p = document.createElement('p');
+    p.textContent = 'Your request has been received.';
+    document.body.appendChild(p);
+});
+</script>"""
     bad = """<form><h2>Delete my data</h2><label for=n>Full name</label><input id=n required>
 <label for=e>Email</label><input id=e type=email required><label for=d>Driver's license number</label><input id=d required>
 <button type=submit>Submit</button></form>"""

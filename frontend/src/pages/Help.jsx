@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
-import { escapeHtml, renderLinks } from '../components/Markdown'
+import { isSafeHref } from '../components/Markdown'
 import { tx } from '../i18n/tx'
 import { fmtDate } from '../i18n/format'
 
@@ -139,18 +139,54 @@ const STATIC_DOCS = {
   ],
 }
 
-// ── Markdown renderer (simple subset) ────────────────────────────────────────
+// ── Markdown renderer (safe React elements, no dangerouslySetInnerHTML) ──────
+
+function renderInline(text) {
+  if (!text) return null
+  const regex = /(`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g
+  const parts = text.split(regex)
+  return parts.map((part, idx) => {
+    if (!part) return null
+    if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
+      return (
+        <code key={idx} className="bg-slate-700 px-1 py-0.5 rounded-sm text-xs text-slate-200 font-mono">
+          {part.slice(1, -1)}
+        </code>
+      )
+    }
+    if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+      return (
+        <strong key={idx} className="text-white font-medium">
+          {part.slice(2, -2)}
+        </strong>
+      )
+    }
+    const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+    if (linkMatch) {
+      const [, label, url] = linkMatch
+      if (isSafeHref(url)) {
+        return (
+          <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="text-shield-400 hover:underline">
+            {label}
+          </a>
+        )
+      }
+      return <span key={idx}>{label}</span>
+    }
+    return <span key={idx}>{part}</span>
+  })
+}
 
 function SimpleMarkdown({ content }) {
-  const lines = content.split('\n')
+  const lines = (content || '').split('\n')
   return (
     <div className="space-y-2 text-slate-300 text-sm leading-relaxed">
       {lines.map((line, i) => {
         if (!line.trim()) return <div key={i} className="h-1" />
 
         // headings
-        if (line.startsWith('**') && line.endsWith('**') && !line.slice(2,-2).includes('**'))
-          return <p key={i} className="text-white font-medium mt-3">{line.slice(2,-2)}</p>
+        if (line.startsWith('**') && line.endsWith('**') && !line.slice(2, -2).includes('**'))
+          return <p key={i} className="text-white font-medium mt-3">{line.slice(2, -2)}</p>
 
         // horizontal rule
         if (line.trim() === '---')
@@ -161,7 +197,7 @@ function SimpleMarkdown({ content }) {
           return (
             <div key={i} className="flex gap-2 ms-2">
               <span className="text-slate-600 mt-1 shrink-0">•</span>
-              <span dangerouslySetInnerHTML={{ __html: renderInline(line.slice(2)) }} />
+              <span className="flex-1">{renderInline(line.slice(2))}</span>
             </div>
           )
 
@@ -171,23 +207,15 @@ function SimpleMarkdown({ content }) {
           return (
             <div key={i} className="flex gap-2 ms-2">
               <span className="text-slate-500 shrink-0 font-mono text-xs mt-0.5">{num}.</span>
-              <span dangerouslySetInnerHTML={{ __html: renderInline(rest.join('. ')) }} />
+              <span className="flex-1">{renderInline(rest.join('. '))}</span>
             </div>
           )
         }
 
-        return <p key={i} dangerouslySetInnerHTML={{ __html: renderInline(line) }} />
+        return <p key={i}>{renderInline(line)}</p>
       })}
     </div>
   )
-}
-
-// Escapes first: this renders admin-editable notes that every signed-in user
-// sees, so the content must never be able to inject markup or script links.
-function renderInline(text) {
-  return renderLinks(escapeHtml(text)
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-medium">$1</strong>')
-    .replace(/`(.+?)`/g, '<code class="bg-slate-700 px-1 py-0.5 rounded-sm text-xs text-slate-200 font-mono">$1</code>'))
 }
 
 // ── Accordion item ────────────────────────────────────────────────────────────
