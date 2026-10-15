@@ -16,81 +16,83 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 
 ---
 
+<a id="status-at-a-glance"></a>
 ## Status at a Glance
 
 | # | Item | Status |
 |---|------|--------|
-| 1 | Broker-as-add-on model | Complete |
-| 2 | Declarative interpretation engine | Complete |
-| 3 | Multi-form & complex page interpreter | Complete |
-| 4 | Pluggable CAPTCHA resolution | Complete |
-| 5 | Granular broker management | Complete |
-| 6 | Automated broker health monitoring | Complete |
-| 7 | Distributed execution: control plane & worker fleet | Complete |
-| 8 | Add-on distribution: Git repo to marketplace | In Design / Active (Phase 8.1 In Design) |
-| 9 | Infrastructure capacity planner | Planned — pending empirical performance benchmarking |
-| 10 | Email-first opt-outs via parent companies | Complete |
-| 11 | First-run setup wizard | Complete (Enhanced 7-step flow & bundle planned) |
-| 12 | School district authentication (Parent Portal SSO) | On-Demand (District Request Only) |
-| 13 | SAML 2.0 SSO & identity hardening | Complete |
-| 14 | Built-in HTTPS with automated certificates | Complete |
-| 15 | Process memory hygiene & ephemeral storage | Complete (15.1 & 15.2 Complete) |
-| 16 | Operational visibility & diagnostic logging | Complete |
-| 17 | Internationalization (i18n): language packs & RTL | Complete (Plugin localization standard in design) |
-| 18 | Typed plugin directories & runtime isolation | Complete |
-| 19 | Delegated managerial permissions | Complete |
-| 20 | Multi-tier institutional hierarchy (Consortium) | Complete |
-| 21 | Plugin sandbox IPC & container privilege boundaries | Complete (21.1 & 21.2 Complete) |
-| 22 | Independent security audit & penetration testing | Planned |
-| 23 | Unified interactive host & fleet installer (CLI/TUI) | Complete |
-| 24 | Enterprise ingress, edge security & DDoS protection | Complete |
-| 25 | Passwordless authentication & session lifespan governance | Complete |
-| 26 | Automated ILS demographic ingestion & Identity Vault sync | Complete |
-| 27 | Universal accessibility (a11y) & WCAG 2.2 AAA conformance | Complete |
-| 28 | Multi-container test matrix, mock harness & diagnostic automation | Complete |
-| 29 | Parent-company catalog & broker spec metadata | Complete (#67) |
-| 30 | Family inboxes & one address per opt-out | Complete (#69) |
-| 31 | Find your listings (listing finder) | Complete (#70) |
-| 32 | State broker registries, dead-site detection & California DROP | Complete (#71) |
-| 33 | General web search (SearXNG) | Complete (#72) |
-| 34 | Checklist & per-variant removal report | Complete (#73, #75) |
-| 35 | Broker confirmation links clicked automatically | Complete (#76) |
-| 36 | Curated broker form plugins & honest form results | Complete (#77) — live verification pending |
-| 37 | Long tail: privacy-request page finder & OneTrust/TrustArc forms | Complete (#79) — live verification pending |
-| 38 | Built-in receive-only inbox | Considering (backup/alternate solution when brokers reject '+' addressing) |
-| 39 | Automated removal verification & re-listing monitor | Complete (#82) — live verification pending |
-| 40 | Data-sharing detection & aggregator-first targeting | Complete (#83) |
-| 41 | Encrypted backups to local, network, SFTP and cloud storage | Complete (#85, #91) |
-| 42 | Automatic broker steps & AI helpers | Complete (#98) — live verification pending |
-| 43 | Plain language for people and family pages | Complete (#86, #87) |
-| 44 | Phone and email removal, birthday matching, and credit freeze letters | Complete (#88) |
-| 45 | Removal timeline & round tracking | Complete (#89) |
-| 46 | Plain language for admin pages & localized status badges | Complete (#90) |
-| 47 | Cloud backups through rclone (Proton Drive, Box, pCloud, MEGA, Nextcloud) | Complete (#91) |
-| 48 | Privacy record, access logging, and deadline reporting | Complete (#92) |
-| 49 | Decoupled language packs, privacy score, PDF reports, and calendar scheduling | Complete (#93) |
-| 50 | Live CAPTCHA hand-off & privacy-preserving solvers | Complete (#94) |
-| 51 | Unclear match resolution & listing disambiguation | Complete (#95) |
-| 52 | Full UI translation framework across 12 languages | Complete (#96) |
-| 53 | Plugin localization standard & jurisdiction-based legal letters | Complete (#97) |
-| 54 | Universal live hand-off for interactive steps ("Do it here") | Complete (#99) |
-| 55 | Yahoo OAuth-only email integration | Complete (#100) |
-| 56 | Comprehensive RTL mirroring & logical layout | Complete (#101) |
-| 57 | Configurable regional date, time, and number formats | Complete (#103) |
-| 58 | Modular opt-out letter plugins | Complete (#104) |
-| 59 | Monitoring, Prometheus metrics, webhooks, and log forwarding | Complete (#105) |
-| 60 | Broker pack 1 (50 independent plugins) & coverage calculation | Complete (#106) |
-| 61 | Terms, operational limits, and transparency notices | Complete (#107) |
-| 62 | Automated discovery response for inactive brokers | Complete (#108) |
-| 63 | Usage statistics API for institutional data warehouses | Complete (#110) |
-| 64 | Address-verified registration for housing communities | Complete (#116) |
-| 65 | Containerized release updater & Docker engine supervisor | In Progress / Implemented |
-| 66 | Network circuit breaker & graceful offline halt | Complete |
+| [1](#item-1) | [Broker-as-add-on model](#item-1) | Complete |
+| [2](#item-2) | [Declarative interpretation engine](#item-2) | Complete |
+| [3](#item-3) | [Multi-form & complex page interpreter](#item-3) | Complete |
+| [4](#item-4) | [Pluggable CAPTCHA resolution](#item-4) | Complete |
+| [5](#item-5) | [Granular broker management](#item-5) | Complete |
+| [6](#item-6) | [Automated broker health monitoring](#item-6) | Complete |
+| [7](#item-7) | [Distributed execution: control plane & worker fleet](#item-7) | Complete |
+| [8](#item-8) | [Add-on distribution: Git repo to marketplace](#item-8) | In Design / Active (Phase 8.1 In Design) |
+| [9](#item-9) | [Infrastructure capacity planner](#item-9) | Planned — pending empirical performance benchmarking |
+| [10](#item-10) | [Email-first opt-outs via parent companies](#item-10) | Complete |
+| [11](#item-11) | [First-run setup wizard](#item-11) | Complete (Enhanced 7-step flow & bundle planned) |
+| [12](#item-12) | [School district authentication (Parent Portal SSO)](#item-12) | On-Demand (District Request Only) |
+| [13](#item-13) | [SAML 2.0 SSO & identity hardening](#item-13) | Complete |
+| [14](#item-14) | [Built-in HTTPS with automated certificates](#item-14) | Complete |
+| [15](#item-15) | [Process memory hygiene & ephemeral storage](#item-15) | Complete (15.1 & 15.2 Complete) |
+| [16](#item-16) | [Operational visibility & diagnostic logging](#item-16) | Complete |
+| [17](#item-17) | [Internationalization (i18n): language packs & RTL](#item-17) | Complete (Plugin localization standard in design) |
+| [18](#item-18) | [Typed plugin directories & runtime isolation](#item-18) | Complete |
+| [19](#item-19) | [Delegated managerial permissions](#item-19) | Complete |
+| [20](#item-20) | [Multi-tier institutional hierarchy (Consortium)](#item-20) | Complete |
+| [21](#item-21) | [Plugin sandbox IPC & container privilege boundaries](#item-21) | Complete (21.1 & 21.2 Complete) |
+| [22](#item-22) | [Independent security audit & penetration testing](#item-22) | Planned |
+| [23](#item-23) | [Unified interactive host & fleet installer (CLI/TUI)](#item-23) | Complete |
+| [24](#item-24) | [Enterprise ingress, edge security & DDoS protection](#item-24) | Complete |
+| [25](#item-25) | [Passwordless authentication & session lifespan governance](#item-25) | Complete |
+| [26](#item-26) | [Automated ILS demographic ingestion & Identity Vault sync](#item-26) | Complete |
+| [27](#item-27) | [Universal accessibility (a11y) & WCAG 2.2 AAA conformance](#item-27) | Complete |
+| [28](#item-28) | [Multi-container test matrix, mock harness & diagnostic automation](#item-28) | Complete |
+| [29](#item-29) | [Parent-company catalog & broker spec metadata](#item-29) | Complete (#67) |
+| [30](#item-30) | [Family inboxes & one address per opt-out](#item-30) | Complete (#69) |
+| [31](#item-31) | [Find your listings (listing finder)](#item-31) | Complete (#70) |
+| [32](#item-32) | [State broker registries, dead-site detection & California DROP](#item-32) | Complete (#71) |
+| [33](#item-33) | [General web search (SearXNG)](#item-33) | Complete (#72) |
+| [34](#item-34) | [Checklist & per-variant removal report](#item-34) | Complete (#73, #75) |
+| [35](#item-35) | [Broker confirmation links clicked automatically](#item-35) | Complete (#76) |
+| [36](#item-36) | [Curated broker form plugins & honest form results](#item-36) | Complete (#77) — live verification pending |
+| [37](#item-37) | [Long tail: privacy-request page finder & OneTrust/TrustArc forms](#item-37) | Complete (#79) — live verification pending |
+| [38](#item-38) | [Built-in receive-only inbox](#item-38) | Considering (backup/alternate solution when brokers reject '+' addressing) |
+| [39](#item-39) | [Automated removal verification & re-listing monitor](#item-39) | Complete (#82) — live verification pending |
+| [40](#item-40) | [Data-sharing detection & aggregator-first targeting](#item-40) | Complete (#83) |
+| [41](#item-41) | [Encrypted backups to local, network, SFTP and cloud storage](#item-41) | Complete (#85, #91) |
+| [42](#item-42) | [Automatic broker steps & AI helpers](#item-42) | Complete (#98) — live verification pending |
+| [43](#item-43) | [Plain language for people and family pages](#item-43) | Complete (#86, #87) |
+| [44](#item-44) | [Phone and email removal, birthday matching, and credit freeze letters](#item-44) | Complete (#88) |
+| [45](#item-45) | [Removal timeline & round tracking](#item-45) | Complete (#89) |
+| [46](#item-46) | [Plain language for admin pages & localized status badges](#item-46) | Complete (#90) |
+| [47](#item-47) | [Cloud backups through rclone (Proton Drive, Box, pCloud, MEGA, Nextcloud)](#item-47) | Complete (#91) |
+| [48](#item-48) | [Privacy record, access logging, and deadline reporting](#item-48) | Complete (#92) |
+| [49](#item-49) | [Decoupled language packs, privacy score, PDF reports, and calendar scheduling](#item-49) | Complete (#93) |
+| [50](#item-50) | [Live CAPTCHA hand-off & privacy-preserving solvers](#item-50) | Complete (#94) |
+| [51](#item-51) | [Unclear match resolution & listing disambiguation](#item-51) | Complete (#95) |
+| [52](#item-52) | [Full UI translation framework across 12 languages](#item-52) | Complete (#96) |
+| [53](#item-53) | [Plugin localization standard & jurisdiction-based legal letters](#item-53) | Complete (#97) |
+| [54](#item-54) | [Universal live hand-off for interactive steps ("Do it here")](#item-54) | Complete (#99) |
+| [55](#item-55) | [Yahoo OAuth-only email integration](#item-55) | Complete (#100) |
+| [56](#item-56) | [Comprehensive RTL mirroring & logical layout](#item-56) | Complete (#101) |
+| [57](#item-57) | [Configurable regional date, time, and number formats](#item-57) | Complete (#103) |
+| [58](#item-58) | [Modular opt-out letter plugins](#item-58) | Complete (#104) |
+| [59](#item-59) | [Monitoring, Prometheus metrics, webhooks, and log forwarding](#item-59) | Complete (#105) |
+| [60](#item-60) | [Broker pack 1 (50 independent plugins) & coverage calculation](#item-60) | Complete (#106) |
+| [61](#item-61) | [Terms, operational limits, and transparency notices](#item-61) | Complete (#107) |
+| [62](#item-62) | [Automated discovery response for inactive brokers](#item-62) | Complete (#108) |
+| [63](#item-63) | [Usage statistics API for institutional data warehouses](#item-63) | Complete (#110) |
+| [64](#item-64) | [Address-verified registration for housing communities](#item-64) | Complete (#116) |
+| [65](#item-65) | [Containerized release updater & Docker engine supervisor](#item-65) | In Progress / Implemented |
+| [66](#item-66) | [Network circuit breaker & graceful offline halt](#item-66) | Complete |
 
 ---
 
 ## Work Items
 
+<a id="item-1"></a>
 ### 1. Broker-as-add-on model
 **Goal:** Decouple broker-specific logic from the core platform by packaging each data broker as an independent add-on.
 
@@ -103,8 +105,11 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 
 **Status:** Complete.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-2"></a>
 ### 2. Declarative interpretation engine
 **Goal:** Provide a centralized runtime in the core engine that parses and executes declarative broker specifications without hardcoded broker logic.
 
@@ -115,8 +120,11 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 
 **Status:** Complete. Single declarative execution engine unified; legacy combo engine retired. See [`docs/INTERPRETER.md`](INTERPRETER.md).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-3"></a>
 ### 3. Multi-form & complex page interpreter (add-on hook)
 **Goal:** Support complex, multi-page, or dynamic broker flows via declarative step extensions and specialized plugin handlers rather than expanding hardcoded engine logic.
 
@@ -129,8 +137,11 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 
 **Status:** Complete.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-4"></a>
 ### 4. Pluggable CAPTCHA resolution architecture
 **Goal:** Provide an extensible challenge-resolution framework allowing deployments to configure automated solvers or human-in-the-loop fallbacks based on policy and requirements.
 
@@ -146,8 +157,11 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 
 **Status:** Complete.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-5"></a>
 ### 5. Granular broker management
 **Goal:** Allow administrators to toggle individual brokers on or off to conserve resources and tailor coverage.
 
@@ -157,8 +171,11 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 
 **Status:** Complete.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-6"></a>
 ### 6. Automated broker health monitoring & fail-safe auto-disable
 **Goal:** Automatically detect failing brokers, classify errors, and disable non-functional integrations to preserve batch execution reliability.
 
@@ -170,8 +187,11 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 
 **Status:** Complete.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-7"></a>
 ### 7. Distributed execution: control plane & worker fleet
 **Goal:** Horizontally scale automated browser operations—including both opt-out removal executions and pre-removal discovery bots—by separating the administrative API/control plane from stateless headless browser execution workers.
 
@@ -245,8 +265,11 @@ To ensure operational stability and maintain continuous testability without disr
 
 **Status:** Complete (Phases 7.1, 7.2, 7.3, 7.4 & 7.5 Complete).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-8"></a>
 ### 8. Add-on distribution: Git repository to curated marketplace
 **Goal:** Establish a modular distribution channel for community broker specs, solver plugins, and language packs through an integrated core catalog client and curated marketplace.
 
@@ -268,8 +291,11 @@ To ensure operational stability and maintain continuous testability without disr
 
 **Status:** In Design / Active (Phase 8.1 In Design).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-9"></a>
 ### 9. Infrastructure capacity planner
 **Goal:** Provide an administrative sizing calculator that estimates hardware and worker node requirements based on profile volume and broker distribution.
 
@@ -279,6 +305,8 @@ To ensure operational stability and maintain continuous testability without disr
 - **Telemetry Integration:** Calibrates planning coefficients using empirical execution metrics from real worker runs.
 
 **Status:** Planned (pending empirical performance benchmarking under Item 7).
+
+[↑ Back to Status at a Glance](#status-at-a-glance)
 
 ---
 
@@ -302,6 +330,7 @@ To ensure operational stability and maintain continuous testability without disr
 
 ---
 
+<a id="item-10"></a>
 ### 10. Email-first opt-outs via parent companies
 **Goal:** Prioritize high-efficiency email-based opt-outs to corporate entities controlling multiple broker storefronts, bypassing form friction and clearing multiple sites simultaneously.
 
@@ -314,8 +343,11 @@ To ensure operational stability and maintain continuous testability without disr
 
 **Status:** Complete.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-11"></a>
 ### 11. First-run setup wizard
 **Goal:** Provide a guided onboarding workflow for initial deployment configuration (database selection, email transports, institutional branding, HTTPS provisioning, localized experience, and recommended protections bundle).
 
@@ -335,8 +367,11 @@ To ensure operational stability and maintain continuous testability without disr
 
 **Status:** Complete (Enhanced 7-step flow & bundle planned).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-12"></a>
 ### 12. School district authentication (Parent Portal SSO)
 **Goal:** Enable authentication for parents and district staff by federating with Student Information Systems (SIS) and district identity platforms when requested by an institutional partner.
 
@@ -351,8 +386,11 @@ To ensure operational stability and maintain continuous testability without disr
 
 **Status:** On-Demand (District Request Only).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-13"></a>
 ### 13. SAML 2.0 SSO & identity hardening
 **Goal:** Support SAML 2.0 identity federation for enterprise and academic deployments alongside OIDC, LDAP, and SIP2, reinforced with unified authentication hardening.
 
@@ -365,8 +403,11 @@ To ensure operational stability and maintain continuous testability without disr
 
 **Status:** Complete. Documented in [`docs/SSO.md`](SSO.md).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-14"></a>
 ### 14. Built-in HTTPS with automated certificates
 **Goal:** Automate TLS certificate provisioning and renewal across containerized and bare-metal installations to secure patron data in transit.
 
@@ -378,8 +419,11 @@ To ensure operational stability and maintain continuous testability without disr
 
 **Status:** Complete. Documented in [`docs/HTTPS.md`](HTTPS.md).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-15"></a>
 ### 15. Process memory hygiene & ephemeral storage
 **Goal:** Ensure decrypted credentials (database keys, OAuth tokens, passwords) and sensitive patron PII are retained in process memory for the minimum duration necessary, and prevent memory remnants from being persisted unencrypted to physical storage.
 
@@ -396,8 +440,11 @@ To ensure operational stability and maintain continuous testability without disr
   - **Testing & Sizing Benchmarks:** Sizing benchmark suite (`deploy/tests/test_tmpfs_sizing.py` and `backend/tests/test_tmpfs_sizing.py`) monitors peak consumption across concurrent worker sessions to prevent `ENOSPC` (out of disk space) crashes during large multi-broker batches.
   - **Status:** Complete. Empirical stress testing confirmed 100MB allocated across 4 concurrent browser workers completed in ~0.2s with zero leaks and complete cleanup. Configured standard ephemeral RAM storage via `tmpfs: [ "/tmp:size=512M,mode=1777" ]` in `docker-compose.yml` (`api`) and `size=1G` in `docker-compose.distributed.yml` (`worker`), with native `/etc/fstab` guidance in `docs/NATIVE_INSTALL.md`.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-16"></a>
 ### 16. Operational visibility & diagnostic logging
 **Goal:** Provide administrators with centralized visibility into running application versions and diagnostic logs directly from the administrative interface.
 
@@ -408,8 +455,11 @@ To ensure operational stability and maintain continuous testability without disr
 
 **Status:** Complete. Documented in [`docs/ARCHITECTURE.md`](ARCHITECTURE.md).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-17"></a>
 ### 17. Internationalization (i18n): language packs & RTL
 **Goal:** Provide comprehensive localization support across the user interface, supporting community language packs, right-to-left (RTL) layout rendering, in-system translation management for administrators, universal plugin localization, and strict decoupling between patron interface language and broker legal correspondence language.
 
@@ -435,8 +485,11 @@ To ensure operational stability and maintain continuous testability without disr
 
 **Status:** Complete; reviews outstanding (above).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-18"></a>
 ### 18. Typed plugin directories & runtime isolation
 **Goal:** Organize extensions by functional category under a structured `plugins/` hierarchy, enforcing type-specific capabilities, permissions, and sandbox constraints.
 
@@ -462,8 +515,11 @@ plugins/
 
 **Status:** Complete. Documented in [`backend/plugins/docs/USING_PLUGINS.md`](../backend/plugins/docs/USING_PLUGINS.md).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-19"></a>
 ### 19. Delegated managerial permissions
 **Goal:** Provide a tiered `manager` role between super administrators and patrons, allowing granular delegation of administrative responsibilities.
 
@@ -475,8 +531,11 @@ plugins/
 
 **Status:** Complete.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-20"></a>
 ### 20. Multi-tier institutional hierarchy (Consortium)
 **Goal:** Support statewide or consortium-level deployments by partitioning patron management and data visibility across independent library systems and branch locations.
 
@@ -489,8 +548,11 @@ plugins/
 
 **Status:** Complete.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-21"></a>
 ### 21. Plugin sandbox IPC & container privilege boundaries
 **Goal:** Guarantee resilient, isolated inter-process communication between the host application and sandboxed plugins without resource starvation, and establish safe container privilege boundaries.
 
@@ -506,8 +568,11 @@ plugins/
   - **Testing Probe & Compatibility Matrix:** Compatibility probe (`deploy/tests/test_no_new_privs.py` and `backend/tests/test_no_new_privs.py`) audits host kernel posture, verifies unprivileged namespace creation, and checks nested seccomp transitions under `no-new-privileges:true`.
   - **Status:** Complete. Empirical testing confirmed `no-new-privileges: true` is standard and enforced on all edge services (`web`, `caddy`, `traefik`, `searxng`). Built-in and curated broker plugins are pure declarative JSON specifications executing directly in the core Python interpreter (0 subprocess code execution, requiring neither `bwrap` nor elevated privileges). For third-party code plugins on kernels with AppArmor restrictions on unprivileged user namespaces (e.g. Ubuntu 24.04 / kernel 6.8+), host requirements and graceful POSIX `rlimits` / seccomp fallbacks are fully documented in `docs/PLUGINS.md` and `backend/plugins/docs/USING_PLUGINS.md`.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-22"></a>
 ### 22. Independent security audit & penetration testing
 **Goal:** Engage a third-party security firm or independent security researchers to perform a comprehensive code audit and penetration test across OpenOptOut's security-critical subsystems.
 
@@ -525,8 +590,11 @@ plugins/
 
 **Status:** Planned.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-23"></a>
 ### 23. Unified interactive host & fleet installer (CLI/TUI)
 **Goal:** Deliver a guided, zero-friction terminal installation experience (`curl -fsSL ... | sudo bash`) that interactively provisions host dependencies, database engines, web servers, and tailors node installations according to their cluster role.
 
@@ -551,8 +619,11 @@ plugins/
 
 **Status:** Complete.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-24"></a>
 ### 24. Enterprise ingress, edge security & DDoS protection
 **Goal:** Harden institutional front-door routing with multi-provider reverse proxy support, Cloudflare Tunnel zero-trust ingress, edge rate limiting, and InCommon academic certificate automation.
 
@@ -565,8 +636,11 @@ plugins/
 
 **Status:** Complete. Documented in [`docs/HTTPS.md`](HTTPS.md).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-25"></a>
 ### 25. Passwordless authentication & session lifespan governance
 **Goal:** Deliver modern, phishing-resistant passwordless sign-in options, eliminate password fatigue for patrons, and enforce role-tailored session duration policies.
 
@@ -580,8 +654,11 @@ plugins/
 
 **Status:** Complete.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-26"></a>
 ### 26. Automated ILS demographic ingestion & Identity Vault synchronization
 **Goal:** Streamline onboarding for library patrons by automatically pulling verified demographic attributes from Integrated Library Systems (ILS) into the encrypted Identity Vault.
 
@@ -594,8 +671,11 @@ plugins/
 
 **Status:** Complete.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-27"></a>
 ### 27. Universal accessibility (a11y) & WCAG 2.2 AAA conformance
 **Goal:** Ensure the platform is universally usable by all patrons, staff, and administrators regardless of visual, motor, or cognitive abilities, adhering to WCAG 2.2 AAA standards.
 
@@ -608,8 +688,11 @@ plugins/
 
 **Status:** Complete. Documented in [`ACCESSIBILITY.md`](../ACCESSIBILITY.md).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-28"></a>
 ### 28. Multi-container test matrix, integration mockbed & diagnostic telemetry
 **Goal:** Guarantee system reliability across deployment permutations through automated container matrix testing, live email/ILS test harnesses, and automated log diagnostic triage.
 
@@ -621,8 +704,11 @@ plugins/
 
 **Status:** Complete.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-29"></a>
 ### 29. Parent-company catalog & broker spec metadata
 **Goal:** One opt-out per company instead of one per front-site, and specs that say what each opt-out legally owes and what it will ask of a person.
 
@@ -633,8 +719,11 @@ plugins/
 
 **Status:** Complete (#67).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-30"></a>
 ### 30. Family inboxes & one address per opt-out
 **Goal:** Opt-outs are sent from, and answered at, each person's own inbox; the system inbox only sends notifications.
 
@@ -645,8 +734,11 @@ plugins/
 
 **Status:** Complete (#69).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-31"></a>
 ### 31. Find your listings
 **Goal:** Help people find where they're listed and put each listing into the removal cycle.
 
@@ -655,8 +747,11 @@ plugins/
 
 **Status:** Complete (#70).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-32"></a>
 ### 32. State broker registries, dead-site detection & California DROP
 - California, Vermont, Texas and Oregon registries can be imported. Imported brokers are **off by default**; an admin turns them on after a warning that it can do more harm than good.
 - Brokers whose sites stop answering for 30 days are marked defunct.
@@ -665,32 +760,44 @@ plugins/
 
 **Status:** Complete (#71).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-33"></a>
 ### 33. General web search
 - Server-side searches through a self-hosted SearXNG (the only provider). Strong matches on known brokers are added to removals automatically; everything else waits for "That's me" / "Not me". Weekly re-runs.
 - See [`docs/WEB_SEARCH.md`](WEB_SEARCH.md).
 
 **Status:** Complete (#72).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-34"></a>
 ### 34. Checklist & per-variant removal report
 - **Checklist page:** everything that needs a person (connect an inbox, finish by hand, confirm a link, CAPTCHAs, "is this you?", overdue brokers, re-checks) with progress per family member.
 - **Per-variant report:** Dashboard card comparing removal of the main details (full name, current address, phone) with every other saved variant.
 
 **Status:** Complete (#73, #75).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-35"></a>
 ### 35. Broker confirmation links
 - A reply asking for a click no longer counts as a removal. The link is saved encrypted and clicked after each email check: https only, on the broker's or parent's domain (or a click-tracker that lands there), public addresses only, re-checked at every redirect. A hidden browser presses "Confirm" buttons when needed.
 - Links that can't be clicked go on the checklist. Email plugins return links so message bodies stay in the sandbox.
 
 **Status:** Complete (#76).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-36"></a>
 ### 36. Curated broker form plugins & honest form results
 **Goal:** Finish automated form filling: real steps for the big people-search sites, and results that never claim more than happened.
 
@@ -703,8 +810,11 @@ plugins/
 
 **Status:** Complete (#77) — live verification pending.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-37"></a>
 ### 37. Long tail: privacy-request page finder & hosted privacy forms
 **Goal:** Cover brokers no one has written steps for. Find a site's privacy-request page, and fill the hosted forms many companies use (OneTrust, TrustArc) with one shared handler.
 
@@ -715,15 +825,21 @@ plugins/
 
 **Status:** Complete (#79) — live verification pending.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-38"></a>
 ### 38. Built-in receive-only inbox
 **Goal:** Unique addresses on a family-owned domain for inboxes without `+` addressing. Design: [`docs/BUILTIN_INBOX.md`](BUILTIN_INBOX.md).
 
 **Status:** Considering: Under consideration as a backup/alternate solution for brokers that do not support or actively reject `+` addressing, ensuring reliable per-broker matching without exposing a personal primary inbox address.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-39"></a>
 ### 39. Automated removal verification & re-listing monitor
 **Goal:** Know that removals stuck, and catch listings that come back.
 
@@ -734,8 +850,11 @@ plugins/
 
 **Status:** Complete (#82) — live verification pending.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-40"></a>
 ### 40. Data-sharing detection & aggregator-first targeting
 - **Sharing:** opt-out addresses that receive mail from a company they were never given to become "given to → came from" edges (possible / likely / strong by how many distinct addresses), excluding the broker's own family. Admin → Data sharing.
 - **Targeting:** brokers weighted by known wholesalers (`catalog/aggregators.json`), cascades, family size and observed sharing; new default dispatch order "aggregators first".
@@ -743,8 +862,11 @@ plugins/
 
 **Status:** Complete (#83).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-41"></a>
 ### 41. Encrypted backups
 - Database (consistent SQLite copy or `pg_dump`), settings, installed plugins and the keys, in one file encrypted with AES-256-GCM under a scrypt-derived passphrase key; authenticated frames refuse truncated or altered files.
 - Destinations: local folder / mounted network drive, SFTP (host key pinned), S3-compatible (Amazon S3, Google Cloud Storage, Backblaze, Wasabi, MinIO), Google Drive, OneDrive, Dropbox; retention per destination; daily or weekly schedule; restore and verify commands.
@@ -752,8 +874,11 @@ plugins/
 
 **Status:** Complete (#85, #91).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-42"></a>
 ### 42. Automatic broker steps & AI helpers
 - **Repairs:** a failure classified as "form not found" queues a repair (once a day per broker). The current steps are rehearsed with made-up details; the step that broke is pointed at the field or button with the same meaning on the new page (built-in rules, no AI); an AI helper is asked only if the rules can't fix it.
 - **New brokers:** an AI helper drafts steps from the broker's public opt-out page; drafts always wait for an admin.
@@ -764,8 +889,11 @@ plugins/
 
 **Status:** Complete (#98) — not yet run against live providers or live broker sites.
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-43"></a>
 ### 43. Plain language for people and family pages
 **Goal:** Eliminate confusing technical jargon across all public and family-facing workflows.
 
@@ -774,8 +902,11 @@ plugins/
 
 **Status:** Complete (#86, #87).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-44"></a>
 ### 44. Phone and email removal, birthday matching, and credit freeze letters
 **Goal:** Expand removal coverage to phone- and email-keyed directory sites, optional encrypted birth dates, and credit freezes.
 
@@ -785,8 +916,11 @@ plugins/
 
 **Status:** Complete (#88).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-45"></a>
 ### 45. Removal timeline & round tracking
 **Goal:** Transparently record every removal status transition and visualize longitudinal progress.
 
@@ -795,8 +929,11 @@ plugins/
 
 **Status:** Complete (#89).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-46"></a>
 ### 46. Plain language for admin pages & localized status badges
 **Goal:** Apply plain-language standards to administration screens and localize operational badges.
 
@@ -805,8 +942,11 @@ plugins/
 
 **Status:** Complete (#90).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-47"></a>
 ### 47. Cloud backups through rclone
 **Goal:** Support arbitrary cloud storage providers without bloating core platform dependencies.
 
@@ -815,8 +955,11 @@ plugins/
 
 **Status:** Complete (#91).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-48"></a>
 ### 48. Privacy record, access logging, and deadline reporting
 **Goal:** Provide full compliance reporting, staff audit visibility, and data subject rights management under GDPR and CCPA.
 
@@ -826,8 +969,11 @@ plugins/
 
 **Status:** Complete (#92).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-49"></a>
 ### 49. Decoupled language packs, privacy score, PDF reports, and calendar scheduling
 **Goal:** Modularize language distribution, track privacy posture quantitatively, and offer privacy-respecting scheduling.
 
@@ -838,8 +984,11 @@ plugins/
 
 **Status:** Complete (#93).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-50"></a>
 ### 50. Live CAPTCHA hand-off & privacy-preserving solvers
 **Goal:** Allow users to solve complex CAPTCHAs interactively while keeping automated third-party solving privacy-safe.
 
@@ -848,8 +997,11 @@ plugins/
 
 **Status:** Complete (#94).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-51"></a>
 ### 51. Unclear match resolution & listing disambiguation
 **Goal:** Safely handle ambiguous search results that return only names without location, age, or phone identifiers.
 
@@ -859,8 +1011,11 @@ plugins/
 
 **Status:** Complete (#95).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-52"></a>
 ### 52. Full UI translation framework across 12 languages
 **Goal:** Localize every user interface phrase into all 12 supported languages.
 
@@ -870,8 +1025,11 @@ plugins/
 
 **Status:** Complete (#96).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-53"></a>
 ### 53. Plugin localization standard & jurisdiction-based legal letters
 **Goal:** Enable plugins to provide their own localized strings and decouple opt-out legal language from UI display language.
 
@@ -880,8 +1038,11 @@ plugins/
 
 **Status:** Complete (#97).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-54"></a>
 ### 54. Universal live hand-off for interactive steps ("Do it here")
 **Goal:** Extend live interactive browser hand-off to all manual confirmation and verification steps.
 
@@ -890,8 +1051,11 @@ plugins/
 
 **Status:** Complete (#99).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-55"></a>
 ### 55. Yahoo OAuth-only email integration
 **Goal:** Modernize Yahoo Mail integration with secure OAuth sign-in and token-based IMAP/SMTP access.
 
@@ -900,8 +1064,11 @@ plugins/
 
 **Status:** Complete (#100).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-56"></a>
 ### 56. Comprehensive RTL mirroring & logical layout
 **Goal:** Deliver first-class right-to-left layout support for Arabic and RTL languages.
 
@@ -911,8 +1078,11 @@ plugins/
 
 **Status:** Complete (#101).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-57"></a>
 ### 57. Configurable regional date, time, and number formats
 **Goal:** Respect administrative and cultural formatting conventions across all numeric and temporal displays.
 
@@ -921,8 +1091,11 @@ plugins/
 
 **Status:** Complete (#103).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-58"></a>
 ### 58. Modular opt-out letter plugins
 **Goal:** Convert legal opt-out text templates into modular, installable plugins.
 
@@ -931,8 +1104,11 @@ plugins/
 
 **Status:** Complete (#104).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-59"></a>
 ### 59. Monitoring, Prometheus metrics, webhooks, and log forwarding
 **Goal:** Production-grade observability, health probing, and alerting for homelab and enterprise clusters.
 
@@ -942,8 +1118,11 @@ plugins/
 
 **Status:** Complete (#105).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-60"></a>
 ### 60. Broker pack 1 (50 independent plugins) & coverage calculation
 **Goal:** Significantly expand out-of-the-box opt-out coverage across independent data brokers.
 
@@ -953,8 +1132,11 @@ plugins/
 
 **Status:** Complete (#106).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-61"></a>
 ### 61. Terms, operational limits, and transparency notices
 **Goal:** Transparent communication of platform capabilities, legal constraints, and operator responsibilities.
 
@@ -964,8 +1146,11 @@ plugins/
 
 **Status:** Complete (#107).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-62"></a>
 ### 62. Automated discovery response for inactive brokers
 **Goal:** Handle listings found on disabled brokers according to administrative policy.
 
@@ -973,8 +1158,11 @@ plugins/
 
 **Status:** Complete (#108).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-63"></a>
 ### 63. Usage statistics API for institutional data warehouses
 **Goal:** Replace academic journal metrics (COUNTER/SUSHI) with a streamlined analytics API for libraries and universities.
 
@@ -983,8 +1171,11 @@ plugins/
 
 **Status:** Complete (#110).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-64"></a>
 ### 64. Address-verified registration for housing communities
 **Goal:** Enable self-service onboarding restricted to verified residents of housing districts and apartment complexes.
 
@@ -994,8 +1185,11 @@ plugins/
 
 **Status:** Complete (#116).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-65"></a>
 ### 65. Containerized release updater & Docker engine supervisor
 **Goal:** Provide an automated, standalone updater container to safely synchronize Docker deployments with verified GitHub releases while respecting active removal jobs and administrator approval policies.
 
@@ -1012,8 +1206,11 @@ plugins/
 
 **Status:** In Progress / Implemented (`deploy/updater`).
 
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
 ---
 
+<a id="item-66"></a>
 ### 66. Network circuit breaker & graceful offline halt
 **Goal:** Prevent cascading job failures, false broker strikes, and dead-letter queue exhaustion across schedulers, local execution engines, and distributed worker nodes when outbound internet connectivity drops.
 
@@ -1025,6 +1222,8 @@ plugins/
 - **Administrative Telemetry:** Displays pulsing amber "Waiting for Internet" status badge and dedicated filter tab in the Worker Fleet dashboard across all 17 translated language packs.
 
 **Status:** Complete.
+
+[↑ Back to Status at a Glance](#status-at-a-glance)
 
 ---
 
