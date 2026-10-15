@@ -3034,5 +3034,7 @@
   "Update policy": "更新策略",
   "Update policy saved.": "更新策略已保存。",
   "View on GitHub": "在 GitHub 上查看",
-  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "您的宿主机正在运行 Docker {version}。OpenOptOut 需要 Docker 24 或更高版本以支持隔离的内存 tmpfs 挂载和沙箱化工作节点。请更新宿主机上的 Docker 软件包。"
+  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "您的宿主机正在运行 Docker {version}。OpenOptOut 需要 Docker 24 或更高版本以支持隔离的内存 tmpfs 挂载和沙箱化工作节点。请更新宿主机上的 Docker 软件包。",
+  "Busy": "繁忙",
+  "Waiting for Internet": "等待网络连接"
 }

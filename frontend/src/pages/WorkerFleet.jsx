@@ -365,17 +365,24 @@ export default function WorkerFleet() {
         {/* Table Filters & Search */}
         <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-1.5 flex-wrap">
-            {['all', 'online', 'busy', 'draining', 'offline'].map((st) => (
+            {[
+              { id: 'all', label: tx("All") },
+              { id: 'online', label: tx("Online") },
+              { id: 'busy', label: tx("Busy") },
+              { id: 'draining', label: tx("Draining") },
+              { id: 'paused_offline', label: tx("Waiting for Internet") },
+              { id: 'offline', label: tx("Offline") },
+            ].map((tab) => (
               <button
-                key={st}
-                onClick={() => setFilter(st)}
-                className={`px-3 py-1 text-xs rounded-md capitalize font-medium transition-colors ${
-                  filter === st
+                key={tab.id}
+                onClick={() => setFilter(tab.id)}
+                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors ${
+                  filter === tab.id
                     ? 'bg-shield-600 text-white'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800'
                 }`}
               >
-                {st}
+                {tab.label}
               </button>
             ))}
           </div>
@@ -463,6 +470,12 @@ export default function WorkerFleet() {
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-950/60 text-amber-400 border border-amber-800/60">
                             <PowerOff size={11} />
                             {tx("Draining")}
+                          </span>
+                        )}
+                        {w.status === 'paused_offline' && (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-950/60 text-amber-400 border border-amber-800/60">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                            {tx("Waiting for Internet")}
                           </span>
                         )}
                         {w.status === 'offline' && (

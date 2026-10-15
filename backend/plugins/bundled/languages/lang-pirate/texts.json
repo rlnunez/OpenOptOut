@@ -3034,5 +3034,7 @@
   "Update policy": "Upgrade orders",
   "Update policy saved.": "Upgrade orders stored in the hold.",
   "View on GitHub": "Inspect on GitHub",
-  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "Yer host ship runs Docker {version}. OpenOptOut demands Docker 24 or fresher for watertight in-memory tmpfs hold storage and locked brig quarters. Patch yer host ship's Docker boiler!"
+  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "Yer host ship runs Docker {version}. OpenOptOut demands Docker 24 or fresher for watertight in-memory tmpfs hold storage and locked brig quarters. Patch yer host ship's Docker boiler!",
+  "Busy": "Swamped",
+  "Waiting for Internet": "Waitin' fer the Signal Flags"
 }

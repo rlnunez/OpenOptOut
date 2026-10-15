@@ -3034,5 +3034,7 @@
   "Update policy": "Patakaran sa update",
   "Update policy saved.": "Nai-save ang patakaran sa update.",
   "View on GitHub": "Tingnan sa GitHub",
-  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "Tumatakbo ang iyong host server sa Docker {version}. Kinakailangan ng OpenOptOut ang Docker 24 o mas bago para sa mga nakahiwalay na in-memory tmpfs mount at naka-sandbox na mga worker. Paki-update ang Docker package sa iyong host server."
+  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "Tumatakbo ang iyong host server sa Docker {version}. Kinakailangan ng OpenOptOut ang Docker 24 o mas bago para sa mga nakahiwalay na in-memory tmpfs mount at naka-sandbox na mga worker. Paki-update ang Docker package sa iyong host server.",
+  "Busy": "Abala",
+  "Waiting for Internet": "Naghihintay ng Internet"
 }

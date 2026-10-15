@@ -1324,7 +1324,8 @@
   {
    "text": "All",
    "where": [
-    "pages/CaptchaQueue.jsx"
+    "pages/CaptchaQueue.jsx",
+    "pages/WorkerFleet.jsx"
    ]
   },
   {
@@ -2489,6 +2490,12 @@
    "text": "Burst",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Busy",
+   "where": [
+    "pages/WorkerFleet.jsx"
    ]
   },
   {
@@ -16977,6 +16984,12 @@
    "text": "Waiting for consent…",
    "where": [
     "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Waiting for Internet",
+   "where": [
+    "pages/WorkerFleet.jsx"
    ]
   },
   {

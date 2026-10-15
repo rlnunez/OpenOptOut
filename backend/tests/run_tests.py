@@ -2133,6 +2133,123 @@ def t_fleet_monitoring_and_telemetry():
 
     asyncio.run(run_daemon_test())
 
+
+@test(1, "network_health.circuit_breaker_and_worker_halt",
+      "Network canary probe detects internet loss, halts batches gracefully without false failures, and worker requeues jobs without penalty.")
+def t_network_health_circuit_breaker():
+    import asyncio, socket
+    net_mod = _imp("core.network_health")
+    queue_mod = _imp("core.distributed.queue")
+    worker_mod = _imp("core.distributed.worker")
+    reg_mod = _imp("core.distributed.registry")
+    env_mod = _imp("core.distributed.envelope")
+
+    # 1. Canary probes & Mocking
+    try:
+        net_mod.set_mock_internet_status(True)
+        assert net_mod.is_internet_available() is True
+
+        net_mod.set_mock_internet_status(False)
+        assert net_mod.is_internet_available() is False
+    finally:
+        net_mod.set_mock_internet_status(None)
+
+    # 2. Error classification
+    assert net_mod.is_network_error(socket.gaierror(8, "nodename nor servname provided")) is True
+    assert net_mod.is_network_error(ConnectionResetError("Connection reset by peer")) is True
+    assert net_mod.is_network_error(socket.timeout("timed out")) is True
+    assert net_mod.is_network_error(Exception("net::ERR_INTERNET_DISCONNECTED at https://example.com")) is True
+    assert net_mod.is_network_error(Exception("net::ERR_NAME_NOT_RESOLVED")) is True
+    assert net_mod.is_network_error(Exception("NS_ERROR_NET_ON_DISCONNECTED")) is True
+    assert net_mod.is_network_error(Exception("temporary failure in name resolution")) is True
+    assert net_mod.is_network_error(ValueError("Invalid syntax")) is False
+    assert net_mod.is_network_error(None) is False
+
+    # 3. Registry paused_offline status
+    reg = reg_mod.WorkerRegistry()
+    hb = reg.record_heartbeat(
+        worker_id="worker-offline-test",
+        concurrency=2,
+        active_jobs=0,
+        is_offline=True,
+    )
+    assert hb["status"] == "paused_offline"
+    assert hb["is_offline"] is True
+
+    # 4. Single-node batch halting when offline
+    if _try_import("sqlalchemy") is not None:
+        optout_engine = _imp("core.optout_engine")
+        try:
+            net_mod.set_mock_internet_status(False)
+            batch_res = asyncio.run(optout_engine.run_optout_batch([101, 102, 103]))
+            assert batch_res.get("halted_offline") is True
+            assert batch_res.get("sent") == 0
+            assert batch_res.get("failed") == 0
+            assert batch_res.get("skipped") == 3
+            assert "unavailable" in batch_res["errors"][0].lower()
+        finally:
+            net_mod.set_mock_internet_status(None)
+
+    # 5. Distributed worker offline protection
+    q = queue_mod.InProcessJobQueue()
+    env = env_mod.create_removal_envelope(
+        job={"broker_id": "test_broker", "broker_name": "TestBroker", "member_id": "m-123", "steps": []},
+        priority="high",
+    )
+    q.enqueue(env)
+    assert q.queue_depth(queue_mod.CHANNEL_REMOVAL_HIGH) == 1
+
+    cfg = worker_mod.WorkerConfig(
+        worker_id="worker-circuit-breaker",
+        concurrency=1,
+        dry_run=True,
+        enable_heartbeat=False,
+    )
+    worker = worker_mod.WorkerDaemon(config=cfg, queue=q, registry=reg)
+
+    try:
+        # With internet offline, worker does not dequeue
+        net_mod.set_mock_internet_status(False)
+        processed = asyncio.run(worker.process_one(timeout=0.01))
+        assert processed is False
+        assert q.queue_depth(queue_mod.CHANNEL_REMOVAL_HIGH) == 1
+        assert worker._busy_slots == 0
+
+        # With internet online, worker dequeues and executes
+        net_mod.set_mock_internet_status(True)
+        processed = asyncio.run(worker.process_one(timeout=0.01))
+        assert processed is True
+        assert q.queue_depth(queue_mod.CHANNEL_REMOVAL_HIGH) == 0
+        assert worker.stats["success"] == 1
+
+        # Test worker handling when envelope returns network_offline
+        env2 = env_mod.create_removal_envelope(
+            job={"broker_id": "test_offline", "broker_name": "TestOffline", "member_id": "m-456", "steps": []},
+            priority="high",
+        )
+        q.enqueue(env2)
+
+        # Patch worker.execute_envelope to simulate network disconnect during run
+        async def mock_execute_offline(e):
+            return env_mod.create_result_envelope(
+                request_envelope=e,
+                ok=False,
+                status="network_offline",
+                error="net::ERR_INTERNET_DISCONNECTED",
+                worker_id="worker-circuit-breaker",
+            )
+        worker.execute_envelope = mock_execute_offline
+
+        processed2 = asyncio.run(worker.process_one(timeout=0.01))
+        assert processed2 is True
+        # Envelope must be requeued without incrementing retries or routing to DLQ!
+        assert q.queue_depth(queue_mod.CHANNEL_REMOVAL_HIGH) == 1
+        assert q.queue_depth(queue_mod.CHANNEL_DEAD_LETTER) == 0
+        assert env2.meta.get("retries", 0) == 0
+    finally:
+        net_mod.set_mock_internet_status(None)
+
+
 @test(1, "installer.role_specialization_and_configs",
       "Unified installer verifies package matrices, role specialization, Nginx config, and systemd units (Roadmap Item 23).")
 def t_installer_role_specialization_and_configs():

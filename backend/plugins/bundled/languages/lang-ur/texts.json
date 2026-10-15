@@ -3032,5 +3032,7 @@
   "Update policy": "اپ ڈیٹ پالیسی",
   "Update policy saved.": "اپ ڈیٹ پالیسی محفوظ ہو گئی۔",
   "View on GitHub": "GitHub پر دیکھیں",
-  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "آپ کا ہوسٹ سرور Docker {version} چلا رہا ہے۔ OpenOptOut کو الگ تھلگ ان-میموری tmpfs ماؤنٹس اور سینڈ باکسڈ ورکرز کے لیے Docker 24 یا اس سے جدید تر درکار ہے۔ براہ کرم اپنے ہوسٹ سرور پر ڈاکر پیکیج اپ ڈیٹ کریں۔"
+  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "آپ کا ہوسٹ سرور Docker {version} چلا رہا ہے۔ OpenOptOut کو الگ تھلگ ان-میموری tmpfs ماؤنٹس اور سینڈ باکسڈ ورکرز کے لیے Docker 24 یا اس سے جدید تر درکار ہے۔ براہ کرم اپنے ہوسٹ سرور پر ڈاکر پیکیج اپ ڈیٹ کریں۔",
+  "Busy": "مصروف",
+  "Waiting for Internet": "انٹرنیٹ کا انتظار ہے"
 }

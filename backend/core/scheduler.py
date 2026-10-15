@@ -168,6 +168,10 @@ def start_scheduler():
 
 def registry_maintenance_job():
     """Daily: DROP checklist items, up to 50 site checks; monthly: registry refresh."""
+    from .network_health import is_internet_available
+    if not is_internet_available():
+        log.info("Registry maintenance / site health probes skipped: offline")
+        return
     db = SessionLocal()
     try:
         from .state_programs import ensure_drop_items
@@ -372,6 +376,12 @@ def _run_optout_with_limit(run_type: str, max_this_run: int, manual: bool = Fals
                 log.info("Opt-outs skipped today: %s", why)
                 _finish_run(db, run_id, status="done", sent=0)
                 return
+
+        from .network_health import is_internet_available
+        if not is_internet_available():
+            log.warning("Opt-out run postponed: outbound internet connectivity unavailable.")
+            _finish_run(db, run_id, status="postponed_offline", sent=0, errors=["Internet connectivity unavailable"])
+            return
 
         batch_ids = _select_pending_batch(db, cfg, max_this_run)
 
@@ -915,6 +925,10 @@ def spec_helper_job():
 
 def verification_job():
     """Daily: check whether removals stuck and whether listings came back."""
+    from .network_health import is_internet_available
+    if not is_internet_available():
+        log.info("Verification checks postponed: offline")
+        return
     db = SessionLocal()
     run = SchedulerRun(run_type="verification", status="running")
     db.add(run); db.commit()

@@ -3034,5 +3034,7 @@
   "Update policy": "업데이트 정책",
   "Update policy saved.": "업데이트 정책이 저장되었습니다.",
   "View on GitHub": "GitHub에서 보기",
-  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "호스트 서버에서 Docker {version}이(가) 실행 중입니다. OpenOptOut은 격리된 메모리 내 tmpfs 마운트 및 샌드박스 워커를 위해 Docker 24 이상이 필요합니다. 호스트 서버의 Docker 패키지를 업데이트하세요."
+  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "호스트 서버에서 Docker {version}이(가) 실행 중입니다. OpenOptOut은 격리된 메모리 내 tmpfs 마운트 및 샌드박스 워커를 위해 Docker 24 이상이 필요합니다. 호스트 서버의 Docker 패키지를 업데이트하세요.",
+  "Busy": "바쁨",
+  "Waiting for Internet": "인터넷 연결 대기 중"
 }

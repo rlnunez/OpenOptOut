@@ -101,6 +101,7 @@ class JobQueue(ABC):
         envelope: JobEnvelope,
         queue_name: str = CHANNEL_RETRY,
         delay_seconds: float = 0.0,
+        increment_retries: bool = True,
     ) -> str:
         """
         Requeue a failed or deferred job back onto a queue (default: retry).
@@ -245,14 +246,16 @@ class InProcessJobQueue(JobQueue):
         envelope: JobEnvelope,
         queue_name: str = CHANNEL_RETRY,
         delay_seconds: float = 0.0,
+        increment_retries: bool = True,
     ) -> str:
         with self._cond:
             # Remove from in-flight if present
             self._in_flight.pop(envelope.envelope_id, None)
 
-            # Update retry count metadata
-            retries = int(envelope.meta.get("retries", 0)) + 1
-            envelope.meta["retries"] = retries
+            # Update retry count metadata if increment_retries is True
+            if increment_retries:
+                retries = int(envelope.meta.get("retries", 0)) + 1
+                envelope.meta["retries"] = retries
             envelope.meta["last_requeued_at"] = time.time()
             if self.secret_key:
                 envelope.sign(self.secret_key)
@@ -429,10 +432,12 @@ class RedisJobQueue(JobQueue):
         envelope: JobEnvelope,
         queue_name: str = CHANNEL_RETRY,
         delay_seconds: float = 0.0,
+        increment_retries: bool = True,
     ) -> str:
         self.client.hdel(self.KEY_INFLIGHT, envelope.envelope_id)
-        retries = int(envelope.meta.get("retries", 0)) + 1
-        envelope.meta["retries"] = retries
+        if increment_retries:
+            retries = int(envelope.meta.get("retries", 0)) + 1
+            envelope.meta["retries"] = retries
         envelope.meta["last_requeued_at"] = time.time()
         if self.secret_key:
             envelope.sign(self.secret_key)

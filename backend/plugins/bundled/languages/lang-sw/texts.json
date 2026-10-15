@@ -3032,5 +3032,7 @@
   "Update policy": "Sera ya sasisho",
   "Update policy saved.": "Sera ya sasisho imehifadhiwa.",
   "View on GitHub": "Tazama kwenye GitHub",
-  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "Seva yako mwenyeji inatumia Docker {version}. OpenOptOut inahitaji Docker 24 au mpya zaidi kwa nafasi zilizotengwa za tmpfs kwenye kumbukumbu na watumishi walio salama. Tafadhali sasisha kifurushi cha Docker kwenye seva yako."
+  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "Seva yako mwenyeji inatumia Docker {version}. OpenOptOut inahitaji Docker 24 au mpya zaidi kwa nafasi zilizotengwa za tmpfs kwenye kumbukumbu na watumishi walio salama. Tafadhali sasisha kifurushi cha Docker kwenye seva yako.",
+  "Busy": "Inashughulika",
+  "Waiting for Internet": "Inasubiri Mtandao"
 }

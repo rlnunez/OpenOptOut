@@ -3034,5 +3034,7 @@
   "Update policy": "Chính sách cập nhật",
   "Update policy saved.": "Đã lưu chính sách cập nhật.",
   "View on GitHub": "Xem trên GitHub",
-  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "Máy chủ của bạn đang chạy Docker {version}. OpenOptOut yêu cầu Docker 24 trở lên để gắn kết bộ nhớ tmpfs cô lập và các worker hộp cát. Vui lòng cập nhật gói Docker trên máy chủ của bạn."
+  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "Máy chủ của bạn đang chạy Docker {version}. OpenOptOut yêu cầu Docker 24 trở lên để gắn kết bộ nhớ tmpfs cô lập và các worker hộp cát. Vui lòng cập nhật gói Docker trên máy chủ của bạn.",
+  "Busy": "Đang bận",
+  "Waiting for Internet": "Đang chờ kết nối Internet"
 }

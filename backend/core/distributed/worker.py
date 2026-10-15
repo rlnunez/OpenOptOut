@@ -343,6 +343,16 @@ class WorkerDaemon:
             "dead_lettered": 0,
         }
 
+    def _should_check_internet(self) -> bool:
+        """
+        Determine if internet connectivity should be checked.
+        Dry-run workers bypass physical network checks unless an explicit mock status is active.
+        """
+        from ..network_health import is_mock_active
+        if self.config.dry_run and not is_mock_active():
+            return False
+        return True
+
     def request_stop(self) -> None:
         """Signal worker daemon to stop after currently processing jobs finish."""
         log.info("Worker [%s] received stop request. Draining tasks...", self.config.worker_id)
@@ -351,6 +361,7 @@ class WorkerDaemon:
 
     async def _heartbeat_loop(self) -> None:
         """Background task reporting worker health and checking drain signals."""
+        from ..network_health import is_internet_available
         while self._running and not self._stop_event.is_set():
             try:
                 # 1. Check drain signal
@@ -359,7 +370,10 @@ class WorkerDaemon:
                     self.request_stop()
                     break
 
-                # 2. Record heartbeat
+                # 2. Check internet connectivity
+                online = is_internet_available() if self._should_check_internet() else True
+
+                # 3. Record heartbeat
                 uptime = time.time() - self._started_at
                 self.registry.record_heartbeat(
                     worker_id=self.config.worker_id,
@@ -370,6 +384,7 @@ class WorkerDaemon:
                     uptime_seconds=uptime,
                     started_at=self._started_at,
                     is_draining=self._stop_event.is_set(),
+                    is_offline=not online,
                 )
                 await asyncio.sleep(self.config.heartbeat_interval)
             except asyncio.CancelledError:
@@ -443,6 +458,24 @@ class WorkerDaemon:
                     except Exception:
                         pass
 
+                if not exec_result.ok and self._should_check_internet():
+                    from ..network_health import is_network_error, is_internet_available
+                    if is_network_error(Exception(exec_result.detail)) or not is_internet_available():
+                        log.warning(
+                            "Removal job %s interrupted by network connectivity loss: %s",
+                            envelope.envelope_id,
+                            exec_result.detail,
+                        )
+                        return create_result_envelope(
+                            request_envelope=envelope,
+                            ok=False,
+                            status="network_offline",
+                            error=exec_result.detail,
+                            worker_id=self.config.worker_id,
+                            secret_key=self.config.secret_key,
+                            duration_ms=int((time.time() - start_time) * 1000),
+                        )
+
                 status = "success" if exec_result.ok else "failure"
                 if exec_result.needs_captcha:
                     status = "captcha"
@@ -481,6 +514,19 @@ class WorkerDaemon:
                 raise EnvelopeInvalidError(f"Unsupported action: '{envelope.action}'")
 
         except Exception as e:
+            if self._should_check_internet():
+                from ..network_health import is_network_error, is_internet_available
+                if is_network_error(e) or not is_internet_available():
+                    log.warning("Execution interrupted by network loss for envelope %s: %s", envelope.envelope_id, e)
+                    return create_result_envelope(
+                        request_envelope=envelope,
+                        ok=False,
+                        status="network_offline",
+                        error=str(e),
+                        worker_id=self.config.worker_id,
+                        secret_key=self.config.secret_key,
+                        duration_ms=int((time.time() - start_time) * 1000),
+                    )
             log.exception("Execution failed for envelope %s: %s", envelope.envelope_id, e)
             error_msg = str(e)
             return create_result_envelope(
@@ -501,6 +547,12 @@ class WorkerDaemon:
         Pull one envelope from the queue, execute it, publish result, and acknowledge.
         Returns True if an envelope was processed, False if queue was empty.
         """
+        if self._should_check_internet():
+            from ..network_health import is_internet_available
+            if not is_internet_available():
+                log.debug("Worker [%s] skipping dequeue: internet connectivity offline", self.config.worker_id)
+                return False
+
         envelope = self.queue.dequeue(
             queue_names=self.config.active_queues,
             timeout=timeout,
@@ -522,6 +574,18 @@ class WorkerDaemon:
 
             # Execute
             result_env = await self.execute_envelope(envelope)
+
+            # If execution was halted by internet disconnect, requeue without consuming retries or sending to DLQ
+            if result_env.status == "network_offline":
+                from .queue import infer_channel_for_envelope
+                target_channel = infer_channel_for_envelope(envelope)
+                log.warning(
+                    "Envelope %s halted due to internet loss; requeueing to %s without retry penalty",
+                    envelope.envelope_id,
+                    target_channel,
+                )
+                self.queue.requeue(envelope, queue_name=target_channel, increment_retries=False)
+                return True
 
             # If envelope was tampered or expired, publish failure result and dead-letter
             if result_env.status in ("tampered", "expired"):

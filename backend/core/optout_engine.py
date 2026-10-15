@@ -1166,6 +1166,9 @@ async def execute_optout(
         last_error = str(e)
         failures += 1
 
+    from .network_health import is_network_error, is_internet_available
+    is_offline_failure = (failures > 0 and successes == 0) and (is_network_error(Exception(last_error)) or not is_internet_available())
+
     # Update request status
     if successes > 0:
         request.status    = RequestStatus.sent
@@ -1176,6 +1179,11 @@ async def execute_optout(
         # that's an accepted request, not a removal. It becomes confirmed when
         # the broker writes back, its confirmation link is clicked, or a person
         # checks the listing is gone.
+    elif is_offline_failure:
+        # Host internet is down: preserve pending status so request will be retried when online
+        request.status = RequestStatus.pending
+        request.notes = "Paused: Internet connectivity lost"
+        log.warning("Opt-out for %s paused: internet connection unavailable", broker.name)
     elif "captcha" in (last_error or "").lower():
         # Keep in pending status with paused note so operator can resolve challenge
         request.status = RequestStatus.pending
@@ -1205,6 +1213,8 @@ async def execute_optout(
         from .broker_health import record_success, record_failure
         if successes > 0:
             record_success(db, broker.id)
+        elif is_offline_failure:
+            pass  # host internet is down; not a broker site malfunction!
         elif (needs_human or skipped_note or (runs and not_listed_runs == runs)) and failures <= 0:
             pass  # waiting on a person, skipped on purpose, or not listed: not a broker malfunction
         else:
@@ -1213,27 +1223,41 @@ async def execute_optout(
         log.error("broker health tracking failed for %s: %s", broker.name, e)
 
     # Notify plugins of the outcome (fire-and-forget, never blocks the pipeline)
-    try:
-        from ..plugins.hooks import fire_event
-        fire_event(
-            "optout_sent" if successes > 0 else "optout_failed",
-            entity_id=str(request.id),
-            data={"broker": broker.name, "broker_id": str(broker.id),
-                  "member_id": str(member.id), "successes": str(successes),
-                  "failures": str(failures)},
-        )
-    except Exception:
-        pass
+    if not is_offline_failure:
+        try:
+            from ..plugins.hooks import fire_event
+            fire_event(
+                "optout_sent" if successes > 0 else "optout_failed",
+                entity_id=str(request.id),
+                data={"broker": broker.name, "broker_id": str(broker.id),
+                      "member_id": str(member.id), "successes": str(successes),
+                      "failures": str(failures)},
+            )
+        except Exception:
+            pass
 
     log.info(f"Opt-out {broker.name} (member_id={member.id}): {successes} ok, {failures} failed")
     return successes > 0
 
 
 async def run_optout_batch(request_ids: list[int]) -> dict:
+    from .network_health import is_internet_available, is_network_error
+
+    if not is_internet_available():
+        log.warning("Outbound internet connectivity unavailable. Postponing batch of %d removal requests.", len(request_ids))
+        return {
+            "sent": 0,
+            "failed": 0,
+            "skipped": len(request_ids),
+            "errors": ["Internet connectivity unavailable. Opt-out batch postponed."],
+            "halted_offline": True,
+        }
+
     db  = SessionLocal()
     cfg = load_settings()
     sent = failed = skipped = 0
     errors = []
+    halted_offline = False
 
     try:
         async with async_playwright() as p:
@@ -1252,13 +1276,35 @@ async def run_optout_batch(request_ids: list[int]) -> dict:
                         log.info("Skipping disabled broker %s (request %s)",
                                  req.broker.name, req_id)
                         continue
+
+                    # Pre-check internet before each broker in the batch
+                    if not is_internet_available():
+                        log.warning("Internet connectivity lost. Gracefully halting batch at request %s.", req_id)
+                        halted_offline = True
+                        break
+
                     # Fresh context (new UA) per request/broker
                     context = await _fresh_context(browser)
                     try:
                         ok = await execute_optout(req, context, cfg, db)
-                        if ok: sent   += 1
-                        else:  failed += 1
+                        if ok:
+                            sent += 1
+                        else:
+                            # If execute_optout returned False, check if internet dropped
+                            if not is_internet_available():
+                                log.warning("Internet dropped during request %s. Halting batch gracefully.", req_id)
+                                halted_offline = True
+                                break
+                            failed += 1
                     except Exception as e:
+                        if is_network_error(e) or not is_internet_available():
+                            log.warning("Network connection lost during request %s: %s. Halting batch gracefully.", req_id, e)
+                            req.status = RequestStatus.pending
+                            req.notes = "Paused: Internet connectivity lost"
+                            db.commit()
+                            errors.append(f"Batch halted due to internet loss at request {req_id}: {e}")
+                            halted_offline = True
+                            break
                         errors.append(f"Request {req_id}: {e}")
                         failed += 1
                     finally:
@@ -1271,4 +1317,4 @@ async def run_optout_batch(request_ids: list[int]) -> dict:
     finally:
         db.close()
 
-    return {"sent": sent, "failed": failed, "skipped": skipped, "errors": errors}
+    return {"sent": sent, "failed": failed, "skipped": skipped, "errors": errors, "halted_offline": halted_offline}

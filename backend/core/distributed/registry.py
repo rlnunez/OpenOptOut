@@ -90,6 +90,7 @@ class WorkerRegistry:
         tags: Optional[List[str]] = None,
         hostname: Optional[str] = None,
         is_draining: bool = False,
+        is_offline: bool = False,
     ) -> Dict[str, Any]:
         """
         Record or refresh a worker node's heartbeat in the fleet registry.
@@ -101,6 +102,8 @@ class WorkerRegistry:
         # Compute worker operational status
         if is_draining or self.is_draining(worker_id):
             status = "draining"
+        elif is_offline:
+            status = "paused_offline"
         elif active_jobs >= concurrency and concurrency > 0:
             status = "busy"
         else:
@@ -117,6 +120,7 @@ class WorkerRegistry:
             "started_at": start,
             "last_heartbeat_at": now,
             "status": status,
+            "is_offline": bool(is_offline),
             "telemetry": telemetry or collect_system_telemetry(),
             "tags": tags or ["playwright", "declarative"],
         }

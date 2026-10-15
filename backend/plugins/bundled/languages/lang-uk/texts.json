@@ -3032,5 +3032,7 @@
   "Update policy": "Політика оновлень",
   "Update policy saved.": "Політику оновлень збережено.",
   "View on GitHub": "Переглянути на GitHub",
-  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "На вашому хост-сервері встановлено Docker {version}. OpenOptOut вимагає Docker 24 або новішої версії для ізольованих змонтованих дисків tmpfs у пам'яті та ізольованих воркерів. Будь ласка, оновіть пакет Docker на хості."
+  "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.": "На вашому хост-сервері встановлено Docker {version}. OpenOptOut вимагає Docker 24 або новішої версії для ізольованих змонтованих дисків tmpfs у пам'яті та ізольованих воркерів. Будь ласка, оновіть пакет Docker на хості.",
+  "Busy": "Зайнятий",
+  "Waiting for Internet": "Очікування підключення до інтернету"
 }
