@@ -84,6 +84,8 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 62 | Automated discovery response for inactive brokers | Complete (#108) |
 | 63 | Usage statistics API for institutional data warehouses | Complete (#110) |
 | 64 | Address-verified registration for housing communities | Complete (#116) |
+| 65 | Containerized release updater & Docker engine supervisor | In Progress / Implemented |
+| 66 | Network circuit breaker & graceful offline halt | Complete |
 
 ---
 
@@ -991,6 +993,38 @@ plugins/
 - Provides secure fallback contact details for unlisted units.
 
 **Status:** Complete (#116).
+
+---
+
+### 65. Containerized release updater & Docker engine supervisor
+**Goal:** Provide an automated, standalone updater container to safely synchronize Docker deployments with verified GitHub releases while respecting active removal jobs and administrator approval policies.
+
+- **Dedicated Sidecar/Container Architecture (`deploy/updater`):** Runs as an independent container with restricted Docker socket access to manage updates for OpenOptOut services without interrupting control plane stability.
+- **Configurable Governance Policies:**
+  - `manual` (download & prompt for approval - default)
+  - `auto` (unattended scheduled installation)
+  - `notify_only` (broadcast release availability to administrators without pulling images)
+  - `ignore_release` (skip specific release tag)
+  - `ignore_all` (suppress all automated update workflows)
+- **Removal Job Mutual Exclusion:** Actively queries the OpenOptOut API/database prior to triggering container recreation, deferring updates if automated opt-out removals or verifications are actively running to prevent mid-flow job interruption.
+- **Docker Engine Health & Version Checks:** Inspects the host Docker daemon version, alerting administrators when the host engine is outdated or reaching end-of-life.
+- **Supply Chain Security:** Pins base image dependencies by cryptographic digest (`@sha256`) and runs with drop-capabilities and read-only root filesystems where possible.
+
+**Status:** In Progress / Implemented (`deploy/updater`).
+
+---
+
+### 66. Network circuit breaker & graceful offline halt
+**Goal:** Prevent cascading job failures, false broker strikes, and dead-letter queue exhaustion across schedulers, local execution engines, and distributed worker nodes when outbound internet connectivity drops.
+
+- **Non-Blocking Canary Monitor (`backend/core/network_health.py`):** Performs cached, low-overhead TCP probes against reliable anycast DNS targets (`1.1.1.1:53`, `8.8.8.8:53`, `9.9.9.9:53`) with TTL caching and deterministic test mocking.
+- **Error Classification:** Distinguishes genuine broker HTML/selector errors from network-level disconnects, DNS resolution failures (`net::ERR_NAME_NOT_RESOLVED`, `getaddrinfo failed`), and socket timeouts.
+- **Single-Node Execution Circuit Breaker (`backend/core/optout_engine.py`):** Pre-checks reachability before opt-out batches and between broker tasks. Postpones requests in `pending` status (`"Paused: Internet connectivity lost"`) rather than marking them `failed`, and bypasses `record_failure()` to prevent healthy broker profiles from being falsely penalized or auto-disabled.
+- **Scheduler Run Postponement (`backend/core/scheduler.py`):** Postpones daily site checks, verification sweeps, and queued opt-out batches without consuming rate quotas while offline.
+- **Distributed Fleet Resilience (`backend/core/distributed/worker.py`):** Worker nodes report `status="paused_offline"` in heartbeats, suspend dequeue loops when offline, and requeue in-flight jobs interrupted by network loss without incrementing retry counts or dumping to the DLQ.
+- **Administrative Telemetry:** Displays pulsing amber "Waiting for Internet" status badge and dedicated filter tab in the Worker Fleet dashboard across all 17 translated language packs.
+
+**Status:** Complete.
 
 ---
 
