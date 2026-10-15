@@ -48,13 +48,7 @@ async def upload(file: UploadFile = File(...), replace: bool = Form(True), db: S
         rows, problems = R.read_csv(data)
     except R.AddressError as e:
         logger.warning("Address CSV read failed: %s", e)
-        safe_messages = {
-            "The file is too big. Split it into files under 30 MB.",
-            "The file is empty.",
-        }
-        msg = str(e)
-        detail = msg if msg in safe_messages or msg.startswith("Couldn't find the address columns") or msg.startswith("The file has more than") else "Invalid address CSV format."
-        raise HTTPException(400, detail)
+        raise HTTPException(400, "Invalid address file format. Ensure it is a valid CSV with address columns.")
     if not rows:
         raise HTTPException(400, "No usable addresses were found in the file.")
     out = R.import_rows(db, rows, replace=replace)
@@ -68,14 +62,18 @@ def check(req: CheckIn, db: Session = Depends(get_db)):
         c = R.clean(req.street, req.unit or "", req.city or "", req.state or "", req.zip)
     except R.AddressError as e:
         logger.info("Address check validation failed: %s", e)
-        safe_messages = {
-            "Start the street address with the house or building number.",
-            "Add the street name after the number.",
-            "Add the 5-digit ZIP code.",
-            "The address is empty.",
-        }
-        msg = str(e)
-        return {"status": "unclear", "message": msg if msg in safe_messages else "Please check your street address and ZIP code."}
+        err = str(e)
+        if "building number" in err:
+            msg = "Start the street address with the house or building number."
+        elif "street name" in err:
+            msg = "Add the street name after the number."
+        elif "ZIP" in err:
+            msg = "Add the 5-digit ZIP code."
+        elif "empty" in err:
+            msg = "The address is empty."
+        else:
+            msg = "Please check your street address and ZIP code."
+        return {"status": "unclear", "message": msg}
     status, row = R.match(db, c)
     return {"status": status, "cleaned": R.one_line(c),
             "accounts": R.accounts_at(db, R.keys(c)[0]) if status == "ok" else 0,

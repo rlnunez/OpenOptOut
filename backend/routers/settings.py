@@ -279,16 +279,7 @@ def save_regional(data: RegionalSettings, _: User = Depends(require_permission("
         s["regional"] = regional.clean(merged)
     except ValueError as e:
         logger.warning("Regional settings update failed: %s", e)
-        safe_messages = {
-            "Choose a country or region from the list.",
-            "Choose 12-hour or 24-hour time.",
-            "Choose the day weeks start on.",
-            "Choose which digits to show.",
-            "That time zone isn't recognised. Use a name like America/Chicago.",
-        }
-        msg = str(e)
-        detail = msg if msg in safe_messages else "Invalid regional settings."
-        raise HTTPException(400, detail)
+        raise HTTPException(400, "Invalid regional settings. Choose a valid region, time format, and timezone.")
     _save(s)
     regional._cache["value"] = None
     return s["regional"]
@@ -1020,8 +1011,7 @@ def save_matching(data: MatchingGlobal, _: User = Depends(require_permission("se
         return mp.save_global(data.unclear_listings, data.users_choose)
     except ValueError as e:
         logger.warning("Matching policy save global failed: %s", e)
-        detail = "Choose ask, skip or remove all." if str(e) == "Choose ask, skip or remove all." else "Invalid match policy choice."
-        raise HTTPException(400, detail)
+        raise HTTPException(400, "Choose ask, skip or remove all.")
 
 
 @router.patch("/matching/mine")
@@ -1033,7 +1023,6 @@ def save_my_matching(data: MatchingMine, db: Session = Depends(get_db), user: Us
         mp.save_user(user, data.unclear_listings)
     except ValueError as e:
         logger.warning("Matching policy save user failed: %s", e)
-        detail = "Choose ask, skip or remove all." if str(e) == "Choose ask, skip or remove all." else "Invalid match policy choice."
-        raise HTTPException(400, detail)
+        raise HTTPException(400, "Choose ask, skip or remove all.")
     db.commit()
     return {"mine": mp.user_choice(user)}

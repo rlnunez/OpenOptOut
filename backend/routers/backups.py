@@ -271,7 +271,8 @@ def _run_backup():
         try:
             res = bk.run_backup(cfg)
         except Exception as e:
-            res = {"ok": False, "error": str(e)[:300]}
+            log.warning("Backup execution failed: %s", e)
+            res = {"ok": False, "error": "Backup process failed."}
         if not res.get("ok"):
             from ..core.webhooks import safe_notify
             bad = [d.get("kind", "") for d in res.get("destinations", []) if not d.get("ok")]

@@ -424,8 +424,7 @@ def save_solving(data: SolvingIn, _=Depends(require_super_admin)):
         return cs.save_service(cs.SERVICE_PLUGIN, data.service, data.api_key)
     except ValueError as e:
         logger.warning("Captcha save service failed: %s", e)
-        safe_msg = "Choose one of the listed services." if str(e) == "Choose one of the listed services." else "Invalid captcha service selection."
-        raise HTTPException(400, safe_msg)
+        raise HTTPException(400, "Choose one of the listed services.")
 
 
 @router.post("/solving/install")

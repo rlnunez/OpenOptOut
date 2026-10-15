@@ -117,19 +117,7 @@ def _upsert(listname: str, item_id: Optional[str], build):
         new = build(old)
     except ValueError as e:
         logger.warning("Observability destination configuration failed: %s", e)
-        safe_messages = {
-            "Choose a service from the list.",
-            "Paste the address the service gave you.",
-            "The address must start with https:// (or http:// on your own network).",
-            "The webhook address cannot target cloud metadata endpoints.",
-            "Give the destination a name.",
-            "Choose a transport from the list.",
-            "Enter a server address or host name.",
-            "Enter a valid port number between 1 and 65535.",
-        }
-        msg = str(e)
-        detail = msg if msg in safe_messages or msg.startswith("The address must start with") else "Invalid destination configuration."
-        raise HTTPException(400, detail)
+        raise HTTPException(400, "Invalid destination configuration. Check the URL and settings.")
     items = [new if x["id"] == new["id"] else x for x in items] if old else items + [new]
     _obs(s)[listname] = items
     _save(s)

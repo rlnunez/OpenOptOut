@@ -90,8 +90,9 @@ def _run(member_id: int):
         with _LOCK:
             _RUNS[member_id] = {"running": False, "stats": stats, "error": ""}
     except Exception as e:
+        logger.warning("Web search background execution failed: %s", e)
         with _LOCK:
-            _RUNS[member_id] = {"running": False, "stats": None, "error": str(e)}
+            _RUNS[member_id] = {"running": False, "stats": None, "error": "Search failed. Check provider settings."}
     finally:
         db.close()
 
@@ -144,14 +145,7 @@ def add(hit_id: int, db: Session = Depends(get_db), user: User = Depends(get_cur
         return wsm.add_hit(db, h, member)
     except ValueError as e:
         logger.warning("Add web search hit failed: %s", e)
-        safe_messages = {
-            "Paste the web address of the page that shows your information.",
-            "That doesn't look like a web address. It should start with https://",
-            "Please paste the site's web address, not a numeric IP address.",
-            "That address isn't a public website.",
-        }
-        detail = str(e) if str(e) in safe_messages else "Please provide a valid website address."
-        raise HTTPException(400, detail)
+        raise HTTPException(400, "Please provide a valid public website address.")
 
 
 class DismissIn(BaseModel):

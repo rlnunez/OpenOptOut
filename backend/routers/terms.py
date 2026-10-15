@@ -70,15 +70,14 @@ def accept(req: Accept, db: Session = Depends(get_db), user: User = Depends(get_
         T.accept(db, user, req.kind, req.version, s)
     except ValueError as e:
         logger.warning("Terms acceptance failed: %s", e)
-        safe_messages = {
-            "These terms changed while you were reading. Reload the page to see the new ones.": 409,
-            "That isn't something to accept.": 400,
-            "Only an admin accepts these.": 400,
-        }
-        msg = str(e)
-        code = safe_messages.get(msg, 400)
-        detail = msg if msg in safe_messages else "Unable to accept terms at this time."
-        raise HTTPException(code, detail)
+        err = str(e)
+        if "changed" in err:
+            raise HTTPException(409, "These terms changed while you were reading. Reload the page to see the new ones.")
+        elif "admin" in err:
+            raise HTTPException(400, "Only an admin accepts these.")
+        elif "accept" in err:
+            raise HTTPException(400, "That isn't something to accept.")
+        raise HTTPException(400, "Unable to accept terms at this time.")
     return {"needs": T.needs(db, user, s)}
 
 
@@ -111,13 +110,7 @@ def put_settings(req: TermsIn, db: Session = Depends(get_db), _: User = Depends(
         T.save(s, req.model_dump(exclude_unset=True))
     except ValueError as e:
         logger.warning("Terms settings update failed: %s", e)
-        safe_messages = {
-            "The terms are too long (40,000 characters at most).",
-            "Write the terms (or start from the template) before turning them on.",
-        }
-        msg = str(e)
-        detail = msg if msg in safe_messages or msg.startswith("The ") or msg.startswith("Fill in the notes") else "Invalid terms settings."
-        raise HTTPException(400, detail)
+        raise HTTPException(400, "Invalid terms settings. Ensure all required fields and template notes are filled.")
     _save(s)
     return get_settings(db, _)
 

@@ -273,9 +273,7 @@ def save_branding(body: BrandingStep, db: Session = Depends(get_db),
             save_terms(s, {"operator": body.operator})
         except ValueError as e:
             logger.warning("Wizard save operator failed: %s", e)
-            msg = str(e)
-            detail = msg if msg == "The operator is too long (200 characters at most)." else "Invalid operator name."
-            raise HTTPException(400, detail)
+            raise HTTPException(400, "The operator name is too long (200 characters at most).")
     _save(s)
     _mark_step("branding", "done")
     return {"ok": True}

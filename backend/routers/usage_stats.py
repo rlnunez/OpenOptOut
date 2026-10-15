@@ -120,9 +120,7 @@ def add_key(req: KeyIn, db: Session = Depends(get_db), _: User = Depends(require
         c, key = U.new_client(cfg, req.name, req.institutions)
     except ValueError as e:
         logger.warning("Stats key generation failed: %s", e)
-        safe_msg = "Give the key a name, like the script or system that will use it."
-        detail = safe_msg if str(e) == safe_msg else "Invalid key name or institutions."
-        raise HTTPException(400, detail)
+        raise HTTPException(400, "Give the key a name, like the script or system that will use it.")
     s["stats_api"] = cfg
     _save(s)
     return {"client": U.public_client(c), "key": key}

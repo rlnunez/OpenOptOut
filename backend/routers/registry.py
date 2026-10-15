@@ -87,20 +87,7 @@ async def _rows(state: str, file: Optional[UploadFile]):
         return rs.parse_registry(data, name)
     except ValueError as e:
         logger.warning("Registry file or URL processing failed: %s", e)
-        safe_messages = {
-            "Upload the registry file, or save the address to download it from first.",
-            "This server can't read Excel files. Open the file and save it as CSV, then upload that.",
-            "Old .xls files aren't supported. Save the file as CSV and upload that.",
-            "That file is larger than 20 MB, which is more than any registry export should be.",
-            "The file is empty.",
-            "Registry addresses must start with https://",
-            "That address doesn't point to a public website.",
-            "The download is larger than 20 MB; that isn't a registry export.",
-            "That address returns a web page, not a file. Save the download link instead.",
-        }
-        msg = str(e)
-        detail = msg if msg in safe_messages or msg.startswith("Couldn't find the columns") else "Invalid registry data or source."
-        raise HTTPException(400, detail)
+        raise HTTPException(400, "Invalid registry data or download address.")
 
 
 @router.post("/{state}/preview")

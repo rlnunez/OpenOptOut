@@ -140,14 +140,7 @@ def put_found_rule(req: FoundRule, db: Session = Depends(get_db), user: User = D
         s["found_listings"] = fl.clean(cur)
     except ValueError as e:
         logger.warning("Found rule update failed: %s", e)
-        safe_messages = {
-            "Choose one of: turn it on, ask an admin, or tell the person.": "Choose one of: turn it on, ask an admin, or tell the person.",
-            "Choose what happens until then: ask an admin, or tell the person.": "Choose what happens until then: ask an admin, or tell the person.",
-            "The number of people must be a whole number.": "The number of people must be a whole number.",
-            "The number of people must be between 1 and 100,000.": "The number of people must be between 1 and 100,000.",
-        }
-        detail = safe_messages.get(str(e), "Invalid found-listings rule configuration.")
-        raise HTTPException(400, detail)
+        raise HTTPException(400, "Invalid found-listings rule configuration.")
     save_settings(s)
     turned_on = fl.apply_now(db, s)
     return {**s["found_listings"], "turned_on": turned_on, "waiting": fl.waiting(db)}
