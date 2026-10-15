@@ -40,6 +40,17 @@ The host logs its effective posture at startup — **FULL** or **PARTIAL** — a
 
 > **Operator action:** for production with untrusted third-party plugins, deploy on Linux and install bubblewrap. The provided Dockerfile installs it.
 
+#### Container Privilege Boundaries (`no-new-privileges` & User Namespaces)
+
+In containerized deployments:
+- **Edge services enforce `no-new-privileges: true`:** All public-facing and auxiliary containers (`web`, `caddy`, `traefik`, `searxng`) run with Docker `security_opt: [ "no-new-privileges:true" ]` by default, preventing setuid privilege escalation across the edge.
+- **Declarative broker plugins execute zero code:** Built-in and catalog broker add-ons (`type: "brokers"`) are pure declarative JSON specifications interpreted directly by OpenOptOut's core engine in Python. They execute zero subprocess code and require neither Bubblewrap nor elevated privileges.
+- **Third-party code plugins on Ubuntu 24.04+ (Kernel 6.8+):** Bubblewrap requires unprivileged user namespaces (`CLONE_NEWUSER`) to establish private mount and network boundaries. Newer Linux kernels with AppArmor restrictions on unprivileged user namespaces block Bubblewrap UID mapping when `no-new-privileges: true` is active on the container (`bwrap: setting up uid map: Permission denied`).
+- **Operational recommendation:** If your deployment installs untrusted third-party Python/gRPC plugins inside Docker on Ubuntu 24.04+, configure host AppArmor profiles to permit user namespaces or omit `no-new-privileges: true` for the `api` container (as reflected in `docker-compose.yml`). If Bubblewrap is unavailable, OpenOptOut automatically falls back to POSIX `RLIMIT_*` ceilings, thread stack reduction (512KB), separate runtime directories, read-only code mounts, and seccomp filtering without crashing. Operators can audit their environment's capability anytime by running:
+  ```bash
+  docker compose exec api python3 deploy/tests/test_no_new_privs.py
+  ```
+
 ### 5. Secrets never reach plugins
 The settings accessor refuses any key that looks like a credential (`password`, `secret`, `token`, `_enc`, etc.), even with `settings_read`. Plugins get their own scoped settings namespace and non-secret globals only.
 

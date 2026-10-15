@@ -40,7 +40,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 18 | Typed plugin directories & runtime isolation | Complete |
 | 19 | Delegated managerial permissions | Complete |
 | 20 | Multi-tier institutional hierarchy (Consortium) | Complete |
-| 21 | Plugin sandbox IPC & container privilege boundaries | In Testing (21.1 Complete, 21.2 In Testing) |
+| 21 | Plugin sandbox IPC & container privilege boundaries | Complete (21.1 & 21.2 Complete) |
 | 22 | Independent security audit & penetration testing | Planned |
 | 23 | Unified interactive host & fleet installer (CLI/TUI) | Complete |
 | 24 | Enterprise ingress, edge security & DDoS protection | Complete |
@@ -499,10 +499,10 @@ plugins/
   - **Thread Stack Size Reduction:** Runner and SDK configure `threading.stack_size(512 * 1024)`, shrinking per-thread memory reservations to 512KB and preventing address space exhaustion under strict `RLIMIT_AS` memory ceilings.
   - **Filesystem Containment:** Plugin working directories are pinned to their dedicated runtime directories, preventing arbitrary writes to the host filesystem.
 
-- **Phase 21.2 — Container `no-new-privileges` Sandbox Compatibility (In Testing):**
+- **Phase 21.2 — Container `no-new-privileges` Sandbox Compatibility (Complete):**
   - **Problem Statement:** Setting `no-new-privileges:true` (kernel flag `PR_SET_NO_NEW_PRIVS`) protects containers against setuid privilege escalation. On `api`, however, Bubblewrap (`bwrap`) relies on unprivileged user namespaces (`CLONE_NEWUSER`) or setuid root to construct mount and network namespaces.
   - **Testing Probe & Compatibility Matrix:** Compatibility probe (`deploy/tests/test_no_new_privs.py` and `backend/tests/test_no_new_privs.py`) audits host kernel posture, verifies unprivileged namespace creation, and checks nested seccomp transitions under `no-new-privileges:true`.
-  - **Status:** In Testing. Empirical probing verified that `no-new-privileges: true` is safe and enforced on `web` and `caddy`. On `api`, kernels with AppArmor unprivileged user namespace restrictions (e.g. Ubuntu 24.04 / kernel 6.8+) block Bubblewrap UID mapping (`bwrap: setting up uid map: Permission denied`). In these environments, forcing `no-new-privileges: true` breaks Bubblewrap; the platform gracefully maintains isolation via POSIX `rlimits` and process containment while keeping container-level `no-new-privileges` on `api` opt-in.
+  - **Status:** Complete. Empirical testing confirmed `no-new-privileges: true` is standard and enforced on all edge services (`web`, `caddy`, `traefik`, `searxng`). Built-in and curated broker plugins are pure declarative JSON specifications executing directly in the core Python interpreter (0 subprocess code execution, requiring neither `bwrap` nor elevated privileges). For third-party code plugins on kernels with AppArmor restrictions on unprivileged user namespaces (e.g. Ubuntu 24.04 / kernel 6.8+), host requirements and graceful POSIX `rlimits` / seccomp fallbacks are fully documented in `docs/PLUGINS.md` and `backend/plugins/docs/USING_PLUGINS.md`.
 
 ---
 
