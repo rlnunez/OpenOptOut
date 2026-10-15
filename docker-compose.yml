@@ -97,6 +97,10 @@ services:
       # Single named volume holds the DB, settings, screenshots, logos, plugins,
       # and plugin storage (all live under /data). One volume = one backup unit.
       - app_data:/data
+    # Ephemeral RAM storage: guarantees temporary browser artifacts, downloads,
+    # and profile caches vanish on reboot and never touch persistent disk.
+    tmpfs:
+      - /tmp:size=512m,mode=1777
     ports:
       # host:container. The container always listens on 8000 internally; only
       # the HOST port is configurable (via API_PORT in .env) so you can avoid

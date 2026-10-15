@@ -105,6 +105,14 @@ Because OpenOptOut handles sensitive patron identities, credentials, and encrypt
      With a `/dev/urandom` key source, the swap encryption key is regenerated randomly on every system boot, guaranteeing zero data recovery after shutdown.
    - The interactive installer (`deploy/installer/setup.sh`) automatically audits `/proc/swaps` and alerts operators if an unencrypted swap device is active.
 
+3. **Ephemeral RAM `/tmp` (`tmpfs`)**:
+   - Headless browser automation (Playwright/Firefox) and sandboxed plugin workers write temporary profile directories, caches, and screenshots to `/tmp`.
+   - On native Linux installations, mount `/tmp` as an in-memory `tmpfs` RAM filesystem in `/etc/fstab` (recommended: 512MB for standalone, 1GB for high-throughput worker fleets):
+     ```fstab
+     tmpfs /tmp tmpfs defaults,noatime,mode=1777,size=512M 0 0
+     ```
+   - This ensures that temporary browser artifacts vanish immediately upon system shutdown or reboot and never touch persistent physical disk blocks.
+
 ## Windows Server
 
 Windows has no direct systemd equivalent, so the pieces map slightly differently, but the shape is the same: something supervises the API process, and IIS is the public-facing web server.

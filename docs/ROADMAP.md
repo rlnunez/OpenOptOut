@@ -34,7 +34,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | 12 | School district authentication (Parent Portal SSO) | On-Demand (District Request Only) |
 | 13 | SAML 2.0 SSO & identity hardening | Complete |
 | 14 | Built-in HTTPS with automated certificates | Complete |
-| 15 | Process memory hygiene & ephemeral storage | In Testing (15.1 Complete, 15.2 In Testing) |
+| 15 | Process memory hygiene & ephemeral storage | Complete (15.1 & 15.2 Complete) |
 | 16 | Operational visibility & diagnostic logging | Complete |
 | 17 | Internationalization (i18n): language packs & RTL | Complete (Plugin localization standard in design) |
 | 18 | Typed plugin directories & runtime isolation | Complete |
@@ -389,10 +389,10 @@ To ensure operational stability and maintain continuous testability without disr
   - **Log Sanitization:** Automated masking and strict review ensuring credentials and PII are never interpolated into log statements or exception tracebacks (Item 16).
   - **Batch Query Streaming:** Streams patron records (`stream_records` with `yield_per`) during bulk processing so sensitive records go out of scope promptly.
 
-- **Phase 15.2 — Ephemeral RAM tmpfs (`/tmp`) Container Isolation (In Testing):**
+- **Phase 15.2 — Ephemeral RAM tmpfs (`/tmp`) Container Isolation (Complete):**
   - **Problem Statement:** Playwright (Chromium/Firefox) headless browser automation and plugin sandboxes create temporary profile directories, caches, and screenshots under `/tmp`. Backing `/tmp` with an in-memory RAM `tmpfs` guarantees decrypted browser artifacts vanish upon reboot and never touch persistent disk blocks.
   - **Testing & Sizing Benchmarks:** Sizing benchmark suite (`deploy/tests/test_tmpfs_sizing.py` and `backend/tests/test_tmpfs_sizing.py`) monitors peak consumption across concurrent worker sessions to prevent `ENOSPC` (out of disk space) crashes during large multi-broker batches.
-  - **Status:** In Testing. Empirical stress testing confirmed 100MB allocated across 4 concurrent browser workers completed in ~0.2s with zero leaks and complete cleanup. Standard recommendations: 512MB for standard instances, 1GB for high-throughput production worker fleets (`tmpfs: [ "/tmp:size=1G" ]`).
+  - **Status:** Complete. Empirical stress testing confirmed 100MB allocated across 4 concurrent browser workers completed in ~0.2s with zero leaks and complete cleanup. Configured standard ephemeral RAM storage via `tmpfs: [ "/tmp:size=512M,mode=1777" ]` in `docker-compose.yml` (`api`) and `size=1G` in `docker-compose.distributed.yml` (`worker`), with native `/etc/fstab` guidance in `docs/NATIVE_INSTALL.md`.
 
 ---
 

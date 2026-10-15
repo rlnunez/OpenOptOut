@@ -4046,6 +4046,8 @@ def t_compose_sanity():
     assert "FRONTEND_URL" in api_env_joined, "FRONTEND_URL is not passed to the api container"
     assert "API_BIND" in api_ports and "127.0.0.1" in api_ports, \
         f"api port should default to loopback-only, got: {api_ports}"
+    assert any(str(t).startswith("/tmp") for t in (services["api"].get("tmpfs") or [])), \
+        "api service must mount /tmp in memory (tmpfs) for ephemeral browser isolation"
 
     assert "caddy" in services, "expected an optional caddy service for managed HTTPS"
     caddy = services["caddy"]
