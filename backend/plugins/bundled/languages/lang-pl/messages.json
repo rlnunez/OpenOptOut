@@ -156,5 +156,6 @@
   "nav.backups": "Kopie zapasowe",
   "nav.deadlines": "Terminy",
   "nav.privacy_record": "Rejestr prywatności",
-  "nav.calendar": "Kalendarz"
+  "nav.calendar": "Kalendarz",
+  "nav.system_updates": "Aktualizacje systemu"
 }

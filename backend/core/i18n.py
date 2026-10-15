@@ -232,6 +232,7 @@ MASTER_DICTIONARY: List[Dict[str, str]] = [
     # ── Added with the plain-language pass ──
     {"key": "nav.privacy_record", "default_text": "Privacy record", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
     {"key": "nav.calendar", "default_text": "Calendar", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
+    {"key": "nav.system_updates", "default_text": "System updates", "location": "Navigation / Sidebar", "description": "Menu and page-path label"},
 ]
 
 # ── Built-in languages ────────────────────────────────────────────────────────

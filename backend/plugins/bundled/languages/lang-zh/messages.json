@@ -156,5 +156,6 @@
   "nav.letters": "退出信函",
   "nav.monitoring": "监控与提醒",
   "nav.terms": "条款",
-  "nav.usage_stats": "使用统计"
+  "nav.usage_stats": "使用统计",
+  "nav.system_updates": "系统更新"
 }

@@ -4107,12 +4107,74 @@ def t_compose_sanity():
     assert "TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN" in " ".join(str(e) for e in cfd.get("environment", []))
     assert ":latest" not in str(cfd.get("image", "")) and ":" in str(cfd.get("image", "")), \
         "pin the cloudflared image version"
+
+    # Companion updater: opt-in via profile, isolates Docker socket from api container.
+    assert "updater" in services, "expected an optional updater service"
+    upd = services["updater"]
+    assert upd.get("profiles") == ["updater"], "updater must be gated behind 'updater' compose profile"
+    upd_vols = " ".join(str(v) for v in upd.get("volumes", []))
+    assert "docker.sock" in upd_vols and "app_data:/data" in upd_vols, \
+        "updater container must mount docker.sock and app_data volume"
     # EXPECTED: the API stays off the LAN by default, SSO redirects use the real
     #   FRONTEND_URL, and Caddy never starts (or fights for ports 80/443) unless
     #   an admin explicitly opts in.
     # IF THIS FAILS: either plain-HTTP sign-in is reachable from other machines by
     #   default, SSO silently redirects to the wrong URL, or a larger deployment's
     #   own reverse proxy could end up fighting our Caddy container for ports.
+
+
+@test(1, "system_updates.core_and_routes",
+      "Automated updater semver parsing, Docker engine version audit, update policy, and workload draining.")
+def t_system_updates():
+    import json, os, tempfile, shutil
+    upd = _imp("core.updater")
+
+    # 1. Semver parsing and version comparisons
+    assert upd.is_newer_version("v1.5.0", "v1.4.9") is True
+    assert upd.is_newer_version("v2.0.0", "v1.99.99") is True
+    assert upd.is_newer_version("v1.4.0", "v1.4.0") is False
+    assert upd.is_newer_version("v1.4.0", "v1.5.0") is False
+    assert upd.is_newer_version("v1.5.0-beta", "v1.5.0") is False
+    assert upd.is_newer_version("v1.5.0", "v1.5.0-beta") is True
+    assert upd.is_newer_version("v1.5.0-rc.2", "v1.5.0-rc.1") is True
+
+    # 2. Docker Engine version audit
+    assert upd._check_docker_outdated("20.10.21") is True
+    assert upd._check_docker_outdated("23.0.6") is True
+    assert upd._check_docker_outdated("24.0.5") is False
+    assert upd._check_docker_outdated("27.3.1") is False
+
+    # 3. Policy & config persistence
+    tmpdir = tempfile.mkdtemp()
+    old_req = upd.UPDATE_REQUEST_FILE
+    try:
+        req_file = os.path.join(tmpdir, "update_request.json")
+        upd.UPDATE_REQUEST_FILE = req_file
+
+        cfg = upd.get_updater_config()
+        assert cfg.get("policy") in {"approval_required", "notify_only", "auto_install", "disabled"}
+
+        cfg["policy"] = "notify_only"
+        cfg["channel"] = "pre_release"
+        upd.save_updater_config(cfg)
+        loaded = upd.get_updater_config()
+        assert loaded["policy"] == "notify_only"
+        assert loaded["channel"] == "pre_release"
+
+        # 4. Request system update creates request envelope and marks draining
+        res = upd.request_system_update(target_tag="v2.5.0")
+        assert res["status"] == "ok"
+        assert res["target_version"] == "v2.5.0"
+        assert res["state"] == "draining"
+        assert os.path.isfile(req_file)
+        with open(req_file, "r") as f:
+            env = json.load(f)
+        assert env["action"] == "upgrade"
+        assert env["target_version"] == "v2.5.0"
+        assert env["status"] == "pending_drain"
+    finally:
+        upd.UPDATE_REQUEST_FILE = old_req
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 @test(1, "https.enable_script_paths",
@@ -10627,7 +10689,7 @@ def t_rtl_mirrored_icons():
     assert block, "the RTL icon-mirroring rule is missing from index.css"
     mirrored = set(re.findall(r"\.lucide-([a-z0-9-]+)", block.group(1)))
     # Point up or down, or contain digits/letters that must not flip.
-    keep = {"arrow-up", "arrow-down", "chevron-up", "chevron-down", "chevrons-up-down",
+    keep = {"arrow-up", "arrow-down", "arrow-up-circle", "chevron-up", "chevron-down", "chevrons-up-down",
             "list-ordered", "refresh-cw", "mouse-pointer-click"}
     looks = re.compile(r"left|right|arrow|chevron|undo|redo|rotate|send|reply|forward|log-in|log-out|"
                        r"skip|external|trending|toggle|indent|outdent|move|step|corner|^list")

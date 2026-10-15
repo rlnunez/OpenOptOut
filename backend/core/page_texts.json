@@ -543,6 +543,12 @@
    ]
   },
   {
+   "text": "A new version ({v}) is available!",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "A parent's inbox",
    "where": [
     "pages/Inboxes.jsx"
@@ -1773,9 +1779,21 @@
    ]
   },
   {
+   "text": "Applying update:",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Applying…",
    "where": [
     "pages/BrokerPriority.jsx"
+   ]
+  },
+  {
+   "text": "Approval required",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -1788,6 +1806,12 @@
    "text": "approved",
    "where": [
     "components/PrivacyPagesPanel.jsx"
+   ]
+  },
+  {
+   "text": "Are you sure you want to install this update? Active removals will be paused and containers restarted.",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -1992,6 +2016,12 @@
    ]
   },
   {
+   "text": "Automatic install",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Automatic picks the letter for the law where the broker is, and for US brokers, where the person lives. Pick a letter to send that one instead, whatever the broker's add-on says.",
    "where": [
     "pages/Letters.jsx"
@@ -2007,6 +2037,12 @@
    "text": "Automatic solving (admins)",
    "where": [
     "components/SolvingSettings.jsx"
+   ]
+  },
+  {
+   "text": "Automatic updater settings",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -2031,6 +2067,12 @@
    "text": "Automatic: {letter}",
    "where": [
     "pages/Letters.jsx"
+   ]
+  },
+  {
+   "text": "Automatically pauses active removal jobs, drains background workers, and applies updates during scheduled maintenance.",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -2746,6 +2788,12 @@
    ]
   },
   {
+   "text": "Check for updates",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Check inboxes now",
    "where": [
     "pages/EmailMonitor.jsx"
@@ -2843,6 +2891,12 @@
    ]
   },
   {
+   "text": "Checking update status…",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Checking…",
    "where": [
     "components/PluginUploadWizard.jsx",
@@ -2857,6 +2911,12 @@
    "where": [
     "components/Sidebar.jsx",
     "pages/Checklist.jsx"
+   ]
+  },
+  {
+   "text": "Checks for new releases automatically, notifies administrators, but waits for approval before installing.",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -3259,6 +3319,12 @@
    ]
   },
   {
+   "text": "Configure how OpenOptOut discovers and installs updates. When an install begins, all background broker removals are paused safely until workers finish their current tasks.",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Configure how OpenOptOut looks and behaves",
    "where": [
     "pages/Settings.jsx"
@@ -3606,6 +3672,12 @@
    "text": "Could not load documentation",
    "where": [
     "pages/PluginHelp.jsx"
+   ]
+  },
+  {
+   "text": "Could not load update information.",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -4263,6 +4335,12 @@
    ]
   },
   {
+   "text": "Current version",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Custom",
    "where": [
     "pages/Settings.jsx"
@@ -4764,7 +4842,14 @@
    "where": [
     "pages/Branding.jsx",
     "pages/BrokerHealth.jsx",
-    "pages/Plugins.jsx"
+    "pages/Plugins.jsx",
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Disabled (ignore all new releases)",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -4920,6 +5005,12 @@
    ]
   },
   {
+   "text": "Docker engine:",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Docs",
    "where": [
     "pages/Plugins.jsx"
@@ -5013,6 +5104,12 @@
    "text": "Download .ics",
    "where": [
     "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Download and notify (require install approval)",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -6141,6 +6238,12 @@
    ]
   },
   {
+   "text": "Failed to check for updates.",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Failed to disable authenticator. Check your password.",
    "where": [
     "pages/Settings.jsx"
@@ -6153,9 +6256,27 @@
    ]
   },
   {
+   "text": "Failed to ignore release.",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Failed to initiate update.",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Failed to remove security key.",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Failed to restore release.",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -6198,6 +6319,12 @@
    "text": "Failed to save session duration and remember-me policies.",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Failed to save update policy.",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -7033,6 +7160,12 @@
    ]
   },
   {
+   "text": "Host Docker engine is outdated",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Host Telemetry",
    "where": [
     "pages/WorkerFleet.jsx"
@@ -7345,6 +7478,12 @@
    ]
   },
   {
+   "text": "Ignore this release",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Ignores",
    "where": [
     "pages/ParentCompanies.jsx"
@@ -7505,6 +7644,12 @@
    ]
   },
   {
+   "text": "Include pre-releases (testing)",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Incoming mail server (IMAP)",
    "where": [
     "pages/Inboxes.jsx"
@@ -7568,6 +7713,12 @@
    "text": "Install into {destination}",
    "where": [
     "components/PluginUploadWizard.jsx"
+   ]
+  },
+  {
+   "text": "Install update",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -7971,6 +8122,12 @@
    ]
   },
   {
+   "text": "Last checked:",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Last clean-up:",
    "where": [
     "pages/PrivacyRecord.jsx"
@@ -8016,6 +8173,12 @@
    "text": "Late by",
    "where": [
     "pages/Scheduled.jsx"
+   ]
+  },
+  {
+   "text": "Latest release",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -8586,6 +8749,12 @@
    "text": "Manage",
    "where": [
     "components/Sidebar.jsx"
+   ]
+  },
+  {
+   "text": "Manage application updates, automated release checks, and container maintenance.",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -9199,6 +9368,12 @@
    "text": "Network access to:",
    "where": [
     "components/PluginUploadWizard.jsx"
+   ]
+  },
+  {
+   "text": "Never",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -10022,9 +10197,21 @@
    ]
   },
   {
+   "text": "Notification only",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Notifications (webhooks)",
    "where": [
     "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "Notifies administrators when a release is available without staging container downloads.",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -11010,6 +11197,12 @@
    ]
   },
   {
+   "text": "Pausing active removals and draining worker fleet...",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "PEM file used to verify the server certificate",
    "where": [
     "pages/DatabaseAdmin.jsx"
@@ -11402,6 +11595,12 @@
    ]
   },
   {
+   "text": "Pre-release channel",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "prefer",
    "where": [
     "pages/DatabaseAdmin.jsx"
@@ -11411,6 +11610,12 @@
    "text": "Preferred (PIN / Biometric asked if supported) — Recommended",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Preparing update:",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -11656,6 +11861,18 @@
    "text": "Public base URL",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Published:",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Pulling containers and applying update...",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -12020,6 +12237,36 @@
    "text": "Rejected",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Release channel:",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Release check completed.",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Release ignored.",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Release notes",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Release restored to update list.",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -12807,6 +13054,12 @@
    ]
   },
   {
+   "text": "Save settings",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Save SIP2",
    "where": [
     "pages/Branding.jsx"
@@ -12978,6 +13231,7 @@
     "pages/ParentCompanies.jsx",
     "pages/Settings.jsx",
     "pages/SetupWizard.jsx",
+    "pages/SystemUpdates.jsx",
     "pages/WebSearchSettings.jsx"
    ]
   },
@@ -14277,6 +14531,18 @@
    ]
   },
   {
+   "text": "Stable channel",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Stable releases only",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Staff managers & unit administrators",
    "where": [
     "pages/Settings.jsx"
@@ -14781,6 +15047,13 @@
    "text": "System name (e.g. Springfield Library Privacy)",
    "where": [
     "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "System updates",
+   "where": [
+    "components/Sidebar.jsx",
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -15450,6 +15723,12 @@
    ]
   },
   {
+   "text": "This release ({v}) is currently ignored.",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "This request was submitted on your behalf by Raleigh Public Library's privacy protection service.",
    "where": [
     "pages/Branding.jsx"
@@ -15987,6 +16266,12 @@
    ]
   },
   {
+   "text": "Turns off automated checks and ignores all new releases.",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Two-Factor Authentication",
    "where": [
     "pages/Login.jsx"
@@ -16072,6 +16357,12 @@
    ]
   },
   {
+   "text": "Unignore release",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Uninstall",
    "where": [
     "pages/Plugins.jsx"
@@ -16114,6 +16405,12 @@
    ]
   },
   {
+   "text": "Up to date",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "up {n}",
    "where": [
     "components/PrivacyScore.jsx"
@@ -16135,6 +16432,24 @@
    "text": "Update DATABASE_URL in .env and restart the container.",
    "where": [
     "pages/DatabaseAdmin.jsx"
+   ]
+  },
+  {
+   "text": "Update initiated. Workers are draining.",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Update policy",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Update policy saved.",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -16612,6 +16927,12 @@
    "text": "View broker list",
    "where": [
     "pages/BrokerSubmit.jsx"
+   ]
+  },
+  {
+   "text": "View on GitHub",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -17388,6 +17709,12 @@
    "text": "Your home address",
    "where": [
     "pages/Signup.jsx"
+   ]
+  },
+  {
+   "text": "Your host server is running Docker {version}. OpenOptOut requires Docker 24 or newer for isolated in-memory tmpfs mounts and sandboxed workers. Please update the Docker package on your host server.",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {

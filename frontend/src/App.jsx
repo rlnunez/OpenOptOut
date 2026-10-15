@@ -59,6 +59,7 @@ const Calendar = lazy(() => import('./pages/Calendar'))
 const StateRegistries = lazy(() => import('./pages/StateRegistries'))
 const WebSearchSettings = lazy(() => import('./pages/WebSearchSettings'))
 const Checklist = lazy(() => import('./pages/Checklist'))
+const SystemUpdates = lazy(() => import('./pages/SystemUpdates'))
 
 // Super admins, plus managers holding at least one of these permissions.
 function RequirePermission({ perms, children }) {
@@ -156,6 +157,7 @@ function Layout() {
               <Route path="/captcha" element={<CaptchaQueue />} />
               <Route path="/logs" element={<RequirePermission perms={['logs.view']}><SystemLogs /></RequirePermission>} />
               <Route path="/worker-fleet" element={<RequirePermission perms={['settings.system']}><WorkerFleet /></RequirePermission>} />
+              <Route path="/system-updates" element={<RequirePermission perms={[]}><SystemUpdates /></RequirePermission>} />
             </Routes>
           </Suspense>
         </main>

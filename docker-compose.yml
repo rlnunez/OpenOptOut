@@ -311,6 +311,31 @@ services:
     depends_on:
       - web
 
+  # ── Automated Updater & Release Monitor (optional companion) ────────────────
+  # Monitors GitHub releases, audits host Docker engine, and runs zero-downtime
+  # upgrades while isolating /var/run/docker.sock from the API container.
+  # Enable with: docker compose --profile updater up -d
+  updater:
+    build: ./deploy/updater
+    container_name: openoptout-updater
+    profiles: ["updater"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ulimits:
+      core: 0
+    environment:
+      - API_URL=http://api:8000
+      - UPDATE_REQUEST_FILE=/data/update_request.json
+      - UPDATE_STATUS_FILE=/data/update_status.json
+      - POLL_INTERVAL_SECONDS=30
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - app_data:/data
+      - ./docker-compose.yml:/app/docker-compose.yml:ro
+    depends_on:
+      - api
+
   # ── PostgreSQL (optional — uncomment for patron-scale deployments) ──────────
   # Also set DATABASE_URL on the api service to point here.
   #db:

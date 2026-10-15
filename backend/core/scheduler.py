@@ -257,6 +257,16 @@ def stop_scheduler():
     if s.running: s.shutdown(wait=False)
 
 
+def pause_scheduler():
+    s = get_scheduler()
+    if s.running: s.pause()
+
+
+def resume_scheduler():
+    s = get_scheduler()
+    if s.running: s.resume()
+
+
 def reload_scheduler():
     stop_scheduler()
     global _scheduler; _scheduler = None

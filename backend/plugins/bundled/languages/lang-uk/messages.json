@@ -156,5 +156,6 @@
   "nav.backups": "Резервні копії",
   "nav.deadlines": "Звіт про терміни",
   "nav.privacy_record": "Запис про конфіденційність",
-  "nav.calendar": "Календар"
+  "nav.calendar": "Календар",
+  "nav.system_updates": "Оновлення системи"
 }
