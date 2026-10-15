@@ -411,8 +411,10 @@ def create_broker(
 def delete_broker(
     broker_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_permission("brokers.manage")),
+    current_user: User = Depends(require_permission("brokers.manage")),
 ):
+    if not current_user:
+        raise HTTPException(401, "Not authenticated")
     b = db.query(Broker).filter(Broker.id == broker_id).first()
     if not b:
         raise HTTPException(404, "That site is gone. Refresh the page.")

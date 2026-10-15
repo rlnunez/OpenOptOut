@@ -147,6 +147,8 @@ def update_parent(parent_id: int, body: ParentIn, db: Session = Depends(get_db),
 @router.delete("/{parent_id}")
 def delete_parent(parent_id: int, db: Session = Depends(get_db),
                   user: User = Depends(get_current_user)):
+    if not user:
+        raise HTTPException(401, "Not authenticated")
     _admin(user)
     p = db.query(ParentCompany).filter(ParentCompany.id == parent_id).first()
     if not p:

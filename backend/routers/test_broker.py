@@ -176,6 +176,8 @@ def send_test_optout(body: SendIn, db: Session = Depends(get_db),
 
 @router.delete("")
 def delete_test_broker(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if not user:
+        raise HTTPException(401, "Not authenticated")
     _admin(user)
     parent = _get_test_parent(db)
     if not parent:

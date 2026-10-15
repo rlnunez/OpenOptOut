@@ -334,6 +334,8 @@ def delete_system(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("consortium.manage")),
 ):
+    if not current_user:
+        raise HTTPException(401, "Not authenticated")
     s = db.query(LibrarySystem).filter(LibrarySystem.id == system_id).first()
     if not s:
         raise HTTPException(404, "Library system not found")
@@ -442,6 +444,8 @@ def delete_branch(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("consortium.manage")),
 ):
+    if not current_user:
+        raise HTTPException(401, "Not authenticated")
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
     if not branch:
         raise HTTPException(404, "Branch not found")
@@ -661,6 +665,8 @@ def delete_sip2_connection(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission("consortium.sip2")),
 ):
+    if not current_user:
+        raise HTTPException(401, "Not authenticated")
     c = db.query(SIP2Connection).filter(SIP2Connection.id == conn_id).first()
     if not c:
         raise HTTPException(404, "SIP2 connection not found")

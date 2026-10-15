@@ -696,6 +696,8 @@ def disable_plugin(plugin_id: str, db: Session = Depends(get_db),
 def uninstall_plugin(plugin_id: str, remove_files: bool = False,
                      db: Session = Depends(get_db),
                      current: User = Depends(require_super_admin)):
+    if not current:
+        raise HTTPException(401, "Not authenticated")
     row = db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == plugin_id).first()
     if not row:
         raise HTTPException(404, "That plugin isn't installed.")

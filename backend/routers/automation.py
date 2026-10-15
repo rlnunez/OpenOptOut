@@ -238,8 +238,10 @@ def upsert_script(
 def delete_script(
     broker_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_permission("brokers.automation")),
+    current_user: User = Depends(require_permission("brokers.automation")),
 ):
+    if not current_user:
+        raise HTTPException(401, "Not authenticated")
     s = db.query(BrokerScript).filter(BrokerScript.broker_id == broker_id).first()
     if not s: raise HTTPException(404, "No script for this broker")
     db.delete(s); db.commit()

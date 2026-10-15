@@ -385,6 +385,8 @@ def revoke_grant(
     db: Session = Depends(get_db),
     current_user: User = Depends(access.require_permission("users.manage")),
 ):
+    if not current_user:
+        raise HTTPException(401, "Not authenticated")
     grant = db.query(ProfileAccess).filter(ProfileAccess.id == grant_id).first()
     if not grant:
         raise HTTPException(404, "That access is gone. Refresh the page.")
