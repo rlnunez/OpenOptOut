@@ -13,7 +13,15 @@ WORKDIR /app
 COPY updater.py /app/updater.py
 COPY entrypoint.sh /app/entrypoint.sh
 
-RUN chmod +x /app/entrypoint.sh /app/updater.py
+RUN chmod +x /app/entrypoint.sh /app/updater.py && \
+    addgroup -S -g 999 docker && \
+    addgroup -S -g 1000 updater && \
+    adduser -S -u 1000 -G updater -D -s /bin/sh updater && \
+    addgroup updater docker
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD python3 /app/updater.py --check || exit 1
+
+USER 1000:1000
 
 ENTRYPOINT ["/app/entrypoint.sh"]
-

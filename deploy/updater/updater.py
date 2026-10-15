@@ -46,7 +46,11 @@ signal.signal(signal.SIGTERM, handle_signals)
 
 def api_request(method: str, path: str, payload: Optional[dict] = None) -> Optional[dict]:
     """Helper to query the OpenOptOut API container."""
+    import urllib.parse
     url = f"{API_URL}{path}"
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme.lower() not in ("http", "https"):
+        raise ValueError(f"Disallowed URL scheme: {parsed.scheme}")
     data = json.dumps(payload).encode("utf-8") if payload else None
     req = urllib.request.Request(
         url,
@@ -55,7 +59,7 @@ def api_request(method: str, path: str, payload: Optional[dict] = None) -> Optio
         method=method,
     )
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:  # nosec: B310 -- scheme is validated to http/https
             if resp.status in (200, 201, 204):
                 content = resp.read()
                 return json.loads(content.decode("utf-8")) if content else {}
@@ -127,17 +131,18 @@ def execute_compose_upgrade(target_version: str) -> bool:
 
     # Set image tag if provided or run docker compose pull
     try:
+        import shlex
         # 1. Pull updated containers
-        cmd_pull = f"{DOCKER_COMPOSE_CMD} pull api web"
-        log.info("Running: %s", cmd_pull)
-        res_pull = subprocess.run(cmd_pull, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        cmd_pull = shlex.split(f"{DOCKER_COMPOSE_CMD} pull api web")
+        log.info("Running: %s", " ".join(cmd_pull))
+        res_pull = subprocess.run(cmd_pull, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if res_pull.returncode != 0:
             log.warning("Compose pull output: %s", res_pull.stderr.decode("utf-8", errors="replace"))
 
         # 2. Recreate containers
-        cmd_up = f"{DOCKER_COMPOSE_CMD} up -d --remove-orphans api web"
-        log.info("Running: %s", cmd_up)
-        res_up = subprocess.run(cmd_up, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        cmd_up = shlex.split(f"{DOCKER_COMPOSE_CMD} up -d --remove-orphans api web")
+        log.info("Running: %s", " ".join(cmd_up))
+        res_up = subprocess.run(cmd_up, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if res_up.returncode != 0:
             err = res_up.stderr.decode("utf-8", errors="replace")
             log.error("Compose up failed (code %d): %s", res_up.returncode, err)

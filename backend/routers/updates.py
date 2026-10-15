@@ -6,6 +6,7 @@ configuring update policies, and initiating safe container upgrades.
 All endpoints require super_admin privileges.
 """
 
+import logging
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -13,6 +14,8 @@ from pydantic import BaseModel
 from ..models.database import User
 from ..core.auth import require_super_admin
 from ..core import updater
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/system/updates", tags=["updates"])
 
@@ -90,7 +93,9 @@ def apply_update(body: ApplyIn, _: User = Depends(require_super_admin)):
     try:
         return updater.request_system_update(target_tag=body.tag)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        log.warning("Update request rejected: %s", e)
+        raise HTTPException(400, "Invalid update request or release target not found.")
     except Exception as e:
-        raise HTTPException(500, f"Failed to initiate update: {e}")
+        log.error("Failed to initiate system update: %s", e)
+        raise HTTPException(500, "Failed to initiate update. Please check system logs.")
 

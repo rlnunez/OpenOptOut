@@ -145,6 +145,11 @@ def _check_docker_outdated(docker_version: str) -> bool:
 
 def fetch_github_releases(channel: str = "stable") -> Optional[Dict[str, Any]]:
     """Fetch latest release from GitHub Releases API."""
+    import urllib.parse
+    parsed = urllib.parse.urlparse(GITHUB_API_URL)
+    if parsed.scheme.lower() not in ("http", "https"):
+        raise ValueError(f"Disallowed URL scheme: {parsed.scheme}")
+
     req = urllib.request.Request(
         GITHUB_API_URL,
         headers={
@@ -154,7 +159,7 @@ def fetch_github_releases(channel: str = "stable") -> Optional[Dict[str, Any]]:
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:  # nosec: B310 -- scheme is validated to https
             if resp.status != 200:
                 return None
             releases = json.loads(resp.read().decode("utf-8"))
