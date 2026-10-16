@@ -19,7 +19,7 @@ from datetime import datetime
 from ..core.limits import LimitedModel
 from ..models.database import get_db, User, FamilyMember, ProfileAccess, UserRole, Branch
 from ..core.text_input import clean_name
-from ..core.auth import (hash_password, require_super_admin, get_current_user, validate_password_length,
+from ..core.auth import (hash_password, require_super_admin, get_current_user, validate_password_length, validate_new_password,
                          assert_user_in_scope, manager_scope)
 from ..core import access
 
@@ -57,7 +57,7 @@ class CreateUserRequest(LimitedModel):
     password: Optional[str] = None  # omit to create a no-login member profile
     branch_id: Optional[int] = None  # scoped managers default to their own branch
 
-    _validate_password = field_validator("password")(validate_password_length)
+    _validate_password = field_validator("password")(validate_new_password)
     _validate_name = field_validator("full_name")(clean_name)
 
 
@@ -68,7 +68,7 @@ class UpdateUserRequest(LimitedModel):
     unified_view: Optional[bool] = None
     mfa_options_override: Optional[Dict[str, bool]] = Field(None, max_length=50)
 
-    _validate_password = field_validator("password")(validate_password_length)
+    _validate_password = field_validator("password")(validate_new_password)
     _validate_name = field_validator("full_name")(clean_name)
 
 

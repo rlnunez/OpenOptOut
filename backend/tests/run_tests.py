@@ -4828,6 +4828,218 @@ def t_request_size_limits():
     # EXPECTED: 413 / 414 with readable messages; normal requests unaffected.
     # IF THIS FAILS: RequestSizeLimitMiddleware was removed from main.py or
     #   its ordering changed so the body is read before the check.
+def _http_app_with_memory_db():
+    """The full app over a throwaway in-memory database and empty settings.
+    Returns (client, db_module, session, restore)."""
+    import tempfile
+    from fastapi.testclient import TestClient
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+    main = importlib.import_module(_mod("main"))
+    db = _imp("models.database")
+    settings_store = _imp("core.settings_store")
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False},
+                           poolclass=StaticPool)
+    db.Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+    tmp = tempfile.TemporaryDirectory()
+    orig_file = settings_store.SETTINGS_FILE
+    settings_store.SETTINGS_FILE = os.path.join(tmp.name, "none.json")   # -> {} everywhere
+    main.app.dependency_overrides[db.get_db] = lambda: session
+
+    def restore():
+        main.app.dependency_overrides.pop(db.get_db, None)
+        settings_store.SETTINGS_FILE = orig_file
+        session.close(); tmp.cleanup()
+    return TestClient(main.app, raise_server_exceptions=False), db, session, restore
+
+
+@test(4, "auth.mfa_ticket_cannot_replace_second_factor",
+      "A password alone (the pre-MFA ticket) can't enroll a new authenticator or security key on "
+      "an account that already has one; first-time mandated set-up still works.")
+def t_mfa_ticket_enrollment():
+    try:
+        client, db, session, restore = _http_app_with_memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    auth = _imp("core.auth")
+    settings_store = _imp("core.settings_store")
+    mfa = _imp("core.mfa")
+    try:
+        real_secret = mfa.generate_totp_secret()
+        victim = db.User(email="jordan@example.com", full_name="Jordan Example",
+                         hashed_password=auth.hash_password("correct horse battery"),
+                         role=db.UserRole.parent, totp_enabled=True,
+                         totp_secret_enc=settings_store.encrypt_password(real_secret))
+        session.add(victim); session.commit()
+
+        r = client.post("/api/auth/token", data={"username": "jordan@example.com",
+                                                  "password": "correct horse battery"})
+        ticket = r.json().get("mfa_ticket")
+        assert r.status_code == 200 and ticket and "access_token" not in r.json(), r.text
+
+        # The attack: enroll the attacker's own authenticator with that ticket.
+        r = client.post("/api/auth/mfa/totp/setup", json={"mfa_ticket": ticket})
+        assert r.status_code == 403, f"totp/setup with a pre-MFA ticket: {r.status_code}"
+        mine = mfa.generate_totp_secret()
+        r = client.post("/api/auth/mfa/totp/activate",
+                        json={"mfa_ticket": ticket, "secret": mine, "code": mfa.get_totp(mine)})
+        assert r.status_code == 403 and "access_token" not in r.text, \
+            f"totp/activate with a pre-MFA ticket: {r.status_code}"
+        for path, body in (("/api/auth/mfa/webauthn/register-options", {"mfa_ticket": ticket}),
+                           ("/api/auth/mfa/webauthn/register", {"mfa_ticket": ticket, "credential": {}})):
+            r = client.post(path, json=body)
+            assert r.status_code == 403, f"{path} with a pre-MFA ticket: {r.status_code}"
+        session.refresh(victim)
+        assert settings_store.decrypt_password(victim.totp_secret_enc) == real_secret, \
+            "the owner's authenticator was replaced"
+
+        # The real second factor still completes sign-in.
+        r = client.post("/api/auth/mfa/verify-totp",
+                        json={"mfa_ticket": ticket, "code": mfa.get_totp(real_secret)})
+        assert r.status_code == 200 and "access_token" in r.json(), r.text
+
+        # First-time set-up with a ticket still works for an account with no second factor.
+        newbie = db.User(email="casey@example.com", full_name="Casey Example",
+                         hashed_password="x", role=db.UserRole.parent)
+        session.add(newbie); session.commit()
+        t2 = mfa.create_mfa_ticket(newbie.id, newbie.email)
+        r = client.post("/api/auth/mfa/totp/setup", json={"mfa_ticket": t2})
+        assert r.status_code == 200, r.text
+        sec = r.json()["secret"]
+        r = client.post("/api/auth/mfa/totp/activate",
+                        json={"mfa_ticket": t2, "secret": sec, "code": mfa.get_totp(sec)})
+        assert r.status_code == 200 and r.json().get("activated"), r.text
+    finally:
+        restore()
+    # EXPECTED: 403 for every enrollment attempt that uses only a password.
+    # IF THIS FAILS: _resolve_user_for_mfa lost its enrolling check — anyone
+    #   with a user's password can take over the account and lock them out.
+
+
+@test(1, "sso.microsoft_any_org_cannot_claim_existing_account",
+      "'Sign in with Microsoft' set to any organization, without allowed domains, can't sign in "
+      "to an existing account by email (nOAuth); with allowed domains or one tenant it can.")
+def t_sso_noauth():
+    pol = _imp("core.sso_policy")
+    ap = _imp("core.auth_providers")
+    res = ap.AuthResult(success=True, provider="microsoft", email="admin@example.com", email_verified=None)
+    for tenant in ("common", "organizations"):
+        d = pol.evaluate_sso_login(res, {"tenant_id": tenant}, {"mode": "open"}, user_exists=True, user_count=2)
+        assert not d.allowed, f"multi-tenant ({tenant}) Microsoft claimed an existing account"
+    d = pol.evaluate_sso_login(res, {"tenant_id": "common", "allowed_domains": "example.com"},
+                               {"mode": "open"}, user_exists=True, user_count=2)
+    assert d.allowed, "allowed domains set: a matching account should sign in"
+    d = pol.evaluate_sso_login(res, {"tenant_id": "1b2c3d4e-0000-0000-0000-000000000000"},
+                               {"mode": "open"}, user_exists=True, user_count=2)
+    assert d.allowed, "single-tenant Microsoft should still link existing accounts"
+
+
+@test(4, "http.svg_sandboxed_and_hsts",
+      "SVGs are served with a sandboxing Content-Security-Policy (no script runs if opened); "
+      "HTTPS responses carry Strict-Transport-Security, plain HTTP ones don't, and HSTS=off turns it off.")
+def t_svg_and_hsts():
+    try:
+        from fastapi import FastAPI
+        from fastapi.responses import Response
+        from fastapi.testclient import TestClient
+        main = importlib.import_module(_mod("main"))
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    client = TestClient(main.app, raise_server_exceptions=False)
+    app = main.app
+    probe = "/__test_svg_probe"
+    @app.get(probe)
+    def _svg():
+        return Response(b'<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>',
+                        media_type="image/svg+xml")
+    try:
+        r = client.get(probe)
+        csp = r.headers.get("content-security-policy", "")
+        assert "sandbox" in csp and "default-src 'none'" in csp, f"SVG CSP: {csp!r}"
+        assert "strict-transport-security" not in r.headers, "HSTS sent over plain HTTP"
+        r = client.get(probe, headers={"X-Forwarded-Proto": "https"})
+        assert r.headers.get("strict-transport-security", "").startswith("max-age=31536000"), r.headers
+        r = TestClient(app, base_url="https://testserver").get(probe)
+        assert "strict-transport-security" in r.headers, "HSTS missing on direct HTTPS"
+        orig = main._hsts_header
+        try:
+            os.environ["HSTS"] = "off"
+            main._hsts_header = main._hsts_value()
+            r = client.get(probe, headers={"X-Forwarded-Proto": "https"})
+            assert "strict-transport-security" not in r.headers, "HSTS=off ignored"
+        finally:
+            os.environ.pop("HSTS", None)
+            main._hsts_header = orig
+        os.environ["HSTS_INCLUDE_SUBDOMAINS"] = "on"
+        try:
+            assert main._hsts_value() == "max-age=31536000; includeSubDomains"
+        finally:
+            os.environ.pop("HSTS_INCLUDE_SUBDOMAINS", None)
+    finally:
+        app.router.routes[:] = [rt for rt in app.router.routes if getattr(rt, "path", "") != probe]
+
+
+@test(1, "auth.secret_key_placeholders_refused",
+      "A missing SECRET_KEY or one of the example values published in this project is reported "
+      "as unsafe (the server refuses to start with it); a real key is accepted.")
+def t_secret_key_placeholders():
+    ss = _imp("core.settings_store")
+    orig = os.environ.get("SECRET_KEY")
+    try:
+        for bad in ("", "  ", "change-me-please", "change-me-to-a-long-random-string",
+                    "change-me-in-production-use-a-long-random-string", "change-me-please-32-chars-minimum"):
+            os.environ["SECRET_KEY"] = bad
+            assert ss.insecure_secret_key_reason(), f"{bad!r} accepted as a secret key"
+        os.environ.pop("SECRET_KEY")
+        assert "not set" in ss.insecure_secret_key_reason()
+        os.environ["SECRET_KEY"] = "9f2c" * 16
+        assert ss.insecure_secret_key_reason() == ""
+    finally:
+        if orig is None:
+            os.environ.pop("SECRET_KEY", None)
+        else:
+            os.environ["SECRET_KEY"] = orig
+    compose = open(os.path.join(os.path.dirname(__file__), "..", "..", "docker-compose.yml")).read() \
+        if os.path.exists(os.path.join(os.path.dirname(__file__), "..", "..", "docker-compose.yml")) else ""
+    if compose:
+        assert "SECRET_KEY=${SECRET_KEY:?" in compose, "docker-compose.yml falls back to a public SECRET_KEY"
+        assert "change-me-please}" not in compose
+
+
+@test(1, "auth.new_password_minimum",
+      "New passwords need at least 8 characters; signing in with an older, shorter one still works.")
+def t_new_password_minimum():
+    auth = _imp("core.auth")
+    for short in ("1", "abc", "1234567"):
+        try:
+            auth.validate_new_password(short)
+            raise AssertionError(f"{short!r} accepted as a new password")
+        except ValueError as e:
+            assert "at least 8" in str(e)
+    assert auth.validate_new_password("12345678") == "12345678"
+    assert auth.validate_new_password(None) is None and auth.validate_new_password("") == ""
+    try:
+        auth.validate_new_password("x" * 100)
+        raise AssertionError("over-long password accepted")
+    except ValueError as e:
+        assert "72" in str(e)
+    try:
+        from pydantic import ValidationError
+        auth_router = _imp("routers.auth"); admin_router = _imp("routers.admin")
+    except ImportError:
+        return
+    for model, extra in ((auth_router.RegisterRequest, {"email": "jordan@example.com", "full_name": "Jordan"}),
+                         (admin_router.CreateUserRequest, {"email": "jordan@example.com", "full_name": "Jordan"}),
+                         (admin_router.UpdateUserRequest, {})):
+        try:
+            model(password="1", **extra)
+            raise AssertionError(f"{model.__name__} accepted a 1-character password")
+        except ValidationError:
+            pass
+    # Signing in never applies the minimum (existing short passwords keep working).
+    assert "validate_new_password" not in str(getattr(auth_router, "LDAPLoginRequest").__pydantic_decorators__)
 
 
 @test(1, "auth.password_peppering_pbkdf2_hmac_sha256",

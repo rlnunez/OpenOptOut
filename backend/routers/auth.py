@@ -19,7 +19,8 @@ from ..core.limits import LimitedModel, NAME_MAX
 from ..models.database import get_db, User, FamilyMember, UserRole, InviteCode, UsageEvent
 from ..core.auth import (
     hash_password, verify_password, is_legacy_unpeppered_hash, create_access_token,
-    get_current_user, get_current_user_optional, require_super_admin, validate_password_length
+    get_current_user, get_current_user_optional, require_super_admin, validate_password_length,
+    validate_new_password
 )
 from ..core.text_input import clean_name, clean_name_lenient
 from ..core.session_policy import create_user_token
@@ -81,7 +82,7 @@ class RegisterRequest(LimitedModel):
     email_code: Optional[str] = None
     address_token: Optional[str] = None
 
-    _validate_password = field_validator("password")(validate_password_length)
+    _validate_password = field_validator("password")(validate_new_password)
     _validate_name = field_validator("full_name")(clean_name)
 
 
@@ -886,12 +887,28 @@ class WebAuthnRegisterIn(LimitedModel):
     credential: dict = Field(..., max_length=50)
 
 
+def _has_backup_codes(user: User) -> bool:
+    try:
+        return bool(json.loads(user.backup_codes or "[]"))
+    except Exception:
+        return False
+
+
 def _resolve_user_for_mfa(
     db: Session,
     current_user: Optional[User] = None,
     mfa_ticket: Optional[str] = None,
     request: Optional[Request] = None,
+    enrolling: bool = False,
 ) -> User:
+    """Who is setting up or checking MFA.
+
+    An MFA ticket proves only the FIRST factor (password or email code). So
+    when it is used to enroll a new authenticator (enrolling=True), it is only
+    accepted for an account that has no second factor yet — the mandated
+    first-time set-up. Otherwise someone who knew just the password could
+    enroll their own authenticator, get a session, and lock the owner out.
+    Changing an existing second factor needs a full sign-in."""
     if current_user:
         return current_user
     ticket = mfa_ticket
@@ -903,6 +920,10 @@ def _resolve_user_for_mfa(
         if tdata:
             user = db.query(User).filter(User.id == tdata["uid"]).first()
             if user:
+                if enrolling and (mfa.user_has_mfa(user) or _has_backup_codes(user)):
+                    raise HTTPException(
+                        403, "This account already has two-step sign-in. Finish signing in "
+                             "with your current method first, then change it in your settings.")
                 return user
     if request:
         auth_hdr = request.headers.get("Authorization", "")
@@ -1077,7 +1098,7 @@ def setup_totp(
 ):
     from ..core import mfa
     ticket = (data or {}).get("mfa_ticket")
-    user = _resolve_user_for_mfa(db, current_user, ticket, request)
+    user = _resolve_user_for_mfa(db, current_user, ticket, request, enrolling=True)
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("totp", True):
         raise HTTPException(403, "TOTP authenticator app method is disabled for your role or account by security policy.")
@@ -1095,7 +1116,7 @@ def activate_totp(
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     from ..core import mfa
-    user = _resolve_user_for_mfa(db, current_user, data.mfa_ticket, request)
+    user = _resolve_user_for_mfa(db, current_user, data.mfa_ticket, request, enrolling=True)
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("totp", True):
         raise HTTPException(403, "TOTP authenticator app method is disabled for your role or account by security policy.")
@@ -1164,7 +1185,7 @@ def get_webauthn_register_options(
 ):
     from ..core import mfa
     ticket = (data or {}).get("mfa_ticket")
-    user = _resolve_user_for_mfa(db, current_user, ticket, request)
+    user = _resolve_user_for_mfa(db, current_user, ticket, request, enrolling=True)
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("webauthn", True):
         raise HTTPException(403, "FIDO2 / WebAuthn security key method is disabled for your role or account by security policy.")
@@ -1186,7 +1207,7 @@ def register_webauthn_key(
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     from ..core import mfa
-    user = _resolve_user_for_mfa(db, current_user, data.mfa_ticket, request)
+    user = _resolve_user_for_mfa(db, current_user, data.mfa_ticket, request, enrolling=True)
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("webauthn", True):
         raise HTTPException(403, "FIDO2 / WebAuthn security key method is disabled for your role or account by security policy.")

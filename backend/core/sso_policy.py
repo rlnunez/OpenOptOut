@@ -129,6 +129,15 @@ def evaluate_sso_login(result, provider_cfg: dict, registration_cfg: dict,
             if not eligible:
                 return _deny(f"Your library account is not eligible to sign in: {reason}")
 
+    # 5.9 Microsoft "any organization" sign-in: anyone can create a Microsoft
+    # tenant and give its users any email address, and Microsoft does not say
+    # whether that address is verified ("nOAuth"). Without allowed domains,
+    # such a sign-in must not take over an existing account by email — which
+    # would also skip that account's own two-step sign-in.
+    if provider == "microsoft" and _ms_multi_tenant(cfg) and not allowed:
+        return _deny("This Microsoft sign-in accepts any organization's accounts; an "
+                     "administrator must set allowed domains before it can be used.")
+
     # 6. existing user — linked login
     if user_exists:
         return Decision(True, "existing account")

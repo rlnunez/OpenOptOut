@@ -110,6 +110,22 @@ def validate_password_length(password: Optional[str]) -> Optional[str]:
         )
     return password
 
+# NIST SP 800-63B: at least 8 characters for a password the person chose.
+MIN_PASSWORD_CHARS = 8
+
+
+def validate_new_password(password: Optional[str]) -> Optional[str]:
+    """Pydantic field_validator for a NEW password (sign-up, an admin setting
+    one). Not used when signing in, so an older, shorter password still works
+    until it's changed. None or "" means "no password" and passes through."""
+    if password and len(password) < MIN_PASSWORD_CHARS:
+        raise ValueError(
+            f"Use at least {MIN_PASSWORD_CHARS} characters for the password. "
+            "A few random words works well."
+        )
+    return validate_password_length(password)
+
+
 def get_password_pepper() -> bytes:
     """
     Return the HMAC pepper key used to harden password hashes against offline brute-force attacks.

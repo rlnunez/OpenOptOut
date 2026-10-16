@@ -44,6 +44,27 @@ def save_settings(data: dict) -> None:
         raise
 
 
+# Values published in this project's own files. A server using one of these
+# is as good as keyless: anyone can forge sign-ins and decrypt stored secrets.
+PUBLIC_PLACEHOLDER_KEYS = frozenset({
+    "change-me-in-production-use-a-long-random-string",
+    "change-me-to-a-long-random-string",
+    "change-me-please",
+    "change-me-please-32-chars-minimum",
+    "change-me",
+})
+
+
+def insecure_secret_key_reason() -> str:
+    """Why the configured SECRET_KEY is unsafe, or "" if it's fine."""
+    key = os.getenv("SECRET_KEY", "")
+    if not key.strip():
+        return "SECRET_KEY is not set."
+    if key.strip() in PUBLIC_PLACEHOLDER_KEYS:
+        return "SECRET_KEY is still the example value from this project's files."
+    return ""
+
+
 def get_secret_key() -> str:
     key = os.getenv("SECRET_KEY")
     if not key:

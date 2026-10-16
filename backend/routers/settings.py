@@ -15,7 +15,7 @@ from ..core.limits import LimitedModel, ICON_DATA_URL_MAX, ITEMS_MAX
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, require_super_admin
 from ..core.access import require_permission
-from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE, get_secret_key
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE, get_secret_key, insecure_secret_key_reason
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -554,7 +554,7 @@ def encryption_status(_: User = Depends(require_permission("database.view"))):
         "field_encryption_enabled": field_key_set,
         "db_key_env_set":         bool(os.getenv("DB_ENCRYPTION_KEY")),
         "field_key_env_set":      bool(os.getenv("FIELD_ENCRYPTION_KEY")),
-        "secret_key_set":         bool(os.getenv("SECRET_KEY")) and os.getenv("SECRET_KEY") != "change-me-in-production-use-a-long-random-string",
+        "secret_key_set":         not insecure_secret_key_reason(),
         "db_type":                "sqlite" if db_url.startswith("sqlite") else "postgres",
         "notes": {
             "db_migration":   "Run: docker exec openoptout-api python -m backend.core.encryption migrate",

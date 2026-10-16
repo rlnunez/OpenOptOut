@@ -105,7 +105,50 @@ async def add_security_headers(request, call_next):
             "Content-Security-Policy",
             "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none';",
         )
+    elif "svg" in content_type or "xml" in content_type:
+        # An uploaded SVG (the logo) can carry <script>. Opened directly, it
+        # would run on this site and could read the sign-in token. 'sandbox'
+        # and no script-src stop that; <img> display is unaffected.
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox"
+        )
+    if _hsts_header and _is_https(request):
+        # Browsers ignore HSTS on plain HTTP, so it is only sent over HTTPS.
+        response.headers.setdefault("Strict-Transport-Security", _hsts_header)
     return response
+
+
+def _hsts_value() -> str:
+    """Strict-Transport-Security for every HTTPS response, so browsers never
+    fall back to plain HTTP — also on installs whose proxy doesn't add it
+    (native nginx + certbot, custom proxies). HSTS=off turns it off, the same
+    switch the bundled Caddy/Traefik proxies use."""
+    if os.getenv("HSTS", "on").strip().lower() in ("off", "0", "false", "no"):
+        return ""
+    # Like the bundled proxies: no HSTS with a private certificate authority
+    # the browsers may not trust yet (HTTPS_MODE=internal).
+    if os.getenv("HTTPS_MODE", "").strip().lower() == "internal":
+        return ""
+    try:
+        max_age = max(0, int(os.getenv("HSTS_MAX_AGE", "31536000")))
+    except ValueError:
+        max_age = 31536000
+    value = f"max-age={max_age}"
+    if os.getenv("HSTS_INCLUDE_SUBDOMAINS", "").strip().lower() in ("on", "1", "true", "yes"):
+        value += "; includeSubDomains"
+    return value
+
+
+_hsts_header = _hsts_value()
+
+
+def _is_https(request) -> bool:
+    if request.url.scheme == "https":
+        return True
+    # Behind a TLS-terminating proxy. Trusting this header is safe here:
+    # a browser that actually connected over HTTP ignores the HSTS header.
+    proto = request.headers.get("x-forwarded-proto", "")
+    return proto.split(",")[0].strip().lower() == "https"
 
 
 @app.exception_handler(OverflowError)
@@ -141,6 +184,18 @@ for r in [
 
 @app.on_event("startup")
 def startup():
+    # Refuse to serve with a missing or published SECRET_KEY: it signs every
+    # sign-in and encrypts stored secrets, so a known key lets anyone sign in
+    # as any user (including the administrator).
+    from .core.settings_store import insecure_secret_key_reason
+    problem = insecure_secret_key_reason()
+    if problem:
+        raise RuntimeError(
+            f"OpenOptOut won't start: {problem} Put a long random value in SECRET_KEY "
+            "(generate one with: openssl rand -hex 32) and start it again. "
+            "If this server already ran with this key, saved mail and sign-in-provider "
+            "passwords will need to be entered again after you change it."
+        )
     # Enforce zero-core-dump memory hygiene policy (prevents PII disk dumps on crash)
     from .core.memory_hygiene import disable_core_dumps
     disable_core_dumps()
