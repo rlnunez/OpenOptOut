@@ -14,10 +14,11 @@ The checklist. See core/checklist.py.
 
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel, ITEMS_MAX
 from ..models.database import get_db, User, RemovalRequest, RequestStatus, ConfirmationLink
 from ..core.settings_store import load_settings
 from ..core import confirm_links
@@ -66,8 +67,8 @@ def done(req_id: int, db: Session = Depends(get_db), user: User = Depends(get_cu
     return {"ok": True, "message": f"Marked done. OpenOptOut will check {r.broker.name} again in 90 days."}
 
 
-class PickIn(BaseModel):
-    urls: List[str] = []
+class PickIn(LimitedModel):
+    urls: List[str] = Field([], max_length=ITEMS_MAX)
 
 
 @router.post("/{req_id}/pick")

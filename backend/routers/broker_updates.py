@@ -12,9 +12,10 @@ import json
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel, IDS_MAX
 from ..models.database import get_db
 from ..core.access import require_permission
 from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
@@ -34,8 +35,8 @@ def count(db: Session = Depends(get_db), _=Depends(_admin)):
     return {"count": bu.unread_count(db)}
 
 
-class ReadIn(BaseModel):
-    ids: Optional[List[int]] = None
+class ReadIn(LimitedModel):
+    ids: Optional[List[int]] = Field(None, max_length=IDS_MAX)
 
 
 @router.post("/read")
@@ -48,7 +49,7 @@ def get_settings(_=Depends(_admin)):
     return bu.settings_of(load_settings())
 
 
-class SettingsIn(BaseModel):
+class SettingsIn(LimitedModel):
     email_digest: str = "daily"
 
 

@@ -16,9 +16,10 @@ Endpoints:
 import logging
 from typing import Dict, List, Optional, Any
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, require_super_admin
 from ..core.access import require_permission
@@ -39,24 +40,24 @@ class LanguageOut(BaseModel):
     enabled: bool
 
 
-class CreateLanguageRequest(BaseModel):
+class CreateLanguageRequest(LimitedModel):
     code: str
     name: str
     native_name: Optional[str] = None
     is_rtl: bool = False
 
 
-class ToggleLanguageRequest(BaseModel):
+class ToggleLanguageRequest(LimitedModel):
     enabled: bool
 
 
-class TranslationsUpdateRequest(BaseModel):
-    translations: Dict[str, str]
+class TranslationsUpdateRequest(LimitedModel):
+    translations: Dict[str, str] = Field(..., max_length=50_000)
 
 
-class UserPreferenceRequest(BaseModel):
+class UserPreferenceRequest(LimitedModel):
     language: Optional[str] = None
-    accessibility_settings: Optional[Dict[str, Any]] = None
+    accessibility_settings: Optional[Dict[str, Any]] = Field(None, max_length=100)
 
 
 class UserPreferenceOut(BaseModel):

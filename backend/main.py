@@ -78,6 +78,12 @@ else:
         "http://127.0.0.1:3000",
     }))
 
+# Cap every request's size before anything reads it (core/limits.py). Added
+# before CORS so CORS stays outermost and a 413 still carries CORS headers —
+# the browser then shows our message instead of a vague network error.
+from .core.limits import RequestSizeLimitMiddleware
+app.add_middleware(RequestSizeLimitMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,

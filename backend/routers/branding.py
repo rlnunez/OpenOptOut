@@ -6,12 +6,13 @@ writable only by super_admin.
 
 import os, base64, json
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Body
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Any
 
+from ..core.limits import LimitedModel, LONG_TEXT_MAX, LOGO_MAX_BYTES, read_upload
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, get_current_user_optional, require_super_admin
 from ..core.access import require_permission, has_permission
@@ -55,7 +56,7 @@ def _save(data: dict):
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
-class BrandingConfig(BaseModel):
+class BrandingConfig(LimitedModel):
     system_name:            str   = "OpenOptOut"
     tagline:                Optional[str] = "Your personal data removal service"
     primary_color:          str   = "#6366f1"
@@ -65,8 +66,8 @@ class BrandingConfig(BaseModel):
     contact_email:          Optional[str] = None
     contact_phone:          Optional[str] = None
     support_url:            Optional[str] = None
-    welcome_message:        Optional[str] = None
-    email_footer:           Optional[str] = None
+    welcome_message: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)
+    email_footer: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)
     terms_url:              Optional[str] = None
     show_powered_by:        bool  = True
     # Dual auth configuration
@@ -74,23 +75,23 @@ class BrandingConfig(BaseModel):
     show_patron_tab:        bool  = False   # show patron tab (SIP2 barcode+PIN)
     staff_tab_label:        str   = "Staff"
     patron_tab_label:       str   = "Library Card"
-    staff_welcome:          Optional[str] = None  # override welcome msg for staff tab
-    patron_welcome:         Optional[str] = None  # override welcome msg for patron tab
+    staff_welcome: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)  # override welcome msg for staff tab
+    patron_welcome: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)  # override welcome msg for patron tab
 
 
-class RegistrationConfig(BaseModel):
+class RegistrationConfig(LimitedModel):
     mode:              str   = "open"         # open | domain | invite | admin_only
-    allowed_domains:   Optional[str] = None   # comma-separated, e.g. "library.org,city.gov"
+    allowed_domains: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)   # comma-separated, e.g. "library.org,city.gov"
     require_invite:    bool  = False
     self_registration: bool  = True
     # Residents-only sign-up (core/resident_addresses.py)
     signup_page:       bool  = False          # a "Create an account" page on the sign-in screen
     address_check:     bool  = False          # only addresses on the uploaded list may sign up
     address_limit:     int   = 0              # accounts per home (address + unit); 0 = no limit
-    signup_help:       Optional[str] = None   # who to contact when an address isn't on the list
+    signup_help: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)   # who to contact when an address isn't on the list
 
 
-class AnnouncementBanner(BaseModel):
+class AnnouncementBanner(LimitedModel):
     message:   str
     severity:  str  = "info"   # info | warning | maintenance | success
     active:    bool = True
@@ -149,7 +150,7 @@ class AuthProviderConfig(BaseModel):
     oidc_providers:     List[dict] = []
 
 
-class OIDCProviderConfig(BaseModel):
+class OIDCProviderConfig(LimitedModel):
     key:                str         # 'google' | 'microsoft' | 'custom' | any slug
     label:              str
     enabled:            bool = False
@@ -163,8 +164,8 @@ class OIDCProviderConfig(BaseModel):
     default_role:       str = "parent"
     tenant_id:          Optional[str] = None   # Microsoft
     # Sign-in policy (core/sso_policy.py)
-    allowed_domains:    Optional[str] = None   # comma-separated; Google also checks hd
-    required_groups:    Optional[str] = None   # comma-separated; any-of
+    allowed_domains: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)   # comma-separated; Google also checks hd
+    required_groups: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)   # comma-separated; any-of
     auto_provision:     Optional[bool] = None  # allow new users when registration is closed
     client_secret_set:  bool = False
 
@@ -244,6 +245,9 @@ def upload_logo(file: UploadFile = File(...), _: User = Depends(require_permissi
     ext = _LOGO_EXTENSIONS.get(file.content_type)
     if not ext:
         raise HTTPException(400, "Logo must be PNG, SVG, JPEG, or WebP")
+    # Read (bounded) before touching the old logo, so a too-big upload
+    # leaves the current logo in place.
+    data = read_upload(file, LOGO_MAX_BYTES, "logo")
     # Clear any previously uploaded logo in a DIFFERENT format first — now that
     # jpeg/webp get their own real extension, an old file in another format
     # would otherwise linger on disk and get served ahead of the one just
@@ -254,7 +258,7 @@ def upload_logo(file: UploadFile = File(...), _: User = Depends(require_permissi
             os.remove(other_path)
     path = os.path.join(LOGO_PATH, f"logo.{ext}")
     with open(path, "wb") as f:
-        f.write(file.file.read())
+        f.write(data)
     return {"logo_url": f"/api/branding/logo?v={int(datetime.utcnow().timestamp())}"}
 
 
@@ -431,7 +435,7 @@ def get_auth_providers(user: Optional[User] = Depends(get_current_user_optional)
 
 
 @router.patch("/auth-providers/ldap")
-def save_ldap(data: dict, _: User = Depends(require_permission("auth.providers"))):
+def save_ldap(data: dict = Body(..., max_length=200), _: User = Depends(require_permission("auth.providers"))):
     s  = load_settings()
     ap = s.setdefault("auth_providers", {})
     cur = ap.get("ldap", {})
@@ -467,7 +471,7 @@ def save_ldap(data: dict, _: User = Depends(require_permission("auth.providers")
 
 
 @router.patch("/auth-providers/sip2")
-def save_sip2(data: dict, _: User = Depends(require_permission("auth.providers"))):
+def save_sip2(data: dict = Body(..., max_length=200), _: User = Depends(require_permission("auth.providers"))):
     s  = load_settings()
     ap = s.setdefault("auth_providers", {})
     cur = ap.get("sip2", {})

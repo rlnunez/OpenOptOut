@@ -11,12 +11,14 @@ User administration:
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, Field
 import json
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
+from ..core.limits import LimitedModel
 from ..models.database import get_db, User, FamilyMember, ProfileAccess, UserRole, Branch
+from ..core.text_input import clean_name
 from ..core.auth import (hash_password, require_super_admin, get_current_user, validate_password_length,
                          assert_user_in_scope, manager_scope)
 from ..core import access
@@ -48,7 +50,7 @@ class UserOut(BaseModel):
         from_attributes = True
 
 
-class CreateUserRequest(BaseModel):
+class CreateUserRequest(LimitedModel):
     full_name: str
     email: EmailStr
     role: str = "member"          # 'super_admin' | 'manager' | 'parent' | 'member'
@@ -56,19 +58,21 @@ class CreateUserRequest(BaseModel):
     branch_id: Optional[int] = None  # scoped managers default to their own branch
 
     _validate_password = field_validator("password")(validate_password_length)
+    _validate_name = field_validator("full_name")(clean_name)
 
 
-class UpdateUserRequest(BaseModel):
+class UpdateUserRequest(LimitedModel):
     full_name: Optional[str] = None
     role: Optional[str] = None
     password: Optional[str] = None   # set to grant/change login
     unified_view: Optional[bool] = None
-    mfa_options_override: Optional[Dict[str, bool]] = None
+    mfa_options_override: Optional[Dict[str, bool]] = Field(None, max_length=50)
 
     _validate_password = field_validator("password")(validate_password_length)
+    _validate_name = field_validator("full_name")(clean_name)
 
 
-class AccessGrantRequest(BaseModel):
+class AccessGrantRequest(LimitedModel):
     manager_id:            int   # the user who will manage
     managed_id:            int   # the user whose profile is being shared
     can_view:              bool = True
@@ -89,14 +93,14 @@ class AccessGrantOut(BaseModel):
     children_count: int = 0       # how many member profiles this manager currently manages
 
 
-class ManagerPermissionsRequest(BaseModel):
+class ManagerPermissionsRequest(LimitedModel):
     # The full set this manager should hold. Stored as the difference from the
     # manager defaults, so keys that match the defaults keep following them.
-    permissions: List[str]
+    permissions: List[str] = Field(..., max_length=500)
 
 
-class ManagerDefaultsRequest(BaseModel):
-    permissions: List[str]
+class ManagerDefaultsRequest(LimitedModel):
+    permissions: List[str] = Field(..., max_length=500)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

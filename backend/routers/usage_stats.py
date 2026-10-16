@@ -17,9 +17,10 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel, ITEMS_MAX
 from ..core import usage_stats as U
 from ..core.auth import require_super_admin
 from ..core.settings_store import load_settings, save_settings
@@ -88,7 +89,7 @@ def get_admin(db: Session = Depends(get_db), _: User = Depends(require_super_adm
     return _view(db, U.config())
 
 
-class StatsSettings(BaseModel):
+class StatsSettings(LimitedModel):
     enabled: Optional[bool] = None
 
 
@@ -103,9 +104,9 @@ def put_admin(req: StatsSettings, db: Session = Depends(get_db), _: User = Depen
     return _view(db, cfg)
 
 
-class KeyIn(BaseModel):
+class KeyIn(LimitedModel):
     name: str
-    institutions: List[str] = ["*"]
+    institutions: List[str] = Field(["*"], max_length=ITEMS_MAX)
 
 
 @router.post("/keys")

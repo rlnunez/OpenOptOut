@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+from ..core.limits import LimitedModel
 from ..models.database import (
     get_db, CaptchaChallenge, RemovalRequest, RequestStatus,
     Broker, FamilyMember, User, AutomationLog
@@ -58,13 +59,13 @@ class ChallengeOut(BaseModel):
         from_attributes = True
 
 
-class ResolveChallengeIn(BaseModel):
+class ResolveChallengeIn(LimitedModel):
     resolution_type: str = "manual_completed"   # 'manual_completed' | 'token'
     token: Optional[str] = None
     notes: Optional[str] = None
 
 
-class DismissChallengeIn(BaseModel):
+class DismissChallengeIn(LimitedModel):
     notes: Optional[str] = None
 
 
@@ -313,7 +314,7 @@ def retry_challenge(
 
 # ── Live hand-off: solve it in the real page (core/live_captcha.py) ───────────
 
-class LiveInput(BaseModel):
+class LiveInput(LimitedModel):
     type: str                      # click | text | key | scroll
     x: Optional[float] = None
     y: Optional[float] = None
@@ -402,7 +403,7 @@ def live_cancel(challenge_id: int, db: Session = Depends(get_db), current_user: 
 
 # ── Automatic solving settings (super admin) ──────────────────────────────────
 
-class SolvingIn(BaseModel):
+class SolvingIn(LimitedModel):
     service: str
     api_key: Optional[str] = None      # omit to keep the saved key; "" to clear it
 

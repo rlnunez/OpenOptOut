@@ -3,12 +3,13 @@ Automation API — discovery, opt-out triggers, broker scripts, automation logs.
 """
 
 import asyncio, threading
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 
+from ..core.limits import LimitedModel, LONG_TEXT_MAX, IDS_MAX
 from ..models.database import (
     get_db, BrokerScript, DiscoveryResult, AutomationLog,
     RemovalRequest, RequestStatus, Broker, FamilyMember, User
@@ -50,7 +51,7 @@ class BrokerScriptOut(BaseModel):
         from_attributes = True
 
 
-class BrokerScriptUpdate(BaseModel):
+class BrokerScriptUpdate(LimitedModel):
     search_url: Optional[str] = None
     name_selector: Optional[str] = None
     email_selector: Optional[str] = None
@@ -62,11 +63,11 @@ class BrokerScriptUpdate(BaseModel):
     success_text: Optional[str] = None
     requires_captcha: Optional[bool] = None
     requires_email_confirm: Optional[bool] = None
-    extra_steps: Optional[str] = None
+    extra_steps: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)
     email_subject_tpl: Optional[str] = None
-    email_body_tpl: Optional[str] = None
+    email_body_tpl: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)
     verified_working: Optional[bool] = None
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)
 
 
 class DiscoveryResultOut(BaseModel):
@@ -151,7 +152,7 @@ def get_discovery_results(
 
 @router.post("/optout/batch")
 def trigger_optout_batch(
-    request_ids: List[int],
+    request_ids: List[int] = Body(..., max_length=IDS_MAX),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

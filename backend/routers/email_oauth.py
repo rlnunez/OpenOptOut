@@ -27,6 +27,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
 
+from ..core.limits import LimitedModel
 from ..models.database import get_db, User
 from ..core.auth import get_current_user
 from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
@@ -127,7 +128,7 @@ def _client(settings: dict, provider_key: str) -> oe.OAuthClient:
 
 # ── Register the operator's OAuth client credentials ──────────────────────────
 
-class ClientIn(BaseModel):
+class ClientIn(LimitedModel):
     provider_key: str
     client_id: str
     client_secret: str
@@ -153,7 +154,7 @@ def set_client(body: ClientIn, db: Session = Depends(get_db),
 
 # ── Begin authorization ───────────────────────────────────────────────────────
 
-class BeginIn(BaseModel):
+class BeginIn(LimitedModel):
     provider_key: str
     account_ref: str = "default"
 

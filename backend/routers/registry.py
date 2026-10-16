@@ -19,9 +19,10 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 
 logger = logging.getLogger(__name__)
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel, IDS_MAX
 from ..models.database import get_db, Broker, BrokerHealth
 from ..core.access import require_permission
 from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
@@ -59,7 +60,7 @@ def sources(db: Session = Depends(get_db), _=Depends(_admin)):
             "registry_brokers": q.count(), "registry_brokers_on": q.filter(Broker.enabled.is_(True)).count()}
 
 
-class SourceIn(BaseModel):
+class SourceIn(LimitedModel):
     url: str = ""
 
 
@@ -140,8 +141,8 @@ def registry_brokers(state: Optional[str] = Query(None), enabled: Optional[bool]
              "defunct": bool(health.get(b.id) and health[b.id].defunct)} for b in rows]
 
 
-class EnableIn(BaseModel):
-    broker_ids: List[int] = []
+class EnableIn(LimitedModel):
+    broker_ids: List[int] = Field([], max_length=IDS_MAX)
     all_registry: bool = False
     acknowledge: bool = False
 
@@ -156,8 +157,8 @@ def enable(body: EnableIn, db: Session = Depends(get_db), _=Depends(_admin)):
     return {"ok": True, "enabled": n}
 
 
-class DisableIn(BaseModel):
-    broker_ids: List[int]
+class DisableIn(LimitedModel):
+    broker_ids: List[int] = Field(..., max_length=IDS_MAX)
 
 
 @router.post("/disable")

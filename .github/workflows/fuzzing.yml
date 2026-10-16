@@ -3,8 +3,8 @@
 #
 # Feeds millions of random and malformed inputs into the code that handles
 # untrusted data: broker specs, plugin manifests, the plugin code inspectors,
-# signed job envelopes, the log sanitizer and the Identity Vault combination
-# builder. The fuzz targets live in fuzz/; see docs/SECURITY_SCANNING.md.
+# signed job envelopes, the log sanitizer, the Identity Vault combination
+# builder and the name cleaner. The fuzz targets live in fuzz/; see docs/SECURITY_SCANNING.md.
 #
 #   Pull requests that touch the backend or fuzz/ : 5 minutes, fails the PR
 #                                                    if it finds a crash

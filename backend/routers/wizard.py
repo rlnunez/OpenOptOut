@@ -25,11 +25,12 @@ import base64
 from fastapi import APIRouter, Depends, HTTPException
 
 logger = logging.getLogger(__name__)
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from cryptography.fernet import Fernet
 
+from ..core.limits import LimitedModel, LONG_TEXT_MAX
 from ..models.database import get_db, User
 from ..core.auth import get_current_user
 from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE, get_secret_key
@@ -126,7 +127,7 @@ def get_state(db: Session = Depends(get_db), user: User = Depends(get_current_us
 
 # ── Step 1: Database ──────────────────────────────────────────────────────────
 
-class DatabaseStep(BaseModel):
+class DatabaseStep(LimitedModel):
     kind: str                       # "sqlite" | "postgres"
     # postgres only:
     host: Optional[str] = None
@@ -174,7 +175,7 @@ def save_database(body: DatabaseStep, db: Session = Depends(get_db),
 
 # ── Step 2: Email ─────────────────────────────────────────────────────────────
 
-class EmailStep(BaseModel):
+class EmailStep(LimitedModel):
     mode: str                          # "shared" | "per_user"
     provider: Optional[str] = None     # provider_key of an installed email plugin, or "smtp"
     # For the shared/admin account when using generic SMTP (not OAuth):
@@ -245,7 +246,7 @@ def save_email(body: EmailStep, db: Session = Depends(get_db),
 
 # ── Step 3: Branding ──────────────────────────────────────────────────────────
 
-class BrandingStep(BaseModel):
+class BrandingStep(LimitedModel):
     system_name: Optional[str] = None
     primary_color: Optional[str] = None
     operator: Optional[str] = None      # who runs this server (core/terms.py)
@@ -287,12 +288,12 @@ def save_branding(body: BrandingStep, db: Session = Depends(get_db),
 #
 # Docker vs. native is the real technical fork here — NOT deployment "size". Docker Engine running on a VM (the common enterprise pattern) or on bare metal behaves identically from OpenOptOut's side; "native" means no containers at all (systemd + nginx + certbot on Linux, or a Windows Service + IIS + win-acme on Windows) — see docs/NATIVE_INSTALL.md.
 
-class DeploymentStep(BaseModel):
+class DeploymentStep(LimitedModel):
     reverse_proxy: str                  # "managed" | "native" | "external" | "none"
     domain: Optional[str] = None        # optional, cosmetic — shown back in the summary
     # Only for "managed": which front door, then (Caddy/Traefik only) where the certificate comes from. Recorded so the summary can hand back the exact enable-https command; nothing is started from here.
     front_door: Optional[str] = None    # "caddy" | "traefik" | "cloudflare-tunnel"
-    certificate: Optional[str] = None   # "letsencrypt" | "cloudflare-dns" | "none" | "incommon" (beta, advanced)
+    certificate: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)   # "letsencrypt" | "cloudflare-dns" | "none" | "incommon" (beta, advanced)
     rate_limit: Optional[bool] = None   # Caddy/Traefik: per-visitor limits (default on)
     cloudflare_proxy: Optional[bool] = None  # Caddy/Traefik + cloudflare-dns only
 
@@ -395,7 +396,7 @@ def save_deployment(body: DeploymentStep, db: Session = Depends(get_db),
 
 # ── Skip a step / finish ──────────────────────────────────────────────────────
 
-class SkipStep(BaseModel):
+class SkipStep(LimitedModel):
     step: str
 
 

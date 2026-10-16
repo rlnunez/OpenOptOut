@@ -26,9 +26,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 logger = logging.getLogger(__name__)
 from fastapi.responses import JSONResponse, PlainTextResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel
 from ..core.auth import require_super_admin
 from ..core.settings_store import load_settings, save_settings
 from ..models.database import get_db, User
@@ -93,7 +94,7 @@ def get_settings(_: User = Depends(require_super_admin)):
     }
 
 
-class LogDest(BaseModel):
+class LogDest(LimitedModel):
     name: Optional[str] = None
     kind: Optional[str] = None
     host: Optional[str] = None
@@ -102,7 +103,7 @@ class LogDest(BaseModel):
     endpoint: Optional[str] = None
     level: Optional[str] = None
     token: Optional[str] = None             # empty string clears it; left out keeps it
-    headers: Optional[Dict[str, str]] = None
+    headers: Optional[Dict[str, str]] = Field(None, max_length=50)
     enabled: Optional[bool] = None
     verify_tls: Optional[bool] = None
 
@@ -156,12 +157,12 @@ def test_log_destination(dest_id: str, _: User = Depends(require_super_admin)):
                        if not problem else f"Couldn't send it: {problem}"}
 
 
-class Webhook(BaseModel):
+class Webhook(LimitedModel):
     name: Optional[str] = None
     kind: Optional[str] = None
     url: Optional[str] = None
     secret: Optional[str] = None
-    events: Optional[List[str]] = None
+    events: Optional[List[str]] = Field(None, max_length=200)
     enabled: Optional[bool] = None
 
 

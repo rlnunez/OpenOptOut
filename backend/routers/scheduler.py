@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
+from ..core.limits import LimitedModel
 from ..models.database import (
     get_db, MemberScheduleConfig, SchedulerRun,
     FamilyMember, User
@@ -70,7 +71,7 @@ class MemberConfigOut(BaseModel):
     notes: Optional[str] = None
 
 
-class MemberConfigUpdate(BaseModel):
+class MemberConfigUpdate(LimitedModel):
     max_optouts_per_day: Optional[int] = None   # None = use system default
     enabled: Optional[bool] = None
     from_display_name: Optional[str] = None

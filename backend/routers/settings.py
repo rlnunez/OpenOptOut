@@ -6,11 +6,12 @@ Credentials encrypted at rest with Fernet derived from SECRET_KEY.
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 import json, os, base64, logging
 from cryptography.fernet import Fernet
 
+from ..core.limits import LimitedModel, ICON_DATA_URL_MAX, ITEMS_MAX
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, require_super_admin
 from ..core.access import require_permission
@@ -75,9 +76,9 @@ PRESETS = {
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
-class AppearanceSettings(BaseModel):
+class AppearanceSettings(LimitedModel):
     app_name:     Optional[str]   = "OpenOptOut"
-    app_icon_url: Optional[str]   = None
+    app_icon_url: Optional[str] = Field(None, max_length=ICON_DATA_URL_MAX)
     theme:        Optional[str]   = "dark"
     accent_color: Optional[str]   = "#6366f1"
 
@@ -92,7 +93,7 @@ class EmailGracePeriodOut(BaseModel):
     previous_mode: Optional[str] = None
 
 
-class EmailConfig(BaseModel):
+class EmailConfig(LimitedModel):
     mode:                 Optional[str] = None   # "shared" | "per_user"
     preset:               Optional[str] = None
     imap_host:            Optional[str] = None
@@ -134,7 +135,7 @@ class EmailConfigOut(BaseModel):
     grace_period:         Optional[EmailGracePeriodOut] = None
 
 
-class SchedulerConfig(BaseModel):
+class SchedulerConfig(LimitedModel):
     enabled:               Optional[bool] = False
     run_time:              Optional[str]  = "02:00"
     timezone:              Optional[str]  = "America/Chicago"
@@ -162,11 +163,11 @@ class SchedulerConfig(BaseModel):
     distributed_interval_minutes: Optional[int] = 60
     # Calendar: which weekdays opt-outs go out (0 = Monday … 6 = Sunday; empty
     # or missing = every day) and dates to skip, like holidays ("YYYY-MM-DD").
-    run_days:                   Optional[List[int]] = None
-    skip_dates:                 Optional[List[str]] = None
+    run_days: Optional[List[int]] = Field(None, max_length=7)
+    skip_dates: Optional[List[str]] = Field(None, max_length=ITEMS_MAX)
 
 
-class PrivacyDataSettings(BaseModel):
+class PrivacyDataSettings(LimitedModel):
     auto_purge_logs_days: Optional[int] = 365
 
 
@@ -254,7 +255,7 @@ def save_appearance(data: AppearanceSettings, _: User = Depends(require_permissi
 
 # ── Regional formats ──────────────────────────────────────────────────────────
 
-class RegionalSettings(BaseModel):
+class RegionalSettings(LimitedModel):
     region:     Optional[str] = None
     hour_cycle: Optional[str] = None
     week_start: Optional[str] = None
@@ -484,7 +485,7 @@ from datetime import datetime
 
 # ── Vault limits ──────────────────────────────────────────────────────────────
 
-class VaultLimits(BaseModel):
+class VaultLimits(LimitedModel):
     max_names:               int = 4
     max_addresses:           int = 10
     max_phones:              int = 5
@@ -565,7 +566,7 @@ def encryption_status(_: User = Depends(require_permission("database.view"))):
 
 # ── WebAuthn / FIDO2 Security Settings ───────────────────────────────────────
 
-class WebAuthnSettings(BaseModel):
+class WebAuthnSettings(LimitedModel):
     authenticator_attachment: Optional[str] = "any"     # "any" | "cross-platform" | "platform"
     user_verification:        Optional[str] = "preferred" # "preferred" | "required" | "discouraged"
     fips_only:                Optional[bool] = False
@@ -615,7 +616,7 @@ def update_webauthn_settings(data: WebAuthnSettings, _: User = Depends(require_s
 
 # ── Passwordless Authentication Policy (Local Accounts Only) ─────────────────
 
-class PasswordlessSettings(BaseModel):
+class PasswordlessSettings(LimitedModel):
     enabled: Optional[bool] = False
     allow_passkey: Optional[bool] = True
     allow_magic_link: Optional[bool] = True
@@ -660,15 +661,15 @@ def update_passwordless_settings(data: PasswordlessSettings, _: User = Depends(r
 
 # ── Role-Based Session Duration & Remember Me Policy ──────────────────────────
 
-class RoleSessionConfig(BaseModel):
+class RoleSessionConfig(LimitedModel):
     session_duration_hours: int = 8
     remember_me_allowed: bool = True
     remember_me_mode: str = "username_only"  # "username_only" | "extend_session"
     remember_me_duration_days: int = 1
 
-class SessionPolicySettings(BaseModel):
+class SessionPolicySettings(LimitedModel):
     remember_me_enabled: bool = True
-    roles: Dict[str, RoleSessionConfig]
+    roles: Dict[str, RoleSessionConfig] = Field(..., max_length=50)
 
 
 @router.get("/security/session-policy")
@@ -710,19 +711,19 @@ def update_session_policy_settings(data: SessionPolicySettings, _: User = Depend
 
 # ── Role-Based MFA Policy & Compliance Settings ───────────────────────────────
 
-class MfaRolePermissions(BaseModel):
+class MfaRolePermissions(LimitedModel):
     totp: bool = True
     webauthn: bool = True
     backup_codes: bool = True
 
-class MfaComplianceTimer(BaseModel):
+class MfaComplianceTimer(LimitedModel):
     enabled: bool = True
     value: int = 3
     unit: str = "days"
 
-class MfaRolePolicySettings(BaseModel):
-    roles: Dict[str, MfaRolePermissions]
-    compliance: Optional[Dict[str, MfaComplianceTimer]] = None
+class MfaRolePolicySettings(LimitedModel):
+    roles: Dict[str, MfaRolePermissions] = Field(..., max_length=50)
+    compliance: Optional[Dict[str, MfaComplianceTimer]] = Field(None, max_length=50)
 
 
 @router.get("/security/mfa-policy")
@@ -784,9 +785,9 @@ def update_mfa_policy_settings(data: MfaRolePolicySettings, _: User = Depends(re
 
 # ── Automation (user-agent rotation, bot evasion) ─────────────────────────────
 
-class AutomationConfig(BaseModel):
+class AutomationConfig(LimitedModel):
     rotate_user_agents:   bool = True
-    custom_user_agents:   list[str] = []
+    custom_user_agents: list[str] = Field([], max_length=100)
     inter_submission_delay_seconds: float = 1.5
     # Try a best-guess fill on broker sites OpenOptOut has no steps for. Off by
     # default: guessing can type a person's details into the wrong form.
@@ -830,7 +831,7 @@ def list_builtin_agents(_: User = Depends(require_permission("settings.system"))
 
 # ── Proxy / IP masking ────────────────────────────────────────────────────────
 
-class ProxyConfig(BaseModel):
+class ProxyConfig(LimitedModel):
     enabled:   bool = False
     mode:      str  = "single"      # single | pool
     provider:  str  = "generic"     # generic | brightdata | oxylabs | smartproxy | iproyal
@@ -895,7 +896,7 @@ def test_proxy_endpoint(_: User = Depends(require_permission("settings.system"))
 
 # ── Plugin system settings ────────────────────────────────────────────────────
 
-class PluginSystemConfig(BaseModel):
+class PluginSystemConfig(LimitedModel):
     enabled:       bool = False
     storage_mode:  str  = "db"        # "db" | "file"
     plugins_dir:   Optional[str] = "/data/plugins"
@@ -937,7 +938,7 @@ def save_plugin_settings(data: PluginSystemConfig, _: User = Depends(require_sup
     return data
 
 
-class PluginDenyRequest(BaseModel):
+class PluginDenyRequest(LimitedModel):
     # Typed confirmation guards against accidental toggles.
     confirm: bool = False
 
@@ -983,12 +984,12 @@ def allow_plugin_system(req: PluginDenyRequest, _: User = Depends(require_super_
 
 # ── Unclear matches (core/match_policy.py) ────────────────────────────────────
 
-class MatchingGlobal(BaseModel):
+class MatchingGlobal(LimitedModel):
     unclear_listings: str
     users_choose: bool = True
 
 
-class MatchingMine(BaseModel):
+class MatchingMine(LimitedModel):
     unclear_listings: Optional[str] = None     # None: use the default
 
 

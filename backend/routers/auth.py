@@ -8,18 +8,20 @@ from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Body
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, field_validator, Field
 
+from ..core.limits import LimitedModel, NAME_MAX
 from ..models.database import get_db, User, FamilyMember, UserRole, InviteCode, UsageEvent
 from ..core.auth import (
     hash_password, verify_password, is_legacy_unpeppered_hash, create_access_token,
     get_current_user, get_current_user_optional, require_super_admin, validate_password_length
 )
+from ..core.text_input import clean_name, clean_name_lenient
 from ..core.session_policy import create_user_token
 from ..core.access import require_permission
 from ..core import login_throttle, rate_limit
@@ -68,7 +70,7 @@ def _take_oidc_state(state: str):
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
-class RegisterRequest(BaseModel):
+class RegisterRequest(LimitedModel):
     email: EmailStr
     password: Optional[str] = None
     full_name: str
@@ -80,9 +82,10 @@ class RegisterRequest(BaseModel):
     address_token: Optional[str] = None
 
     _validate_password = field_validator("password")(validate_password_length)
+    _validate_name = field_validator("full_name")(clean_name)
 
 
-class SignupAddressIn(BaseModel):
+class SignupAddressIn(LimitedModel):
     street: str
     unit: Optional[str] = ""
     city: Optional[str] = ""
@@ -90,7 +93,7 @@ class SignupAddressIn(BaseModel):
     zip: str
 
 
-class SignupEmailIn(BaseModel):
+class SignupEmailIn(LimitedModel):
     email: EmailStr
 
 
@@ -116,34 +119,34 @@ class UserOut(BaseModel):
         from_attributes = True
 
 
-class SIP2LoginRequest(BaseModel):
+class SIP2LoginRequest(LimitedModel):
     barcode: str
     pin: str
     remember_me: Optional[bool] = False
 
 
-class LDAPLoginRequest(BaseModel):
+class LDAPLoginRequest(LimitedModel):
     username: str
     password: str
     remember_me: Optional[bool] = False
 
 
-class PasswordlessOptionsIn(BaseModel):
+class PasswordlessOptionsIn(LimitedModel):
     email: Optional[str] = None
     remember_me: Optional[bool] = False
 
 
-class PasswordlessVerifyIn(BaseModel):
+class PasswordlessVerifyIn(LimitedModel):
     ticket: str
-    credential: Dict[str, Any]
+    credential: Dict[str, Any] = Field(..., max_length=50)
     remember_me: Optional[bool] = False
 
 
-class MagicLinkRequestIn(BaseModel):
+class MagicLinkRequestIn(LimitedModel):
     email: EmailStr
 
 
-class MagicLinkVerifyIn(BaseModel):
+class MagicLinkVerifyIn(LimitedModel):
     token: str
     code: str
     remember_me: Optional[bool] = False
@@ -198,10 +201,13 @@ def _create_user_and_member(db: Session, email: str, full_name: str,
                              role: UserRole, hashed_pw: Optional[str] = None,
                              created_by: Optional[int] = None) -> User:
     clean_email = email.strip().lower() if email else ""
+    # Every sign-up path lands here, including names sent by SSO, LDAP and
+    # library systems that never pass through a request model's validator.
+    full_name = clean_name_lenient(full_name, fallback=clean_email)
     user = User(
         email=clean_email,
         hashed_password=hashed_pw,
-        full_name=full_name.strip() if full_name else "",
+        full_name=full_name,
         role=role,
         created_by_id=created_by,
     )
@@ -701,10 +707,11 @@ def _resolve_external_user(result, db: Session, remember_me: bool = False) -> di
             member = db.query(FamilyMember).filter(FamilyMember.user_id == user.id).first()
             if member:
                 # 1. Force-import fields designated by library policy
-                if "name" in forced and demos.get("name"):
-                    db.add(Identity(member_id=member.id, kind="name", value=demos["name"], is_primary=True))
-                    member.formal_name = demos["name"]
-                    user.full_name = demos["name"]
+                forced_name = clean_name_lenient(demos.get("name"))
+                if "name" in forced and forced_name:
+                    db.add(Identity(member_id=member.id, kind="name", value=forced_name, is_primary=True))
+                    member.formal_name = forced_name
+                    user.full_name = forced_name
                 if "email" in forced and demos.get("email"):
                     db.add(Identity(member_id=member.id, kind="email", value=demos["email"], is_primary=True))
                 if "phone" in forced and demos.get("phone"):
@@ -744,9 +751,10 @@ def _resolve_external_user(result, db: Session, remember_me: bool = False) -> di
                         user.pending_ils_import = json.dumps(staged)
                     elif populate_vault:
                         # Automatic import without patron choice
-                        if patron_fields.get("name"):
-                            db.add(Identity(member_id=member.id, kind="name", value=patron_fields["name"], is_primary=True))
-                            member.formal_name = patron_fields["name"]
+                        patron_name = clean_name_lenient(patron_fields.get("name"))
+                        if patron_name:
+                            db.add(Identity(member_id=member.id, kind="name", value=patron_name, is_primary=True))
+                            member.formal_name = patron_name
                         if patron_fields.get("email"):
                             db.add(Identity(member_id=member.id, kind="email", value=patron_fields["email"], is_primary=True))
                         if patron_fields.get("phone"):
@@ -778,11 +786,11 @@ def _sso_redirect(token: str) -> RedirectResponse:
 
 # ── Invite code management ────────────────────────────────────────────────────
 
-class InviteCodeCreate(BaseModel):
+class InviteCodeCreate(LimitedModel):
     max_uses: int = Field(1, ge=1, le=1000000)
     expires_days: Optional[int] = Field(None, ge=1, le=3650)
     role: str = "parent"
-    note: Optional[str] = None
+    note: Optional[str] = Field(None, max_length=NAME_MAX)
 
 
 class InviteCodeOut(BaseModel):
@@ -846,36 +854,36 @@ def revoke_invite_code(
 
 # ── Multi-Factor Authentication (TOTP + WebAuthn / FIDO2) ────────────────────
 
-class VerifyTotpIn(BaseModel):
+class VerifyTotpIn(LimitedModel):
     mfa_ticket: str
     code: str
 
-class VerifyBackupIn(BaseModel):
+class VerifyBackupIn(LimitedModel):
     mfa_ticket: str
     code: str
 
-class VerifyWebAuthnIn(BaseModel):
+class VerifyWebAuthnIn(LimitedModel):
     mfa_ticket: str
-    credential: dict
+    credential: dict = Field(..., max_length=50)
 
 class TotpSetupOut(BaseModel):
     secret: str
     uri: str
     backup_codes: List[str]
 
-class TotpActivateIn(BaseModel):
+class TotpActivateIn(LimitedModel):
     mfa_ticket: Optional[str] = None
     secret: Optional[str] = None
     code: str
-    backup_codes: Optional[List[str]] = None
+    backup_codes: Optional[List[str]] = Field(None, max_length=50)
 
-class TotpDisableIn(BaseModel):
+class TotpDisableIn(LimitedModel):
     password: str
 
-class WebAuthnRegisterIn(BaseModel):
+class WebAuthnRegisterIn(LimitedModel):
     mfa_ticket: Optional[str] = None
-    name: str = "Security Key"
-    credential: dict
+    name: str = Field("Security Key", max_length=NAME_MAX)
+    credential: dict = Field(..., max_length=50)
 
 
 def _resolve_user_for_mfa(
@@ -974,7 +982,7 @@ def verify_backup_code_login(data: VerifyBackupIn, db: Session = Depends(get_db)
 
 
 @router.post("/mfa/webauthn-options")
-def get_webauthn_challenge_options(data: dict, request: Request, db: Session = Depends(get_db)):
+def get_webauthn_challenge_options(request: Request, data: dict = Body(..., max_length=200), db: Session = Depends(get_db)):
     from ..core import mfa
     ticket = data.get("mfa_ticket", "")
     tdata = mfa.verify_mfa_ticket(ticket)
@@ -1063,7 +1071,7 @@ def get_mfa_status(
 @router.post("/mfa/totp/setup", response_model=TotpSetupOut)
 def setup_totp(
     request: Request,
-    data: dict = None,
+    data: dict = Body(None, max_length=200),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
@@ -1150,7 +1158,7 @@ def disable_totp(
 @router.post("/mfa/webauthn/register-options")
 def get_webauthn_register_options(
     request: Request,
-    data: dict = None,
+    data: dict = Body(None, max_length=200),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):

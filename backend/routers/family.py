@@ -7,11 +7,13 @@ Super admins bypass all checks. Parents only access explicitly granted profiles.
 import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
+from ..core.limits import LimitedModel
 from ..models.database import get_db, FamilyMember, Identity, User
+from ..core.text_input import clean_name
 from ..core.auth import (
     get_current_user, get_accessible_member_ids,
     assert_can_view, assert_can_edit
@@ -37,7 +39,7 @@ class IdentityOut(BaseModel):
         from_attributes = True
 
 
-class IdentityCreate(BaseModel):
+class IdentityCreate(LimitedModel):
     kind: str
     value: str
     is_primary: bool = False
@@ -45,7 +47,7 @@ class IdentityCreate(BaseModel):
     is_mortgage: bool = False
 
 
-class IdentityUpdate(BaseModel):
+class IdentityUpdate(LimitedModel):
     value: Optional[str] = None
     is_primary: Optional[bool] = None
     is_deed: Optional[bool] = None
@@ -67,11 +69,15 @@ class MemberOut(BaseModel):
         from_attributes = True
 
 
-class MemberUpdate(BaseModel):
+class MemberUpdate(LimitedModel):
     full_name: Optional[str] = None
     formal_name: Optional[str] = None
     age: Optional[int] = Field(None, ge=0, le=150)
     dob: Optional[str] = None      # YYYY-MM-DD or MM/DD/YYYY; "" clears it
+
+    _validate_name = field_validator("full_name")(clean_name)
+    _validate_formal = field_validator("formal_name")(
+        lambda v: clean_name(v, required=False, label="Legal name"))
 
 
 def _member_out(m, can_edit: bool) -> "MemberOut":
@@ -116,13 +122,15 @@ def list_members(
     return result
 
 
-class MemberCreate(BaseModel):
+class MemberCreate(LimitedModel):
     full_name: str = Field(..., min_length=1, max_length=200)
     age: Optional[int] = Field(None, ge=0, le=150)
     dob: Optional[str] = None
     # The parent confirms they may ask brokers to remove this person's details:
     # the person agreed, or the parent is their parent or legal guardian.
     authorized: bool = False
+
+    _validate_name = field_validator("full_name")(clean_name)
 
 
 def _is_dependent(u) -> bool:
@@ -366,9 +374,9 @@ def identity_stats(
 
 # ── ILS Patron Demographics Import Endpoints ─────────────────────────────────
 
-class ILSImportDecision(BaseModel):
+class ILSImportDecision(LimitedModel):
     action: str  # "import" | "discard"
-    fields: Optional[Dict[str, Any]] = None
+    fields: Optional[Dict[str, Any]] = Field(None, max_length=100)
 
 
 @family_router.get("/ils-import-pending")
@@ -419,8 +427,9 @@ def decide_ils_import(
         db.add(member)
         db.flush()
 
-    if data.get("name"):
-        val = str(data["name"]).strip()
+    from ..core.text_input import clean_name_lenient
+    val = clean_name_lenient(str(data.get("name") or ""))
+    if val:
         db.add(Identity(member_id=member.id, kind="name", value=val, is_primary=True))
         member.formal_name = val
         if not current_user.full_name or current_user.full_name.startswith("Patron "):

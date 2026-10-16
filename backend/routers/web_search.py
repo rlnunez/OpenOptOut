@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel
 from ..models.database import get_db, User, WebSearchHit, Broker, SessionLocal, FamilyMember
 from ..core.auth import get_current_user, assert_can_view, assert_can_edit
 from ..core.access import require_permission
@@ -47,7 +48,7 @@ def get_settings(_=Depends(_admin)):
             "privacy_note": wsm.PRIVACY_NOTE}
 
 
-class SettingsIn(BaseModel):
+class SettingsIn(LimitedModel):
     enabled: bool = False
     provider: str = ""
     searxng_url: str = ""
@@ -148,7 +149,7 @@ def add(hit_id: int, db: Session = Depends(get_db), user: User = Depends(get_cur
         raise HTTPException(400, "Please provide a valid public website address.")
 
 
-class DismissIn(BaseModel):
+class DismissIn(LimitedModel):
     reason: str = "not_me"
 
 

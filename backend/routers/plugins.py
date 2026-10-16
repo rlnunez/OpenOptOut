@@ -35,9 +35,10 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel
 from ..models.database import get_db, User, InstalledPlugin, PluginAuditLog, PluginViolation
 from ..core.auth import require_super_admin, get_current_user
 from ..core.access import require_permission
@@ -207,10 +208,10 @@ class PluginOut(BaseModel):
         from_attributes = False
 
 
-class EnableRequest(BaseModel):
+class EnableRequest(LimitedModel):
     # The admin explicitly confirms which requested permissions to grant.
     # Must be a subset of what the manifest requests.
-    granted_permissions: list[str]
+    granted_permissions: list[str] = Field(..., max_length=500)
     # When re-enabling a plugin flagged for re-approval after a manifest breach,
     # the admin must acknowledge the declared method list again.
     acknowledge_methods: bool = False

@@ -4,10 +4,11 @@ Static docs are baked into the frontend.
 This router handles admin-editable custom notes stored in the settings file.
 """
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 
+from ..core.limits import LimitedModel, LONG_TEXT_MAX
 from ..core.auth import get_current_user, require_super_admin, User
 from ..core.access import require_permission
 from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
@@ -25,10 +26,10 @@ class CustomNote(BaseModel):
     updated_by: Optional[str] = None
 
 
-class CustomNoteCreate(BaseModel):
+class CustomNoteCreate(LimitedModel):
     id: Optional[str] = None
     title: str
-    content: str
+    content: str = Field(..., max_length=LONG_TEXT_MAX)
     section: str = "general"
 
 

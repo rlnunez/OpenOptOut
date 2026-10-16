@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel
 from ..models.database import get_db, User, Mailbox, FamilyMember
 from ..core.auth import get_current_user, get_accessible_member_ids, assert_can_edit
 from ..core.settings_store import load_settings
@@ -133,7 +134,7 @@ def my_status(db: Session = Depends(get_db), user: User = Depends(get_current_us
     return {"needs_inbox": used is None, "full_name": member.full_name}
 
 
-class MailboxIn(BaseModel):
+class MailboxIn(LimitedModel):
     address: str
     provider_key: str                      # gmail | outlook | yahoo | smtp
     label: Optional[str] = None
@@ -249,7 +250,7 @@ def check_plus(mailbox_id: int, db: Session = Depends(get_db), user: User = Depe
     return mbx.start_plus_check(db, load_settings(), mb)
 
 
-class AssignIn(BaseModel):
+class AssignIn(LimitedModel):
     member_id: int
     mailbox_id: Optional[int] = None    # None clears the assignment
 

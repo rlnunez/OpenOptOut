@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from ..core.limits import LimitedModel
 from ..core.access import require_permission
 from ..core.auth import get_current_user
 from ..core.logging_config import (
@@ -51,7 +52,7 @@ class LogLevelResponse(BaseModel):
     available_levels: List[str]
 
 
-class LogLevelUpdate(BaseModel):
+class LogLevelUpdate(LimitedModel):
     level: str = Field(..., description="Target logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL")
 
 

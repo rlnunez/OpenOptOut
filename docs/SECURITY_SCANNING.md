@@ -97,6 +97,7 @@ Fuzz harnesses are located in `fuzz/`:
 - `fuzz_job_envelope.py`: Validates cryptographic job envelope verification.
 - `fuzz_log_sanitizer.py`: Validates log sanitizer regex stability and token stripping.
 - `fuzz_identity_combos.py`: Validates identity vault search term combinations.
+- `fuzz_name_cleaner.py`: Validates that every cleaned name is storable (no NUL, control or text-reordering characters), within the length limit, and stable when cleaned twice.
 
 Local fuzzing command:
 ```bash
