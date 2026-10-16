@@ -16,6 +16,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, get_accessible_member_ids
 from ..core import compliance as cp
@@ -23,7 +24,7 @@ from ..core import compliance as cp
 router = APIRouter(prefix="/api/compliance", tags=["compliance"])
 
 
-class NoticePrefs(BaseModel):
+class NoticePrefs(LimitedModel):
     overdue: Optional[bool] = None
     relisted: Optional[bool] = None
 

@@ -13,6 +13,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, assert_can_view, assert_can_edit
 from ..core import listing_finder as lf
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/listings", tags=["listings"])
 
 
-class UrlIn(BaseModel):
+class UrlIn(LimitedModel):
     url: str
 
 

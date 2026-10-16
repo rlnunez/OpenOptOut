@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy import text, inspect, select, func, table as sql_table, column as sql_column
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel
 from ..models.database import get_db, engine, User, FamilyMember, Broker, RemovalRequest
 from ..core.auth import require_super_admin
 from ..core.access import require_permission
@@ -334,7 +335,7 @@ def _run_migration(target_url: str):
 from pydantic import BaseModel
 from typing import Optional as Opt
 
-class DBConnectionConfig(BaseModel):
+class DBConnectionConfig(LimitedModel):
     """
     Non-secret PostgreSQL connection configuration.
     Secrets (passwords, keys) are NEVER included here — they come from

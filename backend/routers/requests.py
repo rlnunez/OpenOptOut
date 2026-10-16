@@ -5,6 +5,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 import uuid
 
+from ..core.limits import LimitedModel
 from ..models.database import (
     get_db, RemovalRequest, Broker, FamilyMember,
     RequestStatus, OptOutMethod
@@ -42,7 +43,7 @@ class RequestOut(BaseModel):
         from_attributes = True
 
 
-class CreateRequest(BaseModel):
+class CreateRequest(LimitedModel):
     member_id: int
     broker_id: int
     method_used: Optional[str] = "form"
@@ -50,7 +51,7 @@ class CreateRequest(BaseModel):
     notes: Optional[str] = None
 
 
-class UpdateRequest(BaseModel):
+class UpdateRequest(LimitedModel):
     status: Optional[str] = None
     confirmed_at: Optional[datetime] = None
     listing_url: Optional[str] = None
@@ -58,7 +59,7 @@ class UpdateRequest(BaseModel):
     recheck_days: Optional[int] = Field(None, ge=1, le=3650)
 
 
-class SnoozeRequest(BaseModel):
+class SnoozeRequest(LimitedModel):
     days: int = Field(30, ge=1, le=3650)   # push recheck N days into the future
 
 

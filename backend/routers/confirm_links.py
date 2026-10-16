@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel
 from ..models.database import get_db, User, ConfirmationLink, RemovalRequest
 from ..core.auth import get_current_user, get_accessible_member_ids
 from ..core.access import require_permission
@@ -43,7 +44,7 @@ def get_settings(_=Depends(_admin)):
     return cl.settings_of(load_settings())
 
 
-class SettingsIn(BaseModel):
+class SettingsIn(LimitedModel):
     auto_click: bool = True
     use_browser: bool = True
 

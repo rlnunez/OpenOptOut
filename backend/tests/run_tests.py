@@ -4584,6 +4584,252 @@ def t_password_hashing():
     assert auth.validate_password_length("") == ""          # empty: allowed (caller decides if that's valid)
 
 
+@test(1, "text_input.clean_name",
+      "Names keep accents, apostrophes and emoji; control characters, text-reordering marks and "
+      "invalid text are removed; over-long or empty names get a plain-English error.")
+def t_clean_name():
+    ti = _imp("core.text_input")
+    ok = {
+        "Jordan Example": "Jordan Example",
+        "  Jordan   Example  ": "Jordan Example",
+        "Zoë O'Brien-Núñez": "Zoë O'Brien-Núñez",          # accents, apostrophe, hyphen
+        "José": "José",                                       # decomposed é -> composed (NFC)
+        "山田 太郎": "山田 太郎",
+        "Jordan 😀": "Jordan 😀",
+        "Fam 👨‍👩‍👧": "Fam 👨‍👩‍👧",  # ZWJ kept: emoji sequence intact
+        "Robert'); DROP TABLE users;--": "Robert'); DROP TABLE users;--",  # SQL is the ORM's job
+        "Jordan\x00Example": "JordanExample",                # NUL: PostgreSQL rejects it
+        "Jordan\nExample\t": "Jordan Example",
+        "Jordan\x1b[31mExample": "Jordan[31mExample",        # terminal escape neutralised
+        "Bob‮evil": "Bobevil",                           # right-to-left override
+        "﻿Jordan": "Jordan",
+        "Jordan\ud800": "Jordan",                             # lone surrogate
+        "Jordan Example": "Jordan Example",              # non-breaking space
+    }
+    for raw, want in ok.items():
+        got = ti.clean_name(raw)
+        assert got == want, f"clean_name({raw!r}) = {got!r}, expected {want!r}"
+        got.encode("utf-8")                                    # always storable as UTF-8
+
+    for bad in ("", "   ", "\x00\x01", "‮"):
+        try:
+            ti.clean_name(bad)
+            raise AssertionError(f"empty name {bad!r} was accepted")
+        except ValueError as e:
+            assert "enter a name" in str(e), str(e)
+    at_limit = "a" * ti.MAX_NAME_CHARS
+    assert ti.clean_name(at_limit) == at_limit
+    try:
+        ti.clean_name("a" * (ti.MAX_NAME_CHARS + 1))
+        raise AssertionError("an over-long name was accepted")
+    except ValueError as e:
+        assert "too long" in str(e) and str(ti.MAX_NAME_CHARS) in str(e), str(e)
+    try:
+        ti.clean_name(12345)
+        raise AssertionError("a number was accepted as a name")
+    except ValueError:
+        pass
+
+    # Optional fields: None stays None, blank means "clear it".
+    assert ti.clean_name(None) is None
+    assert ti.clean_name("  ", required=False) == ""
+    assert ti.clean_name(None, required=False) is None
+
+    # Names from sign-in providers never block a sign-in.
+    assert ti.clean_name_lenient("x" * 5000) == "x" * ti.MAX_NAME_CHARS
+    assert ti.clean_name_lenient("\x00‮", fallback="jordan@example.invalid") == "jordan@example.invalid"
+    assert ti.clean_name_lenient(None) == ""
+    assert ti.clean_name_lenient("Jordan\x00 Example") == "Jordan Example"
+    # EXPECTED: real names pass through untouched; junk characters are dropped.
+    # IF THIS FAILS: a name with a NUL can break sign-up on PostgreSQL, a
+    #   reordering mark can make a name display as something else to an admin,
+    #   or (if a "real name" case failed) the cleaner is now too aggressive.
+
+
+@test(4, "auth.signup_names_validated",
+      "Sign-up, admin and family forms reject over-long or empty names with a readable error, "
+      "and a SQL-looking name is stored literally without touching the database schema.")
+def t_signup_names():
+    try:
+        from pydantic import ValidationError
+        auth_router = _imp("routers.auth")
+        admin_router = _imp("routers.admin")
+        family_router = _imp("routers.family")
+        db, session = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    def rejects(model, **fields):
+        try:
+            model(**fields)
+        except ValidationError as e:
+            return str(e)
+        raise AssertionError(f"{model.__name__} accepted {fields!r}")
+
+    long_name = "a" * 201
+    for model, extra in ((auth_router.RegisterRequest, {"email": "jordan@example.com"}),
+                         (admin_router.CreateUserRequest, {"email": "jordan@example.com"}),
+                         (family_router.MemberCreate, {})):
+        assert "too long" in rejects(model, full_name=long_name, **extra) or model is family_router.MemberCreate
+        rejects(model, full_name="\x00", **extra)
+        assert model(full_name="Jordan\x00 Example", **extra).full_name == "Jordan Example"
+    assert admin_router.UpdateUserRequest(full_name=None).full_name is None
+    assert family_router.MemberUpdate(formal_name="  ").formal_name == ""       # blank clears it
+    rejects(family_router.MemberUpdate, formal_name=long_name)
+    rejects(auth_router.RegisterRequest, email="😀@😀.com", full_name="Jordan")  # not an email
+
+    # A name that looks like SQL is just stored as text; the table survives.
+    evil = "Robert'); DROP TABLE users;--"
+    user = auth_router._create_user_and_member(session, "jordan@example.com", evil, db.UserRole.member)
+    assert session.query(db.User).filter(db.User.id == user.id).one().full_name == evil
+    assert session.query(db.FamilyMember).filter(db.FamilyMember.user_id == user.id).one().full_name == evil
+    # A provider-sent name with a NUL is cleaned; an empty one falls back to the email.
+    u2 = auth_router._create_user_and_member(session, "casey@example.com", "Casey\x00", db.UserRole.member)
+    u3 = auth_router._create_user_and_member(session, "sam@example.com", "\x00", db.UserRole.member)
+    assert u2.full_name == "Casey" and u3.full_name == "sam@example.com"
+    session.close()
+    # EXPECTED: bad names get a 422 with a clear message; nothing reaches the DB unclean.
+    # IF THIS FAILS: a validator was removed from a request model, or
+    #   _create_user_and_member stopped cleaning provider-supplied names.
+
+
+def _api_routes(routes):
+    """Every APIRoute in the app, including ones inside included routers."""
+    from fastapi.routing import APIRoute
+    for r in routes:
+        if isinstance(r, APIRoute):
+            yield r
+        elif hasattr(r, "original_router"):          # FastAPI >= 0.140 wraps included routers
+            yield from _api_routes(r.original_router.routes)
+        elif hasattr(r, "routes"):
+            yield from _api_routes(r.routes)
+
+
+@test(4, "auth.request_fields_bounded",
+      "Every field any endpoint accepts has a size limit: text via the model's limit or its own, "
+      "lists and dictionaries via an item cap, and uploads via a bounded read.")
+def t_request_fields_bounded():
+    import inspect, typing
+    try:
+        import annotated_types
+        from pydantic import BaseModel
+        from fastapi import UploadFile
+        main = importlib.import_module(_mod("main"))
+        limits = _imp("core.limits")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    def capped(field):
+        return any(isinstance(m, annotated_types.MaxLen) for m in field.metadata)
+
+    def parts(t):
+        args = typing.get_args(t)
+        return [t] + [x for a in args for x in parts(a)]
+
+    def is_collection(t):
+        origin = typing.get_origin(t)
+        return t in (list, dict, set, tuple) or origin in (list, dict, set, tuple)
+
+    problems, checked, seen = [], set(), set()
+
+    def check_model(model, where):
+        if model in seen:
+            return
+        seen.add(model)
+        model_text_cap = model.model_config.get("str_max_length")
+        for name, f in model.model_fields.items():
+            label = f"{model.__module__.rsplit('.', 1)[-1]}.{model.__name__}.{name}"
+            checked.add(label)
+            ann = f.annotation
+            flat = parts(ann)
+            if any(x is str for x in flat) and not (model_text_cap or capped(f)):
+                problems.append(f"{label}: text with no length limit ({where})")
+            if any(is_collection(x) for x in flat if x is not type(None)) and not capped(f):
+                problems.append(f"{label}: list/dictionary with no item limit ({where})")
+            for x in flat:
+                if inspect.isclass(x) and issubclass(x, BaseModel):
+                    check_model(x, where)
+
+    routes = list(_api_routes(main.app.routes))
+    assert len(routes) > 100, f"only found {len(routes)} routes — the route walker is broken"
+    for r in routes:
+        where = f"{sorted(r.methods)[0]} {r.path}"
+        for p in r.dependant.body_params:
+            fi, ann = p.field_info, p.field_info.annotation
+            flat = parts(ann)
+            models = [x for x in flat if inspect.isclass(x) and issubclass(x, BaseModel)]
+            if models:
+                for m in models:
+                    check_model(m, where)
+                continue
+            if any(inspect.isclass(x) and issubclass(x, UploadFile) for x in flat):
+                if limits.body_limit_for(r.path) <= limits.MAX_BODY_BYTES:
+                    problems.append(f"{where}: upload route has no entry in limits.BODY_LIMIT_OVERRIDES")
+                src = inspect.getsource(r.endpoint)
+                helpers = "".join(inspect.getsource(v) for v in inspect.getmodule(r.endpoint).__dict__.values()
+                                  if inspect.isfunction(v) and v.__module__ == r.endpoint.__module__)
+                if re.search(r"\.read\(\s*\)", src) or (re.search(r"\.read\(\s*\)", helpers) and "file" in helpers and
+                        re.search(r"\b\w*file\w*\.(file\.)?read\(\s*\)", helpers)):
+                    problems.append(f"{where}: reads an upload with no size limit (use limits.read_upload)")
+                continue
+            checked.add(f"{where} {p.name}")
+            if (any(x is str for x in flat) or any(is_collection(x) for x in flat)) and not capped(fi):
+                problems.append(f"{where}: body parameter '{p.name}' has no max_length")
+
+    assert not problems, "Unbounded input found:\n  " + "\n  ".join(sorted(set(problems)))
+    assert len(checked) > 300, f"only {len(checked)} fields checked — the walker missed models"
+    # EXPECTED: every input is bounded (query strings are capped as a whole by
+    #   RequestSizeLimitMiddleware, and every body by MAX_BODY_BYTES).
+    # IF THIS FAILS: a new or changed endpoint accepts unlimited input. Make
+    #   its model inherit core.limits.LimitedModel, give lists/dicts a
+    #   Field(max_length=...), and read uploads with limits.read_upload.
+
+
+@test(4, "auth.request_size_limits_enforced",
+      "Over-size requests get a 413 with a plain message before the app reads them — "
+      "with or without a Content-Length — and long query strings get a 414.")
+def t_request_size_limits():
+    try:
+        from fastapi.testclient import TestClient
+        main = importlib.import_module(_mod("main"))
+        limits = _imp("core.limits")
+        auth_router = _imp("routers.auth")
+        from pydantic import ValidationError
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    client = TestClient(main.app, raise_server_exceptions=False)
+
+    big = b'{"email": "jordan@example.com", "full_name": "' + b"a" * (limits.MAX_BODY_BYTES + 10) + b'"}'
+    r = client.post("/api/auth/register", content=big, headers={"content-type": "application/json"})
+    assert r.status_code == 413, r.status_code
+    assert "too much to send" in r.json()["detail"], r.text
+
+    def chunks():                                   # no Content-Length: streamed
+        for _ in range(limits.MAX_BODY_BYTES // 65536 + 2):
+            yield b"a" * 65536
+    r = client.post("/api/auth/register", content=chunks(), headers={"content-type": "application/json"})
+    assert r.status_code == 413, f"streamed body got {r.status_code}"
+
+    r = client.get("/api/i18n/languages?x=" + "a" * (limits.MAX_QUERY_BYTES + 1))
+    assert r.status_code == 414, r.status_code
+
+    # Upload routes get their own, larger allowance.
+    assert limits.body_limit_for("/api/plugins/upload") > limits.MAX_BODY_BYTES
+    assert limits.body_limit_for("/api/registry/TX/import") > limits.MAX_BODY_BYTES
+    assert limits.body_limit_for("/api/auth/register") == limits.MAX_BODY_BYTES
+
+    # Field limits: a 5,000-character invite code is refused, a normal one isn't.
+    try:
+        auth_router.RegisterRequest(email="jordan@example.com", full_name="Jordan", invite_code="x" * 5000)
+        raise AssertionError("an over-long invite code was accepted")
+    except ValidationError:
+        pass
+    auth_router.RegisterRequest(email="jordan@example.com", full_name="Jordan", invite_code="ABC123")
+    # EXPECTED: 413 / 414 with readable messages; normal requests unaffected.
+    # IF THIS FAILS: RequestSizeLimitMiddleware was removed from main.py or
+    #   its ordering changed so the body is read before the check.
+
+
 @test(1, "auth.password_peppering_pbkdf2_hmac_sha256",
       "PBKDF2-HMAC-SHA256 password peppering produces deterministic 44-character Base64 digests and preserves key separation.")
 def t_password_peppering():

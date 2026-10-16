@@ -11,6 +11,7 @@ from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from ..core.limits import LimitedModel
 from ..models.database import User
 from ..core.auth import require_super_admin
 from ..core import updater
@@ -20,16 +21,16 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/system/updates", tags=["updates"])
 
 
-class PolicyIn(BaseModel):
+class PolicyIn(LimitedModel):
     policy: str             # "approval_required", "notify_only", "auto_install", "disabled"
     channel: Optional[str] = "stable"  # "stable", "pre_release"
 
 
-class IgnoreIn(BaseModel):
+class IgnoreIn(LimitedModel):
     tag: str
 
 
-class ApplyIn(BaseModel):
+class ApplyIn(LimitedModel):
     tag: Optional[str] = None
 
 

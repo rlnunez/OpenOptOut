@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel
 from ..models.database import get_db, User, RemovalRequest, SessionLocal
 from ..core.auth import get_current_user, get_accessible_member_ids, assert_can_edit
 from ..core.access import require_permission
@@ -69,7 +70,7 @@ def get_settings(_=Depends(require_permission("settings.system"))):
     return vf.settings_of(load_settings())
 
 
-class SettingsIn(BaseModel):
+class SettingsIn(LimitedModel):
     enabled: bool = True
     use_browser: bool = True
     per_day: int = 40

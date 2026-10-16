@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel
 from ..models.database import get_db, User, FamilyMember, AccessLog, ProfileAccess, UserRole
 from ..core.auth import get_current_user, assert_can_view, require_super_admin
 from ..core.access import require_permission, has_permission
@@ -85,7 +86,7 @@ def purge_now(db: Session = Depends(get_db), _=Depends(require_super_admin)):
     return {"retention_days": pr.retention_days(cfg), "removed": stats}
 
 
-class DeleteMe(BaseModel):
+class DeleteMe(LimitedModel):
     confirm: str
 
 

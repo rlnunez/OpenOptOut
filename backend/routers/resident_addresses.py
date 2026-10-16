@@ -12,6 +12,7 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel
 from ..core import resident_addresses as R
 from ..core.access import require_permission
 from ..models.database import ResidentAddress, User, get_db
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/api/resident-addresses", tags=["registration"])
 gate = Depends(require_permission("users.registration"))
 
 
-class CheckIn(BaseModel):
+class CheckIn(LimitedModel):
     street: str
     unit: Optional[str] = ""
     city: Optional[str] = ""

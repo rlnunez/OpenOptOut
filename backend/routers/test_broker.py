@@ -29,6 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel
 from ..models.database import (get_db, User, Broker, ParentCompany, FamilyMember,
                                OptOutMethod)
 from ..core.auth import get_current_user, assert_can_view
@@ -95,7 +96,7 @@ def get_test_broker(db: Session = Depends(get_db), user: User = Depends(get_curr
     return _describe(_get_test_parent(db))
 
 
-class SetupIn(BaseModel):
+class SetupIn(LimitedModel):
     optout_email: str
 
 
@@ -137,7 +138,7 @@ def setup_test_broker(body: SetupIn, db: Session = Depends(get_db),
     return _describe(parent)
 
 
-class SendIn(BaseModel):
+class SendIn(LimitedModel):
     member_id: Optional[int] = None   # omit to use the built-in fake identity
 
 

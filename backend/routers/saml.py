@@ -20,9 +20,10 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel, LONG_TEXT_MAX
 from ..models.database import get_db, User
 from ..core.auth import require_super_admin
 from ..core.access import require_permission
@@ -85,7 +86,7 @@ def login(request: Request):
 
 
 @router.post("/acs", dependencies=[Depends(rate_limit.limit("sso", 30))])
-def acs(request: Request, SAMLResponse: str = Form(""), db: Session = Depends(get_db)):
+def acs(request: Request, SAMLResponse: str = Form("", max_length=LONG_TEXT_MAX), db: Session = Depends(get_db)):
     cfg = _cfg()
     if not cfg.get("enabled"):
         return _error_page("SAML sign-in is not enabled.")
@@ -103,18 +104,18 @@ def acs(request: Request, SAMLResponse: str = Form(""), db: Session = Depends(ge
 
 # ── Admin configuration ───────────────────────────────────────────────────────
 
-class SamlConfigIn(BaseModel):
+class SamlConfigIn(LimitedModel):
     enabled: bool = False
     label: Optional[str] = None                 # login button text, e.g. "University SSO"
     sp_base_url: Optional[str] = None           # public URL, e.g. https://privacy.example.edu
-    idp_metadata_xml: Optional[str] = None      # paste the IdP metadata, or…
+    idp_metadata_xml: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)      # paste the IdP metadata, or…
     idp_metadata_url: Optional[str] = None      # …fetch it from a URL
     idp_entity_id: Optional[str] = None         # only if metadata lists several IdPs
     attr_email: Optional[str] = None            # override attribute names (comma-sep)
     attr_name: Optional[str] = None
     attr_groups: Optional[str] = None
-    allowed_domains: Optional[str] = None
-    required_groups: Optional[str] = None       # e.g. "staff,faculty" or "library-staff"
+    allowed_domains: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)
+    required_groups: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)       # e.g. "staff,faculty" or "library-staff"
     default_role: Optional[str] = "parent"
     auto_provision: Optional[bool] = None
 

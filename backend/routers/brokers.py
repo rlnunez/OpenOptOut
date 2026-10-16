@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 import csv, io, json, logging
 
+from ..core.limits import LimitedModel, IDS_MAX, LONG_TEXT_MAX, UPLOAD_IMPORT_BYTES, read_upload, decode_text_upload
 from ..models.database import get_db, Broker, RemovalRequest, RequestStatus, BrokerStatus, OptOutMethod, Difficulty
 from ..core.auth import get_current_user, User, get_accessible_member_ids, _has
 from ..core.access import require_permission, has_permission
@@ -40,16 +41,16 @@ class BrokerOut(BaseModel):
         from_attributes = True
 
 
-class BrokerUpdate(BaseModel):
+class BrokerUpdate(LimitedModel):
     opt_out_url: Optional[str] = None
     method: Optional[str] = None
     difficulty: Optional[str] = None
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)
     is_property_broker: Optional[bool] = None
     captcha_plugin_id: Optional[str] = None
 
 
-class BrokerCaptchaSolverUpdate(BaseModel):
+class BrokerCaptchaSolverUpdate(LimitedModel):
     captcha_plugin_id: Optional[str] = None
 
 
@@ -114,7 +115,7 @@ def dashboard_stats(
     )
 
 
-class FoundRule(BaseModel):
+class FoundRule(LimitedModel):
     action: Optional[str] = None       # auto | ask | tell
     threshold: Optional[int] = None    # people, for auto
     fallback: Optional[str] = None     # ask | tell, below the threshold or when it can't turn on
@@ -316,7 +317,7 @@ def import_csv(
     Import brokers from the enriched CSV we generated.
     Accepts columns: name, status, opt_out_url, method, difficulty, notes
     """
-    content = file.file.read().decode("utf-8")
+    content = decode_text_upload(read_upload(file, UPLOAD_IMPORT_BYTES, "CSV file"), "CSV file")
     reader = csv.DictReader(io.StringIO(content))
 
     added = 0
@@ -362,13 +363,13 @@ def import_csv(
 
 # ── Single broker form add ────────────────────────────────────────────────────
 
-class BrokerCreate(BaseModel):
+class BrokerCreate(LimitedModel):
     name: str
     opt_out_url: Optional[str] = None
     method: Optional[str] = "form"
     difficulty: Optional[str] = "medium"
     status: Optional[str] = "compliant"
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)
 
 
 @router.post("", response_model=BrokerOut, status_code=201)
@@ -444,7 +445,7 @@ def import_json_brokers(
       { "brokers": [ ... ] }
     """
     import json as _json
-    content = file.file.read().decode("utf-8")
+    content = decode_text_upload(read_upload(file, UPLOAD_IMPORT_BYTES, "JSON file"), "JSON file")
     try:
         data = _json.loads(content)
     except Exception:
@@ -637,16 +638,16 @@ def _require_admin(user: User):
         raise HTTPException(403, "This needs the 'Manage brokers' permission")
 
 
-class PrioritySet(BaseModel):
+class PrioritySet(LimitedModel):
     priority: int                       # 1..5
 
 
-class BulkPrioritySet(BaseModel):
-    broker_ids: List[int]
+class BulkPrioritySet(LimitedModel):
+    broker_ids: List[int] = Field(..., max_length=IDS_MAX)
     priority: int                       # 1..5
 
 
-class RuleModel(BaseModel):
+class RuleModel(LimitedModel):
     set_priority: int
     status: Optional[str] = None
     difficulty: Optional[str] = None
@@ -788,7 +789,7 @@ def export_priorities(kind: str = Query("both", description="rankings | rules | 
 
 
 @router.post("/priority/import")
-def import_priorities(data: dict,
+def import_priorities(data: dict = Body(..., max_length=IDS_MAX),
                       db: Session = Depends(get_db),
                       user: User = Depends(require_permission("brokers.manage"))):
     """

@@ -15,9 +15,10 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel, LONG_TEXT_MAX
 from ..core import terms as T
 from ..core.auth import get_current_user, require_super_admin
 from ..core.settings_store import load_settings, save_settings
@@ -58,7 +59,7 @@ def status(db: Session = Depends(get_db), user: User = Depends(get_current_user)
             "notice_version": T.NOTICE_VERSION, "terms": _public(c, s)}
 
 
-class Accept(BaseModel):
+class Accept(LimitedModel):
     kind: str
     version: int
 
@@ -96,11 +97,11 @@ def get_settings(db: Session = Depends(get_db), _: User = Depends(require_super_
             "counts": T.counts(db, s), "terms_url": (s.get("branding") or {}).get("terms_url") or ""}
 
 
-class TermsIn(BaseModel):
+class TermsIn(LimitedModel):
     enabled: Optional[bool] = None
     operator: Optional[str] = None
     contact: Optional[str] = None
-    text: Optional[str] = None
+    text: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)
 
 
 @router.put("/settings")

@@ -29,9 +29,10 @@ logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel
 from ..core.access import require_permission
 from ..core.auth import require_super_admin
 from ..models.database import get_db, SessionLocal, SpecDraft, Broker, User
@@ -42,15 +43,15 @@ _brokers = require_permission("brokers.manage")
 
 # ── Settings ──────────────────────────────────────────────────────────────────
 
-class OptionsIn(BaseModel):
-    order: Optional[List[str]] = None
+class OptionsIn(LimitedModel):
+    order: Optional[List[str]] = Field(None, max_length=100)
     repair_broken_steps: Optional[bool] = None
     auto_apply_repairs: Optional[bool] = None
     draft_new_brokers: Optional[bool] = None
     monthly_limit: Optional[int] = None
 
 
-class ProviderIn(BaseModel):
+class ProviderIn(LimitedModel):
     enabled: Optional[bool] = None
     model: Optional[str] = None
     api_key: Optional[str] = None      # omit to keep the saved key; "" to remove it
@@ -97,7 +98,7 @@ def test_provider(pid: str, _=Depends(require_super_admin)):
         return {"ok": False, "message": "Connection test failed. Check the endpoint URL and API key."}
 
 
-class LocalIn(BaseModel):
+class LocalIn(LimitedModel):
     name: str
     base_url: str
     model: str
@@ -277,7 +278,7 @@ def _in_background(fn, *args):
     threading.Thread(target=run, daemon=True).start()
 
 
-class StartIn(BaseModel):
+class StartIn(LimitedModel):
     provider: Optional[str] = None
 
 

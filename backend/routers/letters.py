@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from ..core.limits import LimitedModel
 from ..core.access import require_permission
 from ..models.database import get_db, Broker, ParentCompany, User
 
@@ -113,7 +114,7 @@ def preview(letter_id: str, language: str = Query(""), broker: str = Query("Exam
             "deadline_days": letter.deadline_days}
 
 
-class Assign(BaseModel):
+class Assign(LimitedModel):
     kind: str                      # broker | parent
     id: int
     letter_id: Optional[str] = ""  # empty = automatic

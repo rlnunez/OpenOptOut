@@ -10,6 +10,7 @@ from typing import List, Optional, Any
 from datetime import datetime
 import json
 
+from ..core.limits import LimitedModel, ITEMS_MAX, LONG_TEXT_MAX
 from ..models.database import (
     get_db, User, UserRole, LibrarySystem, Branch, SIP2Connection, ManagerScope
 )
@@ -23,18 +24,18 @@ router = APIRouter(prefix="/api/consortium", tags=["consortium"])
 
 # ── Pydantic Schemas ──────────────────────────────────────────────────────────
 
-class SystemCreate(BaseModel):
+class SystemCreate(LimitedModel):
     name: str = Field(..., max_length=100)
     code: str = Field(..., max_length=30)
     allow_custom_branding: bool = False
-    branding_config: Optional[str] = None
+    branding_config: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)
 
 
-class SystemUpdate(BaseModel):
+class SystemUpdate(LimitedModel):
     name: Optional[str] = None
     code: Optional[str] = None
     allow_custom_branding: Optional[bool] = None
-    branding_config: Optional[str] = None
+    branding_config: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)
 
 
 class SystemOut(BaseModel):
@@ -51,14 +52,14 @@ class SystemOut(BaseModel):
         from_attributes = True
 
 
-class BranchCreate(BaseModel):
+class BranchCreate(LimitedModel):
     system_id: int
     name: str = Field(..., max_length=100)
     code: str = Field(..., max_length=30)
     ils_location_codes: Optional[str] = None
 
 
-class BranchUpdate(BaseModel):
+class BranchUpdate(LimitedModel):
     system_id: Optional[int] = None
     name: Optional[str] = None
     code: Optional[str] = None
@@ -80,13 +81,13 @@ class BranchOut(BaseModel):
         from_attributes = True
 
 
-class SIP2ConnectionCreate(BaseModel):
+class SIP2ConnectionCreate(LimitedModel):
     system_id: Optional[int] = None
     name: str
     host: str
     port: int = Field(6001, ge=1, le=65535)
     use_tls: bool = False
-    ca_cert_pem: Optional[str] = None
+    ca_cert_pem: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)
     ca_cert_path: Optional[str] = None
     institution_id: Optional[str] = ""
     ils_login: Optional[str] = ""
@@ -107,13 +108,13 @@ class SIP2ConnectionCreate(BaseModel):
     populate_vault: bool = False
 
 
-class SIP2ConnectionUpdate(BaseModel):
+class SIP2ConnectionUpdate(LimitedModel):
     system_id: Optional[int] = Field(None, ge=1, le=2147483647)
     name: Optional[str] = None
     host: Optional[str] = None
     port: Optional[int] = Field(None, ge=1, le=65535)
     use_tls: Optional[bool] = None
-    ca_cert_pem: Optional[str] = None
+    ca_cert_pem: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)
     ca_cert_path: Optional[str] = None
     institution_id: Optional[str] = None
     ils_login: Optional[str] = None
@@ -167,17 +168,17 @@ class SIP2ConnectionOut(BaseModel):
         from_attributes = True
 
 
-class ScopeItem(BaseModel):
+class ScopeItem(LimitedModel):
     scope_type: str  # 'consortium' | 'system' | 'branch'
     system_id: Optional[int] = None
     branch_id: Optional[int] = None
 
 
-class ManagerScopesUpdate(BaseModel):
-    scopes: List[ScopeItem]
+class ManagerScopesUpdate(LimitedModel):
+    scopes: List[ScopeItem] = Field(..., max_length=ITEMS_MAX)
 
 
-class PatronBranchOverride(BaseModel):
+class PatronBranchOverride(LimitedModel):
     branch_id: int
 
 

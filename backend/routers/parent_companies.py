@@ -10,10 +10,11 @@ to a parent, enumerating all its children, clears a whole family of listings.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import Optional, List
 
+from ..core.limits import LimitedModel, IDS_MAX
 from ..models.database import get_db, ParentCompany, Broker
 from ..core.auth import get_current_user, User
 from ..core import parent_company as pc
@@ -27,7 +28,7 @@ def _admin(user: User):
         raise HTTPException(403, f"This needs the '{PERMISSIONS['brokers.manage']['label']}' permission")
 
 
-class ParentIn(BaseModel):
+class ParentIn(LimitedModel):
     name: str
     optout_email: Optional[str] = None
     cc_emails: Optional[str] = None
@@ -172,8 +173,8 @@ def list_children(parent_id: int, db: Session = Depends(get_db),
     ) for b in rows]
 
 
-class AssignIn(BaseModel):
-    broker_ids: List[int]
+class AssignIn(LimitedModel):
+    broker_ids: List[int] = Field(..., max_length=IDS_MAX)
 
 
 @router.post("/{parent_id}/assign")

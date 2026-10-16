@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
+from ..core.limits import LimitedModel
 from ..core.access import require_permission
 from ..core.distributed.registry import get_worker_registry, WorkerRegistry
 from ..core.distributed.queue import get_queue, JobQueue
@@ -25,11 +26,11 @@ log = logging.getLogger(__name__)
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
-class DrainWorkerRequest(BaseModel):
+class DrainWorkerRequest(LimitedModel):
     drain: bool = Field(True, description="True to signal node to drain and stop, False to cancel")
 
 
-class ReclaimLeasesRequest(BaseModel):
+class ReclaimLeasesRequest(LimitedModel):
     lease_timeout_seconds: float = Field(300.0, description="Age in seconds after which an in-flight lease is considered orphaned")
     max_retries: int = Field(3, description="Maximum requeue attempts before moving orphaned job to DLQ")
 
