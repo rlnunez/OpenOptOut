@@ -7136,6 +7136,8 @@ def t_auth_per_ip_limits():
         sp = saml_router.router.prefix
         for path, method in [("/login", "GET"), ("/acs", "POST")]:
             assert "sso" in limits(saml_router.router, sp + path, method), (path, method)
+        cal_router = _imp("routers.calendar")
+        assert "calendar_feed" in limits(cal_router.router, cal_router.router.prefix + "/feed/{token}.ics", "GET")
 
         # Over real HTTP: the 61st sign-in a minute from one client IP gets 429.
         from fastapi import FastAPI

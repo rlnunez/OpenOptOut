@@ -140,7 +140,7 @@ services:
     container_name: openoptout-searxng
     restart: unless-stopped
     environment:
-      - "SEARXNG_SECRET=${SEARXNG_SECRET:-${SECRET_KEY:?Set SECRET_KEY in .env (openssl rand -hex 32)}}"
+      - "SEARXNG_SECRET=${SEARXNG_SECRET:-${SECRET_KEY:-openoptout-internal-searxng}}"
       - SEARXNG_BASE_URL=http://searxng:8080/
     volumes:
       - ./deploy/searxng/settings.yml:/etc/searxng/settings.yml:ro

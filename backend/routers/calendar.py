@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from ..models.database import get_db, User
 from ..core.auth import get_current_user
 from ..core.settings_store import load_settings
-from ..core import calendar_plan as cal
+from ..core import calendar_plan as cal, rate_limit
 from .reports import _scope_ids
 from ..core.compliance import own_member_ids
 
@@ -72,7 +72,7 @@ def drop_feed(db: Session = Depends(get_db), current_user: User = Depends(get_cu
     db.commit()
 
 
-@router.get("/feed/{token}.ics")
+@router.get("/feed/{token}.ics", dependencies=[Depends(rate_limit.limit("calendar_feed", 30))])
 def feed(token: str, db: Session = Depends(get_db)):
     if len(token) < 20:
         raise HTTPException(404, "Not found")
