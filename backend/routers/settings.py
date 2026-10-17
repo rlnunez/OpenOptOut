@@ -548,13 +548,17 @@ def encryption_status(_: User = Depends(require_permission("database.view"))):
 
     db_url = os.getenv("DATABASE_URL", "sqlite:///./privacy_pipeline.db")
 
+    from ..core.settings_store import get_secret_key_status
+    sec_status = get_secret_key_status()
+
     return {
         "sqlcipher_available":    sqlcipher_available,
         "db_encryption_enabled":  db_key_set and sqlcipher_available and db_url.startswith("sqlite"),
         "field_encryption_enabled": field_key_set,
-        "db_key_env_set":         bool(os.getenv("DB_ENCRYPTION_KEY")),
-        "field_key_env_set":      bool(os.getenv("FIELD_ENCRYPTION_KEY")),
+        "db_key_env_set":         bool(os.getenv("DB_ENCRYPTION_KEY") or os.getenv("DB_ENCRYPTION_KEY_FILE")),
+        "field_key_env_set":      bool(os.getenv("FIELD_ENCRYPTION_KEY") or os.getenv("FIELD_ENCRYPTION_KEY_FILE")),
         "secret_key_set":         is_valid_secret_key(os.getenv("SECRET_KEY")),
+        "keys_locked_down":       sec_status.get("permissions_secure", False),
         "db_type":                "sqlite" if db_url.startswith("sqlite") else "postgres",
         "notes": {
             "db_migration":   "Run: docker exec openoptout-api python -m backend.core.encryption migrate",

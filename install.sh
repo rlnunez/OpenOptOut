@@ -177,7 +177,8 @@ if [ "$MODE" = "docker" ]; then
         -e "s|^#SEARXNG_SECRET=.*|SEARXNG_SECRET=$searx_secret|" \
         -e "s|^#FIELD_ENCRYPTION_KEY=.*|FIELD_ENCRYPTION_KEY=$field_key|" \
         -e "s|^#DB_ENCRYPTION_KEY=.*|DB_ENCRYPTION_KEY=$db_key|" .env > .env.tmp && mv .env.tmp .env
-    info "Created .env with automatically generated security keys (SECRET_KEY, SEARXNG_SECRET, FIELD_ENCRYPTION_KEY, DB_ENCRYPTION_KEY)."
+    chmod 600 .env
+    info "Created .env with automatically generated security keys (SECRET_KEY, SEARXNG_SECRET, FIELD_ENCRYPTION_KEY, DB_ENCRYPTION_KEY) and strict 0600 permissions."
   fi
 
   if [ -d ".git" ] && command -v git >/dev/null 2>&1; then

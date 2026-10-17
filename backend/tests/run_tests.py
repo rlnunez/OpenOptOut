@@ -12471,7 +12471,28 @@ def t_security_scanner_regressions():
             os.chmod(kf, 0o600)
             st2 = ss.get_secret_key_status()
             assert st2["permissions_secure"] and not st2["permissions_insecure"] and not st2["banner_required"], st2
+
+            # Additional security key files (e.g. FIELD_ENCRYPTION_KEY_FILE, DB_ENCRYPTION_KEY_FILE)
+            # must also require being locked down (0600) like the main key
+            field_kf = os.path.join(td, "field.key")
+            with open(field_kf, "w") as f:
+                f.write("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n")
+            os.chmod(field_kf, 0o644)
+            os.environ["FIELD_ENCRYPTION_KEY_FILE"] = field_kf
+
+            st3 = ss.get_secret_key_status()
+            assert st3["permissions_insecure"] and st3["banner_required"], "insecure field.key must require banner"
+            assert field_kf in st3["insecure_files"]
+
+            os.chmod(field_kf, 0o600)
+            st4 = ss.get_secret_key_status()
+            assert st4["permissions_secure"] and not st4["permissions_insecure"] and not st4["banner_required"]
+
+            enc = _imp("core.encryption")
+            assert enc.check_key_file_locked_down(field_kf) is True
+            assert enc.get_field_encryption_key() is not None
     finally:
+        os.environ.pop("FIELD_ENCRYPTION_KEY_FILE", None)
         if old_key is not None:
             os.environ["SECRET_KEY"] = old_key
         if old_file is not None:

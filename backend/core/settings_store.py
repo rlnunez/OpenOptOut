@@ -197,8 +197,39 @@ def ensure_bootstrap_secret_key() -> str:
     return bootstrap
 
 
+def get_security_key_files() -> list[str]:
+    """Return all detected on-disk files storing security keys (master key, field key, DB key, search secret, .env)."""
+    files = []
+    sk_path = get_secret_key_file_path()
+    if os.path.isfile(sk_path):
+        files.append(sk_path)
+
+    # Configured dedicated key files
+    for var in ("FIELD_ENCRYPTION_KEY_FILE", "DB_ENCRYPTION_KEY_FILE", "SQLCIPHER_KEY_FILE", "SEARXNG_SECRET_FILE"):
+        f = (os.getenv(var) or "").strip()
+        if f and os.path.isfile(f) and f not in files:
+            files.append(f)
+
+    # Look for .env file associated with the installation
+    env_override = (os.getenv("ENV_FILE") or "").strip()
+    if env_override and os.path.isfile(env_override) and env_override not in files:
+        files.append(env_override)
+    elif not os.getenv("SECRET_KEY_FILE"):
+        # When not running under an isolated test override, inspect deployment .env files
+        sk_dir = os.path.dirname(os.path.abspath(sk_path))
+        candidates = [
+            os.path.join(sk_dir, ".env"),
+            os.path.join(os.path.dirname(sk_dir), ".env"),
+        ]
+        for c in candidates:
+            if os.path.isfile(c) and c not in files:
+                files.append(c)
+                break
+    return files
+
+
 def get_secret_key_status() -> dict:
-    """Inspect the secret.key file and its filesystem permissions for the admin banner and settings UI."""
+    """Inspect all security key files and their filesystem permissions for the admin banner and settings UI."""
     import stat, shlex
     path = get_secret_key_file_path()
     file_exists = os.path.exists(path)
@@ -217,11 +248,34 @@ def get_secret_key_status() -> dict:
             mode_octal = "unknown"
             permissions_secure = False
 
+    # Check all key files (secret.key, field/DB key files, .env)
+    insecure_files = []
+    key_files_status = []
+    for kf in get_security_key_files():
+        try:
+            st = os.stat(kf)
+            imode = stat.S_IMODE(st.st_mode)
+            mo = f"0{imode:03o}"
+            sec = (imode & 0o077) == 0
+            key_files_status.append({"path": kf, "mode_octal": mo, "permissions_secure": sec})
+            if not sec:
+                insecure_files.append({"path": kf, "mode_octal": mo})
+        except OSError:
+            key_files_status.append({"path": kf, "mode_octal": "unknown", "permissions_secure": False})
+            insecure_files.append({"path": kf, "mode_octal": "unknown"})
+
+    if insecure_files:
+        permissions_secure = False
+
     env_key = (os.getenv("SECRET_KEY") or "").strip()
     active_len = len(file_key) if (file_key and is_valid_secret_key(file_key)) else (len(env_key) if is_valid_secret_key(env_key) else 0)
     needs_key = not has_valid_file_key
-    permissions_insecure = bool(has_valid_file_key and not permissions_secure)
-    qpath = shlex.quote(path)
+    permissions_insecure = bool((has_valid_file_key and not permissions_secure) or insecure_files)
+
+    target_paths = [f["path"] for f in insecure_files] if insecure_files else [path]
+    primary_target = target_paths[0]
+    qpath = shlex.quote(primary_target)
+
     return {
         "file_path": path,
         "file_exists": file_exists,
@@ -230,15 +284,17 @@ def get_secret_key_status() -> dict:
         "min_length": MIN_SECRET_KEY_CHARS,
         "max_length": MAX_SECRET_KEY_CHARS,
         "active_key_length": active_len,
-        "mode_octal": mode_octal,
-        "permissions_secure": permissions_secure,
+        "mode_octal": mode_octal or (insecure_files[0]["mode_octal"] if insecure_files else "0600"),
+        "permissions_secure": permissions_secure if file_exists else (len(insecure_files) == 0),
         "needs_key": needs_key,
         "permissions_insecure": permissions_insecure,
         "banner_required": bool(needs_key or permissions_insecure),
+        "insecure_files": [f["path"] for f in insecure_files],
+        "key_files": key_files_status,
         "commands": {
-            "linux": f"chmod 600 {qpath}",
-            "docker": f"docker compose exec api chmod 600 {qpath}",
-            "windows": f'icacls "{path}" /inheritance:r /grant:r "$($env:USERNAME):(R,W)"',
+            "linux": " && ".join(f"chmod 600 {shlex.quote(p)}" for p in target_paths),
+            "docker": " && ".join(f"docker compose exec api chmod 600 {shlex.quote(p)}" for p in target_paths),
+            "windows": " ; ".join(f'icacls "{p}" /inheritance:r /grant:r "$($env:USERNAME):(R,W)"' for p in target_paths),
         },
     }
 

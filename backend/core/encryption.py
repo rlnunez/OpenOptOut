@@ -52,12 +52,32 @@ def _derive_fernet_key(raw: str) -> bytes:
     return base64.urlsafe_b64encode(digest)
 
 
+def check_key_file_locked_down(path: str) -> bool:
+    """Return True if the key file is locked down to owner-only permissions (0600/0400)."""
+    try:
+        st = os.stat(path)
+        return (st.st_mode & 0o077) == 0
+    except OSError:
+        return False
+
+
 def get_field_encryption_key() -> Optional[bytes]:
     """
     Return the Fernet key used for field-level encryption.
-    Priority: FIELD_ENCRYPTION_KEY env var → SECRET_KEY env var → None (disabled).
+    Priority: FIELD_ENCRYPTION_KEY_FILE → FIELD_ENCRYPTION_KEY env var → SECRET_KEY env var → None (disabled).
     """
-    raw = os.getenv("FIELD_ENCRYPTION_KEY") or os.getenv("SECRET_KEY")
+    raw = None
+    file_path = (os.getenv("FIELD_ENCRYPTION_KEY_FILE") or "").strip()
+    if file_path and os.path.isfile(file_path):
+        if not check_key_file_locked_down(file_path):
+            log.warning(f"FIELD_ENCRYPTION_KEY_FILE {file_path} permissions are too open. Run chmod 600 {file_path} to lock it down.")
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                raw = f.read().replace("\x00", "").strip()
+        except OSError as e:
+            log.error(f"Failed to read FIELD_ENCRYPTION_KEY_FILE: {e}")
+    if not raw:
+        raw = os.getenv("FIELD_ENCRYPTION_KEY") or os.getenv("SECRET_KEY")
     if not raw or raw == "change-me-in-production-use-a-long-random-string":
         return None
     return _derive_fernet_key(raw)
@@ -66,13 +86,25 @@ def get_field_encryption_key() -> Optional[bytes]:
 def get_db_encryption_key() -> Optional[str]:
     """
     Return the SQLCipher passphrase.
-    Priority: DB_ENCRYPTION_KEY env var → SQLCIPHER_KEY env var → SECRET_KEY env var → None.
+    Priority: DB_ENCRYPTION_KEY_FILE → SQLCIPHER_KEY_FILE → DB_ENCRYPTION_KEY env var → SQLCIPHER_KEY env var → SECRET_KEY env var → None.
     If DISABLE_DB_ENCRYPTION is true, returns None (explicit opt-out).
     Returns raw string (SQLCipher accepts hex or passphrase).
     """
     if os.getenv("DISABLE_DB_ENCRYPTION", "false").lower() in ("true", "1", "yes"):
         return None
-    return os.getenv("DB_ENCRYPTION_KEY") or os.getenv("SQLCIPHER_KEY") or os.getenv("SECRET_KEY") or None
+    raw = None
+    file_path = (os.getenv("DB_ENCRYPTION_KEY_FILE") or os.getenv("SQLCIPHER_KEY_FILE") or "").strip()
+    if file_path and os.path.isfile(file_path):
+        if not check_key_file_locked_down(file_path):
+            log.warning(f"Database encryption key file {file_path} permissions are too open. Run chmod 600 {file_path} to lock it down.")
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                raw = f.read().replace("\x00", "").strip()
+        except OSError as e:
+            log.error(f"Failed to read database encryption key file: {e}")
+    if not raw:
+        raw = os.getenv("DB_ENCRYPTION_KEY") or os.getenv("SQLCIPHER_KEY") or os.getenv("SECRET_KEY") or None
+    return raw
 
 
 # ── Fernet helpers ────────────────────────────────────────────────────────────

@@ -161,7 +161,10 @@ if (-not $Update) {
             -replace '^#DB_ENCRYPTION_KEY=.*', "DB_ENCRYPTION_KEY=$DbKey" | Set-Content $EnvFile
         Add-Content $EnvFile "SETTINGS_FILE=$RepoRoot\data\openoptout_settings.json"
         Add-Content $EnvFile "LOGO_PATH=$RepoRoot\data\logo"
-        Write-Host "Created $EnvFile with generated security keys (SECRET_KEY, SEARXNG_SECRET, FIELD_ENCRYPTION_KEY, DB_ENCRYPTION_KEY)."
+        try {
+            icacls "$EnvFile" /inheritance:r /grant:r "$($env:USERNAME):(R,W)" | Out-Null
+        } catch { }
+        Write-Host "Created $EnvFile with locked-down security keys (SECRET_KEY, SEARXNG_SECRET, FIELD_ENCRYPTION_KEY, DB_ENCRYPTION_KEY)."
     }
 
     Write-Host ""
