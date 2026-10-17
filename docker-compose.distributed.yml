@@ -58,7 +58,7 @@ services:
     ulimits:
       core: 0
     environment:
-      - "SECRET_KEY=${SECRET_KEY:?Set SECRET_KEY in .env (openssl rand -hex 32)}"
+      - SECRET_KEY=${SECRET_KEY:-}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
       - SETTINGS_FILE=/data/openoptout_settings.json
       - DATABASE_URL=postgresql://${POSTGRES_USER:-openoptout}:${POSTGRES_PASSWORD:-openoptout-secret-pw}@db:5432/${POSTGRES_DB:-openoptout}
@@ -91,7 +91,7 @@ services:
       core: 0
     command: python -m worker
     environment:
-      - "SECRET_KEY=${SECRET_KEY:?Set SECRET_KEY in .env (openssl rand -hex 32)}"
+      - SECRET_KEY=${SECRET_KEY:-}
       - REDIS_URL=redis://redis:6379/0
       - WORKER_CONCURRENCY=${WORKER_CONCURRENCY:-2}
       - WORKER_DRY_RUN=${WORKER_DRY_RUN:-0}

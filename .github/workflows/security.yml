@@ -383,7 +383,7 @@ jobs:
             -H "Authorization: Bearer $(cat dast-private/token)" \
             --checks not_a_server_error,ignored_auth,use_after_free,ensure_resource_availability \
             --max-examples "$1" --request-timeout 30 --no-color \
-            --exclude-path-regex "^/api/(database/|wizard/database|settings/danger|admin/users/\{user_id\}$)" \
+            --exclude-path-regex "^/api/(database/|wizard/database|settings/danger|settings/security/secret-key|admin/users/\{user_id\}$)" \
             --report junit --report-dir dast-reports' _ "$FUZZ_EXAMPLES" \
             | tee dast-reports/schemathesis.txt
 

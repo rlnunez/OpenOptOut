@@ -1079,8 +1079,11 @@ def update_secret_key(body: SecretKeyUpdate, user: User = Depends(require_permis
     from ..core.auth import create_access_token
     try:
         status_info = save_secret_key_file(body.key)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Master secret key must be between 128 and 512 characters long and must not be a placeholder value.",
+        )
     # Issue a fresh access token signed with the new master key so the admin stays signed in
     fresh_token = create_access_token(
         data={"sub": user.email, "user_id": user.id, "role": user.role.value, "token_version": getattr(user, "token_version", 0) or 0}

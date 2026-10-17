@@ -351,7 +351,7 @@ def _make_procedural_bmp_data_url(seed_bytes: bytes, idx: int) -> tuple[str, byt
 def generate_entropy_images(count: int = 5) -> list[dict]:
     """Fetch 4-6 free random images from the web (or synthesize cryptographic lava-lamp
     frames if offline/blocked) and extract high-entropy byte chunks from each image."""
-    import hashlib, urllib.request
+    import hashlib, urllib.parse, urllib.request
     count = max(4, min(6, int(count or 5)))
     items = []
     themes = [
@@ -372,8 +372,11 @@ def generate_entropy_images(count: int = 5) -> list[dict]:
         seed_id = hashlib.sha256(seed_entropy[:16]).hexdigest()[:10]
         url = f"https://picsum.photos/seed/{seed_id}/96/72"
         try:
+            parsed = urllib.parse.urlparse(url)
+            if parsed.scheme != "https":
+                raise ValueError(f"Disallowed URL scheme: {parsed.scheme}")
             req = urllib.request.Request(url, headers={"User-Agent": "OpenOptOut-KeyGen/1.0"})
-            with urllib.request.urlopen(req, timeout=1.5) as resp:
+            with urllib.request.urlopen(req, timeout=1.5) as resp:  # nosec: B310 -- scheme is validated to https
                 ctype = resp.headers.get("Content-Type", "image/jpeg")
                 fetched = resp.read(65536)
                 if len(fetched) > 128 and ctype.startswith("image/"):

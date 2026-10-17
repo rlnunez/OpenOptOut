@@ -26,9 +26,8 @@ services:
     restart: unless-stopped
     environment:
       # ── Core (required) ─────────────────────────────────────────────────────
-      # SECRET_KEY MUST be set to a strong random value in production:
-      #   openssl rand -hex 32
-      - "SECRET_KEY=${SECRET_KEY:?Set SECRET_KEY in .env (openssl rand -hex 32)}"
+      # Master key is stored in /data/secret.key via the UI (or set SECRET_KEY in .env)
+      - SECRET_KEY=${SECRET_KEY:-}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
       - SETTINGS_FILE=/data/openoptout_settings.json
       # Web search goes through the bundled SearXNG (service below). Empty = off.
