@@ -124,16 +124,15 @@ checkout() {
 }
 
 gen_secret() {
-  local num_bytes=64
-  if [ -n "${RANDOM:-}" ]; then
-    num_bytes=$(( (RANDOM % 65) + 64 ))
-  fi
+  _rand_offset=$(od -An -N1 -tu1 /dev/urandom 2>/dev/null | tr -d ' ')
+  [ -n "$_rand_offset" ] || _rand_offset=0
+  _num_bytes=$(( (_rand_offset % 65) + 64 ))
   if command -v openssl >/dev/null 2>&1; then
-    openssl rand -hex "$num_bytes"
+    openssl rand -hex "$_num_bytes"
   elif command -v python3 >/dev/null 2>&1; then
     python3 -c 'import secrets; n = secrets.randbelow(65) + 64; print(secrets.token_hex(n))'
   else
-    head -c "$num_bytes" /dev/urandom | od -An -tx1 | tr -d ' \n'
+    head -c "$_num_bytes" /dev/urandom | od -An -tx1 | tr -d ' \n'
     echo ""
   fi
 }
