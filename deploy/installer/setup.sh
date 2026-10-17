@@ -68,12 +68,17 @@ warn() { printf "%bWarning: %s%b\n" "${YELLOW}" "$*" "${NC}" >&2; }
 head() { printf "\n%b── %s ──%b\n" "${BOLD}${BLUE}" "$*" "${NC}"; }
 
 gen_secret() {
+  local num_bytes=64
+  if [ -n "${RANDOM:-}" ]; then
+    num_bytes=$(( (RANDOM % 65) + 64 ))
+  fi
   if command -v openssl >/dev/null 2>&1; then
-    openssl rand -hex 32
+    openssl rand -hex "$num_bytes"
   elif command -v python3 >/dev/null 2>&1; then
-    python3 -c 'import secrets; print(secrets.token_hex(32))'
+    python3 -c 'import secrets; n = secrets.randbelow(65) + 64; print(secrets.token_hex(n))'
   else
-    head -c 32 /dev/urandom | xxd -p
+    head -c "$num_bytes" /dev/urandom | od -An -tx1 | tr -d ' \n'
+    echo ""
   fi
 }
 

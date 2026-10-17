@@ -243,6 +243,15 @@ WantedBy=multi-user.target
 """
 
 
+def generate_random_secret(min_bytes: int = 64, max_bytes: int = 128) -> str:
+    """
+    Generate a cryptographically secure random hex secret with a randomized length.
+    Generates between min_bytes (128 hex chars) and max_bytes (256 hex chars) to prevent length guessing.
+    """
+    num_bytes = secrets.randbelow(max_bytes - min_bytes + 1) + min_bytes
+    return secrets.token_hex(num_bytes)
+
+
 def generate_env_config(
     role: str,
     secret_key: Optional[str] = None,
@@ -264,10 +273,10 @@ def generate_env_config(
     if role not in Role.ALL:
         raise ValueError(f"Unknown role: {role}")
 
-    secret = secret_key or secrets.token_hex(32)
-    searx_secret = searxng_secret or secrets.token_hex(32)
-    field_key = field_encryption_key or secrets.token_hex(32)
-    db_key = db_encryption_key or sqlcipher_key or secrets.token_hex(32)
+    secret = secret_key or generate_random_secret()
+    searx_secret = searxng_secret or generate_random_secret()
+    field_key = field_encryption_key or generate_random_secret()
+    db_key = db_encryption_key or sqlcipher_key or generate_random_secret()
     env: Dict[str, str] = {
         "ROLE": role,
         "SECRET_KEY": secret,

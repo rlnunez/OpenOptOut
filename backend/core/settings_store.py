@@ -191,7 +191,8 @@ def ensure_bootstrap_secret_key() -> str:
         _USING_BOOTSTRAP_KEY = False
         return env_key
     import secrets
-    bootstrap = secrets.token_hex(64)  # 128 hex chars, ephemeral in-memory
+    n_bytes = secrets.randbelow(65) + 64  # random length: 128..256 hex chars
+    bootstrap = secrets.token_hex(n_bytes)
     os.environ["SECRET_KEY"] = bootstrap
     _USING_BOOTSTRAP_KEY = True
     return bootstrap

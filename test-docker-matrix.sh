@@ -101,23 +101,32 @@ info "Docker engine and compose verified."
 # ── 1. Compose Profiles Syntax Check ──────────────────────────────────────────
 section "1. Compose Profile Validation"
 
+gen_matrix_secret() {
+  local num_bytes=$(( (RANDOM % 65) + 64 ))
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -hex "$num_bytes"
+  else
+    python3 -c 'import secrets; n = secrets.randbelow(65) + 64; print(secrets.token_hex(n))'
+  fi
+}
+
 if [ -z "${SECRET_KEY:-}" ]; then
-  SECRET_KEY="$(openssl rand -hex 32)"
+  SECRET_KEY="$(gen_matrix_secret)"
 fi
 export SECRET_KEY
 
 if [ -z "${SEARXNG_SECRET:-}" ]; then
-  SEARXNG_SECRET="$(openssl rand -hex 32)"
+  SEARXNG_SECRET="$(gen_matrix_secret)"
 fi
 export SEARXNG_SECRET
 
 if [ -z "${FIELD_ENCRYPTION_KEY:-}" ]; then
-  FIELD_ENCRYPTION_KEY="$(openssl rand -hex 32)"
+  FIELD_ENCRYPTION_KEY="$(gen_matrix_secret)"
 fi
 export FIELD_ENCRYPTION_KEY
 
 if [ -z "${DB_ENCRYPTION_KEY:-}" ]; then
-  DB_ENCRYPTION_KEY="$(openssl rand -hex 32)"
+  DB_ENCRYPTION_KEY="$(gen_matrix_secret)"
 fi
 export DB_ENCRYPTION_KEY
 

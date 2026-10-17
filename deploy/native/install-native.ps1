@@ -150,10 +150,14 @@ if (-not $Update) {
         (Join-Path $DataDir "screenshots") | Out-Null
     if (-not (Test-Path $EnvFile)) {
         Copy-Item (Join-Path $RepoRoot ".env.example") $EnvFile
-        $Secret = -join ((1..64) | ForEach-Object { "{0:x}" -f (Get-Random -Maximum 16) })
-        $SearxSecret = -join ((1..64) | ForEach-Object { "{0:x}" -f (Get-Random -Maximum 16) })
-        $FieldKey = -join ((1..64) | ForEach-Object { "{0:x}" -f (Get-Random -Maximum 16) })
-        $DbKey = -join ((1..64) | ForEach-Object { "{0:x}" -f (Get-Random -Maximum 16) })
+        $GenSecret = {
+            $len = Get-Random -Minimum 128 -Maximum 257
+            -join ((1..$len) | ForEach-Object { "{0:x}" -f (Get-Random -Maximum 16) })
+        }
+        $Secret = & $GenSecret
+        $SearxSecret = & $GenSecret
+        $FieldKey = & $GenSecret
+        $DbKey = & $GenSecret
         (Get-Content $EnvFile) `
             -replace '^SECRET_KEY=.*', "SECRET_KEY=$Secret" `
             -replace '^#SEARXNG_SECRET=.*', "SEARXNG_SECRET=$SearxSecret" `

@@ -2405,6 +2405,15 @@ def t_installer_role_specialization_and_configs():
     assert "DB_ENCRYPTION_KEY" in env_standalone
     assert env_standalone["DB_ENCRYPTION_KEY"] != env_standalone["SECRET_KEY"]
     assert env_standalone["SQLCIPHER_KEY"] == env_standalone["DB_ENCRYPTION_KEY"]
+    assert len(env_standalone["SECRET_KEY"]) >= 128, "SECRET_KEY must have >= 128 chars"
+    assert len(env_standalone["SEARXNG_SECRET"]) >= 128, "SEARXNG_SECRET must have >= 128 chars"
+    assert len(env_standalone["FIELD_ENCRYPTION_KEY"]) >= 128, "FIELD_ENCRYPTION_KEY must have >= 128 chars"
+    assert len(env_standalone["DB_ENCRYPTION_KEY"]) >= 128, "DB_ENCRYPTION_KEY must have >= 128 chars"
+
+    # Verify randomized length behavior across multiple secret generations
+    lengths = {len(installer_mod.generate_random_secret()) for _ in range(25)}
+    assert len(lengths) > 1, f"expected variable key lengths, got {lengths}"
+    assert all(128 <= l <= 256 for l in lengths)
     assert "WORKER_ID" not in env_standalone
 
     env_cp = installer_mod.generate_env_config(
