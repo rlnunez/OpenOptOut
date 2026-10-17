@@ -78,11 +78,20 @@ For real production deployments accessible over a network, always enable HTTPS b
 
 ## Documentation Hub
 
-Comprehensive architectural specifications and deployment guides:
+OpenOptOut documentation is organized by audience and built with **MkDocs**:
+
+- 🏠 **[Documentation Portal](docs/index.md)** — Unified docs home with full-text search.
+- 👨‍👩‍👧‍👦 **[User & Family Guide](docs/user/index.md)** — Identity vault, email setup, SearXNG search, verification, and privacy rights.
+- ⚙️ **[Administrator & Operations Guide](docs/admin/index.md)** — Production deployment, HTTPS, SSO, backups, and automated updates.
+- 💻 **[Developer & Contributor Guide](docs/dev/index.md)** — System architecture, broker plugin development, and security scanning.
+- 📋 **[Active Roadmap](docs/ROADMAP.md)** & **[Completed Milestones Archive](docs/archive/COMPLETED_ROADMAP.md)**
+- 📝 **[Changelog](CHANGELOG.md)**
+
+Detailed reference guides:
 
 | Guide | Description |
 |---|---|
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System architecture, pipeline stages, APScheduler jobs, failure diagnostics, and repository layout |
+| [`docs/ARCHITECTURE.md`](docs/dev/architecture.md) | System architecture, pipeline stages, APScheduler jobs, failure diagnostics, and repository layout |
 | [`docs/HTTPS.md`](docs/HTTPS.md) | Production HTTPS setup: built-in Caddy/Traefik front door, Cloudflare DNS/Tunnel, InCommon, and reverse proxies |
 | [`docs/SSO.md`](docs/SSO.md) | Single sign-on integration: OIDC, SAML 2.0, Active Directory / LDAP, and library card (SIP2/SIP2S) logins |
 | [`docs/COMMUNITIES.md`](docs/COMMUNITIES.md) | Residents-only sign-up for a district, apartment complex or other housing community: a sign-up page that checks addresses against an uploaded list |

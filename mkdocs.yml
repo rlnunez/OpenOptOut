@@ -1,0 +1,89 @@
+site_name: OpenOptOut Documentation
+site_description: Self-hosted data broker opt-out automation for families and communities
+site_author: OpenOptOut Contributors
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - User & Family:
+      - Overview: user/index.md
+      - Email Setup: user/email-setup.md
+      - Verification & Monitoring: user/verification.md
+      - Web Search Integration: user/web-search.md
+      - Privacy Pages: user/privacy-pages.md
+      - State Registries: user/state-registries.md
+      - Data Sharing & Aggregators: user/data-sharing.md
+      - Regional Formats: user/regional-formats.md
+  - Administrator & Ops:
+      - Overview: admin/index.md
+      - Automated HTTPS: admin/https.md
+      - Native Installation: admin/native-install.md
+      - Database Administration: admin/database.md
+      - Encrypted Backups: admin/backups.md
+      - Single Sign-On (SSO): admin/sso.md
+      - Roles & Permissions: admin/roles.md
+      - Housing Communities: admin/communities.md
+      - System Updates & Rollback: admin/updater.md
+      - Upgrading Guide: admin/upgrading.md
+      - Monitoring & Prometheus: admin/monitoring.md
+      - Terms & Disclosures: admin/terms.md
+      - Stats API: admin/stats-api.md
+  - Developer & Contributor:
+      - Overview: dev/index.md
+      - Architecture: dev/architecture.md
+      - Development Workflow: dev/development.md
+      - Interpreter Runtime: dev/interpreter.md
+      - Writing Broker Plugins: dev/plugins.md
+      - Automatic Steps & Drafter: dev/automatic-steps.md
+      - Security Scanning: dev/security-scanning.md
+      - Release Testing: dev/release-testing.md
+      - Proposals:
+          - Catalog & Localization Design: dev/proposals/catalog-design.md
+          - Built-in Inbox Proposal: dev/proposals/builtin-inbox.md
+  - About:
+      - Overview: about/index.md
+      - Our Mission: about/mission.md
+      - Privacy Legislation: about/legislation.md
+  - Roadmap & Archive:
+      - Active Roadmap: ROADMAP.md
+      - Completed Roadmap Archive: archive/COMPLETED_ROADMAP.md
+
