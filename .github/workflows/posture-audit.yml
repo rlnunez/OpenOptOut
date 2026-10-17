@@ -82,22 +82,27 @@ jobs:
         id: run_audit
         env:
           AUDIT_MODE: ${{ inputs.mode || 'all' }}
+          AUDIT_CONCURRENCY: ${{ inputs.concurrency || 4 }}
+          AUDIT_PAYLOAD_MB: ${{ inputs.payload_mb || 25 }}
+          NO_COLOR: "1"
         run: |
           set -o pipefail
           mkdir -p reports
           mode="$AUDIT_MODE"
-          
-          if [ "$mode" = "all" ]; then
+          status=0
+
+          # Each audit runs even if the other one fails, so the summary
+          # always shows both results.
+          if [ "$mode" != "docker" ]; then
             echo "Running Native Host Audit..."
-            bash scripts/test-hardening-posture.sh --native | tee reports/host-audit.txt
+            bash scripts/test-hardening-posture.sh --native 2>&1 | tee reports/host-audit.txt || status=1
             echo
-            echo "Running Docker Container Audit..."
-            bash scripts/test-hardening-posture.sh --docker | tee reports/docker-audit.txt
-          elif [ "$mode" = "docker" ]; then
-            bash scripts/test-hardening-posture.sh --docker | tee reports/docker-audit.txt
-          else
-            bash scripts/test-hardening-posture.sh --native | tee reports/host-audit.txt
           fi
+          if [ "$mode" != "native" ]; then
+            echo "Running Docker Container Audit..."
+            bash scripts/test-hardening-posture.sh --docker 2>&1 | tee reports/docker-audit.txt || status=1
+          fi
+          exit "$status"
 
       - name: Generate Summary Report
         if: always()

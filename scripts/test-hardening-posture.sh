@@ -23,8 +23,11 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
-CYAN='\033[0;36m'
 NC='\033[0m' # No Color
+# Plain text when output goes to a file or CI summary (or NO_COLOR is set).
+if [ -n "${NO_COLOR:-}" ] || [ ! -t 1 ]; then
+  BOLD='' GREEN='' BLUE='' YELLOW='' RED='' NC=''
+fi
 
 info() { printf "%b==>%b %s\n" "${GREEN}" "${NC}" "$*"; }
 warn() { printf "%bWarning: %s%b\n" "${YELLOW}" "$*" "${NC}" >&2; }
@@ -35,6 +38,9 @@ RUN_NNP=0
 USE_DOCKER=0
 FORCE_NATIVE=0
 SPECIFIC_TEST=0
+CONCURRENCY="${AUDIT_CONCURRENCY:-4}"
+PAYLOAD_MB="${AUDIT_PAYLOAD_MB:-25}"
+FAILED=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -43,6 +49,8 @@ while [ $# -gt 0 ]; do
     --all) RUN_TMPFS=1; RUN_NNP=1; SPECIFIC_TEST=1; shift ;;
     --docker) USE_DOCKER=1; shift ;;
     --native) FORCE_NATIVE=1; shift ;;
+    --concurrency) CONCURRENCY="${2:?--concurrency needs a number}"; shift 2 ;;
+    --payload-mb) PAYLOAD_MB="${2:?--payload-mb needs a number}"; shift 2 ;;
     -h|--help)
       cat <<EOF
 ${BOLD}OpenOptOut Hardening Verification Suite${NC}
@@ -53,6 +61,8 @@ Flags:
   --no-new-privs   Run container no-new-privileges and bubblewrap compatibility probe
   --docker         Execute inside Docker Compose 'api' container
   --native         Execute directly in host Python environment
+  --concurrency N  Workers for the tmpfs stress test (default 4)
+  --payload-mb N   Payload per worker in MB (default 25)
 EOF
       exit 0
       ;;
@@ -75,20 +85,25 @@ fi
 run_test() {
   local script_rel="$1"
   shift
+  local rc=0
   if [ "$USE_DOCKER" -eq 1 ]; then
-    local target="$script_rel"
-    if ! docker compose -f "$REPO_ROOT/docker-compose.yml" exec api test -f "$target" 2>/dev/null; then
-      target="tests/$(basename "$script_rel")"
-    fi
+    # The image is built from ./backend and runs from /, so the probes live
+    # at /app/tests there. -T: no TTY in CI, which would otherwise abort.
+    local target
+    target="/app/tests/$(basename "$script_rel")"
     info "Running $target inside Docker 'api' container..."
-    docker compose -f "$REPO_ROOT/docker-compose.yml" exec api python3 "$target" "$@"
+    docker compose -f "$REPO_ROOT/docker-compose.yml" exec -T api python3 "$target" "$@" || rc=$?
   else
     local py_bin="python3"
     if [ -x "/opt/openoptout/venv/bin/python3" ]; then
       py_bin="/opt/openoptout/venv/bin/python3"
     fi
     info "Running $script_rel locally ($py_bin)..."
-    PYTHONPATH="$REPO_ROOT/backend" "$py_bin" "$REPO_ROOT/$script_rel" "$@"
+    PYTHONPATH="$REPO_ROOT/backend" "$py_bin" "$REPO_ROOT/$script_rel" "$@" || rc=$?
+  fi
+  if [ "$rc" -ne 0 ]; then
+    warn "$(basename "$script_rel") reported a problem (exit $rc)."
+    FAILED=1
   fi
 }
 
@@ -99,7 +114,7 @@ echo -e "${BOLD}${BLUE}=========================================================
 echo
 
 if [ "$RUN_TMPFS" -eq 1 ]; then
-  run_test "deploy/tests/test_tmpfs_sizing.py" --concurrency 4 --payload-mb 25
+  run_test "deploy/tests/test_tmpfs_sizing.py" --concurrency "$CONCURRENCY" --payload-mb "$PAYLOAD_MB"
   echo
 fi
 
@@ -108,4 +123,8 @@ if [ "$RUN_NNP" -eq 1 ]; then
   echo
 fi
 
+if [ "$FAILED" -ne 0 ]; then
+  printf "%bHardening checks finished with problems — see the verdicts above.%b\n" "${RED}" "${NC}"
+  exit 1
+fi
 info "Hardening test execution completed."

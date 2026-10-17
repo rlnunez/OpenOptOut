@@ -17,6 +17,12 @@ import subprocess
 import sys
 from typing import Dict, Any, Tuple
 
+_HERE = os.path.dirname(os.path.abspath(__file__))
+for _cand in (os.path.join(_HERE, "..", "..", "backend"), os.path.join(_HERE, "..")):
+    if os.path.isfile(os.path.join(_cand, "plugins", "sandbox.py")):
+        sys.path.insert(0, os.path.abspath(_cand))
+        break
+
 
 def check_no_new_privs_flag() -> Tuple[bool, str]:
     """Inspect /proc/self/status to see if PR_SET_NO_NEW_PRIVS is active."""
@@ -45,12 +51,51 @@ def check_unprivileged_userns() -> Tuple[bool, str]:
                 val = f.read().strip()
                 if val == "0":
                     return False, "kernel.unprivileged_userns_clone is 0 (disabled by host OS)"
-                return True, "kernel.unprivileged_userns_clone is enabled (1)"
         except Exception as e:
             return False, f"Could not read {userns_path}: {e}"
 
-    # Modern kernels usually have this built-in without the Debian sysctl knob
-    return True, "Kernel unprivileged namespaces default-available"
+    # Ubuntu 23.10+ (including 24.04 and GitHub's ubuntu-24.04 runners) blocks
+    # unprivileged user namespaces through AppArmor unless a profile allows it.
+    apparmor_path = "/proc/sys/kernel/apparmor_restrict_unprivileged_userns"
+    if os.path.isfile(apparmor_path):
+        try:
+            with open(apparmor_path, "r") as f:
+                if f.read().strip() == "1":
+                    return False, ("kernel.apparmor_restrict_unprivileged_userns is 1 "
+                                   "(AppArmor restricts user namespaces)")
+        except Exception:
+            pass
+
+    max_path = "/proc/sys/user/max_user_namespaces"
+    if os.path.isfile(max_path):
+        try:
+            with open(max_path, "r") as f:
+                if f.read().strip() == "0":
+                    return False, "user.max_user_namespaces is 0"
+        except Exception:
+            pass
+
+    return True, "No kernel setting blocks unprivileged user namespaces"
+
+
+def _bwrap_probe_cmd(bwrap_bin: str) -> list:
+    """The exact probe the app uses, so the audit and the app always agree."""
+    try:
+        from plugins.sandbox import _bwrap_probe_cmd as app_probe
+        cmd = app_probe()
+        return [bwrap_bin] + cmd[1:]
+    except Exception:
+        pass
+    # Stand-alone fallback: the system runtime must be mounted, or the
+    # dynamic loader (/lib64/ld-linux-*) is missing and nothing can start.
+    cmd = [bwrap_bin, "--unshare-all", "--die-with-parent",
+           "--proc", "/proc", "--dev", "/dev", "--ro-bind", "/usr", "/usr"]
+    for path in ("/bin", "/sbin", "/lib", "/lib32", "/lib64", "/libx32"):
+        if os.path.islink(path):
+            cmd += ["--symlink", os.readlink(path), path]
+        elif os.path.isdir(path):
+            cmd += ["--ro-bind", path, path]
+    return cmd + ["--", os.path.realpath(sys.executable), "-c", "pass"]
 
 
 def test_bwrap_execution() -> Tuple[bool, str]:
@@ -59,16 +104,7 @@ def test_bwrap_execution() -> Tuple[bool, str]:
     if not bwrap_bin:
         return False, "bwrap binary not found in PATH"
 
-    cmd = [
-        bwrap_bin,
-        "--ro-bind", "/usr", "/usr",
-        "--proc", "/proc",
-        "--dev", "/dev",
-        "--unshare-user",
-        "--unshare-pid",
-        "--unshare-ipc",
-        "true",
-    ]
+    cmd = _bwrap_probe_cmd(bwrap_bin)
 
     try:
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
@@ -104,7 +140,6 @@ def run_probe() -> Dict[str, Any]:
     # Try importing preflight capabilities if in backend tree
     caps_report = None
     try:
-        sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../backend")))
         from plugins.sandbox import detect_capabilities
         caps = detect_capabilities()
         caps_report = {
@@ -174,10 +209,20 @@ def main():
         print("-" * 65 + "\n")
         sys.exit(0)
     else:
-        print("  VERDICT: INCOMPATIBLE ON THIS HOST / RUNTIME")
-        print("  Bubblewrap cannot create unprivileged user namespaces.")
-        print("  Applying 'no-new-privileges:true' will break plugin sandboxing.")
-        print("  Fix: Enable kernel.unprivileged_userns_clone=1 or run with --privileged/cap_add.")
+        print("  VERDICT: BUBBLEWRAP UNAVAILABLE ON THIS HOST / RUNTIME")
+        print("  Plugins will run with resource limits only (no filesystem/namespace isolation).")
+        print("  Note: 'no-new-privileges' is not the cause; bubblewrap needs user namespaces.")
+        if not res["userns_ok"]:
+            print(f"  Blocked by: {res['userns_detail']}")
+        if "apparmor" in res["userns_detail"]:
+            print("  Fix (host): allow bwrap through AppArmor (Ubuntu's bwrap-userns-restrict")
+            print("  profile) or set kernel.apparmor_restrict_unprivileged_userns=0.")
+        elif os.path.exists("/.dockerenv"):
+            print("  Fix (Docker): Docker's default seccomp profile blocks user namespaces.")
+            print("  Opt in per docker-compose.yml's 'Plugin sandboxing note' (only if you")
+            print("  run untrusted plugins).")
+        else:
+            print("  Fix: enable unprivileged user namespaces for this host.")
         print("-" * 65 + "\n")
         sys.exit(1)
 
