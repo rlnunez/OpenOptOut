@@ -64,6 +64,57 @@ class SandboxCapabilities:
         return (self.bubblewrap or self.unshare) and self.rlimits
 
 
+# Top-level system directories a dynamically linked program needs. On
+# merged-/usr systems (Debian 12+, Ubuntu 20.04+, and the python:*-slim image
+# this project ships on) these are symlinks into /usr — and the dynamic loader
+# lives at /lib64/ld-linux-*.so, so without them NOTHING can start inside the
+# sandbox ("execvp ...: No such file or directory").
+_BWRAP_SYSTEM_DIRS = ("/bin", "/sbin", "/lib", "/lib32", "/lib64", "/libx32")
+
+# Plugin host code the runner needs inside the sandbox (read-only): the runner
+# itself, the SDK, the compiled gRPC stubs and the in-sandbox seccomp filter.
+_PLUGIN_HOST_DIR = os.path.dirname(os.path.abspath(__file__))
+_PLUGIN_HOST_PARTS = ("runner.py", "seccomp_filter.py", "sdk", "proto")
+
+# Read only when a plugin is granted network access: name resolution and the
+# system CA bundle. Nothing else under /etc is exposed.
+_BWRAP_NETWORK_FILES = ("/etc/resolv.conf", "/etc/hosts", "/etc/nsswitch.conf",
+                        "/etc/ssl", "/etc/ca-certificates", "/etc/pki")
+
+
+def _bwrap_runtime_binds() -> list[str]:
+    """
+    Read-only view of the system runtime: /usr, the top-level /bin and /lib*
+    entries (recreated as symlinks where the host has symlinks), and the
+    Python interpreter + stdlib/site-packages. No /etc, /home, /app or /data.
+    Shared by the capability probe and the real launch so that "detected"
+    always means "a plugin can actually start".
+    """
+    args = ["--ro-bind", "/usr", "/usr"]
+    for path in _BWRAP_SYSTEM_DIRS:
+        if os.path.islink(path):
+            args += ["--symlink", os.readlink(path), path]
+        elif os.path.isdir(path):
+            args += ["--ro-bind", path, path]
+    seen = {"/usr"}
+    for path in (sys.prefix, sys.base_prefix,
+                 os.path.dirname(os.path.realpath(sys.executable))):
+        real = os.path.realpath(path)
+        if real in seen or real.startswith("/usr/") or not os.path.isdir(real):
+            continue
+        seen.add(real)
+        args += ["--ro-bind", real, real]
+    return args
+
+
+def _bwrap_probe_cmd() -> list[str]:
+    """Start the real interpreter in the same namespaces/mounts plugins get."""
+    return (["bwrap", "--unshare-all", "--die-with-parent",
+             "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp"]  # nosec: B108 -- private tmpfs inside the sandbox
+            + _bwrap_runtime_binds()
+            + ["--clearenv", "--", os.path.realpath(sys.executable), "-c", "pass"])
+
+
 def _can_actually_run(cmd: list[str], timeout: float = 5.0) -> bool:
     """
     A sandboxing tool being INSTALLED doesn't mean it can actually create the
@@ -106,8 +157,10 @@ def detect_capabilities() -> SandboxCapabilities:
         # Functional probes, not just "is the binary on PATH" — see
         # _can_actually_run's docstring for why that distinction matters.
         if shutil.which("bwrap") is not None:
-            caps.bubblewrap = _can_actually_run(
-                ["bwrap", "--unshare-all", "--die-with-parent", "--", "true"])
+            # Probe with the same mounts a plugin gets. A bare
+            # `bwrap --unshare-all -- true` has no /usr or /lib inside, so it
+            # failed on every host and bubblewrap was never used.
+            caps.bubblewrap = _can_actually_run(_bwrap_probe_cmd())
         if shutil.which("unshare") is not None:
             caps.unshare = _can_actually_run(
                 ["unshare", "--fork", "--pid", "--mount-proc", "--", "true"])
@@ -223,6 +276,7 @@ def build_sandboxed_command(
     manifest,
     run_dir: Optional[str] = None,
     host_uds_path: Optional[str] = None,
+    inherit_caller_env: bool = False,
 ) -> tuple[list[str], Optional[callable]]:
     """
     Wrap base_cmd (e.g. ["python", "runner.py", ...]) with the strongest
@@ -234,6 +288,10 @@ def build_sandboxed_command(
         granted. This is the strongest readily-available isolation.
       - Fall back to `unshare` for namespace isolation.
       - Always attach POSIX resource limits via preexec_fn.
+
+    inherit_caller_env: set True only when the caller passes Popen an
+    explicit, minimal env (never os.environ); bubblewrap then hands that
+    env to the plugin instead of clearing it.
     """
     preexec = _resource_limit_preexec(
         manifest.max_cpu_seconds, allow_network
@@ -250,22 +308,36 @@ def build_sandboxed_command(
             "--proc", "/proc",
             "--dev", "/dev",
             "--tmpfs", "/tmp",  # nosec: B108 -- mounting isolated tmpfs inside container sandbox
-            # Read-only view of the Python runtime + stdlib
-            "--ro-bind", sys.prefix, sys.prefix,
+        ]
+        # Read-only system runtime (/usr, /lib*, the interpreter) — the same
+        # mounts detect_capabilities() proved can start Python.
+        bwrap += _bwrap_runtime_binds()
+        # Read-only plugin host code: runner, SDK, gRPC stubs, seccomp filter.
+        for part in _PLUGIN_HOST_PARTS:
+            p = os.path.join(_PLUGIN_HOST_DIR, part)
+            if os.path.exists(p):
+                bwrap += ["--ro-bind", p, p]
+        if allow_network:
+            for p in _BWRAP_NETWORK_FILES:
+                bwrap += ["--ro-bind-try", p, p]
+        bwrap += [
             # The plugin's own code, READ-ONLY: it can't modify itself or add
             # program files. Its only writable space is the private /tmp above.
             "--ro-bind", work_dir, work_dir,
             "--chdir", work_dir,
-            # Minimal, clean environment
-            "--clearenv",
+        ]
+        if not inherit_caller_env:
+            # Minimal, clean environment. (When the caller builds the whole
+            # environment itself — the manager does, with only PATH,
+            # PYTHONPATH and the PS_* session values — it is passed through
+            # as-is instead, so the session token never appears in bwrap's
+            # command line, where `ps` could show it.)
+            bwrap += ["--clearenv"]
+        bwrap += [
             "--setenv", "PATH", "/usr/bin:/bin",
             "--setenv", "HOME", "/tmp",
             "--setenv", "PYTHONDONTWRITEBYTECODE", "1",
         ]
-        # If the interpreter lives outside sys.prefix (venv), bind it too
-        py_real = os.path.realpath(sys.executable)
-        if not py_real.startswith(os.path.realpath(sys.prefix)):
-            bwrap += ["--ro-bind", os.path.dirname(py_real), os.path.dirname(py_real)]
 
         # Unix domain socket mounts for host <-> plugin IPC across network namespaces:
         # 1. Mount the per-plugin runtime directory (writable, where plugin.sock is created)
@@ -276,6 +348,10 @@ def build_sandboxed_command(
             bwrap += ["--dir", os.path.dirname(host_uds_path),
                       "--ro-bind", host_uds_path, host_uds_path]
 
+        # The interpreter path may be a symlink through /etc (Debian
+        # "alternatives"), which isn't mounted inside; launch the real file.
+        if base_cmd and base_cmd[0] == sys.executable:
+            base_cmd = [os.path.realpath(sys.executable)] + list(base_cmd[1:])
         return bwrap + base_cmd, preexec
 
     # ---- unshare: namespace isolation without bubblewrap ----

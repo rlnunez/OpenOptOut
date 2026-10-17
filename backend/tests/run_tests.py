@@ -3768,6 +3768,71 @@ def t_plugin_sandbox_uds_mounts():
     assert sandbox._private_tmp_ok("/var/plugins/p1") == "1"
 
 
+@test(1, "plugins.sandbox_bwrap_mounts_runtime",
+      "The bubblewrap probe and the real plugin launch both mount the system runtime "
+      "(/usr and the /lib* loader dirs) and the runner's code, read-only; no /etc unless "
+      "the plugin has network access.")
+def t_plugin_sandbox_bwrap_runtime():
+    sandbox = _imp("plugins.sandbox")
+    perms = _imp("plugins.permissions")
+    probe = sandbox._bwrap_probe_cmd()
+    ro = lambda c: {c[i + 1] for i in range(len(c) - 2) if c[i] == "--ro-bind"}
+    linked = lambda c: {c[i + 2] for i in range(len(c) - 2) if c[i] == "--symlink"}
+    assert "/usr" in ro(probe), probe
+    for d in ("/lib", "/lib64"):
+        if os.path.lexists(d):
+            assert d in ro(probe) | linked(probe), f"{d} missing from probe: {probe}"
+    assert probe[-3:] == [os.path.realpath(sys.executable), "-c", "pass"], probe
+
+    caps = sandbox.SandboxCapabilities(bubblewrap=True, rlimits=False, platform="linux")
+    m = perms.PluginManifest.from_dict({"id": "p", "name": "p", "version": "1", "author": "a"})
+    cmd, _ = sandbox.build_sandboxed_command([sys.executable, "runner.py"], "/data/plugins/p",
+                                             caps, False, m)
+    assert ro(probe) <= ro(cmd), "launch must mount at least what the probe proved works"
+    assert os.path.join(sandbox._PLUGIN_HOST_DIR, "runner.py") in ro(cmd)
+    assert sandbox._PLUGIN_HOST_DIR not in ro(cmd), "only the runner pieces, not all of plugins/"
+    assert not any(p.startswith("/etc") for p in ro(cmd) | {cmd[i + 1] for i in range(len(cmd) - 1)
+                                                           if cmd[i] == "--ro-bind-try"})
+    assert "--clearenv" in cmd, "without a caller-built env, the host env must be cleared"
+    net, _ = sandbox.build_sandboxed_command(["python"], "/data/plugins/p", caps, True, m)
+    assert "/etc/resolv.conf" in net, "network plugins need name resolution"
+    inh, _ = sandbox.build_sandboxed_command(["python"], "/data/plugins/p", caps, False, m,
+                                             inherit_caller_env=True)
+    assert "--clearenv" not in inh
+
+
+@test(1, "plugins.sandbox_bwrap_really_starts_python",
+      "Where bubblewrap works, detect_capabilities() says so and a sandboxed Python really "
+      "starts — sees only the runtime, not the app or /etc, and gets the session env.")
+def t_plugin_sandbox_bwrap_starts():
+    import json, shutil, subprocess, tempfile
+    sandbox = _imp("plugins.sandbox")
+    perms = _imp("plugins.permissions")
+    if not shutil.which("bwrap"):
+        raise Skip("bubblewrap not installed")
+    plain = subprocess.run(["bwrap", "--ro-bind", "/", "/", "--unshare-all", "--", "true"],
+                           capture_output=True)
+    if plain.returncode != 0:
+        raise Skip("this host blocks user namespaces")
+    assert sandbox.detect_capabilities().bubblewrap, "bwrap works here but was not detected"
+    work = tempfile.mkdtemp(prefix="ps-sbx-", dir="/var/tmp")
+    try:
+        caps = sandbox.SandboxCapabilities(bubblewrap=True, rlimits=False, platform="linux")
+        m = perms.PluginManifest.from_dict({"id": "p", "name": "p", "version": "1", "author": "a"})
+        code = ("import os,json;print(json.dumps([os.environ.get('PS_SESSION_TOKEN'),"
+                "os.path.exists('/etc/passwd'),os.path.exists(%r)]))"
+                % os.path.join(os.path.dirname(sandbox._PLUGIN_HOST_DIR), "core"))
+        cmd, _ = sandbox.build_sandboxed_command([sys.executable, "-c", code], work, caps,
+                                                 False, m, inherit_caller_env=True)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=20,
+                           env={"PATH": "/usr/bin:/bin", "PS_SESSION_TOKEN": "t0k"})
+        assert r.returncode == 0, r.stderr
+        assert json.loads(r.stdout) == ["t0k", False, False], r.stdout
+        assert "t0k" not in cmd, "session token must not be on the command line"
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 @test(1, "plugins.uds_handshake_and_thread_stack",
       "PluginManager._read_ready parses both TCP ports and Unix domain sockets, and "
       "threading stack size is reduced to prevent memory starvation.")

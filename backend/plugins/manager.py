@@ -418,6 +418,7 @@ class PluginManager:
         cmd, preexec = build_sandboxed_command(
             base_cmd, install_path, self.caps, allow_network, manifest,
             run_dir=plugin_run_dir, host_uds_path=self._host_uds_path,
+            inherit_caller_env=True,   # `env` below is built from scratch
         )
 
         env = {
