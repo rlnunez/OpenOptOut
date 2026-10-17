@@ -164,7 +164,7 @@ This automates virtualenv creation, dependency installation, Playwright Firefox 
    cd C:\OpenOptOut
    Copy-Item .env.example .env
    ```
-   Edit it: set `SECRET_KEY` to a random value, add `SETTINGS_FILE=C:\OpenOptOut\data\openoptout_settings.json` and `LOGO_PATH=C:\OpenOptOut\data\logo`, and create that `data` folder.
+   Edit it: set `SECRET_KEY` (minimum 128 characters, or generate it in the web UI upon first sign-in), add `SETTINGS_FILE=C:\OpenOptOut\data\openoptout_settings.json` and `LOGO_PATH=C:\OpenOptOut\data\logo`, create that `data` folder, and restrict file access to the service owner (`icacls .env /inheritance:r /grant:r "$($env:USERNAME):(R,W)"`).
 7. **Register the Windows Service with NSSM:**
    ```powershell
    nssm install OpenOptOutAPI "C:\OpenOptOut\backend\venv\Scripts\uvicorn.exe" "app.main:app --host 127.0.0.1 --port 8000 --workers 2"

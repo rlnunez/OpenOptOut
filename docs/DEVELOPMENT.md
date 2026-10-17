@@ -30,8 +30,10 @@ pip install -r backend/requirements.txt
 
 # 3. Configure environment
 cp .env.example .env
-# Generate a secret key: openssl rand -hex 32
-# Set SECRET_KEY in your .env file
+# Auto-generate security keys with random lengths (128..256 hex chars) and lock permissions:
+#   chmod 600 .env
+# Set SECRET_KEY in .env, or generate it interactively in the web UI via the
+# combined image & mouse/typing entropy mixer.
 
 # 4. Start the development API server with hot-reload
 uvicorn backend.main:app --reload

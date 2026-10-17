@@ -61,7 +61,7 @@ OpenOptOut provides two independent layers of encryption at rest, which can be u
 
 ### Layer 1: Full Database Encryption (SQLCipher)
 For SQLite deployments, the entire database file is encrypted on disk using 256-bit AES via SQLCipher **by default**:
-- **Zero-touch activation**: SQLCipher automatically derives its encryption key from `SECRET_KEY` (or `DB_ENCRYPTION_KEY` if set in `.env`).
+- **Zero-touch activation**: SQLCipher uses `DB_ENCRYPTION_KEY` (or `SQLCIPHER_KEY`) set in `.env` (automatically generated with a random length of 128..256 hex chars and locked down with 0600 file permissions by `install.sh` / `setup.sh`), falling back to `SECRET_KEY` if unset.
 - **Auto-migration**: If an existing plaintext SQLite database is detected on startup, OpenOptOut automatically creates a `.plaintext_backup` safety copy and transparently migrates the active database to encrypted SQLCipher in place.
 - **Opt-Out**: To run in unencrypted SQLite mode, set `DISABLE_DB_ENCRYPTION=true` in `.env`.
 

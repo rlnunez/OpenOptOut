@@ -52,6 +52,8 @@ data/
 # Certificates, keys, and secrets — never commit
 *.pem
 *.key
+secret.key
+*.secret
 *.crt
 *.p12
 *.pfx

@@ -4,4 +4,12 @@ dist
 npm-debug.log*
 .DS_Store
 .env
-.env.local
+.env.*
+!.env.example
+*.pem
+*.key
+secret.key
+*.secret
+*.crt
+certs/
+secrets/
