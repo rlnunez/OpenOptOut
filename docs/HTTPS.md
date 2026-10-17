@@ -272,7 +272,27 @@ Over the limit, visitors get **429 Too Many Requests** until the minute rolls ov
 - **Many people behind one IP** (a library, school, or office network) count as one visitor. Raise the limits if they hit 429s.
 - Turn off: `--no-rate-limit` (`-NoRateLimit`). The wizard has the same checkbox.
 - Caddy needs its extended build for this (built automatically the first time; see the table in Question 1). Traefik has it built in. The two count slightly differently — Caddy allows up to the limit within any one-minute window; Traefik allows a steady rate with a short burst (about ten seconds' worth, so pages still load all their files at once) — but both land on about the same number per minute.
-- Cloudflare Tunnel doesn't go through Caddy or Traefik. Use Cloudflare's own rate-limiting rules in its dashboard there; OpenOptOut's sign-in lockouts still apply.
+- **Cloudflare Tunnel deployments**: In tunnel mode, incoming requests terminate directly at Cloudflare's edge and reach `web:80` without passing through Caddy or Traefik. To provide equivalent protection against traffic hammering, brute-force attempts, and malicious scanners, OpenOptOut includes a preconfigured Cloudflare Ruleset in `deploy/cloudflare/tunnel-waf-ruleset.json` and a helper deployment script `deploy/cloudflare/apply-tunnel-waf.sh`.
+  
+  **What the ruleset configures:**
+  - **Sign-in rate limiting (`http_ratelimit`)**: Limits requests to `/api/auth/*` to **60 requests per minute** per visitor IP, returning HTTP 429 (`{"error": "Too many sign-in requests..."}`).
+  - **Whole-site rate limiting (`http_ratelimit`)**: Limits requests to `/*` to **1200 requests per minute** per visitor IP with HTTP 429.
+  - **Exploit & path probe blocking (`http_request_firewall_custom`)**: Immediately blocks scanner probes attempting access to `/.env`, `/.git`, path traversal sequences (`..`), or system paths.
+  - **Threat score challenge (`http_request_firewall_custom`)**: Challenges visitors with threat score > 20 or automated bad bots via Cloudflare Managed Challenge.
+
+  **Deploying the ruleset:**
+  - *Option 1 — Automated CLI script:*
+    ```bash
+    ./deploy/cloudflare/apply-tunnel-waf.sh --zone-id <YOUR_CLOUDFLARE_ZONE_ID>
+    ```
+    (Reads `CLOUDFLARE_API_TOKEN` from `.env` or pass `--token <TOKEN>`. Use `--dry-run` to preview payloads).
+  - *Option 2 — Manual via Cloudflare Dashboard:*
+    1. **Security → WAF → Rate limiting rules → Create rule**:
+       - Name: `OpenOptOut Sign-in Limit`, Expression: `(http.request.uri.path wildcard "/api/auth/*" or http.request.uri.path eq "/api/auth")`, Rate: 60 requests / 1 minute, Action: Block (429).
+       - Name: `OpenOptOut Site Limit`, Expression: `(http.request.uri.path wildcard "/*")`, Rate: 1200 requests / 1 minute, Action: Block (429).
+    2. **Security → WAF → Custom rules → Create rule**:
+       - Name: `OpenOptOut Scanner Probes`, Expression: `(http.request.uri.path contains "/.env" or http.request.uri.path contains "/.git" or http.request.uri.path contains "..")`, Action: Block.
+       - Name: `OpenOptOut Threat Challenge`, Expression: `(cf.threat_score gt 20 or (cf.client.bot and not cf.bot_management.verified_bot))`, Action: Managed Challenge.
 
 ### 3. Behind Cloudflare's proxy
 
@@ -289,13 +309,25 @@ Requirements: the **Let's Encrypt via Cloudflare DNS** certificate (or `--mode c
 
 The script sets `CLOUDFLARE_PROXY=on` and `TRUSTED_PROXY_HOPS=3` (Cloudflare + front door + nginx).
 
+**Authenticated Origin Pulls (AOP / mTLS):**
+While IP range allowlisting ensures traffic only enters through Cloudflare's network, it cannot distinguish your Cloudflare zone's traffic from other Cloudflare customers routing to your IP. **Cloudflare Authenticated Origin Pulls** closes this gap by enforcing mutual TLS (mTLS): Cloudflare's edge presents a client certificate, which OpenOptOut's front door (Caddy, Traefik, or Nginx) validates against Cloudflare's Origin Pull CA (`deploy/cloudflare/origin-pull-ca.pem`).
+
+To enable Authenticated Origin Pulls:
+1. Pass `--cloudflare-aop` (Windows: `-CloudflareAop`) when running `enable-https`, or set `CLOUDFLARE_AOP=on` in `.env`. (Requires `CLOUDFLARE_PROXY=on`).
+2. In the Cloudflare dashboard, go to **SSL/TLS → Origin Server** and toggle **Authenticated Origin Pulls** to **ON**.
+3. `docker compose up -d`.
+
+Connections without a valid Cloudflare client certificate are dropped immediately during the TLS handshake before reaching the HTTP layer.
+
+*Custom / Zone-level certificates:* If you use Cloudflare's zone-level or custom origin pull certificates rather than the global certificate, place your custom CA PEM at `deploy/cloudflare/origin-pull-ca.pem` or set `CLOUDFLARE_AOP_CA_FILE=/path/to/custom-ca.pem` in `.env`.
+
 **Keep Cloudflare's IP list current.** The allowed ranges ship in `deploy/cloudflare/ip-ranges.txt`. Cloudflare rarely changes them, but if it adds one, visitors routed through it would be refused. Refresh now and then (it validates the download and never writes an empty list):
 ```
 ./scripts/update-cloudflare-ips.sh
 docker compose up -d --force-recreate caddy-extended    # or traefik
 ```
 
-**What this doesn't cover:** any Cloudflare customer's traffic also comes from Cloudflare's addresses, so the IP check alone can't tell *your* Cloudflare traffic from someone else's. Cloudflare's [Authenticated Origin Pulls](https://developers.cloudflare.com/ssl/origin-configuration/authenticated-origin-pull/) closes that gap and is a planned follow-up. And if an attacker already knows your real IP from before, they can still try to saturate your internet connection itself — the front door drops their connections, but the bandwidth is used. Changing your public IP after moving behind Cloudflare fixes that.
+**Residual risk:** If an attacker already knows your real IP from before you switched to Cloudflare, they can attempt direct connection floods to saturate your network bandwidth (though the front door will drop them during TLS handshake). Changing your server's public IP address after enabling Cloudflare Proxy and AOP prevents this.
 
 ## Monitoring
 
@@ -322,7 +354,5 @@ If you're on the managed or native option, the daily certificate check also watc
 
 ## Follow-ups (not built yet)
 
-- Cloudflare **Authenticated Origin Pulls** for the Cloudflare proxy mode, ensuring only your Cloudflare zone reaches the server.
-- Preconfigured Cloudflare rate-limiting / WAF rulesets for Cloudflare Tunnel deployments.
 - Extended DNS-01 ACME provider support (AWS Route 53, DigitalOcean, deSEC, etc.).
 

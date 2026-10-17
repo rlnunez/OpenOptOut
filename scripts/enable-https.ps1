@@ -56,6 +56,7 @@ param(
     [ValidateSet("", "rsa2048", "rsa4096", "p256", "p384")]
     [string]$KeyType = "",
     [switch]$CloudflareProxy,
+    [switch]$CloudflareAop,
     [switch]$Hsts,
     [switch]$NoHsts,
     [switch]$NoRateLimit,
@@ -154,7 +155,7 @@ function Test-HasEnv([string]$Path, [string]$Key) {
 
 $FrontDoorKeys = @("COMPOSE_PROFILES", "FRONT_DOOR", "HTTPS_CHECK_HOST", "HTTPS_MODE", "ACME_CHALLENGE",
                    "DOMAIN", "ACME_EMAIL", "ACME_CA", "ACME_CA_ROOT", "ACME_EAB_KID", "ACME_EAB_HMAC", "ACME_KEY_TYPE", "WEB_BIND", "WEB_PORT", "TRUSTED_PROXY_HOPS",
-                   "RATE_LIMIT", "CLOUDFLARE_PROXY", "HSTS")
+                   "RATE_LIMIT", "CLOUDFLARE_PROXY", "CLOUDFLARE_AOP", "HSTS")
 
 if ($Hsts -and $NoHsts) {
     Fail "-Hsts and -NoHsts cannot be used together."
@@ -431,6 +432,19 @@ if (-not $UseCfProxy -and $cfProxyOk -and (Test-Interactive)) {
 }
 $CfProxyValue = if ($UseCfProxy) { "on" } else { "off" }
 
+$UseCfAop = [bool]$CloudflareAop
+if ($UseCfAop -and -not $UseCfProxy) {
+    Fail "-CloudflareAop requires -CloudflareProxy."
+}
+if ($UseCfProxy -and -not $UseCfAop -and (Test-Interactive)) {
+    Write-Host ""
+    Write-Host "Also enable Cloudflare Authenticated Origin Pulls (AOP)?"
+    Write-Host "  Ensures ONLY your Cloudflare zone reaches this server via client mTLS certificates."
+    Write-Host "  Requires Authenticated Origin Pulls enabled in your Cloudflare dashboard (SSL/TLS > Origin Server)."
+    if ((Ask "Enable Authenticated Origin Pulls? (y/n)" "y") -eq "y") { $UseCfAop = $true }
+}
+$CfAopValue = if ($UseCfAop) { "on" } else { "off" }
+
 # ── rate limits ──
 if ($RateLimit -lt 0 -or $AuthRateLimit -lt 0) { Fail "-RateLimit / -AuthRateLimit must be whole numbers above 0." }
 $Rl = if ($NoRateLimit) { "off" } else { "on" }
@@ -461,7 +475,9 @@ if ($Challenge -eq "cloudflare") { $certLabel = "$certLabel via Cloudflare DNS" 
 $domainLabel = if ($Domain) { $Domain } else { "(any)" }
 $emailSuffix = if ($Email) { "  email=$Email" } else { "" }
 Write-Host ""
-$protectLabel = "rate-limits=$Rl  hsts=$HstsVal"; if ($UseCfProxy) { $protectLabel += "  cloudflare-proxy=on" }
+$protectLabel = "rate-limits=$Rl  hsts=$HstsVal"
+if ($UseCfProxy) { $protectLabel += "  cloudflare-proxy=on" }
+if ($UseCfAop) { $protectLabel += "  cloudflare-aop=on" }
 Write-Host "About to set up:  proxy=$Proxy  certificate=$certLabel  $protectLabel  domain=$domainLabel$emailSuffix"
 if (Test-Interactive) {
     if ((Ask "Continue? (y/n)" "y") -ne "y") { Fail "Cancelled." }
@@ -478,6 +494,7 @@ Set-EnvVar $EnvFile "RATE_LIMIT" $Rl
 if ($RateLimit -gt 0) { Set-EnvVar $EnvFile "RATE_LIMIT_PER_MINUTE" "$RateLimit" }
 if ($AuthRateLimit -gt 0) { Set-EnvVar $EnvFile "AUTH_RATE_LIMIT_PER_MINUTE" "$AuthRateLimit" }
 Set-EnvVar $EnvFile "CLOUDFLARE_PROXY" $CfProxyValue
+Set-EnvVar $EnvFile "CLOUDFLARE_AOP" $CfAopValue
 if ($Mode -ne "none") { Set-EnvVar $EnvFile "HSTS" $HstsVal }
 Set-EnvVar $EnvFile "FRONT_DOOR" $Proxy
 Set-EnvVar $EnvFile "HTTPS_CHECK_HOST" $Proxy   # the certificate monitor checks this container
@@ -533,6 +550,9 @@ if ($UseCfProxy) {
     Write-Host "  1. DNS: set the record for $Primary to Proxied (orange cloud), pointing at this server's public IP."
     Write-Host "  2. SSL/TLS > Overview: set encryption mode to Full (strict)."
     Write-Host "  3. Forward ports 80 and 443 to this server. Only Cloudflare will be let in."
+    if ($UseCfAop) {
+        Write-Host "  4. SSL/TLS > Origin Server: turn ON 'Authenticated Origin Pulls'."
+    }
     Write-Host "Remember: Cloudflare can now see all traffic to this site." -ForegroundColor Yellow
 }
 if ($Mode -eq "internal") {

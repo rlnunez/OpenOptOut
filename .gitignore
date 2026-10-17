@@ -51,6 +51,7 @@ data/
 
 # Certificates, keys, and secrets — never commit
 *.pem
+!deploy/cloudflare/origin-pull-ca.pem
 *.key
 secret.key
 *.secret

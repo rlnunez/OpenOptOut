@@ -15,6 +15,7 @@
 #   RATE_LIMIT_PER_MINUTE             Whole site limit per visitor (default 1200)
 #   AUTH_RATE_LIMIT_PER_MINUTE        Sign-in limit per visitor (default 60)
 #   CLOUDFLARE_PROXY  on | off        Restrict access to Cloudflare IPs
+#   CLOUDFLARE_AOP    on | off        Cloudflare Authenticated Origin Pulls (mTLS)
 #   DOMAIN                            Domain name(s) (comma-separated)
 #   ACME_EMAIL                        Registration email for the ACME CA
 #   ACME_KEY_TYPE                     Certificate key type (e.g. rsa2048, p256)
@@ -134,6 +135,22 @@ case "${CLOUDFLARE_PROXY:-off}" in
   *) die "CLOUDFLARE_PROXY must be on or off: $CLOUDFLARE_PROXY" ;;
 esac
 
+AOP="${CLOUDFLARE_AOP:-${CLOUDFLARE_AUTHENTICATED_ORIGIN_PULLS:-off}}"
+case "$AOP" in
+  off) ;;
+  on)
+    [ "$MODE" != "none" ] || die "CLOUDFLARE_AOP=on needs a certificate: Authenticated Origin Pulls requires TLS."
+    [ "${CLOUDFLARE_PROXY:-off}" = "on" ] || die "CLOUDFLARE_AOP=on requires CLOUDFLARE_PROXY=on."
+    AOP_FILE="${CLOUDFLARE_AOP_CA_FILE:-/deploy/origin-pull-ca.pem}"
+    if [ ! -f "$AOP_FILE" ] && [ -f "/deploy/cloudflare/origin-pull-ca.pem" ]; then
+      AOP_FILE="/deploy/cloudflare/origin-pull-ca.pem"
+    fi
+    path_ok "$AOP_FILE" || die "CLOUDFLARE_AOP_CA_FILE must be an absolute path: $AOP_FILE"
+    [ -f "$AOP_FILE" ] || die "Cloudflare Authenticated Origin Pull CA certificate not found: $AOP_FILE"
+    ;;
+  *) die "CLOUDFLARE_AOP must be on or off: $AOP" ;;
+esac
+
 # ── tls directive ─────────────────────────────────────────────────────────────
 if [ -n "$CA" ]; then
   TLS="	tls ${EMAIL} {
@@ -159,10 +176,26 @@ if [ -n "$CA" ]; then
 		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
 		resolvers 1.1.1.1 1.0.0.1"
   fi
+  if [ "$AOP" = "on" ]; then
+    TLS="$TLS
+		client_auth {
+			mode require_and_verify
+			trusted_ca_cert_file $AOP_FILE
+		}"
+  fi
   TLS="$TLS
 	}"
 elif [ "$MODE" = "internal" ]; then
-  TLS="	tls internal"
+  if [ "$AOP" = "on" ]; then
+    TLS="	tls internal {
+		client_auth {
+			mode require_and_verify
+			trusted_ca_cert_file $AOP_FILE
+		}
+	}"
+  else
+    TLS="	tls internal"
+  fi
 elif [ "$MODE" = "none" ]; then
   TLS=""
 else
@@ -173,7 +206,16 @@ else
   fi
   [ -f "$CERT" ] || die "Certificate file not found: $CERT (put it in ./deploy/certs)"
   [ -f "$KEY" ]  || die "Key file not found: $KEY (put it in ./deploy/certs)"
-  TLS="	tls $CERT $KEY"
+  if [ "$AOP" = "on" ]; then
+    TLS="	tls $CERT $KEY {
+		client_auth {
+			mode require_and_verify
+			trusted_ca_cert_file $AOP_FILE
+		}
+	}"
+  else
+    TLS="	tls $CERT $KEY"
+  fi
 fi
 
 # HSTS tells browsers to always use HTTPS. Off by default for 'internal' (a private CA the browser may not trust yet) and whenever HSTS=off.
@@ -280,7 +322,7 @@ $ROUTE
 }
 EOF
 
-echo "OpenOptOut HTTPS: mode=$MODE challenge=$CHALLENGE rate_limit=$RATE_LIMIT cloudflare_proxy=${CLOUDFLARE_PROXY:-off} domain=${DOMAIN:-(any)} upstream=$UPSTREAM"
+echo "OpenOptOut HTTPS: mode=$MODE challenge=$CHALLENGE rate_limit=$RATE_LIMIT cloudflare_proxy=${CLOUDFLARE_PROXY:-off} cloudflare_aop=$AOP domain=${DOMAIN:-(any)} upstream=$UPSTREAM"
 if [ "${GENERATE_ONLY:-}" = "1" ]; then
   cat "$CADDYFILE"
   exit 0

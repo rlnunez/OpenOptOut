@@ -1,0 +1,72 @@
+{
+  "description": "OpenOptOut preconfigured WAF and rate-limiting ruleset for Cloudflare Tunnel deployments",
+  "rulesets": {
+    "http_ratelimit": {
+      "description": "Rate limiting rules for OpenOptOut edge traffic",
+      "rules": [
+        {
+          "description": "OpenOptOut: Sign-in endpoints rate limit (60 requests/min per IP)",
+          "expression": "(http.request.uri.path wildcard \"/api/auth/*\" or http.request.uri.path eq \"/api/auth\")",
+          "action": "block",
+          "action_parameters": {
+            "response": {
+              "status_code": 429,
+              "content_type": "application/json",
+              "content": "{\"error\": \"Too many sign-in requests. Please wait a minute before trying again.\"}"
+            }
+          },
+          "ratelimit": {
+            "characteristics": [
+              "cf.colo.id",
+              "ip.src"
+            ],
+            "period": 60,
+            "requests_per_period": 60,
+            "mitigation_timeout": 60
+          },
+          "enabled": true
+        },
+        {
+          "description": "OpenOptOut: Whole site rate limit (1200 requests/min per IP)",
+          "expression": "(http.request.uri.path wildcard \"/*\")",
+          "action": "block",
+          "action_parameters": {
+            "response": {
+              "status_code": 429,
+              "content_type": "application/json",
+              "content": "{\"error\": \"Rate limit exceeded. Please wait a minute.\"}"
+            }
+          },
+          "ratelimit": {
+            "characteristics": [
+              "cf.colo.id",
+              "ip.src"
+            ],
+            "period": 60,
+            "requests_per_period": 1200,
+            "mitigation_timeout": 60
+          },
+          "enabled": true
+        }
+      ]
+    },
+    "http_request_firewall_custom": {
+      "description": "Custom firewall rules for OpenOptOut security hardening",
+      "rules": [
+        {
+          "description": "OpenOptOut: Block sensitive file and path traversal probes",
+          "expression": "(http.request.uri.path contains \"/.env\" or http.request.uri.path contains \"/.git\" or http.request.uri.path contains \"..\" or http.request.uri.path contains \"/etc/passwd\")",
+          "action": "block",
+          "enabled": true
+        },
+        {
+          "description": "OpenOptOut: Challenge high threat scores and malicious bots",
+          "expression": "(cf.threat_score gt 20 or (cf.client.bot and not cf.bot_management.verified_bot))",
+          "action": "managed_challenge",
+          "enabled": true
+        }
+      ]
+    }
+  }
+}
+

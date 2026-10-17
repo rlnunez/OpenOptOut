@@ -298,6 +298,7 @@ class DeploymentStep(LimitedModel):
     certificate: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)   # "letsencrypt" | "cloudflare-dns" | "none" | "incommon" (beta, advanced)
     rate_limit: Optional[bool] = None   # Caddy/Traefik: per-visitor limits (default on)
     cloudflare_proxy: Optional[bool] = None  # Caddy/Traefik + cloudflare-dns only
+    cloudflare_aop: Optional[bool] = None    # Cloudflare Authenticated Origin Pulls (AOP)
     hsts: Optional[bool] = None         # Enable HTTP Strict Transport Security when SSL is installed or handled externally
 
 
@@ -324,6 +325,7 @@ TUNNEL_WARNING = ("Cloudflare Tunnel: Cloudflare decrypts all traffic to this si
 
 def enable_https_commands(front_door: str, certificate: str, domain: str = "",
                           rate_limit: bool = True, cloudflare_proxy: bool = False,
+                          cloudflare_aop: bool = False,
                           hsts: bool = True) -> dict:
     """The exact host commands for a managed deployment's choices, for both Linux/macOS and Windows. Domain is only included if it's plainly a hostname list (it ends up in a command the admin copies into a shell)."""
     import re
@@ -338,6 +340,8 @@ def enable_https_commands(front_door: str, certificate: str, domain: str = "",
             sh += ["--cert", cert]; ps += ["-Cert", cert]
         if cloudflare_proxy and cert == "cloudflare-dns":
             sh += ["--cloudflare-proxy"]; ps += ["-CloudflareProxy"]
+            if cloudflare_aop:
+                sh += ["--cloudflare-aop"]; ps += ["-CloudflareAop"]
         if not rate_limit:
             sh += ["--no-rate-limit"]; ps += ["-NoRateLimit"]
         if not hsts and cert != "none":
@@ -463,6 +467,7 @@ def complete(db: Session = Depends(get_db), user: User = Depends(get_current_use
         commands = enable_https_commands(front_door, certificate, deployment.get("domain", ""),
                                          rate_limit=deployment.get("rate_limit", True),
                                          cloudflare_proxy=deployment.get("cloudflare_proxy", False),
+                                         cloudflare_aop=deployment.get("cloudflare_aop", False),
                                          hsts=deployment.get("hsts", True))
         warnings.append("Your front door isn't on yet: run the command shown below on the server, "
                         "then restart the containers.")

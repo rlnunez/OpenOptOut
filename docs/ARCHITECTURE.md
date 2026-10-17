@@ -184,6 +184,9 @@ openoptout/
 │   ├── caddy/entrypoint.sh        # Generates Caddy config from env vars (Docker path — docs/HTTPS.md)
 │   ├── caddy/Dockerfile           # Caddy + Cloudflare DNS + rate-limit modules (caddy-extended service)
 │   ├── cloudflare/ip-ranges.txt   # Cloudflare's IP ranges, for CLOUDFLARE_PROXY=on
+│   ├── cloudflare/origin-pull-ca.pem # Cloudflare Authenticated Origin Pull CA (CLOUDFLARE_AOP=on)
+│   ├── cloudflare/tunnel-waf-ruleset.json # Preconfigured rate-limiting & WAF ruleset for Cloudflare Tunnel
+│   ├── cloudflare/apply-tunnel-waf.sh # Deploys tunnel ruleset to a Cloudflare zone via API
 │   ├── traefik/entrypoint.sh      # Same, for the optional Traefik front door (FRONT_DOOR=traefik)
 │   ├── tests/acme_e2e.sh          # Real ACME issuance + renewal test (Caddy + Pebble)
 │   ├── tests/acme_e2e_traefik.sh  # Same, for the Traefik front door

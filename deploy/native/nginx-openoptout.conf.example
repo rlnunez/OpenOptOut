@@ -12,6 +12,12 @@
 # This starts on plain HTTP only. Run scripts/enable-https-native.sh
 # afterward — it uses certbot's nginx plugin to add the TLS server block and
 # the HTTP→HTTPS redirect automatically; you don't need to hand-write those.
+#
+# If running behind Cloudflare's proxy with Authenticated Origin Pulls (AOP):
+# Copy deploy/cloudflare/origin-pull-ca.pem to /etc/ssl/certs/cloudflare-origin-pull-ca.pem
+# and add these two directives to the SSL server { ... } block:
+#   ssl_client_certificate /etc/ssl/certs/cloudflare-origin-pull-ca.pem;
+#   ssl_verify_client on;
 
 server {
     listen 80;

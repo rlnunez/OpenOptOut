@@ -3994,6 +3994,7 @@ def t_https_entrypoint():
     with tempfile.TemporaryDirectory() as td:
         cf = os.path.join(td, "Caddyfile")
         cf_ips = os.path.join(repo_root, "deploy", "cloudflare", "ip-ranges.txt")
+        aop_ca = os.path.join(repo_root, "deploy", "cloudflare", "origin-pull-ca.pem")
         bad_ips = os.path.join(td, "bad-ips.txt")
         with open(bad_ips, "w") as f:
             f.write("103.21.244.0/22\n1.2.3.4/32 } evil {\n")
@@ -4027,6 +4028,13 @@ def t_https_entrypoint():
             {"HTTPS_MODE": "none", "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips},
             {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_CHALLENGE": "cloudflare",
              "CLOUDFLARE_API_TOKEN": "x" * 40, "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": bad_ips},
+            # Cloudflare Authenticated Origin Pulls (AOP)
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "CLOUDFLARE_AOP": "maybe"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "CLOUDFLARE_AOP": "on"},
+            {"HTTPS_MODE": "none", "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips, "CLOUDFLARE_AOP": "on"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_CHALLENGE": "cloudflare",
+             "CLOUDFLARE_API_TOKEN": "x" * 40, "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips,
+             "CLOUDFLARE_AOP": "on", "CLOUDFLARE_AOP_CA_FILE": os.path.join(td, "nonexistent-ca.pem")},
             # InCommon (beta): credentials required, well-formed, and only for ACME modes
             {"HTTPS_MODE": "incommon", "DOMAIN": "a.org"},
             {"HTTPS_MODE": "incommon", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1"},
@@ -4063,6 +4071,12 @@ def t_https_entrypoint():
             {"HTTPS_MODE": "incommon", "DOMAIN": "privacy.univ.edu", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"},
             {"HTTPS_MODE": "acme", "DOMAIN": "privacy.lib.org", "ACME_CA": "https://ca.example.com/dir",
              "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n", "ACME_KEY_TYPE": "p384"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org", "ACME_CHALLENGE": "cloudflare",
+             "CLOUDFLARE_API_TOKEN": "t0ken-" + "x" * 34, "CLOUDFLARE_PROXY": "on",
+             "CLOUDFLARE_IPS_FILE": cf_ips, "CLOUDFLARE_AOP": "on", "CLOUDFLARE_AOP_CA_FILE": aop_ca},
+            {"HTTPS_MODE": "custom", "DOMAIN": "privacy.lib.org", "TLS_CERT_FILE": cert_file,
+             "TLS_KEY_FILE": key_file, "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips,
+             "CLOUDFLARE_AOP": "on", "CLOUDFLARE_AOP_CA_FILE": aop_ca},
         ]
         for env in good:
             r = run(env, cf)
@@ -4114,6 +4128,12 @@ def t_https_entrypoint():
                 assert content.index("abort @not_cloudflare") < content.index("rate_limit {") < content.index("reverse_proxy")
             else:
                 assert "trusted_proxies" not in content and "@not_cloudflare" not in content
+            if env.get("CLOUDFLARE_AOP") == "on":
+                assert "client_auth {" in content
+                assert "mode require_and_verify" in content
+                assert f"trusted_ca_cert_file {env.get('CLOUDFLARE_AOP_CA_FILE', aop_ca)}" in content
+            else:
+                assert "client_auth" not in content
             if env["HTTPS_MODE"] == "none":
                 # Plain HTTP: no certificate, no HSTS, no redirect.
                 assert "tls " not in content and "Strict-Transport-Security" not in content
@@ -4145,6 +4165,7 @@ def t_https_traefik_entrypoint():
     with tempfile.TemporaryDirectory() as td:
         conf = os.path.join(td, "conf")
         cf_ips = os.path.join(repo_root, "deploy", "cloudflare", "ip-ranges.txt")
+        aop_ca = os.path.join(repo_root, "deploy", "cloudflare", "origin-pull-ca.pem")
 
         def run(env_overrides):
             env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "GENERATE_ONLY": "1",
@@ -4174,6 +4195,13 @@ def t_https_traefik_entrypoint():
             {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "CLOUDFLARE_PROXY": "on",
              "CLOUDFLARE_IPS_FILE": cf_ips},
             {"HTTPS_MODE": "none", "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips},
+            # Cloudflare Authenticated Origin Pulls (AOP)
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "CLOUDFLARE_AOP": "maybe"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "CLOUDFLARE_AOP": "on"},
+            {"HTTPS_MODE": "none", "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips, "CLOUDFLARE_AOP": "on"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_CHALLENGE": "cloudflare",
+             "CLOUDFLARE_API_TOKEN": "x" * 40, "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips,
+             "CLOUDFLARE_AOP": "on", "CLOUDFLARE_AOP_CA_FILE": os.path.join(td, "nonexistent-ca.pem")},
             {"HTTPS_MODE": "incommon", "DOMAIN": "a.org"},
             {"HTTPS_MODE": "incommon", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": 'x"\nproviders: {}'},
             {"HTTPS_MODE": "custom", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"},
@@ -4202,6 +4230,9 @@ def t_https_traefik_entrypoint():
              "CLOUDFLARE_API_TOKEN": "t0ken-" + "x" * 34, "CLOUDFLARE_PROXY": "on",
              "CLOUDFLARE_IPS_FILE": cf_ips, "RATE_LIMIT_PER_MINUTE": "600", "AUTH_RATE_LIMIT_PER_MINUTE": "30"},
             {"HTTPS_MODE": "incommon", "DOMAIN": "privacy.univ.edu", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org", "ACME_CHALLENGE": "cloudflare",
+             "CLOUDFLARE_API_TOKEN": "t0ken-" + "x" * 34, "CLOUDFLARE_PROXY": "on",
+             "CLOUDFLARE_IPS_FILE": cf_ips, "CLOUDFLARE_AOP": "on", "CLOUDFLARE_AOP_CA_FILE": aop_ca},
         ]
         for env in good:
             r = run(env)
@@ -4244,6 +4275,12 @@ def t_https_traefik_entrypoint():
             else:
                 assert "openoptout-cloudflare-only" not in mws
                 assert "forwardedHeaders" not in (static["entryPoints"]["websecure"] or {})
+            if env.get("CLOUDFLARE_AOP") == "on":
+                ca = dynamic["tls"]["options"]["default"]["clientAuth"]
+                assert ca["clientAuthType"] == "RequireAndVerifyClientCert"
+                assert ca["caFiles"] == [env.get("CLOUDFLARE_AOP_CA_FILE", aop_ca)]
+            else:
+                assert "clientAuth" not in dynamic.get("tls", {}).get("options", {}).get("default", {})
             if env["HTTPS_MODE"] == "none":
                 # Plain HTTP on port 80: no redirect, no TLS, no HSTS, no resolver.
                 assert "http" not in (static["entryPoints"]["web"] or {})
@@ -4479,6 +4516,9 @@ def t_enable_https_script():
           "--rate-limit", "600", "--auth-rate-limit", "30"],
          {"CLOUDFLARE_PROXY": "on", "TRUSTED_PROXY_HOPS": "3", "RATE_LIMIT_PER_MINUTE": "600",
           "AUTH_RATE_LIMIT_PER_MINUTE": "30"}),
+        (["--proxy", "caddy", "--cert", "cloudflare-dns", "--domain", "a.org", "--cf-token", token,
+          "--cloudflare-proxy", "--cloudflare-aop"],
+         {"CLOUDFLARE_PROXY": "on", "CLOUDFLARE_AOP": "on"}),
         (["--proxy", "traefik", "--cert", "cloudflare-dns", "--domain", "a.org"],   # token later
          {"COMPOSE_PROFILES": "https-traefik", "ACME_CHALLENGE": "cloudflare", "HTTPS_CHECK_HOST": "traefik"}),
         (["--proxy", "traefik", "--cert", "none"],
@@ -4509,6 +4549,7 @@ def t_enable_https_script():
         ["--proxy", "caddy", "--cert", "letsencrypt", "--domain", "a.org", "--cloudflare-proxy"],
         ["--proxy", "traefik", "--cert", "none", "--cloudflare-proxy"],
         ["--proxy", "cloudflare-tunnel", "--domain", "a.org", "--cloudflare-proxy"],
+        ["--proxy", "caddy", "--cert", "cloudflare-dns", "--domain", "a.org", "--cloudflare-aop"],
         ["--proxy", "caddy", "--cert", "none", "--rate-limit", "0"],
         ["--proxy", "caddy", "--cert", "none", "--rate-limit", "12;rm"],
         # InCommon details are required during setup, and credentials only fit ACME modes
@@ -4547,6 +4588,8 @@ def t_wizard_commands_and_monitor_modes():
     cfp = cmds("caddy", "cloudflare-dns", "a.org", rate_limit=False, cloudflare_proxy=True)
     assert "--cloudflare-proxy" in cfp["linux"] and "-CloudflareProxy" in cfp["windows"]
     assert "--no-rate-limit" in cfp["linux"] and "-NoRateLimit" in cfp["windows"]
+    aop = cmds("caddy", "cloudflare-dns", "a.org", rate_limit=False, cloudflare_proxy=True, cloudflare_aop=True)
+    assert "--cloudflare-aop" in aop["linux"] and "-CloudflareAop" in aop["windows"]
     inc = cmds("traefik", "incommon", "privacy.univ.edu")
     assert inc["linux"] == "./scripts/enable-https.sh --proxy traefik --mode incommon --domain privacy.univ.edu"
     assert "-Mode incommon" in inc["windows"] and "--cert" not in inc["linux"]
@@ -4572,6 +4615,20 @@ def t_wizard_commands_and_monitor_modes():
             else:
                 os.environ[k] = v
     # EXPECTED: admins get a copy-paste command matching what they chose, and the dashboard never shows a certificate error for a front door that intentionally has no certificate here.
+
+
+@test(1, "https.cloudflare_aop_ca",
+      "deploy/cloudflare/origin-pull-ca.pem: valid Cloudflare Authenticated Origin Pull CA cert.")
+def t_cloudflare_aop_ca():
+    import ssl
+    repo_root = os.path.dirname(_BACKEND_DIR)
+    path = os.path.join(repo_root, "deploy", "cloudflare", "origin-pull-ca.pem")
+    if not os.path.isfile(path):
+        raise Skip("deploy/cloudflare/origin-pull-ca.pem not present (bare backend checkout)")
+    raw = open(path).read()
+    assert "-----BEGIN CERTIFICATE-----" in raw and "-----END CERTIFICATE-----" in raw
+    der = ssl.PEM_cert_to_DER_cert(raw)
+    assert len(der) > 500, "CA certificate unexpectedly short"
 
 
 @test(1, "https.cloudflare_ip_list",

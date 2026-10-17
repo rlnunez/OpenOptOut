@@ -33,7 +33,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 ENV_FILE=".env"; MODE=""; CERT=""; DOMAIN=""; EMAIL=""; ACME_CA=""; ACME_CA_ROOT_SRC=""
-YES=0; DISABLE=0; PROXY=""; CF_TOKEN=""; TUNNEL_TOKEN=""; CF_PROXY=""; RL=on; RL_SITE=""; RL_AUTH=""
+YES=0; DISABLE=0; PROXY=""; CF_TOKEN=""; TUNNEL_TOKEN=""; CF_PROXY=""; CF_AOP=""; RL=on; RL_SITE=""; RL_AUTH=""
 EAB_KID=""; EAB_HMAC=""; KEY_TYPE=""; HSTS_VAL=""
 INCOMMON_CA_DEFAULT="https://acme-us.certinext.io/v1/directory"
 while [ $# -gt 0 ]; do
@@ -55,6 +55,8 @@ while [ $# -gt 0 ]; do
     --disable) DISABLE=1; shift ;;
     --cloudflare-proxy) CF_PROXY=on; shift ;;
     --no-cloudflare-proxy) CF_PROXY=off; shift ;;
+    --cloudflare-aop) CF_AOP=on; shift ;;
+    --no-cloudflare-aop) CF_AOP=off; shift ;;
     --hsts) HSTS_VAL=on; shift ;;
     --no-hsts) HSTS_VAL=off; shift ;;
     --no-rate-limit) RL=off; shift ;;
@@ -106,7 +108,7 @@ unset_env() {
 has_env() { [ -f "$ENV_FILE" ] && grep -q "^${1}=." "$ENV_FILE"; }
 backup() { [ -f "$ENV_FILE" ] && cp "$ENV_FILE" "${ENV_FILE}.bak.$(date +%Y%m%d%H%M%S)" && echo "Backed up $ENV_FILE"; return 0; }
 
-FRONT_DOOR_KEYS="COMPOSE_PROFILES FRONT_DOOR HTTPS_CHECK_HOST HTTPS_MODE ACME_CHALLENGE DOMAIN ACME_EMAIL ACME_CA ACME_CA_ROOT ACME_EAB_KID ACME_EAB_HMAC ACME_KEY_TYPE WEB_BIND WEB_PORT TRUSTED_PROXY_HOPS RATE_LIMIT CLOUDFLARE_PROXY HSTS"
+FRONT_DOOR_KEYS="COMPOSE_PROFILES FRONT_DOOR HTTPS_CHECK_HOST HTTPS_MODE ACME_CHALLENGE DOMAIN ACME_EMAIL ACME_CA ACME_CA_ROOT ACME_EAB_KID ACME_EAB_HMAC ACME_KEY_TYPE WEB_BIND WEB_PORT TRUSTED_PROXY_HOPS RATE_LIMIT CLOUDFLARE_PROXY CLOUDFLARE_AOP HSTS"
 
 if [ "$DISABLE" = 1 ]; then
   backup
@@ -364,6 +366,18 @@ if [ -z "$CF_PROXY" ] && [ "$CF_PROXY_OK" = 1 ] && interactive; then
 fi
 [ -n "$CF_PROXY" ] || CF_PROXY=off
 
+if [ "$CF_AOP" = on ] && [ "$CF_PROXY" != on ]; then
+  die "--cloudflare-aop requires --cloudflare-proxy."
+fi
+if [ "$CF_PROXY" = on ] && [ -z "$CF_AOP" ] && interactive; then
+  echo
+  echo "Also enable Cloudflare Authenticated Origin Pulls (AOP)?"
+  echo "  Ensures ONLY your Cloudflare zone reaches this server via client mTLS certificates."
+  echo "  Requires Authenticated Origin Pulls enabled in your Cloudflare dashboard (SSL/TLS > Origin Server)."
+  [ "$(ask 'Enable Authenticated Origin Pulls? (y/n)' y)" = n ] && CF_AOP=off || CF_AOP=on
+fi
+[ -n "$CF_AOP" ] || CF_AOP=off
+
 # ── rate limits ──
 num_ok() { [[ "$1" =~ ^[1-9][0-9]{0,6}$ ]]; }
 [ -z "$RL_SITE" ] || num_ok "$RL_SITE" || die "--rate-limit must be a whole number above 0"
@@ -386,7 +400,9 @@ fi
 
 CERT_LABEL="$MODE"; [ "$MODE" = incommon ] && CERT_LABEL="incommon (beta)"; [ "$CHALLENGE" = cloudflare ] && CERT_LABEL="$CERT_LABEL via Cloudflare DNS"
 echo
-PROTECT_LABEL="rate-limits=$RL  hsts=$HSTS_VAL"; [ "$CF_PROXY" = on ] && PROTECT_LABEL="$PROTECT_LABEL  cloudflare-proxy=on"
+PROTECT_LABEL="rate-limits=$RL  hsts=$HSTS_VAL"
+[ "$CF_PROXY" = on ] && PROTECT_LABEL="$PROTECT_LABEL  cloudflare-proxy=on"
+[ "$CF_AOP" = on ] && PROTECT_LABEL="$PROTECT_LABEL  cloudflare-aop=on"
 echo "About to set up:  proxy=$PROXY  certificate=$CERT_LABEL  $PROTECT_LABEL  domain=${DOMAIN:-(any)}${EMAIL:+  email=$EMAIL}"
 if interactive; then [ "$(ask 'Continue? (y/n)' y)" = y ] || die "Cancelled."; fi
 
@@ -400,6 +416,7 @@ set_env RATE_LIMIT "$RL"
 [ -z "$RL_SITE" ] || set_env RATE_LIMIT_PER_MINUTE "$RL_SITE"
 [ -z "$RL_AUTH" ] || set_env AUTH_RATE_LIMIT_PER_MINUTE "$RL_AUTH"
 set_env CLOUDFLARE_PROXY "$CF_PROXY"
+set_env CLOUDFLARE_AOP "$CF_AOP"
 [ "$MODE" = none ] || set_env HSTS "$HSTS_VAL"
 set_env FRONT_DOOR "$PROXY"
 set_env HTTPS_CHECK_HOST "$PROXY"   # the certificate monitor checks this container
@@ -454,6 +471,9 @@ if [ "$CF_PROXY" = on ]; then
   echo "  1. DNS: set the record for $PRIMARY to Proxied (orange cloud), pointing at this server's public IP."
   echo "  2. SSL/TLS > Overview: set encryption mode to Full (strict)."
   echo "  3. Forward ports 80 and 443 to this server. Only Cloudflare will be let in."
+  if [ "$CF_AOP" = on ]; then
+    echo "  4. SSL/TLS > Origin Server: turn ON 'Authenticated Origin Pulls'."
+  fi
   echo "Remember: Cloudflare can now see all traffic to this site."
 fi
 [ "$MODE" = internal ] && echo "Browsers will warn until Caddy's root CA is trusted — see docs/HTTPS.md."
