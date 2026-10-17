@@ -3098,5 +3098,14 @@
   "✓ configured": "✓ đã cấu hình",
   "✓ max": "✓ tối đa",
   "💡 Timer applies to local accounts from their creation timestamp. Once the timer elapses, users must enroll before accessing their dashboard.": "💡 Thời hạn áp dụng cho tài khoản cục bộ tính từ lúc tạo. Khi hết hạn, người dùng phải đăng ký trước khi vào bảng điều khiển.",
-  "🔒 field enc": "🔒 mã hóa trường"
+  "🔒 field enc": "🔒 mã hóa trường",
+  "Combined Images + Movement": "Kết hợp hình ảnh & chuyển động",
+  "Mouse & Keyboard Only": "Chỉ dùng chuột & bàn phím",
+  "5. Add mouse movement & typing randomness…": "5. Di chuyển chuột hoặc gõ phím để thêm độ ngẫu nhiên…",
+  "6. Shuffling & mixing into key…": "6. Xáo trộn & trộn vào khóa…",
+  "7. 128-character master key ready!": "7. Khóa chính 128+ ký tự đã sẵn sàng!",
+  "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "Đã hợp nhất hình ảnh! Di chuyển chuột trong hộp hoặc gõ phím ngẫu nhiên để thêm độ ngẫu nhiên vật lý:",
+  "Mix Now & Synthesize Key": "Trộn ngay & tổng hợp khóa",
+  "Live Mixed Entropy Stream:": "Dòng entropy hỗn hợp trực tiếp:",
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Lấy 4 đến 6 hình ảnh ngẫu nhiên, sắp xếp, chuyển đổi pixel thành mã, hợp nhất các đoạn byte và trộn entropy chuột & bàn phím để rèn khóa chính 128+ ký tự."
 }

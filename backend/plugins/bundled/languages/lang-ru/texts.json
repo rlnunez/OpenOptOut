@@ -3098,5 +3098,14 @@
   "✓ configured": "✓ настроено",
   "✓ max": "✓ макс.",
   "💡 Timer applies to local accounts from their creation timestamp. Once the timer elapses, users must enroll before accessing their dashboard.": "💡 Срок для локальных учётных записей отсчитывается с момента их создания. Когда он истечёт, пользователям нужно будет зарегистрировать способ входа, прежде чем открыть панель.",
-  "🔒 field enc": "🔒 шифр. полей"
+  "🔒 field enc": "🔒 шифр. полей",
+  "Combined Images + Movement": "Комбинация изображений и движения",
+  "Mouse & Keyboard Only": "Только мышь и клавиатура",
+  "5. Add mouse movement & typing randomness…": "5. Двигайте мышь или печатайте для добавления случайности…",
+  "6. Shuffling & mixing into key…": "6. Перемешивание и объединение в ключ…",
+  "7. 128-character master key ready!": "7. Мастер-ключ из 128+ символов готов!",
+  "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "Изображения объединены! Перемещайте мышь внутри поля или нажимайте клавиши для добавления физической случайности:",
+  "Mix Now & Synthesize Key": "Смешать сейчас и создать ключ",
+  "Live Mixed Entropy Stream:": "Поток смешанной энтропии в реальном времени:",
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Загрузите от 4 до 6 случайных изображений, отсортируйте их, преобразуйте пиксели в код, объедините байтовые фрагменты и смешайте с энтропией мыши и клавиатуры для создания мастер-ключа из 128+ символов."
 }

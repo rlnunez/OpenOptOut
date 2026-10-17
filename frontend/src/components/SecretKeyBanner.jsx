@@ -54,6 +54,7 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
   const [entropyPoints, setEntropyPoints] = useState([])
   const [entropyProgress, setEntropyProgress] = useState(0)
   const entropyPoolRef = useRef([])
+  const imageEntropyRef = useRef([])
   const mouseTargetLenRef = useRef(pickRandomKeyLength([]))
   const canvasRef = useRef(null)
 
@@ -75,6 +76,33 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
     timersRef.current = []
   }
 
+  const finalizeCombinedKey = () => {
+    clearTimers()
+    setGenerating(true)
+    setStage(6)
+    const combined = [...imageEntropyRef.current, ...entropyPoolRef.current]
+    if (combined.length === 0) {
+      const fallback = new Uint8Array(64)
+      if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(fallback)
+      for (let i = 0; i < fallback.length; i++) combined.push(fallback[i])
+    }
+    const targetLen = pickRandomKeyLength(combined)
+    let ticks = 0
+    const stepScramble = () => {
+      ticks += 1
+      const candidate = mixBytesToKey(combined, targetLen)
+      setScramblePreview(candidate)
+      if (ticks < 6) {
+        timersRef.current.push(setTimeout(stepScramble, 85))
+      } else {
+        setKeyInput(candidate)
+        setStage(7)
+        setGenerating(false)
+      }
+    }
+    stepScramble()
+  }
+
   const runImageChaosGenerator = async () => {
     clearTimers()
     setError('')
@@ -85,6 +113,10 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
     setDisplayOrder([])
     setMergedChunks([])
     setScramblePreview('')
+    imageEntropyRef.current = []
+    entropyPoolRef.current = []
+    setEntropyProgress(0)
+    setEntropyPoints([])
 
     let fetched = []
     try {
@@ -160,38 +192,32 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
           setMergedChunks(allChunks)
           setStage(4)
 
-          // Stage 5: Shuffle into final key of random length in [128, 512]
+          // Collect raw bytes from images & chunks
+          const rawBytes = []
+          allChunks.forEach(c => {
+            for (let k = 0; k < c.text.length; k++) {
+              rawBytes.push(c.text.charCodeAt(k))
+            }
+          })
+          fetched.forEach(img => {
+            const s = img.sha512 || ''
+            for (let k = 0; k < s.length; k++) {
+              rawBytes.push(s.charCodeAt(k))
+            }
+          })
+          imageEntropyRef.current = rawBytes
+
+          // Stage 5: Transition to mouse & keyboard physical entropy injection
           timersRef.current.push(setTimeout(() => {
             setStage(5)
-            const rawBytes = []
-            allChunks.forEach(c => {
-              for (let k = 0; k < c.text.length; k++) {
-                rawBytes.push(c.text.charCodeAt(k))
-              }
-            })
-            fetched.forEach(img => {
-              const s = img.sha512 || ''
-              for (let k = 0; k < s.length; k++) {
-                rawBytes.push(s.charCodeAt(k))
-              }
-            })
-
-            const targetLen = pickRandomKeyLength(rawBytes)
-            let ticks = 0
-            const stepScramble = () => {
-              ticks += 1
-              const candidate = mixBytesToKey(rawBytes, targetLen)
-              setScramblePreview(candidate)
-              if (ticks < 6) {
-                timersRef.current.push(setTimeout(stepScramble, 90))
-              } else {
-                setKeyInput(candidate)
-                setStage(6)
-                setGenerating(false)
-              }
-            }
-            stepScramble()
-          }, 650))
+            setGenerating(false)
+            entropyPoolRef.current = []
+            setEntropyProgress(0)
+            setEntropyPoints([])
+            mouseTargetLenRef.current = pickRandomKeyLength(rawBytes)
+            const initialPreview = mixBytesToKey(rawBytes, mouseTargetLenRef.current)
+            setScramblePreview(initialPreview)
+          }, 600))
         }, 650))
       }, 650))
     }, 650))
@@ -205,6 +231,38 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
       (code & 0xff),
       (Math.floor(now * 1000) & 0xff)
     )
+
+    if (tab === 'images' && stage === 5) {
+      const count = Math.min(160, entropyPoolRef.current.length)
+      const pct = Math.min(100, Math.round((count / 160) * 100))
+      setEntropyProgress(pct)
+      setEntropyPoints(prev => [...prev.slice(-35), { x, y }])
+
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d')
+        if (ctx) {
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.18)'
+          ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+          ctx.beginPath()
+          ctx.arc(x % canvasRef.current.width, y % canvasRef.current.height, 6, 0, Math.PI * 2)
+          ctx.fillStyle = pct >= 100 ? '#34d399' : '#38bdf8'
+          ctx.fill()
+        }
+      }
+
+      const combined = [...imageEntropyRef.current, ...entropyPoolRef.current]
+      if (pct === 100) {
+        mouseTargetLenRef.current = pickRandomKeyLength(combined)
+      }
+      const preview = mixBytesToKey(combined, mouseTargetLenRef.current)
+      setScramblePreview(preview)
+
+      if (pct >= 100 && !generating) {
+        finalizeCombinedKey()
+      }
+      return
+    }
+
     const count = Math.min(240, entropyPoolRef.current.length)
     const pct = Math.min(100, Math.round((count / 240) * 100))
     setEntropyProgress(pct)
@@ -306,8 +364,9 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
     tx("2. Sorting images at random…"),
     tx("3. Turning image pixels into code…"),
     tx("4. Merging random byte chunks…"),
-    tx("5. Shuffling & mixing into key…"),
-    tx("6. 128-character master key ready!"),
+    tx("5. Add mouse movement & typing randomness…"),
+    tx("6. Shuffling & mixing into key…"),
+    tx("7. 128-character master key ready!"),
   ]
 
   const chunkColors = [
@@ -358,8 +417,8 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
                 : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
             }`}
           >
-            <Image size={14} />
-            {tx("Image Chaos Mixer (Lava Lamp Style)")}
+            <Sparkles size={14} />
+            {tx("Combined Images + Movement")}
           </button>
           <button
             type="button"
@@ -373,7 +432,7 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
             }`}
           >
             <MousePointer size={14} />
-            {tx("Mouse & Keyboard Entropy")}
+            {tx("Mouse & Keyboard Only")}
           </button>
         </div>
 
@@ -413,10 +472,10 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
             </p>
             {stage > 0 && (
               <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5, 6].map(s => (
+                {[1, 2, 3, 4, 5, 6, 7].map(s => (
                   <span
                     key={s}
-                    className={`h-1.5 w-5 rounded-full transition-all ${
+                    className={`h-1.5 w-4 rounded-full transition-all ${
                       stage >= s ? 'bg-emerald-400' : 'bg-slate-800'
                     }`}
                   />
@@ -427,7 +486,7 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
 
           {images.length === 0 ? (
             <p className="text-xs text-slate-400">
-              {tx("Click \"Generate Key from Images\" to pull 4 to 6 random images, sort them at random, convert their pixels into code, merge random byte chunks, shuffle them, and crystallize a 128-character master key.")}
+              {tx("Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.")}
             </p>
           ) : (
             <div className="space-y-3">
@@ -492,14 +551,85 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
                 </div>
               )}
 
-              {/* Stage 5/6: Live Scramble / Resulting Key Stream */}
-              {stage >= 5 && scramblePreview && (
+              {/* Stage 5: Interactive Mouse & Keyboard Entropy Mixing into Image Pool */}
+              {stage === 5 && (
+                <div className="space-y-3 rounded-xl border border-sky-500/40 bg-slate-950 p-3.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-sky-200">
+                      {tx("Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={finalizeCombinedKey}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition-colors shrink-0"
+                    >
+                      <Sparkles size={14} />
+                      {tx("Mix Now & Synthesize Key")}
+                    </button>
+                  </div>
+
+                  <div
+                    tabIndex={0}
+                    role="application"
+                    aria-label={tx("Mouse and keyboard entropy pad")}
+                    onMouseMove={handleMouseMove}
+                    onKeyDown={handleKeyDown}
+                    className="relative h-24 w-full rounded-lg border border-dashed border-sky-500/50 bg-slate-900/90 overflow-hidden cursor-crosshair focus:outline-hidden focus:ring-2 focus:ring-sky-500 flex items-center justify-center"
+                  >
+                    <canvas ref={canvasRef} width={520} height={96} className="absolute inset-0 w-full h-full pointer-events-none" />
+                    <div className="relative z-10 text-center pointer-events-none px-4">
+                      <p className="text-xs font-medium text-sky-200">
+                        {entropyProgress < 100
+                          ? `${tx("Entropy collected:")} ${entropyProgress}% (${entropyPoints.length} ${tx("samples")})`
+                          : tx("100% Entropy collected — 128-character key generated!")}
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        {tx("Click here and type random keys or wiggle your cursor")}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-sky-500 via-indigo-500 to-emerald-400 transition-all duration-150"
+                      style={{ width: `${Math.max(8, entropyProgress)}%` }}
+                    />
+                  </div>
+
+                  {scramblePreview && (
+                    <div className="rounded-lg border border-sky-500/30 bg-slate-900/60 p-2 text-xs font-mono text-sky-300 truncate">
+                      <span className="text-[10px] uppercase text-slate-400 block mb-0.5">{tx("Live Mixed Entropy Stream:")}</span>
+                      {scramblePreview}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Stage 6: Live Scramble Animation */}
+              {stage === 6 && scramblePreview && (
                 <div className="rounded-lg border border-emerald-500/30 bg-slate-950 p-2.5">
                   <p className="text-[10px] uppercase tracking-wider text-emerald-400 mb-1">
-                    {stage === 5 ? tx("Shuffling chunks into key…") : tx("Synthesized 128-character key:")}
+                    {tx("Shuffling chunks into key…")}
                   </p>
                   <code className="block text-xs font-mono text-emerald-300 break-all select-all">
-                    {stage === 5 ? scramblePreview : keyInput}
+                    {scramblePreview}
+                  </code>
+                </div>
+              )}
+
+              {/* Stage 7: Resulting Master Key */}
+              {stage === 7 && keyInput && (
+                <div className="rounded-lg border border-emerald-500/40 bg-emerald-950/20 p-3 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] uppercase tracking-wider font-semibold text-emerald-400">
+                      {tx("Synthesized 128-character key:")}
+                    </p>
+                    <span className="text-[11px] font-mono text-emerald-300">
+                      {keyInput.length} {tx("characters")}
+                    </span>
+                  </div>
+                  <code className="block text-xs font-mono text-emerald-300 break-all select-all bg-slate-950/80 p-2 rounded border border-emerald-500/30">
+                    {keyInput}
                   </code>
                 </div>
               )}

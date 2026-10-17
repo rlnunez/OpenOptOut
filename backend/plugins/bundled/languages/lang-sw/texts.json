@@ -3096,5 +3096,14 @@
   "✓ configured": "✓ configured",
   "✓ max": "✓ max",
   "💡 Timer applies to local accounts from their creation timestamp. Once the timer elapses, users must enroll before accessing their dashboard.": "💡 Timer applies to local accounts from their creation timestamp. Once the timer elapses, users must enroll before accessing their Dashibodi.",
-  "🔒 field enc": "🔒 field enc"
+  "🔒 field enc": "🔒 field enc",
+  "Combined Images + Movement": "Mchanganyiko wa Picha na Mwendo",
+  "Mouse & Keyboard Only": "Kipanya na Kibodi Pekee",
+  "5. Add mouse movement & typing randomness…": "5. Sogeza kipanya au chapa ili kuongeza nasibu ya kibinadamu…",
+  "6. Shuffling & mixing into key…": "6. Kuchanganya na kuunganisha kwenye ufunguo…",
+  "7. 128-character master key ready!": "7. Ufunguo mkuu wa herufi 128+ uko tayari!",
+  "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "Picha zimeunganishwa! Sogeza kipanya ndani ya kisanduku au chapa vitufe vya nasibu ili kuongeza nasibu ya ziada:",
+  "Mix Now & Synthesize Key": "Changanya Sasa na Unda Ufunguo",
+  "Live Mixed Entropy Stream:": "Mtiririko wa Moja kwa Moja wa Entropi Iliyochanganywa:",
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Chukua picha 4 hadi 6 za nasibu, zipange, geuza pikseli kuwa msimbo, unganisha vipande vya baiti, na changanya entropi ya kipanya na kibodi ili kuunda ufunguo mkuu wa herufi 128+."
 }

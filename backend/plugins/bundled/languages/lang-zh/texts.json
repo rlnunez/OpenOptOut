@@ -3098,5 +3098,14 @@
   "✓ configured": "✓ 已配置",
   "✓ max": "✓ 已达上限",
   "💡 Timer applies to local accounts from their creation timestamp. Once the timer elapses, users must enroll before accessing their dashboard.": "💡 本地账户的期限从账户创建时开始计算。期限一过，用户必须先完成注册才能进入仪表板。",
-  "🔒 field enc": "🔒 字段加密"
+  "🔒 field enc": "🔒 字段加密",
+  "Combined Images + Movement": "结合图像与移动",
+  "Mouse & Keyboard Only": "仅鼠标和键盘",
+  "5. Add mouse movement & typing randomness…": "5. 移动鼠标或按键以注入人工随机熵…",
+  "6. Shuffling & mixing into key…": "6. 打乱并混合生成密钥…",
+  "7. 128-character master key ready!": "7. 128+ 字符主密钥准备就绪！",
+  "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "图像已合并！在框内移动鼠标或敲击按键以注入额外的物理随机熵：",
+  "Mix Now & Synthesize Key": "立即混合并合成密钥",
+  "Live Mixed Entropy Stream:": "实时混合熵流：",
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "获取 4 到 6 张随机图像，排序并转换为代码，合并字节块，并混入鼠标与键盘熵，锻造出 128+ 字符的主密钥。"
 }

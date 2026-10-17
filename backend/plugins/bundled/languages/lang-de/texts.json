@@ -3098,5 +3098,14 @@
   "✓ configured": "✓ eingerichtet",
   "✓ max": "✓ max.",
   "💡 Timer applies to local accounts from their creation timestamp. Once the timer elapses, users must enroll before accessing their dashboard.": "💡 Die Frist gilt für lokale Konten ab ihrem Erstellungszeitpunkt. Ist sie abgelaufen, müssen sich Benutzer einschreiben, bevor sie auf ihr Dashboard kommen.",
-  "🔒 field enc": "🔒 Feldverschl."
+  "🔒 field enc": "🔒 Feldverschl.",
+  "Combined Images + Movement": "Kombinierte Bilder + Bewegung",
+  "Mouse & Keyboard Only": "Nur Maus & Tastatur",
+  "5. Add mouse movement & typing randomness…": "5. Maus bewegen oder tippen für zusätzliche Zufälligkeit…",
+  "6. Shuffling & mixing into key…": "6. Mischen und Verknüpfen zum Schlüssel…",
+  "7. 128-character master key ready!": "7. 128+-Zeichen-Hauptschlüssel bereit!",
+  "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "Bilder zusammengeführt! Bewegen Sie die Maus im Feld oder tippen Sie, um zusätzliche Zufälligkeit einzubringen:",
+  "Mix Now & Synthesize Key": "Jetzt mischen & Schlüssel erzeugen",
+  "Live Mixed Entropy Stream:": "Live-gemischter Entropie-Datenstrom:",
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Laden Sie 4 bis 6 zufällige Bilder, sortieren Sie sie, wandeln Sie Pixel in Code um, führen Sie Byte-Blöcke zusammen und mischen Sie Maus- & Tastaturentropie ein, um einen 128+-Zeichen-Hauptschlüssel zu schmieden."
 }

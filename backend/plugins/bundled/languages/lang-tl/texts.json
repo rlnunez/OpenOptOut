@@ -3098,5 +3098,14 @@
   "✓ configured": "✓ naka-configure",
   "✓ max": "✓ max",
   "💡 Timer applies to local accounts from their creation timestamp. Once the timer elapses, users must enroll before accessing their dashboard.": "💡 Nagsisimula ang timer ng mga lokal na account mula nang gawin sila. Kapag naubos na, kailangang mag-enroll ng mga user bago makapasok sa dashboard nila.",
-  "🔒 field enc": "🔒 field enc"
+  "🔒 field enc": "🔒 field enc",
+  "Combined Images + Movement": "Pinagsamang Larawan at Paggalaw",
+  "Mouse & Keyboard Only": "Mouse at Keyboard Lamang",
+  "5. Add mouse movement & typing randomness…": "5. Igalaw ang mouse o mag-type para magdagdag ng randomness…",
+  "6. Shuffling & mixing into key…": "6. Paghalo at paghahalo sa key…",
+  "7. 128-character master key ready!": "7. Handa na ang 128-character na master key!",
+  "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "Pinagsama ang mga larawan! Igalaw ang mouse sa loob ng kahon o mag-type para magdagdag ng karagdagang pisikal na randomness:",
+  "Mix Now & Synthesize Key": "Pagsamahin Ngayon at Gawin ang Key",
+  "Live Mixed Entropy Stream:": "Live Mixed Entropy Stream:",
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Kumuha ng 4 hanggang 6 na random na imahe, ayusin ang mga ito, i-convert ang mga pixel sa code, pagsamahin ang mga byte chunk, at ihalo ang entropy ng mouse at keyboard upang makagawa ng 128+ character na master key."
 }

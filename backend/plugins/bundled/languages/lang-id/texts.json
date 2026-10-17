@@ -3096,5 +3096,15 @@
   "✓ configured": "✓ configured",
   "✓ max": "✓ max",
   "💡 Timer applies to local accounts from their creation timestamp. Once the timer elapses, users must enroll before accessing their dashboard.": "💡 Timer applies to local accounts from their creation timestamp. Once the timer elapses, users must enroll before accessing their Dasbor.",
-  "🔒 field enc": "🔒 field enc"
+  "🔒 field enc": "🔒 field enc",
+  "Combined Images + Movement": "Kombinasi Gambar + Gerakan",
+  "Mouse & Keyboard Only": "Hanya Mouse & Keyboard",
+  "5. Add mouse movement & typing randomness…": "5. Gerakkan mouse atau ketik untuk menambah keacakan manusiawi…",
+  "6. Shuffling & mixing into key…": "6. Mengacak & mencampur ke dalam kunci…",
+  "7. 128-character master key ready!": "7. Kunci master 128-karakter siap!",
+  "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "Gambar digabungkan! Gerakkan mouse di dalam kotak atau ketik tombol acak untuk menyuntikkan keacakan fisik tambahan:",
+  "Mix Now & Synthesize Key": "Campur Sekarang & Sintesis Kunci",
+  "Live Mixed Entropy Stream:": "Aliran Entropi Campuran Langsung:",
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ karakter master key.": "Tarik 4 hingga 6 gambar acak, urutkan, ubah piksel menjadi kode, gabungkan potongan byte, dan campurkan entropi mouse & keyboard untuk membuat kunci master 128+ karakter.",
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Tarik 4 hingga 6 gambar acak, urutkan, ubah piksel menjadi kode, gabungkan potongan byte, dan campurkan entropi mouse & keyboard untuk membuat kunci master 128+ karakter."
 }

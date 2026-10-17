@@ -3098,5 +3098,14 @@
   "✓ configured": "✓ مُعدّ",
   "✓ max": "✓ الحد الأقصى",
   "💡 Timer applies to local accounts from their creation timestamp. Once the timer elapses, users must enroll before accessing their dashboard.": "💡 تُحتسب المهلة للحسابات المحلية من وقت إنشائها. عند انقضائها، يجب على المستخدمين التسجيل قبل الوصول إلى لوحتهم.",
-  "🔒 field enc": "🔒 تشفير الحقول"
+  "🔒 field enc": "🔒 تشفير الحقول",
+  "Combined Images + Movement": "الصور وحركة المؤشر معاً",
+  "Mouse & Keyboard Only": "الفأرة ولوحة المفاتيح فقط",
+  "5. Add mouse movement & typing randomness…": "5. حرّك الفأرة أو اكتب لإضافة عشوائية بشرية…",
+  "6. Shuffling & mixing into key…": "6. خلط ومزج البيانات في المفتاح…",
+  "7. 128-character master key ready!": "7. المفتاح الرئيسي جاهز (128+ حرفاً)!",
+  "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "تم دمج الصور! حرّك الفأرة داخل المربع أو اكتب مفاتيح عشوائية لإضافة عشوائية بشرية إضافية:",
+  "Mix Now & Synthesize Key": "مزج الآن وتوليد المفتاح",
+  "Live Mixed Entropy Stream:": "مجرى الإنتروبيا المختلط المباشر:",
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "اسحب من 4 إلى 6 صور عشوائية، ورتّبها، وحوّل البكسلات إلى شفرة، وادمج الأجزاء، ثم اخلط عشوائية الفأرة ولوحة المفاتيح لتوليد مفتاح رئيسي من 128+ حرفاً."
 }

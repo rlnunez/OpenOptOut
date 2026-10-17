@@ -3098,5 +3098,14 @@
   "✓ configured": "✓ सेट है",
   "✓ max": "✓ अधिकतम",
   "💡 Timer applies to local accounts from their creation timestamp. Once the timer elapses, users must enroll before accessing their dashboard.": "💡 स्थानीय खातों पर समय-सीमा उनके बनने के समय से लागू होती है। समय बीतने पर उपयोगकर्ताओं को डैशबोर्ड खोलने से पहले नामांकन करना होगा।",
-  "🔒 field enc": "🔒 फ़ील्ड एन्क्रिप्शन"
+  "🔒 field enc": "🔒 फ़ील्ड एन्क्रिप्शन",
+  "Combined Images + Movement": "संयुक्त छवियां + हलचल",
+  "Mouse & Keyboard Only": "केवल माउस और कीबोर्ड",
+  "5. Add mouse movement & typing randomness…": "5. मानवीय यादृच्छिकता जोड़ने के लिए माउस हिलाएं या टाइप करें…",
+  "6. Shuffling & mixing into key…": "6. कुंजी में फेरबदल और मिश्रण…",
+  "7. 128-character master key ready!": "7. 128-वर्ण की मास्टर कुंजी तैयार!",
+  "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "छवियां संयोजित! अतिरिक्त भौतिक यादृच्छिकता जोड़ने के लिए बॉक्स के अंदर माउस हिलाएं या यादृच्छिक कुंजियां टाइप करें:",
+  "Mix Now & Synthesize Key": "अभी मिलाएं और कुंजी बनाएं",
+  "Live Mixed Entropy Stream:": "लाइव मिश्रित एंट्रॉपी स्ट्रीम:",
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "4 से 6 यादृच्छिक छवियां लें, उन्हें क्रमबद्ध करें, पिक्सेल को कोड में बदलें, बाइट विखंडों को मिलाएं और 128+ वर्णों की मास्टर कुंजी बनाने के लिए माउस और कीबोर्ड एंट्रॉपी मिलाएं।"
 }

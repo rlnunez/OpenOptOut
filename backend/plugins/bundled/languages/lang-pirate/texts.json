@@ -3098,5 +3098,14 @@
   "✓ configured": "✓ rigged",
   "✓ max": "✓ max",
   "💡 Timer applies to local accounts from their creation timestamp. Once the timer elapses, users must enroll before accessing their dashboard.": "💡 The timer applies to local accounts from when they were made. Once it runs out, users must enroll afore boardin' their dashboard.",
-  "🔒 field enc": "🔒 field enc"
+  "🔒 field enc": "🔒 field enc",
+  "Combined Images + Movement": "Combined Pictures & Cannon-Movements",
+  "Mouse & Keyboard Only": "Mouse & Keys Only, Matey",
+  "5. Add mouse movement & typing randomness…": "5. Swiggle yer hook or tap keys for true pirate chaos…",
+  "6. Shuffling & mixing into key…": "6. Shufflin' & brewin' into the master key…",
+  "7. 128-character master key ready!": "7. 128-character pirate master key ready to lock the chest!",
+  "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "Pictures brewed! Move yer hook inside the box or smash keys to inject pure deckhand chaos:",
+  "Mix Now & Synthesize Key": "Brew Now & Forge Key",
+  "Live Mixed Entropy Stream:": "Live Mixed Chaos Stream:",
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Haul 4 to 6 random pictures, sort 'em, turn pixels into code, merge byte chunks, and stir in mouse & keyboard chaos to forge a 128+ character master key."
 }

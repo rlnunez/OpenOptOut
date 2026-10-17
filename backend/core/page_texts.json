@@ -363,15 +363,15 @@
    ]
   },
   {
-   "text": "5. Restart the container",
+   "text": "5. Add mouse movement & typing randomness…",
    "where": [
-    "pages/Settings.jsx"
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
-   "text": "5. Shuffling & mixing into key…",
+   "text": "5. Restart the container",
    "where": [
-    "components/SecretKeyBanner.jsx"
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -387,7 +387,7 @@
    ]
   },
   {
-   "text": "6. 128-character master key ready!",
+   "text": "6. Shuffling & mixing into key…",
    "where": [
     "components/SecretKeyBanner.jsx"
    ]
@@ -402,6 +402,12 @@
    "text": "7 days",
    "where": [
     "pages/Scheduled.jsx"
+   ]
+  },
+  {
+   "text": "7. 128-character master key ready!",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -3124,12 +3130,6 @@
    ]
   },
   {
-   "text": "Click \"Generate Key from Images\" to pull 4 to 6 random images, sort them at random, convert their pixels into code, merge random byte chunks, shuffle them, and crystallize a 128-character master key.",
-   "where": [
-    "components/SecretKeyBanner.jsx"
-   ]
-  },
-  {
    "text": "Click below, then touch your YubiKey, use Mac Touch ID, or scan the on-screen QR code with your iPhone (Face ID) or Android phone.",
    "where": [
     "pages/Login.jsx"
@@ -3319,6 +3319,12 @@
    "text": "Columns:",
    "where": [
     "pages/DatabaseAdmin.jsx"
+   ]
+  },
+  {
+   "text": "Combined Images + Movement",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -7693,7 +7699,7 @@
    ]
   },
   {
-   "text": "Image Chaos Mixer (Lava Lamp Style)",
+   "text": "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:",
    "where": [
     "components/SecretKeyBanner.jsx"
    ]
@@ -8662,6 +8668,12 @@
    ]
   },
   {
+   "text": "Live Mixed Entropy Stream:",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Load: {load_avg_1m} / {load_avg_5m}",
    "where": [
     "pages/WorkerFleet.jsx"
@@ -9338,6 +9350,12 @@
    ]
   },
   {
+   "text": "Mix Now & Synthesize Key",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Mixed results",
    "where": [
     "components/Badge.jsx"
@@ -9430,7 +9448,7 @@
    ]
   },
   {
-   "text": "Mouse & Keyboard Entropy",
+   "text": "Mouse & Keyboard Only",
    "where": [
     "components/SecretKeyBanner.jsx"
    ]
@@ -12155,6 +12173,12 @@
    "text": "Published:",
    "where": [
     "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
