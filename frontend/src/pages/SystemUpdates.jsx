@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   RefreshCw, ArrowUpCircle, AlertTriangle, CheckCircle2,
-  Server, Clock, Settings2, ExternalLink, ShieldCheck, EyeOff, Eye
+  Server, Clock, Settings2, ExternalLink, ShieldCheck, EyeOff, Eye, RotateCcw
 } from 'lucide-react'
 import api from '../api'
 import { tx } from '../i18n/tx'
@@ -16,6 +16,7 @@ export default function SystemUpdates() {
   const [channel, setChannel] = useState('stable')
   const [message, setMessage] = useState(null)
   const [applying, setApplying] = useState(false)
+  const [rollingBack, setRollingBack] = useState(false)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -116,6 +117,24 @@ export default function SystemUpdates() {
     }
   }
 
+  const handleRollback = async () => {
+    const prev = data?.rollback_info?.previous_version || tx("the previous version")
+    if (!window.confirm(tx("Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.", { version: prev }))) {
+      return
+    }
+    setRollingBack(true)
+    setMessage(null)
+    try {
+      const res = await api.post('/system/updates/rollback')
+      setData(prevData => ({ ...prevData, state: res.data.state }))
+      setMessage({ type: 'info', text: tx("Rollback initiated. Restoring previous containers.") })
+    } catch (e) {
+      setMessage({ type: 'error', text: e.response?.data?.detail || tx("Failed to initiate rollback.") })
+    } finally {
+      setRollingBack(false)
+    }
+  }
+
   if (loading && !data) {
     return (
       <div className="p-6 max-w-5xl">
@@ -194,6 +213,26 @@ export default function SystemUpdates() {
           <div className="text-sm">
             <span className="font-semibold">{tx("Applying update:")} </span>
             <span>{data.state_message || tx("Pulling containers and applying update...")}</span>
+          </div>
+        </div>
+      )}
+
+      {data?.state === 'reverting' && (
+        <div className="p-4 rounded-lg bg-amber-950/40 border border-amber-800 text-amber-200 flex items-center gap-3">
+          <RefreshCw size={18} className="animate-spin text-amber-400" />
+          <div className="text-sm">
+            <span className="font-semibold">{tx("Reverting update:")} </span>
+            <span>{data.state_message || tx("Reverting to previous release and verifying application health...")}</span>
+          </div>
+        </div>
+      )}
+
+      {data?.state === 'reverted' && (
+        <div className="p-4 rounded-lg bg-amber-950/40 border border-amber-800 text-amber-200 flex items-center gap-3">
+          <AlertTriangle size={18} className="text-amber-400" />
+          <div className="text-sm">
+            <span className="font-semibold">{tx("Update reverted:")} </span>
+            <span>{data.state_message || tx("The update was automatically reverted to the previous release.")}</span>
           </div>
         </div>
       )}
@@ -313,6 +352,29 @@ export default function SystemUpdates() {
           >
             <Eye size={14} />
             {tx("Unignore release")}
+          </button>
+        </div>
+      )}
+
+      {/* Previous Version Snapshot / Rollback Card */}
+      {data?.can_rollback && data?.rollback_info && (
+        <div className="p-4 rounded-lg bg-slate-900 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+              <RotateCcw size={16} className="text-amber-400" />
+              {tx("Previous version snapshot")}
+            </p>
+            <p className="text-xs text-slate-400">
+              {tx("Safety snapshot available for {version}. You can revert if you encounter issues.", { version: data.rollback_info.previous_version })}
+            </p>
+          </div>
+          <button
+            onClick={handleRollback}
+            disabled={rollingBack || data?.state === 'draining' || data?.state === 'updating' || data?.state === 'reverting'}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-900/30 hover:bg-amber-900/50 text-amber-200 text-xs font-medium border border-amber-800/60 transition-colors disabled:opacity-50"
+          >
+            <RotateCcw size={14} className={rollingBack ? 'animate-spin' : ''} />
+            {tx("Revert to {version}", { version: data.rollback_info.previous_version })}
           </button>
         </div>
       )}

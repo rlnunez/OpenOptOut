@@ -3107,5 +3107,16 @@
   "Live Mixed Entropy Stream:": "Aliran Entropi Campuran Langsung:",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ karakter master key.": "Tarik 4 hingga 6 gambar acak, urutkan, ubah piksel menjadi kode, gabungkan potongan byte, dan campurkan entropi mouse & keyboard untuk membuat kunci master 128+ karakter.",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Tarik 4 hingga 6 gambar acak, urutkan, ubah piksel menjadi kode, gabungkan potongan byte, dan campurkan entropi mouse & keyboard untuk membuat kunci master 128+ karakter.",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Tarik 8 hingga 12 gambar acak, urutkan, ubah piksel menjadi kode, gabungkan potongan byte, dan campurkan entropi mouse & keyboard untuk membuat kunci master 128+ karakter."
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Tarik 8 hingga 12 gambar acak, urutkan, ubah piksel menjadi kode, gabungkan potongan byte, dan campurkan entropi mouse & keyboard untuk membuat kunci master 128+ karakter.",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "Apakah Anda yakin ingin kembali ke {version}? Penghapusan aktif akan dijeda dan kontainer sebelumnya dipulihkan.",
+  "Failed to initiate rollback.": "Gagal memulai rollback.",
+  "Previous version snapshot": "Snapshot versi sebelumnya",
+  "Revert to {version}": "Kembalikan ke {version}",
+  "Reverting to previous release and verifying application health...": "Mengembalikan ke rilis sebelumnya dan memverifikasi kesehatan aplikasi...",
+  "Reverting update:": "Mengembalikan pembaruan:",
+  "Rollback initiated. Restoring previous containers.": "Rollback dimulai. Memulihkan kontainer sebelumnya.",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "Snapshot keamanan tersedia untuk {version}. Anda dapat kembali jika menemui masalah.",
+  "the previous version": "versi sebelumnya",
+  "The update was automatically reverted to the previous release.": "Pembaruan otomatis dikembalikan ke rilis sebelumnya.",
+  "Update reverted:": "Pembaruan dikembalikan:"
 }

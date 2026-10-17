@@ -3106,5 +3106,16 @@
   "Mix Now & Synthesize Key": "ابھی مکس کریں اور کلید تیار کریں",
   "Live Mixed Entropy Stream:": "براہ راست مخلوط اینٹروپی سلسلہ:",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "4 سے 6 بے ترتیب تصاویر حاصل کریں، انہیں ترتیب دیں، پکسلز کو کوڈ میں تبدیل کریں، بائٹ ٹکڑوں کو یکجا کریں، اور 128+ حروف پر مشتمل ماسٹر کی بنانے کے لیے ماؤس اور کی بورڈ کی اینٹروپی مکس کریں۔",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "8 سے 12 بے ترتیب تصاویر حاصل کریں، انہیں ترتیب دیں، پکسلز کو کوڈ میں تبدیل کریں، بائٹ ٹکڑوں کو یکجا کریں، اور 128+ حروف پر مشتمل ماسٹر کی بنانے کے لیے ماؤس اور کی بورڈ کی اینٹروپی مکس کریں۔"
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "8 سے 12 بے ترتیب تصاویر حاصل کریں، انہیں ترتیب دیں، پکسلز کو کوڈ میں تبدیل کریں، بائٹ ٹکڑوں کو یکجا کریں، اور 128+ حروف پر مشتمل ماسٹر کی بنانے کے لیے ماؤس اور کی بورڈ کی اینٹروپی مکس کریں۔",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "کیا آپ واقعی {version} پر واپس جانا چاہتے ہیں؟ فعال اخراج معطل ہو جائیں گے اور پچھلے کنٹینرز بحال ہو جائیں گے۔",
+  "Failed to initiate rollback.": "رول بیک شروع کرنے میں ناکامی۔",
+  "Previous version snapshot": "پچھلے ورژن کا اسنیپ شاٹ",
+  "Revert to {version}": "{version} پر واپس جائیں",
+  "Reverting to previous release and verifying application health...": "پچھلے ریلیز پر واپس جا رہے ہیں اور ایپلیکیشن کی صحت کی تصدیق کر رہے ہیں...",
+  "Reverting update:": "اپ ڈیٹ واپس کیا جا رہا ہے:",
+  "Rollback initiated. Restoring previous containers.": "رول بیک شروع کر دیا گیا۔ پچھلے کنٹینرز بحال ہو رہے ہیں۔",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "{version} کے لیے حفاظتی اسنیپ شاٹ دستیاب ہے۔ مسائل کی صورت میں آپ واپس جا سکتے ہیں۔",
+  "the previous version": "پچھلا ورژن",
+  "The update was automatically reverted to the previous release.": "اپ ڈیٹ خودکار طور پر پچھلے ریلیز پر واپس کر دیا گیا تھا۔",
+  "Update reverted:": "اپ ڈیٹ واپس کر دیا گیا:"
 }

@@ -1876,6 +1876,12 @@
    ]
   },
   {
+   "text": "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Ask again automatically",
    "where": [
     "pages/Settings.jsx"
@@ -6388,6 +6394,12 @@
   },
   {
    "text": "Failed to ignore release.",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Failed to initiate rollback.",
    "where": [
     "pages/SystemUpdates.jsx"
    ]
@@ -11976,6 +11988,12 @@
    ]
   },
   {
+   "text": "Previous version snapshot",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Primary color",
    "where": [
     "pages/Branding.jsx",
@@ -13087,6 +13105,24 @@
    ]
   },
   {
+   "text": "Revert to {version}",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Reverting to previous release and verifying application health...",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Reverting update:",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Review",
    "where": [
     "pages/Checklist.jsx"
@@ -13138,6 +13174,12 @@
    "text": "Role for new users",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Rollback initiated. Restoring previous containers.",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -13266,6 +13308,12 @@
    "text": "Runtime monitor",
    "where": [
     "pages/Plugins.jsx"
+   ]
+  },
+  {
+   "text": "Safety snapshot available for {version}. You can revert if you encounter issues.",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -15802,6 +15850,12 @@
    ]
   },
   {
+   "text": "the previous version",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "the provider console",
    "where": [
     "pages/SetupWizard.jsx"
@@ -15926,6 +15980,12 @@
    "where": [
     "pages/Login.jsx",
     "pages/Signup.jsx"
+   ]
+  },
+  {
+   "text": "The update was automatically reverted to the previous release.",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -16828,6 +16888,12 @@
   },
   {
    "text": "Update policy saved.",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Update reverted:",
    "where": [
     "pages/SystemUpdates.jsx"
    ]

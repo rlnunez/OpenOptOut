@@ -3108,5 +3108,16 @@
   "Mix Now & Synthesize Key": "지금 믹싱하고 키 생성",
   "Live Mixed Entropy Stream:": "실시간 혼합 엔트로피 스트림:",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "4~6개의 무작위 이미지를 가져와 정렬하고, 픽셀을 코드로 변환하고, 바이트 청크를 병합한 후 마우스 및 키보드 엔트로피를 혼합하여 128자 이상의 마스터 키를 생성합니다.",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "8~12개의 무작위 이미지를 가져와 정렬하고, 픽셀을 코드로 변환하고, 바이트 청크를 병합한 후 마우스 및 키보드 엔트로피를 혼합하여 128자 이상의 마스터 키를 생성합니다."
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "8~12개의 무작위 이미지를 가져와 정렬하고, 픽셀을 코드로 변환하고, 바이트 청크를 병합한 후 마우스 및 키보드 엔트로피를 혼합하여 128자 이상의 마스터 키를 생성합니다.",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "{version}(으)로 롤백하시겠습니까? 진행 중인 삭제 작업이 일시 중지되고 이전 컨테이너가 복원됩니다.",
+  "Failed to initiate rollback.": "롤백을 시작하지 못했습니다.",
+  "Previous version snapshot": "이전 버전 스냅샷",
+  "Revert to {version}": "{version}(으)로 롤백",
+  "Reverting to previous release and verifying application health...": "이전 릴리스로 롤백하고 애플리케이션 상태를 확인하는 중...",
+  "Reverting update:": "업데이트 롤백 중:",
+  "Rollback initiated. Restoring previous containers.": "롤백이 시작되었습니다. 이전 컨테이너를 복원하는 중입니다.",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "{version}에 대한 안전 스냅샷을 사용할 수 있습니다. 문제가 발생하면 롤백할 수 있습니다.",
+  "the previous version": "이전 버전",
+  "The update was automatically reverted to the previous release.": "업데이트가 이전 릴리스로 자동 롤백되었습니다.",
+  "Update reverted:": "업데이트 롤백됨:"
 }

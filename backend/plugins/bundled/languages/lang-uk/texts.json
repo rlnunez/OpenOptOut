@@ -3106,5 +3106,16 @@
   "Mix Now & Synthesize Key": "Змішати зараз та створити ключ",
   "Live Mixed Entropy Stream:": "Потік змішаної ентропії в реальному часі:",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Отримайте від 4 до 6 випадкових зображень, відсортуйте їх, перетворіть пікселі на код, об'єднайте фрагменти байтів та змішайте з ентропією миші та клавіатури для створення головного ключа з 128+ символів.",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Отримайте від 8 до 12 випадкових зображень, відсортуйте їх, перетворіть пікселі на код, об'єднайте фрагменти байтів та змішайте з ентропією миші та клавіатури для створення головного ключа з 128+ символів."
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Отримайте від 8 до 12 випадкових зображень, відсортуйте їх, перетворіть пікселі на код, об'єднайте фрагменти байтів та змішайте з ентропією миші та клавіатури для створення головного ключа з 128+ символів.",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "Ви впевнені, що хочете повернутися до {version}? Активні видалення буде призупинено, а попередні контейнери відновлено.",
+  "Failed to initiate rollback.": "Не вдалося розпочати відкат.",
+  "Previous version snapshot": "Знімок попередньої версії",
+  "Revert to {version}": "Повернутися до {version}",
+  "Reverting to previous release and verifying application health...": "Повернення до попереднього випуску та перевірка працездатності програми...",
+  "Reverting update:": "Відкат оновлення:",
+  "Rollback initiated. Restoring previous containers.": "Відкат розпочато. Відновлення попередніх контейнерів.",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "Доступний знімок безпеки для {version}. Ви можете відкотити зміни у разі виникнення проблем.",
+  "the previous version": "попередня версія",
+  "The update was automatically reverted to the previous release.": "Оновлення було автоматично відкочено до попереднього випуску.",
+  "Update reverted:": "Оновлення відкочено:"
 }

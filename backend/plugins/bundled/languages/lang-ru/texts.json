@@ -3108,5 +3108,16 @@
   "Mix Now & Synthesize Key": "Смешать сейчас и создать ключ",
   "Live Mixed Entropy Stream:": "Поток смешанной энтропии в реальном времени:",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Загрузите от 4 до 6 случайных изображений, отсортируйте их, преобразуйте пиксели в код, объедините байтовые фрагменты и смешайте с энтропией мыши и клавиатуры для создания мастер-ключа из 128+ символов.",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Загрузите от 8 до 12 случайных изображений, отсортируйте их, преобразуйте пиксели в код, объедините байтовые фрагменты и смешайте с энтропией мыши и клавиатуры для создания мастер-ключа из 128+ символов."
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Загрузите от 8 до 12 случайных изображений, отсортируйте их, преобразуйте пиксели в код, объедините байтовые фрагменты и смешайте с энтропией мыши и клавиатуры для создания мастер-ключа из 128+ символов.",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "Вы уверены, что хотите откатиться к {version}? Активные удаления будут приостановлены, а предыдущие контейнеры восстановлены.",
+  "Failed to initiate rollback.": "Не удалось запустить откат.",
+  "Previous version snapshot": "Снимок предыдущей версии",
+  "Revert to {version}": "Откатить к {version}",
+  "Reverting to previous release and verifying application health...": "Выполняется откат к предыдущей версии и проверка работоспособности...",
+  "Reverting update:": "Откат обновления:",
+  "Rollback initiated. Restoring previous containers.": "Откат запущен. Восстановление предыдущих контейнеров.",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "Доступен резервный снимок для {version}. Вы можете откатиться при возникновении неполадок.",
+  "the previous version": "предыдущая версия",
+  "The update was automatically reverted to the previous release.": "Обновление было автоматически откатано к предыдущей версии.",
+  "Update reverted:": "Обновление откатано:"
 }

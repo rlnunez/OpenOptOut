@@ -3106,5 +3106,16 @@
   "Mix Now & Synthesize Key": "Mezclar ahora y sintetizar clave",
   "Live Mixed Entropy Stream:": "Flujo de entropía mixta en vivo:",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Obtén de 4 a 6 imágenes aleatorias, ordénalas, convierte los píxeles en código, combina fragmentos de bytes y mezcla entropía de ratón y teclado para forjar una clave maestra de 128+ caracteres.",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Obtén de 8 a 12 imágenes aleatorias, ordénalas, convierte los píxeles en código, combina fragmentos de bytes y mezcla entropía de ratón y teclado para forjar una clave maestra de 128+ caracteres."
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Obtén de 8 a 12 imágenes aleatorias, ordénalas, convierte los píxeles en código, combina fragmentos de bytes y mezcla entropía de ratón y teclado para forjar una clave maestra de 128+ caracteres.",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "¿Está seguro de que desea volver a {version}? Se pausarán las eliminaciones activas y se restaurarán los contenedores anteriores.",
+  "Failed to initiate rollback.": "Error al iniciar la reversión.",
+  "Previous version snapshot": "Instantánea de versión anterior",
+  "Revert to {version}": "Revertir a {version}",
+  "Reverting to previous release and verifying application health...": "Revirtiendo a la versión anterior y verificando el estado de la aplicación...",
+  "Reverting update:": "Revirtiendo actualización:",
+  "Rollback initiated. Restoring previous containers.": "Reversión iniciada. Restaurando contenedores anteriores.",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "Instantánea de seguridad disponible para {version}. Puede revertir si encuentra problemas.",
+  "the previous version": "la versión anterior",
+  "The update was automatically reverted to the previous release.": "La actualización se revirtió automáticamente a la versión anterior.",
+  "Update reverted:": "Actualización revertida:"
 }

@@ -1208,6 +1208,8 @@ plugins/
   - `ignore_release` (skip specific release tag)
   - `ignore_all` (suppress all automated update workflows)
 - **Removal Job Mutual Exclusion:** Actively queries the OpenOptOut API/database prior to triggering container recreation, deferring updates if automated opt-out removals or verifications are actively running to prevent mid-flow job interruption.
+- **Pre-Flight Snapshot & Automated Revert:** Tags running container images (`openoptout-rollback:api`, `openoptout-rollback:web`) and snapshots SQLite databases (`privacy_pipeline.db`) and settings before container recreation. If container recreation or post-update health verification fails within 90 seconds, the updater automatically reverts images, restores snapshots, restarts previous containers, and verifies application health.
+- **Manual Rollback:** Super administrators can initiate an on-demand rollback from the UI or API (`POST /api/system/updates/rollback`) to revert to the previous release snapshot if production issues arise.
 - **Docker Engine Health & Version Checks:** Inspects the host Docker daemon version, alerting administrators when the host engine is outdated or reaching end-of-life.
 - **Supply Chain Security:** Pins base image dependencies by cryptographic digest (`@sha256`) and runs with drop-capabilities and read-only root filesystems where possible.
 

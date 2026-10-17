@@ -100,3 +100,17 @@ def apply_update(body: ApplyIn, _: User = Depends(require_super_admin)):
         log.error("Failed to initiate system update: %s", e)
         raise HTTPException(500, "Failed to initiate update. Please check system logs.")
 
+
+@router.post("/rollback")
+def rollback_update(_: User = Depends(require_super_admin)):
+    """Initiate a rollback to the previous version using the pre-update safety snapshot."""
+    try:
+        return updater.request_system_rollback()
+    except ValueError as e:
+        log.warning("Rollback request rejected: %s", e)
+        raise HTTPException(400, "No previous version safety snapshot is available to restore.")
+    except Exception as e:
+        log.error("Failed to initiate system rollback: %s", e)
+        raise HTTPException(500, "Failed to initiate rollback. Please check system logs.")
+
+

@@ -3108,5 +3108,16 @@
   "Mix Now & Synthesize Key": "Jetzt mischen & Schlüssel erzeugen",
   "Live Mixed Entropy Stream:": "Live-gemischter Entropie-Datenstrom:",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Laden Sie 4 bis 6 zufällige Bilder, sortieren Sie sie, wandeln Sie Pixel in Code um, führen Sie Byte-Blöcke zusammen und mischen Sie Maus- & Tastaturentropie ein, um einen 128+-Zeichen-Hauptschlüssel zu schmieden.",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Laden Sie 8 bis 12 zufällige Bilder, sortieren Sie sie, wandeln Sie Pixel in Code um, führen Sie Byte-Blöcke zusammen und mischen Sie Maus- & Tastaturentropie ein, um einen 128+-Zeichen-Hauptschlüssel zu schmieden."
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Laden Sie 8 bis 12 zufällige Bilder, sortieren Sie sie, wandeln Sie Pixel in Code um, führen Sie Byte-Blöcke zusammen und mischen Sie Maus- & Tastaturentropie ein, um einen 128+-Zeichen-Hauptschlüssel zu schmieden.",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "Möchten Sie wirklich auf {version} zurücksetzen? Aktive Löschvorgänge werden pausiert und vorherige Container wiederhergestellt.",
+  "Failed to initiate rollback.": "Rollback konnte nicht initiiert werden.",
+  "Previous version snapshot": "Snapshot der vorherigen Version",
+  "Revert to {version}": "Auf {version} zurücksetzen",
+  "Reverting to previous release and verifying application health...": "Wird auf vorherige Version zurückgesetzt und Anwendungszustand überprüft...",
+  "Reverting update:": "Update wird zurückgesetzt:",
+  "Rollback initiated. Restoring previous containers.": "Rollback initiiert. Vorherige Container werden wiederhergestellt.",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "Sicherheits-Snapshot für {version} verfügbar. Sie können zurücksetzen, falls Probleme auftreten.",
+  "the previous version": "die vorherige Version",
+  "The update was automatically reverted to the previous release.": "Das Update wurde automatisch auf die vorherige Version zurückgesetzt.",
+  "Update reverted:": "Update zurückgesetzt:"
 }

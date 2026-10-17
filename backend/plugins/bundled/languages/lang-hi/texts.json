@@ -3108,5 +3108,16 @@
   "Mix Now & Synthesize Key": "अभी मिलाएं और कुंजी बनाएं",
   "Live Mixed Entropy Stream:": "लाइव मिश्रित एंट्रॉपी स्ट्रीम:",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "4 से 6 यादृच्छिक छवियां लें, उन्हें क्रमबद्ध करें, पिक्सेल को कोड में बदलें, बाइट विखंडों को मिलाएं और 128+ वर्णों की मास्टर कुंजी बनाने के लिए माउस और कीबोर्ड एंट्रॉपी मिलाएं।",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "8 से 12 यादृच्छिक छवियां लें, उन्हें क्रमबद्ध करें, पिक्सेल को कोड में बदलें, बाइट विखंडों को मिलाएं और 128+ वर्णों की मास्टर कुंजी बनाने के लिए माउस और कीबोर्ड एंट्रॉपी मिलाएं।"
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "8 से 12 यादृच्छिक छवियां लें, उन्हें क्रमबद्ध करें, पिक्सेल को कोड में बदलें, बाइट विखंडों को मिलाएं और 128+ वर्णों की मास्टर कुंजी बनाने के लिए माउस और कीबोर्ड एंट्रॉपी मिलाएं।",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "क्या आप वाकई {version} पर वापस लौटना चाहते हैं? सक्रिय निष्कासन रोक दिए जाएंगे और पिछले कंटेनर पुनर्स्थापित किए जाएंगे।",
+  "Failed to initiate rollback.": "रोलबैक शुरू करने में विफल।",
+  "Previous version snapshot": "पिछले संस्करण का स्नैपशॉट",
+  "Revert to {version}": "{version} पर वापस लौटें",
+  "Reverting to previous release and verifying application health...": "पिछले संस्करण पर वापस जा रहे हैं और एप्लिकेशन स्थिति की पुष्टि कर रहे हैं...",
+  "Reverting update:": "अपडेट वापस लिया जा रहा है:",
+  "Rollback initiated. Restoring previous containers.": "रोलबैक शुरू किया गया। पिछले कंटेनर पुनर्स्थापित किए जा रहे हैं।",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "{version} के लिए सुरक्षा स्नैपशॉट उपलब्ध है। समस्या आने पर आप वापस लौट सकते हैं।",
+  "the previous version": "पिछला संस्करण",
+  "The update was automatically reverted to the previous release.": "अपडेट स्वचालित रूप से पिछले संस्करण पर वापस कर दिया गया था।",
+  "Update reverted:": "अपडेट वापस किया गया:"
 }

@@ -30,6 +30,7 @@ GITHUB_API_URL = "https://api.github.com/repos/rlnunez/OpenOptOut/releases"
 CACHE_TTL_SECONDS = 3600  # 1 hour
 UPDATE_REQUEST_FILE = os.getenv("UPDATE_REQUEST_FILE", "/data/update_request.json")
 UPDATE_STATUS_FILE = os.getenv("UPDATE_STATUS_FILE", "/data/update_status.json")
+UPDATE_ROLLBACK_FILE = os.getenv("UPDATE_ROLLBACK_FILE", "/data/update_rollback.json")
 
 DEFAULT_UPDATER_CONFIG = {
     "policy": "approval_required",  # approval_required, notify_only, auto_install, disabled
@@ -225,6 +226,21 @@ def check_for_updates(force: bool = False) -> Dict[str, Any]:
     is_newer = is_newer_version(latest_tag, current_ver)
     is_ignored = latest_tag in cfg.get("ignored_releases", [])
 
+    # Read live status from the updater container daemon if available
+    daemon_status = None
+    if os.path.isfile(UPDATE_STATUS_FILE):
+        try:
+            with open(UPDATE_STATUS_FILE, "r") as f:
+                daemon_status = json.load(f)
+        except Exception:
+            pass
+
+    live_state = daemon_status.get("state") if daemon_status else cfg.get("state", "idle")
+    live_msg = daemon_status.get("message") if daemon_status else cfg.get("state_message", "")
+
+    rollback_info = get_rollback_info()
+    can_rollback = bool(rollback_info and rollback_info.get("previous_version") and rollback_info.get("previous_version") != "unknown")
+
     return {
         "policy": cfg.get("policy", "approval_required"),
         "channel": cfg.get("channel", "stable"),
@@ -235,9 +251,30 @@ def check_for_updates(force: bool = False) -> Dict[str, Any]:
         "ignored_releases": cfg.get("ignored_releases", []),
         "last_checked": cfg.get("last_checked"),
         "docker_info": docker_info,
-        "state": cfg.get("state", "idle"),
-        "state_message": cfg.get("state_message", ""),
+        "can_rollback": can_rollback,
+        "rollback_info": rollback_info,
+        "state": live_state,
+        "state_message": live_msg,
     }
+
+
+def get_rollback_info() -> Optional[Dict[str, Any]]:
+    """Read pre-update safety snapshot metadata if available on /data."""
+    if not os.path.isfile(UPDATE_ROLLBACK_FILE):
+        return None
+    try:
+        with open(UPDATE_ROLLBACK_FILE, "r") as f:
+            data = json.load(f)
+        return {
+            "previous_version": data.get("previous_version"),
+            "target_version": data.get("target_version"),
+            "created_at": data.get("created_at"),
+            "has_db_snapshot": bool(data.get("snapshots", {}).get("db")),
+            "has_settings_snapshot": bool(data.get("snapshots", {}).get("settings")),
+        }
+    except Exception as e:
+        log.warning("Could not read rollback metadata: %s", e)
+        return None
 
 
 def request_system_update(target_tag: Optional[str] = None) -> Dict[str, Any]:
@@ -279,4 +316,47 @@ def request_system_update(target_tag: Optional[str] = None) -> Dict[str, Any]:
     save_updater_config(cfg)
 
     return {"status": "ok", "target_version": target, "state": "draining"}
+
+
+def request_system_rollback() -> Dict[str, Any]:
+    """
+    Queue a rollback request for the companion updater daemon:
+      1. Verifies a previous release safety snapshot is available.
+      2. Pauses scheduler.
+      3. Writes atomic rollback request envelope to /data/update_request.json.
+    """
+    rollback_info = get_rollback_info()
+    if not rollback_info or not rollback_info.get("previous_version"):
+        raise ValueError("No rollback snapshot or previous release version available to restore.")
+
+    target_ver = rollback_info["previous_version"]
+    current_ver = get_version()
+
+    # 1. Pause scheduler
+    try:
+        from .scheduler import pause_scheduler
+        pause_scheduler()
+    except Exception as e:
+        log.warning("Could not pause scheduler directly: %s", e)
+
+    # 2. Write request envelope for the updater container
+    payload = {
+        "action": "rollback",
+        "current_version": current_ver,
+        "target_version": target_ver,
+        "requested_at": datetime.now(timezone.utc).isoformat(),
+        "status": "pending_drain",
+    }
+
+    tmp_file = UPDATE_REQUEST_FILE + ".tmp"
+    with open(tmp_file, "w") as f:
+        json.dump(payload, f, indent=2)
+    os.replace(tmp_file, UPDATE_REQUEST_FILE)
+
+    cfg = get_updater_config()
+    cfg["state"] = "reverting"
+    cfg["state_message"] = f"Draining active broker removals before reverting to {target_ver}..."
+    save_updater_config(cfg)
+
+    return {"status": "ok", "target_version": target_ver, "state": "reverting"}
 

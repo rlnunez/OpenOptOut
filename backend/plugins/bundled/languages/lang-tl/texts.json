@@ -3108,5 +3108,16 @@
   "Mix Now & Synthesize Key": "Pagsamahin Ngayon at Gawin ang Key",
   "Live Mixed Entropy Stream:": "Live Mixed Entropy Stream:",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Kumuha ng 4 hanggang 6 na random na imahe, ayusin ang mga ito, i-convert ang mga pixel sa code, pagsamahin ang mga byte chunk, at ihalo ang entropy ng mouse at keyboard upang makagawa ng 128+ character na master key.",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Kumuha ng 8 hanggang 12 na random na imahe, ayusin ang mga ito, i-convert ang mga pixel sa code, pagsamahin ang mga byte chunk, at ihalo ang entropy ng mouse at keyboard upang makagawa ng 128+ character na master key."
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Kumuha ng 8 hanggang 12 na random na imahe, ayusin ang mga ito, i-convert ang mga pixel sa code, pagsamahin ang mga byte chunk, at ihalo ang entropy ng mouse at keyboard upang makagawa ng 128+ character na master key.",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "Sigurado ka bang nais mong bumalik sa {version}? Pansamantalang ititigil ang mga aktibong pag-alis at ibabalik ang mga nakaraang container.",
+  "Failed to initiate rollback.": "Nabigong simulan ang rollback.",
+  "Previous version snapshot": "Snapshot ng nakaraang bersyon",
+  "Revert to {version}": "Bumalik sa {version}",
+  "Reverting to previous release and verifying application health...": "Bumabalik sa nakaraang bersyon at sinusuri ang kalusugan ng application...",
+  "Reverting update:": "Ibinabalik ang update:",
+  "Rollback initiated. Restoring previous containers.": "Nagsimula ang rollback. Ibabalik ang mga nakaraang container.",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "May available na safety snapshot para sa {version}. Maaari kang bumalik kung may maging problema.",
+  "the previous version": "ang nakaraang bersyon",
+  "The update was automatically reverted to the previous release.": "Awtomatikong ibinalik ang update sa nakaraang bersyon.",
+  "Update reverted:": "Naibalik ang update:"
 }

@@ -69,10 +69,12 @@ The updater enforces a strict 4-step state machine:
    Suspends the automated opt-out scheduler and task queue, preventing new pending removal requests from being dispatched to workers.
 2. **Drain Active Workers:**
    Queries the distributed worker fleet (`GET /api/workers` and queue depth) and waits for in-flight browser sessions to finish cleanly (`in_flight_count == 0`). A configurable timeout (default: 5 minutes) ensures wedged workers do not stall updates indefinitely.
-3. **Pre-Flight Database Snapshot:**
-   Invokes OpenOptOut's snapshot backup engine (`core/backup.py`) to create a pre-update archive of the database and encryption keys before any schema migrations run.
-4. **Compose Upgrade & Health Verification:**
-   Executes `docker compose pull && docker compose up -d --remove-orphans api web`. The updater then polls `http://api:8000/api/health` until HTTP 200 is confirmed and the reported version matches the expected release. If health verification fails after 90 seconds, the updater logs an emergency notice and restores the previous image tags.
+3. **Pre-Flight Snapshot & Rollback Tagging:**
+   Inspects running containers (`openoptout-api`, `openoptout-web`) and tags current images (`openoptout-rollback:api`, `openoptout-rollback:web`). Copies the active database (`privacy_pipeline.db`, WAL and SHM files) and settings (`openoptout_settings.json`) to an isolated snapshot directory (`/data/snapshot_pre_update/`), and writes a rollback manifest (`/data/update_rollback.json`).
+4. **Compose Upgrade & Automated Rollback:**
+   Executes `docker compose pull api web && docker compose up -d --remove-orphans api web`. The updater polls `http://api:8000/api/health` until HTTP 200 is confirmed and the reported version matches the expected release.
+   - **Automated Rollback on Failure:** If container recreation fails or the API fails its health check within 90 seconds, the updater automatically initiates a rollback: it re-tags the previous image references, restores the database snapshot, restarts the previous containers, and verifies application health.
+   - **Manual Revert / Rollback:** Super administrators can also trigger an on-demand rollback at any time from **Admin → System updates** (`POST /api/system/updates/rollback`) to revert to the previous release snapshot if issues arise in production.
 
 ---
 

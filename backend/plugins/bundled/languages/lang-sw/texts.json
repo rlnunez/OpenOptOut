@@ -3106,5 +3106,16 @@
   "Mix Now & Synthesize Key": "Changanya Sasa na Unda Ufunguo",
   "Live Mixed Entropy Stream:": "Mtiririko wa Moja kwa Moja wa Entropi Iliyochanganywa:",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Chukua picha 4 hadi 6 za nasibu, zipange, geuza pikseli kuwa msimbo, unganisha vipande vya baiti, na changanya entropi ya kipanya na kibodi ili kuunda ufunguo mkuu wa herufi 128+.",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Chukua picha 8 hadi 12 za nasibu, zipange, geuza pikseli kuwa msimbo, unganisha vipande vya baiti, na changanya entropi ya kipanya na kibodi ili kuunda ufunguo mkuu wa herufi 128+."
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Chukua picha 8 hadi 12 za nasibu, zipange, geuza pikseli kuwa msimbo, unganisha vipande vya baiti, na changanya entropi ya kipanya na kibodi ili kuunda ufunguo mkuu wa herufi 128+.",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "Una uhakika unataka kurudi kwenye {version}? Uondoaji unaoendelea utasitishwa na makontena ya awali kurejeshwa.",
+  "Failed to initiate rollback.": "Imeshindwa kuanzisha urejeshaji nyuma.",
+  "Previous version snapshot": "Picha ya toleo lililopita",
+  "Revert to {version}": "Rudi kwenye {version}",
+  "Reverting to previous release and verifying application health...": "Inarudi kwenye toleo la awali na kuthibitisha hali ya programu...",
+  "Reverting update:": "Inarejesha sasisho nyuma:",
+  "Rollback initiated. Restoring previous containers.": "Urejeshaji nyuma umeanza. Inarejesha makontena ya awali.",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "Picha ya usalama inapatikana kwa {version}. Unaweza kurudi nyuma ukikumbana na hitilafu.",
+  "the previous version": "toleo lililopita",
+  "The update was automatically reverted to the previous release.": "Sasisho lilirejeshwa nyuma kiotomatiki hadi toleo la awali.",
+  "Update reverted:": "Sasisho limerejeshwa nyuma:"
 }

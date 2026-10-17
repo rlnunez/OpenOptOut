@@ -3108,5 +3108,16 @@
   "Mix Now & Synthesize Key": "Brew Now & Forge Key",
   "Live Mixed Entropy Stream:": "Live Mixed Chaos Stream:",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Haul 4 to 6 random pictures, sort 'em, turn pixels into code, merge byte chunks, and stir in mouse & keyboard chaos to forge a 128+ character master key.",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Haul 8 to 12 random pictures, sort 'em, turn pixels into code, merge byte chunks, and stir in mouse & keyboard chaos to forge a 128+ character master key."
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Haul 8 to 12 random pictures, sort 'em, turn pixels into code, merge byte chunks, and stir in mouse & keyboard chaos to forge a 128+ character master key.",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "Ye sure ye want to turn the helm back to {version}? Active strikes will halt and old ships be brought back.",
+  "Failed to initiate rollback.": "Could not turn the helm back.",
+  "Previous version snapshot": "Chart o' the previous vessel",
+  "Revert to {version}": "Fall back to {version}",
+  "Reverting to previous release and verifying application health...": "Turning back to the old rigging and checkin' the hull...",
+  "Reverting update:": "Abandonin' new plunder:",
+  "Rollback initiated. Restoring previous containers.": "Turning the ship about. Riggin' up the old fleet.",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "A safe chart o' {version} be aboard. Ye can fall back if squalls arise.",
+  "the previous version": "the old voyage",
+  "The update was automatically reverted to the previous release.": "The upgrade went overboard and we've retreated to the safe port.",
+  "Update reverted:": "Turned back:"
 }

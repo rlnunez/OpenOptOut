@@ -3106,5 +3106,16 @@
   "Mix Now & Synthesize Key": "Wymieszaj teraz i stwórz klucz",
   "Live Mixed Entropy Stream:": "Strumień połączonej entropii na żywo:",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Pobierz 4 do 6 losowych obrazów, posortuj je, przekonwertuj piksele na kod, połącz fragmenty bajtów i zmiksuj entropię myszy oraz klawiatury, aby stworzyć 128+ znakowy klucz główny.",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Pobierz 8 do 12 losowych obrazów, posortuj je, przekonwertuj piksele na kod, połącz fragmenty bajtów i zmiksuj entropię myszy oraz klawiatury, aby stworzyć 128+ znakowy klucz główny."
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Pobierz 8 do 12 losowych obrazów, posortuj je, przekonwertuj piksele na kod, połącz fragmenty bajtów i zmiksuj entropię myszy oraz klawiatury, aby stworzyć 128+ znakowy klucz główny.",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "Czy na pewno chcesz powrócić do wersji {version}? Aktywne usuwania zostaną wstrzymane, a poprzednie kontenery przywrócone.",
+  "Failed to initiate rollback.": "Nie udało się zainicjować wycofania.",
+  "Previous version snapshot": "Migawka poprzedniej wersji",
+  "Revert to {version}": "Przywróć {version}",
+  "Reverting to previous release and verifying application health...": "Przywracanie poprzedniej wersji i weryfikacja kondycji aplikacji...",
+  "Reverting update:": "Wycofywanie aktualizacji:",
+  "Rollback initiated. Restoring previous containers.": "Rozpoczęto wycofywanie. Przywracanie poprzednich kontenerów.",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "Dostępna migawka bezpieczeństwa dla {version}. Możesz wycofać zmiany w razie problemów.",
+  "the previous version": "poprzednia wersja",
+  "The update was automatically reverted to the previous release.": "Aktualizacja została automatycznie wycofana do poprzedniej wersji.",
+  "Update reverted:": "Aktualizacja wycofana:"
 }

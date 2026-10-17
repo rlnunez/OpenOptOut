@@ -3108,5 +3108,16 @@
   "Mix Now & Synthesize Key": "立即混合并合成密钥",
   "Live Mixed Entropy Stream:": "实时混合熵流：",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "获取 4 到 6 张随机图像，排序并转换为代码，合并字节块，并混入鼠标与键盘熵，锻造出 128+ 字符的主密钥。",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "获取 8 到 12 张随机图像，排序并转换为代码，合并字节块，并混入鼠标与键盘熵，锻造出 128+ 字符的主密钥。"
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "获取 8 到 12 张随机图像，排序并转换为代码，合并字节块，并混入鼠标与键盘熵，锻造出 128+ 字符的主密钥。",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "您确定要回滚到 {version} 吗？活动的移除任务将暂停并恢复以前的容器。",
+  "Failed to initiate rollback.": "无法启动回滚。",
+  "Previous version snapshot": "上一版本快照",
+  "Revert to {version}": "回滚到 {version}",
+  "Reverting to previous release and verifying application health...": "正在回滚到上一发布版本并验证应用程序运行状态...",
+  "Reverting update:": "正在回滚更新：",
+  "Rollback initiated. Restoring previous containers.": "已启动回滚。正在恢复以前的容器。",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "已提供 {version} 的安全快照。遇到问题时您可以回滚。",
+  "the previous version": "上一版本",
+  "The update was automatically reverted to the previous release.": "更新已自动回滚到上一版本。",
+  "Update reverted:": "更新已回滚："
 }

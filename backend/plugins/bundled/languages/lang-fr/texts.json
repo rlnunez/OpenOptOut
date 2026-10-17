@@ -3108,5 +3108,16 @@
   "Mix Now & Synthesize Key": "Mélanger maintenant et synthétiser la clé",
   "Live Mixed Entropy Stream:": "Flux d'entropie mixte en direct :",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Extrayez 4 à 6 images aléatoires, triez-les, convertissez les pixels en code, fusionnez les blocs d'octets et mélangez l'entropie de la souris et du clavier pour forger une clé maîtresse de 128+ caractères.",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Extrayez 8 à 12 images aléatoires, triez-les, convertissez les pixels en code, fusionnez les blocs d'octets et mélangez l'entropie de la souris et du clavier pour forger une clé maîtresse de 128+ caractères."
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Extrayez 8 à 12 images aléatoires, triez-les, convertissez les pixels en code, fusionnez les blocs d'octets et mélangez l'entropie de la souris et du clavier pour forger une clé maîtresse de 128+ caractères.",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "Voulez-vous vraiment revenir à {version} ? Les suppressions en cours seront suspendues et les conteneurs précédents restaurés.",
+  "Failed to initiate rollback.": "Échec du déclenchement du retour arrière.",
+  "Previous version snapshot": "Instantané de la version précédente",
+  "Revert to {version}": "Revenir à {version}",
+  "Reverting to previous release and verifying application health...": "Retour à la version précédente et vérification du bon fonctionnement...",
+  "Reverting update:": "Annulation de la mise à jour :",
+  "Rollback initiated. Restoring previous containers.": "Retour arrière initié. Restauration des conteneurs précédents.",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "Instantané de sécurité disponible pour {version}. Vous pouvez revenir en arrière en cas de problème.",
+  "the previous version": "la version précédente",
+  "The update was automatically reverted to the previous release.": "La mise à jour a été automatiquement annulée et la version précédente restaurée.",
+  "Update reverted:": "Mise à jour annulée :"
 }

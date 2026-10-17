@@ -3108,5 +3108,16 @@
   "Mix Now & Synthesize Key": "مزج الآن وتوليد المفتاح",
   "Live Mixed Entropy Stream:": "مجرى الإنتروبيا المختلط المباشر:",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "اسحب من 4 إلى 6 صور عشوائية، ورتّبها، وحوّل البكسلات إلى شفرة، وادمج الأجزاء، ثم اخلط عشوائية الفأرة ولوحة المفاتيح لتوليد مفتاح رئيسي من 128+ حرفاً.",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "اسحب من 8 إلى 12 صورة عشوائية، ورتّبها، وحوّل البكسلات إلى شفرة، وادمج الأجزاء، ثم اخلط عشوائية الفأرة ولوحة المفاتيح لتوليد مفتاح رئيسي من 128+ حرفاً."
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "اسحب من 8 إلى 12 صورة عشوائية، ورتّبها، وحوّل البكسلات إلى شفرة، وادمج الأجزاء، ثم اخلط عشوائية الفأرة ولوحة المفاتيح لتوليد مفتاح رئيسي من 128+ حرفاً.",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "هل أنت متأكد من رغبتك في الرجوع إلى {version}؟ سيتم إيقاف عمليات الإزالة النشطة مؤقتًا واستعادة الحاويات السابقة.",
+  "Failed to initiate rollback.": "فشل بدء التراجع.",
+  "Previous version snapshot": "لقطة من الإصدار السابق",
+  "Revert to {version}": "الرجوع إلى {version}",
+  "Reverting to previous release and verifying application health...": "جارٍ الرجوع إلى الإصدار السابق والتحقق من صحة التطبيق...",
+  "Reverting update:": "جارٍ التراجع عن التحديث:",
+  "Rollback initiated. Restoring previous containers.": "تم بدء التراجع. جارٍ استعادة الحاويات السابقة.",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "تتوفر لقطة أمان للإصدار {version}. يمكنك التراجع إذا واجهت مشكلات.",
+  "the previous version": "الإصدار السابق",
+  "The update was automatically reverted to the previous release.": "تم التراجع عن التحديث تلقائيًا إلى الإصدار السابق.",
+  "Update reverted:": "تم التراجع عن التحديث:"
 }

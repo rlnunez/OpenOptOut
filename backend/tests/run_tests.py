@@ -4460,8 +4460,146 @@ def t_system_updates():
         assert env["action"] == "upgrade"
         assert env["target_version"] == "v2.5.0"
         assert env["status"] == "pending_drain"
+
+        # 5. Rollback metadata and request verification
+        old_rb = upd.UPDATE_ROLLBACK_FILE
+        old_status = upd.UPDATE_STATUS_FILE
+        rb_file = os.path.join(tmpdir, "update_rollback.json")
+        status_file = os.path.join(tmpdir, "update_status.json")
+        upd.UPDATE_ROLLBACK_FILE = rb_file
+        upd.UPDATE_STATUS_FILE = status_file
+        try:
+            # Without rollback metadata, request_system_rollback raises ValueError
+            assert upd.get_rollback_info() is None
+            try:
+                upd.request_system_rollback()
+                assert False, "expected ValueError when no rollback snapshot exists"
+            except ValueError:
+                pass
+
+            # Write mock rollback metadata
+            rb_payload = {
+                "previous_version": "v1.2.0",
+                "target_version": "v2.5.0",
+                "created_at": "2026-10-17T12:00:00Z",
+                "snapshots": {"db": os.path.join(tmpdir, "snap.db")},
+            }
+            with open(rb_file, "w") as f:
+                json.dump(rb_payload, f)
+
+            info = upd.get_rollback_info()
+            assert info is not None
+            assert info["previous_version"] == "v1.2.0"
+            assert info["has_db_snapshot"] is True
+
+            # check_for_updates surfaces can_rollback and rollback_info
+            status = upd.check_for_updates(force=False)
+            assert status["can_rollback"] is True
+            assert status["rollback_info"]["previous_version"] == "v1.2.0"
+
+            # Triggering rollback writes action=rollback request envelope
+            rb_res = upd.request_system_rollback()
+            assert rb_res["status"] == "ok"
+            assert rb_res["target_version"] == "v1.2.0"
+            assert rb_res["state"] == "reverting"
+
+            with open(req_file, "r") as f:
+                rb_env = json.load(f)
+            assert rb_env["action"] == "rollback"
+            assert rb_env["target_version"] == "v1.2.0"
+
+            # When daemon writes status file, check_for_updates reflects live status
+            with open(status_file, "w") as f:
+                json.dump({"state": "reverted", "message": "Successfully reverted to v1.2.0."}, f)
+
+            live_check = upd.check_for_updates(force=False)
+            assert live_check["state"] == "reverted"
+            assert "reverted to v1.2.0" in live_check["state_message"]
+        finally:
+            upd.UPDATE_ROLLBACK_FILE = old_rb
+            upd.UPDATE_STATUS_FILE = old_status
     finally:
         upd.UPDATE_REQUEST_FILE = old_req
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+@test(1, "system_updates.daemon_snapshot_and_rollback",
+      "deploy/updater/updater.py: pre-update safety snapshots, automatic rollback on failed health check, and manual revert.")
+def t_updater_daemon_rollback():
+    import importlib.util, tempfile, shutil, json
+    repo_root = os.path.dirname(_BACKEND_DIR)
+    updater_path = os.path.join(repo_root, "deploy", "updater", "updater.py")
+    if not os.path.isfile(updater_path):
+        raise Skip("deploy/updater/updater.py not found")
+
+    spec = importlib.util.spec_from_file_location("updater_daemon", updater_path)
+    daemon = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(daemon)
+
+    tmpdir = tempfile.mkdtemp()
+    try:
+        # Wire paths to isolated tmpdir
+        daemon.UPDATE_SNAPSHOT_DIR = os.path.join(tmpdir, "snapshots")
+        daemon.UPDATE_ROLLBACK_FILE = os.path.join(tmpdir, "update_rollback.json")
+        daemon.UPDATE_STATUS_FILE = os.path.join(tmpdir, "update_status.json")
+        daemon.UPDATE_REQUEST_FILE = os.path.join(tmpdir, "update_request.json")
+
+        # Mock run_cmd to avoid calling real docker CLI in unit test
+        tagged_images = {}
+        def mock_run_cmd(cmd_list):
+            if cmd_list[0] == daemon.DOCKER_CMD and len(cmd_list) > 1 and cmd_list[1] == "tag":
+                src, target = cmd_list[2], cmd_list[3]
+                tagged_images[target] = src
+                return 0, "", ""
+            if "up" in cmd_list:
+                return 0, "", ""
+            if "pull" in cmd_list:
+                return 0, "", ""
+            return 0, "", ""
+        daemon.run_cmd = mock_run_cmd
+
+        # Mock image lookups
+        daemon.get_service_image_id = lambda svc: f"sha256:mock_{svc}_id_12345"
+        daemon.get_service_image_ref = lambda svc: f"openoptout-{svc}:latest"
+
+        # 1. Test create_pre_update_snapshot
+        rb_info = daemon.create_pre_update_snapshot("v1.0.0", "v1.1.0")
+        assert rb_info["previous_version"] == "v1.0.0"
+        assert rb_info["target_version"] == "v1.1.0"
+        assert "openoptout-rollback:api" in tagged_images
+        assert "openoptout-rollback:web" in tagged_images
+        assert os.path.isfile(daemon.UPDATE_ROLLBACK_FILE)
+
+        # 2. Test execute_rollback restores tags and verifies health
+        daemon.check_api_health = lambda timeout_seconds=90: True
+        success = daemon.execute_rollback(rb_info)
+        assert success is True
+        assert os.path.isfile(daemon.UPDATE_STATUS_FILE)
+        with open(daemon.UPDATE_STATUS_FILE, "r") as f:
+            st = json.load(f)
+        assert st["state"] == "reverted"
+        assert "v1.0.0" in st["message"]
+
+        # 3. Test execute_compose_upgrade automatic rollback on health verification failure
+        health_checks = [False]  # health check fails after upgrade
+        daemon.check_api_health = lambda timeout_seconds=90: health_checks.pop() if health_checks else True
+        upgrade_result = daemon.execute_compose_upgrade("v1.1.0", "v1.0.0")
+        assert upgrade_result is False
+        # Automatic rollback was triggered and verified
+        with open(daemon.UPDATE_STATUS_FILE, "r") as f:
+            st = json.load(f)
+        assert st["state"] == "reverted"
+        assert "v1.0.0" in st["message"]
+
+        # 4. Test process_pending_update_requests with rollback action
+        daemon.wait_for_drain = lambda timeout_seconds=120: True
+        daemon.check_api_health = lambda timeout_seconds=90: True
+        with open(daemon.UPDATE_REQUEST_FILE, "w") as f:
+            json.dump({"action": "rollback", "target_version": "v1.0.0"}, f)
+        daemon.process_pending_update_requests()
+        assert not os.path.isfile(daemon.UPDATE_REQUEST_FILE), "request file must be cleaned up"
+
+    finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 

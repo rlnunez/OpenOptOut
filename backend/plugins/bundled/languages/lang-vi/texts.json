@@ -3108,5 +3108,16 @@
   "Mix Now & Synthesize Key": "Trộn ngay & tổng hợp khóa",
   "Live Mixed Entropy Stream:": "Dòng entropy hỗn hợp trực tiếp:",
   "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Lấy 4 đến 6 hình ảnh ngẫu nhiên, sắp xếp, chuyển đổi pixel thành mã, hợp nhất các đoạn byte và trộn entropy chuột & bàn phím để rèn khóa chính 128+ ký tự.",
-  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Lấy 8 đến 12 hình ảnh ngẫu nhiên, sắp xếp, chuyển đổi pixel thành mã, hợp nhất các đoạn byte và trộn entropy chuột & bàn phím để rèn khóa chính 128+ ký tự."
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Lấy 8 đến 12 hình ảnh ngẫu nhiên, sắp xếp, chuyển đổi pixel thành mã, hợp nhất các đoạn byte và trộn entropy chuột & bàn phím để rèn khóa chính 128+ ký tự.",
+  "Are you sure you want to revert to {version}? Active removals will be paused and previous containers restored.": "Bạn có chắc chắn muốn hoàn tác về {version}? Các tiến trình xóa đang chạy sẽ bị tạm dừng và các vùng chứa trước đó được khôi phục.",
+  "Failed to initiate rollback.": "Không thể bắt đầu hoàn tác.",
+  "Previous version snapshot": "Bản chụp nhanh phiên bản trước",
+  "Revert to {version}": "Hoàn tác về {version}",
+  "Reverting to previous release and verifying application health...": "Đang hoàn tác về bản phát hành trước và kiểm tra tính toàn vẹn ứng dụng...",
+  "Reverting update:": "Đang hoàn tác bản cập nhật:",
+  "Rollback initiated. Restoring previous containers.": "Đã bắt đầu hoàn tác. Đang khôi phục các vùng chứa trước đó.",
+  "Safety snapshot available for {version}. You can revert if you encounter issues.": "Đã có bản chụp an toàn cho {version}. Bạn có thể hoàn tác nếu gặp sự cố.",
+  "the previous version": "phiên bản trước",
+  "The update was automatically reverted to the previous release.": "Bản cập nhật đã tự động được hoàn tác về phiên bản trước.",
+  "Update reverted:": "Bản cập nhật đã được hoàn tác:"
 }
