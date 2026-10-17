@@ -15,7 +15,8 @@
 #          none             Plain HTTP through the reverse proxy
 #          advanced         Choose a specific --mode below
 # Step 3 (cloudflare-dns or custom only), --cloudflare-proxy: DDoS protection via Cloudflare
-# Rate limits (Caddy/Traefik; on by default):
+# Rate limits & HSTS (Caddy/Traefik; on by default when HTTPS is enabled):
+#          --hsts / --no-hsts   Strict-Transport-Security (browsers require HTTPS)
 #          --no-rate-limit   --rate-limit N (per visitor per min, default 1200)
 #          --auth-rate-limit N (sign-in attempts per visitor per min, default 60)
 # Advanced: --mode letsencrypt|letsencrypt-staging|acme|incommon|internal|custom|none
@@ -33,7 +34,7 @@ cd "$(dirname "$0")/.."
 
 ENV_FILE=".env"; MODE=""; CERT=""; DOMAIN=""; EMAIL=""; ACME_CA=""; ACME_CA_ROOT_SRC=""
 YES=0; DISABLE=0; PROXY=""; CF_TOKEN=""; TUNNEL_TOKEN=""; CF_PROXY=""; RL=on; RL_SITE=""; RL_AUTH=""
-EAB_KID=""; EAB_HMAC=""; KEY_TYPE=""
+EAB_KID=""; EAB_HMAC=""; KEY_TYPE=""; HSTS_VAL=""
 INCOMMON_CA_DEFAULT="https://acme-us.certinext.io/v1/directory"
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -54,6 +55,8 @@ while [ $# -gt 0 ]; do
     --disable) DISABLE=1; shift ;;
     --cloudflare-proxy) CF_PROXY=on; shift ;;
     --no-cloudflare-proxy) CF_PROXY=off; shift ;;
+    --hsts) HSTS_VAL=on; shift ;;
+    --no-hsts) HSTS_VAL=off; shift ;;
     --no-rate-limit) RL=off; shift ;;
     --rate-limit) RL_SITE="$2"; shift 2 ;;
     --auth-rate-limit) RL_AUTH="$2"; shift 2 ;;
@@ -103,7 +106,7 @@ unset_env() {
 has_env() { [ -f "$ENV_FILE" ] && grep -q "^${1}=." "$ENV_FILE"; }
 backup() { [ -f "$ENV_FILE" ] && cp "$ENV_FILE" "${ENV_FILE}.bak.$(date +%Y%m%d%H%M%S)" && echo "Backed up $ENV_FILE"; return 0; }
 
-FRONT_DOOR_KEYS="COMPOSE_PROFILES FRONT_DOOR HTTPS_CHECK_HOST HTTPS_MODE ACME_CHALLENGE DOMAIN ACME_EMAIL ACME_CA ACME_CA_ROOT ACME_EAB_KID ACME_EAB_HMAC ACME_KEY_TYPE WEB_BIND WEB_PORT TRUSTED_PROXY_HOPS RATE_LIMIT CLOUDFLARE_PROXY"
+FRONT_DOOR_KEYS="COMPOSE_PROFILES FRONT_DOOR HTTPS_CHECK_HOST HTTPS_MODE ACME_CHALLENGE DOMAIN ACME_EMAIL ACME_CA ACME_CA_ROOT ACME_EAB_KID ACME_EAB_HMAC ACME_KEY_TYPE WEB_BIND WEB_PORT TRUSTED_PROXY_HOPS RATE_LIMIT CLOUDFLARE_PROXY HSTS"
 
 if [ "$DISABLE" = 1 ]; then
   backup
@@ -158,6 +161,13 @@ EOF
     TUNNEL_TOKEN="$(ask_secret 'Tunnel token from the Cloudflare dashboard (blank = add it to .env later)')"
   fi
   [ -z "$TUNNEL_TOKEN" ] || valid_tunnel_token "$TUNNEL_TOKEN" || die "That doesn't look like a tunnel token (copy the long value after --token)."
+  if [ -z "$HSTS_VAL" ]; then
+    if interactive; then
+      [ "$(ask 'Enable HSTS (Strict-Transport-Security: require browsers to use HTTPS)? (y/n)' y)" = n ] && HSTS_VAL=off || HSTS_VAL=on
+    else
+      HSTS_VAL=on
+    fi
+  fi
 
   backup
   for k in $FRONT_DOOR_KEYS; do unset_env "$k"; done
@@ -165,6 +175,7 @@ EOF
   set_env FRONT_DOOR cloudflare-tunnel
   set_env HTTPS_MODE cloudflare-tunnel   # tells the certificate monitor not to check
   set_env DOMAIN "$DOMAIN"
+  set_env HSTS "$HSTS_VAL"
   [ -z "$TUNNEL_TOKEN" ] || set_env CLOUDFLARE_TUNNEL_TOKEN "$TUNNEL_TOKEN"
   # Nothing listens publicly: the tunnel reaches the web container internally.
   set_env WEB_BIND 127.0.0.1
@@ -250,11 +261,20 @@ case "$MODE" in letsencrypt|letsencrypt-staging|acme|incommon|internal|custom|no
 [ "$PROXY" = traefik ] && [ "$MODE" = internal ] && die "internal mode uses Caddy's private CA. Use --proxy caddy, or --mode custom with your own certificate."
 
 if [ "$MODE" = none ]; then
+  [ "$HSTS_VAL" != on ] || die "--hsts requires an SSL certificate (cannot be used with --cert none)."
+  HSTS_VAL=off
   [ -n "$DOMAIN" ] || DOMAIN="$(ask 'Domain name, if you have one (blank = answer on any name)' '')"
   [ -z "$DOMAIN" ] || valid_domain "$DOMAIN" || die "Invalid domain: $DOMAIN"
 else
   [ -n "$DOMAIN" ] || DOMAIN="$(ask 'Domain name people will use (e.g. privacy.yourlibrary.org)')"
   valid_domain "$DOMAIN" || die "Invalid domain: ${DOMAIN:-nothing entered}"
+  if [ -z "$HSTS_VAL" ]; then
+    if interactive; then
+      [ "$(ask 'Enable HSTS (Strict-Transport-Security: require browsers to use HTTPS)? (y/n)' y)" = n ] && HSTS_VAL=off || HSTS_VAL=on
+    else
+      HSTS_VAL=on
+    fi
+  fi
 fi
 if [ "$PROXY" = traefik ] && [[ "$DOMAIN" == *"*"* ]]; then die "Wildcard domains need --proxy caddy (or list each name)."; fi
 PRIMARY="${DOMAIN%%,*}"; PRIMARY="${PRIMARY// /}"
@@ -366,7 +386,7 @@ fi
 
 CERT_LABEL="$MODE"; [ "$MODE" = incommon ] && CERT_LABEL="incommon (beta)"; [ "$CHALLENGE" = cloudflare ] && CERT_LABEL="$CERT_LABEL via Cloudflare DNS"
 echo
-PROTECT_LABEL="rate-limits=$RL"; [ "$CF_PROXY" = on ] && PROTECT_LABEL="$PROTECT_LABEL  cloudflare-proxy=on"
+PROTECT_LABEL="rate-limits=$RL  hsts=$HSTS_VAL"; [ "$CF_PROXY" = on ] && PROTECT_LABEL="$PROTECT_LABEL  cloudflare-proxy=on"
 echo "About to set up:  proxy=$PROXY  certificate=$CERT_LABEL  $PROTECT_LABEL  domain=${DOMAIN:-(any)}${EMAIL:+  email=$EMAIL}"
 if interactive; then [ "$(ask 'Continue? (y/n)' y)" = y ] || die "Cancelled."; fi
 
@@ -380,6 +400,7 @@ set_env RATE_LIMIT "$RL"
 [ -z "$RL_SITE" ] || set_env RATE_LIMIT_PER_MINUTE "$RL_SITE"
 [ -z "$RL_AUTH" ] || set_env AUTH_RATE_LIMIT_PER_MINUTE "$RL_AUTH"
 set_env CLOUDFLARE_PROXY "$CF_PROXY"
+[ "$MODE" = none ] || set_env HSTS "$HSTS_VAL"
 set_env FRONT_DOOR "$PROXY"
 set_env HTTPS_CHECK_HOST "$PROXY"   # the certificate monitor checks this container
 set_env HTTPS_MODE "$MODE"

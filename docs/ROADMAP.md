@@ -72,7 +72,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | [49](#item-49) | [Decoupled language packs, privacy score, PDF reports, and calendar scheduling](#item-49) | Complete (#93) |
 | [50](#item-50) | [Live CAPTCHA hand-off & privacy-preserving solvers](#item-50) | Complete (#94) |
 | [51](#item-51) | [Unclear match resolution & listing disambiguation](#item-51) | Complete (#95) |
-| [52](#item-52) | [Full UI translation framework across 12 languages](#item-52) | Complete (#96) |
+| [52](#item-52) | [Full UI translation framework across 17 languages](#item-52) | Complete (#96) — native-speaker review pending ([Item 70](#item-70)) |
 | [53](#item-53) | [Plugin localization standard & jurisdiction-based legal letters](#item-53) | Complete (#97) |
 | [54](#item-54) | [Universal live hand-off for interactive steps ("Do it here")](#item-54) | Complete (#99) |
 | [55](#item-55) | [Yahoo OAuth-only email integration](#item-55) | Complete (#100) |
@@ -87,6 +87,11 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | [64](#item-64) | [Address-verified registration for housing communities](#item-64) | Complete (#116) |
 | [65](#item-65) | [Containerized release updater & Docker engine supervisor](#item-65) | In Progress / Implemented |
 | [66](#item-66) | [Network circuit breaker & graceful offline halt](#item-66) | Complete |
+| [67](#item-67) | [High-risk mode for domestic violence survivors, doxxing targets & election workers](#item-67) | Considering / Planned |
+| [68](#item-68) | [Audit scope document for independent security review (Item 22)](#item-68) | Considering / Planned |
+| [69](#item-69) | [Removal-service ownership & broker-family conflict flags](#item-69) | Considering / Planned |
+| [70](#item-70) | [Native-speaker review for the 5 new languages (17 languages total)](#item-70) | Considering / Planned |
+| [71](#item-71) | [Re-measure minimum PC & worker specs after Firefox switch](#item-71) | Considering / Planned |
 
 ---
 
@@ -304,7 +309,7 @@ To ensure operational stability and maintain continuous testability without disr
 - **Cost Weighting:** Differentiates lightweight email transmissions from memory-intensive Playwright browser sessions.
 - **Telemetry Integration:** Calibrates planning coefficients using empirical execution metrics from real worker runs.
 
-**Status:** Planned (pending empirical performance benchmarking under Item 7).
+**Status:** Planned (pending empirical Firefox performance benchmarking under [Item 7](#item-7) and [Item 71](#item-71)).
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 
@@ -588,7 +593,7 @@ plugins/
 - Remediation of all critical and high-severity findings prior to v1.0 enterprise/consortium readiness.
 - Clear disclosure and bug bounty / coordinated vulnerability reporting policy.
 
-**Status:** Planned.
+**Status:** Planned (audit scope document tracked in [Item 68](#item-68)).
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 
@@ -1016,14 +1021,14 @@ plugins/
 ---
 
 <a id="item-52"></a>
-### 52. Full UI translation framework across 12 languages
-**Goal:** Localize every user interface phrase into all 12 supported languages.
+### 52. Full UI translation framework across 17 languages
+**Goal:** Localize every user interface phrase into all 17 supported languages.
 
 - Complete internationalization pass: All interface phrases routed through `tx()`, `txn()` (plurals), and `txr()` (rich text).
-- 2,450 phrases translated into Spanish, French, Arabic, German, Portuguese, Chinese, Vietnamese, Korean, Tagalog, Hindi, and Russian.
+- 2,450+ phrases translated into Spanish, French, Arabic, German, Portuguese, Chinese, Vietnamese, Korean, Tagalog, Hindi, Russian, Polish, Ukrainian, Urdu, Swahili, and Indonesian.
 - CI extractor and synchronization tests ensure zero untranslated screen phrases.
 
-**Status:** Complete (#96).
+**Status:** Complete (#96) — native-speaker review tracked in [Item 70](#item-70).
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 
@@ -1222,6 +1227,77 @@ plugins/
 - **Administrative Telemetry:** Displays pulsing amber "Waiting for Internet" status badge and dedicated filter tab in the Worker Fleet dashboard across all 17 translated language packs.
 
 **Status:** Complete.
+
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
+---
+
+<a id="item-67"></a>
+### 67. High-risk mode for domestic violence survivors, doxxing targets & election workers
+**Goal:** Provide a dedicated high-risk protection profile with stricter safety defaults, specialized legal correspondence, prioritized targeting of dangerous brokers, and accelerated re-listing checks.
+
+- **Stricter Disambiguation Defaults:** Enforces zero guessing on unclear listing matches (never auto-submitting ambiguous profiles that could leak new identifiers to a broker, routing instead to safe manual review or strict match rules).
+- **Address Confidentiality Program (ACP) & Statutory Shield Letters:** Integrates specialized opt-out correspondence for state Address Confidentiality Programs (Safe at Home), domestic violence shield laws, and public official / election worker suppression statutes.
+- **Threat-Prioritized Queueing:** Orders discovery and removal passes to target the highest-risk people-search and doxxing-adjacent brokers first (those publishing full street addresses, relatives, and phone numbers in unauthenticated search results).
+- **Accelerated Re-Listing Checks:** Shortens verification and re-appearance polling intervals for high-risk profiles so re-populated records are caught and re-submitted rapidly.
+- **Grant & Institutional Alignment:** Supports shelter, legal-aid, and public-interest deployments (opening dedicated survivor-safety and civic-protection funding paths).
+
+**Status:** Considering / Planned.
+
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
+---
+
+<a id="item-68"></a>
+### 68. Audit scope document for independent security review (Item 22)
+**Goal:** Produce a concise, actionable audit scope document (`docs/AUDIT_SCOPE.md`) building on the recent CodeQL, Semgrep, and scanner hardening pass so external audit firms (e.g. OSTIF, Radically Open Security) can scope and quote a focused engagement.
+
+- **Targeted Subsystem Boundaries:**
+  - **Plugin Sandbox (`backend/plugins/sandbox.py`):** Bubblewrap namespace isolation, seccomp-bpf syscall filters, read-only mounts, and `no-new-privileges` fallback behavior.
+  - **IPC & Capability Broker (`backend/plugins/host_service.py`):** Unix domain socket gRPC channel, per-invocation token validation, permission enforcement (`read_pii` + network egress mutual exclusion), and static code inspection (`code_inspector.py`).
+  - **Authentication, OAuth & Token Governance (`backend/core/auth.py`, `oauth_engine.py`, `sso_policy.py`, `mfa.py`):** Envelope/Fernet secret encryption, MFA step-up boundaries, OAuth 2.0 refresh token storage, SAML/OIDC/LDAP/SIP2 policy gates, and session token lifespans.
+- **Deliverable:** Exact file list, line counts, threat model assumptions, and reproduction harness instructions (`test-docker-matrix.sh` and `run_tests.py`) to streamline third-party scoping for [Item 22](#item-22).
+
+**Status:** Considering / Planned.
+
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
+---
+
+<a id="item-69"></a>
+### 69. Removal-service ownership & broker-family conflict flags
+**Goal:** Extend the parent-company catalog ([Item 29](#item-29)) to flag commercial privacy/removal services that are owned by or affiliated with data-broker corporate families.
+
+- **Catalog Metadata (`backend/core/catalog/parent_companies.json`):** Annotates parent companies and broker groups with affiliated commercial removal services and corporate ownership links (building on the Onerep / Nuwber and PeopleConnect ownership research).
+- **Transparency in UI:** Surfaces conflict-of-interest disclosures on the Parent Companies and Brokers pages so administrators and patrons can see when a broker conglomerate also operates or shares ownership with a paid removal service.
+
+**Status:** Considering / Planned.
+
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
+---
+
+<a id="item-70"></a>
+### 70. Native-speaker review for the 5 new languages (17 languages total)
+**Goal:** Coordinate native-speaker review and terminology refinement for the 5 newest language packs—Urdu (`ur`), Polish (`pl`), Ukrainian (`uk`), Swahili (`sw`), and Indonesian (`id`)—alongside existing machine-translated packs.
+
+- **17 Bundled Language Packs:** Expands the original 12 languages ([Item 52](#item-52)) with Urdu (including full RTL layout mirroring), Polish, Ukrainian, Swahili, and Indonesian across both core screen phrases (`texts.json`) and bundled plugin translations (`plugins/<id>.json`).
+- **Quality & Terminology Pass:** Tracks per-language review status (`machine-translated` vs. `native-reviewed`) and provides contributor workflow documentation so native speakers can audit privacy, legal, and accessibility phrasing without touching code.
+
+**Status:** Considering / Planned.
+
+[↑ Back to Status at a Glance](#status-at-a-glance)
+
+---
+
+<a id="item-71"></a>
+### 71. Re-measure minimum PC & worker specs after Firefox switch
+**Goal:** Re-benchmark baseline and peak RAM, CPU, and `tmpfs` usage following the transition to Playwright Firefox so hardware recommendations and the Infrastructure Capacity Planner ([Item 9](#item-9)) use accurate empirical numbers.
+
+- **Empirical Profiling:** Measure idle control-plane footprint, single-slot and multi-slot (`WORKER_CONCURRENCY=1..4`) Playwright Firefox RSS memory, `/tmp` tmpfs high-water marks, and per-broker execution duration on standalone and distributed topologies.
+- **Documentation & Planner Calibration:** Update minimum/recommended hardware tables in `README.md` and `docs/NATIVE_INSTALL.md`, and feed the measured Firefox memory and throughput coefficients into [Item 9](#item-9).
+
+**Status:** Considering / Planned.
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 

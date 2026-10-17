@@ -292,27 +292,41 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
                 <LogOut size={13} /> {t('nav.logout', 'Sign out')}
               </button>
 
-              <div className="pt-2 mt-1 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500 flex-wrap gap-1.5">
-                <span className="text-slate-600 text-[11px] truncate">
-                  {branding?.show_powered_by ? tx("Powered by OpenOptOut") : 'OpenOptOut'}
-                </span>
-                {versionInfo?.version && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      const commitStr = versionInfo.commit && versionInfo.commit !== 'unknown' ? ` (${versionInfo.commit})` : ''
-                      navigator.clipboard?.writeText(`OpenOptOut v${versionInfo.version}${commitStr}`)
-                      setCopiedVersion(true)
-                      setTimeout(() => setCopiedVersion(false), 2000)
-                    }}
-                    title={tx("Click to copy version for reporting")}
-                    className="font-mono text-[11px] text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1 bg-slate-800/80 hover:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700/50 shrink-0"
-                  >
-                    <span>{"v"}{versionInfo.version}</span>
-                    {copiedVersion ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} className="text-slate-500" />}
-                  </button>
-                )}
+              <div className="pt-2 mt-1 border-t border-slate-800/80 space-y-1.5 text-xs text-slate-500">
+                <div className="flex items-center justify-between flex-wrap gap-1.5">
+                  <span className="text-slate-600 text-[11px] truncate">
+                    {branding?.show_powered_by ? tx("Powered by OpenOptOut") : 'OpenOptOut'}
+                  </span>
+                  {versionInfo?.version && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const commitStr = versionInfo.commit && versionInfo.commit !== 'unknown' ? ` (${versionInfo.commit})` : ''
+                        navigator.clipboard?.writeText(`OpenOptOut v${versionInfo.version}${commitStr}`)
+                        setCopiedVersion(true)
+                        setTimeout(() => setCopiedVersion(false), 2000)
+                      }}
+                      title={tx("Click to copy version for reporting")}
+                      className="font-mono text-[11px] text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1 bg-slate-800/80 hover:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700/50 shrink-0"
+                    >
+                      <span>{"v"}{versionInfo.version}</span>
+                      {copiedVersion ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} className="text-slate-500" />}
+                    </button>
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-600 leading-snug">
+                  {tx("Based on OpenOptOut by Robert Nunez and contributors")} —{' '}
+                  <a href="https://github.com/rlnunez/Privacy-Shield" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 underline">
+                    GitHub
+                  </a>
+                  {'. '}
+                  {tx("Includes work from the projects listed in")}{' '}
+                  <a href="https://github.com/rlnunez/Privacy-Shield/blob/main/CREDITS.md" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 underline">
+                    CREDITS.md
+                  </a>
+                  {'.'}
+                </p>
               </div>
             </div>
           </div>

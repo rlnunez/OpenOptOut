@@ -19,7 +19,8 @@ Step 2, -Cert (Caddy/Traefik only):
 Step 3 (cloudflare-dns or custom only), -CloudflareProxy:
          Route traffic through Cloudflare proxy (DDoS protection; server accepts
          traffic only from Cloudflare IPs). Note: Cloudflare terminates TLS.
-Rate limits (Caddy/Traefik; on by default):
+Rate limits & HSTS (Caddy/Traefik; on by default when HTTPS is enabled):
+         -Hsts / -NoHsts   Strict-Transport-Security (browsers require HTTPS)
          -NoRateLimit   -RateLimit N (per visitor per min, default 1200)
          -AuthRateLimit N (sign-in attempts per visitor per min, default 60)
 Advanced: -Mode letsencrypt|letsencrypt-staging|acme|incommon|internal|custom|none
@@ -55,6 +56,8 @@ param(
     [ValidateSet("", "rsa2048", "rsa4096", "p256", "p384")]
     [string]$KeyType = "",
     [switch]$CloudflareProxy,
+    [switch]$Hsts,
+    [switch]$NoHsts,
     [switch]$NoRateLimit,
     [int]$RateLimit = 0,
     [int]$AuthRateLimit = 0,
@@ -151,7 +154,12 @@ function Test-HasEnv([string]$Path, [string]$Key) {
 
 $FrontDoorKeys = @("COMPOSE_PROFILES", "FRONT_DOOR", "HTTPS_CHECK_HOST", "HTTPS_MODE", "ACME_CHALLENGE",
                    "DOMAIN", "ACME_EMAIL", "ACME_CA", "ACME_CA_ROOT", "ACME_EAB_KID", "ACME_EAB_HMAC", "ACME_KEY_TYPE", "WEB_BIND", "WEB_PORT", "TRUSTED_PROXY_HOPS",
-                   "RATE_LIMIT", "CLOUDFLARE_PROXY")
+                   "RATE_LIMIT", "CLOUDFLARE_PROXY", "HSTS")
+
+if ($Hsts -and $NoHsts) {
+    Fail "-Hsts and -NoHsts cannot be used together."
+}
+$HstsVal = if ($Hsts) { "on" } elseif ($NoHsts) { "off" } else { "" }
 
 # ── -Disable ───────────────────────────────────────────────────────────────
 if ($Disable) {
@@ -209,6 +217,13 @@ if ($Proxy -eq "cloudflare-tunnel") {
         $TunnelToken = Ask-Secret "Tunnel token from the Cloudflare dashboard (blank = add it to .env later)"
     }
     if ($TunnelToken -and -not (Test-ValidTunnelToken $TunnelToken)) { Fail "That doesn't look like a tunnel token (copy the long value after --token)." }
+    if (-not $HstsVal) {
+        if (Test-Interactive) {
+            $HstsVal = if ((Ask "Enable HSTS (Strict-Transport-Security: require browsers to use HTTPS)? (y/n)" "y") -eq "n") { "off" } else { "on" }
+        } else {
+            $HstsVal = "on"
+        }
+    }
 
     Backup-EnvFile $EnvFile
     foreach ($k in $FrontDoorKeys) { Remove-EnvVar $EnvFile $k }
@@ -216,6 +231,7 @@ if ($Proxy -eq "cloudflare-tunnel") {
     Set-EnvVar $EnvFile "FRONT_DOOR" "cloudflare-tunnel"
     Set-EnvVar $EnvFile "HTTPS_MODE" "cloudflare-tunnel"   # tells the certificate monitor not to check
     Set-EnvVar $EnvFile "DOMAIN" $Domain
+    Set-EnvVar $EnvFile "HSTS" $HstsVal
     if ($TunnelToken) { Set-EnvVar $EnvFile "CLOUDFLARE_TUNNEL_TOKEN" $TunnelToken }
     Set-EnvVar $EnvFile "WEB_BIND" "127.0.0.1"
     Set-EnvVar $EnvFile "WEB_PORT" "8080"
@@ -312,11 +328,20 @@ if ($Proxy -eq "traefik" -and $Mode -eq "internal") {
 
 # ── domain ──
 if ($Mode -eq "none") {
+    if ($HstsVal -eq "on") { Fail "-Hsts requires an SSL certificate (cannot be used with -Cert none)." }
+    $HstsVal = "off"
     if (-not $Domain) { $Domain = Ask "Domain name, if you have one (blank = answer on any name)" "" }
     if ($Domain -and -not (Test-ValidDomain $Domain)) { Fail "Invalid domain: $Domain" }
 } else {
     if (-not $Domain) { $Domain = Ask "Domain name people will use (e.g. privacy.yourlibrary.org)" }
     if (-not (Test-ValidDomain $Domain)) { Fail "Invalid domain: $Domain" }
+    if (-not $HstsVal) {
+        if (Test-Interactive) {
+            $HstsVal = if ((Ask "Enable HSTS (Strict-Transport-Security: require browsers to use HTTPS)? (y/n)" "y") -eq "n") { "off" } else { "on" }
+        } else {
+            $HstsVal = "on"
+        }
+    }
 }
 if ($Proxy -eq "traefik" -and $Domain.Contains("*")) { Fail "Wildcard domains need -Proxy caddy (or list each name)." }
 $Primary = if ($Domain) { $Domain.Split(",")[0].Trim() } else { "" }
@@ -436,7 +461,7 @@ if ($Challenge -eq "cloudflare") { $certLabel = "$certLabel via Cloudflare DNS" 
 $domainLabel = if ($Domain) { $Domain } else { "(any)" }
 $emailSuffix = if ($Email) { "  email=$Email" } else { "" }
 Write-Host ""
-$protectLabel = "rate-limits=$Rl"; if ($UseCfProxy) { $protectLabel += "  cloudflare-proxy=on" }
+$protectLabel = "rate-limits=$Rl  hsts=$HstsVal"; if ($UseCfProxy) { $protectLabel += "  cloudflare-proxy=on" }
 Write-Host "About to set up:  proxy=$Proxy  certificate=$certLabel  $protectLabel  domain=$domainLabel$emailSuffix"
 if (Test-Interactive) {
     if ((Ask "Continue? (y/n)" "y") -ne "y") { Fail "Cancelled." }
@@ -453,6 +478,7 @@ Set-EnvVar $EnvFile "RATE_LIMIT" $Rl
 if ($RateLimit -gt 0) { Set-EnvVar $EnvFile "RATE_LIMIT_PER_MINUTE" "$RateLimit" }
 if ($AuthRateLimit -gt 0) { Set-EnvVar $EnvFile "AUTH_RATE_LIMIT_PER_MINUTE" "$AuthRateLimit" }
 Set-EnvVar $EnvFile "CLOUDFLARE_PROXY" $CfProxyValue
+if ($Mode -ne "none") { Set-EnvVar $EnvFile "HSTS" $HstsVal }
 Set-EnvVar $EnvFile "FRONT_DOOR" $Proxy
 Set-EnvVar $EnvFile "HTTPS_CHECK_HOST" $Proxy   # the certificate monitor checks this container
 Set-EnvVar $EnvFile "HTTPS_MODE" $Mode

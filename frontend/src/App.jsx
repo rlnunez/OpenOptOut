@@ -8,6 +8,7 @@ import { AccessibilityProvider } from './context/AccessibilityContext'
 import SkipLink from './components/SkipLink'
 import Breadcrumbs from './components/Breadcrumbs'
 import AnnouncementBanner from './components/AnnouncementBanner'
+import SecretKeyBanner from './components/SecretKeyBanner'
 import UserWelcomeModal from './components/UserWelcomeModal'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
@@ -110,6 +111,7 @@ function Layout() {
           </button>
           <span className="text-white font-semibold text-sm truncate">{systemName}</span>
         </header>
+        <SecretKeyBanner />
         <AnnouncementBanner />
         <InboxPrompt />
         <UserWelcomeModal />
@@ -187,7 +189,7 @@ function RequireAuth({ children }) {
     return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-500 text-sm">{tx("Loading…")}</p></div>
   // Before anything else, what they still have to accept (core/terms.py).
   if (wizard && !wizard.completed)
-    return <TermsGate><SetupWizard onDone={() => setWizard({ ...wizard, completed: true })} /></TermsGate>
+    return <TermsGate><SecretKeyBanner /><SetupWizard onDone={() => setWizard({ ...wizard, completed: true })} /></TermsGate>
   return <TermsGate>{children}</TermsGate>
 }
 

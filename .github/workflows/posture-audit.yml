@@ -62,6 +62,8 @@ jobs:
       - name: Start Docker API container
         if: ${{ (inputs.mode || 'all') != 'native' }}
         run: |
+          export SECRET_KEY="$(openssl rand -hex 32)"
+          echo "SECRET_KEY=$SECRET_KEY" >> "$GITHUB_ENV"
           docker compose build api
           docker compose up -d api
           # Wait up to 30s for the container to become ready

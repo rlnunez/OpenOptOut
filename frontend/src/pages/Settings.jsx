@@ -11,6 +11,7 @@ import { useAuth, can } from '../hooks/useAuth'
 import { performWebAuthnRegister } from '../utils/webauthn'
 import { tx, txn, txr } from '../i18n/tx'
 import { fmtDate, fmtDateTime, fmtNumber, formatLocale, regional, setRegional } from '../i18n/format'
+import { SecretKeyGeneratorPanel } from '../components/SecretKeyBanner'
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
@@ -2996,6 +2997,74 @@ function MatchingSection() {
   )
 }
 
+function HstsSection({ userRole }) {
+  const [enabled, setEnabled] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const isAdmin = userRole === 'super_admin'
+
+  useEffect(() => {
+    if (!isAdmin) return
+    api.get('/settings/security/hsts').then(r => {
+      setEnabled(!!r.data.enabled)
+    }).catch(() => {})
+  }, [isAdmin])
+
+  if (!isAdmin) return null
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const r = await api.patch('/settings/security/hsts', { enabled })
+      setEnabled(!!r.data.enabled)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Section icon={Lock} title={tx("HTTP Strict Transport Security (HSTS)")}
+      description={tx("Require browsers to connect only over HTTPS")}
+      adminOnly userRole={userRole}>
+      <label className="flex items-start gap-2.5 cursor-pointer">
+        <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} className="mt-1 accent-shield-500" />
+        <div>
+          <span className="text-slate-200 text-sm font-medium block">{tx("Enable HSTS (HTTP Strict Transport Security)")}</span>
+          <span className="text-slate-400 text-xs block mt-0.5">
+            {tx("Tells browsers to always connect to this site over HTTPS and refuse plain HTTP connections. Enable this when your SSL certificate is active or handled by an external service.")}
+          </span>
+        </div>
+      </label>
+      <div className="flex justify-end pt-2">
+        <SaveButton saving={saving} saved={saved} onClick={save} />
+      </div>
+    </Section>
+  )
+}
+
+function MasterSecretKeySection({ userRole }) {
+  const [status, setStatus] = useState(null)
+
+  useEffect(() => {
+    if (userRole !== 'super_admin') return
+    api.get('/settings/security/secret-key')
+      .then(r => setStatus(r.data))
+      .catch(() => {})
+  }, [userRole])
+
+  if (userRole !== 'super_admin') return null
+
+  return (
+    <Section icon={Key} title={tx("Master Secret Key & Entropy Generator")}
+      description={tx("Generate or enter a 128+ character master key saved to secret.key and lock down its file permissions")}
+      adminOnly userRole={userRole}>
+      <SecretKeyGeneratorPanel status={status} onStatusChange={setStatus} />
+    </Section>
+  )
+}
+
 export default function Settings() {
   const { user } = useAuth()
   const [settings, setSettings]           = useState(null)
@@ -3034,6 +3103,8 @@ export default function Settings() {
       <WebAuthnPolicySection userRole={user?.role} />
       <PasswordlessPolicySection userRole={user?.role} />
       <SessionPolicySection userRole={user?.role} />
+      <MasterSecretKeySection userRole={sectionRole('settings.system')} />
+      <HstsSection userRole={sectionRole('settings.system')} />
       <EmailSection initial={settings?.email ?? {}} userRole={sectionRole('email.manage')}/>
       <SchedulerSection
         initial={settings?.scheduler ?? {}}

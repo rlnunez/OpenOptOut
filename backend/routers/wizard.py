@@ -111,6 +111,7 @@ def get_state(db: Session = Depends(get_db), user: User = Depends(get_current_us
     """Current wizard progress — what's done/skipped, and whether email is set
     (so the summary can warn if it isn't)."""
     _admin(user)
+    from ..core.settings_store import is_hsts_enabled
     s = _load()
     wiz = _wizard_state(s)
     email = s.get("email", {})
@@ -122,6 +123,7 @@ def get_state(db: Session = Depends(get_db), user: User = Depends(get_current_us
         "email_configured": email_configured,
         "db_kind": s.get("database", {}).get("kind", "sqlite"),
         "reverse_proxy": s.get("deployment", {}).get("reverse_proxy", "unset"),
+        "hsts": is_hsts_enabled(s),
     }
 
 
@@ -296,6 +298,7 @@ class DeploymentStep(LimitedModel):
     certificate: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)   # "letsencrypt" | "cloudflare-dns" | "none" | "incommon" (beta, advanced)
     rate_limit: Optional[bool] = None   # Caddy/Traefik: per-visitor limits (default on)
     cloudflare_proxy: Optional[bool] = None  # Caddy/Traefik + cloudflare-dns only
+    hsts: Optional[bool] = None         # Enable HTTP Strict Transport Security when SSL is installed or handled externally
 
 
 FRONT_DOORS = ("caddy", "traefik", "cloudflare-tunnel")
@@ -320,7 +323,8 @@ TUNNEL_WARNING = ("Cloudflare Tunnel: Cloudflare decrypts all traffic to this si
 
 
 def enable_https_commands(front_door: str, certificate: str, domain: str = "",
-                          rate_limit: bool = True, cloudflare_proxy: bool = False) -> dict:
+                          rate_limit: bool = True, cloudflare_proxy: bool = False,
+                          hsts: bool = True) -> dict:
     """The exact host commands for a managed deployment's choices, for both Linux/macOS and Windows. Domain is only included if it's plainly a hostname list (it ends up in a command the admin copies into a shell)."""
     import re
     fd = front_door if front_door in FRONT_DOORS else "caddy"
@@ -336,6 +340,11 @@ def enable_https_commands(front_door: str, certificate: str, domain: str = "",
             sh += ["--cloudflare-proxy"]; ps += ["-CloudflareProxy"]
         if not rate_limit:
             sh += ["--no-rate-limit"]; ps += ["-NoRateLimit"]
+        if not hsts and cert != "none":
+            sh += ["--no-hsts"]; ps += ["-NoHsts"]
+    else:
+        if not hsts:
+            sh += ["--no-hsts"]; ps += ["-NoHsts"]
     d = (domain or "").replace(" ", "")
     if d and re.fullmatch(r"[A-Za-z0-9.-]+(,[A-Za-z0-9.-]+)*", d):
         sh += ["--domain", d]; ps += ["-Domain", d]
@@ -373,6 +382,7 @@ def save_deployment(body: DeploymentStep, db: Session = Depends(get_db),
         "reverse_proxy": body.reverse_proxy,
         "domain": (body.domain or "").strip()[:255],
     }
+    ssl_installed = body.reverse_proxy in ("native", "external")
     if body.reverse_proxy == "managed":
         front_door = body.front_door or "caddy"
         if front_door not in FRONT_DOORS:
@@ -387,7 +397,16 @@ def save_deployment(body: DeploymentStep, db: Session = Depends(get_db),
             if body.cloudflare_proxy and certificate != "cloudflare-dns":
                 raise HTTPException(400, "Cloudflare's proxy needs the 'cloudflare-dns' certificate option")
             deployment["cloudflare_proxy"] = bool(body.cloudflare_proxy)
+            ssl_installed = (certificate != "none")
+        else:
+            ssl_installed = True
     s = _load()
+    if body.hsts is not None:
+        if body.hsts and not ssl_installed:
+            raise HTTPException(400, "HSTS requires an SSL/TLS certificate to be installed or handled by an external service")
+        hsts_enabled = bool(body.hsts) and ssl_installed
+        deployment["hsts"] = hsts_enabled
+        s.setdefault("security", {})["hsts"] = hsts_enabled
     s["deployment"] = deployment
     _save(s)
     _mark_step("deployment", "done")
@@ -443,7 +462,8 @@ def complete(db: Session = Depends(get_db), user: User = Depends(get_current_use
         certificate = deployment.get("certificate", "letsencrypt")
         commands = enable_https_commands(front_door, certificate, deployment.get("domain", ""),
                                          rate_limit=deployment.get("rate_limit", True),
-                                         cloudflare_proxy=deployment.get("cloudflare_proxy", False))
+                                         cloudflare_proxy=deployment.get("cloudflare_proxy", False),
+                                         hsts=deployment.get("hsts", True))
         warnings.append("Your front door isn't on yet: run the command shown below on the server, "
                         "then restart the containers.")
         if front_door == "cloudflare-tunnel":

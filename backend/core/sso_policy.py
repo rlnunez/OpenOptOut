@@ -129,6 +129,14 @@ def evaluate_sso_login(result, provider_cfg: dict, registration_cfg: dict,
             if not eligible:
                 return _deny(f"Your library account is not eligible to sign in: {reason}")
 
+    # 5.6 Microsoft multi-tenant without allowed domains cannot sign in to
+    # existing accounts either — otherwise anyone could put an existing user's
+    # (or admin's) email address on a Microsoft account they control and take
+    # over that account.
+    if provider == "microsoft" and _ms_multi_tenant(cfg) and not allowed:
+        return _deny("This Microsoft sign-in accepts any organization's accounts; an "
+                     "administrator must set allowed domains before anyone can sign in.")
+
     # 6. existing user — linked login
     if user_exists:
         return Decision(True, "existing account")
@@ -136,10 +144,6 @@ def evaluate_sso_login(result, provider_cfg: dict, registration_cfg: dict,
     # 7. new user
     if user_count == 0:
         return _deny("Setup isn't finished. Create the administrator account first.")
-
-    if provider == "microsoft" and _ms_multi_tenant(cfg) and not allowed:
-        return _deny("This Microsoft sign-in accepts any organization's accounts; an "
-                     "administrator must set allowed domains before new users can join.")
 
     mode = str(reg.get("mode", "open")).lower()
     closed = mode in ("invite", "admin_only") or bool(reg.get("require_invite"))

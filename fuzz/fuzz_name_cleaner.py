@@ -29,7 +29,7 @@ def _assert_storable(out: str):
     assert out == out.strip(), repr(out)
     for ch in out:
         assert unicodedata.category(ch) not in ("Cc", "Cs"), f"control char {ch!r} in {out!r}"
-        assert ch not in _BIDI_CONTROLS and ch != "﻿", f"reordering mark {ch!r} in {out!r}"
+        assert ch not in _BIDI_CONTROLS and ch != "\ufeff", f"reordering mark {ch!r} in {out!r}"
 
 
 def TestOneInput(data):

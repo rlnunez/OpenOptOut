@@ -15,7 +15,7 @@ from ..core.limits import LimitedModel, ICON_DATA_URL_MAX, ITEMS_MAX
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, require_super_admin
 from ..core.access import require_permission
-from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE, get_secret_key
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE, get_secret_key, is_valid_secret_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -554,7 +554,7 @@ def encryption_status(_: User = Depends(require_permission("database.view"))):
         "field_encryption_enabled": field_key_set,
         "db_key_env_set":         bool(os.getenv("DB_ENCRYPTION_KEY")),
         "field_key_env_set":      bool(os.getenv("FIELD_ENCRYPTION_KEY")),
-        "secret_key_set":         bool(os.getenv("SECRET_KEY")) and os.getenv("SECRET_KEY") != "change-me-in-production-use-a-long-random-string",
+        "secret_key_set":         is_valid_secret_key(os.getenv("SECRET_KEY")),
         "db_type":                "sqlite" if db_url.startswith("sqlite") else "postgres",
         "notes": {
             "db_migration":   "Run: docker exec openoptout-api python -m backend.core.encryption migrate",
@@ -562,6 +562,38 @@ def encryption_status(_: User = Depends(require_permission("database.view"))):
             "postgres":       "For Postgres, use pgcrypto extension or provider-level TDE (RDS, Azure, Cloud SQL)",
         }
     }
+
+
+# ── HSTS (HTTP Strict Transport Security) ────────────────────────────────────
+
+class HstsSettings(LimitedModel):
+    enabled: bool = False
+
+
+@router.get("/security/hsts")
+def get_hsts_settings(_: User = Depends(require_permission("settings.system"))):
+    """Return current HSTS (HTTP Strict Transport Security) configuration."""
+    from ..core.settings_store import is_hsts_enabled
+    s = load_settings()
+    dep = s.get("deployment", {})
+    return {
+        "enabled": is_hsts_enabled(s),
+        "reverse_proxy": dep.get("reverse_proxy", "unset"),
+        "env_hsts": os.getenv("HSTS", "").strip().lower() in ("1", "true", "on", "yes"),
+    }
+
+
+@router.patch("/security/hsts")
+def update_hsts_settings(data: HstsSettings, _: User = Depends(require_permission("settings.system"))):
+    """Enable or disable HTTP Strict Transport Security (HSTS) response headers."""
+    from ..core.settings_store import is_hsts_enabled
+    s = load_settings()
+    sec = s.setdefault("security", {})
+    sec["hsts"] = bool(data.enabled)
+    if "deployment" in s and isinstance(s["deployment"], dict):
+        s["deployment"]["hsts"] = bool(data.enabled)
+    _save(s)
+    return {"saved": True, "enabled": is_hsts_enabled(s)}
 
 
 # ── WebAuthn / FIDO2 Security Settings ───────────────────────────────────────
@@ -1027,3 +1059,37 @@ def save_my_matching(data: MatchingMine, db: Session = Depends(get_db), user: Us
         raise HTTPException(400, "Choose ask, skip or remove all.")
     db.commit()
     return {"mine": mp.user_choice(user)}
+
+
+# ── Master Secret Key & Entropy Generator ─────────────────────────────────────
+
+class SecretKeyUpdate(LimitedModel):
+    key: str = Field(..., min_length=128, max_length=512)
+
+
+@router.get("/security/secret-key")
+def get_secret_key_info(_: User = Depends(require_permission("settings.system"))):
+    from ..core.settings_store import get_secret_key_status
+    return get_secret_key_status()
+
+
+@router.post("/security/secret-key")
+def update_secret_key(body: SecretKeyUpdate, user: User = Depends(require_permission("settings.system"))):
+    from ..core.settings_store import save_secret_key_file
+    from ..core.auth import create_access_token
+    try:
+        status_info = save_secret_key_file(body.key)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    # Issue a fresh access token signed with the new master key so the admin stays signed in
+    fresh_token = create_access_token(
+        data={"sub": user.email, "user_id": user.id, "role": user.role.value, "token_version": getattr(user, "token_version", 0) or 0}
+    )
+    return {**status_info, "access_token": fresh_token}
+
+
+@router.get("/security/entropy-images")
+def get_entropy_images(count: int = 5, _: User = Depends(require_permission("settings.system"))):
+    from ..core.settings_store import generate_entropy_images
+    return {"images": generate_entropy_images(count)}
+

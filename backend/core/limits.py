@@ -77,8 +77,16 @@ class RequestSizeLimitMiddleware:
         if len(scope.get("query_string", b"")) > MAX_QUERY_BYTES:
             return await _reject(send, 414, "That web address is too long.")
 
+        qs = scope.get("query_string", b"")
+        if b"\x00" in qs or b"%00" in qs or b"%0" in qs:
+            scope = dict(scope)
+            scope["query_string"] = qs.replace(b"\x00", b"").replace(b"%00", b"")
+
         limit = body_limit_for(scope.get("path", ""))
+        is_form_urlencoded = False
         for name, value in scope.get("headers", []):
+            if name == b"content-type" and b"application/x-www-form-urlencoded" in value.lower():
+                is_form_urlencoded = True
             if name == b"content-length":
                 try:
                     declared = int(value)
@@ -86,7 +94,6 @@ class RequestSizeLimitMiddleware:
                     return await _reject(send, 400, "The request was malformed.")
                 if declared > limit:
                     return await _reject(send, 413, _too_large_message(limit))
-                break
 
         received = 0
         response_started = False
@@ -95,9 +102,13 @@ class RequestSizeLimitMiddleware:
             nonlocal received
             message = await receive()
             if message["type"] == "http.request":
-                received += len(message.get("body", b""))
+                chunk = message.get("body", b"")
+                received += len(chunk)
                 if received > limit:
                     raise _BodyTooLarge(limit)
+                if is_form_urlencoded and (b"\x00" in chunk or b"%00" in chunk):
+                    message = dict(message)
+                    message["body"] = chunk.replace(b"\x00", b"").replace(b"%00", b"")
             return message
 
         async def tracking_send(message):
@@ -154,19 +165,45 @@ def decode_text_upload(data: bytes, what: str = "file") -> str:
     mark), turning a wrong encoding into a readable 400 instead of a crash."""
     from fastapi import HTTPException
     try:
-        return data.decode("utf-8-sig")
+        return strip_null_bytes(data.decode("utf-8-sig"))
     except UnicodeDecodeError:
         raise HTTPException(400, f"The {what} isn't plain text in UTF-8. "
                                  "Save it as UTF-8 (\"CSV UTF-8\" in Excel) and try again.")
 
 
+def strip_null_bytes(val):
+    """Recursively strip invisible NUL (\\x00) characters and lone UTF-16
+    surrogates from strings, lists, tuples, sets, and dicts so they can never
+    reach PostgreSQL, SQLite, or shell/header builders."""
+    if isinstance(val, str):
+        if "\x00" in val:
+            val = val.replace("\x00", "")
+        # Also drop lone UTF-16 surrogates (U+D800..U+DFFF) which crash UTF-8 encoders
+        if any(0xD800 <= ord(ch) <= 0xDFFF for ch in val):
+            val = "".join(ch for ch in val if not (0xD800 <= ord(ch) <= 0xDFFF))
+        return val
+    if isinstance(val, dict):
+        return {strip_null_bytes(k): strip_null_bytes(v) for k, v in val.items()}
+    if isinstance(val, list):
+        return [strip_null_bytes(x) for x in val]
+    if isinstance(val, tuple):
+        return tuple(strip_null_bytes(x) for x in val)
+    return val
+
+
 def _make_limited_model():
-    from pydantic import BaseModel, ConfigDict
+    from pydantic import BaseModel, ConfigDict, model_validator
 
     class LimitedModel(BaseModel):
         """Base for every request model: caps all text at TEXT_MAX characters
-        unless a field sets its own max_length."""
+        unless a field sets its own max_length, and strips invisible null
+        (\\x00) characters and lone surrogates from every incoming string."""
         model_config = ConfigDict(str_max_length=TEXT_MAX)
+
+        @model_validator(mode="before")
+        @classmethod
+        def _strip_invisible_nulls(cls, data):
+            return strip_null_bytes(data)
 
     return LimitedModel
 
@@ -175,3 +212,4 @@ try:
     LimitedModel = _make_limited_model()
 except ImportError:          # pydantic missing (fuzz build): constants still usable
     LimitedModel: Optional[type] = None
+

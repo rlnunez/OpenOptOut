@@ -76,12 +76,22 @@ except (ImportError, ValueError):
         Branch = _ModelPlaceholder("Branch")
 
 import secrets
+from .settings_store import get_secret_key, is_valid_secret_key
 
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    SECRET_KEY = secrets.token_hex(32)
+SECRET_KEY = os.getenv("SECRET_KEY") or ""
 ALGORITHM  = "HS256"
 TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
+
+
+def _jwt_secret() -> str:
+    """Return the validated SECRET_KEY (raises RuntimeError if missing or an example value)."""
+    return get_secret_key()
+
+
+# Minimum password length for new or updated local passwords. Existing shorter
+# passwords can still sign in via /api/auth/token (which does not call this
+# validator), matching what the sign-up page asks for.
+MIN_PASSWORD_CHARS = 8
 
 # bcrypt only uses the first 72 BYTES of a password — anything past that is
 # silently ignored (not an error, not a truncation warning), which means two
@@ -101,13 +111,21 @@ def validate_password_length(password: Optional[str]) -> Optional[str]:
     """Pydantic field_validator for every request model that accepts a password
     the app will hash. Raising ValueError here becomes a clean 422 with a
     readable message, instead of a raw crash out of passlib/bcrypt."""
-    if password and len(password.encode("utf-8")) > MAX_PASSWORD_BYTES:
-        raise ValueError(
-            f"Password is too long ({len(password.encode('utf-8'))} bytes; "
-            f"the limit is {MAX_PASSWORD_BYTES} bytes — fewer characters if it "
-            "contains accented or non-Latin characters, which take more than "
-            "one byte each)."
-        )
+    if isinstance(password, str) and "\x00" in password:
+        password = password.replace("\x00", "")
+    if password:
+        if len(password) < MIN_PASSWORD_CHARS:
+            raise ValueError(
+                f"Password must be at least {MIN_PASSWORD_CHARS} characters "
+                f"(got {len(password)})."
+            )
+        if len(password.encode("utf-8")) > MAX_PASSWORD_BYTES:
+            raise ValueError(
+                f"Password is too long ({len(password.encode('utf-8'))} bytes; "
+                f"the limit is {MAX_PASSWORD_BYTES} bytes — fewer characters if it "
+                "contains accented or non-Latin characters, which take more than "
+                "one byte each)."
+            )
     return password
 
 def get_password_pepper() -> bytes:
@@ -118,10 +136,11 @@ def get_password_pepper() -> bytes:
     2. Derived from SECRET_KEY (via HMAC-SHA256 key separation)
     """
     pepper = os.getenv("PASSWORD_PEPPER")
-    if pepper:
+    if pepper and is_valid_secret_key(pepper):
         return pepper.encode("utf-8")
-    sec = os.getenv("SECRET_KEY") or SECRET_KEY or "openoptout-default-pepper-key"
+    sec = get_secret_key()
     return hmac.new(b"openoptout-password-pepper-derivation", sec.encode("utf-8"), hashlib.sha256).digest()
+
 
 
 def _pepper_password(password: str) -> str:
@@ -204,7 +223,7 @@ def is_legacy_unpeppered_hash(plain: str, hashed: str) -> bool:
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     payload = {**data, "exp": datetime.utcnow() + (expires_delta or timedelta(minutes=TOKEN_EXPIRE_MINUTES))}
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(payload, _jwt_secret(), algorithm=ALGORITHM)
 
 
 # ── FastAPI dependencies ──────────────────────────────────────────────────────
@@ -219,7 +238,7 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, _jwt_secret(), algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if not email:
             raise exc
@@ -246,7 +265,7 @@ def get_current_user_optional(
     if not token:
         return None
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, _jwt_secret(), algorithms=[ALGORITHM])
         email = payload.get("sub")
         if not email:
             return None

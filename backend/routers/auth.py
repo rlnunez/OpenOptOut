@@ -383,7 +383,9 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(400, "An account with that email already exists.")
     home = _check_signup_steps(req, db)
     role = _check_registration_allowed(clean_email, req.invite_code, db)
-    if not req.password and role != UserRole.super_admin:
+    from ..core import mfa
+    pwdless_cfg = mfa.get_passwordless_config()
+    if not req.password and not (pwdless_cfg.get("enabled") and pwdless_cfg.get("enforce_passwordless_local")):
         raise HTTPException(400, "Password is required")
     user = _create_user_and_member(
         db, clean_email, req.full_name, role,
@@ -485,12 +487,13 @@ def login(
     db: Session = Depends(get_db),
     remember_me: bool = Query(False),
 ):
-    username = (form.username or "").strip().lower()
+    username = (form.username or "").replace("\x00", "").strip().lower()
+    password = (form.password or "").replace("\x00", "")
     throttle_key = login_throttle.account_key("password", username)
     ip_key = login_throttle.ip_key(request)
     login_throttle.check(throttle_key, ip_key)
     user = db.query(User).filter(func.lower(User.email) == username).first()
-    if not user or not user.hashed_password or not verify_password(form.password, user.hashed_password):
+    if not user or not user.hashed_password or not verify_password(password, user.hashed_password):
         login_throttle.failure(throttle_key, ip_key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -500,9 +503,9 @@ def login(
     login_throttle.success(throttle_key)
 
     # Automatic transparent hash upgrade: if legacy unpeppered, upgrade to HMAC-SHA256 peppered hash!
-    if is_legacy_unpeppered_hash(form.password, user.hashed_password):
+    if is_legacy_unpeppered_hash(password, user.hashed_password):
         try:
-            user.hashed_password = hash_password(form.password)
+            user.hashed_password = hash_password(password)
             db.commit()
         except Exception:
             pass
@@ -891,9 +894,26 @@ def _resolve_user_for_mfa(
     current_user: Optional[User] = None,
     mfa_ticket: Optional[str] = None,
     request: Optional[Request] = None,
+    *,
+    for_enrollment: bool = False,
 ) -> User:
     if current_user:
         return current_user
+    if request:
+        auth_hdr = request.headers.get("Authorization", "")
+        if auth_hdr.startswith("Bearer "):
+            token = auth_hdr[7:].strip()
+            try:
+                from jose import jwt
+                from ..core.auth import _jwt_secret, ALGORITHM
+                payload = jwt.decode(token, _jwt_secret(), algorithms=[ALGORITHM])
+                email = payload.get("sub")
+                if email:
+                    user = db.query(User).filter(User.email == email).first()
+                    if user and user.can_login:
+                        return user
+            except Exception:
+                pass
     ticket = mfa_ticket
     if not ticket and request:
         ticket = request.headers.get("X-MFA-Ticket")
@@ -903,22 +923,12 @@ def _resolve_user_for_mfa(
         if tdata:
             user = db.query(User).filter(User.id == tdata["uid"]).first()
             if user:
+                if for_enrollment and mfa.user_has_mfa(user):
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Two-step sign-in is already set up on this account. Sign in with your second factor to change it.",
+                    )
                 return user
-    if request:
-        auth_hdr = request.headers.get("Authorization", "")
-        if auth_hdr.startswith("Bearer "):
-            token = auth_hdr[7:].strip()
-            try:
-                from jose import jwt
-                from ..core.auth import SECRET_KEY, ALGORITHM
-                payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-                email = payload.get("sub")
-                if email:
-                    user = db.query(User).filter(User.email == email).first()
-                    if user and user.can_login:
-                        return user
-            except Exception:
-                pass
     raise HTTPException(status_code=401, detail="Authentication session required")
 
 
@@ -1077,7 +1087,7 @@ def setup_totp(
 ):
     from ..core import mfa
     ticket = (data or {}).get("mfa_ticket")
-    user = _resolve_user_for_mfa(db, current_user, ticket, request)
+    user = _resolve_user_for_mfa(db, current_user, ticket, request, for_enrollment=True)
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("totp", True):
         raise HTTPException(403, "TOTP authenticator app method is disabled for your role or account by security policy.")
@@ -1095,7 +1105,7 @@ def activate_totp(
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     from ..core import mfa
-    user = _resolve_user_for_mfa(db, current_user, data.mfa_ticket, request)
+    user = _resolve_user_for_mfa(db, current_user, data.mfa_ticket, request, for_enrollment=True)
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("totp", True):
         raise HTTPException(403, "TOTP authenticator app method is disabled for your role or account by security policy.")
@@ -1122,7 +1132,7 @@ def activate_totp(
     return {
         "activated": True,
         "backup_codes": plain_codes,
-        "access_token": create_access_token({"sub": user.email}),
+        "access_token": create_user_token(user),
         "token_type": "bearer",
     }
 
@@ -1164,7 +1174,7 @@ def get_webauthn_register_options(
 ):
     from ..core import mfa
     ticket = (data or {}).get("mfa_ticket")
-    user = _resolve_user_for_mfa(db, current_user, ticket, request)
+    user = _resolve_user_for_mfa(db, current_user, ticket, request, for_enrollment=True)
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("webauthn", True):
         raise HTTPException(403, "FIDO2 / WebAuthn security key method is disabled for your role or account by security policy.")
@@ -1186,7 +1196,7 @@ def register_webauthn_key(
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     from ..core import mfa
-    user = _resolve_user_for_mfa(db, current_user, data.mfa_ticket, request)
+    user = _resolve_user_for_mfa(db, current_user, data.mfa_ticket, request, for_enrollment=True)
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("webauthn", True):
         raise HTTPException(403, "FIDO2 / WebAuthn security key method is disabled for your role or account by security policy.")

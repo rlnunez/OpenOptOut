@@ -35,6 +35,7 @@ def save_settings(data: dict) -> None:
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp_path, SETTINGS_FILE)
+        _hsts_cache["mtime"] = None
     except Exception:
         if os.path.exists(tmp_path):
             try:
@@ -44,11 +45,362 @@ def save_settings(data: dict) -> None:
         raise
 
 
+_hsts_cache: dict = {"mtime": None, "path": None, "enabled": False}
+
+
+def is_hsts_enabled(s: dict | None = None) -> bool:
+    """Return True if HTTP Strict Transport Security (HSTS) is enabled via settings or HSTS env var."""
+    if s is not None:
+        sec_hsts = s.get("security", {}).get("hsts")
+        if isinstance(sec_hsts, bool):
+            return sec_hsts
+        dep_hsts = s.get("deployment", {}).get("hsts")
+        if isinstance(dep_hsts, bool):
+            return dep_hsts
+        return os.getenv("HSTS", "").strip().lower() in ("1", "true", "on", "yes")
+
+    try:
+        mtime = os.path.getmtime(SETTINGS_FILE) if os.path.exists(SETTINGS_FILE) else -1
+    except OSError:
+        mtime = -1
+    if _hsts_cache["mtime"] == mtime and _hsts_cache["path"] == SETTINGS_FILE:
+        if _hsts_cache["enabled"] is not None:
+            return _hsts_cache["enabled"]
+    try:
+        data = load_settings() if mtime != -1 else {}
+    except Exception:
+        data = {}
+    sec_hsts = data.get("security", {}).get("hsts")
+    dep_hsts = data.get("deployment", {}).get("hsts")
+    if isinstance(sec_hsts, bool):
+        val = sec_hsts
+    elif isinstance(dep_hsts, bool):
+        val = dep_hsts
+    else:
+        val = None
+    _hsts_cache["mtime"] = mtime
+    _hsts_cache["path"] = SETTINGS_FILE
+    _hsts_cache["enabled"] = val
+    if val is not None:
+        return val
+    return os.getenv("HSTS", "").strip().lower() in ("1", "true", "on", "yes")
+
+
+MIN_SECRET_KEY_CHARS = 128
+MAX_SECRET_KEY_CHARS = 512
+
+FORBIDDEN_SECRET_KEYS = frozenset({
+    "",
+    "change-me-please",
+    "change-me-please-32-chars-minimum",
+    "change-me-to-a-long-random-string",
+    "change-me-in-production-use-a-long-random-string",
+    "openoptout-default-pepper-key",
+    "changeme",
+    "secret",
+    "default",
+})
+
+_secret_file_cache: dict = {"mtime": None, "path": None, "key": None}
+_USING_BOOTSTRAP_KEY: bool = False
+
+
+def get_secret_key_file_path() -> str:
+    """Return the path to the persistent master secret key file."""
+    override = (os.getenv("SECRET_KEY_FILE") or "").strip()
+    if override:
+        return override
+    base_dir = os.path.dirname(os.path.abspath(SETTINGS_FILE))
+    return os.path.join(base_dir, "secret.key")
+
+
+def read_secret_key_file() -> str | None:
+    """Read the master secret key from secret.key if it exists and is non-empty."""
+    path = get_secret_key_file_path()
+    try:
+        mtime = os.path.getmtime(path) if os.path.exists(path) else -1
+    except OSError:
+        mtime = -1
+    if mtime == -1:
+        _secret_file_cache["mtime"] = -1
+        _secret_file_cache["path"] = path
+        _secret_file_cache["key"] = None
+        return None
+    if _secret_file_cache["mtime"] == mtime and _secret_file_cache["path"] == path:
+        return _secret_file_cache["key"]
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            val = f.read().replace("\x00", "").strip()
+    except OSError:
+        val = ""
+    _secret_file_cache["mtime"] = mtime
+    _secret_file_cache["path"] = path
+    _secret_file_cache["key"] = val or None
+    return _secret_file_cache["key"]
+
+
+def is_valid_secret_key(key: str | None) -> bool:
+    """Return True only when key is non-empty and not one of the known example/placeholder values."""
+    if not key or not isinstance(key, str):
+        return False
+    cleaned = key.replace("\x00", "").strip()
+    if not cleaned or cleaned.lower() in FORBIDDEN_SECRET_KEYS:
+        return False
+    return True
+
+
+def is_valid_user_secret_key(key: str | None) -> bool:
+    """Return True when a user-entered secret key is between MIN_SECRET_KEY_CHARS (128)
+    and MAX_SECRET_KEY_CHARS (512) characters long, not a placeholder, and has sufficient character diversity."""
+    if not is_valid_secret_key(key):
+        return False
+    cleaned = key.replace("\x00", "").strip()
+    if len(cleaned) < MIN_SECRET_KEY_CHARS or len(cleaned) > MAX_SECRET_KEY_CHARS:
+        return False
+    if len(set(cleaned)) < 8:
+        return False
+    return True
+
+
 def get_secret_key() -> str:
-    key = os.getenv("SECRET_KEY")
-    if not key:
-        return "change-me-in-production-use-a-long-random-string"
+    file_key = read_secret_key_file()
+    if file_key and is_valid_secret_key(file_key):
+        return file_key
+    key = (os.getenv("SECRET_KEY") or "").strip()
+    if not is_valid_secret_key(key):
+        raise RuntimeError(
+            "SECRET_KEY is missing or set to a publicly known example value. "
+            "Set a strong random SECRET_KEY in .env or configure a 128+ character key in secret.key."
+        )
     return key
+
+
+def ensure_bootstrap_secret_key() -> str:
+    """Ensure the server has a valid runtime secret key on startup.
+    If secret.key exists, load it. If SECRET_KEY is missing or 'change-me-please',
+    generate an in-memory 128-character ephemeral key until the admin saves their
+    permanent 128+ character key to secret.key via the UI."""
+    global _USING_BOOTSTRAP_KEY
+    file_key = read_secret_key_file()
+    if file_key and is_valid_user_secret_key(file_key):
+        os.environ["SECRET_KEY"] = file_key
+        _USING_BOOTSTRAP_KEY = False
+        return file_key
+    env_key = (os.getenv("SECRET_KEY") or "").strip()
+    if is_valid_secret_key(env_key):
+        _USING_BOOTSTRAP_KEY = False
+        return env_key
+    import secrets
+    bootstrap = secrets.token_hex(64)  # 128 hex chars, ephemeral in-memory
+    os.environ["SECRET_KEY"] = bootstrap
+    _USING_BOOTSTRAP_KEY = True
+    return bootstrap
+
+
+def get_secret_key_status() -> dict:
+    """Inspect the secret.key file and its filesystem permissions for the admin banner and settings UI."""
+    import stat, shlex
+    path = get_secret_key_file_path()
+    file_exists = os.path.exists(path)
+    file_key = read_secret_key_file() if file_exists else None
+    has_valid_file_key = is_valid_user_secret_key(file_key)
+    mode_octal = None
+    permissions_secure = False
+    if file_exists:
+        try:
+            st = os.stat(path)
+            imode = stat.S_IMODE(st.st_mode)
+            mode_octal = f"0{imode:03o}"
+            # Permissions are secure only when group and world have zero access (e.g. 0600 or 0400)
+            permissions_secure = (imode & 0o077) == 0
+        except OSError:
+            mode_octal = "unknown"
+            permissions_secure = False
+
+    env_key = (os.getenv("SECRET_KEY") or "").strip()
+    active_len = len(file_key) if (file_key and is_valid_secret_key(file_key)) else (len(env_key) if is_valid_secret_key(env_key) else 0)
+    needs_key = not has_valid_file_key
+    permissions_insecure = bool(has_valid_file_key and not permissions_secure)
+    qpath = shlex.quote(path)
+    return {
+        "file_path": path,
+        "file_exists": file_exists,
+        "has_valid_file_key": has_valid_file_key,
+        "using_bootstrap_key": _USING_BOOTSTRAP_KEY,
+        "min_length": MIN_SECRET_KEY_CHARS,
+        "max_length": MAX_SECRET_KEY_CHARS,
+        "active_key_length": active_len,
+        "mode_octal": mode_octal,
+        "permissions_secure": permissions_secure,
+        "needs_key": needs_key,
+        "permissions_insecure": permissions_insecure,
+        "banner_required": bool(needs_key or permissions_insecure),
+        "commands": {
+            "linux": f"chmod 600 {qpath}",
+            "docker": f"docker compose exec api chmod 600 {qpath}",
+            "windows": f'icacls "{path}" /inheritance:r /grant:r "$($env:USERNAME):(R,W)"',
+        },
+    }
+
+
+def _fernet_for_key(raw: str):
+    if Fernet is None:
+        raise RuntimeError("cryptography package is required for password encryption")
+    _kb = raw.encode() or b"\0"
+    padded = (_kb * (32 // len(_kb) + 1))[:32]
+    return Fernet(base64.urlsafe_b64encode(padded))
+
+
+def save_secret_key_file(new_key: str) -> dict:
+    """Validate and persist a 128-512 character master key to secret.key.
+    Initial file permissions are set to 0644 (unless already locked down to 0600)
+    so the administrator can lock down permissions using the displayed commands."""
+    global _USING_BOOTSTRAP_KEY
+    cleaned = (new_key or "").replace("\x00", "").strip()
+    if len(cleaned) < MIN_SECRET_KEY_CHARS:
+        raise ValueError(f"Master secret key must be at least {MIN_SECRET_KEY_CHARS} characters long (got {len(cleaned)}).")
+    if len(cleaned) > MAX_SECRET_KEY_CHARS:
+        raise ValueError(f"Master secret key must be {MAX_SECRET_KEY_CHARS} characters or fewer (got {len(cleaned)}).")
+    if not is_valid_secret_key(cleaned):
+        raise ValueError("Master secret key cannot be a placeholder or example value.")
+    if len(set(cleaned)) < 8:
+        raise ValueError("Master secret key must contain at least 8 distinct characters for sufficient entropy.")
+
+    # Re-encrypt any stored SMTP password in settings before rotating the key
+    old_plain_smtp = None
+    try:
+        s = load_settings()
+        enc_pw = s.get("email", {}).get("smtp_password_enc")
+        if enc_pw:
+            old_plain_smtp = decrypt_password(enc_pw)
+    except Exception:
+        s = None
+
+    path = get_secret_key_file_path()
+    dir_name = os.path.dirname(os.path.abspath(path))
+    os.makedirs(dir_name, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(cleaned + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+    try:
+        # Leave group/world read bit (0644) until the administrator runs chmod 600
+        os.chmod(path, 0o644)
+    except OSError:
+        pass
+
+    _secret_file_cache["mtime"] = None
+    os.environ["SECRET_KEY"] = cleaned
+    _USING_BOOTSTRAP_KEY = False
+
+    if s is not None and old_plain_smtp:
+        try:
+            s.setdefault("email", {})["smtp_password_enc"] = _fernet_for_key(cleaned).encrypt(old_plain_smtp.encode()).decode()
+            save_settings(s)
+        except Exception:
+            pass
+
+    return get_secret_key_status()
+
+
+def _make_procedural_bmp_data_url(seed_bytes: bytes, idx: int) -> tuple[str, bytes]:
+    """Generate a vibrant, high-entropy 48x36 24-bit BMP image seeded from OS cryptographic
+    randomness (lava-lamp plasma + noise) so image-based key generation works even offline."""
+    import math, struct
+    w, h = 48, 36
+    row_stride = (w * 3 + 3) & ~3
+    pixel_data = bytearray(row_stride * h)
+    p1 = (seed_bytes[0] / 255.0) * 6.28
+    p2 = (seed_bytes[1] / 255.0) * 6.28
+    p3 = (seed_bytes[2] / 255.0) * 6.28
+    f1 = 1.5 + (seed_bytes[3] % 5) * 0.6
+    f2 = 1.5 + (seed_bytes[4] % 5) * 0.6
+    hue_shift = idx * 51
+    n_len = len(seed_bytes)
+    pos = 0
+    for y in range(h):
+        row_off = y * row_stride
+        ny = y / h
+        for x in range(w):
+            nx = x / w
+            v = (
+                math.sin(nx * f1 * 6.28 + p1)
+                + math.cos(ny * f2 * 6.28 + p2)
+                + math.sin((nx + ny) * 4.5 + p3)
+            )
+            noise = seed_bytes[pos % n_len]
+            pos += 1
+            r = int((math.sin(v + p1) * 0.5 + 0.5) * 210 + (noise & 0x2F) + hue_shift) & 0xFF
+            g = int((math.cos(v * 1.3 + p2) * 0.5 + 0.5) * 210 + ((noise >> 2) & 0x2F)) & 0xFF
+            b = int((math.sin(v * 1.7 + p3) * 0.5 + 0.5) * 210 + ((noise >> 4) & 0x2F)) & 0xFF
+            px_off = row_off + x * 3
+            pixel_data[px_off] = b
+            pixel_data[px_off + 1] = g
+            pixel_data[px_off + 2] = r
+    file_size = 54 + len(pixel_data)
+    header = struct.pack(
+        "<2sIHHI IIIHHIIIIII",
+        b"BM", file_size, 0, 0, 54,
+        40, w, h, 1, 24, 0, len(pixel_data), 2835, 2835, 0, 0
+    )
+    raw_bmp = header + bytes(pixel_data)
+    b64 = base64.b64encode(raw_bmp).decode("ascii")
+    return f"data:image/bmp;base64,{b64}", raw_bmp
+
+
+def generate_entropy_images(count: int = 5) -> list[dict]:
+    """Fetch 4-6 free random images from the web (or synthesize cryptographic lava-lamp
+    frames if offline/blocked) and extract high-entropy byte chunks from each image."""
+    import hashlib, urllib.request
+    count = max(4, min(6, int(count or 5)))
+    items = []
+    themes = [
+        "Crimson Lava Nebula",
+        "Bioluminescent Deep",
+        "Solar Flare Plasma",
+        "Aurora Borealis Drift",
+        "Quantum Interference",
+        "Prismatic Thermal Wave",
+    ]
+    for i in range(count):
+        seed_entropy = os.urandom(128)
+        raw_bytes = None
+        data_url = None
+        source_type = "lava-lamp-rng"
+        label = themes[i % len(themes)]
+        # Attempt to pull a free random public image if outbound internet is reachable
+        seed_id = hashlib.sha256(seed_entropy[:16]).hexdigest()[:10]
+        url = f"https://picsum.photos/seed/{seed_id}/96/72"
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "OpenOptOut-KeyGen/1.0"})
+            with urllib.request.urlopen(req, timeout=1.5) as resp:
+                ctype = resp.headers.get("Content-Type", "image/jpeg")
+                fetched = resp.read(65536)
+                if len(fetched) > 128 and ctype.startswith("image/"):
+                    raw_bytes = fetched + seed_entropy
+                    b64 = base64.b64encode(fetched).decode("ascii")
+                    data_url = f"data:{ctype};base64,{b64}"
+                    source_type = "web-image"
+                    label = f"Web Photo #{seed_id[:6]}"
+        except Exception:
+            raw_bytes = None
+
+        if not raw_bytes or not data_url:
+            data_url, bmp_bytes = _make_procedural_bmp_data_url(seed_entropy, i)
+            raw_bytes = bmp_bytes + seed_entropy
+
+        digest = hashlib.sha512(raw_bytes).hexdigest()
+        items.append({
+            "id": f"img-{i + 1}-{digest[:8]}",
+            "index": i + 1,
+            "label": label,
+            "source_type": source_type,
+            "byte_length": len(raw_bytes),
+            "data_url": data_url,
+            "sha512": digest,
+            "chunks": [digest[j:j + 16] for j in range(0, 128, 16)],
+        })
+    return items
 
 
 def _fernet():
@@ -74,3 +426,4 @@ def decrypt_password(enc: str) -> str:
         return _fernet().decrypt(enc.encode()).decode()
     except Exception:
         return ""
+

@@ -23,6 +23,7 @@
 #          --env-file PATH (default /opt/openoptout/.env)
 #          --staging (Let's Encrypt's test environment — untrusted certs, no
 #            rate limits; run this first, then re-run without --staging)
+#          --hsts | --no-hsts (enable/disable HSTS; default: on)
 #          --yes (no confirmation prompt)  --disable
 #
 # What this does NOT do: install certbot, install/configure nginx or the
@@ -35,7 +36,7 @@
 set -euo pipefail
 
 DOMAIN=""; EMAIL=""; NGINX_SITE=""; ENV_FILE="/opt/openoptout/.env"
-STAGING=0; YES=0; DISABLE=0
+STAGING=0; YES=0; DISABLE=0; HSTS_VAL=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -44,9 +45,11 @@ while [ $# -gt 0 ]; do
     --nginx-site) NGINX_SITE="$2"; shift 2 ;;
     --env-file) ENV_FILE="$2"; shift 2 ;;
     --staging) STAGING=1; shift ;;
+    --hsts) HSTS_VAL=on; shift ;;
+    --no-hsts) HSTS_VAL=off; shift ;;
     --yes|-y) YES=1; shift ;;
     --disable) DISABLE=1; shift ;;
-    -h|--help) sed -n '2,26p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,27p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
@@ -107,6 +110,7 @@ if [ "$DISABLE" = 1 ]; then
   fi
   backup_env
   set_env FRONTEND_URL "http://localhost"
+  set_env HSTS "off"
   echo "certbot's own certificate files and renewal timer are left in place (harmless if unused)."
   echo "To remove them too:  sudo certbot delete --cert-name <your-domain>"
   exit 0
@@ -122,7 +126,7 @@ if [ -z "$NGINX_SITE" ] || [ ! -f "$NGINX_SITE" ]; then
   die "Couldn't find the OpenOptOut nginx site. Install it first (deploy/native/nginx-openoptout.conf.example), or pass --nginx-site PATH."
 fi
 
-# ── domain / email ──
+# ── domain / email / HSTS ──
 [ -n "$DOMAIN" ] || DOMAIN="$(ask 'Domain name people will use (e.g. privacy.yourlibrary.org)')"
 valid_domain "$DOMAIN" || die "Invalid domain: $DOMAIN"
 if [ -z "$EMAIL" ]; then
@@ -130,6 +134,13 @@ if [ -z "$EMAIL" ]; then
 fi
 if [ -n "$EMAIL" ] && ! valid_email "$EMAIL"; then
   die "Invalid email: $EMAIL"
+fi
+if [ -z "$HSTS_VAL" ]; then
+  if [ "$YES" = 0 ] && [ -t 0 ]; then
+    [ "$(ask 'Enable HSTS (Strict-Transport-Security: require browsers to use HTTPS)? (y/n)' y)" = n ] && HSTS_VAL=off || HSTS_VAL=on
+  else
+    HSTS_VAL=on
+  fi
 fi
 
 # ── preflight ──
@@ -145,7 +156,7 @@ echo "Let's Encrypt must reach this server on ports 80 and 443 from the internet
 [ "$STAGING" = 0 ] && echo "Tip: run with --staging first to avoid rate limits while testing, then re-run without it."
 
 echo
-echo "About to run certbot for: domain=$DOMAIN${EMAIL:+ email=$EMAIL}${STAGING:+ (staging)}"
+echo "About to run certbot for: domain=$DOMAIN${EMAIL:+ email=$EMAIL} hsts=$HSTS_VAL${STAGING:+ (staging)}"
 if [ "$YES" = 0 ]; then
   if [ "$(ask 'Continue? (y/n)' y)" != y ]; then
     die "Cancelled."
@@ -158,6 +169,9 @@ fi
 cp "$NGINX_SITE" "${NGINX_SITE}.certbot.bak"
 
 CERTBOT_ARGS=(--nginx -d "$DOMAIN" --redirect --agree-tos --no-eff-email -n)
+if [ "$HSTS_VAL" = on ]; then
+  CERTBOT_ARGS+=(--hsts)
+fi
 if [ -n "$EMAIL" ]; then
   CERTBOT_ARGS+=(--email "$EMAIL")
 else
@@ -181,6 +195,7 @@ else
 fi
 set_env HTTPS_MODE "$MODE_VAL"
 set_env DOMAIN "$DOMAIN"
+set_env HSTS "$HSTS_VAL"
 set_env HTTPS_CHECK_HOST "127.0.0.1"
 
 echo

@@ -413,12 +413,19 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
   const [certificate, setCertificate] = useState('letsencrypt')
   const [rateLimit, setRateLimit] = useState(true)
   const [cloudflareProxy, setCloudflareProxy] = useState(false)
+  const [hsts, setHsts] = useState(true)
   const [saving, setSaving] = useState(false)
+
+  const sslInstalled = (mode === 'managed' && (frontDoor === 'cloudflare-tunnel' || certificate !== 'none')) || mode === 'native' || mode === 'external'
 
   const save = async () => {
     setSaving(true); setError('')
     try {
-      const body = { reverse_proxy: mode, domain: (mode === 'managed' || mode === 'native') ? domain : '' }
+      const body = {
+        reverse_proxy: mode,
+        domain: (mode === 'managed' || mode === 'native') ? domain : '',
+        hsts: sslInstalled ? hsts : false,
+      }
       if (mode === 'managed') {
         body.front_door = frontDoor
         if (frontDoor !== 'cloudflare-tunnel') {
@@ -547,6 +554,15 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
             <div className="text-slate-400 text-xs">{tx("Fine for local testing. You'll keep seeing a plain-HTTP warning until this is behind HTTPS one way or the other.")}</div>
           </div>
         </label>
+        {sslInstalled && (
+          <label className="flex items-start gap-2.5 p-3 rounded-lg border border-slate-700 bg-slate-800/30 cursor-pointer">
+            <input type="checkbox" checked={hsts} onChange={e => setHsts(e.target.checked)} className="mt-1 accent-shield-500" />
+            <div>
+              <div className="text-slate-200 text-sm font-medium">{tx("Enable HSTS (HTTP Strict Transport Security)")}</div>
+              <div className="text-slate-400 text-xs">{tx("Tells browsers to always connect to this site over HTTPS and refuse plain HTTP connections. Enable this when your SSL certificate is active or handled by an external service.")}</div>
+            </div>
+          </label>
+        )}
       </div>
       <Buttons onBack={onBack} onSkip={onSkip} onNext={save} busy={saving || busy} />
     </div>

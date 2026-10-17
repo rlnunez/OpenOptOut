@@ -99,11 +99,22 @@ async def add_security_headers(request, call_next):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-    content_type = response.headers.get("content-type", "")
+    from .core.settings_store import is_hsts_enabled
+    if is_hsts_enabled():
+        response.headers.setdefault(
+            "Strict-Transport-Security",
+            "max-age=31536000; includeSubDomains",
+        )
+    content_type = response.headers.get("content-type", "").lower()
     if "text/html" in content_type:
         response.headers.setdefault(
             "Content-Security-Policy",
             "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none';",
+        )
+    elif "svg" in content_type:
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'none'; style-src 'unsafe-inline'; sandbox",
         )
     return response
 
@@ -141,6 +152,9 @@ for r in [
 
 @app.on_event("startup")
 def startup():
+    # Load persistent secret.key if present, or replace missing/example SECRET_KEY with an ephemeral key until configured in UI
+    from .core.settings_store import ensure_bootstrap_secret_key
+    ensure_bootstrap_secret_key()
     # Enforce zero-core-dump memory hygiene policy (prevents PII disk dumps on crash)
     from .core.memory_hygiene import disable_core_dumps
     disable_core_dumps()

@@ -80,6 +80,12 @@
    ]
   },
   {
+   "text": "(or the Docker command) to restrict access to 0600.",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "(other names, old addresses, numbers, emails)",
    "where": [
     "components/VariantCoverage.jsx"
@@ -267,9 +273,21 @@
    ]
   },
   {
+   "text": "1. Selecting random images…",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "100 means none of the sites we know about still show your family. Bigger sites count for more.",
    "where": [
     "components/PrivacyScore.jsx"
+   ]
+  },
+  {
+   "text": "100% Entropy collected — 128-character key generated!",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -291,6 +309,12 @@
    ]
   },
   {
+   "text": "2. Sorting images at random…",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "24-hour (15:05)",
    "where": [
     "pages/Settings.jsx"
@@ -300,6 +324,12 @@
    "text": "3. Migrate existing data: <0>docker exec openoptout-api python -m backend.core.encryption migrate</0>",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "3. Turning image pixels into code…",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -321,6 +351,12 @@
    ]
   },
   {
+   "text": "4. Merging random byte chunks…",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "44 pixel enhanced touch targets enabled",
    "where": [
     "context/AccessibilityContext.jsx"
@@ -333,6 +369,12 @@
    ]
   },
   {
+   "text": "5. Shuffling & mixing into key…",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "6-digit Authenticator Code",
    "where": [
     "pages/Login.jsx"
@@ -342,6 +384,12 @@
    "text": "6-digit sign-in code",
    "where": [
     "pages/Login.jsx"
+   ]
+  },
+  {
+   "text": "6. 128-character master key ready!",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -1241,6 +1289,12 @@
    "text": "After adding it, press Sign in.",
    "where": [
     "pages/Backups.jsx"
+   ]
+  },
+  {
+   "text": "After saving the key, run the command for your setup so only the service owner can read the key file (mode 0600). The critical red banner will clear once permissions are restricted.",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -2196,6 +2250,13 @@
    ]
   },
   {
+   "text": "Based on OpenOptOut by Robert Nunez and contributors",
+   "where": [
+    "components/Sidebar.jsx",
+    "pages/Help.jsx"
+   ]
+  },
+  {
    "text": "Batch interval (minutes)",
    "where": [
     "pages/Settings.jsx"
@@ -2748,6 +2809,12 @@
    ]
   },
   {
+   "text": "characters",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Check",
    "where": [
     "components/ResidentAddresses.jsx"
@@ -2907,6 +2974,7 @@
    "text": "Checking…",
    "where": [
     "components/PluginUploadWizard.jsx",
+    "components/SecretKeyBanner.jsx",
     "pages/Dashboard.jsx",
     "pages/EmailMonitor.jsx",
     "pages/Signup.jsx",
@@ -3056,6 +3124,12 @@
    ]
   },
   {
+   "text": "Click \"Generate Key from Images\" to pull 4 to 6 random images, sort them at random, convert their pixels into code, merge random byte chunks, shuffle them, and crystallize a 128-character master key.",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Click below, then touch your YubiKey, use Mac Touch ID, or scan the on-screen QR code with your iPhone (Face ID) or Android phone.",
    "where": [
     "pages/Login.jsx"
@@ -3065,6 +3139,12 @@
    "text": "Click confirmation links automatically",
    "where": [
     "components/ConfirmLinksCard.jsx"
+   ]
+  },
+  {
+   "text": "Click here and type random keys or wiggle your cursor",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -3635,6 +3715,7 @@
   {
    "text": "Copy command",
    "where": [
+    "components/SecretKeyBanner.jsx",
     "pages/SetupWizard.jsx"
    ]
   },
@@ -3667,6 +3748,12 @@
    "where": [
     "pages/Monitoring.jsx",
     "pages/UsageStats.jsx"
+   ]
+  },
+  {
+   "text": "Could not check file permissions.",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -3703,6 +3790,12 @@
    "text": "Could not save permissions",
    "where": [
     "pages/AdminPanel.jsx"
+   ]
+  },
+  {
+   "text": "Could not save the master secret key.",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -4327,6 +4420,12 @@
    "text": "Critical",
    "where": [
     "pages/WorkerFleet.jsx"
+   ]
+  },
+  {
+   "text": "Critical Security Action Required:",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -5012,6 +5111,12 @@
    ]
   },
   {
+   "text": "Docker Compose:",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Docker engine:",
    "where": [
     "pages/SystemUpdates.jsx"
@@ -5684,6 +5789,13 @@
    ]
   },
   {
+   "text": "Enable HSTS (HTTP Strict Transport Security)",
+   "where": [
+    "pages/Settings.jsx",
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Enable it from the Plugins page to grant its permissions and run it.",
    "where": [
     "components/PluginUploadWizard.jsx"
@@ -5918,6 +6030,12 @@
    "text": "entries shown",
    "where": [
     "pages/SystemLogs.jsx"
+   ]
+  },
+  {
+   "text": "Entropy collected:",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -6403,6 +6521,18 @@
    ]
   },
   {
+   "text": "File permissions are still open. Run the chmod / icacls command below and try again.",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
+   "text": "File permissions verified (0600). Your master secret key is locked down.",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "filled automatically",
    "where": [
     "components/PrivacyPagesPanel.jsx"
@@ -6827,6 +6957,30 @@
    ]
   },
   {
+   "text": "Generate & Save Master Key",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
+   "text": "Generate a key above or enter your own 128+ character random key…",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
+   "text": "Generate Key from Images",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
+   "text": "Generate or enter a 128+ character master key saved to secret.key and lock down its file permissions",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Get a copy of your data, see who looked at it, or delete it",
    "where": [
     "pages/Settings.jsx"
@@ -7087,6 +7241,12 @@
    ]
   },
   {
+   "text": "Hide Key Setup",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "High",
    "where": [
     "pages/BrokerPriority.jsx",
@@ -7329,6 +7489,12 @@
    ]
   },
   {
+   "text": "HTTP Strict Transport Security (HSTS)",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "HTTPS is working",
    "where": [
     "pages/Dashboard.jsx"
@@ -7527,6 +7693,18 @@
    ]
   },
   {
+   "text": "Image Chaos Mixer (Lava Lamp Style)",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
+   "text": "Images:",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "IMAP and SMTP connected successfully",
    "where": [
     "pages/Settings.jsx"
@@ -7654,6 +7832,13 @@
    "text": "Include pre-releases (testing)",
    "where": [
     "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Includes work from the projects listed in",
+   "where": [
+    "components/Sidebar.jsx",
+    "pages/Help.jsx"
    ]
   },
   {
@@ -8001,6 +8186,24 @@
    ]
   },
   {
+   "text": "Key file location:",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
+   "text": "Key generation method",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
+   "text": "Key Not Set",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Key or Device Label",
    "where": [
     "pages/Login.jsx"
@@ -8017,6 +8220,12 @@
    "text": "Key removed.",
    "where": [
     "components/SolvingSettings.jsx"
+   ]
+  },
+  {
+   "text": "Key Saved (128+ chars)",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -8411,6 +8620,12 @@
    ]
   },
   {
+   "text": "Linux / macOS:",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Listed",
    "where": [
     "pages/Discovery.jsx"
@@ -8531,6 +8746,12 @@
    "text": "Local Accounts Scope Notice",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Lock down key file permissions (required)",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -8861,6 +9082,30 @@
    ]
   },
   {
+   "text": "Master Secret Key & Entropy Generator",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Master Secret Key (minimum 128 characters)",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
+   "text": "Master secret key must be at least 128 characters long.",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
+   "text": "Master secret key saved to file. Next, run the file permission command below so only the service owner can read it.",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Master switch: when disabled, Remember Me checkboxes are hidden across the entire system.",
    "where": [
     "pages/Settings.jsx"
@@ -8975,6 +9220,12 @@
    "text": "Members",
    "where": [
     "pages/DatabaseAdmin.jsx"
+   ]
+  },
+  {
+   "text": "Merged & interleaved byte chunks:",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -9093,6 +9344,12 @@
    ]
   },
   {
+   "text": "Mixing Entropy…",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Mode",
    "where": [
     "pages/Settings.jsx"
@@ -9170,6 +9427,24 @@
    "text": "Mostly for universities and research institutions in InCommon, which get free certificates through CERTInext. Setup will ask for the ACME key ID, HMAC key and server address from your campus IT, and won't continue without them, so have them ready.",
    "where": [
     "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Mouse & Keyboard Entropy",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
+   "text": "Mouse and keyboard entropy pad",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
+   "text": "Move your mouse inside the box below or type random keys on your keyboard to collect unpredictable entropy.",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -11306,6 +11581,12 @@
    ]
   },
   {
+   "text": "Permissions:",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Permit local staff and users to sign in without entering an account password.",
    "where": [
     "pages/Settings.jsx"
@@ -12003,6 +12284,12 @@
    ]
   },
   {
+   "text": "Ready to generate",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Ready to register hardware",
    "where": [
     "pages/Login.jsx"
@@ -12617,6 +12904,12 @@
    ]
   },
   {
+   "text": "Require browsers to connect only over HTTPS",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "require — encrypt, no cert check",
    "where": [
     "pages/DatabaseAdmin.jsx"
@@ -12661,6 +12954,7 @@
   {
    "text": "Reset",
    "where": [
+    "components/SecretKeyBanner.jsx",
     "pages/Settings.jsx"
    ]
   },
@@ -12884,6 +13178,12 @@
    ]
   },
   {
+   "text": "Run",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Run re-checks",
    "where": [
     "pages/Settings.jsx"
@@ -12960,6 +13260,12 @@
    "text": "Sample Heading (Scales with Slider)",
    "where": [
     "components/UserWelcomeModal.jsx"
+   ]
+  },
+  {
+   "text": "samples",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -13043,6 +13349,12 @@
    ]
   },
   {
+   "text": "Save Master Key to File",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Save my details",
    "where": [
     "components/UserWelcomeModal.jsx"
@@ -13119,6 +13431,12 @@
    "where": [
     "pages/Branding.jsx",
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Saved directly to the master key file. Never use 'change-me-please' or short passwords.",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -13217,6 +13535,12 @@
    "text": "Saves into OpenOptOut's own app folder in OneDrive.",
    "where": [
     "pages/Backups.jsx"
+   ]
+  },
+  {
+   "text": "Saving Key…",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -13976,6 +14300,12 @@
    ]
   },
   {
+   "text": "Show Permission Commands",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Show the history of requests to this site",
    "where": [
     "pages/Brokers.jsx"
@@ -14063,6 +14393,12 @@
    "text": "shows the name and city",
    "where": [
     "components/WebSearchResults.jsx"
+   ]
+  },
+  {
+   "text": "Shuffling chunks into key…",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -15003,6 +15339,12 @@
    ]
   },
   {
+   "text": "Synthesized 128-character key:",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "System",
    "where": [
     "pages/Settings.jsx"
@@ -15121,6 +15463,13 @@
    "text": "tell the person",
    "where": [
     "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Tells browsers to always connect to this site over HTTPS and refuse plain HTTP connections. Enable this when your SSL certificate is active or handled by an external service.",
+   "where": [
+    "pages/Settings.jsx",
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -16688,6 +17037,12 @@
    ]
   },
   {
+   "text": "Use This Key",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Use {name}",
    "where": [
     "pages/SpecHelpers.jsx"
@@ -16873,6 +17228,12 @@
    "text": "Verify & Sign In",
    "where": [
     "pages/Login.jsx"
+   ]
+  },
+  {
+   "text": "Verify File Permissions",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {
@@ -17512,6 +17873,12 @@
    ]
   },
   {
+   "text": "Windows (PowerShell):",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Without an allowed domain, anyone with any Google account can sign in. Enter your Workspace domain — personal Google accounts are then rejected, even ones using your domain's address.",
    "where": [
     "pages/Branding.jsx"
@@ -17743,6 +18110,12 @@
    ]
   },
   {
+   "text": "Your master secret key file permissions are too open",
+   "where": [
+    "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
    "text": "Your name",
    "where": [
     "pages/Login.jsx",
@@ -17779,6 +18152,12 @@
    "text": "Your phone number is one of the main ways data brokers link records together. OpenOptOut handles the sites. Your phone company handles the rest, and only you can change those settings.\n\n**What OpenOptOut does for you:**\n- Searches the web for each saved number.\n- Sends removal requests to caller ID apps (Truecaller, Hiya, Sync.ME, CallApp) and reverse phone lookup sites (Spy Dialer, NumLookup, CallerSmart, ReversePhoneLookup, NumberGuru). Each saved number gets its own request, because these sites list people by number.\n- Checks again later, one search per number, and asks again if a number shows up.\n\n**What to do with your phone company (10 minutes, once):**\n1. **Change or remove the caller ID name.** This is the name people see when you call. Set it to your initials or first name only. See the guide for your carrier below.\n2. **Turn off advertising and data-sharing programs.** Most carriers turn these on by default.\n3. **Limit \"CPNI\" use.** CPNI is the record of who you call, when, and what plan you have. You can tell the carrier not to use it for marketing.\n4. **Turn on number lock / a port-out PIN.** This stops someone from moving your number to another phone (a SIM swap). It's not about privacy, but you'll be on the same settings page.\n5. **Register on the Do Not Call list** at donotcall.gov. It doesn't remove listings, but it cuts sales calls.\n\n**Hide your number on a single call:** dial *67 before the number (US). Calls to 911 and to toll-free numbers still show your number.\n\n**Hide your number on every call:** iPhone: Settings → Apps → Phone → Show My Caller ID. Android: Phone app → Settings → Calls (or Supplementary services) → Caller ID. If the switch is greyed out, ask your carrier for \"per-line caller ID blocking\".\n\n**Old landline?** Ask the phone company to make the number \"non-published\" so it stays out of directories. There may be a monthly fee.",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "Your server does not have a permanent 128+ character master secret key saved yet. Generate or enter a master key and restrict its file permissions.",
+   "where": [
+    "components/SecretKeyBanner.jsx"
    ]
   },
   {

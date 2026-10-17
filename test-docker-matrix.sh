@@ -101,6 +101,14 @@ info "Docker engine and compose verified."
 # ── 1. Compose Profiles Syntax Check ──────────────────────────────────────────
 section "1. Compose Profile Validation"
 
+if [ ! -f "$REPO_ROOT/.env" ] && [ -z "${SECRET_KEY:-}" ]; then
+  if env -u SECRET_KEY docker compose config >/dev/null 2>&1; then
+    die "docker-compose.yml should refuse to parse when SECRET_KEY is unset and .env is missing."
+  fi
+  printf "  [✓] Compose refuses to start without SECRET_KEY\n"
+fi
+export SECRET_KEY="${SECRET_KEY:-$(openssl rand -hex 32)}"
+
 validate_profile() {
   local prof="$1"
   if [ -n "$prof" ]; then

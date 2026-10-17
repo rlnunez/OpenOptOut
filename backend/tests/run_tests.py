@@ -48,6 +48,8 @@ import re
 import sys
 import time
 import traceback
+
+os.environ.setdefault("SECRET_KEY", "test-runner-ephemeral-secret-key-0123456789abcdef")
 from urllib.parse import urlparse
 
 # ── import bootstrap ──────────────────────────────────────────────────────────
@@ -4601,17 +4603,17 @@ def t_clean_name():
         "Jordan\x00Example": "JordanExample",                # NUL: PostgreSQL rejects it
         "Jordan\nExample\t": "Jordan Example",
         "Jordan\x1b[31mExample": "Jordan[31mExample",        # terminal escape neutralised
-        "Bob‮evil": "Bobevil",                           # right-to-left override
-        "﻿Jordan": "Jordan",
+        "Bob\u202eevil": "Bobevil",                          # right-to-left override
+        "\ufeffJordan": "Jordan",
         "Jordan\ud800": "Jordan",                             # lone surrogate
-        "Jordan Example": "Jordan Example",              # non-breaking space
+        "Jordan\u00a0Example": "Jordan Example",             # non-breaking space
     }
     for raw, want in ok.items():
         got = ti.clean_name(raw)
         assert got == want, f"clean_name({raw!r}) = {got!r}, expected {want!r}"
         got.encode("utf-8")                                    # always storable as UTF-8
 
-    for bad in ("", "   ", "\x00\x01", "‮"):
+    for bad in ("", "   ", "\x00\x01", "\u202e"):
         try:
             ti.clean_name(bad)
             raise AssertionError(f"empty name {bad!r} was accepted")
@@ -4637,9 +4639,13 @@ def t_clean_name():
 
     # Names from sign-in providers never block a sign-in.
     assert ti.clean_name_lenient("x" * 5000) == "x" * ti.MAX_NAME_CHARS
-    assert ti.clean_name_lenient("\x00‮", fallback="jordan@example.invalid") == "jordan@example.invalid"
+    assert ti.clean_name_lenient("\x00\u202e", fallback="jordan@example.invalid") == "jordan@example.invalid"
     assert ti.clean_name_lenient(None) == ""
     assert ti.clean_name_lenient("Jordan\x00 Example") == "Jordan Example"
+    # Ensure text_input.py source itself contains no literal bidi control characters (Bandit Trojan-Source check)
+    with open(ti.__file__, encoding="utf-8") as _f:
+        src_text = _f.read()
+    assert not any(c in ti._BIDI_CONTROLS for c in src_text), "text_input.py contains literal bidi control characters"
     # EXPECTED: real names pass through untouched; junk characters are dropped.
     # IF THIS FAILS: a name with a NUL can break sign-up on PostgreSQL, a
     #   reordering mark can make a name display as something else to an admin,
@@ -9528,7 +9534,7 @@ def t_listing_url_field():
 
 # ── State registries, dead sites, California DROP ─────────────────────────────
 
-_CA_CSV = ("﻿Data Broker Name,Website URL,Email Address,Registration Date,Notes\n"
+_CA_CSV = ("\ufeffData Broker Name,Website URL,Email Address,Registration Date,Notes\n"
            "Radaris LLC,https://radaris.com,privacy@radaris.example,2026-01-02,\n"
            "Acme Audience Data,www.acme-audience.example,optout@acme-audience.example,2026-02-03,\n"
            "TruthFinder,https://www.truthfinder.com/,,2026-02-04,\n"
@@ -12300,6 +12306,150 @@ def t_match_web_search():
     assert all(h.status == "added" for u, h in hits().items() if "/Jane/" in u), "remove all queues every one"
     s.close()
     # EXPECTED: name-only hits follow the same setting as listings found on the sites themselves.
+
+
+@test(1, "security.secret_key_and_sso_and_null_bytes",
+      "Missing or example SECRET_KEY values are rejected; multi-tenant Microsoft without allowed_domains cannot sign in to existing accounts; null bytes are stripped.")
+def t_security_scanner_regressions():
+    ss = _imp("core.settings_store")
+    for bad in ("", "   ", "change-me-please", "change-me-to-a-long-random-string",
+                "change-me-in-production-use-a-long-random-string", "openoptout-default-pepper-key", "secret"):
+        assert not ss.is_valid_secret_key(bad), f"expected {bad!r} to be rejected"
+    assert ss.is_valid_secret_key("0123456789abcdef0123456789abcdef0123456789abcdef")
+
+    old_key = os.environ.get("SECRET_KEY")
+    old_file = os.environ.get("SECRET_KEY_FILE")
+    try:
+        os.environ["SECRET_KEY"] = "change-me-please"
+        os.environ["SECRET_KEY_FILE"] = "/tmp/nonexistent_openoptout_test_secret.key"
+        try:
+            ss.get_secret_key()
+            assert False, "get_secret_key must refuse example key"
+        except RuntimeError:
+            pass
+
+        # User-entered master secret key must be 128..512 chars with sufficient entropy
+        assert ss.MAX_SECRET_KEY_CHARS == 512
+        assert not ss.is_valid_user_secret_key("short-key-" + "x" * 50)
+        assert not ss.is_valid_user_secret_key("a" * 128)
+        assert not ss.is_valid_user_secret_key("Ab3$kL9!" * 65)  # 520 > 512
+        good_128 = ("Ab3$kL9!pQ2@vX7#mZ4&wN8*yR1^tF6%" * 4)
+        assert len(good_128) == 128 and ss.is_valid_user_secret_key(good_128)
+
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            kf = os.path.join(td, "secret.key")
+            os.environ["SECRET_KEY_FILE"] = kf
+            st0 = ss.get_secret_key_status()
+            assert st0["needs_key"] and st0["banner_required"], st0
+
+            st1 = ss.save_secret_key_file(good_128)
+            assert st1["has_valid_file_key"] and not st1["needs_key"], st1
+            assert st1["permissions_insecure"] and st1["banner_required"], st1
+            assert ss.get_secret_key() == good_128
+
+            os.chmod(kf, 0o600)
+            st2 = ss.get_secret_key_status()
+            assert st2["permissions_secure"] and not st2["permissions_insecure"] and not st2["banner_required"], st2
+    finally:
+        if old_key is not None:
+            os.environ["SECRET_KEY"] = old_key
+        if old_file is not None:
+            os.environ["SECRET_KEY_FILE"] = old_file
+        else:
+            os.environ.pop("SECRET_KEY_FILE", None)
+
+    # Microsoft multi-tenant without allowed_domains must block even existing accounts (user_exists=True)
+    sp = _imp("core.sso_policy")
+    class _MsRes:
+        provider = "microsoft"
+        email = "admin@example.invalid"
+        email_verified = True
+        hosted_domain = ""
+        groups = []
+    d = sp.evaluate_sso_login(_MsRes(), {"tenant_id": "common", "allowed_domains": ""}, {}, user_exists=True, user_count=5)
+    assert not d.allowed and "allowed domains" in d.reason, d
+    d_tenant = sp.evaluate_sso_login(_MsRes(), {"tenant_id": "contoso.onmicrosoft.com", "allowed_domains": ""}, {}, user_exists=True, user_count=5)
+    assert d_tenant.allowed, d_tenant
+
+    # Null byte stripping helper
+    lim = _imp("core.limits")
+    cleaned = lim.strip_null_bytes({"username": "jordan\x00example", "nested": ["a\x00b", ("c\x00d",)]})
+    assert cleaned == {"username": "jordanexample", "nested": ["ab", ("cd",)]}, cleaned
+
+    # HSTS command generation in wizard
+    wiz_src = os.path.join(os.path.dirname(os.path.dirname(__file__)), "routers", "wizard.py")
+    with open(wiz_src, encoding="utf-8") as f:
+        code = f.read()
+    import ast
+    tree = ast.parse(code)
+    ns = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", "") in ("FRONT_DOORS", "CERTIFICATES") for t in node.targets):
+            exec(compile(ast.Module(body=[node], type_ignores=[]), wiz_src, "exec"), ns)
+        elif isinstance(node, ast.FunctionDef) and node.name == "enable_https_commands":
+            exec(compile(ast.Module(body=[node], type_ignores=[]), wiz_src, "exec"), ns)
+    cmds_no_hsts = ns["enable_https_commands"]("caddy", "letsencrypt", "home.example.org", hsts=False)
+    assert "--no-hsts" in cmds_no_hsts["linux"] and "-NoHsts" in cmds_no_hsts["windows"], cmds_no_hsts
+
+
+@test(2, "security.mfa_stepup_password_length_hsts_and_svg_csp",
+      "MFA enrollment requires full sign-in once MFA is active; passwords require 8+ chars while shorter existing passwords still sign in; SVG logos carry CSP sandbox; HSTS toggles work.")
+def t_security_tier2_regressions():
+    try:
+        import fastapi  # noqa: F401
+    except ImportError as e:
+        raise Skip(f"fastapi not installed: {e}")
+    db, s = _memory_db()
+    auth_core = _imp("core.auth")
+    auth_router = _imp("routers.auth")
+    mfa_core = _imp("core.mfa")
+    branding_router = _imp("routers.branding")
+    from fastapi import HTTPException
+
+    # 1. Minimum password length = 8 chars, null bytes stripped
+    for short_pw in ("1", "1234567", "abc\x00def"):
+        try:
+            auth_core.validate_password_length(short_pw)
+            assert False, f"expected {short_pw!r} to be rejected"
+        except ValueError as e:
+            assert "8 characters" in str(e)
+    auth_core.validate_password_length("12345678")
+
+    # 2. MFA step-up: mfa_ticket cannot enroll or replace MFA on an account that already has MFA
+    u = db.User(
+        email="jordan@example.invalid",
+        full_name="Jordan Example",
+        role=db.UserRole.parent,
+        hashed_password=auth_core.hash_password("legacy"),  # existing short password hashes and verifies
+        totp_enabled=False,
+    )
+    s.add(u); s.commit()
+    assert auth_core.verify_password("legacy", u.hashed_password), "existing shorter password must still verify"
+
+    ticket = mfa_core.create_mfa_ticket(u.id, u.email)
+    # Before MFA is enabled, mfa_ticket is allowed for initial enrollment
+    resolved = auth_router._resolve_user_for_mfa(s, current_user=None, mfa_ticket=ticket, for_enrollment=True)
+    assert resolved.id == u.id
+
+    # Once TOTP is enabled on the account, mfa_ticket must be rejected for enrollment (403)
+    u.totp_enabled = True
+    u.totp_secret_enc = "encrypted-secret"
+    s.commit()
+    try:
+        auth_router._resolve_user_for_mfa(s, current_user=None, mfa_ticket=ticket, for_enrollment=True)
+        assert False, "mfa_ticket must not allow re-enrolling MFA when MFA is already enabled"
+    except HTTPException as e:
+        assert e.status_code == 403, e.detail
+
+    # Full sign-in (current_user present) is allowed
+    resolved_full = auth_router._resolve_user_for_mfa(s, current_user=u, mfa_ticket=None, for_enrollment=True)
+    assert resolved_full.id == u.id
+
+    # 3. SVG logo CSP headers
+    assert "sandbox" in branding_router._SVG_CSP_HEADERS.get("Content-Security-Policy", "")
+    assert branding_router._SVG_CSP_HEADERS.get("X-Content-Type-Options") == "nosniff"
+    s.close()
 
 
 def main():

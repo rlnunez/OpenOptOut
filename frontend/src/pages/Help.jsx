@@ -580,6 +580,32 @@ export default function Help() {
         </div>
       )}
 
+      {/* Attribution & Legal Notice (AGPL-3.0 Section 7(b)) */}
+      <div className="mt-8 border border-slate-700/40 rounded-xl p-4 bg-slate-900/40 text-xs text-slate-400 leading-relaxed">
+        <p>
+          {tx("Based on OpenOptOut by Robert Nunez and contributors")} —{' '}
+          <a
+            href="https://github.com/rlnunez/Privacy-Shield"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-shield-400 hover:underline"
+          >
+            https://github.com/rlnunez/Privacy-Shield
+          </a>
+          {'. '}
+          {tx("Includes work from the projects listed in")}{' '}
+          <a
+            href="https://github.com/rlnunez/Privacy-Shield/blob/main/CREDITS.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-shield-400 hover:underline font-medium"
+          >
+            CREDITS.md
+          </a>
+          {'.'}
+        </p>
+      </div>
+
       {(editing === 'new' || (editing && typeof editing === 'object')) && (
         <NoteModal
           initial={editing === 'new' ? null : editing}

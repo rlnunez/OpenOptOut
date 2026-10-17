@@ -262,12 +262,18 @@ def upload_logo(file: UploadFile = File(...), _: User = Depends(require_permissi
     return {"logo_url": f"/api/branding/logo?v={int(datetime.utcnow().timestamp())}"}
 
 
+_SVG_CSP_HEADERS = {
+    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    "X-Content-Type-Options": "nosniff",
+}
+
+
 @router.get("/logo")
 def get_logo():
     for ext in ("svg", "png", "jpeg", "webp"):
         path = os.path.join(LOGO_PATH, f"logo.{ext}")
         if os.path.exists(path):
-            return FileResponse(path)
+            return FileResponse(path, headers=dict(_SVG_CSP_HEADERS))
     raise HTTPException(404, "No logo uploaded")
 
 

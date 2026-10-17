@@ -10,7 +10,7 @@ only about things that are never part of a real name:
     string containing NUL outright, which turned a sign-up into a server
     error; the others can corrupt logs, CSV exports and email headers
   * right-to-left / left-to-right override characters — they make text
-    display in a different order than it is stored, so "Bob‮evil" can
+    display in a different order than it is stored, so "Bob<RLO>evil" can
     be shown to an admin as something it isn't
   * lone surrogates — not valid text; they cannot be encoded as UTF-8 and
     crash anything that tries
@@ -32,11 +32,13 @@ from typing import Optional
 MAX_NAME_CHARS = 200
 
 # Unicode "bidi" formatting characters that reorder how text is displayed.
+# Written as \u escapes so static scanners (Bandit / CodeQL Trojan-Source check)
+# never see raw bidirectional control characters in the source file.
 _BIDI_CONTROLS = frozenset(
-    "؜"                                 # Arabic letter mark
-    "‎‏"                           # LTR / RTL marks
-    "‪‫‬‭‮"         # embeddings / overrides / pop
-    "⁦⁧⁨⁩"               # isolates
+    "\u061c"                             # Arabic letter mark
+    "\u200e\u200f"                       # LTR / RTL marks
+    "\u202a\u202b\u202c\u202d\u202e"     # embeddings / overrides / pop
+    "\u2066\u2067\u2068\u2069"           # isolates
 )
 
 
@@ -56,9 +58,9 @@ def _clean(value: str) -> str:
             out.append(" " if ch in "\t\n\r\x0b\x0c" else "")
         elif cat == "Cs":                    # lone surrogates
             continue
-        elif ch in _BIDI_CONTROLS or ch == "﻿":   # reordering marks, byte-order mark
+        elif ch in _BIDI_CONTROLS or ch == "\ufeff":   # reordering marks, byte-order mark
             continue
-        elif cat == "Zs" or ch in "  ":      # every kind of space / line break
+        elif cat == "Zs" or ch in "\u2028\u2029":      # every kind of space / line break
             out.append(" ")
         else:
             out.append(ch)
