@@ -351,8 +351,3 @@ If you're on the managed or native option, the daily certificate check also watc
 - **Traefik container exits right away:** `docker compose logs traefik` — it refuses `HTTPS_MODE=internal` and wildcard domains with a plain-English message saying what to use instead.
 - **Dashboard HTTPS check can't connect after switching proxies:** `HTTPS_CHECK_HOST` must name the running front door (`caddy` or `traefik`); rerunning `enable-https` sets it.
 - **Native path: nginx site not found:** `enable-https-native.sh` looks for `/etc/nginx/sites-available/openoptout` or `/etc/nginx/conf.d/openoptout.conf` (or legacy `privacyshield`) — pass `--nginx-site PATH` if yours lives elsewhere, or install it first from `deploy/native/nginx-openoptout.conf.example`.
-
-## Follow-ups (not built yet)
-
-- Extended DNS-01 ACME provider support (AWS Route 53, DigitalOcean, deSEC, etc.).
-

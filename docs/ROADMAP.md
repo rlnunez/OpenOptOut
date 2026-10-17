@@ -421,8 +421,9 @@ To ensure operational stability and maintain continuous testability without disr
 - **Bare-Metal Linux (Debian/Ubuntu):** Automated host installation script (`deploy/native/install.sh`) setting up systemd services, venv dependencies, and nginx reverse proxy with automated Certbot integration (`scripts/enable-https-native.sh`).
 - **Windows Server Deployments:** Native service management via NSSM with IIS reverse proxy and win-acme integration. Documented in [`docs/NATIVE_INSTALL.md`](NATIVE_INSTALL.md).
 - **Automated Health Probes:** `GET /api/cert-monitor/https-status` endpoint provides real-time verification of active TLS certificates without requiring host system privileges.
+- **Extended DNS-01 ACME Providers (Planned):** Extend automated DNS-01 ACME challenge support beyond Cloudflare (currently supported via Caddy with `tls.dns.cloudflare` and Traefik via `CLOUDFLARE_DNS_API_TOKEN`) to additional DNS providers (AWS Route 53, DigitalOcean, deSEC, DuckDNS, etc.).
 
-**Status:** Complete. Documented in [`docs/HTTPS.md`](HTTPS.md).
+**Status:** Complete (Cloudflare DNS-01, HTTP-01, TLS-ALPN-01, internal CAs, Cloudflare Tunnel, and AOP complete; additional DNS-01 providers planned). Documented in [`docs/HTTPS.md`](HTTPS.md).
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 
@@ -1187,6 +1188,7 @@ plugins/
 - Management uploads an authorized address CSV list (with unit/apartment normalization).
 - Sign-up flow validates resident address eligibility prior to account creation, rate-limits lookups, and auto-populates verified address into the member's profile.
 - Provides secure fallback contact details for unlisted units.
+- **Future Enhancements (Planned):** Physical mailed invitations with one-time verification tokens and an administrator-approved application flow for edge cases.
 
 **Status:** Complete (#116).
 

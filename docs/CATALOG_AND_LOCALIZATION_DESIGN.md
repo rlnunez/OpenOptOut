@@ -268,12 +268,7 @@ The Plugins administrative interface will feature a primary tab switcher:
 
 ## Section 7: Implementation Roadmap & Milestones
 
-1. **Phase 1: Catalog Client & Schema (Backend):**
-   - Implement `backend/plugins/catalog.py` with caching, SHA-256 checks, and install/update endpoints.
-   - Add catalog endpoints to `backend/routers/plugins.py`.
-2. **Phase 2: Universal Localization Standard:** ✅ built (v0.11.0-alpha)
-   - Plugin `locales/` and cross-plugin tables in language packs (`<pack>/plugins/<plugin_id>.json`) with the five-tier lookup: `backend/plugins/plugin_i18n.py`. Plugin text is resolved on the server (Plugins page descriptions, checklist instructions, `pause_for_human` text) rather than merged into the interface dictionary, so text matched on a broker's page is never translated. Every built-in pack translates every built-in plugin (`scripts/plugin_texts.py --check`).
-   - `BrokerSpec.jurisdiction`, `legal_language` and `email_templates`; `ParentCompany.jurisdiction`. Letters per law as `letters` plugins in `backend/plugins/bundled/letters/` (CCPA, general US, GDPR in 7 languages, UK GDPR, LGPD, PIPEDA in English and French), chosen by `backend/core/legal_letters.py`. The "[Note: a localized template is not yet available]" prefix is gone. All letters are drafts until a lawyer reviews them.
-3. **Phase 3: Setup Wizard & Admin UI Integration:**
-   - Expand `SetupWizard.jsx` and `wizard.py` to incorporate Step 1 (Language) and Step 4 (Recommended Protections).
-   - Add the "Browse Catalog" tab to `frontend/src/pages/Plugins.jsx`.
+Authoritative tracking for these implementation milestones is maintained centrally in [`docs/ROADMAP.md`](ROADMAP.md):
+- **Catalog Client & Admin Browser:** Tracked under [Item 8: Add-on distribution: Git repository to curated marketplace](ROADMAP.md#item-8) (Phases 8.1 & 8.2).
+- **Universal Localization Standard:** Implemented in [Item 17 & Item 53](ROADMAP.md#item-17) (`backend/plugins/plugin_i18n.py`, `backend/core/legal_letters.py`, bundled `letters` plugins).
+- **Setup Wizard Integration:** Tracked under [Item 11: First-Run Setup Wizard](ROADMAP.md#item-11).

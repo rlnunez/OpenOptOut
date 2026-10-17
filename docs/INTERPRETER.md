@@ -136,8 +136,8 @@ Most brokers don't have a hand-written BrokerSpec yet. Instead, `core/interprete
 
 `execute_optout` then compiles that spec and runs it through `PlaywrightExecutor` with two plugin hooks wired in:
 
-- **`captcha_solver`**: the plugin manager's `solve_captcha` dispatch. If a CAPTCHA-solver plugin is installed, it gets the challenge and returns a token or defers to a human. With no solver installed, the executor pauses and returns `needs_captcha`. No human-in-the-loop handoff exists yet (roadmap item 4).
-- **`plugin_form_handler`**: the `fill_form` dispatch, so a plugin can take over a broker whose page the spec format can't express (roadmap item 3).
+- **`captcha_solver`**: the plugin manager's `solve_captcha` dispatch. If a CAPTCHA-solver plugin is installed, it gets the challenge and returns a token or defers to a human. With no solver installed or when manual input is required, the executor initiates a live hand-off session for human completion (Roadmap Items 4, 50, and 54).
+- **`plugin_form_handler`**: the `fill_form` dispatch, so a plugin can take over a broker whose page the spec format can't express (Roadmap Item 3).
 
 Curated broker add-ons ship with the app in `backend/plugins/bundled/brokers/` and install themselves at startup (`broker_addon.sync_builtin_brokers`). An admin who turns one off keeps it off; an admin's own add-on with the same id is never replaced.
 

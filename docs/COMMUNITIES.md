@@ -84,6 +84,6 @@ City and state aren't part of the match, because people write unincorporated are
 
 ## Limits
 
-- **This keeps the service for your community, but it doesn't prove where someone lives.** Anyone who knows an address on the list passes the check. If you need proof, use invite codes and check people yourself first. Mailed invitations and an application form that a manager approves are planned for 0.12.
+- **This keeps the service for your community, but it doesn't prove where someone lives.** Anyone who knows an address on the list passes the check. If you need proof, use invite codes and check people yourself first.
 - **Matching covers common spellings, not every one.** Numbered street names written as words ("First St" vs "1st St") and rural route formats aren't treated as the same. Use "Check" to try the forms your residents are likely to type.
 - **Not yet tried with a real county export or a real mail server.** It's tested with made-up addresses only.
