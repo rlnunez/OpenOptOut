@@ -335,7 +335,7 @@ def build_sandboxed_command(
             bwrap += ["--clearenv"]
         bwrap += [
             "--setenv", "PATH", "/usr/bin:/bin",
-            "--setenv", "HOME", "/tmp",
+            "--setenv", "HOME", "/tmp",  # nosec: B108 -- points HOME to private in-memory tmpfs inside sandbox
             "--setenv", "PYTHONDONTWRITEBYTECODE", "1",
         ]
 
