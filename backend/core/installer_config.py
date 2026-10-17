@@ -253,6 +253,7 @@ def generate_env_config(
     domain: Optional[str] = None,
     install_dir: str = "/opt/openoptout",
     sqlcipher_key: Optional[str] = None,
+    searxng_secret: Optional[str] = None,
 ) -> Dict[str, str]:
     """
     Generates key-value configuration pairs for the .env file tailored to the node's cluster role.
@@ -262,9 +263,11 @@ def generate_env_config(
         raise ValueError(f"Unknown role: {role}")
 
     secret = secret_key or secrets.token_hex(32)
+    searx_secret = searxng_secret or secrets.token_hex(32)
     env: Dict[str, str] = {
         "ROLE": role,
         "SECRET_KEY": secret,
+        "SEARXNG_SECRET": searx_secret,
     }
 
     # Storage paths

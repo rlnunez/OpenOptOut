@@ -2392,6 +2392,8 @@ def t_installer_role_specialization_and_configs():
     assert env_standalone["ROLE"] == "standalone"
     assert env_standalone["FRONTEND_URL"] == "https://privacy.lib.org"
     assert "DATABASE_URL" in env_standalone
+    assert "SEARXNG_SECRET" in env_standalone
+    assert env_standalone["SEARXNG_SECRET"] != env_standalone["SECRET_KEY"]
     assert "WORKER_ID" not in env_standalone
 
     env_cp = installer_mod.generate_env_config(
