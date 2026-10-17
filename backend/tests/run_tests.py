@@ -1024,21 +1024,27 @@ def t_encryption_key_derivation():
     enc = _imp("core.encryption")
     import os
     orig_db_key = os.environ.get("DB_ENCRYPTION_KEY")
+    orig_sqlcipher_key = os.environ.get("SQLCIPHER_KEY")
     orig_sec_key = os.environ.get("SECRET_KEY")
     orig_disable = os.environ.get("DISABLE_DB_ENCRYPTION")
     try:
         os.environ["DB_ENCRYPTION_KEY"] = "custom-db-passphrase-123"
         os.environ["SECRET_KEY"] = "secret-key-fallback-456"
+        os.environ.pop("SQLCIPHER_KEY", None)
         os.environ.pop("DISABLE_DB_ENCRYPTION", None)
         assert enc.get_db_encryption_key() == "custom-db-passphrase-123"
 
         os.environ.pop("DB_ENCRYPTION_KEY", None)
+        os.environ["SQLCIPHER_KEY"] = "sqlcipher-key-789"
+        assert enc.get_db_encryption_key() == "sqlcipher-key-789"
+
+        os.environ.pop("SQLCIPHER_KEY", None)
         assert enc.get_db_encryption_key() == "secret-key-fallback-456"
 
         os.environ["DISABLE_DB_ENCRYPTION"] = "true"
         assert enc.get_db_encryption_key() is None
     finally:
-        for k, v in [("DB_ENCRYPTION_KEY", orig_db_key), ("SECRET_KEY", orig_sec_key), ("DISABLE_DB_ENCRYPTION", orig_disable)]:
+        for k, v in [("DB_ENCRYPTION_KEY", orig_db_key), ("SQLCIPHER_KEY", orig_sqlcipher_key), ("SECRET_KEY", orig_sec_key), ("DISABLE_DB_ENCRYPTION", orig_disable)]:
             if v is not None:
                 os.environ[k] = v
             else:
@@ -2394,6 +2400,11 @@ def t_installer_role_specialization_and_configs():
     assert "DATABASE_URL" in env_standalone
     assert "SEARXNG_SECRET" in env_standalone
     assert env_standalone["SEARXNG_SECRET"] != env_standalone["SECRET_KEY"]
+    assert "FIELD_ENCRYPTION_KEY" in env_standalone
+    assert env_standalone["FIELD_ENCRYPTION_KEY"] != env_standalone["SECRET_KEY"]
+    assert "DB_ENCRYPTION_KEY" in env_standalone
+    assert env_standalone["DB_ENCRYPTION_KEY"] != env_standalone["SECRET_KEY"]
+    assert env_standalone["SQLCIPHER_KEY"] == env_standalone["DB_ENCRYPTION_KEY"]
     assert "WORKER_ID" not in env_standalone
 
     env_cp = installer_mod.generate_env_config(

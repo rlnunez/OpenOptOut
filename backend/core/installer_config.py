@@ -254,6 +254,8 @@ def generate_env_config(
     install_dir: str = "/opt/openoptout",
     sqlcipher_key: Optional[str] = None,
     searxng_secret: Optional[str] = None,
+    field_encryption_key: Optional[str] = None,
+    db_encryption_key: Optional[str] = None,
 ) -> Dict[str, str]:
     """
     Generates key-value configuration pairs for the .env file tailored to the node's cluster role.
@@ -264,10 +266,13 @@ def generate_env_config(
 
     secret = secret_key or secrets.token_hex(32)
     searx_secret = searxng_secret or secrets.token_hex(32)
+    field_key = field_encryption_key or secrets.token_hex(32)
+    db_key = db_encryption_key or sqlcipher_key or secrets.token_hex(32)
     env: Dict[str, str] = {
         "ROLE": role,
         "SECRET_KEY": secret,
         "SEARXNG_SECRET": searx_secret,
+        "FIELD_ENCRYPTION_KEY": field_key,
     }
 
     # Storage paths
@@ -286,8 +291,8 @@ def generate_env_config(
         else:
             env["DATABASE_URL"] = f"sqlite:////{install_dir}/data/openoptout.db"
 
-        if sqlcipher_key:
-            env["SQLCIPHER_KEY"] = sqlcipher_key
+        env["DB_ENCRYPTION_KEY"] = db_key
+        env["SQLCIPHER_KEY"] = db_key
 
     # Distributed queue & worker settings
     if redis_url:

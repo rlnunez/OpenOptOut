@@ -170,8 +170,14 @@ if [ "$MODE" = "docker" ]; then
   if [ ! -f ".env" ]; then
     cp .env.example .env
     secret="$(gen_secret)"
-    sed "s/^SECRET_KEY=.*/SECRET_KEY=$secret/" .env > .env.tmp && mv .env.tmp .env
-    info "Created .env with a generated SECRET_KEY."
+    searx_secret="$(gen_secret)"
+    field_key="$(gen_secret)"
+    db_key="$(gen_secret)"
+    sed -e "s|^SECRET_KEY=.*|SECRET_KEY=$secret|" \
+        -e "s|^#SEARXNG_SECRET=.*|SEARXNG_SECRET=$searx_secret|" \
+        -e "s|^#FIELD_ENCRYPTION_KEY=.*|FIELD_ENCRYPTION_KEY=$field_key|" \
+        -e "s|^#DB_ENCRYPTION_KEY=.*|DB_ENCRYPTION_KEY=$db_key|" .env > .env.tmp && mv .env.tmp .env
+    info "Created .env with automatically generated security keys (SECRET_KEY, SEARXNG_SECRET, FIELD_ENCRYPTION_KEY, DB_ENCRYPTION_KEY)."
   fi
 
   if [ -d ".git" ] && command -v git >/dev/null 2>&1; then

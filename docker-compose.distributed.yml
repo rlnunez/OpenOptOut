@@ -64,6 +64,7 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-openoptout}:${POSTGRES_PASSWORD:-openoptout-secret-pw}@db:5432/${POSTGRES_DB:-openoptout}
       - REDIS_URL=redis://redis:6379/0
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+      - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY:-}
     volumes:
       - app_data:/data
     tmpfs:

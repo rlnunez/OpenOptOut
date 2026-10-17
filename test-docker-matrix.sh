@@ -106,6 +106,21 @@ if [ -z "${SECRET_KEY:-}" ]; then
 fi
 export SECRET_KEY
 
+if [ -z "${SEARXNG_SECRET:-}" ]; then
+  SEARXNG_SECRET="$(openssl rand -hex 32)"
+fi
+export SEARXNG_SECRET
+
+if [ -z "${FIELD_ENCRYPTION_KEY:-}" ]; then
+  FIELD_ENCRYPTION_KEY="$(openssl rand -hex 32)"
+fi
+export FIELD_ENCRYPTION_KEY
+
+if [ -z "${DB_ENCRYPTION_KEY:-}" ]; then
+  DB_ENCRYPTION_KEY="$(openssl rand -hex 32)"
+fi
+export DB_ENCRYPTION_KEY
+
 validate_profile() {
   local prof="$1"
   if [ -n "$prof" ]; then

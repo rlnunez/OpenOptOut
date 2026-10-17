@@ -431,7 +431,8 @@ if [[ "$ROLE" != "worker" ]]; then
       DB_URL="sqlite:////$INSTALL_DIR/data/openoptout.db"
     fi
   elif [[ "$DB_ENGINE" == "sqlcipher" ]]; then
-    SQLCIPHER_KEY="$(gen_secret)"
+    DB_ENCRYPTION_KEY="$(gen_secret)"
+    SQLCIPHER_KEY="$DB_ENCRYPTION_KEY"
     DB_URL="sqlite:////$INSTALL_DIR/data/openoptout.db"
     info "Generated SQLCipher 256-bit database encryption key."
   else
@@ -501,6 +502,9 @@ head "Generating Node Environment Configuration (.env)"
 if [ ! -f "$INSTALL_DIR/.env" ] || [ "$UPDATE" = 0 ]; then
   [ -n "$SECRET_KEY" ] || SECRET_KEY="$(gen_secret)"
   SEARXNG_SECRET="$(gen_secret)"
+  FIELD_ENCRYPTION_KEY="$(gen_secret)"
+  DB_ENCRYPTION_KEY="${SQLCIPHER_KEY:-$(gen_secret)}"
+  SQLCIPHER_KEY="$DB_ENCRYPTION_KEY"
 
   cat <<EOF > "$INSTALL_DIR/.env"
 # OpenOptOut Cluster Node Configuration
@@ -508,6 +512,7 @@ if [ ! -f "$INSTALL_DIR/.env" ] || [ "$UPDATE" = 0 ]; then
 ROLE=$ROLE
 SECRET_KEY=$SECRET_KEY
 SEARXNG_SECRET=$SEARXNG_SECRET
+FIELD_ENCRYPTION_KEY=$FIELD_ENCRYPTION_KEY
 SETTINGS_FILE=$INSTALL_DIR/data/openoptout_settings.json
 LOGO_PATH=$INSTALL_DIR/data/logo
 EOF
@@ -518,9 +523,8 @@ EOF
     {
       echo "FRONTEND_URL=$PROTO://$DOMAIN"
       echo "DATABASE_URL=$DB_URL"
-      if [ -n "${SQLCIPHER_KEY:-}" ]; then
-        echo "SQLCIPHER_KEY=$SQLCIPHER_KEY"
-      fi
+      echo "DB_ENCRYPTION_KEY=$DB_ENCRYPTION_KEY"
+      echo "SQLCIPHER_KEY=$SQLCIPHER_KEY"
     } >> "$INSTALL_DIR/.env"
   fi
 

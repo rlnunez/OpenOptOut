@@ -66,13 +66,13 @@ def get_field_encryption_key() -> Optional[bytes]:
 def get_db_encryption_key() -> Optional[str]:
     """
     Return the SQLCipher passphrase.
-    Priority: DB_ENCRYPTION_KEY env var → SECRET_KEY env var → None.
+    Priority: DB_ENCRYPTION_KEY env var → SQLCIPHER_KEY env var → SECRET_KEY env var → None.
     If DISABLE_DB_ENCRYPTION is true, returns None (explicit opt-out).
     Returns raw string (SQLCipher accepts hex or passphrase).
     """
     if os.getenv("DISABLE_DB_ENCRYPTION", "false").lower() in ("true", "1", "yes"):
         return None
-    return os.getenv("DB_ENCRYPTION_KEY") or os.getenv("SECRET_KEY") or None
+    return os.getenv("DB_ENCRYPTION_KEY") or os.getenv("SQLCIPHER_KEY") or os.getenv("SECRET_KEY") or None
 
 
 # ── Fernet helpers ────────────────────────────────────────────────────────────

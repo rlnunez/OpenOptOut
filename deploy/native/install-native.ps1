@@ -151,10 +151,17 @@ if (-not $Update) {
     if (-not (Test-Path $EnvFile)) {
         Copy-Item (Join-Path $RepoRoot ".env.example") $EnvFile
         $Secret = -join ((1..64) | ForEach-Object { "{0:x}" -f (Get-Random -Maximum 16) })
-        (Get-Content $EnvFile) -replace '^SECRET_KEY=.*', "SECRET_KEY=$Secret" | Set-Content $EnvFile
+        $SearxSecret = -join ((1..64) | ForEach-Object { "{0:x}" -f (Get-Random -Maximum 16) })
+        $FieldKey = -join ((1..64) | ForEach-Object { "{0:x}" -f (Get-Random -Maximum 16) })
+        $DbKey = -join ((1..64) | ForEach-Object { "{0:x}" -f (Get-Random -Maximum 16) })
+        (Get-Content $EnvFile) `
+            -replace '^SECRET_KEY=.*', "SECRET_KEY=$Secret" `
+            -replace '^#SEARXNG_SECRET=.*', "SEARXNG_SECRET=$SearxSecret" `
+            -replace '^#FIELD_ENCRYPTION_KEY=.*', "FIELD_ENCRYPTION_KEY=$FieldKey" `
+            -replace '^#DB_ENCRYPTION_KEY=.*', "DB_ENCRYPTION_KEY=$DbKey" | Set-Content $EnvFile
         Add-Content $EnvFile "SETTINGS_FILE=$RepoRoot\data\openoptout_settings.json"
         Add-Content $EnvFile "LOGO_PATH=$RepoRoot\data\logo"
-        Write-Host "Created $EnvFile with a generated SECRET_KEY."
+        Write-Host "Created $EnvFile with generated security keys (SECRET_KEY, SEARXNG_SECRET, FIELD_ENCRYPTION_KEY, DB_ENCRYPTION_KEY)."
     }
 
     Write-Host ""

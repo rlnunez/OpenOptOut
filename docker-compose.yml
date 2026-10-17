@@ -50,9 +50,9 @@ services:
 
       # ── Encryption at rest (enabled by default for SQLite) ──────────────────
       # SQLCipher whole-database encryption is active by default in the image and
-      # automatically derives from SECRET_KEY. To set a distinct database key:
-      #- DB_ENCRYPTION_KEY=${DB_ENCRYPTION_KEY}       # SQLCipher whole-DB encryption
-      #- FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY} # Fernet field-level PII encryption
+      # automatically derives from SECRET_KEY (or DB_ENCRYPTION_KEY if set).
+      - DB_ENCRYPTION_KEY=${DB_ENCRYPTION_KEY:-}       # SQLCipher whole-DB encryption
+      - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY:-} # Fernet field-level PII encryption
       # To explicitly disable database encryption and keep SQLite plaintext:
       #- DISABLE_DB_ENCRYPTION=true
 
