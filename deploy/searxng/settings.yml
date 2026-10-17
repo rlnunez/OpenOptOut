@@ -1,8 +1,7 @@
 # SearXNG for OpenOptOut's web search. Only the api container talks to it:
 # no port is published, so it isn't reachable from your network.
-#
-# The secret key comes from SEARXNG_SECRET (set in docker-compose.yml from
-# SECRET_KEY unless you set SEARXNG_SECRET in .env).
+# The secret key comes from SEARXNG_SECRET (set in docker-compose.yml,
+# independent from SECRET_KEY).
 use_default_settings: true
 
 general:

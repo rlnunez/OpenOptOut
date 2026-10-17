@@ -81,4 +81,5 @@ def create_user_token(user: Any, remember_me: bool = False) -> str:
     from .auth import create_access_token
     role = getattr(getattr(user, "role", None), "value", str(getattr(user, "role", "") or "parent"))
     delta = compute_session_delta(role, remember_me=remember_me)
-    return create_access_token({"sub": user.email}, expires_delta=delta)
+    token_ver = getattr(user, "token_version", 0) or 0
+    return create_access_token({"sub": user.email, "token_version": token_ver}, expires_delta=delta)

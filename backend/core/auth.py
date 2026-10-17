@@ -248,6 +248,10 @@ def get_current_user(
     user = db.query(User).filter(User.email == email).first()
     if not user or not user.can_login:
         raise exc
+    token_ver = payload.get("token_version")
+    user_ver = getattr(user, "token_version", 0) or 0
+    if (token_ver or 0) != user_ver:
+        raise exc
     return user
 
 
@@ -273,6 +277,10 @@ def get_current_user_optional(
         return None
     user = db.query(User).filter(User.email == email).first()
     if not user or not user.can_login:
+        return None
+    token_ver = payload.get("token_version")
+    user_ver = getattr(user, "token_version", 0) or 0
+    if (token_ver or 0) != user_ver:
         return None
     return user
 

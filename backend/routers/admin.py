@@ -268,6 +268,7 @@ def update_user(
 
     if req.password is not None:
         user.hashed_password = hash_password(req.password)
+        user.token_version = (getattr(user, "token_version", 0) or 0) + 1
 
     if req.unified_view is not None:
         user.unified_view = req.unified_view

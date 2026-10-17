@@ -16,6 +16,7 @@ enqueued and handed to a remote worker unchanged.
 
 from dataclasses import dataclass, field
 from typing import Optional
+from urllib.parse import urlparse
 
 from .broker_spec import BrokerSpec, Step, KNOWN_FIELDS
 
@@ -271,8 +272,51 @@ def compile_job(spec: BrokerSpec, member_fields: dict, member_id: str, lang: str
             # give the broker ({contact_email}) or their listing ({listing_url}).
             text = _render(text, {k: v for k, v in member_fields.items() if v})
         url = s.url
-        if s.kind == "navigate" and "{" in url:
-            url = _render_url(url, member_fields)
+        if s.kind == "navigate":
+            if "{" in url:
+                url = _render_url(url, member_fields)
+            if not url.startswith("https://"):
+                raise CompileError(f"navigate url must start with https:// (got '{url}')")
+            try:
+                from ..listing_finder import registrable_domain
+                from ..privacy_finder import hosted_kind
+            except (ImportError, ValueError):
+                try:
+                    from core.listing_finder import registrable_domain
+                    from core.privacy_finder import hosted_kind
+                except (ImportError, ValueError):
+                    from app.core.listing_finder import registrable_domain
+                    from app.core.privacy_finder import hosted_kind
+            roots = set()
+            for u in (spec.opt_out_url, spec.search_url):
+                if u:
+                    try:
+                        h = (urlparse(u).hostname or "").lower()
+                        if h:
+                            roots.add(registrable_domain(h))
+                    except Exception:
+                        pass
+            for d in spec.covers:
+                if d:
+                    try:
+                        roots.add(registrable_domain(d.lower()))
+                    except Exception:
+                        pass
+            if not roots and spec.steps:
+                first_nav = next((st for st in spec.steps if st.kind == "navigate" and st.url), None)
+                if first_nav:
+                    try:
+                        fh = (urlparse(first_nav.url).hostname or "").lower()
+                        if fh:
+                            roots.add(registrable_domain(fh))
+                    except Exception:
+                        pass
+            nh = (urlparse(url).hostname or "").lower()
+            n_root = registrable_domain(nh) if nh else ""
+            if not (n_root in roots or hosted_kind(url)):
+                raise CompileError(
+                    f"navigate goes to {nh or url}, which isn't the broker's site or a privacy-request platform"
+                )
         steps.append(JobStep(
             kind=s.kind, selector=s.selector, value=value, url=url,
             text=text, timeout_ms=s.timeout_ms, optional=s.optional,

@@ -20,6 +20,7 @@ add-ons.
 import re
 from dataclasses import dataclass, field, fields
 from typing import Optional, Any
+from urllib.parse import urlparse
 
 SPEC_VERSION = "1.0"
 
@@ -370,6 +371,12 @@ class BrokerSpec:
         if self.spec_version != SPEC_VERSION:
             errs.append(f"unsupported spec_version {self.spec_version} (this core supports {SPEC_VERSION})")
 
+        if self.opt_out_url:
+            if not self.opt_out_url.startswith("https://"):
+                errs.append("opt_out_url must start with https://")
+            if "{" in self.opt_out_url:
+                errs.append("opt_out_url must not contain placeholders")
+
         if self.method == "form":
             if not self.steps:
                 errs.append("form method requires at least one step")
@@ -378,6 +385,59 @@ class BrokerSpec:
             for i, s in enumerate(self.steps):
                 for e in s.validate():
                     errs.append(f"step[{i}] ({s.kind}): {e}")
+
+            # Verify that navigate steps stay on the broker's site, declared covers, or a privacy platform
+            try:
+                from ..listing_finder import registrable_domain
+                from ..privacy_finder import hosted_kind
+            except (ImportError, ValueError):
+                try:
+                    from core.listing_finder import registrable_domain
+                    from core.privacy_finder import hosted_kind
+                except (ImportError, ValueError):
+                    from app.core.listing_finder import registrable_domain
+                    from app.core.privacy_finder import hosted_kind
+
+            roots = set()
+            for u in (self.opt_out_url, self.search_url):
+                if u:
+                    try:
+                        h = (urlparse(u).hostname or "").lower()
+                        if h:
+                            roots.add(registrable_domain(h))
+                    except Exception:
+                        pass
+            for d in self.covers:
+                if d:
+                    try:
+                        roots.add(registrable_domain(d.lower()))
+                    except Exception:
+                        pass
+
+            if not roots and self.steps:
+                first_nav = next((s for s in self.steps if s.kind == "navigate" and s.url), None)
+                if first_nav:
+                    try:
+                        fh = (urlparse(first_nav.url).hostname or "").lower()
+                        if fh:
+                            roots.add(registrable_domain(fh))
+                    except Exception:
+                        pass
+
+            for i, s in enumerate(self.steps):
+                if s.kind == "navigate" and s.url:
+                    if not s.url.startswith("https://"):
+                        errs.append(f"step[{i}] (navigate): url must start with https://")
+                    else:
+                        try:
+                            nh = (urlparse(s.url).hostname or "").lower()
+                            n_root = registrable_domain(nh) if nh else ""
+                            if not (n_root in roots or hosted_kind(s.url)):
+                                errs.append(
+                                    f"step[{i}] (navigate): goes to {nh or s.url}, which isn't the broker's site or a privacy-request platform"
+                                )
+                        except Exception as ex:
+                            errs.append(f"step[{i}] (navigate): invalid url: {ex}")
         elif self.method == "email":
             if not self.email:
                 errs.append("email method requires an email spec")

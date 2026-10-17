@@ -74,6 +74,69 @@ class RunningPlugin:
     run_dir: Optional[str] = None
 
 
+import contextlib
+import urllib.request
+import urllib.parse
+import socket
+import ipaddress
+
+
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def http_error_301(self, req, fp, code, msg, headers):
+        return fp
+    def http_error_302(self, req, fp, code, msg, headers):
+        return fp
+    def http_error_303(self, req, fp, code, msg, headers):
+        return fp
+    def http_error_307(self, req, fp, code, msg, headers):
+        return fp
+    def http_error_308(self, req, fp, code, msg, headers):
+        return fp
+
+
+def _is_public_host(host: str) -> bool:
+    try:
+        infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
+    except Exception:
+        return False
+    if not infos:
+        return False
+    for *_, addr in infos:
+        try:
+            ip = ipaddress.ip_address(addr[0])
+            if (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
+                    or ip.is_multicast or ip.is_unspecified):
+                return False
+        except Exception:
+            return False
+    return True
+
+
+@contextlib.contextmanager
+def _safe_dns_context():
+    real_getaddrinfo = socket.getaddrinfo
+
+    def safe_getaddrinfo(host, port, *args, **kwargs):
+        res = real_getaddrinfo(host, port, *args, **kwargs)
+        for *_, addr in res:
+            try:
+                ip = ipaddress.ip_address(addr[0])
+                if (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
+                        or ip.is_multicast or ip.is_unspecified):
+                    raise ValueError(f"Host {host} resolves to non-public IP: {ip}")
+            except ValueError:
+                raise
+            except Exception:
+                pass
+        return res
+
+    socket.getaddrinfo = safe_getaddrinfo
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = real_getaddrinfo
+
+
 class PluginManager:
     """
     Central coordinator. Construct once at startup with accessors, then call
@@ -250,22 +313,59 @@ class PluginManager:
         finally:
             db.close()
 
-    def _http_fetcher(self, method: str, url: str, body: str, headers: dict):
+    def _http_fetcher(self, method: str, url: str, body: str, headers: dict, allowed_domains: Optional[set] = None):
         """
         Real implementation backing http.fetch. Runs in the HOST process (never
-        the plugin), with a short timeout and a response-size cap so a plugin
-        can't use this to exfiltrate large amounts of data or hang the host.
+        the plugin), with a short timeout, redirect re-validation, public-host check,
+        and response-size cap so a plugin can't reach internal services or hang the host.
         """
         import urllib.request
         import urllib.parse
-        parsed = urllib.parse.urlparse(url)
-        if parsed.scheme.lower() not in ("http", "https"):
-            raise ValueError(f"Disallowed URL scheme: {parsed.scheme}")
-        req = urllib.request.Request(url, data=(body.encode() if body else None),
-                                     method=method, headers=headers or {})
-        with urllib.request.urlopen(req, timeout=10) as resp:  # nosec: B310 -- scheme is validated to http/https
+        cur_url = url
+        cur_method = method.upper()
+        cur_body = body
+        opener = urllib.request.build_opener(_NoRedirectHandler)
+
+        for _ in range(6):  # initial hop + up to 5 redirects
+            parsed = urllib.parse.urlparse(cur_url)
+            if parsed.scheme.lower() not in ("http", "https"):
+                raise ValueError(f"Disallowed URL scheme: {parsed.scheme}")
+            host = (parsed.hostname or "").lower()
+            if not host:
+                raise ValueError("Missing host in URL")
+
+            if allowed_domains is not None:
+                if not any(host == d.lower() or host.endswith("." + d.lower()) for d in allowed_domains):
+                    raise ValueError(f"domain '{host}' not in plugin's declared outbound_domains")
+
+            if not _is_public_host(host):
+                raise ValueError(f"Address {host} is not a public website")
+
+            req = urllib.request.Request(
+                cur_url,
+                data=(cur_body.encode() if cur_body else None),
+                method=cur_method,
+                headers=headers or {},
+            )
+            with _safe_dns_context():
+                resp = opener.open(req, timeout=10)  # nosec: B310 -- scheme is validated to http/https, host checked public
+
+            status = getattr(resp, "status", getattr(resp, "code", 200))
+            if status in (301, 302, 303, 307, 308):
+                location = resp.headers.get("Location") or resp.headers.get("location")
+                if not location:
+                    raw = resp.read(1_048_576)
+                    return status, raw.decode(errors="replace")
+                cur_url = urllib.parse.urljoin(cur_url, location)
+                if status == 303 or (status in (301, 302) and cur_method == "POST"):
+                    cur_method = "GET"
+                    cur_body = ""
+                continue
+
             raw = resp.read(1_048_576)  # 1MB cap
-            return resp.status, raw.decode(errors="replace")
+            return status, raw.decode(errors="replace")
+
+        raise ValueError("Too many redirects (exceeded maximum of 5)")
 
     def _on_plugin_event(self, source_plugin, event_type, data):
         """A plugin emitted an event — fan out to other plugins that receive events."""

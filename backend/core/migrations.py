@@ -155,6 +155,10 @@ MIGRATIONS = [
         "Add accessibility_settings to users",
         "ALTER TABLE users ADD COLUMN accessibility_settings TEXT DEFAULT NULL"
     ),
+    (
+        "Add token_version to users",
+        "ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0"
+    ),
 ]
 
 # Known property brokers — flagged on first startup

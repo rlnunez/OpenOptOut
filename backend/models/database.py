@@ -222,6 +222,7 @@ class User(Base):
     backup_codes         = Column(Text, nullable=True)       # JSON list of SHA-256 hashed recovery codes
     webauthn_credentials = Column(Text, nullable=True)       # JSON list of registered security keys/biometrics
     mfa_options_override = Column(Text, nullable=True)       # JSON dict: {"totp": bool, "webauthn": bool, "backup_codes": bool}
+    token_version        = Column(Integer, default=0, nullable=False)  # session revocation / password change counter
 
 
     created_at       = Column(DateTime, default=datetime.utcnow)

@@ -38,7 +38,8 @@ export function AuthProvider({ children }) {
     return me.data
   }
 
-  const logout = () => {
+  const logout = async () => {
+    try { await api.post('/auth/signout') } catch {}
     localStorage.removeItem('token')
     setUser(null)
   }

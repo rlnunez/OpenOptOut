@@ -46,11 +46,13 @@ export function isSafeHref(escapedUrl) {
 
 // [text](url) -> <a>, or just the text when the URL isn't allowed.
 // Operates on already-escaped text.
-export function renderLinks(t) {
-  return t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) =>
-    isSafeHref(url)
-      ? `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-shield-400 hover:underline">${label}</a>`
-      : label)
+export function renderLinks(t, codeSpans = []) {
+  return t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
+    const cleanUrl = url.replace(/\u0000CODE(\d+)\u0000/g, (__, i) => codeSpans[+i] ?? '')
+    return isSafeHref(cleanUrl)
+      ? `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="text-shield-400 hover:underline">${label}</a>`
+      : label
+  })
 }
 
 // Inline formatting: code, bold, italic, links. Operates on already-escaped text.
@@ -63,7 +65,7 @@ function renderInline(text) {
     return `\u0000CODE${codeSpans.length - 1}\u0000`
   })
   // links [text](url)
-  t = renderLinks(t)
+  t = renderLinks(t, codeSpans)
   // bold
   t = t.replace(/\*\*([^*]+)\*\*/g, '<strong class="text-slate-100 font-semibold">$1</strong>')
   // italic (avoid touching ** already handled; simple single * or _)

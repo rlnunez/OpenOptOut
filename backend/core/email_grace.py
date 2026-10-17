@@ -134,11 +134,10 @@ def maybe_snapshot_grace_period(
         return None
 
     log.info(
-        "Email configuration transition detected (mode: %s -> %s, user: %s -> %s). Activating %d-day grace period.",
+        "Email configuration transition detected (mode: %s -> %s, account_changed: %s). Activating %d-day grace period.",
         old_mode,
         incoming_mode,
-        old_user,
-        incoming_user or old_user,
+        account_changed,
         grace_days,
     )
 

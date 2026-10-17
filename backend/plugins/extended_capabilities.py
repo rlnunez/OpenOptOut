@@ -219,7 +219,7 @@ class ExtendedCapabilities:
             return {"ok": False, "error": "HTTP fetch not available on this host"}
 
         try:
-            status_code, resp_body = self.http_fetcher(method.upper(), url, body, headers)
+            status_code, resp_body = self.http_fetcher(method.upper(), url, body, headers, allowed_domains=allowed_domains)
             self.audit_sink(plugin_id, "http_fetch", f"{method.upper()} {url} -> {status_code}")
             return {"ok": True, "status_code": status_code, "body": resp_body}
         except Exception as e:

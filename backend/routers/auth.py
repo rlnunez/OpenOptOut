@@ -559,6 +559,18 @@ def toggle_unified_view(unified: bool, db: Session = Depends(get_db),
     return {"unified_view": unified}
 
 
+@router.post("/signout")
+@router.post("/signout-everywhere")
+def signout_everywhere(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Revoke all issued access tokens for this user by incrementing token_version."""
+    current_user.token_version = (getattr(current_user, "token_version", 0) or 0) + 1
+    db.commit()
+    return {"ok": True, "message": "All sessions revoked."}
+
+
 # ── LDAP login ────────────────────────────────────────────────────────────────
 
 @router.post("/ldap/login", dependencies=[Depends(rate_limit.limit("signin", 60))])
