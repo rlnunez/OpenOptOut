@@ -12176,7 +12176,7 @@
    ]
   },
   {
-   "text": "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.",
+   "text": "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.",
    "where": [
     "components/SecretKeyBanner.jsx"
    ]

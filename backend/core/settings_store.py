@@ -405,12 +405,11 @@ def _make_procedural_bmp_data_url(seed_bytes: bytes, idx: int) -> tuple[str, byt
     return f"data:image/bmp;base64,{b64}", raw_bmp
 
 
-def generate_entropy_images(count: int = 5) -> list[dict]:
-    """Fetch 4-6 free random images from the web (or synthesize cryptographic lava-lamp
-    frames if offline/blocked) and extract high-entropy byte chunks from each image."""
-    import hashlib, urllib.parse, urllib.request
-    count = max(4, min(6, int(count or 5)))
-    items = []
+def generate_entropy_images(count: int = 8) -> list[dict]:
+    """Fetch 8-12 free random images from license-free mirrors (Lorem Picsum / Unsplash)
+    or synthesize cryptographic lava-lamp frames if offline/blocked, extracting high-entropy byte chunks."""
+    import concurrent.futures, hashlib, urllib.parse, urllib.request
+    count = max(4, min(12, int(count or 8)))
     themes = [
         "Crimson Lava Nebula",
         "Bioluminescent Deep",
@@ -418,14 +417,21 @@ def generate_entropy_images(count: int = 5) -> list[dict]:
         "Aurora Borealis Drift",
         "Quantum Interference",
         "Prismatic Thermal Wave",
+        "Supernova Remnant",
+        "Galactic Core Stream",
+        "Atmospheric Scattering",
+        "Electromagnetic Flux",
+        "Vortex Turbulence",
+        "Cosmic Ray Cascade",
     ]
-    for i in range(count):
+
+    def _fetch_one_image(i: int) -> dict:
         seed_entropy = os.urandom(128)
         raw_bytes = None
         data_url = None
         source_type = "lava-lamp-rng"
         label = themes[i % len(themes)]
-        # Attempt to pull a free random public image if outbound internet is reachable
+        # Attempt to pull a license-free public image from Unsplash mirror (Lorem Picsum)
         seed_id = hashlib.sha256(seed_entropy[:16]).hexdigest()[:10]
         url = f"https://picsum.photos/seed/{seed_id}/96/72"
         try:
@@ -441,7 +447,7 @@ def generate_entropy_images(count: int = 5) -> list[dict]:
                     b64 = base64.b64encode(fetched).decode("ascii")
                     data_url = f"data:{ctype};base64,{b64}"
                     source_type = "web-image"
-                    label = f"Web Photo #{seed_id[:6]}"
+                    label = f"Unsplash Photo #{seed_id[:6]}"
         except Exception:
             raw_bytes = None
 
@@ -450,7 +456,7 @@ def generate_entropy_images(count: int = 5) -> list[dict]:
             raw_bytes = bmp_bytes + seed_entropy
 
         digest = hashlib.sha512(raw_bytes).hexdigest()
-        items.append({
+        return {
             "id": f"img-{i + 1}-{digest[:8]}",
             "index": i + 1,
             "label": label,
@@ -459,7 +465,10 @@ def generate_entropy_images(count: int = 5) -> list[dict]:
             "data_url": data_url,
             "sha512": digest,
             "chunks": [digest[j:j + 16] for j in range(0, 128, 16)],
-        })
+        }
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(count, 8)) as executor:
+        items = list(executor.map(_fetch_one_image, range(count)))
     return items
 
 

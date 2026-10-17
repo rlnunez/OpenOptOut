@@ -3107,5 +3107,6 @@
   "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "이미지 병합 완료! 상자 안에서 마우스를 움직이거나 키를 입력하여 무작위성을 추가하세요:",
   "Mix Now & Synthesize Key": "지금 믹싱하고 키 생성",
   "Live Mixed Entropy Stream:": "실시간 혼합 엔트로피 스트림:",
-  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "4~6개의 무작위 이미지를 가져와 정렬하고, 픽셀을 코드로 변환하고, 바이트 청크를 병합한 후 마우스 및 키보드 엔트로피를 혼합하여 128자 이상의 마스터 키를 생성합니다."
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "4~6개의 무작위 이미지를 가져와 정렬하고, 픽셀을 코드로 변환하고, 바이트 청크를 병합한 후 마우스 및 키보드 엔트로피를 혼합하여 128자 이상의 마스터 키를 생성합니다.",
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "8~12개의 무작위 이미지를 가져와 정렬하고, 픽셀을 코드로 변환하고, 바이트 청크를 병합한 후 마우스 및 키보드 엔트로피를 혼합하여 128자 이상의 마스터 키를 생성합니다."
 }

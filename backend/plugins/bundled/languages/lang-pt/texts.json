@@ -3107,5 +3107,6 @@
   "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "Imagens combinadas! Mova o mouse dentro da caixa ou digite teclas aleatórias para adicionar aleatoriedade física:",
   "Mix Now & Synthesize Key": "Misturar agora e sintetizar chave",
   "Live Mixed Entropy Stream:": "Fluxo de entropia mista em tempo real:",
-  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Puxe de 4 a 6 imagens aleatórias, ordene-as, converta pixels em código, mescle pedaços de bytes e misture a entropia do mouse e teclado para forjar uma chave mestra de 128+ caracteres."
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Puxe de 4 a 6 imagens aleatórias, ordene-as, converta pixels em código, mescle pedaços de bytes e misture a entropia do mouse e teclado para forjar uma chave mestra de 128+ caracteres.",
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Puxe de 8 a 12 imagens aleatórias, ordene-as, converta pixels em código, mescle pedaços de bytes e misture a entropia do mouse e teclado para forjar uma chave mestra de 128+ caracteres."
 }

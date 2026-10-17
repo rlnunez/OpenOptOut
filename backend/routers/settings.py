@@ -1096,7 +1096,7 @@ def update_secret_key(body: SecretKeyUpdate, user: User = Depends(require_permis
 
 
 @router.get("/security/entropy-images")
-def get_entropy_images(count: int = 5, _: User = Depends(require_permission("settings.system"))):
+def get_entropy_images(count: int = 8, _: User = Depends(require_permission("settings.system"))):
     from ..core.settings_store import generate_entropy_images
     return {"images": generate_entropy_images(count)}
 

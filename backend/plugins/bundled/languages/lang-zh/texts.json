@@ -3107,5 +3107,6 @@
   "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "图像已合并！在框内移动鼠标或敲击按键以注入额外的物理随机熵：",
   "Mix Now & Synthesize Key": "立即混合并合成密钥",
   "Live Mixed Entropy Stream:": "实时混合熵流：",
-  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "获取 4 到 6 张随机图像，排序并转换为代码，合并字节块，并混入鼠标与键盘熵，锻造出 128+ 字符的主密钥。"
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "获取 4 到 6 张随机图像，排序并转换为代码，合并字节块，并混入鼠标与键盘熵，锻造出 128+ 字符的主密钥。",
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "获取 8 到 12 张随机图像，排序并转换为代码，合并字节块，并混入鼠标与键盘熵，锻造出 128+ 字符的主密钥。"
 }

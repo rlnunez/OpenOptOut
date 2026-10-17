@@ -3107,5 +3107,6 @@
   "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "छवियां संयोजित! अतिरिक्त भौतिक यादृच्छिकता जोड़ने के लिए बॉक्स के अंदर माउस हिलाएं या यादृच्छिक कुंजियां टाइप करें:",
   "Mix Now & Synthesize Key": "अभी मिलाएं और कुंजी बनाएं",
   "Live Mixed Entropy Stream:": "लाइव मिश्रित एंट्रॉपी स्ट्रीम:",
-  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "4 से 6 यादृच्छिक छवियां लें, उन्हें क्रमबद्ध करें, पिक्सेल को कोड में बदलें, बाइट विखंडों को मिलाएं और 128+ वर्णों की मास्टर कुंजी बनाने के लिए माउस और कीबोर्ड एंट्रॉपी मिलाएं।"
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "4 से 6 यादृच्छिक छवियां लें, उन्हें क्रमबद्ध करें, पिक्सेल को कोड में बदलें, बाइट विखंडों को मिलाएं और 128+ वर्णों की मास्टर कुंजी बनाने के लिए माउस और कीबोर्ड एंट्रॉपी मिलाएं।",
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "8 से 12 यादृच्छिक छवियां लें, उन्हें क्रमबद्ध करें, पिक्सेल को कोड में बदलें, बाइट विखंडों को मिलाएं और 128+ वर्णों की मास्टर कुंजी बनाने के लिए माउस और कीबोर्ड एंट्रॉपी मिलाएं।"
 }

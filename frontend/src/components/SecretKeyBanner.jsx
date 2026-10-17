@@ -42,7 +42,7 @@ function mixBytesToKey(seedBytes, targetLen = 128) {
 export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = false }) {
   const [tab, setTab] = useState('images') // 'images' | 'mouse'
   const [keyInput, setKeyInput] = useState('')
-  const [imageCount, setImageCount] = useState(5)
+  const [imageCount, setImageCount] = useState(8)
   const [images, setImages] = useState([])
   const [stage, setStage] = useState(0) // 0=idle, 1=select, 2=sort, 3=code, 4=merge, 5=shuffle, 6=done
   const [displayOrder, setDisplayOrder] = useState([])
@@ -446,9 +446,11 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
               disabled={generating}
               className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs"
             >
-              <option value={4}>4</option>
-              <option value={5}>5</option>
-              <option value={6}>6</option>
+              <option value={8}>8</option>
+              <option value={9}>9</option>
+              <option value={10}>10</option>
+              <option value={11}>11</option>
+              <option value={12}>12</option>
             </select>
             <button
               type="button"
@@ -486,12 +488,12 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
 
           {images.length === 0 ? (
             <p className="text-xs text-slate-400">
-              {tx("Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.")}
+              {tx("Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.")}
             </p>
           ) : (
             <div className="space-y-3">
               {/* Image Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
                 {displayOrder.map((imgIdx, orderPos) => {
                   const img = images[imgIdx]
                   if (!img) return null

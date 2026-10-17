@@ -3107,5 +3107,6 @@
   "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "Pinagsama ang mga larawan! Igalaw ang mouse sa loob ng kahon o mag-type para magdagdag ng karagdagang pisikal na randomness:",
   "Mix Now & Synthesize Key": "Pagsamahin Ngayon at Gawin ang Key",
   "Live Mixed Entropy Stream:": "Live Mixed Entropy Stream:",
-  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Kumuha ng 4 hanggang 6 na random na imahe, ayusin ang mga ito, i-convert ang mga pixel sa code, pagsamahin ang mga byte chunk, at ihalo ang entropy ng mouse at keyboard upang makagawa ng 128+ character na master key."
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Kumuha ng 4 hanggang 6 na random na imahe, ayusin ang mga ito, i-convert ang mga pixel sa code, pagsamahin ang mga byte chunk, at ihalo ang entropy ng mouse at keyboard upang makagawa ng 128+ character na master key.",
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Kumuha ng 8 hanggang 12 na random na imahe, ayusin ang mga ito, i-convert ang mga pixel sa code, pagsamahin ang mga byte chunk, at ihalo ang entropy ng mouse at keyboard upang makagawa ng 128+ character na master key."
 }

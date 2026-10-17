@@ -3105,5 +3105,6 @@
   "Images merged! Move your mouse inside the box or type random keys to inject additional physical randomness:": "Picha zimeunganishwa! Sogeza kipanya ndani ya kisanduku au chapa vitufe vya nasibu ili kuongeza nasibu ya ziada:",
   "Mix Now & Synthesize Key": "Changanya Sasa na Unda Ufunguo",
   "Live Mixed Entropy Stream:": "Mtiririko wa Moja kwa Moja wa Entropi Iliyochanganywa:",
-  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Chukua picha 4 hadi 6 za nasibu, zipange, geuza pikseli kuwa msimbo, unganisha vipande vya baiti, na changanya entropi ya kipanya na kibodi ili kuunda ufunguo mkuu wa herufi 128+."
+  "Pull 4 to 6 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Chukua picha 4 hadi 6 za nasibu, zipange, geuza pikseli kuwa msimbo, unganisha vipande vya baiti, na changanya entropi ya kipanya na kibodi ili kuunda ufunguo mkuu wa herufi 128+.",
+  "Pull 8 to 12 random images, sort them, convert pixels into code, merge byte chunks, and mix in mouse & keyboard entropy to forge a 128+ character master key.": "Chukua picha 8 hadi 12 za nasibu, zipange, geuza pikseli kuwa msimbo, unganisha vipande vya baiti, na changanya entropi ya kipanya na kibodi ili kuunda ufunguo mkuu wa herufi 128+."
 }
