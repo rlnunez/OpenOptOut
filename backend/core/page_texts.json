@@ -826,6 +826,12 @@
    ]
   },
   {
+   "text": "Active now",
+   "where": [
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
    "text": "Active Slots",
    "where": [
     "pages/WorkerFleet.jsx"
@@ -1477,6 +1483,12 @@
    "text": "All Subsystems",
    "where": [
     "pages/SystemLogs.jsx"
+   ]
+  },
+  {
+   "text": "All tasks paused until {end}.",
+   "where": [
+    "pages/Calendar.jsx"
    ]
   },
   {
@@ -4102,6 +4114,12 @@
    ]
   },
   {
+   "text": "Couldn't remove maintenance window.",
+   "where": [
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
    "text": "Couldn't remove them. Please try again.",
    "where": [
     "pages/Family.jsx"
@@ -4188,6 +4206,12 @@
    "text": "Couldn't save. Please try again.",
    "where": [
     "components/ConfirmLinksCard.jsx"
+   ]
+  },
+  {
+   "text": "Couldn't schedule maintenance window.",
+   "where": [
+    "pages/Calendar.jsx"
    ]
   },
   {
@@ -7351,6 +7375,12 @@
    ]
   },
   {
+   "text": "Host server updates and backups",
+   "where": [
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
    "text": "Host Telemetry",
    "where": [
     "pages/WorkerFleet.jsx"
@@ -8934,7 +8964,38 @@
   {
    "text": "Maintenance",
    "where": [
-    "pages/Branding.jsx"
+    "pages/Branding.jsx",
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Maintenance in progress:",
+   "where": [
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Maintenance window removed.",
+   "where": [
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Maintenance window scheduled.",
+   "where": [
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Maintenance windows (scheduled downtime)",
+   "where": [
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Maintenance {start}–{end}",
+   "where": [
+    "pages/Calendar.jsx"
    ]
   },
   {
@@ -12350,6 +12411,12 @@
    ]
   },
   {
+   "text": "Reason / description",
+   "where": [
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
    "text": "Recent activity",
    "where": [
     "pages/Dashboard.jsx"
@@ -12725,6 +12792,12 @@
    "text": "Remove logo",
    "where": [
     "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Remove maintenance window {desc}",
+   "where": [
+    "pages/Calendar.jsx"
    ]
   },
   {
@@ -13645,9 +13718,27 @@
    ]
   },
   {
+   "text": "Schedule downtime for host server updates and backups. All background tasks and opt-outs are paused during the window and automatically resumed when it ends.",
+   "where": [
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Schedule maintenance window",
+   "where": [
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
    "text": "Scheduled jobs",
    "where": [
     "server: monitoring.py"
+   ]
+  },
+  {
+   "text": "Scheduled windows",
+   "where": [
+    "pages/Calendar.jsx"
    ]
   },
   {
@@ -13679,6 +13770,12 @@
    "text": "Scheduler settings are managed by your administrator.",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Scheduling...",
+   "where": [
+    "pages/Calendar.jsx"
    ]
   },
   {
@@ -17960,6 +18057,18 @@
    "text": "Will be installed into",
    "where": [
     "components/PluginUploadWizard.jsx"
+   ]
+  },
+  {
+   "text": "Window end",
+   "where": [
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Window start",
+   "where": [
+    "pages/Calendar.jsx"
    ]
   },
   {

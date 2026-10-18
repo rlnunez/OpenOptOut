@@ -36,6 +36,67 @@ def clean_dates(dates) -> list:
     return sorted(out)
 
 
+def _parse_dt(val) -> Optional[datetime]:
+    if not val:
+        return None
+    val_str = str(val).strip()
+    if val_str.endswith("Z"):
+        val_str = val_str[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(val_str)
+    except Exception:
+        return None
+
+
+def _to_utc_naive(dt: datetime) -> datetime:
+    if dt.tzinfo is not None:
+        from datetime import timezone
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+
+def clean_maintenance_windows(windows) -> list:
+    """Clean, validate, and sort scheduled downtime/maintenance windows."""
+    out = []
+    seen_ids = set()
+    for w in windows or []:
+        if not isinstance(w, dict):
+            continue
+        start_dt = _parse_dt(w.get("start"))
+        end_dt = _parse_dt(w.get("end"))
+        if not start_dt or not end_dt:
+            continue
+        if _to_utc_naive(end_dt) <= _to_utc_naive(start_dt):
+            continue
+        wid = str(w.get("id") or "").strip()
+        if not wid or wid in seen_ids:
+            import secrets, time
+            wid = f"mw-{int(time.time())}-{secrets.token_hex(4)}"
+        seen_ids.add(wid)
+        desc = str(w.get("description") or "Host server updates and backups").strip()[:400]
+        out.append({
+            "id": wid,
+            "start": start_dt.isoformat(),
+            "end": end_dt.isoformat(),
+            "description": desc or "Host server updates and backups",
+        })
+    out.sort(key=lambda x: x["start"])
+    return out
+
+
+def is_in_maintenance_window(sc: dict, now: Optional[datetime] = None) -> tuple:
+    """Return (True, active_window_dict) if now falls in a scheduled window, else (False, None)."""
+    now = now or datetime.utcnow()
+    now_naive = _to_utc_naive(now)
+    for w in sc.get("maintenance_windows") or []:
+        s_dt = _parse_dt(w.get("start"))
+        e_dt = _parse_dt(w.get("end"))
+        if s_dt and e_dt:
+            if _to_utc_naive(s_dt) <= now_naive < _to_utc_naive(e_dt):
+                return True, w
+    return False, None
+
+
 def _tz(sc: dict):
     try:
         from zoneinfo import ZoneInfo
@@ -53,8 +114,11 @@ def local_today(sc: dict, now: Optional[datetime] = None) -> date:
     return now.replace(tzinfo=timezone.utc).astimezone(tz).date()
 
 
-def run_allowed(sc: dict, day: date) -> tuple:
+def run_allowed(sc: dict, day: date, now: Optional[datetime] = None) -> tuple:
     """(allowed, reason) for sending opt-outs on this local date."""
+    in_maint, win = is_in_maintenance_window(sc, now)
+    if in_maint and win:
+        return False, f"Maintenance window active: {win.get('description', 'Downtime')}"
     if day.isoformat() in set(sc.get("skip_dates") or []):
         return False, f"{day.isoformat()} is a day off"
     days = sc.get("run_days")
@@ -70,8 +134,6 @@ def _first(name: str) -> str:
 def upcoming(db, member_ids: Iterable[int], sc: dict, start: Optional[date] = None, days: int = 60,
              now: Optional[datetime] = None) -> list:
     """Events from start for `days` days, oldest first."""
-    from ..models.database import RemovalRequest
-    from .timeline import build
     start = start or local_today(sc, now)
     end = start + timedelta(days=days)
     ev = []
@@ -86,7 +148,12 @@ def upcoming(db, member_ids: Iterable[int], sc: dict, start: Optional[date] = No
                 ev.append({"date": d.isoformat(), "kind": "skip", "title": "Day off: no opt-outs"})
             d += timedelta(days=1)
     ids = list(member_ids)
-    reqs = db.query(RemovalRequest).filter(RemovalRequest.member_id.in_(ids)).all() if ids else []
+    if ids and db is not None:
+        from ..models.database import RemovalRequest
+        from .timeline import build
+        reqs = db.query(RemovalRequest).filter(RemovalRequest.member_id.in_(ids)).all()
+    else:
+        reqs = []
     for r in reqs:
         site = r.broker.name if r.broker else "a site"
         who = _first(r.member.full_name if r.member else "")
@@ -103,7 +170,34 @@ def upcoming(db, member_ids: Iterable[int], sc: dict, start: Optional[date] = No
                 if start <= dd < end:
                     ev.append({"date": dd.isoformat(), "kind": "deadline",
                                "title": f"Legal deadline: {site} must answer ({who})", "request_id": r.id})
-    order = {"skip": 0, "run": 1, "deadline": 2, "check": 3}
+    # Maintenance windows (scheduled downtime)
+    for w in sc.get("maintenance_windows") or []:
+        s_dt = _parse_dt(w.get("start"))
+        e_dt = _parse_dt(w.get("end"))
+        if not s_dt or not e_dt:
+            continue
+        w_start_d = s_dt.date()
+        w_end_d = e_dt.date()
+        if w_start_d < end and w_end_d >= start:
+            cur = max(w_start_d, start)
+            last = min(w_end_d, end - timedelta(days=1))
+            d_cursor = cur
+            while d_cursor <= last:
+                ev.append({
+                    "id": w.get("id"),
+                    "date": d_cursor.isoformat(),
+                    "end_date": w_end_d.isoformat(),
+                    "kind": "maintenance",
+                    "title": f"Maintenance: {w.get('description') or 'Host updates & backups'}",
+                    "start_time": s_dt.strftime("%H:%M"),
+                    "end_time": e_dt.strftime("%H:%M"),
+                    "start_iso": w.get("start"),
+                    "end_iso": w.get("end"),
+                    "description": w.get("description", "Host server updates and backups"),
+                })
+                d_cursor += timedelta(days=1)
+
+    order = {"skip": 0, "maintenance": 1, "run": 2, "deadline": 3, "check": 4}
     ev.sort(key=lambda e: (e["date"], order[e["kind"]], e["title"]))
     return ev
 
@@ -117,9 +211,26 @@ def to_ics(events: list, name: str = "OpenOptOut", now: Optional[datetime] = Non
     stamp = now.strftime("%Y%m%dT%H%M%SZ")
     lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//OpenOptOut//Removal calendar//EN",
              "CALSCALE:GREGORIAN", "METHOD:PUBLISH", f"X-WR-CALNAME:{_esc(name)}"]
+    seen_uids = set()
     for e in events:
+        uid = hashlib.sha256(f"{e.get('id') or e['kind']}|{e.get('start_iso') or e['date']}|{e['title']}".encode()).hexdigest()[:24]
+        if uid in seen_uids:
+            continue
+        seen_uids.add(uid)
+        if e.get("kind") == "maintenance" and e.get("start_iso") and e.get("end_iso"):
+            s_dt = _parse_dt(e["start_iso"])
+            e_dt = _parse_dt(e["end_iso"])
+            if s_dt and e_dt:
+                s_stamp = _to_utc_naive(s_dt).strftime("%Y%m%dT%H%M%SZ")
+                e_stamp = _to_utc_naive(e_dt).strftime("%Y%m%dT%H%M%SZ")
+                lines += ["BEGIN:VEVENT", f"UID:{uid}@openoptout", f"DTSTAMP:{stamp}",
+                          f"DTSTART:{s_stamp}", f"DTEND:{e_stamp}",
+                          f"SUMMARY:{_esc(e['title'])}",
+                          f"DESCRIPTION:{_esc(e.get('description', ''))}",
+                          "TRANSP:OPAQUE", "CATEGORIES:MAINTENANCE",
+                          "END:VEVENT"]
+                continue
         d = date.fromisoformat(e["date"])
-        uid = hashlib.sha256(f"{e['kind']}|{e['date']}|{e['title']}".encode()).hexdigest()[:24]
         lines += ["BEGIN:VEVENT", f"UID:{uid}@openoptout", f"DTSTAMP:{stamp}",
                   f"DTSTART;VALUE=DATE:{d:%Y%m%d}", f"DTEND;VALUE=DATE:{d + timedelta(days=1):%Y%m%d}",
                   f"SUMMARY:{_esc(e['title'])}", "TRANSP:TRANSPARENT", f"CATEGORIES:{e['kind'].upper()}",

@@ -115,6 +115,12 @@ def trigger_job(
     fn = JOB_MAP.get(job_name)
     if not fn:
         raise HTTPException(400, f"Unknown job. Valid: {list(JOB_MAP)}")
+    from ..core.scheduler import is_downtime_active
+    in_maint, win = is_downtime_active()
+    if in_maint:
+        desc = win.get("description", "Host server updates and backups") if win else "Downtime"
+        end_time = win.get("end", "the scheduled time") if win else "the scheduled time"
+        raise HTTPException(503, f"Cannot run jobs: system is currently in a scheduled maintenance window until {end_time} ({desc}).")
     import threading
     kwargs = {"manual": True} if job_name == "optout" else {}   # a person asked: ignore the calendar
     threading.Thread(target=fn, kwargs=kwargs, daemon=True).start()

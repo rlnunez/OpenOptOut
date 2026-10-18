@@ -165,6 +165,8 @@ class SchedulerConfig(LimitedModel):
     # or missing = every day) and dates to skip, like holidays ("YYYY-MM-DD").
     run_days: Optional[List[int]] = Field(None, max_length=7)
     skip_dates: Optional[List[str]] = Field(None, max_length=ITEMS_MAX)
+    # Scheduled downtime / maintenance windows (pauses background tasks)
+    maintenance_windows: Optional[List[dict]] = Field(None, max_length=ITEMS_MAX)
 
 
 class PrivacyDataSettings(LimitedModel):
@@ -419,10 +421,14 @@ def save_scheduler(data: SchedulerConfig, _: User = Depends(require_permission("
         new["run_days"] = clean_days(new["run_days"])
     if "skip_dates" in new:
         new["skip_dates"] = clean_dates(new["skip_dates"])
+    if "maintenance_windows" in new:
+        from ..core.calendar_plan import clean_maintenance_windows
+        new["maintenance_windows"] = clean_maintenance_windows(new["maintenance_windows"])
     s["scheduler"] = {**(s.get("scheduler") or {}), **new}   # fields not sent keep their values
     _save(s)
-    # reload live scheduler to pick up changes
-    from ..core.scheduler import reload_scheduler
+    # Check maintenance windows immediately and reload scheduler
+    from ..core.scheduler import reload_scheduler, check_maintenance_windows
+    check_maintenance_windows()
     import threading
     threading.Thread(target=reload_scheduler, daemon=True).start()
     return s["scheduler"]

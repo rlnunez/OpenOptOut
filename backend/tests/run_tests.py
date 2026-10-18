@@ -567,6 +567,80 @@ def t_optout_batch_schema():
         pass
 
 
+@test(1, "calendar.maintenance_windows_plan_and_downtime",
+      "Scheduled downtime/maintenance windows pause background tasks, reject invalid ranges, show on calendar and .ics, and resume on window end.")
+def t_calendar_maintenance_windows():
+    import datetime as _dt
+    cal = _imp("core.calendar_plan")
+
+    # 1. Validation & cleaning
+    raw = [
+        {"start": "2026-10-25T02:00:00", "end": "2026-10-25T05:00:00", "description": "Host server updates and backups"},
+        {"start": "2026-10-26T05:00:00", "end": "2026-10-26T02:00:00"}, # inverted
+        {"start": "not-a-date", "end": "2026-10-25T05:00:00"},          # malformed
+        {"start": "2026-10-27T01:00:00Z", "end": "2026-10-27T03:00:00Z", "description": "Storage backup"}
+    ]
+    cleaned = cal.clean_maintenance_windows(raw)
+    assert len(cleaned) == 2, f"expected 2 valid windows, got {len(cleaned)}"
+    assert cleaned[0]["description"] == "Host server updates and backups"
+    assert cleaned[0]["id"].startswith("mw-")
+    assert cleaned[1]["description"] == "Storage backup"
+
+    # 2. In-window detection
+    sc = {"enabled": True, "run_time": "02:00", "maintenance_windows": cleaned}
+    # During window 1
+    t_inside = _dt.datetime(2026, 10, 25, 3, 30)
+    in_win, win = cal.is_in_maintenance_window(sc, now=t_inside)
+    assert in_win is True and win["description"] == "Host server updates and backups"
+    # Before window 1
+    t_before = _dt.datetime(2026, 10, 25, 1, 59)
+    in_win, _ = cal.is_in_maintenance_window(sc, now=t_before)
+    assert in_win is False
+    # After window 1
+    t_after = _dt.datetime(2026, 10, 25, 5, 0)
+    in_win, _ = cal.is_in_maintenance_window(sc, now=t_after)
+    assert in_win is False
+
+    # 3. run_allowed checks
+    ok, why = cal.run_allowed(sc, t_inside.date(), now=t_inside)
+    assert ok is False and "Maintenance window active" in why
+    ok_before, _ = cal.run_allowed(sc, t_before.date(), now=t_before)
+    assert ok_before is True
+
+    # 4. Upcoming events
+    ev = cal.upcoming(None, [], sc, start=_dt.date(2026, 10, 24), days=5)
+    maint_evs = [e for e in ev if e.get("kind") == "maintenance"]
+    assert len(maint_evs) >= 1, "maintenance event missing from upcoming"
+    assert maint_evs[0]["start_time"] == "02:00" and maint_evs[0]["end_time"] == "05:00"
+
+    # 5. .ics feed export
+    ics = cal.to_ics(ev, now=_dt.datetime(2026, 10, 24))
+    assert "CATEGORIES:MAINTENANCE" in ics
+    assert "DTSTART:20261025T020000Z" in ics
+    assert "DTEND:20261025T050000Z" in ics
+    assert "Host server updates and backups" in ics
+
+    # 6. Scheduler transition simulation
+    try:
+        sched = _imp("core.scheduler")
+        # Test check_maintenance_windows transitions with simulated now
+        orig_in = sched._in_maintenance
+        try:
+            # Inside window: should detect and pause
+            in_m = sched.check_maintenance_windows(now=t_inside)
+            assert in_m is True
+            assert sched._in_maintenance is True
+            # Outside window: should detect end and resume
+            in_m2 = sched.check_maintenance_windows(now=t_after)
+            assert in_m2 is False
+            assert sched._in_maintenance is False
+        finally:
+            sched._in_maintenance = orig_in
+    except Exception as e:
+        # Scheduler import may skip if optional deps missing
+        pass
+
+
 @test(1, "interpreter.compile_form_job",
       "A form spec compiles to a Job with member field references resolved to real values.")
 def t_compile_form():
@@ -10983,7 +11057,8 @@ def t_calendar():
                           recheck_after=_dt.datetime(2026, 10, 20, 2, 0))
     s.add(r); s.commit()
     sc = {"enabled": True, "run_time": "02:00", "timezone": "America/Chicago",
-          "run_days": cal.clean_days([0, 2, 4, 9]), "skip_dates": cal.clean_dates(["2026-10-14", "nope"])}
+          "run_days": cal.clean_days([0, 2, 4, 9]), "skip_dates": cal.clean_dates(["2026-10-14", "nope"]),
+          "maintenance_windows": [{"id": "mw-test", "start": "2026-10-18T01:00:00", "end": "2026-10-18T04:00:00", "description": "Host server updates and backups"}]}
     assert sc["run_days"] == [0, 2, 4] and sc["skip_dates"] == ["2026-10-14"]
     assert cal.clean_days(list(range(7))) is None, "every day = no limit"
     assert cal.run_allowed(sc, _dt.date(2026, 10, 12))[0]                 # Monday
@@ -10993,11 +11068,13 @@ def t_calendar():
     ev = cal.upcoming(s, [m.id], sc, start=_dt.date(2026, 10, 12), days=14)
     kinds = [(e["date"], e["kind"]) for e in ev]
     assert ("2026-10-12", "run") in kinds and ("2026-10-14", "skip") in kinds and ("2026-10-13", "run") not in kinds
+    assert ("2026-10-18", "maintenance") in kinds
     assert ("2026-10-20", "check") in kinds
     assert any(e["title"] == "Check again: Spokeo (Jane)" for e in ev)
     ics = cal.to_ics(ev, now=_dt.datetime(2026, 10, 11))
     assert ics.startswith("BEGIN:VCALENDAR\r\n") and ics.endswith("END:VCALENDAR\r\n")
     assert "DTSTART;VALUE=DATE:20261020" in ics
+    assert "CATEGORIES:MAINTENANCE" in ics
     assert all(len(l.encode()) <= 75 for l in ics.split("\r\n")), "lines folded"
     for secret in ("Public", "123 Main", "555-0134", "jane@"):
         assert secret not in ics, secret

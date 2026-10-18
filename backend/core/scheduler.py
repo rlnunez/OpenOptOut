@@ -23,6 +23,73 @@ UUID_RE = re.compile(
     re.IGNORECASE
 )
 
+_in_maintenance: bool = False
+_maintenance_monitor_thread: Optional[threading.Thread] = None
+_maintenance_stop_event = threading.Event()
+
+
+def is_downtime_active(now: Optional[datetime] = None) -> tuple:
+    """Return (in_downtime: bool, active_window_dict_or_None)."""
+    from .calendar_plan import is_in_maintenance_window
+    cfg = load_settings()
+    return is_in_maintenance_window(cfg.get("scheduler", {}), now=now)
+
+
+def check_maintenance_windows(now: Optional[datetime] = None) -> bool:
+    """
+    Evaluate scheduled maintenance windows against `now`.
+    Pauses the scheduler if entering a maintenance window.
+    Resumes the scheduler if exiting a maintenance window.
+    Returns True if currently in a maintenance window, else False.
+    """
+    global _in_maintenance
+    in_win, win = is_downtime_active(now=now)
+    s = get_scheduler()
+
+    if in_win:
+        if not _in_maintenance:
+            _in_maintenance = True
+            desc = win.get("description", "Host server updates and backups") if win else "Downtime"
+            end_time = win.get("end", "the scheduled time") if win else "the scheduled time"
+            log.warning("Entering scheduled maintenance window (%s until %s). Pausing all scheduler jobs.", desc, end_time)
+            if s.running:
+                try:
+                    s.pause()
+                except Exception as e:
+                    log.error("Failed to pause scheduler for maintenance window: %s", e)
+        return True
+    else:
+        if _in_maintenance:
+            _in_maintenance = False
+            log.info("Scheduled maintenance window ended. Resuming scheduler and restarting tasks.")
+            if s.running:
+                try:
+                    s.resume()
+                except Exception as e:
+                    log.error("Failed to resume scheduler after maintenance window: %s", e)
+        return False
+
+
+def _maintenance_monitor_loop():
+    while not _maintenance_stop_event.is_set():
+        try:
+            check_maintenance_windows()
+        except Exception as e:
+            log.warning("Maintenance monitor check failed: %s", e)
+        _maintenance_stop_event.wait(timeout=15)
+
+
+def _start_maintenance_monitor():
+    global _maintenance_monitor_thread
+    _maintenance_stop_event.clear()
+    if _maintenance_monitor_thread is None or not _maintenance_monitor_thread.is_alive():
+        _maintenance_monitor_thread = threading.Thread(
+            target=_maintenance_monitor_loop,
+            name="maintenance_monitor",
+            daemon=True
+        )
+        _maintenance_monitor_thread.start()
+
 
 # ── Lifecycle ─────────────────────────────────────────────────────────────────
 
@@ -92,6 +159,8 @@ def start_scheduler():
 
     if not sc.get("enabled", False):
         s.start()
+        _start_maintenance_monitor()
+        check_maintenance_windows()
         log.info("Opt-out scheduling disabled — maintenance jobs only")
         return
 
@@ -163,6 +232,8 @@ def start_scheduler():
               id="email_monitor", replace_existing=True, next_run_time=datetime.utcnow())
 
     s.start()
+    _start_maintenance_monitor()
+    check_maintenance_windows()
     log.info(f"Scheduler started — spread_mode={spread_mode}, email poll every {poll_mins}m")
 
 
@@ -257,6 +328,7 @@ def _hours_in_window(start_h: int, end_h: int) -> list:
 
 
 def stop_scheduler():
+    _maintenance_stop_event.set()
     s = get_scheduler()
     if s.running: s.shutdown(wait=False)
 
@@ -366,6 +438,13 @@ def _run_optout_with_limit(run_type: str, max_this_run: int, manual: bool = Fals
 
         if sc.get("pause_before_send", True):
             log.info("pause_before_send=True — skipping auto send")
+            _finish_run(db, run_id, status="done", sent=0)
+            return
+
+        in_maint, win = is_downtime_active()
+        if in_maint:
+            desc = win.get("description", "Host server updates and backups") if win else "Downtime"
+            log.warning("Opt-outs skipped: server maintenance window active (%s).", desc)
             _finish_run(db, run_id, status="done", sent=0)
             return
 

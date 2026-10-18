@@ -87,6 +87,37 @@ The updater connects to `/var/run/docker.sock` and queries the Docker Engine API
 
 ---
 
+## Scheduled Downtime & Host Maintenance Windows
+
+When the underlying host server requires operating system updates, kernel patches, hardware maintenance, or cold volume-level backups, administrators can schedule downtime directly on the **Calendar** (`/calendar`).
+
+### How It Works
+
+1. **Scheduling via UI or API:**
+   - On the **Calendar** page under **Maintenance windows (scheduled downtime)**, an admin specifies a start date/time, end date/time, and a reason (e.g., *"Host server kernel updates and snapshot backup"*).
+   - Alternatively, operators can schedule windows via API:
+     ```http
+     POST /api/calendar/maintenance
+     Content-Type: application/json
+
+     {
+       "start": "2026-10-25T02:00:00",
+       "end": "2026-10-25T05:00:00",
+       "description": "Host server kernel updates and snapshot backup"
+     }
+     ```
+2. **Automated Scheduler Pause & Drain:**
+   - At the beginning of the maintenance window, the internal scheduler monitor detects the active window, pauses all background task queues (`s.pause()`), and halts automated opt-out dispatches, email polling, verifications, and background checks.
+   - Any manual job executions triggered via API return HTTP `503 Service Unavailable` with details on the active maintenance window.
+3. **Automated Resumption:**
+   - When the window end timestamp arrives, the background monitor automatically resumes the scheduler (`s.resume()`), restarting all scheduled background jobs without requiring manual admin intervention.
+   - If the host server reboots during the window, OpenOptOut starts up directly in the paused maintenance state and automatically resumes when the window concludes.
+4. **Calendar & `.ics` Feed Synchronization:**
+   - Scheduled maintenance windows appear on the interactive monthly Calendar view and in the "Coming up" agenda.
+   - Subscribers to the authenticated `.ics` calendar feed see scheduled downtime reflected with category `MAINTENANCE` and exact start/end timestamps.
+
+---
+
 ## Quickstart & Activation
 
 To enable the updater container:
@@ -103,4 +134,5 @@ To check updater status and run an on-demand check from the CLI:
 ```bash
 docker compose exec updater python3 /updater/updater.py --check
 ```
+
 

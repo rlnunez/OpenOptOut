@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, Link2, Download, X } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Link2, Download, X, Server, Clock } from 'lucide-react'
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import { tx } from '../i18n/tx'
-import { fmtDate, fmtClock, weekStart } from '../i18n/format'
+import { fmtDate, fmtClock, fmtDateTime, weekStart } from '../i18n/format'
 
 // What happens when: the days opt-outs go out, when each site is checked
 // again, and when a site's legal deadline to answer runs out. Admins choose
@@ -13,10 +13,11 @@ import { fmtDate, fmtClock, weekStart } from '../i18n/format'
 const DAYS = [tx("Mon"), tx("Tue"), tx("Wed"), tx("Thu"), tx("Fri"), tx("Sat"), tx("Sun")]
 const LONG_DAYS = [tx("Monday"), tx("Tuesday"), tx("Wednesday"), tx("Thursday"), tx("Friday"), tx("Saturday"), tx("Sunday")]
 const KIND = {
-  run:      { label: tx("Opt-outs go out"), cls: 'bg-shield-600/30 text-shield-200 border-shield-600/50' },
-  check:    { label: tx("Check again"),     cls: 'bg-slate-700/60 text-slate-200 border-slate-600' },
-  deadline: { label: tx("Legal deadline"),  cls: 'bg-amber-900/40 text-amber-200 border-amber-700/60' },
-  skip:     { label: tx("Day off"),         cls: 'bg-slate-800 text-slate-400 border-slate-700 line-through' },
+  run:         { label: tx("Opt-outs go out"), cls: 'bg-shield-600/30 text-shield-200 border-shield-600/50' },
+  check:       { label: tx("Check again"),     cls: 'bg-slate-700/60 text-slate-200 border-slate-600' },
+  deadline:    { label: tx("Legal deadline"),  cls: 'bg-amber-900/40 text-amber-200 border-amber-700/60' },
+  skip:        { label: tx("Day off"),         cls: 'bg-slate-800 text-slate-400 border-slate-700 line-through' },
+  maintenance: { label: tx("Maintenance"),     cls: 'bg-purple-900/40 text-purple-200 border-purple-700/60' },
 }
 // Monday-first lists (index = the server's weekday number), shown starting on
 // the admin's first day of the week.
@@ -34,6 +35,10 @@ export default function Calendar() {
   const [msg, setMsg] = useState('')
   const [feed, setFeed] = useState('')
   const [newSkip, setNewSkip] = useState('')
+  const [mStart, setMStart] = useState('')
+  const [mEnd, setMEnd] = useState('')
+  const [mDesc, setMDesc] = useState('')
+  const [savingMaint, setSavingMaint] = useState(false)
 
   const load = useCallback(() => {
     const start = backToWeekStart(month)
@@ -65,6 +70,39 @@ export default function Calendar() {
     saveSchedule({ run_days: next })
   }
 
+  const addMaintenance = async () => {
+    if (!mStart || !mEnd) return
+    setSavingMaint(true)
+    setMsg('')
+    try {
+      await api.post('/calendar/maintenance', {
+        start: mStart,
+        end: mEnd,
+        description: mDesc.trim() || undefined,
+      })
+      setMStart('')
+      setMEnd('')
+      setMDesc('')
+      setMsg(tx("Maintenance window scheduled."))
+      load()
+    } catch (e) {
+      setMsg(e.response?.data?.detail || tx("Couldn't schedule maintenance window."))
+    } finally {
+      setSavingMaint(false)
+    }
+  }
+
+  const deleteMaintenance = async (id) => {
+    setMsg('')
+    try {
+      await api.delete(`/calendar/maintenance/${id}`)
+      setMsg(tx("Maintenance window removed."))
+      load()
+    } catch (e) {
+      setMsg(e.response?.data?.detail || tx("Couldn't remove maintenance window."))
+    }
+  }
+
   const makeFeed = async () => {
     try { const { data } = await api.post('/calendar/feed'); setFeed(data.url); load() }
     catch { setMsg(tx("Couldn't make the link.")) }
@@ -85,6 +123,17 @@ export default function Calendar() {
       <h1 className="text-white text-xl font-semibold flex items-center gap-2"><CalendarDays size={18} aria-hidden="true" />{" "}{tx("Calendar")}</h1>
       <p className="text-slate-400 text-sm mt-1 mb-4">{tx("When opt-outs go out, when each site gets checked again, and when a site's legal deadline to answer runs out.")}</p>
       {msg && <p role="status" className="text-slate-200 text-sm mb-3">{msg}</p>}
+
+      {data?.in_maintenance && (
+        <div role="alert" className="bg-purple-950/80 border border-purple-600/60 rounded-xl p-3 mb-4 flex items-center gap-2.5 text-purple-200 text-sm">
+          <Clock size={16} className="shrink-0 text-purple-300" aria-hidden="true" />
+          <div>
+            <strong>{tx("Maintenance in progress:")}</strong>{' '}
+            {data.active_window?.description || tx("Host server updates and backups")} —{' '}
+            {tx("All tasks paused until {end}.", { end: fmtDateTime(data.active_window?.end) })}
+          </div>
+        </div>
+      )}
 
       <section aria-labelledby="h-month" className={card}>
         <div className="flex items-center justify-between mb-3">
@@ -107,7 +156,7 @@ export default function Calendar() {
                 <p className="text-slate-400 text-xs mb-1">{d.getDate()}</p>
                 {evs.slice(0, 3).map((e, i) => (
                   <p key={i} title={e.title} dir="auto" className={`text-[11px] leading-tight px-1 py-0.5 mb-0.5 rounded border truncate ${KIND[e.kind].cls}`}>
-                    {e.kind === 'run' ? tx("Opt-outs {time}", { time: fmtClock(e.time) }) : e.title}</p>
+                    {e.kind === 'run' ? tx("Opt-outs {time}", { time: fmtClock(e.time) }) : e.kind === 'maintenance' ? tx("Maintenance {start}–{end}", { start: fmtClock(e.start_time), end: fmtClock(e.end_time) }) : e.title}</p>
                 ))}
                 {evs.length > 3 && <p className="text-[11px] text-slate-400">{tx("+{v} more", { v: evs.length - 3 })}</p>}
               </div>
@@ -122,7 +171,7 @@ export default function Calendar() {
         {upcoming.length === 0 ? <p className="text-slate-400 text-sm">{tx("Nothing to check or chase yet.")}</p> : (
           <ul className="space-y-1 text-sm">{upcoming.map((e, i) => (
             <li key={i} className="flex gap-3"><span className="text-slate-400 w-28 shrink-0">{nice(e.date)}</span>
-              <span className={e.kind === 'deadline' ? 'text-amber-200' : 'text-slate-200'}>{e.title}</span></li>))}</ul>
+              <span className={e.kind === 'deadline' ? 'text-amber-200' : e.kind === 'maintenance' ? 'text-purple-300' : 'text-slate-200'}>{e.title}</span></li>))}</ul>
         )}
       </section>
 
@@ -146,38 +195,110 @@ export default function Calendar() {
       </section>
 
       {isStaff && data && (
-        <section aria-labelledby="h-sched" className={card}>
-          <h2 id="h-sched" className="text-white font-medium mb-1">{tx("When opt-outs go out")}</h2>
-          <p className="text-slate-400 text-sm mb-2">
-            {data.enabled ? tx("At {run_time} ({timezone}) on the days ticked below.", { run_time: fmtClock(data.run_time), timezone: data.timezone }) : tx("Automatic sending is off in Settings, so nothing goes out by itself.")}
-            {' '}{tx("\"Send opt-outs now\" on the Dashboard always works.")}
-          </p>
-          <fieldset className="flex flex-wrap gap-3 mb-3">
-            <legend className="sr-only">{tx("Days opt-outs go out")}</legend>
-            {ORDER.map(i => [LONG_DAYS[i], i]).map(([d, i]) => (
-              <label key={d} className="flex items-center gap-1.5 text-sm text-slate-200">
-                <input type="checkbox" checked={runDays.includes(i)} onChange={() => toggleDay(i)} className="w-4 h-4 accent-shield-500" />{d}
-              </label>
-            ))}
-          </fieldset>
-          <div className="flex flex-wrap items-end gap-2">
-            <div>
-              <label htmlFor="skip" className="block text-slate-300 text-sm mb-1">{tx("Days off (holidays)")}</label>
-              <input id="skip" type="date" value={newSkip} onChange={e => setNewSkip(e.target.value)}
-                className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200" />
+        <>
+          <section aria-labelledby="h-maint" className={card}>
+            <h2 id="h-maint" className="text-white font-medium mb-1 flex items-center gap-2">
+              <Server size={15} aria-hidden="true" />{" "}{tx("Maintenance windows (scheduled downtime)")}
+            </h2>
+            <p className="text-slate-400 text-sm mb-3">
+              {tx("Schedule downtime for host server updates and backups. All background tasks and opt-outs are paused during the window and automatically resumed when it ends.")}
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 mb-3">
+              <div>
+                <label htmlFor="m-start" className="block text-slate-300 text-xs mb-1">{tx("Window start")}</label>
+                <input id="m-start" type="datetime-local" value={mStart} onChange={e => setMStart(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200" />
+              </div>
+              <div>
+                <label htmlFor="m-end" className="block text-slate-300 text-xs mb-1">{tx("Window end")}</label>
+                <input id="m-end" type="datetime-local" value={mEnd} onChange={e => setMEnd(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200" />
+              </div>
+              <div>
+                <label htmlFor="m-desc" className="block text-slate-300 text-xs mb-1">{tx("Reason / description")}</label>
+                <input id="m-desc" type="text" placeholder={tx("Host server updates and backups")} value={mDesc} onChange={e => setMDesc(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200" />
+              </div>
             </div>
-            <button disabled={!newSkip} onClick={() => { saveSchedule({ skip_dates: [...(data.skip_dates || []), newSkip] }); setNewSkip('') }}
-              className="px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 disabled:opacity-40">{tx("Add day off")}</button>
-          </div>
-          {data.skip_dates?.length > 0 && (
-            <ul className="flex flex-wrap gap-2 mt-3">{data.skip_dates.map(d => (
-              <li key={d} className="flex items-center gap-1 text-sm text-slate-200 bg-slate-900 border border-slate-700 rounded-lg ps-2 pe-1 py-0.5">
-                {nice(d)}
-                <button onClick={() => saveSchedule({ skip_dates: data.skip_dates.filter(x => x !== d) })} aria-label={tx("Remove day off {nice}", { nice: nice(d) })}
-                  className="p-0.5 text-slate-400 hover:text-white"><X size={12} /></button>
-              </li>))}</ul>
-          )}
-        </section>
+            <button
+              type="button"
+              disabled={!mStart || !mEnd || savingMaint}
+              onClick={addMaintenance}
+              className="px-3.5 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-40"
+            >
+              {savingMaint ? tx("Scheduling...") : tx("Schedule maintenance window")}
+            </button>
+
+            {data.maintenance_windows?.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-slate-700/50">
+                <h3 className="text-slate-300 text-xs font-semibold uppercase tracking-wider mb-2">{tx("Scheduled windows")}</h3>
+                <ul className="space-y-2">
+                  {data.maintenance_windows.map(w => {
+                    const isCurrent = data.in_maintenance && data.active_window?.id === w.id
+                    return (
+                      <li key={w.id} className="flex items-center justify-between gap-3 text-sm bg-slate-900 border border-slate-700 rounded-lg px-3 py-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-white font-medium">{w.description}</span>
+                            {isCurrent && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-purple-900/60 text-purple-200 border border-purple-500/50">
+                                {tx("Active now")}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-slate-400 text-xs mt-0.5">
+                            {fmtDateTime(w.start)} — {fmtDateTime(w.end)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteMaintenance(w.id)}
+                          aria-label={tx("Remove maintenance window {desc}", { desc: w.description })}
+                          className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800"
+                        >
+                          <X size={15} />
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
+          </section>
+
+          <section aria-labelledby="h-sched" className={card}>
+            <h2 id="h-sched" className="text-white font-medium mb-1">{tx("When opt-outs go out")}</h2>
+            <p className="text-slate-400 text-sm mb-2">
+              {data.enabled ? tx("At {run_time} ({timezone}) on the days ticked below.", { run_time: fmtClock(data.run_time), timezone: data.timezone }) : tx("Automatic sending is off in Settings, so nothing goes out by itself.")}
+              {' '}{tx("\"Send opt-outs now\" on the Dashboard always works.")}
+            </p>
+            <fieldset className="flex flex-wrap gap-3 mb-3">
+              <legend className="sr-only">{tx("Days opt-outs go out")}</legend>
+              {ORDER.map(i => [LONG_DAYS[i], i]).map(([d, i]) => (
+                <label key={d} className="flex items-center gap-1.5 text-sm text-slate-200">
+                  <input type="checkbox" checked={runDays.includes(i)} onChange={() => toggleDay(i)} className="w-4 h-4 accent-shield-500" />{d}
+                </label>
+              ))}
+            </fieldset>
+            <div className="flex flex-wrap items-end gap-2">
+              <div>
+                <label htmlFor="skip" className="block text-slate-300 text-sm mb-1">{tx("Days off (holidays)")}</label>
+                <input id="skip" type="date" value={newSkip} onChange={e => setNewSkip(e.target.value)}
+                  className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200" />
+              </div>
+              <button disabled={!newSkip} onClick={() => { saveSchedule({ skip_dates: [...(data.skip_dates || []), newSkip] }); setNewSkip('') }}
+                className="px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700 disabled:opacity-40">{tx("Add day off")}</button>
+            </div>
+            {data.skip_dates?.length > 0 && (
+              <ul className="flex flex-wrap gap-2 mt-3">{data.skip_dates.map(d => (
+                <li key={d} className="flex items-center gap-1 text-sm text-slate-200 bg-slate-900 border border-slate-700 rounded-lg ps-2 pe-1 py-0.5">
+                  {nice(d)}
+                  <button onClick={() => saveSchedule({ skip_dates: data.skip_dates.filter(x => x !== d) })} aria-label={tx("Remove day off {nice}", { nice: nice(d) })}
+                    className="p-0.5 text-slate-400 hover:text-white"><X size={12} /></button>
+                </li>))}</ul>
+            )}
+          </section>
+        </>
       )}
     </div>
   )
