@@ -6002,6 +6002,75 @@ def t_security_sso_unverified_email_linking_denied():
     assert res_saml.allowed is True
 
 
+@test(1, "security.executor_pick_listing_scheme_and_host_validation",
+      "Executor _pick_listing validates candidate URLs against scheme (https only), public IP, and broker domain allowlist.")
+def t_security_executor_pick_listing_validation():
+    ex_mod = _imp("core.interpreter.executor")
+    comp = _imp("core.interpreter.compiler")
+
+    class FakePage:
+        url = "https://broker.example/search"
+        async def goto(self, url, timeout=0): pass
+        async def wait_for_timeout(self, ms): pass
+
+    page = FakePage()
+    job = comp.Job(broker_id="b1", broker_name="Broker", member_id="m1", method="form",
+                   steps=[comp.JobStep(kind="navigate", url="https://broker.example/optout"),
+                          comp.JobStep(kind="pick_listing", selector="a.item")])
+    ex = ex_mod.PlaywrightExecutor(page=page)
+    ex._current_job = job
+
+    # Valid: https on matching broker domain
+    assert ex._is_safe_listing_url("https://broker.example/listing/123") is True
+    assert ex._is_safe_listing_url("https://sub.broker.example/item/456") is True
+
+    # Invalid scheme
+    assert ex._is_safe_listing_url("http://broker.example/listing/123") is False
+    assert ex._is_safe_listing_url("javascript:alert(1)") is False
+    assert ex._is_safe_listing_url("file:///etc/passwd") is False
+
+    # Invalid host (off-site / attacker)
+    assert ex._is_safe_listing_url("https://evil.com/phish") is False
+
+    # Invalid host (internal / SSRF / cloud metadata)
+    assert ex._is_safe_listing_url("https://127.0.0.1/admin") is False
+    assert ex._is_safe_listing_url("https://localhost/admin") is False
+    assert ex._is_safe_listing_url("https://169.254.169.254/latest/meta-data") is False
+    assert ex._is_safe_listing_url("https://10.0.0.1/internal") is False
+
+
+@test(1, "security.settings_read_credential_refusal",
+      "PluginSettingsAccessor refuses secret-matching keys and values containing embedded credentials.")
+def t_security_settings_read_credential_refusal():
+    sa = _imp("plugins.settings_access")
+
+    data = {
+        "theme": "dark",
+        "locale": "en",
+        "proxy_port": 8080,
+        "proxy_url": "http://user:pass@proxy.company.net:8080",
+        "auth_header": "Bearer secret-token-xyz",
+        "api_key": "live_key_abcdef",
+        "custom_gateway": "https://service_user:super_secret_pw@secure.gateway.net/api",
+        "safe_endpoint": "https://api.external-service.org/v1",
+    }
+    accessor = sa.PluginSettingsAccessor(settings_loader=lambda: data, settings_saver=lambda s: None)
+
+    # 1. Non-secret scalar values are allowed
+    assert accessor.get_global_nonsecret("theme") == "dark"
+    assert accessor.get_global_nonsecret("locale") == "en"
+    assert accessor.get_global_nonsecret("proxy_port") == "8080"
+    assert accessor.get_global_nonsecret("safe_endpoint") == "https://api.external-service.org/v1"
+
+    # 2. Key names matching secret markers are refused
+    assert accessor.get_global_nonsecret("proxy_url") is None
+    assert accessor.get_global_nonsecret("auth_header") is None
+    assert accessor.get_global_nonsecret("api_key") is None
+
+    # 3. Values containing embedded credentials in URLs are refused even under arbitrary key names
+    assert accessor.get_global_nonsecret("custom_gateway") is None
+
+
 @test(1, "mfa.passwordless_config_and_options",
       "Institutional passwordless configuration defaults, overrides, and discoverable options generation for local accounts.")
 def t_mfa_passwordless_config_and_options():
