@@ -101,8 +101,9 @@ def mint_client_cert(
     ca_cert_pem: str,
     ca_key_pem: str,
     device_name: str,
-    password: str = "",
+    passphrase: Optional[str] = None,  # nosec: B107 -- optional export passphrase for PKCS#12 bundle
     days: int = 365,
+    **kwargs: Any,
 ) -> Dict[str, Any]:
     """
     Issue a client certificate for a device/browser signed by the CA,
@@ -169,9 +170,10 @@ def mint_client_cert(
         .sign(ca_key, hashes.SHA256())
     )
 
+    enc_pass = passphrase if passphrase is not None else kwargs.get("password")
     encryption = (
-        serialization.BestAvailableEncryption(password.encode("utf-8"))
-        if password
+        serialization.BestAvailableEncryption(enc_pass.encode("utf-8"))
+        if enc_pass
         else serialization.NoEncryption()
     )
 

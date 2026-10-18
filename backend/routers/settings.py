@@ -1123,7 +1123,8 @@ class MtlsCaInit(LimitedModel):
 
 class MtlsMintRequest(LimitedModel):
     device_name: str
-    password: Optional[str] = ""
+    password: Optional[str] = None  # nosec: B107 -- optional PKCS#12 export passphrase
+    passphrase: Optional[str] = None  # nosec: B107
     days: Optional[int] = 365
 
 
@@ -1218,7 +1219,7 @@ def mint_mtls_client_cert(body: MtlsMintRequest, _: User = Depends(require_permi
             ca_cert_pem=ca_cert,
             ca_key_pem=ca_key,
             device_name=body.device_name.strip(),
-            password=body.password or "",
+            passphrase=body.passphrase or body.password or None,
             days=body.days or 365,
         )
     except Exception as e:

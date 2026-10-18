@@ -5236,6 +5236,36 @@ def t_cloudflare_aop_ca():
     assert len(der) > 500, "CA certificate unexpectedly short"
 
 
+@test(1, "https.client_mtls_mint",
+      "backend/core/mtls: generate_ca and mint_client_cert issue valid CA and client PKCS#12 bundles.")
+def t_client_mtls_mint():
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
+    try:
+        mtls = _imp("core.mtls")
+    except ImportError as e:
+        raise Skip(f"needs backend package layout: {e}")
+
+    ca_cert, ca_key = mtls.generate_ca(days=30)
+    assert "-----BEGIN CERTIFICATE-----" in ca_cert
+    assert "-----BEGIN RSA PRIVATE KEY-----" in ca_key or "-----BEGIN PRIVATE KEY-----" in ca_key
+
+    # Mint unencrypted client cert
+    unenc = mtls.mint_client_cert(ca_cert, ca_key, "Test Device")
+    assert unenc["device_name"] == "Test Device"
+    assert "serial" in unenc and len(unenc["p12_base64"]) > 100
+    assert unenc["filename"] == "Test-Device.p12"
+
+    # Mint encrypted client cert with passphrase and password alias
+    enc = mtls.mint_client_cert(ca_cert, ca_key, "Phone", passphrase="SecretPassphrase123")
+    assert enc["device_name"] == "Phone"
+    assert len(enc["p12_base64"]) > 100
+
+    enc_kw = mtls.mint_client_cert(ca_cert, ca_key, "Laptop", password="SecretPassword123")
+    assert enc_kw["device_name"] == "Laptop"
+    assert len(enc_kw["p12_base64"]) > 100
+
+
 @test(1, "https.cloudflare_ip_list",
       "deploy/cloudflare/ip-ranges.txt: a non-empty list of valid IPv4 and IPv6 ranges and "
       "nothing else (the front door admits only these when CLOUDFLARE_PROXY=on).")
