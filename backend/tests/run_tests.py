@@ -5679,6 +5679,51 @@ def t_mfa_webauthn_options():
     assert decoded == {"k": 42} and offset == len(cbor_sample), f"unexpected cbor decode: {decoded}"
 
 
+@test(1, "mfa.webauthn_assertion_fails_closed",
+      "A passkey assertion passes only with a real signature from the stored ES256 or RS256 key; "
+      "a forged or unsigned assertion is refused.")
+def t_mfa_webauthn_assertion_fails_closed():
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
+    import base64, hashlib, json
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa
+    mfa = _imp("core.mfa")
+    b64 = lambda b: base64.urlsafe_b64encode(b).decode().rstrip("=")
+
+    challenge = "test-challenge-abc"
+    client_data = json.dumps({"type": "webauthn.get", "challenge": challenge}).encode()
+    auth_data = hashlib.sha256(b"example.invalid").digest() + b"\x01" + b"\x00\x00\x00\x01"
+    signed = auth_data + hashlib.sha256(client_data).digest()
+
+    def cred(sig):
+        return {"id": "k1", "response": {"clientDataJSON": b64(client_data),
+                                         "authenticatorData": b64(auth_data), "signature": b64(sig)}}
+
+    ec_priv = ec.generate_private_key(ec.SECP256R1())
+    ec_key = {"id": "k1", "algorithm": -7, "public_key": ec_priv.public_key().public_bytes(
+        serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint).hex()}
+    good = ec_priv.sign(signed, ec.ECDSA(hashes.SHA256()))
+    assert mfa.verify_webauthn_assertion(cred(good), challenge, ec_key), "valid ES256 assertion refused"
+    assert not mfa.verify_webauthn_assertion(cred(b"\x00" * 70), challenge, ec_key), "forged ES256 signature accepted"
+    other = ec.generate_private_key(ec.SECP256R1()).sign(signed, ec.ECDSA(hashes.SHA256()))
+    assert not mfa.verify_webauthn_assertion(cred(other), challenge, ec_key), "signature from another key accepted"
+    assert not mfa.verify_webauthn_assertion(cred(good), "other-challenge", ec_key), "wrong challenge accepted"
+
+    rsa_priv = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pn = rsa_priv.public_key().public_numbers()
+    rsa_key = {"id": "k1", "algorithm": -257,
+               "public_key": json.dumps({"n": format(pn.n, "x"), "e": format(pn.e, "x")})}
+    rsa_good = rsa_priv.sign(signed, padding.PKCS1v15(), hashes.SHA256())
+    assert mfa.verify_webauthn_assertion(cred(rsa_good), challenge, rsa_key), "valid RS256 assertion refused"
+    assert not mfa.verify_webauthn_assertion(cred(b"\x00" * 256), challenge, rsa_key), "forged RS256 signature accepted"
+
+    for bad_key in ({"id": "k1", "algorithm": -8, "public_key": "00"},
+                    {"id": "k1", "algorithm": -7, "public_key": ""},
+                    {"id": "k1", "algorithm": -7, "public_key": "zz"}):
+        assert not mfa.verify_webauthn_assertion(cred(good), challenge, bad_key), f"accepted with key {bad_key}"
+
+
 @test(1, "mfa.passwordless_config_and_options",
       "Institutional passwordless configuration defaults, overrides, and discoverable options generation for local accounts.")
 def t_mfa_passwordless_config_and_options():
