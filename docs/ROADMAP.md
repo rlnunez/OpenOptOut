@@ -27,6 +27,7 @@ The guiding architectural principle: **the core does not contain broker-specific
 | [69](#item-69) | [Removal-service ownership & broker-family conflict flags](#item-69) | Planned | Medium |
 | [70](#item-70) | [Native-speaker review for 5 newest languages](#item-70) | Planned | Medium |
 | [71](#item-71) | [Re-measure minimum PC & worker specs after Firefox switch](#item-71) | Planned | Medium |
+| [72](#item-72) | [Instance migration, tenant merging & identity re-anchoring](#item-72) | Planned | Medium (Institutional & Consortium) |
 
 ---
 
@@ -159,3 +160,21 @@ The guiding architectural principle: **the core does not contain broker-specific
 <a id="item-71"></a>
 ### 71. Re-measure minimum PC & worker specs after Firefox switch
 **Goal:** Re-benchmark memory, CPU, and disk footprints across single-node and multi-worker installations following the standardized migration to Playwright Firefox.
+
+---
+
+<a id="item-72"></a>
+### 72. Instance migration, tenant merging & identity re-anchoring
+**Goal:** Enable seamless data migration, tenant consolidation, and identity re-anchoring when grassroots community instances merge into broader institutional deployments (e.g., when a public library district, municipal authority, or regional consortium assumes hosting for an area).
+
+- **Encrypted Migration Envelopes:**
+  - Export end-to-end encrypted tenant bundles containing family profiles, encrypted identity vaults, custom removal policies, and historical verification records.
+  - PII remains strictly encrypted at rest and in transit (using target-instance public key or ephemeral transfer passphrases).
+- **Deduplication & Merge Reconciliation:**
+  - Merges removal histories and in-flight broker requests without duplicating outreach or resetting verified suppression timelines.
+  - Automatically reconciles overlapping listings, member aliases, and broker response logs.
+- **Identity Re-Anchoring & Auth Provider Migration:**
+  - Facilitates transitioning users from legacy authentication (local password, magic link, community OIDC) to institutional authentication methods chosen by the host (e.g., public library card SIP2 barcode/PIN, university/municipal SAML 2.0, or LDAP).
+  - Self-service claiming flow allows patrons to verify legacy credentials once and bind their existing family vault to their library or enterprise credentials with zero data loss.
+- **Operator Decommission & Cutover Tooling:**
+  - Administrative handoff wizard with pre-flight schema compatibility verification, cutover redirect notices on the departing instance, and cryptographic zeroization of decommissioned host storage.
