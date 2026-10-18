@@ -533,7 +533,7 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
           <input type="radio" checked={mode === 'native'} onChange={() => setMode('native')} className="mt-1 accent-shield-500" />
           <div className="flex-1">
             <div className="text-slate-200 text-sm font-medium flex items-center gap-1"><Server size={13} />{" "}{tx("Native install, no containers — set up HTTPS for me")}</div>
-            <div className="text-slate-400 text-xs">{tx("OpenOptOut runs directly on this VM or bare-metal host (systemd on Linux, a Windows Service on Windows) — no Docker. HTTPS is handled the same way: certbot + nginx on Linux, or win-acme + IIS on Windows. See docs/NATIVE_INSTALL.md.")}</div>
+            <div className="text-slate-400 text-xs">{tx("OpenOptOut runs directly on this VM or bare-metal host (systemd on Linux, a Windows Service on Windows) — no Docker. HTTPS is handled the same way: certbot + nginx on Linux, or win-acme + IIS on Windows. See docs/admin/native-install.md.")}</div>
             {mode === 'native' && (
               <input className={`${inp} mt-2`} placeholder={tx("Domain, if you know it yet (e.g. privacy.yourlibrary.org) — optional")}
                 value={domain} onChange={e => setDomain(e.target.value)} />
@@ -777,8 +777,8 @@ function SummaryStep({ summary, onDone }) {
           <span>
             {tx("This site is using plain HTTP, so passwords cross the network unencrypted, and Google/Microsoft sign-in won't work.")}{' '}
             {reverseProxy === 'native'
-              ? <>{txr("Turn on HTTPS on the server with <0>scripts/enable-https-native.sh</0> (Linux) or follow the Windows steps in <1>docs/NATIVE_INSTALL.md</1>.", [<code />, <code />])}</>
-              : <>{txr("Turn on HTTPS on the server with <0>./scripts/enable-https.sh</0> (Linux/macOS) or <1>scripts\\enable-https.ps1</1> (Windows) — see docs/HTTPS.md.", [<code />, <code />])}</>}
+              ? <>{txr("Turn on HTTPS on the server with <0>scripts/enable-https-native.sh</0> (Linux) or follow the Windows steps in <1>docs/admin/native-install.md</1>.", [<code />, <code />])}</>
+              : <>{txr("Turn on HTTPS on the server with <0>./scripts/enable-https.sh</0> (Linux/macOS) or <1>scripts\\enable-https.ps1</1> (Windows) — see docs/admin/https.md.", [<code />, <code />])}</>}
           </span>
         </div>
       )}

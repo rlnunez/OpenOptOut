@@ -6,7 +6,7 @@
 # certbot edits your nginx site directly and sets up its own renewal timer,
 # rather than a Caddy container handling it.
 #
-# Prerequisites (see docs/NATIVE_INSTALL.md):
+# Prerequisites (see docs/admin/native-install.md):
 #   - OpenOptOut is already installed and running natively (systemd unit +
 #     nginx site from deploy/native/), reachable on plain HTTP.
 #   - certbot and python3-certbot-nginx are installed
@@ -30,7 +30,7 @@
 # OpenOptOut service themselves, or restart the openoptout-api service
 # (HTTPS termination happens entirely at nginx; the API doesn't need to know
 # or change). It also does not run docker anything — this script is Docker-free
-# on purpose, for hosts that plain can't run it. See docs/HTTPS.md for the
+# on purpose, for hosts that plain can't run it. See docs/admin/https.md for the
 # Docker-based path if that's actually available to you.
 # ==============================================================================
 set -euo pipefail
@@ -203,5 +203,5 @@ echo "HTTPS is on. certbot installed its own systemd timer for automatic renewal
 echo "(check with:  systemctl list-timers | grep certbot)."
 echo "Restart the API service so it picks up the new .env values:  sudo systemctl restart openoptout-api"
 [ "$STAGING" = 1 ] && echo "This used Let's Encrypt's STAGING service — the certificate is intentionally untrusted. Re-run without --staging once you've confirmed everything works."
-echo "If you use Google/Microsoft sign-in or SAML, update their redirect URLs to https://$DOMAIN (docs/SSO.md)."
+echo "If you use Google/Microsoft sign-in or SAML, update their redirect URLs to https://$DOMAIN (docs/admin/sso.md)."
 exit 0

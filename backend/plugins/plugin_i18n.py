@@ -13,7 +13,7 @@ A spec may also name its own key, so translations survive steps being added
 or reordered:  "instructions": {"$t": "how_to", "default": "Open the page..."}.
 
 Lookup order for language L (first hit wins), per
-docs/CATALOG_AND_LOCALIZATION_DESIGN.md §3.3:
+docs/dev/proposals/catalog-design.md §3.3:
 
   1. An admin's override: settings i18n.custom_translations[L]["plugin:<id>:<key>"]
   2. Language packs: <pack>/plugins/<plugin_id>.json for L — an installed pack

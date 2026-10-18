@@ -102,7 +102,7 @@ def main():
         print("  POSTURE: MINIMAL — resource limits only (no bubblewrap/seccomp).")
         print("  The process/gRPC isolation and rlimits still apply, but this is")
         print("  NOT sufficient for genuinely untrusted third-party plugins.")
-        print("  Install bubblewrap + libseccomp2 (see docs/PLUGINS.md).")
+        print("  Install bubblewrap + libseccomp2 (see docs/dev/plugins.md).")
     else:
         print("  POSTURE: NONE — no OS isolation available.")
         print("  Run only trusted first-party plugins here.")

@@ -123,7 +123,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 - **Execution Pipeline:** `DryRunExecutor` for validation/simulation and `PlaywrightExecutor` for live interaction. `script_bridge` dynamically compiles existing `BrokerScript` definitions into executable `BrokerSpec` instances, with `heuristic_spec_for_broker` generating declarative fallback specs for unscripted brokers.
 - **Legacy Engine Retirement:** The legacy combination-matrix engine (`_fill_one_combo`) has been completely retired. All brokers—whether backed by a formal Broker Add-on, an existing `BrokerScript`, or an unscripted broker—are compiled into standardized `BrokerSpec` structures via `script_bridge.get_or_build_broker_spec()`. Automated form submissions are executed exclusively through `PlaywrightExecutor`, standardizing CAPTCHA interception, screenshot logging, bot evasion, and multi-stage plugin hooks across the entire platform.
 
-**Status:** Complete. Single declarative execution engine unified; legacy combo engine retired. See [`docs/INTERPRETER.md`](INTERPRETER.md).
+**Status:** Complete. Single declarative execution engine unified; legacy combo engine retired. See [`docs/dev/interpreter.md`](../dev/interpreter.md).
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 
@@ -278,7 +278,7 @@ To ensure operational stability and maintain continuous testability without disr
 ### 8. Add-on distribution: Git repository to curated marketplace
 **Goal:** Establish a modular distribution channel for community broker specs, solver plugins, and language packs through an integrated core catalog client and curated marketplace.
 
-**Detailed Design:** See [`docs/CATALOG_AND_LOCALIZATION_DESIGN.md`](CATALOG_AND_LOCALIZATION_DESIGN.md).
+**Detailed Design:** See [`docs/dev/proposals/catalog-design.md`](../dev/proposals/catalog-design.md).
 
 **Phased Execution:**
 - **Phase 8.1 — Core Catalog Client & Declarative Index (`index.json`) (In Design):**
@@ -356,7 +356,7 @@ To ensure operational stability and maintain continuous testability without disr
 ### 11. First-run setup wizard
 **Goal:** Provide a guided onboarding workflow for initial deployment configuration (database selection, email transports, institutional branding, HTTPS provisioning, localized experience, and recommended protections bundle).
 
-**Detailed Design:** See [`docs/CATALOG_AND_LOCALIZATION_DESIGN.md`](CATALOG_AND_LOCALIZATION_DESIGN.md#section-5-setup-wizard-flow-enhancement).
+**Detailed Design:** See [`docs/dev/proposals/catalog-design.md`](../dev/proposals/catalog-design.md#section-5-setup-wizard-flow-enhancement).
 
 **Architecture & Implementation:**
 - **Current Guided Setup Flow (Complete):** Implemented in `routers/wizard.py` and `frontend/src/pages/SetupWizard.jsx` covering database, email, deployment/reverse-proxy, branding, and summary.
@@ -406,7 +406,7 @@ To ensure operational stability and maintain continuous testability without disr
 - **Library Protocol Security (SIP2):** Mandatory TLS verification, protection against delimiter and field injection in barcode/PIN fields, and robust response validation.
 - **Certificate Lifecycle Monitoring:** Daily monitoring of SAML IdP signing certificates, LDAP/LDAPS certificates, and SIP2-over-TLS endpoints with staged expiration alerts.
 
-**Status:** Complete. Documented in [`docs/SSO.md`](SSO.md).
+**Status:** Complete. Documented in [`docs/admin/sso.md`](../admin/sso.md).
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 
@@ -419,11 +419,11 @@ To ensure operational stability and maintain continuous testability without disr
 **Architecture:**
 - **Container Deployments (Docker):** Managed Caddy reverse proxy (`deploy/caddy/`) providing automated ACME issuance via Let's Encrypt, staging environments, internal CAs, or custom certificate mounts. Activated via compose profile (`COMPOSE_PROFILES=https`) and helper scripts (`scripts/enable-https.sh`, `scripts/enable-https.ps1`).
 - **Bare-Metal Linux (Debian/Ubuntu):** Automated host installation script (`deploy/native/install.sh`) setting up systemd services, venv dependencies, and nginx reverse proxy with automated Certbot integration (`scripts/enable-https-native.sh`).
-- **Windows Server Deployments:** Native service management via NSSM with IIS reverse proxy and win-acme integration. Documented in [`docs/NATIVE_INSTALL.md`](NATIVE_INSTALL.md).
+- **Windows Server Deployments:** Native service management via NSSM with IIS reverse proxy and win-acme integration. Documented in [`docs/admin/native-install.md`](../admin/native-install.md).
 - **Automated Health Probes:** `GET /api/cert-monitor/https-status` endpoint provides real-time verification of active TLS certificates without requiring host system privileges.
 - **Extended DNS-01 ACME Providers (Planned):** Extend automated DNS-01 ACME challenge support beyond Cloudflare (currently supported via Caddy with `tls.dns.cloudflare` and Traefik via `CLOUDFLARE_DNS_API_TOKEN`) to additional DNS providers (AWS Route 53, DigitalOcean, deSEC, DuckDNS, etc.).
 
-**Status:** Complete (Cloudflare DNS-01, HTTP-01, TLS-ALPN-01, internal CAs, Cloudflare Tunnel, and AOP complete; additional DNS-01 providers planned). Documented in [`docs/HTTPS.md`](HTTPS.md).
+**Status:** Complete (Cloudflare DNS-01, HTTP-01, TLS-ALPN-01, internal CAs, Cloudflare Tunnel, and AOP complete; additional DNS-01 providers planned). Documented in [`docs/admin/https.md`](../admin/https.md).
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 
@@ -444,7 +444,7 @@ To ensure operational stability and maintain continuous testability without disr
 - **Phase 15.2 — Ephemeral RAM tmpfs (`/tmp`) Container Isolation (Complete):**
   - **Problem Statement:** Playwright (Chromium/Firefox) headless browser automation and plugin sandboxes create temporary profile directories, caches, and screenshots under `/tmp`. Backing `/tmp` with an in-memory RAM `tmpfs` guarantees decrypted browser artifacts vanish upon reboot and never touch persistent disk blocks.
   - **Testing & Sizing Benchmarks:** Sizing benchmark suite (`deploy/tests/test_tmpfs_sizing.py` and `backend/tests/test_tmpfs_sizing.py`) monitors peak consumption across concurrent worker sessions to prevent `ENOSPC` (out of disk space) crashes during large multi-broker batches.
-  - **Status:** Complete. Empirical stress testing confirmed 100MB allocated across 4 concurrent browser workers completed in ~0.2s with zero leaks and complete cleanup. Configured standard ephemeral RAM storage via `tmpfs: [ "/tmp:size=512M,mode=1777" ]` in `docker-compose.yml` (`api`) and `size=1G` in `docker-compose.distributed.yml` (`worker`), with native `/etc/fstab` guidance in `docs/NATIVE_INSTALL.md`.
+  - **Status:** Complete. Empirical stress testing confirmed 100MB allocated across 4 concurrent browser workers completed in ~0.2s with zero leaks and complete cleanup. Configured standard ephemeral RAM storage via `tmpfs: [ "/tmp:size=512M,mode=1777" ]` in `docker-compose.yml` (`api`) and `size=1G` in `docker-compose.distributed.yml` (`worker`), with native `/etc/fstab` guidance in `docs/admin/native-install.md`.
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 
@@ -459,7 +459,7 @@ To ensure operational stability and maintain continuous testability without disr
 - **Part B — Persistent Rotating Logs & In-App Viewer:** Dual-layer logging architecture combining persistent disk rotation (`/data/logs/openoptout.log`, 10MB rotations, 5 backups) with an in-memory ring buffer (2,000 records) for low-latency searching, filtering, and live UI streaming. Supported by automatic PII and credential sanitization (Bearer tokens, SIP2 credentials, query secrets, and JSON passwords) before emission. Full diagnostic log export available via `GET /api/logs/download`.
 - **Part C — Dynamic Log Verbosity & Permissions:** Runtime configurable log levels (DEBUG, INFO, WARNING, ERROR) managed via `POST /api/logs/level` without requiring container restarts. Delegated access control with dedicated sensitive permissions (`logs.view` and `logs.manage`) allowing super admins to securely grant staff access to diagnostic tools.
 
-**Status:** Complete. Documented in [`docs/ARCHITECTURE.md`](ARCHITECTURE.md).
+**Status:** Complete. Documented in [`docs/dev/architecture.md`](../dev/architecture.md).
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 
@@ -469,7 +469,7 @@ To ensure operational stability and maintain continuous testability without disr
 ### 17. Internationalization (i18n): language packs & RTL
 **Goal:** Provide comprehensive localization support across the user interface, supporting community language packs, right-to-left (RTL) layout rendering, in-system translation management for administrators, universal plugin localization, and strict decoupling between patron interface language and broker legal correspondence language.
 
-**Detailed Design:** See [`docs/CATALOG_AND_LOCALIZATION_DESIGN.md`](CATALOG_AND_LOCALIZATION_DESIGN.md#section-3-universal-plugin-localization-standard).
+**Detailed Design:** See [`docs/dev/proposals/catalog-design.md`](../dev/proposals/catalog-design.md#section-3-universal-plugin-localization-standard).
 
 **Architecture & Implementation:**
 - **Core Translation Architecture (Complete):** Master UI dictionary (`core/i18n.py`) with categorized translation keys, explicit screen locations ("where it appears"), and translator guidelines. Hierarchical resolution order: master English defaults → built-in translations (English, Spanish, Arabic, French, German, Portuguese, Chinese, Vietnamese, Korean, Tagalog, Hindi, Russian; the newer ones ship as JSON in `core/locales/`) → installed language pack plugins (`<plugins_root>/languages/<id>/`) → administrator custom string replacements.
@@ -572,7 +572,7 @@ plugins/
 - **Phase 21.2 — Container `no-new-privileges` Sandbox Compatibility (Complete):**
   - **Problem Statement:** Setting `no-new-privileges:true` (kernel flag `PR_SET_NO_NEW_PRIVS`) protects containers against setuid privilege escalation. On `api`, however, Bubblewrap (`bwrap`) relies on unprivileged user namespaces (`CLONE_NEWUSER`) or setuid root to construct mount and network namespaces.
   - **Testing Probe & Compatibility Matrix:** Compatibility probe (`deploy/tests/test_no_new_privs.py` and `backend/tests/test_no_new_privs.py`) audits host kernel posture, verifies unprivileged namespace creation, and checks nested seccomp transitions under `no-new-privileges:true`.
-  - **Status:** Complete. Empirical testing confirmed `no-new-privileges: true` is standard and enforced on all edge services (`web`, `caddy`, `traefik`, `searxng`). Built-in and curated broker plugins are pure declarative JSON specifications executing directly in the core Python interpreter (0 subprocess code execution, requiring neither `bwrap` nor elevated privileges). For third-party code plugins on kernels with AppArmor restrictions on unprivileged user namespaces (e.g. Ubuntu 24.04 / kernel 6.8+), host requirements and graceful POSIX `rlimits` / seccomp fallbacks are fully documented in `docs/PLUGINS.md` and `backend/plugins/docs/USING_PLUGINS.md`.
+  - **Status:** Complete. Empirical testing confirmed `no-new-privileges: true` is standard and enforced on all edge services (`web`, `caddy`, `traefik`, `searxng`). Built-in and curated broker plugins are pure declarative JSON specifications executing directly in the core Python interpreter (0 subprocess code execution, requiring neither `bwrap` nor elevated privileges). For third-party code plugins on kernels with AppArmor restrictions on unprivileged user namespaces (e.g. Ubuntu 24.04 / kernel 6.8+), host requirements and graceful POSIX `rlimits` / seccomp fallbacks are fully documented in `docs/dev/plugins.md` and `backend/plugins/docs/USING_PLUGINS.md`.
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 
@@ -640,7 +640,7 @@ plugins/
 - **InCommon Federation & ACME EAB Issuance:** Automated certificate issuance via CERTInext for higher-education and research institutions utilizing External Account Binding (EAB) with RSA-2048 key requirements and zero-disk ephemeral secret handling.
 - **Verification:** Unit tests and end-to-end container test suites (`deploy/tests/protection_e2e.sh`, `deploy/tests/incommon_e2e.sh`) verifying rate limits, trusted proxy chains, and ACME issuance.
 
-**Status:** Complete. Documented in [`docs/HTTPS.md`](HTTPS.md).
+**Status:** Complete. Documented in [`docs/admin/https.md`](../admin/https.md).
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 
@@ -736,7 +736,7 @@ plugins/
 - Each user connects an inbox (OAuth or app password); a parent can connect several and assign one to each family member.
 - Every opt-out gets its own `+address` (`you+oo<random>@domain`) where the inbox allows it, so replies are matched exactly and addresses that later receive mail from someone else reveal who shared them.
 - Replies are matched by tag, then by tracking key, then (for plain addresses) by the broker's sending domain. Family inboxes are polled with the system inbox.
-- See [`docs/EMAIL_SETUP.md`](EMAIL_SETUP.md).
+- See [`docs/user/email-setup.md`](../user/email-setup.md).
 
 **Status:** Complete (#69).
 
@@ -762,7 +762,7 @@ plugins/
 - California, Vermont, Texas and Oregon registries can be imported. Imported brokers are **off by default**; an admin turns them on after a warning that it can do more harm than good.
 - Brokers whose sites stop answering for 30 days are marked defunct.
 - California's DROP deletion service appears as a checklist item for California residents.
-- See [`docs/STATE_REGISTRIES.md`](STATE_REGISTRIES.md).
+- See [`docs/user/state-registries.md`](../user/state-registries.md).
 
 **Status:** Complete (#71).
 
@@ -773,7 +773,7 @@ plugins/
 <a id="item-33"></a>
 ### 33. General web search
 - Server-side searches through a self-hosted SearXNG (the only provider). Strong matches on known brokers are added to removals automatically; everything else waits for "That's me" / "Not me". Weekly re-runs.
-- See [`docs/WEB_SEARCH.md`](WEB_SEARCH.md).
+- See [`docs/user/web-search.md`](../user/web-search.md).
 
 **Status:** Complete (#72).
 
@@ -811,7 +811,7 @@ plugins/
 - **Engine:** `type` step for React/MUI inputs, actions inside iframes, `{field}` page addresses, derived fields (`street`, `state_name`, `birth_year`, `phone_digits`), whole-name option matching, invisible reCAPTCHA ignored, Turnstile waited out.
 - **"+" addresses:** a form that calls the email invalid is retried once with the plain address and the broker is remembered.
 - **Honest results:** brokers without steps go on the checklist instead of a best-guess fill (guessing is an admin opt-in and must show a success page); manual brokers are no longer marked "sent"; a submitted form stays "sent" until the broker replies, its link is clicked, or someone checks the listing is gone; missing details become a checklist item naming the field.
-- **Tooling:** `broker-plugins/tools/validate.py` dry-runs every plugin. See [`broker-plugins/README.md`](../broker-plugins/README.md) and [`docs/INTERPRETER.md`](INTERPRETER.md).
+- **Tooling:** `broker-plugins/tools/validate.py` dry-runs every plugin. See [`broker-plugins/README.md`](../broker-plugins/README.md) and [`docs/dev/interpreter.md`](../dev/interpreter.md).
 - **Open:** live verification of every plugin; handing a live browser to a person at a pause so they can finish in place instead of starting over.
 
 **Status:** Complete (#77) — live verification pending.
@@ -827,7 +827,7 @@ plugins/
 - **Privacy-page finder** (`core/privacy_finder.py`): reads a broker's own website (no personal data sent, at most 8 public pages) for hosted OneTrust/TrustArc forms, in-house request forms, opt-out pages, policies and privacy email addresses. Daily for 20 brokers without steps (30-day recheck), immediately for sites from pasted listings, or on demand from the Brokers page.
 - **Label-driven form filler** (`autofill` step, `interpreter/hosted_forms.py`): picks delete / do-not-sell and "myself", fills name, one-time email and address, ticks certifications, never marketing boxes; refuses ID/SSN/DOB fields, forms without a name and email box, and request types without deletion — those go on the checklist with the page.
 - Found forms become the broker's opt-out steps after plugins and admin scripts; their verification emails are clicked via item 35. Found email addresses are used only after an admin approves them.
-- See [`docs/PRIVACY_PAGES.md`](PRIVACY_PAGES.md).
+- See [`docs/user/privacy-pages.md`](../user/privacy-pages.md).
 
 **Status:** Complete (#79) — live verification pending.
 
@@ -837,7 +837,7 @@ plugins/
 
 <a id="item-38"></a>
 ### 38. Built-in receive-only inbox
-**Goal:** Unique addresses on a family-owned domain for inboxes without `+` addressing. Design: [`docs/BUILTIN_INBOX.md`](BUILTIN_INBOX.md).
+**Goal:** Unique addresses on a family-owned domain for inboxes without `+` addressing. Design: [`docs/dev/proposals/builtin-inbox.md`](../dev/proposals/builtin-inbox.md).
 
 **Status:** Considering: Under consideration as a backup/alternate solution for brokers that do not support or actively reject `+` addressing, ensuring reliable per-broker matching without exposing a personal primary inbox address.
 
@@ -852,7 +852,7 @@ plugins/
 - `core/verification.py` checks each removal through the listing page, the broker's own search (`search_url` / `listing_pattern`) or a site-restricted web search confirmed by visiting the page.
 - Verdicts: gone, still up, not found, couldn't check. Sent + gone → removed; removed + still up → sent again ("came back").
 - Runs daily within a budget, before every scheduled re-send, and whenever the weekly web search finds a page on a broker someone was removed from.
-- Dashboard *Removal checks* card. See [`docs/VERIFICATION.md`](VERIFICATION.md).
+- Dashboard *Removal checks* card. See [`docs/user/verification.md`](../user/verification.md).
 
 **Status:** Complete (#82) — live verification pending.
 
@@ -864,7 +864,7 @@ plugins/
 ### 40. Data-sharing detection & aggregator-first targeting
 - **Sharing:** opt-out addresses that receive mail from a company they were never given to become "given to → came from" edges (possible / likely / strong by how many distinct addresses), excluding the broker's own family. Admin → Data sharing.
 - **Targeting:** brokers weighted by known wholesalers (`catalog/aggregators.json`), cascades, family size and observed sharing; new default dispatch order "aggregators first".
-- See [`docs/DATA_SHARING.md`](DATA_SHARING.md).
+- See [`docs/user/data-sharing.md`](../user/data-sharing.md).
 
 **Status:** Complete (#83).
 
@@ -876,7 +876,7 @@ plugins/
 ### 41. Encrypted backups
 - Database (consistent SQLite copy or `pg_dump`), settings, installed plugins and the keys, in one file encrypted with AES-256-GCM under a scrypt-derived passphrase key; authenticated frames refuse truncated or altered files.
 - Destinations: local folder / mounted network drive, SFTP (host key pinned), S3-compatible (Amazon S3, Google Cloud Storage, Backblaze, Wasabi, MinIO), Google Drive, OneDrive, Dropbox; retention per destination; daily or weekly schedule; restore and verify commands.
-- See [`docs/BACKUPS.md`](BACKUPS.md).
+- See [`docs/admin/backups.md`](../admin/backups.md).
 
 **Status:** Complete (#85, #91).
 
@@ -891,7 +891,7 @@ plugins/
 - **Guardrails:** every draft is rehearsed and stops before the final click; only a passing, selector-only repair applies itself (with a notice and Undo); requests to helpers are refused if they contain any saved personal detail; drafts are checked to stay on the broker's site and never type fixed values; a plugin update sets older repairs aside.
 - **Helpers (bring your own key):** Claude (Anthropic API), ChatGPT/Codex models (OpenAI Responses API), Google's Antigravity agent (Gemini Interactions API, preview; read-only page access), and your own model on your network through any OpenAI-compatible server (LM Studio, Ollama, llama.cpp, vLLM…). Order, monthly limit for online helpers, and on/off switches on **Admin → Automatic broker steps**.
 - **Coding agents:** `AGENTS.md`, `CLAUDE.md` and a shared `broker-plugin` skill so Claude Code, Codex and Antigravity write and fix broker plugins to the project's rules.
-- See [`docs/AUTOMATIC_STEPS.md`](AUTOMATIC_STEPS.md).
+- See [`docs/dev/automatic-steps.md`](../dev/automatic-steps.md).
 
 **Status:** Complete (#98) — not yet run against live providers or live broker sites.
 
@@ -1299,7 +1299,7 @@ plugins/
 **Goal:** Re-benchmark baseline and peak RAM, CPU, and `tmpfs` usage following the transition to Playwright Firefox so hardware recommendations and the Infrastructure Capacity Planner ([Item 9](#item-9)) use accurate empirical numbers.
 
 - **Empirical Profiling:** Measure idle control-plane footprint, single-slot and multi-slot (`WORKER_CONCURRENCY=1..4`) Playwright Firefox RSS memory, `/tmp` tmpfs high-water marks, and per-broker execution duration on standalone and distributed topologies.
-- **Documentation & Planner Calibration:** Update minimum/recommended hardware tables in `README.md` and `docs/NATIVE_INSTALL.md`, and feed the measured Firefox memory and throughput coefficients into [Item 9](#item-9).
+- **Documentation & Planner Calibration:** Update minimum/recommended hardware tables in `README.md` and `docs/admin/native-install.md`, and feed the measured Firefox memory and throughput coefficients into [Item 9](#item-9).
 
 **Status:** Considering / Planned.
 

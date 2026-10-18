@@ -11,7 +11,7 @@ OpenOptOut is a free, self-hostable privacy automation platform built for two au
 - **Families** — Single system with role-based access so parents can manage their children's data and spouses can coordinate removals together.
 - **Institutions** (libraries, schools, credit unions, non-profits) — White-label branding, SSO/LDAP/SIP2 authentication, patron self-service, PostgreSQL for scale, database encryption, and privacy reporting.
 
-> **Our Mission:** OpenOptOut is a stopgap. Having to hunt down brokers and beg for your own data is proof of a broken system. You should own your personal records by default. Read our full mission statement and library advocacy notes in [`docs/MISSION.md`](docs/MISSION.md).
+> **Our Mission:** OpenOptOut is a stopgap. Having to hunt down brokers and beg for your own data is proof of a broken system. You should own your personal records by default. Read our full mission statement and library advocacy notes in [`docs/about/mission.md`](docs/about/mission.md).
 
 ---
 
@@ -72,47 +72,23 @@ docker compose up -d
 #    The first registered user automatically becomes the Super Admin
 ```
 
-For real production deployments accessible over a network, always enable HTTPS before inviting users. See [`docs/HTTPS.md`](docs/HTTPS.md).
+For real production deployments accessible over a network, always enable HTTPS before inviting users. See [`docs/admin/https.md`](docs/admin/https.md).
 
 ---
 
-## Documentation Hub
+## Documentation
 
-OpenOptOut documentation is organized by audience and built with **MkDocs**:
+OpenOptOut documentation is organized by reader audience and powered by **[MkDocs](mkdocs.yml)**:
 
-- 🏠 **[Documentation Portal](docs/index.md)** — Unified docs home with full-text search.
-- 👨‍👩‍👧‍👦 **[User & Family Guide](docs/user/index.md)** — Identity vault, email setup, SearXNG search, verification, and privacy rights.
-- ⚙️ **[Administrator & Operations Guide](docs/admin/index.md)** — Production deployment, HTTPS, SSO, backups, and automated updates.
-- 💻 **[Developer & Contributor Guide](docs/dev/index.md)** — System architecture, broker plugin development, and security scanning.
-- 📋 **[Active Roadmap](docs/ROADMAP.md)** & **[Completed Milestones Archive](docs/archive/COMPLETED_ROADMAP.md)**
-- 📝 **[Changelog](CHANGELOG.md)**
-
-Detailed reference guides:
-
-| Guide | Description |
-|---|---|
-| [`docs/ARCHITECTURE.md`](docs/dev/architecture.md) | System architecture, pipeline stages, APScheduler jobs, failure diagnostics, and repository layout |
-| [`docs/HTTPS.md`](docs/HTTPS.md) | Production HTTPS setup: built-in Caddy/Traefik front door, Cloudflare DNS/Tunnel, InCommon, and reverse proxies |
-| [`docs/SSO.md`](docs/SSO.md) | Single sign-on integration: OIDC, SAML 2.0, Active Directory / LDAP, and library card (SIP2/SIP2S) logins |
-| [`docs/COMMUNITIES.md`](docs/COMMUNITIES.md) | Residents-only sign-up for a district, apartment complex or other housing community: a sign-up page that checks addresses against an uploaded list |
-| [`docs/DATABASE.md`](docs/DATABASE.md) | PostgreSQL scaling, enterprise auth (mTLS, IAM, Kerberos), SQLite migration, and SQLCipher encryption at rest |
-| [`docs/EMAIL_SETUP.md`](docs/EMAIL_SETUP.md) | System notification inbox vs. family inboxes, one address per opt-out (+addresses), OAuth and app-password setup |
-| [`docs/WEB_SEARCH.md`](docs/WEB_SEARCH.md) | Optional server-side web search for each family member (self-hosted SearXNG), with automatic adds and a review list |
-| [`docs/STATE_REGISTRIES.md`](docs/STATE_REGISTRIES.md) | Importing the CA, VT, TX and OR data broker registries (off by default), dead-site detection, and California DROP |
-| [`docs/BUILTIN_INBOX.md`](docs/BUILTIN_INBOX.md) | Proposal: a built-in receive-only inbox that gives every opt-out its own address on a family-owned domain |
-| [`docs/ROLES.md`](docs/ROLES.md) | Role-based access control (RBAC): Super Admin, Admin, Manager, Parent, and Member permission boundaries |
-| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Local developer environment setup, Playwright browser dependencies, and unit test execution |
-| [`docs/NATIVE_INSTALL.md`](docs/NATIVE_INSTALL.md) | Container-free production deployment (systemd + nginx on Linux, Windows Service + IIS on Windows) |
-| [`docs/UPGRADING.md`](docs/UPGRADING.md) | Update instructions, automated schema migrations, and legacy storage volume consolidation |
-| [`docs/PLUGINS.md`](docs/PLUGINS.md) | Process-isolated gRPC broker plugin system, capability model, and developer SDK |
-| [`ACCESSIBILITY.md`](ACCESSIBILITY.md) | WCAG 2.2 AAA conformance statement, high-contrast themes, typography scaling, and assistive technology guide |
-| [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) | Community standards, ethical stewardship principles, and enforcement guidelines |
-| [`SECURITY.md`](SECURITY.md) | Vulnerability disclosure policy, memory hygiene, cryptographic controls, and security scanning |
-| [`docs/MISSION.md`](docs/MISSION.md) | Mission statement, library advocacy notes, and Article VII Library Bill of Rights context |
-| [`docs/LEGISLATION.md`](docs/LEGISLATION.md) | Plain-language advocacy guide and policy principles for comprehensive data-broker legislation |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Comprehensive item-by-item architectural roadmap and implementation status |
-| [`broker-plugins/README.md`](broker-plugins/README.md) | One-folder-per-broker plugins, spec fields, and the validate/package tools |
-| [`CREDITS.md`](CREDITS.md) | The open-source projects and volunteer lists OpenOptOut learns from, and how each is used |
+- 🏠 **[Documentation Portal](docs/index.md)** — Master hub with full-text search across all guides.
+- 👨‍👩‍👧‍👦 **[User & Family Guide](docs/user/index.md)** — Setting up family email aliases, private SearXNG search, discovering opt-out forms, and removal verification monitoring.
+- ⚙️ **[Administrator & Operations Guide](docs/admin/index.md)** — Automated HTTPS (Caddy/Traefik/Cloudflare), native bare-metal install, PostgreSQL, SSO/SAML, encrypted backups, and auto-rollback updates.
+- 💻 **[Developer & Contributor Guide](docs/dev/index.md)** — System architecture, declarative broker interpreter runtime, [broker add-on authoring](broker-plugins/README.md), and security scanning.
+- 📜 **[About & Governance](docs/about/index.md)** — Our [Mission & Principles](docs/about/mission.md) and plain-language [Privacy Legislation](docs/about/legislation.md) advocacy.
+- 📋 **[Active Roadmap](docs/ROADMAP.md)** & **[Completed Milestones](docs/archive/COMPLETED_ROADMAP.md)** — Active/planned initiatives and historical milestone archive.
+- 📝 **[Changelog](CHANGELOG.md)** — Semantic release notes cross-referencing all completed roadmap items.
+- ♿ **[Accessibility Conformance](ACCESSIBILITY.md)** — WCAG 2.2 AAA conformance statement, high-contrast themes, and typography scaling.
+- 🔒 **[Security Policy](SECURITY.md)** — Vulnerability reporting, cryptographic controls, and memory hygiene.
 
 ---
 

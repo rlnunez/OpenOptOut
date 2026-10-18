@@ -241,7 +241,7 @@ if ($Proxy -eq "cloudflare-tunnel") {
     Write-Host ""
     Write-Host "Settings saved to $EnvFile."
     if (-not (Test-HasEnv $EnvFile "CLOUDFLARE_TUNNEL_TOKEN")) {
-        Write-Host "Before starting, finish the Cloudflare side (docs/HTTPS.md, Option D):"
+        Write-Host "Before starting, finish the Cloudflare side (docs/admin/https.md, Option D):"
         Write-Host "  1. Cloudflare dashboard > Zero Trust > Networks > Tunnels > Create a tunnel (Cloudflared)."
         Write-Host "  2. Copy its token into $EnvFile as  CLOUDFLARE_TUNNEL_TOKEN=..."
         Write-Host "  3. Add a public hostname: $Domain  ->  Service: HTTP, URL: web:80"
@@ -252,7 +252,7 @@ if ($Proxy -eq "cloudflare-tunnel") {
         Write-Host "Then run:  docker compose up -d   and open https://$Domain"
     }
     Write-Host "Watch progress:  docker compose logs -f cloudflared"
-    Write-Host "If you use Google/Microsoft sign-in or SAML, update their redirect URLs to https://$Domain (docs/SSO.md)."
+    Write-Host "If you use Google/Microsoft sign-in or SAML, update their redirect URLs to https://$Domain (docs/admin/sso.md)."
     exit 0
 }
 
@@ -546,7 +546,7 @@ if ($caddyExtended) {
 }
 if ($UseCfProxy) {
     Write-Host ""
-    Write-Host "Cloudflare proxy: finish these in the Cloudflare dashboard (docs/HTTPS.md, `"Behind Cloudflare's proxy`"):"
+    Write-Host "Cloudflare proxy: finish these in the Cloudflare dashboard (docs/admin/https.md, `"Behind Cloudflare's proxy`"):"
     Write-Host "  1. DNS: set the record for $Primary to Proxied (orange cloud), pointing at this server's public IP."
     Write-Host "  2. SSL/TLS > Overview: set encryption mode to Full (strict)."
     Write-Host "  3. Forward ports 80 and 443 to this server. Only Cloudflare will be let in."
@@ -556,16 +556,16 @@ if ($UseCfProxy) {
     Write-Host "Remember: Cloudflare can now see all traffic to this site." -ForegroundColor Yellow
 }
 if ($Mode -eq "internal") {
-    Write-Host "Browsers will warn until Caddy's root CA is trusted — see docs/HTTPS.md."
+    Write-Host "Browsers will warn until Caddy's root CA is trusted — see docs/admin/https.md."
 }
 if ($Mode -eq "incommon") {
     Write-Host "InCommon is BETA and untested against a live CERTInext account. If the certificate doesn't arrive, check" -ForegroundColor Yellow
-    Write-Host "the logs above and confirm the key ID, HMAC key, server address and domain with campus IT (docs/HTTPS.md)." -ForegroundColor Yellow
+    Write-Host "the logs above and confirm the key ID, HMAC key, server address and domain with campus IT (docs/admin/https.md)." -ForegroundColor Yellow
 }
 if ($Mode -eq "letsencrypt-staging") {
     Write-Host "Staging certificates are intentionally untrusted. Rerun with -Mode letsencrypt when it works."
 }
 if ($Mode -ne "none") {
-    Write-Host "If you use Google/Microsoft sign-in or SAML, update their redirect URLs to https://$Primary (docs/SSO.md)."
+    Write-Host "If you use Google/Microsoft sign-in or SAML, update their redirect URLs to https://$Primary (docs/admin/sso.md)."
 }
 exit 0

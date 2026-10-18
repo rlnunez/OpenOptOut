@@ -111,7 +111,7 @@ A daily check covers every certificate sign-in depends on:
 | LDAP / Active Directory server | When it's close to expiry (auto-renewal has likely failed) |
 | Library ILS (SIP2 over TLS) | Same |
 | SAML identity provider signing certificate | From **30 days** before it expires |
-| OpenOptOut's own HTTPS certificate (if using the built-in Caddy front door — see [docs/HTTPS.md](HTTPS.md)) | Same, once `HTTPS_MODE`/`DOMAIN` are set |
+| OpenOptOut's own HTTPS certificate (if using the built-in Caddy front door — see [Automated HTTPS](https.md)) | Same, once `HTTPS_MODE`/`DOMAIN` are set |
 
 SAML signing certificates don't update themselves in OpenOptOut. When your identity provider switches to a new one, SAML sign-in stops until you upload the IdP's new metadata (or re-save, if you set it from a URL). If the metadata already includes the next certificate (a planned rollover), no warning is shown.
 
@@ -121,4 +121,4 @@ Warnings appear on the **dashboard** for super admins, and every super admin is 
 
 SSO redirects are built from the public URL. Set `FRONTEND_URL` (and for SAML, the Public base URL) to the exact external address, including `https://`.
 
-This applies whether HTTPS is terminated by OpenOptOut's front door (Caddy/Traefik) or an external reverse proxy. See [`docs/HTTPS.md`](HTTPS.md) for configuration details.
+This applies whether HTTPS is terminated by OpenOptOut's front door (Caddy/Traefik) or an external reverse proxy. See [`https.md`](https.md) for configuration details.

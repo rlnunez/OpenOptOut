@@ -61,7 +61,7 @@ Per-broker form selectors are stored in the `broker_scripts` database table and 
 - Extra steps as JSON (for multi-step flows)
 - Email template overrides for email-method brokers
 
-For modern add-on style brokers, see the declarative specification engine described in [`docs/INTERPRETER.md`](INTERPRETER.md).
+For modern add-on style brokers, see the declarative specification engine described in [`interpreter.md`](interpreter.md).
 
 ### Automation Failure Screenshots
 When an automated form-fill fails, the engine saves a screenshot to `/data/screenshots/` inside the container:
@@ -143,7 +143,7 @@ openoptout/
 │   │   ├── logging_config.py      # Rotating file handler, ring buffer, sanitization
 │   │   ├── version.py             # Version + commit reporting
 │   │   └── settings_store.py      # Settings file helpers
-│   └── plugins/                   # Process-isolated plugin system (see docs/PLUGINS.md)
+│   └── plugins/                   # Process-isolated plugin system (see plugins.md)
 │       ├── proto/plugin.proto     # gRPC host↔plugin contract
 │       ├── permissions.py         # Permission + method-level allowlist catalog
 │       ├── manager.py             # Launch, supervise, sandbox, hook dispatch
@@ -170,18 +170,15 @@ openoptout/
 ├── examples/plugins/              # Reference plugins by type: email/, forms/, general/
 ├── examples/broker-specs/         # Reference broker descriptions (form, email)
 ├── docs/
-│   ├── ARCHITECTURE.md            # System architecture, pipeline flow, and project tree (this doc)
-│   ├── DATABASE.md                # PostgreSQL scaling, enterprise auth, and encryption at rest
-│   ├── DEVELOPMENT.md             # Local environment setup and dev loop
-│   ├── PLUGINS.md                 # Plugin system security model + author guide
-│   ├── INTERPRETER.md             # Declarative broker-spec engine + format
-│   ├── ROADMAP.md                 # Architectural roadmap (broker-addon engine)
-│   ├── SSO.md                     # LDAP/SIP2/OIDC/SAML setup, certs, reverse proxies
-│   ├── HTTPS.md                   # Managed (Caddy/Traefik, Let's Encrypt or Cloudflare DNS), Cloudflare Tunnel, native, external
-│   ├── NATIVE_INSTALL.md          # Running OpenOptOut with no Docker (systemd / Windows Service)
-│   └── LEGISLATION.md             # Advocacy guide for privacy legislation
+│   ├── index.md                   # Unified documentation portal
+│   ├── ROADMAP.md                 # Active & planned architectural roadmap
+│   ├── user/                      # Guides for families (email-setup, search, verification, privacy-pages)
+│   ├── admin/                     # Guides for admins (https, native-install, database, backups, sso, updater)
+│   ├── dev/                       # Core architecture, interpreter runtime, plugin authoring, security
+│   ├── about/                     # Mission statement and legislative advocacy guide
+│   └── archive/                   # Completed roadmap milestones (Items 1–66)
 ├── deploy/
-│   ├── caddy/entrypoint.sh        # Generates Caddy config from env vars (Docker path — docs/HTTPS.md)
+│   ├── caddy/entrypoint.sh        # Generates Caddy config from env vars (Docker path — docs/admin/https.md)
 │   ├── caddy/Dockerfile           # Caddy + Cloudflare DNS + rate-limit modules (caddy-extended service)
 │   ├── cloudflare/ip-ranges.txt   # Cloudflare's IP ranges, for CLOUDFLARE_PROXY=on
 │   ├── cloudflare/origin-pull-ca.pem # Cloudflare Authenticated Origin Pull CA (CLOUDFLARE_AOP=on)
@@ -194,7 +191,7 @@ openoptout/
 │   ├── tests/protection_e2e.sh    # Rate limits + Cloudflare-only mode, both front doors
 │   └── native/                    # Native (no-Docker) install: systemd unit, nginx config,
 │                                   #   install.sh (Linux), install-native.ps1 (Windows) —
-│                                   #   see docs/NATIVE_INSTALL.md
+│                                   #   see docs/admin/native-install.md
 ├── scripts/
 │   ├── enable-https.sh            # Guided front door + certificate setup/teardown, Docker path, Linux/macOS
 │   ├── enable-https.ps1           # Same, Windows PowerShell

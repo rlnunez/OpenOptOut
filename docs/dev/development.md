@@ -3,7 +3,7 @@
 This guide walks through setting up a fast local development loop (hot-reload API and frontend) without Docker.
 
 > [!NOTE]
-> If you are looking to run OpenOptOut in **production** natively on a server without containers (systemd + nginx on Linux, or Windows Service + IIS on Windows), see [`docs/NATIVE_INSTALL.md`](NATIVE_INSTALL.md) instead.
+> If you are looking to run OpenOptOut in **production** natively on a server without containers (systemd + nginx on Linux, or Windows Service + IIS on Windows), see [`docs/admin/native-install.md`](../admin/native-install.md) instead.
 
 ---
 
@@ -108,7 +108,7 @@ For full test suite documentation, including test tiers and CI setup, see [`back
 
 ## 5. Working on Plugins & Broker Add-ons
 
-- **Writing Plugins:** See the [Plugin Developer Guide](PLUGINS.md) and [`backend/plugins/docs/WRITING_PLUGINS.md`](../backend/plugins/docs/WRITING_PLUGINS.md).
-- **Writing Declarative Broker Specs:** See [`docs/INTERPRETER.md`](INTERPRETER.md).
-- **Project Structure & Architecture:** See [`docs/ARCHITECTURE.md`](ARCHITECTURE.md).
-- **Contributing Guidelines:** See [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+- **Writing Plugins:** See the [Plugin Developer Guide](plugins.md) and [`backend/plugins/docs/WRITING_PLUGINS.md`](../backend/plugins/docs/WRITING_PLUGINS.md).
+- **Writing Declarative Broker Specs:** See [`interpreter.md`](interpreter.md).
+- **Project Structure & Architecture:** See [`architecture.md`](architecture.md).
+- **Contributing Guidelines:** See [`CONTRIBUTING.md`](../../CONTRIBUTING.md).

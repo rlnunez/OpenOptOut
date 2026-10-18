@@ -212,7 +212,7 @@ export default function Backups() {
             </ul>
           </>
         )}
-        <p className="text-slate-500 text-xs mt-3">{tx("To restore, see docs/BACKUPS.md: stop OpenOptOut, then run the restore command with the backup file and your passphrase.")}</p>
+        <p className="text-slate-500 text-xs mt-3">{tx("To restore, see docs/admin/backups.md: stop OpenOptOut, then run the restore command with the backup file and your passphrase.")}</p>
       </section>
     </div>
   )

@@ -387,5 +387,5 @@ def log_sandbox_posture(caps: SandboxCapabilities):
     else:
         log.warning(
             "Plugin sandbox: PARTIAL — %s. Untrusted third-party plugins are NOT "
-            "fully contained. See docs/PLUGINS.md for hardening.", caps.summary()
+            "fully contained. See docs/dev/plugins.md for hardening.", caps.summary()
         )

@@ -153,7 +153,7 @@ if [ -z "$MODE" ]; then
     if command -v docker >/dev/null 2>&1; then
       die "Docker is installed but not usable right now (daemon not running, Compose v2 missing, or needs sudo). Fix that and re-run, or pass --native if this is meant to be a native install."
     fi
-    die "Docker isn't installed, and this doesn't look like a Debian/Ubuntu host running as root (needed for the automated native path). Either install Docker (https://get.docker.com) and re-run, or see docs/NATIVE_INSTALL.md to install natively."
+    die "Docker isn't installed, and this doesn't look like a Debian/Ubuntu host running as root (needed for the automated native path). Either install Docker (https://get.docker.com) and re-run, or see docs/admin/native-install.md to install natively."
   fi
 fi
 
@@ -205,7 +205,7 @@ if [ "$MODE" = "docker" ]; then
   info "super admin. It's running in: $DIR"
   info ""
   info "Before real people use this, turn on HTTPS:"
-  info "  cd $DIR && ./scripts/enable-https.sh    (see docs/HTTPS.md)"
+  info "  cd $DIR && ./scripts/enable-https.sh    (see docs/admin/https.md)"
   exit 0
 fi
 

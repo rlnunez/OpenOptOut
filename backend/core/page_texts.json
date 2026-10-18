@@ -10664,13 +10664,13 @@
    ]
   },
   {
-   "text": "On the server, run <0>./scripts/enable-https.sh</0> (Linux/macOS) or <1>scripts\\enable-https.ps1</1> (Windows) — see docs/HTTPS.md.",
+   "text": "On the server, run <0>./scripts/enable-https.sh</0> (Linux/macOS) or <1>scripts\\enable-https.ps1</1> (Windows) — see docs/admin/https.md.",
    "where": [
     "pages/Dashboard.jsx"
    ]
   },
   {
-   "text": "On the server, run <0>scripts/enable-https-native.sh</0> (Linux) or see the Windows steps in <1>docs/NATIVE_INSTALL.md</1>.",
+   "text": "On the server, run <0>scripts/enable-https-native.sh</0> (Linux) or see the Windows steps in <1>docs/admin/native-install.md</1>.",
    "where": [
     "pages/Dashboard.jsx"
    ]
@@ -11004,7 +11004,7 @@
    ]
   },
   {
-   "text": "OpenOptOut runs directly on this VM or bare-metal host (systemd on Linux, a Windows Service on Windows) — no Docker. HTTPS is handled the same way: certbot + nginx on Linux, or win-acme + IIS on Windows. See docs/NATIVE_INSTALL.md.",
+   "text": "OpenOptOut runs directly on this VM or bare-metal host (systemd on Linux, a Windows Service on Windows) — no Docker. HTTPS is handled the same way: certbot + nginx on Linux, or win-acme + IIS on Windows. See docs/admin/native-install.md.",
    "where": [
     "pages/SetupWizard.jsx"
    ]
@@ -16373,7 +16373,7 @@
    ]
   },
   {
-   "text": "To restore, see docs/BACKUPS.md: stop OpenOptOut, then run the restore command with the backup file and your passphrase.",
+   "text": "To restore, see docs/admin/backups.md: stop OpenOptOut, then run the restore command with the backup file and your passphrase.",
    "where": [
     "pages/Backups.jsx"
    ]
@@ -16577,13 +16577,13 @@
    ]
   },
   {
-   "text": "Turn on HTTPS on the server with <0>./scripts/enable-https.sh</0> (Linux/macOS) or <1>scripts\\enable-https.ps1</1> (Windows) — see docs/HTTPS.md.",
+   "text": "Turn on HTTPS on the server with <0>./scripts/enable-https.sh</0> (Linux/macOS) or <1>scripts\\enable-https.ps1</1> (Windows) — see docs/admin/https.md.",
    "where": [
     "pages/SetupWizard.jsx"
    ]
   },
   {
-   "text": "Turn on HTTPS on the server with <0>scripts/enable-https-native.sh</0> (Linux) or follow the Windows steps in <1>docs/NATIVE_INSTALL.md</1>.",
+   "text": "Turn on HTTPS on the server with <0>scripts/enable-https-native.sh</0> (Linux) or follow the Windows steps in <1>docs/admin/native-install.md</1>.",
    "where": [
     "pages/SetupWizard.jsx"
    ]

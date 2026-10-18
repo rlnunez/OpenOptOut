@@ -92,7 +92,7 @@ RUN groupadd -g 1000 appuser && \
 # degrades gracefully — namespace isolation (bubblewrap) + resource limits
 # still apply, and the admin UI reports the reduced posture. For guaranteed
 # seccomp on the python.org image, install the bindings into the app's
-# interpreter (e.g. build libseccomp bindings) — see docs/PLUGINS.md.
+# interpreter (e.g. build libseccomp bindings) — see docs/dev/plugins.md.
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

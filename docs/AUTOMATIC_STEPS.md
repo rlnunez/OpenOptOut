@@ -1,5 +1,0 @@
-# Automatic Steps & Drafter
-
-> **Note:** This document has moved to [`docs/dev/automatic-steps.md`](dev/automatic-steps.md) as part of organizing the OpenOptOut documentation by reader audience.
-> 
-> Please update your bookmarks or references. [Click here to view Automatic Steps & Drafter](dev/automatic-steps.md).

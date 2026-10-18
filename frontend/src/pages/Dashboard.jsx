@@ -136,8 +136,8 @@ export default function Dashboard() {
             <p className="text-slate-400 text-xs mt-0.5">
               {tx("Passwords cross the network unencrypted, and Google/Microsoft sign-in requires HTTPS.")}
               {reverseProxy === 'native'
-                ? <>{" "}{txr("On the server, run <0>scripts/enable-https-native.sh</0> (Linux) or see the Windows steps in <1>docs/NATIVE_INSTALL.md</1>.", [<code className="text-slate-300" />, <code className="text-slate-300" />])}</>
-                : <>{" "}{txr("On the server, run <0>./scripts/enable-https.sh</0> (Linux/macOS) or <1>scripts\\enable-https.ps1</1> (Windows) — see docs/HTTPS.md.", [<code className="text-slate-300" />, <code className="text-slate-300" />])}</>}
+                ? <>{" "}{txr("On the server, run <0>scripts/enable-https-native.sh</0> (Linux) or see the Windows steps in <1>docs/admin/native-install.md</1>.", [<code className="text-slate-300" />, <code className="text-slate-300" />])}</>
+                : <>{" "}{txr("On the server, run <0>./scripts/enable-https.sh</0> (Linux/macOS) or <1>scripts\\enable-https.ps1</1> (Windows) — see docs/admin/https.md.", [<code className="text-slate-300" />, <code className="text-slate-300" />])}</>}
             </p>
           </div>
           <button onClick={() => setHideHttpWarning(true)} className="text-slate-500 hover:text-slate-300 text-xs shrink-0">{tx("Hide")}</button>
@@ -148,7 +148,7 @@ export default function Dashboard() {
           win-acme) path chosen in the wizard. A live check, not a guess: OpenOptOut
           can't run docker/certbot/win-acme itself (the api process deliberately has no
           access to the host's Docker daemon, .env file, or OS-level service control —
-          see docs/HTTPS.md), so this is the honest substitute: confirm whether the
+          see docs/admin/https.md), so this is the honest substitute: confirm whether the
           certificate actually came up after you ran the script and restarted. */}
       {user?.role === 'super_admin' && (reverseProxy === 'managed' || reverseProxy === 'native') && httpsStatus && httpsStatus.level !== 'ok' && (
         <div className={`flex items-start gap-3 mb-4 px-4 py-3 rounded-xl border ${

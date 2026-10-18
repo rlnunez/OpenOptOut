@@ -187,7 +187,7 @@ EOF
   echo
   echo "Settings saved to $ENV_FILE."
   if ! has_env CLOUDFLARE_TUNNEL_TOKEN; then
-    echo "Before starting, finish the Cloudflare side (docs/HTTPS.md, Option D):"
+    echo "Before starting, finish the Cloudflare side (docs/admin/https.md, Option D):"
     echo "  1. Cloudflare dashboard > Zero Trust > Networks > Tunnels > Create a tunnel (Cloudflared)."
     echo "  2. Copy its token into $ENV_FILE as  CLOUDFLARE_TUNNEL_TOKEN=..."
     echo "  3. Add a public hostname: $DOMAIN  ->  Service: HTTP, URL: web:80"
@@ -198,7 +198,7 @@ EOF
     echo "Then run:  docker compose up -d   and open https://$DOMAIN"
   fi
   echo "Watch progress:  docker compose logs -f cloudflared"
-  echo "If you use Google/Microsoft sign-in or SAML, update their redirect URLs to https://$DOMAIN (docs/SSO.md)."
+  echo "If you use Google/Microsoft sign-in or SAML, update their redirect URLs to https://$DOMAIN (docs/admin/sso.md)."
   exit 0
 fi
 
@@ -467,7 +467,7 @@ if [ "$PROXY" = caddy ] && { [ "$RL" = on ] || [ "$CHALLENGE" = cloudflare ]; };
 fi
 if [ "$CF_PROXY" = on ]; then
   echo
-  echo "Cloudflare proxy: finish these in the Cloudflare dashboard (docs/HTTPS.md, \"Behind Cloudflare's proxy\"):"
+  echo "Cloudflare proxy: finish these in the Cloudflare dashboard (docs/admin/https.md, \"Behind Cloudflare's proxy\"):"
   echo "  1. DNS: set the record for $PRIMARY to Proxied (orange cloud), pointing at this server's public IP."
   echo "  2. SSL/TLS > Overview: set encryption mode to Full (strict)."
   echo "  3. Forward ports 80 and 443 to this server. Only Cloudflare will be let in."
@@ -476,11 +476,11 @@ if [ "$CF_PROXY" = on ]; then
   fi
   echo "Remember: Cloudflare can now see all traffic to this site."
 fi
-[ "$MODE" = internal ] && echo "Browsers will warn until Caddy's root CA is trusted — see docs/HTTPS.md."
+[ "$MODE" = internal ] && echo "Browsers will warn until Caddy's root CA is trusted — see docs/admin/https.md."
 if [ "$MODE" = incommon ]; then
   echo "InCommon is BETA and untested against a live CERTInext account. If the certificate doesn't arrive, check"
-  echo "the logs above and confirm the key ID, HMAC key, server address and domain with campus IT (docs/HTTPS.md)."
+  echo "the logs above and confirm the key ID, HMAC key, server address and domain with campus IT (docs/admin/https.md)."
 fi
 [ "$MODE" = letsencrypt-staging ] && echo "Staging certificates are intentionally untrusted. Rerun with --mode letsencrypt when it works."
-[ "$MODE" = none ] || echo "If you use Google/Microsoft sign-in or SAML, update their redirect URLs to https://$PRIMARY (docs/SSO.md)."
+[ "$MODE" = none ] || echo "If you use Google/Microsoft sign-in or SAML, update their redirect URLs to https://$PRIMARY (docs/admin/sso.md)."
 exit 0
