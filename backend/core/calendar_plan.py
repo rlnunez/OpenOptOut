@@ -97,6 +97,68 @@ def is_in_maintenance_window(sc: dict, now: Optional[datetime] = None) -> tuple:
     return False, None
 
 
+def get_maintenance_notice(sc: dict, now: Optional[datetime] = None) -> Optional[dict]:
+    """
+    Return downtime notice information for users if a maintenance window is currently
+    active or scheduled within maintenance_notice_hours (and notice hours > 0).
+    If maintenance_notice_hours <= 0, advance notices are disabled (returns active only).
+    """
+    now = now or datetime.utcnow()
+    now_naive = _to_utc_naive(now)
+    try:
+        notice_hours = int(sc.get("maintenance_notice_hours", 24))
+    except (ValueError, TypeError):
+        notice_hours = 24
+
+    # 1. Active window
+    in_maint, active_win = is_in_maintenance_window(sc, now=now)
+    if in_maint and active_win:
+        return {
+            "status": "active",
+            "window": active_win,
+            "message": active_win.get("description") or "Host server updates and backups",
+            "start": active_win.get("start"),
+            "end": active_win.get("end"),
+            "notice_hours": notice_hours,
+            "hours_until": 0.0,
+        }
+
+    # 2. Advance notice disabled if <= 0
+    if notice_hours <= 0:
+        return None
+
+    # 3. Upcoming windows starting within notice_hours
+    horizon = now_naive + timedelta(hours=notice_hours)
+    upcoming_eligible = []
+    for w in sc.get("maintenance_windows") or []:
+        s_dt = _parse_dt(w.get("start"))
+        e_dt = _parse_dt(w.get("end"))
+        if s_dt and e_dt:
+            s_naive = _to_utc_naive(s_dt)
+            e_naive = _to_utc_naive(e_dt)
+            if now_naive <= s_naive <= horizon and e_naive > now_naive:
+                diff_sec = (s_naive - now_naive).total_seconds()
+                upcoming_eligible.append((diff_sec, w))
+
+    if not upcoming_eligible:
+        return None
+
+    upcoming_eligible.sort(key=lambda x: x[0])
+    diff_sec, next_win = upcoming_eligible[0]
+    hours_until = max(0.0, round(diff_sec / 3600.0, 1))
+
+    return {
+        "status": "upcoming",
+        "window": next_win,
+        "message": next_win.get("description") or "Host server updates and backups",
+        "start": next_win.get("start"),
+        "end": next_win.get("end"),
+        "notice_hours": notice_hours,
+        "hours_until": hours_until,
+    }
+
+
+
 def _tz(sc: dict):
     try:
         from zoneinfo import ZoneInfo

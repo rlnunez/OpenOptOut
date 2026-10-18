@@ -39,6 +39,8 @@ export default function Calendar() {
   const [mEnd, setMEnd] = useState('')
   const [mDesc, setMDesc] = useState('')
   const [savingMaint, setSavingMaint] = useState(false)
+  const [noticeHours, setNoticeHours] = useState('24')
+  const [savingNoticeHours, setSavingNoticeHours] = useState(false)
 
   const load = useCallback(() => {
     const start = backToWeekStart(month)
@@ -46,6 +48,13 @@ export default function Calendar() {
       .then(r => setData(r.data)).catch(e => setMsg(e.response?.data?.detail || tx("Couldn't load the calendar.")))
   }, [month])
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (data?.maintenance_notice_hours != null) {
+      setNoticeHours(String(data.maintenance_notice_hours))
+    }
+  }, [data?.maintenance_notice_hours])
+
 
   const byDay = useMemo(() => {
     const m = {}
@@ -70,6 +79,24 @@ export default function Calendar() {
     saveSchedule({ run_days: next })
   }
 
+  const saveNoticeHours = async () => {
+    setSavingNoticeHours(true)
+    setMsg('')
+    try {
+      const h = parseInt(noticeHours, 10)
+      const val = isNaN(h) || h < 0 ? 0 : Math.min(h, 720)
+      await api.patch('/calendar/maintenance/settings', { maintenance_notice_hours: val })
+      setNoticeHours(String(val))
+      setMsg(tx("Notice window saved."))
+      window.dispatchEvent(new Event('maintenance-settings-changed'))
+      load()
+    } catch (e) {
+      setMsg(e.response?.data?.detail || tx("Couldn't save notice window."))
+    } finally {
+      setSavingNoticeHours(false)
+    }
+  }
+
   const addMaintenance = async () => {
     if (!mStart || !mEnd) return
     setSavingMaint(true)
@@ -84,6 +111,7 @@ export default function Calendar() {
       setMEnd('')
       setMDesc('')
       setMsg(tx("Maintenance window scheduled."))
+      window.dispatchEvent(new Event('maintenance-settings-changed'))
       load()
     } catch (e) {
       setMsg(e.response?.data?.detail || tx("Couldn't schedule maintenance window."))
@@ -97,11 +125,13 @@ export default function Calendar() {
     try {
       await api.delete(`/calendar/maintenance/${id}`)
       setMsg(tx("Maintenance window removed."))
+      window.dispatchEvent(new Event('maintenance-settings-changed'))
       load()
     } catch (e) {
       setMsg(e.response?.data?.detail || tx("Couldn't remove maintenance window."))
     }
   }
+
 
   const makeFeed = async () => {
     try { const { data } = await api.post('/calendar/feed'); setFeed(data.url); load() }
@@ -203,6 +233,38 @@ export default function Calendar() {
             <p className="text-slate-400 text-sm mb-3">
               {tx("Schedule downtime for host server updates and backups. All background tasks and opt-outs are paused during the window and automatically resumed when it ends.")}
             </p>
+
+            <div className="mb-4 p-3 bg-slate-900 border border-slate-700/80 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <label htmlFor="m-notice-hours" className="block text-white text-sm font-medium">
+                  {tx("Advance downtime notice")}
+                </label>
+                <p className="text-slate-400 text-xs mt-0.5">
+                  {tx("How many hours before downtime users see a notice banner. Set to 0 to disable advance notices.")}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <input
+                  id="m-notice-hours"
+                  type="number"
+                  min="0"
+                  max="720"
+                  value={noticeHours}
+                  onChange={e => setNoticeHours(e.target.value)}
+                  className="w-20 bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white text-center"
+                />
+                <span className="text-slate-400 text-xs">{tx("hours")}</span>
+                <button
+                  type="button"
+                  disabled={savingNoticeHours || noticeHours === ''}
+                  onClick={saveNoticeHours}
+                  className="px-3 py-1.5 text-xs bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-40"
+                >
+                  {savingNoticeHours ? tx("Saving...") : tx("Save")}
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 mb-3">
               <div>
                 <label htmlFor="m-start" className="block text-slate-300 text-xs mb-1">{tx("Window start")}</label>
@@ -235,6 +297,7 @@ export default function Calendar() {
                 <ul className="space-y-2">
                   {data.maintenance_windows.map(w => {
                     const isCurrent = data.in_maintenance && data.active_window?.id === w.id
+                    const isNotice = !isCurrent && data.maintenance_notice?.status === 'upcoming' && data.maintenance_notice?.window?.id === w.id
                     return (
                       <li key={w.id} className="flex items-center justify-between gap-3 text-sm bg-slate-900 border border-slate-700 rounded-lg px-3 py-2">
                         <div>
@@ -245,11 +308,17 @@ export default function Calendar() {
                                 {tx("Active now")}
                               </span>
                             )}
+                            {isNotice && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-900/60 text-amber-200 border border-amber-500/50">
+                                {tx("Notice active ({hours}h away)", { hours: data.maintenance_notice?.hours_until })}
+                              </span>
+                            )}
                           </div>
                           <p className="text-slate-400 text-xs mt-0.5">
                             {fmtDateTime(w.start)} — {fmtDateTime(w.end)}
                           </p>
                         </div>
+
                         <button
                           type="button"
                           onClick={() => deleteMaintenance(w.id)}

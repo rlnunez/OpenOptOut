@@ -8,6 +8,7 @@ import { AccessibilityProvider } from './context/AccessibilityContext'
 import SkipLink from './components/SkipLink'
 import Breadcrumbs from './components/Breadcrumbs'
 import AnnouncementBanner from './components/AnnouncementBanner'
+import MaintenanceNoticeBanner from './components/MaintenanceNoticeBanner'
 import SecretKeyBanner from './components/SecretKeyBanner'
 import UserWelcomeModal from './components/UserWelcomeModal'
 import Sidebar from './components/Sidebar'
@@ -113,6 +114,7 @@ function Layout() {
         </header>
         <SecretKeyBanner />
         <AnnouncementBanner />
+        <MaintenanceNoticeBanner />
         <InboxPrompt />
         <UserWelcomeModal />
         <main id="main-content" tabIndex="-1" role="main" className="flex-1 overflow-auto focus:outline-hidden">

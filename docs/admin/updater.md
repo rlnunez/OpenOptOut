@@ -67,14 +67,17 @@ The updater enforces a strict 4-step state machine:
 
 1. **Pause Task Dispatcher (`POST /api/scheduler/pause`):**
    Suspends the automated opt-out scheduler and task queue, preventing new pending removal requests from being dispatched to workers.
-2. **Drain Active Workers:**
-   Queries the distributed worker fleet (`GET /api/workers` and queue depth) and waits for in-flight browser sessions to finish cleanly (`in_flight_count == 0`). A configurable timeout (default: 5 minutes) ensures wedged workers do not stall updates indefinitely.
-3. **Pre-Flight Snapshot & Rollback Tagging:**
+2. **Broadcast Cluster-Wide Drain (`POST /api/workers/fleet/drain`):**
+   Broadcasts a fleet-wide drain signal (`ps:fleet:drain_all` in Redis or in-memory fallback) instructing all active worker nodes across the distributed cluster to stop pulling new jobs from priority queues.
+3. **Drain Active Workers & Verify Idle Barrier:**
+   Queries the distributed worker fleet (`GET /api/workers/summary`) and waits for in-flight browser sessions to finish cleanly (`active_slots == 0` and `in_flight_count == 0`). Workers finish current browser automation tasks gracefully without abrupt cancellation. A configurable timeout (default: 2 minutes) ensures wedged workers do not stall updates indefinitely.
+4. **Pre-Flight Snapshot & Rollback Tagging:**
    Inspects running containers (`openoptout-api`, `openoptout-web`) and tags current images (`openoptout-rollback:api`, `openoptout-rollback:web`). Copies the active database (`privacy_pipeline.db`, WAL and SHM files) and settings (`openoptout_settings.json`) to an isolated snapshot directory (`/data/snapshot_pre_update/`), and writes a rollback manifest (`/data/update_rollback.json`).
-4. **Compose Upgrade & Automated Rollback:**
+5. **Compose Upgrade & Automated Rollback:**
    Executes `docker compose pull api web && docker compose up -d --remove-orphans api web`. The updater polls `http://api:8000/api/health` until HTTP 200 is confirmed and the reported version matches the expected release.
    - **Automated Rollback on Failure:** If container recreation fails or the API fails its health check within 90 seconds, the updater automatically initiates a rollback: it re-tags the previous image references, restores the database snapshot, restarts the previous containers, and verifies application health.
    - **Manual Revert / Rollback:** Super administrators can also trigger an on-demand rollback at any time from **Admin → System updates** (`POST /api/system/updates/rollback`) to revert to the previous release snapshot if issues arise in production.
+   - **Post-Upgrade Un-Drain:** Upon successful verification (or rollback completion), the updater issues `POST /api/workers/fleet/drain` with `{"drain": false}` and resumes the scheduler (`POST /api/scheduler/resume`), returning the distributed cluster to full operational dispatch.
 
 ---
 
@@ -106,15 +109,19 @@ When the underlying host server requires operating system updates, kernel patche
        "description": "Host server kernel updates and snapshot backup"
      }
      ```
-2. **Automated Scheduler Pause & Drain:**
-   - At the beginning of the maintenance window, the internal scheduler monitor detects the active window, pauses all background task queues (`s.pause()`), and halts automated opt-out dispatches, email polling, verifications, and background checks.
+2. **Advance Downtime Notice Banner:**
+   - Administrators can configure how many hours before downtime users see a prominent notice banner across all screens (`0 = disabled`).
+   - When within the advance notice window, users see an informational banner detailing the upcoming maintenance schedule; when maintenance is active, an alert banner informs users that tasks are paused until the window concludes.
+3. **Automated Scheduler Pause & Distributed Fleet Drain:**
+   - At the beginning of the maintenance window, the internal scheduler monitor detects the active window, pauses all background task queues (`s.pause()`), and broadcasts a cluster-wide drain signal to distributed worker nodes (`get_worker_registry().set_fleet_drain(True)`).
    - Any manual job executions triggered via API return HTTP `503 Service Unavailable` with details on the active maintenance window.
-3. **Automated Resumption:**
-   - When the window end timestamp arrives, the background monitor automatically resumes the scheduler (`s.resume()`), restarting all scheduled background jobs without requiring manual admin intervention.
+4. **Automated Resumption & Fleet Un-Drain:**
+   - When the window end timestamp arrives, the background monitor automatically resumes the scheduler (`s.resume()`) and clears the fleet drain signal (`set_fleet_drain(False)`), restarting all scheduled background jobs without requiring manual admin intervention.
    - If the host server reboots during the window, OpenOptOut starts up directly in the paused maintenance state and automatically resumes when the window concludes.
-4. **Calendar & `.ics` Feed Synchronization:**
+5. **Calendar & `.ics` Feed Synchronization:**
    - Scheduled maintenance windows appear on the interactive monthly Calendar view and in the "Coming up" agenda.
    - Subscribers to the authenticated `.ics` calendar feed see scheduled downtime reflected with category `MAINTENANCE` and exact start/end timestamps.
+
 
 ---
 

@@ -4,7 +4,7 @@ All notable changes to OpenOptOut are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Each completed roadmap item is cross-referenced with its architectural milestone number (e.g., `Roadmap Item #`). For detailed specifications, design rationale, and test verification notes, see the [Completed Milestones Archive (`docs/archive/COMPLETED_ROADMAP.md`)](docs/archive/COMPLETED_ROADMAP.md).
+Each completed roadmap item is cross-referenced with its architectural milestone number (e.g., `Roadmap Item #`). For detailed specifications, design rationale, and test verification notes for historical milestones up through v0.11.0, see the [Completed Milestones Archive (`docs/archive/COMPLETED_ROADMAP.md`)](docs/archive/COMPLETED_ROADMAP.md) (frozen at v0.11.0). All subsequent completed roadmap work, architectural improvements, and release notes are documented directly in this changelog.
 
 ---
 
@@ -14,7 +14,10 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 - **Cloudflare Authenticated Origin Pulls (AOP) (Roadmap Item 14, 24):** Mutual TLS (mTLS) origin verification for Caddy, Traefik, and native Nginx using the official Cloudflare Authenticated Origin Pull CA certificate, guaranteeing that origin servers admit only legitimate requests from the owner's Cloudflare zone.
 - **Cloudflare Tunnel Preconfigured WAF Rulesets (Roadmap Item 24):** Edge rate-limiting (60 req/min for authentication endpoints, 1200 req/min site-wide) and WAF firewall rules (`deploy/cloudflare/tunnel-waf-ruleset.json`) with an automated deployment CLI script (`apply-tunnel-waf.sh`).
 - **Updater Automated Snapshot, Rollback & Revert (Roadmap Item 65):** The companion updater daemon (`openoptout-updater`) creates pre-update safety snapshots of running container images, SQLite databases, and configuration before applying releases. If container recreation or post-upgrade health checks fail within 90 seconds, it automatically reverts to the previous release. Super administrators can also trigger on-demand rollbacks via `POST /api/system/updates/rollback` or the UI.
+- **Scheduled Maintenance Windows & Downtime Banners (Roadmap Item 65):** Calendar-based maintenance window planning (`backend/core/calendar_plan.py`), automated dynamic scheduler pause/resume loops (`backend/core/scheduler.py`), update installation scheduling, and user-facing downtime notice banners with configurable advance warning intervals (`0 = disabled`) translated across all 17 bundled language packs.
+- **Extended Multi-Node Worker Draining Coordination (Roadmap Item 65):** Cluster-wide fleet drain broadcasting (`POST /api/workers/fleet/drain`, `WorkerRegistry.set_fleet_drain`, and Redis key `ps:fleet:drain_all`), route alias `GET /api/workers/summary`, graceful in-flight task completion in `WorkerDaemon` without task cancellation, and automated pre-upgrade drain barriers and post-upgrade un-drain in `deploy/updater/updater.py`.
 - **Audience-Organized Documentation & MkDocs Material:** Reorganized documentation portal into User/Family, Administrator, and Developer guides, backed by MkDocs Material with client-side full-text search, dark/light themes, and seamless backwards-compatible stubs.
+
 
 ### Changed
 - **Decoupled SearXNG Master Secret:** Auto-generated SearXNG master secret with dynamic entropy length, fully decoupled from the primary application master key.

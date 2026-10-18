@@ -93,8 +93,8 @@ OpenOptOut documentation is organized by reader audience and powered by **[MkDoc
 - ⚙️ **[Administrator & Operations Guide](docs/admin/index.md)** — Automated HTTPS (Caddy/Traefik/Cloudflare), native bare-metal install, PostgreSQL, SSO/SAML, encrypted backups, and auto-rollback updates.
 - 💻 **[Developer & Contributor Guide](docs/dev/index.md)** — System architecture, declarative broker interpreter runtime, [broker add-on authoring](broker-plugins/README.md), and security scanning.
 - 📜 **[About & Governance](docs/about/index.md)** — Our [Mission & Principles](docs/about/mission.md) and plain-language [Privacy Legislation](docs/about/legislation.md) advocacy.
-- 📋 **[Active Roadmap](docs/ROADMAP.md)** & **[Completed Milestones](docs/archive/COMPLETED_ROADMAP.md)** — Active/planned initiatives and historical milestone archive.
-- 📝 **[Changelog](CHANGELOG.md)** — Semantic release notes cross-referencing all completed roadmap items.
+- 📋 **[Active Roadmap](docs/ROADMAP.md)** & **[Completed Milestones (Archive)](docs/archive/COMPLETED_ROADMAP.md)** — Active/planned initiatives and frozen historical milestone archive (through v0.11.0).
+- 📝 **[Changelog](CHANGELOG.md)** — Semantic release notes and historical tracking for all completed roadmap items and updates.
 - ♿ **[Accessibility Conformance](ACCESSIBILITY.md)** — WCAG 2.2 AAA conformance statement, high-contrast themes, and typography scaling.
 - 🔒 **[Security Policy](SECURITY.md)** — Vulnerability reporting, cryptographic controls, and memory hygiene.
 

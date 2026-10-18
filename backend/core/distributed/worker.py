@@ -334,6 +334,7 @@ class WorkerDaemon:
         self._heartbeat_task: Optional[asyncio.Task] = None
         self._busy_slots = 0
         self._started_at = time.time()
+        self._draining = False
         self._lock = asyncio.Lock()
         self.stats = {
             "processed": 0,
@@ -353,11 +354,14 @@ class WorkerDaemon:
             return False
         return True
 
-    def request_stop(self) -> None:
+    def request_stop(self, graceful: bool = True) -> None:
         """Signal worker daemon to stop after currently processing jobs finish."""
-        log.info("Worker [%s] received stop request. Draining tasks...", self.config.worker_id)
-        self._running = False
-        self._stop_event.set()
+        log.info("Worker [%s] received stop request (graceful=%s).", self.config.worker_id, graceful)
+        if graceful and self._busy_slots > 0:
+            self._draining = True
+        else:
+            self._running = False
+            self._stop_event.set()
 
     async def _heartbeat_loop(self) -> None:
         """Background task reporting worker health and checking drain signals."""
@@ -365,10 +369,16 @@ class WorkerDaemon:
         while self._running and not self._stop_event.is_set():
             try:
                 # 1. Check drain signal
-                if self.registry.is_draining(self.config.worker_id):
-                    log.info("Worker [%s] received drain command via registry.", self.config.worker_id)
-                    self.request_stop()
-                    break
+                is_draining = self._draining or (self.registry and self.registry.is_draining(self.config.worker_id))
+                if is_draining:
+                    self._draining = True
+                    if self._busy_slots == 0:
+                        log.info("Worker [%s] all in-flight jobs drained. Exiting daemon...", self.config.worker_id)
+                        self._running = False
+                        self._stop_event.set()
+                        break
+                    else:
+                        log.info("Worker [%s] draining: waiting for %d active job(s) to finish...", self.config.worker_id, self._busy_slots)
 
                 # 2. Check internet connectivity
                 online = is_internet_available() if self._should_check_internet() else True
@@ -383,7 +393,7 @@ class WorkerDaemon:
                     jobs_failed=self.stats["failure"],
                     uptime_seconds=uptime,
                     started_at=self._started_at,
-                    is_draining=self._stop_event.is_set(),
+                    is_draining=bool(is_draining or self._stop_event.is_set()),
                     is_offline=not online,
                 )
                 await asyncio.sleep(self.config.heartbeat_interval)
@@ -392,6 +402,7 @@ class WorkerDaemon:
             except Exception as e:
                 log.debug("Heartbeat cycle error: %s", e)
                 await asyncio.sleep(1.0)
+
 
     async def execute_envelope(self, envelope: JobEnvelope) -> JobResultEnvelope:
         """
@@ -643,6 +654,12 @@ class WorkerDaemon:
         log.debug("Worker [%s] slot %d started", self.config.worker_id, slot_id)
         while self._running and not self._stop_event.is_set():
             try:
+                # If draining, do not acquire new tasks from queue
+                if self._draining or (self.registry and self.registry.is_draining(self.config.worker_id)):
+                    self._draining = True
+                    await asyncio.sleep(self.config.poll_interval)
+                    continue
+
                 processed = await self.process_one(timeout=self.config.poll_interval)
                 if not processed:
                     # Yield to event loop when queue is idle
@@ -686,11 +703,17 @@ class WorkerDaemon:
                 self._heartbeat_task.cancel()
                 self._heartbeat_task = None
 
+            # Gracefully wait for in-flight tasks to complete before canceling slot loops
+            drain_wait_start = time.time()
+            while self._busy_slots > 0 and (time.time() - drain_wait_start < 30.0):
+                await asyncio.sleep(0.5)
+
             # Drain tasks
             for t in self._active_tasks:
                 t.cancel()
             await asyncio.gather(*self._active_tasks, return_exceptions=True)
             self._active_tasks.clear()
+
 
             # Record final shutdown heartbeat
             if self.config.enable_heartbeat:

@@ -56,6 +56,6 @@ Resources for contributing to OpenOptOut and understanding system internals:
 ## Roadmap & Release History
 
 - **[Active & Planned Roadmap](ROADMAP.md):** Focuses strictly on in-progress, planned, and under-consideration initiatives.
-- **[Completed Milestones Archive](archive/COMPLETED_ROADMAP.md):** Architectural specifications and test notes for all finished roadmap items (Items 1–66).
-- **[Changelog](../CHANGELOG.md):** Version-by-version release notes and change summaries.
+- **[Completed Milestones Archive](archive/COMPLETED_ROADMAP.md):** Architectural specifications and test notes for historical milestones up through v0.11.0 (frozen archive).
+- **[Changelog](../CHANGELOG.md):** Version-by-version release notes and change summaries tracking all ongoing updates.
 

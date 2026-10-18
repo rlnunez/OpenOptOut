@@ -101,23 +101,25 @@ def check_api_health(timeout_seconds: int = 90) -> bool:
 
 
 def wait_for_drain(timeout_seconds: int = 120) -> bool:
-    """Pause scheduler and wait for active removal jobs to finish."""
+    """Pause scheduler, broadcast fleet drain, and wait for active removal jobs to finish."""
     log.info("Pausing scheduler and requesting worker fleet drain...")
     write_status("draining", "Pausing scheduler and draining active removal jobs...")
 
-    # Pause scheduler
+    # Pause scheduler and broadcast fleet drain signal
     api_request("POST", "/api/scheduler/pause")
+    api_request("POST", "/api/workers/fleet/drain", payload={"drain": True})
 
     start = time.time()
     while time.time() - start < timeout_seconds:
-        # Check if worker summary reports 0 active slots
+        # Check if worker summary reports 0 active slots and 0 in-flight tasks
         summary = api_request("GET", "/api/workers/summary")
         if summary:
             active = summary.get("active_slots", 0)
-            if active == 0:
-                log.info("All worker slots drained successfully.")
+            in_flight = summary.get("in_flight_count", 0)
+            if active == 0 and in_flight == 0:
+                log.info("All worker slots and in-flight tasks drained successfully.")
                 return True
-            log.info("Waiting for %d active worker slots to drain...", active)
+            log.info("Waiting for %d active worker slot(s) and %d in-flight task(s) to drain...", active, in_flight)
         else:
             # Standalone single-container fallback: wait 5s to ensure in-flight HTTP requests complete
             time.sleep(5)
@@ -126,6 +128,18 @@ def wait_for_drain(timeout_seconds: int = 120) -> bool:
 
     log.warning("Drain timeout reached (%ds). Proceeding with upgrade.", timeout_seconds)
     return True
+
+
+def resume_fleet():
+    """Un-drain worker fleet and resume scheduler after update completes or rolls back."""
+    log.info("Clearing fleet drain signal and resuming scheduler...")
+    try:
+        api_request("POST", "/api/workers/fleet/drain", payload={"drain": False})
+        api_request("POST", "/api/scheduler/resume")
+    except Exception as e:
+        log.warning("Failed to un-drain worker fleet / resume scheduler: %s", e)
+
+
 
 
 def run_cmd(cmd_list: list) -> tuple:
@@ -395,6 +409,7 @@ def process_pending_update_requests():
             wait_for_drain()
             execute_compose_upgrade(target_version, current_version)
         finally:
+            resume_fleet()
             try:
                 os.remove(UPDATE_REQUEST_FILE)
             except OSError:
@@ -405,10 +420,12 @@ def process_pending_update_requests():
             wait_for_drain()
             execute_rollback()
         finally:
+            resume_fleet()
             try:
                 os.remove(UPDATE_REQUEST_FILE)
             except OSError:
                 pass
+
 
 
 def run_daemon():

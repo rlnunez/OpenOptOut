@@ -640,6 +640,47 @@ def t_calendar_maintenance_windows():
         # Scheduler import may skip if optional deps missing
         pass
 
+    # 7. Advance downtime notice banner & notice hours
+    # Default: 24 hours in advance
+    t_10h_before = _dt.datetime(2026, 10, 24, 16, 0)
+    t_30h_before = _dt.datetime(2026, 10, 23, 20, 0)
+
+    # 10 hours before: should trigger upcoming notice banner
+    notice_10h = cal.get_maintenance_notice(sc, now=t_10h_before)
+    assert notice_10h is not None, "expected upcoming maintenance notice within 24h"
+    assert notice_10h["status"] == "upcoming"
+    assert notice_10h["hours_until"] == 10.0
+    assert notice_10h["message"] == "Host server updates and backups"
+    assert notice_10h["notice_hours"] == 24
+
+    # 30 hours before: outside default 24h horizon -> None
+    notice_30h = cal.get_maintenance_notice(sc, now=t_30h_before)
+    assert notice_30h is None, "notice should not show 30h ahead when notice_hours=24"
+
+    # Custom notice window: 48 hours
+    sc_48h = dict(sc, maintenance_notice_hours=48)
+    notice_custom = cal.get_maintenance_notice(sc_48h, now=t_30h_before)
+    assert notice_custom is not None, "expected notice at 30h with 48h advance window"
+    assert notice_custom["status"] == "upcoming"
+    assert notice_custom["hours_until"] == 30.0
+
+    # 0 = disabled: advance notice disabled
+    sc_disabled = dict(sc, maintenance_notice_hours=0)
+    notice_dis = cal.get_maintenance_notice(sc_disabled, now=t_10h_before)
+    assert notice_dis is None, "advance notice must be disabled when maintenance_notice_hours=0"
+
+    # Active window should always return active status
+    notice_active = cal.get_maintenance_notice(sc, now=t_inside)
+    assert notice_active is not None
+    assert notice_active["status"] == "active"
+    assert notice_active["hours_until"] == 0.0
+
+    # Active window also returned when advance notice is set to 0
+    notice_active_0 = cal.get_maintenance_notice(sc_disabled, now=t_inside)
+    assert notice_active_0 is not None
+    assert notice_active_0["status"] == "active"
+
+
 
 @test(1, "interpreter.compile_form_job",
       "A form spec compiles to a Job with member field references resolved to real values.")
@@ -2278,7 +2319,24 @@ def t_fleet_monitoring_and_telemetry():
     reg.set_drain_signal("worker-node-1", drain=False)
     assert reg.is_draining("worker-node-1") is False
 
+    # 4b. Cluster-wide fleet drain broadcast
+    assert reg.is_fleet_draining() is False
+    reg.set_fleet_drain(True)
+    assert reg.is_fleet_draining() is True
+    assert reg.is_draining("worker-node-1") is True
+    assert reg.is_draining("worker-node-2") is True
+    assert reg.is_draining("any-unseen-worker") is True
+
+    sum_fleet_drain = reg.get_fleet_summary(timeout_seconds=30.0)
+    assert sum_fleet_drain["fleet_draining"] is True
+
+    reg.set_fleet_drain(False)
+    assert reg.is_fleet_draining() is False
+    assert reg.is_draining("worker-node-1") is False
+    assert reg.is_draining("worker-node-2") is False
+
     # 5. Stale worker pruning
+
     reg.record_heartbeat(
         worker_id="worker-ancient",
         concurrency=1,
@@ -4786,11 +4844,19 @@ def t_updater_daemon_rollback():
             return 0, "", ""
         daemon.run_cmd = mock_run_cmd
 
-        # Mock image lookups
+        # Mock image lookups and API requests
         daemon.get_service_image_id = lambda svc: f"sha256:mock_{svc}_id_12345"
         daemon.get_service_image_ref = lambda svc: f"openoptout-{svc}:latest"
+        api_calls = []
+        def mock_api_req(method, path, payload=None):
+            api_calls.append((method, path, payload))
+            if "summary" in path:
+                return {"active_slots": 0, "in_flight_count": 0}
+            return {"status": "ok"}
+        daemon.api_request = mock_api_req
 
         # 1. Test create_pre_update_snapshot
+
         rb_info = daemon.create_pre_update_snapshot("v1.0.0", "v1.1.0")
         assert rb_info["previous_version"] == "v1.0.0"
         assert rb_info["target_version"] == "v1.1.0"
@@ -4820,12 +4886,29 @@ def t_updater_daemon_rollback():
         assert "v1.0.0" in st["message"]
 
         # 4. Test process_pending_update_requests with rollback action
+        orig_wait = daemon.wait_for_drain
         daemon.wait_for_drain = lambda timeout_seconds=120: True
         daemon.check_api_health = lambda timeout_seconds=90: True
         with open(daemon.UPDATE_REQUEST_FILE, "w") as f:
             json.dump({"action": "rollback", "target_version": "v1.0.0"}, f)
         daemon.process_pending_update_requests()
         assert not os.path.isfile(daemon.UPDATE_REQUEST_FILE), "request file must be cleaned up"
+
+        # 5. Test real wait_for_drain and resume_fleet broadcast
+        daemon.wait_for_drain = orig_wait  # restore real wait_for_drain from module
+        api_calls.clear()
+        drain_ok = daemon.wait_for_drain(timeout_seconds=5)
+        assert drain_ok is True
+        assert ("POST", "/api/scheduler/pause", None) in api_calls
+        assert ("POST", "/api/workers/fleet/drain", {"drain": True}) in api_calls
+        assert any("summary" in path for _, path, _ in api_calls)
+
+        api_calls.clear()
+        daemon.resume_fleet()
+        assert ("POST", "/api/workers/fleet/drain", {"drain": False}) in api_calls
+        assert ("POST", "/api/scheduler/resume", None) in api_calls
+
+
 
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)

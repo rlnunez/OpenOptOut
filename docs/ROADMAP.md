@@ -3,7 +3,7 @@
 Status: **Active Development.** This document tracks in-progress, planned, and under-consideration architectural work for OpenOptOut.
 
 > [!NOTE]
-> **Completed Milestones:** For detailed specifications, architecture, and verification notes for completed milestones (Items 1–7, 10, 13–21, 23–64, 66), see the [Completed Milestones Archive (`docs/archive/COMPLETED_ROADMAP.md`)](archive/COMPLETED_ROADMAP.md). For release notes by version, see [`CHANGELOG.md`](../CHANGELOG.md).
+> **Completed Milestones Archive:** Historical specifications, design rationale, and verification notes for milestones up through v0.11.0 are preserved in the [Completed Milestones Archive (`docs/archive/COMPLETED_ROADMAP.md`)](archive/COMPLETED_ROADMAP.md) (frozen at v0.11.0). All subsequent completed roadmap items, enhancements, and release notes are documented directly in [`CHANGELOG.md`](../CHANGELOG.md).
 
 The guiding architectural principle: **the core does not contain broker-specific logic.** The core engine interprets declarative specifications detailing how a broker's opt-out functions (web forms, emails, required language/templates, multi-step flows) and executes them. Brokers are packaged as declarative specifications and optional isolated code extensions maintained independently.
 
@@ -121,10 +121,13 @@ The guiding architectural principle: **the core does not contain broker-specific
 
 <a id="item-65"></a>
 ### 65. Containerized release updater & Docker engine supervisor
-**Goal:** Provide a standalone sidecar container (`deploy/updater`) to safely synchronize Docker deployments with verified releases while respecting active removal jobs and administrator approval policies.
+**Goal:** Provide a standalone sidecar container (`deploy/updater`) to safely synchronize Docker deployments with verified releases while respecting active removal jobs, distributed worker nodes, and administrator approval policies.
 
-- **Current Status:** Core daemon, pre-update image tagging, SQLite database snapshotting, automated rollback on health failure, manual rollback endpoint (`POST /api/system/updates/rollback`), and UI revert card are complete.
-- **In Progress / Polishing:** Extended multi-node worker draining coordination and scheduled maintenance windows.
+- **Status:** **Complete.**
+- **Autonomous Rollback & Snapshots:** Core daemon (`deploy/updater/updater.py`), pre-update image tagging, SQLite database snapshotting, automated rollback on failed post-update health check, manual rollback endpoint (`POST /api/system/updates/rollback`), and UI revert card.
+- **Scheduled Maintenance Windows & Downtime Banners:** Calendar maintenance planning (`backend/core/calendar_plan.py`), automated scheduler pause/resume loops (`backend/core/scheduler.py`), update schedule windows, global downtime notice banner with configurable advance notice hours (`0 = disabled`), and multi-language translations across all 17 bundled packs.
+- **Extended Multi-Node Worker Draining Coordination:** Cluster-wide fleet drain broadcast (`WorkerRegistry.set_fleet_drain`, Redis `ps:fleet:drain_all`, and `POST /api/workers/fleet/drain`), `/summary` route alias for fleet telemetry, graceful slot draining without task cancellation, and pre-update drain barrier with automatic un-drain on completion or rollback.
+
 
 ---
 

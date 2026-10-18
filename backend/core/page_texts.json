@@ -1316,6 +1316,12 @@
    ]
   },
   {
+   "text": "Advance downtime notice",
+   "where": [
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
    "text": "Advanced",
    "where": [
     "pages/SetupWizard.jsx"
@@ -1518,6 +1524,7 @@
   {
    "text": "All tasks paused until {end}.",
    "where": [
+    "components/MaintenanceNoticeBanner.jsx",
     "pages/Calendar.jsx"
    ]
   },
@@ -4174,6 +4181,12 @@
    ]
   },
   {
+   "text": "Couldn't save notice window.",
+   "where": [
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
    "text": "Couldn't save that address.",
    "where": [
     "pages/StateRegistries.jsx"
@@ -5113,6 +5126,7 @@
    "text": "Dismiss",
    "where": [
     "components/AnnouncementBanner.jsx",
+    "components/MaintenanceNoticeBanner.jsx",
     "pages/WorkerFleet.jsx"
    ]
   },
@@ -5366,6 +5380,12 @@
    "text": "downloaded",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Downtime scheduled from {start} to {end}.",
+   "where": [
+    "components/MaintenanceNoticeBanner.jsx"
    ]
   },
   {
@@ -7468,6 +7488,7 @@
   {
    "text": "hours",
    "where": [
+    "pages/Calendar.jsx",
     "pages/Settings.jsx"
    ]
   },
@@ -7535,6 +7556,12 @@
    "text": "How many details each person can add",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "How many hours before downtime users see a notice banner. Set to 0 to disable advance notices.",
+   "where": [
+    "pages/Calendar.jsx"
    ]
   },
   {
@@ -9044,6 +9071,7 @@
   {
    "text": "Maintenance in progress:",
    "where": [
+    "components/MaintenanceNoticeBanner.jsx",
     "pages/Calendar.jsx"
    ]
   },
@@ -10647,6 +10675,18 @@
    "text": "Nothing yet.",
    "where": [
     "pages/DeadlineReport.jsx"
+   ]
+  },
+  {
+   "text": "Notice active ({hours}h away)",
+   "where": [
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Notice window saved.",
+   "where": [
+    "pages/Calendar.jsx"
    ]
   },
   {
@@ -13526,6 +13566,7 @@
     "pages/AdminPanel.jsx",
     "pages/Branding.jsx",
     "pages/BrokerUpdates.jsx",
+    "pages/Calendar.jsx",
     "pages/IdentityVault.jsx",
     "pages/Monitoring.jsx",
     "pages/ParentCompanies.jsx",
@@ -13773,6 +13814,7 @@
    "text": "Saving...",
    "where": [
     "components/UserWelcomeModal.jsx",
+    "pages/Calendar.jsx",
     "pages/Translations.jsx"
    ]
   },
@@ -13814,6 +13856,12 @@
    "text": "Schedule maintenance window",
    "where": [
     "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Scheduled downtime:",
+   "where": [
+    "components/MaintenanceNoticeBanner.jsx"
    ]
   },
   {

@@ -167,6 +167,8 @@ class SchedulerConfig(LimitedModel):
     skip_dates: Optional[List[str]] = Field(None, max_length=ITEMS_MAX)
     # Scheduled downtime / maintenance windows (pauses background tasks)
     maintenance_windows: Optional[List[dict]] = Field(None, max_length=ITEMS_MAX)
+    maintenance_notice_hours: Optional[int] = Field(24, ge=0, le=720, description="Hours in advance to show scheduled downtime banner to users; 0 = disabled")
+
 
 
 class PrivacyDataSettings(LimitedModel):

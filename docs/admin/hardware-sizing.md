@@ -106,3 +106,4 @@ python3 backend/tests/benchmark_hardware_footprint.py --concurrency 1,2,4,8
 # Output machine-readable JSON for monitoring and capacity planning
 python3 backend/tests/benchmark_hardware_footprint.py --concurrency 4 --json
 ```
+

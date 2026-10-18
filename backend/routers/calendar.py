@@ -41,6 +41,10 @@ class MaintenanceWindowCreate(LimitedModel):
     description: Optional[str] = Field("Host server updates and backups", max_length=TEXT_MAX)
 
 
+class MaintenanceSettingsUpdate(LimitedModel):
+    maintenance_notice_hours: int = Field(24, ge=0, le=720, description="Hours in advance to show scheduled downtime banner to users; 0 = disabled")
+
+
 @router.get("")
 def calendar(scope: str = Query("family"), start: Optional[str] = None, days: int = Query(62, ge=1, le=400),
              db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -50,12 +54,45 @@ def calendar(scope: str = Query("family"), start: Optional[str] = None, days: in
         raise HTTPException(400, "Use a date like 2026-11-01.")
     sc = _sc()
     in_maint, active_win = cal.is_in_maintenance_window(sc)
+    m_notice = cal.get_maintenance_notice(sc)
+    notice_hours = int(sc.get("maintenance_notice_hours", 24))
     return {"events": cal.upcoming(db, _scope_ids(db, current_user, scope, None), sc, start=d0, days=days),
             "run_days": sc.get("run_days"), "skip_dates": sc.get("skip_dates") or [],
             "maintenance_windows": sc.get("maintenance_windows") or [],
+            "maintenance_notice_hours": notice_hours,
+            "maintenance_notice": m_notice,
             "in_maintenance": in_maint, "active_window": active_win,
             "run_time": sc.get("run_time", "02:00"), "timezone": sc.get("timezone", "America/Chicago"),
             "enabled": bool(sc.get("enabled")), "has_feed": bool(current_user.calendar_token_hash)}
+
+
+@router.get("/maintenance/notice")
+def get_maintenance_notice_endpoint(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get active or upcoming scheduled downtime notice banner for users.
+    Returns notice details or null if no banner should be displayed.
+    """
+    sc = _sc()
+    return {"notice": cal.get_maintenance_notice(sc)}
+
+
+@router.patch("/maintenance/settings")
+def update_maintenance_settings(
+    body: MaintenanceSettingsUpdate,
+    _: User = Depends(require_permission("scheduler.manage")),
+):
+    s = load_settings()
+    sc = s.get("scheduler") or {}
+    sc["maintenance_notice_hours"] = int(body.maintenance_notice_hours)
+    s["scheduler"] = sc
+    save_settings(s)
+    return {
+        "maintenance_notice_hours": sc["maintenance_notice_hours"],
+        "notice": cal.get_maintenance_notice(sc),
+    }
+
 
 
 @router.post("/maintenance")

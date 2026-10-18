@@ -22,7 +22,9 @@ log = logging.getLogger(__name__)
 # Key constants for Redis-backed registry
 REDIS_KEY_WORKERS = "ps:fleet:workers"
 REDIS_KEY_DRAIN = "ps:fleet:drain"
+REDIS_KEY_DRAIN_ALL = "ps:fleet:drain_all"
 DEFAULT_HEARTBEAT_TIMEOUT = 30.0  # seconds after which node is flagged offline
+
 
 
 def collect_system_telemetry() -> Dict[str, Any]:
@@ -76,6 +78,8 @@ class WorkerRegistry:
         self._lock = threading.Lock()
         self._in_memory_workers: Dict[str, Dict[str, Any]] = {}
         self._drain_signals: Set[str] = set()
+        self._fleet_drain = False
+
 
     def record_heartbeat(
         self,
@@ -274,6 +278,7 @@ class WorkerRegistry:
             "utilization_pct": utilization_pct,
             "total_jobs_completed": total_completed,
             "total_jobs_failed": total_failed,
+            "fleet_draining": self.is_fleet_draining(),
             "timestamp": time.time(),
         }
 
@@ -288,6 +293,39 @@ class WorkerRegistry:
                 log.debug("Queue depth fetch skipped in fleet summary: %s", qe)
 
         return summary
+
+    def set_fleet_drain(self, drain: bool = True) -> bool:
+        """
+        Broadcast a cluster-wide drain signal to all distributed worker nodes.
+        When active, all workers stop accepting new jobs and drain in-flight work.
+        """
+        if self.redis is not None:
+            try:
+                if drain:
+                    self.redis.set(REDIS_KEY_DRAIN_ALL, "1")
+                else:
+                    self.redis.delete(REDIS_KEY_DRAIN_ALL)
+            except Exception as e:
+                log.warning("Failed to update fleet-wide drain signal in Redis: %s", e)
+
+        with self._lock:
+            self._fleet_drain = drain
+
+        log.info("Fleet-wide drain signal set to %s", drain)
+        return True
+
+    def is_fleet_draining(self) -> bool:
+        """Check if cluster-wide fleet draining is active."""
+        if self.redis is not None:
+            try:
+                val = self.redis.get(REDIS_KEY_DRAIN_ALL)
+                if val and (val == b"1" or val == "1"):
+                    return True
+            except Exception:
+                pass
+
+        with self._lock:
+            return bool(self._fleet_drain)
 
     def set_drain_signal(self, worker_id: str, drain: bool = True) -> bool:
         """
@@ -313,8 +351,11 @@ class WorkerRegistry:
 
     def is_draining(self, worker_id: str) -> bool:
         """
-        Check if a worker node has been requested to drain.
+        Check if a worker node has been requested to drain (individually or via fleet-wide signal).
         """
+        if self.is_fleet_draining():
+            return True
+
         if self.redis is not None:
             try:
                 if self.redis.sismember(REDIS_KEY_DRAIN, worker_id):
@@ -324,6 +365,7 @@ class WorkerRegistry:
 
         with self._lock:
             return worker_id in self._drain_signals
+
 
     def prune_stale_workers(self, max_age_seconds: float = 86400.0) -> int:
         """

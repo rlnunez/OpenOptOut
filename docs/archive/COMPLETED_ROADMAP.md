@@ -1,8 +1,12 @@
 # OpenOptOut — Completed Architectural Work (Roadmap Archive)
 
-Status: **Historical Archive.** This document archives the detailed specifications, design rationale, and test verification notes for all completed architectural roadmap milestones in OpenOptOut.
+> [!IMPORTANT]
+> **Archived Historical Document — Frozen at v0.11.0**
+> This document is a historical archive frozen as of the v0.11.0 milestone (during 0.11.0-rc). It is no longer updated. All future architectural completions, feature additions, bug fixes, and release notes are documented directly in [CHANGELOG.md](../../CHANGELOG.md), with forward-looking roadmap items tracked in the live [Roadmap (`docs/ROADMAP.md`)](../ROADMAP.md).
 
-For currently active and planned work, see the live [Roadmap (`docs/ROADMAP.md`)](../ROADMAP.md). For release notes and version history, see [CHANGELOG.md](../../CHANGELOG.md).
+Status: **Historical Archive (Frozen at v0.11.0).** This document preserves the detailed specifications, design rationale, and test verification notes for completed architectural roadmap milestones in OpenOptOut up through release 0.11.0.
+
+For currently active and planned initiatives, see the live [Roadmap (`docs/ROADMAP.md`)](../ROADMAP.md). For all release notes, version history, and subsequent completions, see [CHANGELOG.md](../../CHANGELOG.md).
 
 ---
 

@@ -51,23 +51,34 @@ def check_maintenance_windows(now: Optional[datetime] = None) -> bool:
             _in_maintenance = True
             desc = win.get("description", "Host server updates and backups") if win else "Downtime"
             end_time = win.get("end", "the scheduled time") if win else "the scheduled time"
-            log.warning("Entering scheduled maintenance window (%s until %s). Pausing all scheduler jobs.", desc, end_time)
+            log.warning("Entering scheduled maintenance window (%s until %s). Pausing all scheduler jobs and draining worker fleet.", desc, end_time)
             if s.running:
                 try:
                     s.pause()
                 except Exception as e:
                     log.error("Failed to pause scheduler for maintenance window: %s", e)
+            try:
+                from .distributed.registry import get_worker_registry
+                get_worker_registry().set_fleet_drain(True)
+            except Exception as e:
+                log.debug("Worker registry drain broadcast skipped: %s", e)
         return True
     else:
         if _in_maintenance:
             _in_maintenance = False
-            log.info("Scheduled maintenance window ended. Resuming scheduler and restarting tasks.")
+            log.info("Scheduled maintenance window ended. Resuming scheduler and clearing worker fleet drain.")
             if s.running:
                 try:
                     s.resume()
                 except Exception as e:
                     log.error("Failed to resume scheduler after maintenance window: %s", e)
+            try:
+                from .distributed.registry import get_worker_registry
+                get_worker_registry().set_fleet_drain(False)
+            except Exception as e:
+                log.debug("Worker registry un-drain broadcast skipped: %s", e)
         return False
+
 
 
 def _maintenance_monitor_loop():

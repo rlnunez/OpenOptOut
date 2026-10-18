@@ -50,6 +50,7 @@ def list_workers(
 
 
 @router.get("/stats", response_model=Dict[str, Any])
+@router.get("/summary", response_model=Dict[str, Any])
 def fleet_stats(
     timeout_seconds: float = Query(30.0, ge=1.0, le=300.0),
     _ = Depends(require_permission("settings.system")),
@@ -60,6 +61,24 @@ def fleet_stats(
     reg = get_worker_registry()
     queue = get_queue()
     return reg.get_fleet_summary(timeout_seconds=timeout_seconds, queue=queue)
+
+
+@router.post("/drain")
+@router.post("/fleet/drain")
+def drain_fleet(
+    req: DrainWorkerRequest = DrainWorkerRequest(),
+    _ = Depends(require_permission("settings.system")),
+):
+    """
+    Broadcast a cluster-wide drain signal to all worker nodes (or clear the drain signal).
+    """
+    reg = get_worker_registry()
+    reg.set_fleet_drain(drain=req.drain)
+    return {
+        "fleet_draining": req.drain,
+        "message": f"Cluster-wide fleet drain signal updated to {req.drain}",
+    }
+
 
 
 @router.get("/{worker_id}", response_model=Dict[str, Any])
