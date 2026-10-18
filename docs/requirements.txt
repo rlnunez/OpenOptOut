@@ -1,6 +1,5 @@
-mkdocs>=1.5.0
-mkdocs-material>=9.5.0
-# Security pins for transitive HTTP dependencies (CVE-2026-45409 remediation)
-idna>=3.20
-urllib3>=2.8.0
-requests>=2.34.2
+mkdocs==1.6.1
+mkdocs-material==9.7.7
+idna==3.20
+urllib3==2.8.0
+requests==2.34.2
