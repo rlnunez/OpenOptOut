@@ -43,6 +43,14 @@ ERROR_TEXT = re.compile(
     r"(something went wrong|unexpected error|internal server error|"
     r"cannot read propert|is not a function|undefined is not)", re.I)
 
+# Pages that render the app's own text catalogs or diagnostics as CONTENT:
+# the translation editor lists every UI string (including the wording of error
+# messages), the logs page shows log lines (ERROR entries and all), and the
+# help pages quote admin-editable notes. An error phrase appearing there is
+# expected content, not a live failure, so a match is a warning, not a
+# run-failing error.
+CONTENT_PAGES = {"/translations", "/logs", "/help", "/plugin-help"}
+
 
 class Recorder:
     """Collects problems, tagged with the screen they happened on."""
@@ -286,7 +294,8 @@ def main():
                 rec.error("Blank page", f"{route} rendered almost no text")
             m = ERROR_TEXT.search(text)
             if m:
-                rec.error("Error shown on page", f"{route}: …{text[max(0, m.start() - 80):m.end() + 120]}…")
+                where = rec.warn if route in CONTENT_PAGES else rec.error
+                where("Error shown on page", f"{route}: …{text[max(0, m.start() - 80):m.end() + 120]}…")
             if "/login" in page.url and route != "/login":
                 rec.error("Logged out unexpectedly", f"opening {route} sent us to {page.url}")
             name = "page-root" if route == "/" else "page" + route.replace("/", "-")
