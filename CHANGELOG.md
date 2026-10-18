@@ -8,29 +8,17 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ---
 
-## [Unreleased]
-
-### Added
-- **Cloudflare Authenticated Origin Pulls (AOP) (Roadmap Item 14, 24):** Mutual TLS (mTLS) origin verification for Caddy, Traefik, and native Nginx using the official Cloudflare Authenticated Origin Pull CA certificate, guaranteeing that origin servers admit only legitimate requests from the owner's Cloudflare zone.
-- **Cloudflare Tunnel Preconfigured WAF Rulesets (Roadmap Item 24):** Edge rate-limiting (60 req/min for authentication endpoints, 1200 req/min site-wide) and WAF firewall rules (`deploy/cloudflare/tunnel-waf-ruleset.json`) with an automated deployment CLI script (`apply-tunnel-waf.sh`).
-- **Updater Automated Snapshot, Rollback & Revert (Roadmap Item 65):** The companion updater daemon (`openoptout-updater`) creates pre-update safety snapshots of running container images, SQLite databases, and configuration before applying releases. If container recreation or post-upgrade health checks fail within 90 seconds, it automatically reverts to the previous release. Super administrators can also trigger on-demand rollbacks via `POST /api/system/updates/rollback` or the UI.
-- **Scheduled Maintenance Windows & Downtime Banners (Roadmap Item 65):** Calendar-based maintenance window planning (`backend/core/calendar_plan.py`), automated dynamic scheduler pause/resume loops (`backend/core/scheduler.py`), update installation scheduling, and user-facing downtime notice banners with configurable advance warning intervals (`0 = disabled`) translated across all 17 bundled language packs.
-- **Extended Multi-Node Worker Draining Coordination (Roadmap Item 65):** Cluster-wide fleet drain broadcasting (`POST /api/workers/fleet/drain`, `WorkerRegistry.set_fleet_drain`, and Redis key `ps:fleet:drain_all`), route alias `GET /api/workers/summary`, graceful in-flight task completion in `WorkerDaemon` without task cancellation, and automated pre-upgrade drain barriers and post-upgrade un-drain in `deploy/updater/updater.py`.
-- **Playwright Firefox Footprint & Hardware Sizing Re-Benchmark (Roadmap Item 71):** Empirical memory, CPU, and `tmpfs` resource benchmarking suite across single-node and multi-worker cluster deployments (`backend/tests/benchmark_hardware_footprint.py` and `deploy/tests/benchmark_hardware_footprint.py` with test verification `hardware.benchmark_firefox_footprint`), publishing updated capacity planning coefficients and minimum hardware recommendations in `docs/admin/hardware-sizing.md`.
-- **Audience-Organized Documentation & MkDocs Material:** Reorganized documentation portal into User/Family, Administrator, and Developer guides, backed by MkDocs Material with client-side full-text search, dark/light themes, and seamless backwards-compatible stubs.
-
-
-### Changed
-- **Decoupled SearXNG Master Secret:** Auto-generated SearXNG master secret with dynamic entropy length, fully decoupled from the primary application master key.
-- **Slimmed Active Roadmap:** `docs/ROADMAP.md` now tracks only active, planned, and under-consideration initiatives, archiving historical milestones to `docs/archive/COMPLETED_ROADMAP.md`.
-
----
-
-## [0.11.0] — 2026-10-14
+## [0.11.0-rc] — 2026-10-17
 
 ### Added
 - **Distributed Worker Fleet & Control Plane (Roadmap Item 7):** Scalable stateless Playwright execution workers running in isolated containers, communicating over Redis or in-process priority queues (`removal_high`, `removal_normal`, `discovery`, `retry`), with canonical HMAC-SHA256 signed envelopes, memory zeroization, and automated lease reclamation (Phases 7.1–7.5).
 - **Worker Fleet Administrative Console (Roadmap Item 7):** Real-time cluster dashboard in `frontend/src/pages/WorkerFleet.jsx` displaying worker node capacity, active execution slots, queue depths, telemetry heartbeats, and graceful node draining controls.
+- **Extended Multi-Node Worker Draining Coordination (Roadmap Item 65):** Cluster-wide fleet drain broadcasting (`POST /api/workers/fleet/drain`, `WorkerRegistry.set_fleet_drain`, and Redis key `ps:fleet:drain_all`), route alias `GET /api/workers/summary`, graceful in-flight task completion in `WorkerDaemon` without task cancellation, and automated pre-upgrade drain barriers and post-upgrade un-drain in `deploy/updater/updater.py`.
+- **Updater Automated Snapshot, Rollback & Revert (Roadmap Item 65):** The companion updater daemon (`openoptout-updater`) creates pre-update safety snapshots of running container images, SQLite databases, and configuration before applying releases. If container recreation or post-upgrade health checks fail within 90 seconds, it automatically reverts to the previous release. Super administrators can also trigger on-demand rollbacks via `POST /api/system/updates/rollback` or the UI.
+- **Scheduled Maintenance Windows & Downtime Banners (Roadmap Item 65):** Calendar-based maintenance window planning (`backend/core/calendar_plan.py`), automated dynamic scheduler pause/resume loops (`backend/core/scheduler.py`), update installation scheduling, and user-facing downtime notice banners with configurable advance warning intervals (`0 = disabled`) translated across all 17 bundled language packs.
+- **Playwright Firefox Footprint & Hardware Sizing Re-Benchmark (Roadmap Item 71):** Empirical memory, CPU, and `tmpfs` resource benchmarking suite across single-node and multi-worker cluster deployments (`backend/tests/benchmark_hardware_footprint.py` and `deploy/tests/benchmark_hardware_footprint.py` with test verification `hardware.benchmark_firefox_footprint`), publishing updated capacity planning coefficients and minimum hardware recommendations in `docs/admin/hardware-sizing.md`.
+- **Cloudflare Authenticated Origin Pulls (AOP) (Roadmap Item 14, 24):** Mutual TLS (mTLS) origin verification for Caddy, Traefik, and native Nginx using the official Cloudflare Authenticated Origin Pull CA certificate, guaranteeing that origin servers admit only legitimate requests from the owner's Cloudflare zone.
+- **Cloudflare Tunnel Preconfigured WAF Rulesets (Roadmap Item 24):** Edge rate-limiting (60 req/min for authentication endpoints, 1200 req/min site-wide) and WAF firewall rules (`deploy/cloudflare/tunnel-waf-ruleset.json`) with an automated deployment CLI script (`apply-tunnel-waf.sh`).
 - **Universal Localization & 17 Bundled Language Packs (Roadmap Items 17, 52):** Fully translated UI strings and documentation across English, Spanish, French, German, Portuguese, Russian, Ukrainian, Polish, Arabic, Hindi, Urdu, Swahili, Indonesian, Vietnamese, Tagalog, Korean, and Chinese.
 - **Comprehensive Right-to-Left (RTL) Layout (Roadmap Items 17, 56):** Complete RTL layout support with logical Tailwind classes (`ms-`, `pe-`, `start-`, `border-s-`) and automated bidirectional icon mirroring for Arabic and Urdu.
 - **Pluggable Opt-Out Letters (Roadmap Items 53, 58):** Statutory legal templates (CCPA, GDPR, UK GDPR, LGPD, PIPEDA) decoupled as independent, installable letter plugins selected by the broker's jurisdiction and legal language.
@@ -49,6 +37,11 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 - **Privacy Record, Access Logging & Deadline Reporting (Roadmap Item 48):** Comprehensive data audit trail, operator access logs, and statutory compliance deadline tracking.
 - **Privacy Health Score, PDF Reports & ICS Calendar (Roadmap Item 49):** Priority-weighted privacy exposure score, exportable executive PDF reports, and an iCalendar (`.ics`) feed for removal milestones.
 - **Listing Disambiguation & Unclear Match Review (Roadmap Item 51):** Interactive review queue for name-only search results with configurable auto-skip or auto-queue rules.
+- **Audience-Organized Documentation & MkDocs Material:** Reorganized documentation portal into User/Family, Administrator, and Developer guides, backed by MkDocs Material with client-side full-text search, dark/light themes, and seamless backwards-compatible stubs.
+
+### Changed
+- **Decoupled SearXNG Master Secret:** Auto-generated SearXNG master secret with dynamic entropy length, fully decoupled from the primary application master key.
+- **Slimmed Active Roadmap:** `docs/ROADMAP.md` now tracks only active, planned, and under-consideration initiatives, archiving historical milestones to `docs/archive/COMPLETED_ROADMAP.md`.
 
 ### Security
 - Memory zeroization for decrypted secrets and tokens (`core/memory_hygiene.py`).
