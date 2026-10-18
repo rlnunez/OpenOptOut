@@ -74,6 +74,14 @@ docker compose up -d
 
 For real production deployments accessible over a network, always enable HTTPS before inviting users. See [`docs/admin/https.md`](docs/admin/https.md).
 
+### Hardware Sizing
+
+OpenOptOut uses **Playwright Firefox** for memory hygiene and zero-disk-leak automation:
+- **Family / Small Community (Standalone):** 1 vCPU, 1 GB RAM (2 GB recommended), 10 GB disk, 512 MB tmpfs.
+- **Library / Institutional Worker Node (4 slots):** 2–4 vCPU, 2–4 GB RAM, 15–30 GB disk, 1 GB tmpfs.
+
+For empirical benchmark data, multi-slot scaling profiles, and capacity formulas, see [`docs/admin/hardware-sizing.md`](docs/admin/hardware-sizing.md).
+
 ---
 
 ## Documentation

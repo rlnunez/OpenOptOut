@@ -57,6 +57,7 @@ nav:
       - Overview: admin/index.md
       - Automated HTTPS: admin/https.md
       - Native Installation: admin/native-install.md
+      - Hardware Sizing & Benchmarks: admin/hardware-sizing.md
       - Database Administration: admin/database.md
       - Encrypted Backups: admin/backups.md
       - Single Sign-On (SSO): admin/sso.md

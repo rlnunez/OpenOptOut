@@ -4831,6 +4831,45 @@ def t_updater_daemon_rollback():
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
+@test(1, "hardware.benchmark_firefox_footprint",
+      "Playwright Firefox hardware footprint benchmark: measures process RSS, concurrency scaling, and ensures zero leaks.")
+def t_hardware_benchmark_footprint():
+    from backend.tests.benchmark_hardware_footprint import (
+        get_process_rss_mb,
+        get_fs_stats,
+        benchmark_concurrency_tier,
+        run_full_benchmark,
+    )
+
+    # 1. RSS & FS stats return sensible positive numbers
+    rss = get_process_rss_mb()
+    assert rss > 0, f"Expected positive RSS memory, got {rss}"
+
+    fs = get_fs_stats()
+    assert fs["total_mb"] >= 0
+    assert fs["free_mb"] >= 0
+
+    # 2. Benchmark concurrency tiers 1 and 2
+    res_1 = benchmark_concurrency_tier(1, payload_mb=5)
+    assert res_1["all_succeeded"] is True
+    assert res_1["all_cleaned"] is True
+    assert res_1["worker_process_ram_mb"] > 0
+    assert res_1["peak_tmpfs_mb"] > 0
+    assert res_1["recommended_tmpfs_mb"] >= 256
+
+    res_2 = benchmark_concurrency_tier(2, payload_mb=5)
+    assert res_2["all_succeeded"] is True
+    assert res_2["all_cleaned"] is True
+    assert res_2["worker_process_ram_mb"] > res_1["worker_process_ram_mb"]
+
+    # 3. Full benchmark matrix generation
+    full = run_full_benchmark(concurrency_levels=[1, 2])
+    assert "concurrency_1" in full["tiers"]
+    assert "concurrency_2" in full["tiers"]
+    assert "standalone_family" in full["hardware_recommendations"]
+    assert full["hardware_recommendations"]["standalone_family"]["min_ram_gb"] == 1.0
+
+
 @test(1, "https.enable_script_paths",
       "scripts/enable-https.sh: each front door + certificate choice writes the right .env keys "
       "(profiles, challenge, tokens), the tunnel warning shows, and bad combinations are refused.")

@@ -26,7 +26,7 @@ The guiding architectural principle: **the core does not contain broker-specific
 | [68](#item-68) | [Audit scope document for independent security review](#item-68) | Planned | High (Pre-audit) |
 | [69](#item-69) | [Removal-service ownership & broker-family conflict flags](#item-69) | Planned | Medium |
 | [70](#item-70) | [Native-speaker review for 5 newest languages](#item-70) | Planned | Medium |
-| [71](#item-71) | [Re-measure minimum PC & worker specs after Firefox switch](#item-71) | Planned | Medium |
+| [71](#item-71) | [Re-measure minimum PC & worker specs after Firefox switch](#item-71) | Complete | Sizing report published |
 | [72](#item-72) | [Instance migration, tenant merging & identity re-anchoring](#item-72) | Planned | Medium (Institutional & Consortium) |
 
 ---
@@ -160,6 +160,10 @@ The guiding architectural principle: **the core does not contain broker-specific
 <a id="item-71"></a>
 ### 71. Re-measure minimum PC & worker specs after Firefox switch
 **Goal:** Re-benchmark memory, CPU, and disk footprints across single-node and multi-worker installations following the standardized migration to Playwright Firefox.
+
+- **Status:** **Complete.** Empirical benchmark suite implemented (`backend/tests/benchmark_hardware_footprint.py` and `deploy/tests/benchmark_hardware_footprint.py`) with automated test verification (`hardware.benchmark_firefox_footprint`).
+- **Findings & Sizing Report:** Comprehensive sizing matrix and capacity planning coefficients published in [`docs/admin/hardware-sizing.md`](admin/hardware-sizing.md), and integrated into [`docs/admin/native-install.md`](admin/native-install.md) and [`README.md`](../README.md).
+- **Planner Calibration:** Empirical coefficients ready to calibrate the Infrastructure Capacity Planner ([Item 9](#item-9)).
 
 ---
 

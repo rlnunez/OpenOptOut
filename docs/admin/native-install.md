@@ -21,6 +21,17 @@ This guide covers running OpenOptOut directly as a native system service (**syst
 
 This mirrors the Docker image closely on purpose — same Python dependencies, same `app` package layout (main.py's relative imports need it), same Playwright/Firefox setup for the opt-out automation engine, same optional SQLCipher encryption.
 
+### Minimum & Recommended Hardware Specifications
+
+Following the standardized migration to Playwright Firefox, empirical resource profiling establishes these baseline specifications (see [Hardware Sizing & Benchmark Report](hardware-sizing.md) for full benchmark findings):
+
+| Deployment Role | vCPU | RAM | Disk (SSD) | Ephemeral `/tmp` |
+|:----------------|:-----|:----|:-----------|:-----------------|
+| **Standalone (Family / Small Community)** | 1 min / 2 rec | 1.0 GB min / 2.0 GB rec | 10 GB min / 20 GB rec | 512 MB tmpfs |
+| **Standalone (Housing / Branch Library)** | 2 min / 4 rec | 2.0 GB min / 4.0 GB rec | 20 GB min / 40 GB rec | 512 MB tmpfs |
+| **Stateless Worker Node (`concurrency=4`)** | 2 min / 4 rec | 2.0 GB min / 4.0 GB rec | 15 GB min / 30 GB rec | 1 GB tmpfs |
+| **Centralized Control Plane (UI + DB + Queue)** | 2 min / 4 rec | 2.0 GB min / 4.0 GB rec | 40 GB min / 80 GB rec | 256 MB tmpfs |
+
 ### Install (Unified Interactive Host & Fleet Installer)
 
 OpenOptOut features a unified interactive terminal installer (TUI) with role specialization (Roadmap Item 23). It can be executed directly or via one-line curl:

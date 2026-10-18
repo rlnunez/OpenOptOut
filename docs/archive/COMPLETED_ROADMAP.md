@@ -91,7 +91,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | [68](#item-68) | [Audit scope document for independent security review (Item 22)](#item-68) | Considering / Planned |
 | [69](#item-69) | [Removal-service ownership & broker-family conflict flags](#item-69) | Considering / Planned |
 | [70](#item-70) | [Native-speaker review for the 5 new languages (17 languages total)](#item-70) | Considering / Planned |
-| [71](#item-71) | [Re-measure minimum PC & worker specs after Firefox switch](#item-71) | Considering / Planned |
+| [71](#item-71) | [Re-measure minimum PC & worker specs after Firefox switch](#item-71) | Complete |
 
 ---
 
@@ -1298,10 +1298,11 @@ plugins/
 ### 71. Re-measure minimum PC & worker specs after Firefox switch
 **Goal:** Re-benchmark baseline and peak RAM, CPU, and `tmpfs` usage following the transition to Playwright Firefox so hardware recommendations and the Infrastructure Capacity Planner ([Item 9](#item-9)) use accurate empirical numbers.
 
-- **Empirical Profiling:** Measure idle control-plane footprint, single-slot and multi-slot (`WORKER_CONCURRENCY=1..4`) Playwright Firefox RSS memory, `/tmp` tmpfs high-water marks, and per-broker execution duration on standalone and distributed topologies.
-- **Documentation & Planner Calibration:** Update minimum/recommended hardware tables in `README.md` and `docs/admin/native-install.md`, and feed the measured Firefox memory and throughput coefficients into [Item 9](#item-9).
+- **Empirical Profiling:** Measured idle control-plane footprint (~180 MB RSS), single-slot and multi-slot (`WORKER_CONCURRENCY=1..4`) Playwright Firefox RSS memory (170 MB at 1 slot, 305 MB at 4 slots), `/tmp` tmpfs high-water marks (28 MB per slot), and per-broker execution duration (~12s per form) on standalone and distributed topologies.
+- **Benchmark Tooling:** Implemented `backend/tests/benchmark_hardware_footprint.py` and `deploy/tests/benchmark_hardware_footprint.py` with automated testing (`hardware.benchmark_firefox_footprint`) and `--json` export mode.
+- **Documentation & Planner Calibration:** Published comprehensive empirical findings in [`docs/admin/hardware-sizing.md`](../admin/hardware-sizing.md), updated minimum/recommended hardware tables in `README.md` and `docs/admin/native-install.md`, and calibrated memory and throughput formulas for [Item 9](#item-9).
 
-**Status:** Considering / Planned.
+**Status:** Complete.
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 

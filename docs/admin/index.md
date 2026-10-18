@@ -10,6 +10,8 @@ Welcome to the **OpenOptOut Administrator & Operations Guide**. This documentati
   Comprehensive guide to running OpenOptOut behind Caddy, Traefik, Nginx, or Cloudflare Tunnel (including Authenticated Origin Pulls and custom WAF rate limiting).
 - **[Native Bare-Metal Installation](native-install.md)**  
   Instructions for deploying directly on Linux (systemd), macOS, and Windows Server (IIS / Windows Service).
+- **[Hardware Sizing & Benchmarks](hardware-sizing.md)**  
+  Empirical memory scaling profiles, multi-worker sizing, and minimum/recommended specifications for Playwright Firefox.
 - **[Database Administration](database.md)**  
   Configuring encrypted SQLite (SQLCipher) for personal/family setups or enterprise PostgreSQL for multi-tenant organizations.
 
