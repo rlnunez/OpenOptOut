@@ -4728,7 +4728,7 @@ def t_system_updates():
       "Check and install window scheduling: weekly, monthly, midnight wrap, next window calculation, and policy validation.")
 def t_updater_schedule_window():
     from datetime import datetime, timezone, timedelta
-    from backend.core import updater as upd
+    upd = _imp("core.updater")
 
     # 1. Weekly schedule checks
     weekly_cfg = {
@@ -4922,12 +4922,17 @@ def t_updater_daemon_rollback():
 @test(1, "hardware.benchmark_firefox_footprint",
       "Playwright Firefox hardware footprint benchmark: measures process RSS, concurrency scaling, and ensures zero leaks.")
 def t_hardware_benchmark_footprint():
-    from backend.tests.benchmark_hardware_footprint import (
-        get_process_rss_mb,
-        get_fs_stats,
-        benchmark_concurrency_tier,
-        run_full_benchmark,
-    )
+    try:
+        bm = _imp("tests.benchmark_hardware_footprint")
+    except Exception:
+        try:
+            from backend.tests import benchmark_hardware_footprint as bm
+        except Exception:
+            import benchmark_hardware_footprint as bm
+    get_process_rss_mb = bm.get_process_rss_mb
+    get_fs_stats = bm.get_fs_stats
+    benchmark_concurrency_tier = bm.benchmark_concurrency_tier
+    run_full_benchmark = bm.run_full_benchmark
 
     # 1. RSS & FS stats return sensible positive numbers
     rss = get_process_rss_mb()
@@ -4963,7 +4968,8 @@ def t_hardware_benchmark_footprint():
 def t_hardware_capacity_planner():
     import subprocess
     import json
-    from backend.core.capacity_planner import calculate_capacity_plan
+    cp = _imp("core.capacity_planner")
+    calculate_capacity_plan = cp.calculate_capacity_plan
 
     # 1. Household scale: Profile A (1 slot, standalone)
     plan_a = calculate_capacity_plan(profiles=10, brokers=80, target_days=7.0)

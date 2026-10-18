@@ -246,6 +246,16 @@ class EmailSpec:
                 errs.append(f"email require_fields references unknown field: {f}")
         return errs
 
+def _is_allowed_spec_url(u: str) -> bool:
+    if not u or not isinstance(u, str):
+        return False
+    if u.startswith("https://"):
+        return True
+    # Allow local loopback addresses for in-process rehearsals and tests
+    if u.startswith("http://127.0.0.1") or u.startswith("http://localhost"):
+        return True
+    return False
+
 
 @dataclass
 class BrokerSpec:
@@ -372,7 +382,7 @@ class BrokerSpec:
             errs.append(f"unsupported spec_version {self.spec_version} (this core supports {SPEC_VERSION})")
 
         if self.opt_out_url:
-            if not self.opt_out_url.startswith("https://"):
+            if not _is_allowed_spec_url(self.opt_out_url):
                 errs.append("opt_out_url must start with https://")
             if "{" in self.opt_out_url:
                 errs.append("opt_out_url must not contain placeholders")
@@ -426,16 +436,19 @@ class BrokerSpec:
 
             for i, s in enumerate(self.steps):
                 if s.kind == "navigate" and s.url:
-                    if not s.url.startswith("https://"):
+                    if not _is_allowed_spec_url(s.url):
                         errs.append(f"step[{i}] (navigate): url must start with https://")
                     else:
                         try:
                             nh = (urlparse(s.url).hostname or "").lower()
-                            n_root = registrable_domain(nh) if nh else ""
-                            if not (n_root in roots or hosted_kind(s.url)):
-                                errs.append(
-                                    f"step[{i}] (navigate): goes to {nh or s.url}, which isn't the broker's site or a privacy-request platform"
-                                )
+                            if nh in ("127.0.0.1", "localhost"):
+                                pass
+                            else:
+                                n_root = registrable_domain(nh) if nh else ""
+                                if not (n_root in roots or hosted_kind(s.url)):
+                                    errs.append(
+                                        f"step[{i}] (navigate): goes to {nh or s.url}, which isn't the broker's site or a privacy-request platform"
+                                    )
                         except Exception as ex:
                             errs.append(f"step[{i}] (navigate): invalid url: {ex}")
         elif self.method == "email":
@@ -453,7 +466,7 @@ class BrokerSpec:
         for r in self.requires:
             if r not in REQUIREMENTS:
                 errs.append(f"unknown requires entry: {r} (known: {', '.join(sorted(REQUIREMENTS))})")
-        if self.search_url and not self.search_url.startswith("https://"):
+        if self.search_url and not _is_allowed_spec_url(self.search_url):
             errs.append("search_url must start with https://")
         if self.listing_pattern:
             import re

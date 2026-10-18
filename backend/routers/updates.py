@@ -9,7 +9,7 @@ All endpoints require super_admin privileges.
 import logging
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..core.limits import LimitedModel
 from ..models.database import User
@@ -25,7 +25,7 @@ class PolicyIn(LimitedModel):
     policy: str             # "approval_required", "notify_only", "auto_install", "disabled"
     channel: Optional[str] = "stable"  # "stable", "pre_release"
     schedule_type: Optional[str] = "weekly"  # "weekly", "monthly"
-    schedule_weekdays: Optional[List[int]] = None
+    schedule_weekdays: Optional[List[int]] = Field(default=None, max_length=7)
     schedule_day_of_month: Optional[int] = 1
     schedule_time: Optional[str] = "03:00"
     schedule_window_hours: Optional[int] = 2

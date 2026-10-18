@@ -24,7 +24,12 @@ try:
     ROOT_DIR = Path(__file__).resolve().parent.parent
     if str(ROOT_DIR) not in sys.path:
         sys.path.insert(0, str(ROOT_DIR))
-    from backend.core.capacity_planner import calculate_capacity_plan
+    if str(ROOT_DIR / "backend") not in sys.path:
+        sys.path.insert(0, str(ROOT_DIR / "backend"))
+    try:
+        from backend.core.capacity_planner import calculate_capacity_plan
+    except ImportError:
+        from core.capacity_planner import calculate_capacity_plan
     HAS_BACKEND = True
 except Exception:
     HAS_BACKEND = False

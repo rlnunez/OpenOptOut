@@ -178,9 +178,10 @@ def local_today(sc: dict, now: Optional[datetime] = None) -> date:
 
 def run_allowed(sc: dict, day: date, now: Optional[datetime] = None) -> tuple:
     """(allowed, reason) for sending opt-outs on this local date."""
-    in_maint, win = is_in_maintenance_window(sc, now)
-    if in_maint and win:
-        return False, f"Maintenance window active: {win.get('description', 'Downtime')}"
+    if now is not None:
+        in_maint, win = is_in_maintenance_window(sc, now)
+        if in_maint and win:
+            return False, f"Maintenance window active: {win.get('description', 'Downtime')}"
     if day.isoformat() in set(sc.get("skip_dates") or []):
         return False, f"{day.isoformat()} is a day off"
     days = sc.get("run_days")
