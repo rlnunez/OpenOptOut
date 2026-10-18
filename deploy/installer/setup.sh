@@ -383,6 +383,7 @@ if command -v apt-get >/dev/null 2>&1; then
   # Browser automation and sandbox packages (Only for standalone and worker)
   BROWSER_PKGS=(
     bubblewrap libseccomp2 python3-seccomp fonts-liberation
+    libasound2
     libatk-bridge2.0-0 libatk1.0-0 libcups2 libdbus-1-3
     libdrm2 libgbm1 libgtk-3-0 libnspr4 libnss3
     libx11-xcb1 libxcomposite1 libxdamage1 libxfixes3

@@ -2515,6 +2515,9 @@ def t_installer_role_specialization_and_configs():
     assert "bubblewrap" not in cp_pkgs, "control-plane must exclude bubblewrap"
     assert "libx11-xcb1" not in cp_pkgs, "control-plane must exclude X11 packages"
     assert "libatk1.0-0" not in cp_pkgs, "control-plane must exclude browser rendering libraries"
+    assert "libasound2" in standalone_pkgs
+    assert "libasound2" in worker_pkgs
+    assert "libasound2" not in cp_pkgs, "control-plane must exclude browser audio libraries"
 
     # Worker must NOT include nginx or web identity dev headers
     assert "nginx" in standalone_pkgs

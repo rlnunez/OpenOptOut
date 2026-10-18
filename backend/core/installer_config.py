@@ -44,6 +44,7 @@ BROWSER_AND_SANDBOX_PACKAGES = [
     "libseccomp2",
     "python3-seccomp",
     "fonts-liberation",
+    "libasound2",
     "libatk-bridge2.0-0",
     "libatk1.0-0",
     "libcups2",
