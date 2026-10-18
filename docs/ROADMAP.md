@@ -21,7 +21,6 @@ The guiding architectural principle: **the core does not contain broker-specific
 | [22](#item-22) | [Independent security audit & penetration testing](#item-22) | Planned | High (Pre-1.0) |
 | [38](#item-38) | [Built-in receive-only inbox](#item-38) | Considering | Low / Backup Seam |
 | [64](#item-64) | [Community onboarding: mailed postcard tokens & manager review](#item-64) | Planned | Low / Enhancements |
-| [65](#item-65) | [Containerized release updater & Docker engine supervisor](#item-65) | Complete | Autonomous rollback live |
 | [67](#item-67) | [High-risk mode for domestic violence survivors & election workers](#item-67) | Planned | High |
 | [68](#item-68) | [Audit scope document for independent security review](#item-68) | Planned | High (Pre-audit) |
 | [69](#item-69) | [Removal-service ownership & broker-family conflict flags](#item-69) | Planned | Medium |
@@ -115,18 +114,6 @@ The guiding architectural principle: **the core does not contain broker-specific
 
 - **Current Status:** Address matching against authorized CSV lists with unit normalization is complete.
 - **Planned Enhancements:** Physical mailed postcard tokens with one-time verification codes, and an optional manual application workflow for unlisted or newly annexed addresses.
-
----
-
-<a id="item-65"></a>
-### 65. Containerized release updater & Docker engine supervisor
-**Goal:** Provide a standalone sidecar container (`deploy/updater`) to safely synchronize Docker deployments with verified releases while respecting active removal jobs, distributed worker nodes, and administrator approval policies.
-
-- **Status:** **Complete.**
-- **Autonomous Rollback & Snapshots:** Core daemon (`deploy/updater/updater.py`), pre-update image tagging, SQLite database snapshotting, automated rollback on failed post-update health check, manual rollback endpoint (`POST /api/system/updates/rollback`), and UI revert card.
-- **Scheduled Maintenance Windows & Downtime Banners:** Calendar maintenance planning (`backend/core/calendar_plan.py`), automated scheduler pause/resume loops (`backend/core/scheduler.py`), update schedule windows, global downtime notice banner with configurable advance notice hours (`0 = disabled`), and multi-language translations across all 17 bundled packs.
-- **Extended Multi-Node Worker Draining Coordination:** Cluster-wide fleet drain broadcast (`WorkerRegistry.set_fleet_drain`, Redis `ps:fleet:drain_all`, and `POST /api/workers/fleet/drain`), `/summary` route alias for fleet telemetry, graceful slot draining without task cancellation, and pre-update drain barrier with automatic un-drain on completion or rollback.
-
 
 ---
 
