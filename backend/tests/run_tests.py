@@ -8744,7 +8744,8 @@ def t_wizard_deployment():
                             db=None, user=admin)
         assert store["deployment"] == {"reverse_proxy": "managed", "domain": "privacy.lib.org",
                                        "front_door": "caddy", "certificate": "letsencrypt",
-                                       "rate_limit": True, "cloudflare_proxy": False}, store["deployment"]
+                                       "rate_limit": True, "cloudflare_proxy": False,
+                                       "client_mtls": False}, store["deployment"]
         summary = wiz.complete(db=None, user=admin)
         cmds = summary["enable_https_commands"]
         assert cmds and "enable-https.sh" in cmds["linux"] and "native" not in cmds["linux"], \
