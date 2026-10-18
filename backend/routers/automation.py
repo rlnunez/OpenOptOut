@@ -3,9 +3,9 @@ Automation API — discovery, opt-out triggers, broker scripts, automation logs.
 """
 
 import asyncio, threading
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -68,6 +68,17 @@ class BrokerScriptUpdate(LimitedModel):
     email_body_tpl: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)
     verified_working: Optional[bool] = None
     notes: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)
+
+
+class OptOutBatchRequest(LimitedModel):
+    request_ids: List[int] = Field(..., max_length=IDS_MAX, description="List of RemovalRequest IDs to trigger")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_list(cls, data):
+        if isinstance(data, list):
+            return {"request_ids": data}
+        return data
 
 
 class DiscoveryResultOut(BaseModel):
@@ -152,11 +163,12 @@ def get_discovery_results(
 
 @router.post("/optout/batch")
 def trigger_optout_batch(
-    request_ids: List[int] = Body(..., max_length=IDS_MAX),
+    payload: OptOutBatchRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Manually trigger opt-outs for a list of request IDs."""
+    request_ids = payload.request_ids
     accessible = get_accessible_member_ids(db, current_user)
     # Verify all requests belong to accessible members
     for rid in request_ids:

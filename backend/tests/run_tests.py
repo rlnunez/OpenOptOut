@@ -503,6 +503,70 @@ def t_spec_validation():
     #   broken add-on could reach execution.
 
 
+@test(1, "automation.optout_batch_schema",
+      "Batch opt-out route validates the request body using a strict Pydantic schema (OptOutBatchRequest) "
+      "subclassing LimitedModel with IDS_MAX capping and list coercion.")
+def t_optout_batch_schema():
+    import ast
+    auto_path = os.path.join(_BACKEND_DIR, "routers", "automation.py")
+    with open(auto_path, "r", encoding="utf-8") as f:
+        src = f.read()
+
+    # 1. Static AST inspection: verify no raw Body(...) is used in automation.py
+    tree = ast.parse(src)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            func_name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+            assert func_name != "Body", "routers/automation.py must not use raw Body(...) parameters"
+
+    # Verify OptOutBatchRequest is defined and inherits from LimitedModel
+    classes = {n.name: n for n in tree.body if isinstance(n, ast.ClassDef)}
+    assert "OptOutBatchRequest" in classes, "OptOutBatchRequest class must be defined in automation.py"
+    req_class = classes["OptOutBatchRequest"]
+    base_names = [getattr(b, "id", "") for b in req_class.bases]
+    assert "LimitedModel" in base_names, "OptOutBatchRequest must inherit from LimitedModel"
+
+    # Verify trigger_optout_batch accepts payload: OptOutBatchRequest
+    functions = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
+    assert "trigger_optout_batch" in functions, "trigger_optout_batch function not found"
+    batch_fn = functions["trigger_optout_batch"]
+    arg_annots = {arg.arg: getattr(arg.annotation, "id", None) for arg in batch_fn.args.args if arg.annotation}
+    assert arg_annots.get("payload") == "OptOutBatchRequest", (
+        f"trigger_optout_batch must declare 'payload: OptOutBatchRequest', got {arg_annots}"
+    )
+
+    # 2. Dynamic schema behavior if pydantic and backend dependencies are available
+    try:
+        from pydantic import ValidationError
+        limits = _imp("core.limits")
+        automation = _imp("routers.automation")
+        OptOutBatchRequest = automation.OptOutBatchRequest
+    except (ImportError, Exception):
+        return
+
+    # Valid list coercion
+    m1 = OptOutBatchRequest.model_validate([101, 102])
+    assert m1.request_ids == [101, 102], f"failed list coercion: {m1.request_ids}"
+
+    # Valid dict
+    m2 = OptOutBatchRequest.model_validate({"request_ids": [201, 202]})
+    assert m2.request_ids == [201, 202], f"failed dict validation: {m2.request_ids}"
+
+    # Rejection of non-integer elements
+    try:
+        OptOutBatchRequest.model_validate({"request_ids": ["abc"]})
+        assert False, "should reject non-integer IDs"
+    except ValidationError:
+        pass
+
+    # Rejection of payload exceeding IDS_MAX
+    try:
+        OptOutBatchRequest.model_validate({"request_ids": list(range(limits.IDS_MAX + 1))})
+        assert False, "should reject request_ids exceeding IDS_MAX"
+    except ValidationError:
+        pass
+
+
 @test(1, "interpreter.compile_form_job",
       "A form spec compiles to a Job with member field references resolved to real values.")
 def t_compile_form():
