@@ -5788,8 +5788,11 @@ def t_mfa_webauthn_assertion_fails_closed():
     good_rp = ec_priv.sign(signed_rp, ec.ECDSA(hashes.SHA256()))
     cred_rp = {"id": "k1", "response": {"clientDataJSON": b64(client_data),
                                         "authenticatorData": b64(auth_data_rp), "signature": b64(good_rp)}}
-    assert mfa.verify_webauthn_assertion(cred_rp, challenge, ec_key, expected_rp_id="example.invalid"), "valid RP ID rejected"
-    assert not mfa.verify_webauthn_assertion(cred_rp, challenge, ec_key, expected_rp_id="attacker.invalid"), "mismatched RP ID accepted"
+    # Each logical case gets a fresh copy of the key: a successful verify
+    # advances the stored counter in place, so reusing one dict would make the
+    # next same-counter assertion look like a replay.
+    assert mfa.verify_webauthn_assertion(cred_rp, challenge, dict(ec_key), expected_rp_id="example.invalid"), "valid RP ID rejected"
+    assert not mfa.verify_webauthn_assertion(cred_rp, challenge, dict(ec_key), expected_rp_id="attacker.invalid"), "mismatched RP ID accepted"
 
     # Origin binding test
     client_data_origin = json.dumps({"type": "webauthn.get", "challenge": challenge, "origin": "https://vault.example.org"}).encode()
@@ -5797,12 +5800,23 @@ def t_mfa_webauthn_assertion_fails_closed():
     good_origin = ec_priv.sign(signed_origin, ec.ECDSA(hashes.SHA256()))
     cred_origin = {"id": "k1", "response": {"clientDataJSON": b64(client_data_origin),
                                             "authenticatorData": b64(auth_data_rp), "signature": b64(good_origin)}}
-    assert mfa.verify_webauthn_assertion(cred_origin, challenge, ec_key, expected_origin="https://vault.example.org"), "valid origin rejected"
-    assert not mfa.verify_webauthn_assertion(cred_origin, challenge, ec_key, expected_origin="https://phishing.example.org"), "mismatched origin accepted"
+    assert mfa.verify_webauthn_assertion(cred_origin, challenge, dict(ec_key), expected_origin="https://vault.example.org"), "valid origin rejected"
+    assert not mfa.verify_webauthn_assertion(cred_origin, challenge, dict(ec_key), expected_origin="https://phishing.example.org"), "mismatched origin accepted"
 
     # Counter replay detection
     replay_key = dict(ec_key, counter=10)
     assert not mfa.verify_webauthn_assertion(cred_rp, challenge, replay_key), "replayed counter accepted"
+
+    # A forged assertion must NOT advance the stored counter (else anyone could
+    # lock out the real authenticator by submitting a high count with a bad sig).
+    poison_key = dict(ec_key, counter=1)
+    assert not mfa.verify_webauthn_assertion(
+        {"id": "k1", "response": {"clientDataJSON": b64(client_data),
+                                  "authenticatorData": b64(hashlib.sha256(b"example.invalid").digest()
+                                                           + b"\x01" + b"\x00\x00\x27\x10"),
+                                  "signature": b64(b"\x00" * 70)}},
+        challenge, poison_key), "forged high-counter assertion accepted"
+    assert poison_key.get("counter") == 1, "forged assertion advanced the stored counter"
 
 
 @test(1, "security.hkdf_derivation_and_subsystem_keys",

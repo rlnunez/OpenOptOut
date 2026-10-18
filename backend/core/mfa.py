@@ -413,14 +413,17 @@ def verify_webauthn_assertion(
         if not hmac.compare_digest(auth_data[:32], expected_rp_id_hash):
             return False
 
-    # 3. Signature counter verification (bytes 33..37) to detect cloned authenticators / replay
+    # 3. Signature counter (bytes 33..37): detect cloned authenticators / replay.
+    #    Read and range-checked here, but the stored counter is ADVANCED only
+    #    after the signature verifies (below). Advancing it earlier would let a
+    #    forged assertion — which anyone can submit, the passwordless flow hands
+    #    out the challenge — push the stored counter past the real key's value and
+    #    lock the legitimate authenticator out. It also must not mutate the
+    #    caller's dict except on genuine success.
     sign_count = struct.unpack(">I", auth_data[33:37])[0]
     prior_counter = stored_key.get("counter") or stored_key.get("sign_count") or 0
-    if prior_counter > 0 and sign_count > 0:
-        if sign_count <= prior_counter:
-            return False
-    if sign_count > 0:
-        stored_key["counter"] = sign_count
+    if prior_counter > 0 and sign_count > 0 and sign_count <= prior_counter:
+        return False
 
     signed_data = auth_data + hashlib.sha256(client_data_raw).digest()
 
@@ -437,15 +440,19 @@ def verify_webauthn_assertion(
                 return False
             public_key = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), pub_bytes)
             public_key.verify(signature, signed_data, ec.ECDSA(hashes.SHA256()))
-            return True
-        if alg == -257:  # RS256
+        elif alg == -257:  # RS256
             nums = json.loads(pub)
             public_key = rsa.RSAPublicNumbers(int(nums["e"], 16), int(nums["n"], 16)).public_key()
             public_key.verify(signature, signed_data, padding.PKCS1v15(), hashes.SHA256())
-            return True
+        else:
+            return False
     except Exception:
         return False
-    return False
+
+    # Signature verified — only now is it safe to advance the replay counter.
+    if sign_count > 0:
+        stored_key["counter"] = sign_count
+    return True
 
 
 def _b64_pad(s: str) -> str:
