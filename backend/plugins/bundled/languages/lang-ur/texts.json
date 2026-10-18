@@ -3135,5 +3135,22 @@
   "Scheduled windows": "شیڈول کردہ اوقات",
   "Scheduling...": "شیڈول کیا جا رہا ہے...",
   "Window end": "وقت کا اختتام",
-  "Window start": "وقت کا آغاز"
+  "Window start": "وقت کا آغاز",
+  "1 hour": "1 گھنٹہ",
+  "2 hours": "2 گھنٹے",
+  "3 hours": "3 گھنٹے",
+  "4 hours": "4 گھنٹے",
+  "6 hours": "6 گھنٹے",
+  "Check and install window": "جانچ اور انسٹال کی ونڈو",
+  "Day of the month": "مہینے کا دن",
+  "Day {day} of the month": "مہینے کا {day}واں دن",
+  "Days of the week": "ہفتے کے دن",
+  "Every month (select day)": "ہر مہینے (دن منتخب کریں)",
+  "Every week (select days)": "ہر ہفتے (دن منتخب کریں)",
+  "Install start time": "انسٹال شروع کرنے کا وقت",
+  "Next scheduled check and install window: {time}": "اگلی شیڈول کردہ جانچ اور انسٹال ونڈو: {time}",
+  "Schedule frequency": "شیڈول کا تعدد",
+  "Update policy and schedule saved.": "اپ ڈیٹ کی پالیسی اور شیڈول محفوظ ہو گیا۔",
+  "Window currently active": "ونڈو فی الحال فعال ہے",
+  "Window duration": "ونڈو کا دورانیہ"
 }

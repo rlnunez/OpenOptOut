@@ -3137,5 +3137,22 @@
   "Scheduled windows": "Запланированные окна",
   "Scheduling...": "Планирование...",
   "Window end": "Конец окна",
-  "Window start": "Начало окна"
+  "Window start": "Начало окна",
+  "1 hour": "1 час",
+  "2 hours": "2 часа",
+  "3 hours": "3 часа",
+  "4 hours": "4 часа",
+  "6 hours": "6 часов",
+  "Check and install window": "Окно проверки и установки",
+  "Day of the month": "День месяца",
+  "Day {day} of the month": "{day}-й день месяца",
+  "Days of the week": "Дни недели",
+  "Every month (select day)": "Каждый месяц (выберите день)",
+  "Every week (select days)": "Каждую неделю (выберите дни)",
+  "Install start time": "Время начала установки",
+  "Next scheduled check and install window: {time}": "Следующее запланированное окно проверки и установки: {time}",
+  "Schedule frequency": "Частота расписания",
+  "Update policy and schedule saved.": "Политика и расписание обновлений сохранены.",
+  "Window currently active": "Окно в настоящее время активно",
+  "Window duration": "Продолжительность окна"
 }

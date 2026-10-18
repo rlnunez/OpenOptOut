@@ -16,7 +16,7 @@ import socket
 import time
 import urllib.request
 import urllib.error
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional, List, Tuple
 from http.client import HTTPConnection
 
@@ -41,7 +41,144 @@ DEFAULT_UPDATER_CONFIG = {
     "docker_info": None,
     "state": "idle",                # idle, checking, draining, updating, error
     "state_message": "",
+    "schedule_type": "weekly",      # "weekly" | "monthly"
+    "schedule_weekdays": [6],       # 0=Monday .. 6=Sunday (default: Sunday)
+    "schedule_day_of_month": 1,     # 1..31
+    "schedule_time": "03:00",       # HH:MM (24-hour)
+    "schedule_window_hours": 2,     # 1..24
 }
+
+
+def _get_scheduler_tz():
+    """Retrieve timezone configured in scheduler settings, or default to America/Chicago."""
+    try:
+        from zoneinfo import ZoneInfo
+        s = load_settings()
+        tz_name = (s.get("scheduler") or {}).get("timezone") or "America/Chicago"
+        return ZoneInfo(tz_name)
+    except Exception:
+        return timezone.utc
+
+
+def is_in_update_window(cfg: Optional[Dict[str, Any]] = None, now: Optional[datetime] = None) -> bool:
+    """
+    Check if the given datetime (or current local time) falls inside
+    the scheduled check & install window.
+    """
+    if cfg is None:
+        cfg = get_updater_config()
+
+    if cfg.get("policy") == "disabled":
+        return False
+
+    tz = _get_scheduler_tz()
+    if now is None:
+        local_now = datetime.now(tz)
+    else:
+        if now.tzinfo is None:
+            local_now = now.replace(tzinfo=tz)
+        else:
+            local_now = now.astimezone(tz)
+
+    sched_type = cfg.get("schedule_type", "weekly")
+    time_str = cfg.get("schedule_time", "03:00")
+    try:
+        parts = [int(p) for p in time_str.split(":")]
+        start_h, start_m = parts[0], parts[1]
+    except Exception:
+        start_h, start_m = 3, 0
+
+    duration_hours = int(cfg.get("schedule_window_hours", 2))
+    if duration_hours <= 0:
+        duration_hours = 2
+
+    def _is_active_day(d: datetime) -> bool:
+        if sched_type == "weekly":
+            allowed = cfg.get("schedule_weekdays")
+            if allowed is None:
+                allowed = [6]
+            return d.weekday() in allowed
+        elif sched_type == "monthly":
+            target = int(cfg.get("schedule_day_of_month", 1))
+            import calendar
+            _, max_days = calendar.monthrange(d.year, d.month)
+            effective = min(target, max_days)
+            return d.day == effective
+        return False
+
+    # Check window starting on local_now's date
+    if _is_active_day(local_now):
+        w_start = local_now.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+        w_end = w_start + timedelta(hours=duration_hours)
+        if w_start <= local_now < w_end:
+            return True
+
+    # Check window starting yesterday if duration carries it past midnight into today
+    yesterday = local_now - timedelta(days=1)
+    if _is_active_day(yesterday):
+        y_start = yesterday.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+        y_end = y_start + timedelta(hours=duration_hours)
+        if y_start <= local_now < y_end:
+            return True
+
+    return False
+
+
+def get_next_update_window(cfg: Optional[Dict[str, Any]] = None, now: Optional[datetime] = None) -> Optional[str]:
+    """
+    Calculate the next upcoming update window start time.
+    Returns ISO 8601 string in the scheduler timezone, or None if disabled.
+    """
+    if cfg is None:
+        cfg = get_updater_config()
+
+    if cfg.get("policy") == "disabled":
+        return None
+
+    tz = _get_scheduler_tz()
+    if now is None:
+        local_now = datetime.now(tz)
+    else:
+        if now.tzinfo is None:
+            local_now = now.replace(tzinfo=tz)
+        else:
+            local_now = now.astimezone(tz)
+
+    sched_type = cfg.get("schedule_type", "weekly")
+    time_str = cfg.get("schedule_time", "03:00")
+    try:
+        parts = [int(p) for p in time_str.split(":")]
+        start_h, start_m = parts[0], parts[1]
+    except Exception:
+        start_h, start_m = 3, 0
+
+    duration_hours = int(cfg.get("schedule_window_hours", 2))
+    if duration_hours <= 0:
+        duration_hours = 2
+
+    def _is_active_day(d: datetime) -> bool:
+        if sched_type == "weekly":
+            allowed = cfg.get("schedule_weekdays")
+            if allowed is None:
+                allowed = [6]
+            return d.weekday() in allowed
+        elif sched_type == "monthly":
+            target = int(cfg.get("schedule_day_of_month", 1))
+            import calendar
+            _, max_days = calendar.monthrange(d.year, d.month)
+            effective = min(target, max_days)
+            return d.day == effective
+        return False
+
+    for day_offset in range(36):
+        cand_date = local_now + timedelta(days=day_offset)
+        if _is_active_day(cand_date):
+            cand_start = cand_date.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+            cand_end = cand_start + timedelta(hours=duration_hours)
+            if cand_end > local_now:
+                return cand_start.isoformat()
+
+    return None
 
 
 class _UnixSocketHTTPConnection(HTTPConnection):
@@ -198,6 +335,14 @@ def check_for_updates(force: bool = False) -> Dict[str, Any]:
     if cfg.get("policy") == "disabled":
         return {
             "policy": "disabled",
+            "channel": cfg.get("channel", "stable"),
+            "schedule_type": cfg.get("schedule_type", "weekly"),
+            "schedule_weekdays": cfg.get("schedule_weekdays", [6]),
+            "schedule_day_of_month": cfg.get("schedule_day_of_month", 1),
+            "schedule_time": cfg.get("schedule_time", "03:00"),
+            "schedule_window_hours": cfg.get("schedule_window_hours", 2),
+            "in_update_window": False,
+            "next_window": None,
             "current_version": current_ver,
             "has_update": False,
             "latest_release": None,
@@ -244,6 +389,13 @@ def check_for_updates(force: bool = False) -> Dict[str, Any]:
     return {
         "policy": cfg.get("policy", "approval_required"),
         "channel": cfg.get("channel", "stable"),
+        "schedule_type": cfg.get("schedule_type", "weekly"),
+        "schedule_weekdays": cfg.get("schedule_weekdays", [6]),
+        "schedule_day_of_month": cfg.get("schedule_day_of_month", 1),
+        "schedule_time": cfg.get("schedule_time", "03:00"),
+        "schedule_window_hours": cfg.get("schedule_window_hours", 2),
+        "in_update_window": is_in_update_window(cfg),
+        "next_window": get_next_update_window(cfg),
         "current_version": current_ver,
         "latest_release": latest,
         "has_update": is_newer and not is_ignored,

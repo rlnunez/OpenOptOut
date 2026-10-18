@@ -3135,5 +3135,22 @@
   "Scheduled windows": "Ventanas programadas",
   "Scheduling...": "Programando...",
   "Window end": "Fin de la ventana",
-  "Window start": "Inicio de la ventana"
+  "Window start": "Inicio de la ventana",
+  "1 hour": "1 hora",
+  "2 hours": "2 horas",
+  "3 hours": "3 horas",
+  "4 hours": "4 horas",
+  "6 hours": "6 horas",
+  "Check and install window": "Ventana de comprobación e instalación",
+  "Day of the month": "Día del mes",
+  "Day {day} of the month": "Día {day} del mes",
+  "Days of the week": "Días de la semana",
+  "Every month (select day)": "Cada mes (seleccionar día)",
+  "Every week (select days)": "Cada semana (seleccionar días)",
+  "Install start time": "Hora de inicio de instalación",
+  "Next scheduled check and install window: {time}": "Próxima ventana programada de comprobación e instalación: {time}",
+  "Schedule frequency": "Frecuencia de programación",
+  "Update policy and schedule saved.": "Política de actualización y programación guardadas.",
+  "Window currently active": "Ventana activa actualmente",
+  "Window duration": "Duración de la ventana"
 }

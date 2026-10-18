@@ -3137,5 +3137,22 @@
   "Scheduled windows": "الفترات المجدولة",
   "Scheduling...": "جارٍ الجدولة...",
   "Window end": "نهاية الفترة",
-  "Window start": "بداية الفترة"
+  "Window start": "بداية الفترة",
+  "1 hour": "ساعة واحدة",
+  "2 hours": "ساعتان",
+  "3 hours": "3 ساعات",
+  "4 hours": "4 ساعات",
+  "6 hours": "6 ساعات",
+  "Check and install window": "نافذة الفحص والتثبيت",
+  "Day of the month": "يوم من الشهر",
+  "Day {day} of the month": "اليوم {day} من الشهر",
+  "Days of the week": "أيام الأسبوع",
+  "Every month (select day)": "كل شهر (تحديد اليوم)",
+  "Every week (select days)": "كل أسبوع (تحديد الأيام)",
+  "Install start time": "وقت بدء التثبيت",
+  "Next scheduled check and install window: {time}": "نافذة الفحص والتثبيت المجدولة القادمة: {time}",
+  "Schedule frequency": "تكرار الجدول",
+  "Update policy and schedule saved.": "تم حفظ سياسة التحديث والجدول.",
+  "Window currently active": "النافذة نشطة حالياً",
+  "Window duration": "مدة النافذة"
 }

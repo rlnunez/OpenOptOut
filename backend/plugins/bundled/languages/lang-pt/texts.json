@@ -3137,5 +3137,22 @@
   "Scheduled windows": "Janelas agendadas",
   "Scheduling...": "Agendando...",
   "Window end": "Fim da janela",
-  "Window start": "Início da janela"
+  "Window start": "Início da janela",
+  "1 hour": "1 hora",
+  "2 hours": "2 horas",
+  "3 hours": "3 horas",
+  "4 hours": "4 horas",
+  "6 hours": "6 horas",
+  "Check and install window": "Janela de verificação e instalação",
+  "Day of the month": "Dia do mês",
+  "Day {day} of the month": "Dia {day} do mês",
+  "Days of the week": "Dias da semana",
+  "Every month (select day)": "Todo mês (selecionar dia)",
+  "Every week (select days)": "Toda semana (selecionar dias)",
+  "Install start time": "Hora de início da instalação",
+  "Next scheduled check and install window: {time}": "Próxima janela de verificação e instalação programada: {time}",
+  "Schedule frequency": "Frequência do agendamento",
+  "Update policy and schedule saved.": "Política de atualização e agendamento salvos.",
+  "Window currently active": "Janela ativa no momento",
+  "Window duration": "Duração da janela"
 }

@@ -3136,5 +3136,22 @@
   "Scheduled windows": "Jendela terjadwal",
   "Scheduling...": "Menjadwalkan...",
   "Window end": "Akhir jendela",
-  "Window start": "Awal jendela"
+  "Window start": "Awal jendela",
+  "1 hour": "1 jam",
+  "2 hours": "2 jam",
+  "3 hours": "3 jam",
+  "4 hours": "4 jam",
+  "6 hours": "6 jam",
+  "Check and install window": "Jendela pemeriksaan dan penginstalan",
+  "Day of the month": "Hari dalam sebulan",
+  "Day {day} of the month": "Hari ke-{day} dalam sebulan",
+  "Days of the week": "Hari dalam seminggu",
+  "Every month (select day)": "Setiap bulan (pilih hari)",
+  "Every week (select days)": "Setiap minggu (pilih hari)",
+  "Install start time": "Waktu mulai instalasi",
+  "Next scheduled check and install window: {time}": "Jendela pemeriksaan dan instalasi terjadwal berikutnya: {time}",
+  "Schedule frequency": "Frekuensi jadwal",
+  "Update policy and schedule saved.": "Kebijakan dan jadwal pembaruan disimpan.",
+  "Window currently active": "Jendela sedang aktif",
+  "Window duration": "Durasi jendela"
 }

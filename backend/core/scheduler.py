@@ -157,6 +157,11 @@ def start_scheduler():
               replace_existing=True, misfire_grace_time=3600,
               next_run_time=datetime.utcnow() + timedelta(minutes=70))
 
+    # Application updates: periodic release check + auto-install within schedule window.
+    s.add_job(system_updater_job, IntervalTrigger(minutes=15), id="system_updater",
+              replace_existing=True, misfire_grace_time=600,
+              next_run_time=datetime.utcnow() + timedelta(minutes=3))
+
     if not sc.get("enabled", False):
         s.start()
         _start_maintenance_monitor()
@@ -986,6 +991,48 @@ def backup_job():
         log.info("Scheduled backup finished")
     except Exception as e:
         log.error("Backup job error: %s", e)
+
+
+def system_updater_job():
+    """Periodic job (every 15 min): check releases and auto-install during window."""
+    try:
+        from .updater import (
+            get_updater_config,
+            check_for_updates,
+            is_in_update_window,
+            request_system_update,
+        )
+        cfg = get_updater_config()
+        policy = cfg.get("policy", "approval_required")
+        if policy == "disabled":
+            return
+
+        res = check_for_updates(force=False)
+        if policy != "auto_install":
+            return
+
+        if not res.get("has_update") or not res.get("latest_release"):
+            return
+
+        if res.get("state") in ("draining", "updating", "reverting"):
+            return
+
+        # Do not start update during an active maintenance window
+        in_maint, _ = is_downtime_active()
+        if in_maint:
+            log.info("Auto-update check deferred: maintenance window currently active.")
+            return
+
+        # Check if inside scheduled install window
+        if not is_in_update_window(cfg):
+            log.debug("Auto-update: update available (%s) but outside scheduled window.", res["latest_release"].get("tag_name"))
+            return
+
+        target_tag = res["latest_release"].get("tag_name")
+        log.info("Auto-update: inside scheduled window. Initiating update to %s", target_tag)
+        request_system_update(target_tag=target_tag)
+    except Exception as e:
+        log.warning("System updater job error: %s", e)
 
 
 def spec_helper_job():

@@ -3135,5 +3135,22 @@
   "Scheduled windows": "Vipindi vilivyopangwa",
   "Scheduling...": "Inaratibu...",
   "Window end": "Mwisho wa kipindi",
-  "Window start": "Mwanzo wa kipindi"
+  "Window start": "Mwanzo wa kipindi",
+  "1 hour": "Saa 1",
+  "2 hours": "Masaa 2",
+  "3 hours": "Masaa 3",
+  "4 hours": "Masaa 4",
+  "6 hours": "Masaa 6",
+  "Check and install window": "Dirisha la kukagua na kusakinisha",
+  "Day of the month": "Siku ya mwezi",
+  "Day {day} of the month": "Siku ya {day} ya mwezi",
+  "Days of the week": "Siku za wiki",
+  "Every month (select day)": "Kila mwezi (chagua siku)",
+  "Every week (select days)": "Kila wiki (chagua siku)",
+  "Install start time": "Muda wa kuanza usakinishaji",
+  "Next scheduled check and install window: {time}": "Dirisha lijalo la ukaguzi na usakinishaji uliopangwa: {time}",
+  "Schedule frequency": "Marudio ya ratiba",
+  "Update policy and schedule saved.": "Sera ya sasisho na ratiba zimehifadhiwa.",
+  "Window currently active": "Dirisha linatumika sasa",
+  "Window duration": "Muda wa dirisha"
 }

@@ -3137,5 +3137,22 @@
   "Scheduled windows": "शेड्यूल की गई विंडो",
   "Scheduling...": "शेड्यूल किया जा रहा है...",
   "Window end": "विंडो समाप्ति",
-  "Window start": "विंडो प्रारंभ"
+  "Window start": "विंडो प्रारंभ",
+  "1 hour": "1 घंटा",
+  "2 hours": "2 घंटे",
+  "3 hours": "3 घंटे",
+  "4 hours": "4 घंटे",
+  "6 hours": "6 घंटे",
+  "Check and install window": "जांच और इंस्टॉल विंडो",
+  "Day of the month": "महीने का दिन",
+  "Day {day} of the month": "महीने का दिन {day}",
+  "Days of the week": "सप्ताह के दिन",
+  "Every month (select day)": "हर महीने (दिन चुनें)",
+  "Every week (select days)": "हर हफ़्ते (दिन चुनें)",
+  "Install start time": "इंस्टॉल शुरू होने का समय",
+  "Next scheduled check and install window: {time}": "अगली निर्धारित जांच और इंस्टॉल विंडो: {time}",
+  "Schedule frequency": "शेड्यूल आवृत्ति",
+  "Update policy and schedule saved.": "अपडेट नीति और शेड्यूल सहेजा गया।",
+  "Window currently active": "विंडो वर्तमान में सक्रिय है",
+  "Window duration": "विंडो की अवधि"
 }

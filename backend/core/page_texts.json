@@ -261,6 +261,12 @@
    ]
   },
   {
+   "text": "1 hour",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "1. Generate a key: <0>openssl rand -hex 32</0>",
    "where": [
     "pages/Settings.jsx"
@@ -297,6 +303,12 @@
    ]
   },
   {
+   "text": "2 hours",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "2. Add to .env: <0>DB_ENCRYPTION_KEY=your-key-here</0>",
    "where": [
     "pages/Settings.jsx"
@@ -321,6 +333,12 @@
    ]
   },
   {
+   "text": "3 hours",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "3. Migrate existing data: <0>docker exec openoptout-api python -m backend.core.encryption migrate</0>",
    "where": [
     "pages/Settings.jsx"
@@ -342,6 +360,12 @@
    "text": "30 days",
    "where": [
     "pages/Scheduled.jsx"
+   ]
+  },
+  {
+   "text": "4 hours",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -372,6 +396,12 @@
    "text": "5. Restart the container",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "6 hours",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -2862,6 +2892,12 @@
    ]
   },
   {
+   "text": "Check and install window",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Check broker sites",
    "where": [
     "pages/Discovery.jsx"
@@ -4635,9 +4671,21 @@
    ]
   },
   {
+   "text": "Day of the month",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Day off",
    "where": [
     "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Day {day} of the month",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -4658,6 +4706,12 @@
    "text": "Days allowed",
    "where": [
     "pages/DeadlineReport.jsx"
+   ]
+  },
+  {
+   "text": "Days of the week",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -6183,6 +6237,12 @@
    ]
   },
   {
+   "text": "Every month (select day)",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
    "text": "Every N minutes",
    "where": [
     "pages/Settings.jsx"
@@ -6210,6 +6270,12 @@
    "text": "Every week",
    "where": [
     "pages/Backups.jsx"
+   ]
+  },
+  {
+   "text": "Every week (select days)",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -6923,7 +6989,8 @@
   {
    "text": "Fri",
    "where": [
-    "pages/Calendar.jsx"
+    "pages/Calendar.jsx",
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -7953,6 +8020,12 @@
    "text": "Install into {destination}",
    "where": [
     "components/PluginUploadWizard.jsx"
+   ]
+  },
+  {
+   "text": "Install start time",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -9467,7 +9540,8 @@
   {
    "text": "Mon",
    "where": [
-    "pages/Calendar.jsx"
+    "pages/Calendar.jsx",
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -9867,6 +9941,12 @@
    "text": "Next month",
    "where": [
     "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Next scheduled check and install window: {time}",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -13428,7 +13508,8 @@
   {
    "text": "Sat",
    "where": [
-    "pages/Calendar.jsx"
+    "pages/Calendar.jsx",
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -13721,6 +13802,12 @@
    "text": "Schedule downtime for host server updates and backups. All background tasks and opt-outs are paused during the window and automatically resumed when it ends.",
    "where": [
     "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Schedule frequency",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -15425,7 +15512,8 @@
   {
    "text": "Sun",
    "where": [
-    "pages/Calendar.jsx"
+    "pages/Calendar.jsx",
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -16340,7 +16428,8 @@
   {
    "text": "Thu",
    "where": [
-    "pages/Calendar.jsx"
+    "pages/Calendar.jsx",
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -16612,7 +16701,8 @@
   {
    "text": "Tue",
    "where": [
-    "pages/Calendar.jsx"
+    "pages/Calendar.jsx",
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -16984,7 +17074,7 @@
    ]
   },
   {
-   "text": "Update policy saved.",
+   "text": "Update policy and schedule saved.",
    "where": [
     "pages/SystemUpdates.jsx"
    ]
@@ -17683,7 +17773,8 @@
   {
    "text": "Wed",
    "where": [
-    "pages/Calendar.jsx"
+    "pages/Calendar.jsx",
+    "pages/SystemUpdates.jsx"
    ]
   },
   {
@@ -18057,6 +18148,18 @@
    "text": "Will be installed into",
    "where": [
     "components/PluginUploadWizard.jsx"
+   ]
+  },
+  {
+   "text": "Window currently active",
+   "where": [
+    "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Window duration",
+   "where": [
+    "pages/SystemUpdates.jsx"
    ]
   },
   {

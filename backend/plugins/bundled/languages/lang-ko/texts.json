@@ -3137,5 +3137,22 @@
   "Scheduled windows": "예약된 기간",
   "Scheduling...": "예약 중...",
   "Window end": "기간 종료",
-  "Window start": "기간 시작"
+  "Window start": "기간 시작",
+  "1 hour": "1시간",
+  "2 hours": "2시간",
+  "3 hours": "3시간",
+  "4 hours": "4시간",
+  "6 hours": "6시간",
+  "Check and install window": "확인 및 설치 창",
+  "Day of the month": "해당 월의 일자",
+  "Day {day} of the month": "매월 {day}일",
+  "Days of the week": "요일",
+  "Every month (select day)": "매월 (일자 선택)",
+  "Every week (select days)": "매주 (요일 선택)",
+  "Install start time": "설치 시작 시간",
+  "Next scheduled check and install window: {time}": "다음 예약된 확인 및 설치 기간: {time}",
+  "Schedule frequency": "일정 빈도",
+  "Update policy and schedule saved.": "업데이트 정책 및 일정이 저장되었습니다.",
+  "Window currently active": "기간 현재 활성",
+  "Window duration": "기간 지속 시간"
 }

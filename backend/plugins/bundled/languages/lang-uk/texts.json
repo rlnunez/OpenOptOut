@@ -3135,5 +3135,22 @@
   "Scheduled windows": "Заплановані вікна",
   "Scheduling...": "Планування...",
   "Window end": "Кінець вікна",
-  "Window start": "Початок вікна"
+  "Window start": "Початок вікна",
+  "1 hour": "1 година",
+  "2 hours": "2 години",
+  "3 hours": "3 години",
+  "4 hours": "4 години",
+  "6 hours": "6 годин",
+  "Check and install window": "Вікно перевірки та встановлення",
+  "Day of the month": "День місяця",
+  "Day {day} of the month": "{day}-й день місяця",
+  "Days of the week": "Дні тижня",
+  "Every month (select day)": "Щомісяця (виберіть день)",
+  "Every week (select days)": "Щотижня (виберіть дні)",
+  "Install start time": "Час початку встановлення",
+  "Next scheduled check and install window: {time}": "Наступне заплановане вікно перевірки та встановлення: {time}",
+  "Schedule frequency": "Періодичність розкладу",
+  "Update policy and schedule saved.": "Політику та розклад оновлення збережено.",
+  "Window currently active": "Вікно наразі активне",
+  "Window duration": "Тривалість вікна"
 }

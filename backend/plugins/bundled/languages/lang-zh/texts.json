@@ -3137,5 +3137,22 @@
   "Scheduled windows": "已安排的窗口",
   "Scheduling...": "正在安排...",
   "Window end": "窗口结束时间",
-  "Window start": "窗口开始时间"
+  "Window start": "窗口开始时间",
+  "1 hour": "1 小时",
+  "2 hours": "2 小时",
+  "3 hours": "3 小时",
+  "4 hours": "4 小时",
+  "6 hours": "6 小时",
+  "Check and install window": "检查与安装窗口",
+  "Day of the month": "每月的日期",
+  "Day {day} of the month": "每月第 {day} 天",
+  "Days of the week": "星期",
+  "Every month (select day)": "每月（选择日期）",
+  "Every week (select days)": "每周（选择日期）",
+  "Install start time": "开始安装时间",
+  "Next scheduled check and install window: {time}": "下一次计划的检查与安装窗口：{time}",
+  "Schedule frequency": "计划频率",
+  "Update policy and schedule saved.": "更新策略与计划已保存。",
+  "Window currently active": "窗口当前处于活动状态",
+  "Window duration": "窗口持续时间"
 }

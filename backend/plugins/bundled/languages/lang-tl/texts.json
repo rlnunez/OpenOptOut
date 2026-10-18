@@ -3137,5 +3137,22 @@
   "Scheduled windows": "Mga naka-iskedyul na window",
   "Scheduling...": "Nag-iiskedyul...",
   "Window end": "Katapusan ng window",
-  "Window start": "Simula ng window"
+  "Window start": "Simula ng window",
+  "1 hour": "1 oras",
+  "2 hours": "2 oras",
+  "3 hours": "3 oras",
+  "4 hours": "4 oras",
+  "6 hours": "6 oras",
+  "Check and install window": "Window para sa pagsusuri at pag-install",
+  "Day of the month": "Araw ng buwan",
+  "Day {day} of the month": "Araw {day} ng buwan",
+  "Days of the week": "Mga araw ng linggo",
+  "Every month (select day)": "Bawat buwan (pumili ng araw)",
+  "Every week (select days)": "Bawat linggo (pumili ng mga araw)",
+  "Install start time": "Oras ng simula ng pag-install",
+  "Next scheduled check and install window: {time}": "Susunod na naka-iskedyul na window ng pagsusuri at pag-install: {time}",
+  "Schedule frequency": "Dalas ng iskedyul",
+  "Update policy and schedule saved.": "Nai-save ang patakaran at iskedyul ng update.",
+  "Window currently active": "Kasalukuyang aktibo ang window",
+  "Window duration": "Tagal ng window"
 }

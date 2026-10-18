@@ -4661,6 +4661,96 @@ def t_system_updates():
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
+@test(1, "system_updates.schedule_window_and_check",
+      "Check and install window scheduling: weekly, monthly, midnight wrap, next window calculation, and policy validation.")
+def t_updater_schedule_window():
+    from datetime import datetime, timezone, timedelta
+    from backend.core import updater as upd
+
+    # 1. Weekly schedule checks
+    weekly_cfg = {
+        "policy": "auto_install",
+        "schedule_type": "weekly",
+        "schedule_weekdays": [6],  # Sunday only
+        "schedule_time": "03:00",
+        "schedule_window_hours": 2,
+    }
+
+    # Sunday 2026-10-18
+    sun_before = datetime(2026, 10, 18, 2, 59, tzinfo=timezone.utc)
+    sun_in_1 = datetime(2026, 10, 18, 3, 0, tzinfo=timezone.utc)
+    sun_in_2 = datetime(2026, 10, 18, 4, 30, tzinfo=timezone.utc)
+    sun_after = datetime(2026, 10, 18, 5, 0, tzinfo=timezone.utc)
+    mon_same_time = datetime(2026, 10, 19, 3, 30, tzinfo=timezone.utc)
+
+    # Mock _get_scheduler_tz to UTC for deterministic assertions
+    old_tz = upd._get_scheduler_tz
+    try:
+        upd._get_scheduler_tz = lambda: timezone.utc
+
+        assert upd.is_in_update_window(weekly_cfg, now=sun_before) is False
+        assert upd.is_in_update_window(weekly_cfg, now=sun_in_1) is True
+        assert upd.is_in_update_window(weekly_cfg, now=sun_in_2) is True
+        assert upd.is_in_update_window(weekly_cfg, now=sun_after) is False
+        assert upd.is_in_update_window(weekly_cfg, now=mon_same_time) is False
+
+        # 2. Window spanning midnight (e.g. Saturday 23:00 + 3 hours -> Sunday 02:00)
+        midnight_cfg = {
+            "policy": "auto_install",
+            "schedule_type": "weekly",
+            "schedule_weekdays": [5],  # Saturday
+            "schedule_time": "23:00",
+            "schedule_window_hours": 3,
+        }
+        sat_2330 = datetime(2026, 10, 17, 23, 30, tzinfo=timezone.utc)
+        sun_0100 = datetime(2026, 10, 18, 1, 0, tzinfo=timezone.utc)
+        sun_0200 = datetime(2026, 10, 18, 2, 0, tzinfo=timezone.utc)
+        assert upd.is_in_update_window(midnight_cfg, now=sat_2330) is True
+        assert upd.is_in_update_window(midnight_cfg, now=sun_0100) is True
+        assert upd.is_in_update_window(midnight_cfg, now=sun_0200) is False
+
+        # 3. Monthly schedule checks
+        monthly_cfg = {
+            "policy": "auto_install",
+            "schedule_type": "monthly",
+            "schedule_day_of_month": 15,
+            "schedule_time": "04:00",
+            "schedule_window_hours": 2,
+        }
+        day15_in = datetime(2026, 10, 15, 4, 30, tzinfo=timezone.utc)
+        day14_in = datetime(2026, 10, 14, 4, 30, tzinfo=timezone.utc)
+        day16_in = datetime(2026, 10, 16, 4, 30, tzinfo=timezone.utc)
+        assert upd.is_in_update_window(monthly_cfg, now=day15_in) is True
+        assert upd.is_in_update_window(monthly_cfg, now=day14_in) is False
+        assert upd.is_in_update_window(monthly_cfg, now=day16_in) is False
+
+        # 4. Monthly schedule with day 31 on a 30-day month (April 30)
+        end_month_cfg = {
+            "policy": "auto_install",
+            "schedule_type": "monthly",
+            "schedule_day_of_month": 31,
+            "schedule_time": "02:00",
+            "schedule_window_hours": 2,
+        }
+        apr30_in = datetime(2026, 4, 30, 2, 30, tzinfo=timezone.utc)
+        apr29_in = datetime(2026, 4, 29, 2, 30, tzinfo=timezone.utc)
+        assert upd.is_in_update_window(end_month_cfg, now=apr30_in) is True
+        assert upd.is_in_update_window(end_month_cfg, now=apr29_in) is False
+
+        # 5. Disabled policy always returns False
+        disabled_cfg = dict(weekly_cfg)
+        disabled_cfg["policy"] = "disabled"
+        assert upd.is_in_update_window(disabled_cfg, now=sun_in_1) is False
+
+        # 6. Next update window calculation
+        sat_noon = datetime(2026, 10, 17, 12, 0, tzinfo=timezone.utc)
+        next_win = upd.get_next_update_window(weekly_cfg, now=sat_noon)
+        assert next_win is not None
+        assert "2026-10-18T03:00:00" in next_win
+    finally:
+        upd._get_scheduler_tz = old_tz
+
+
 @test(1, "system_updates.daemon_snapshot_and_rollback",
       "deploy/updater/updater.py: pre-update safety snapshots, automatic rollback on failed health check, and manual revert.")
 def t_updater_daemon_rollback():

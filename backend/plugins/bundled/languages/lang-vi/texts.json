@@ -3137,5 +3137,22 @@
   "Scheduled windows": "Các khung giờ đã lên lịch",
   "Scheduling...": "Đang lên lịch...",
   "Window end": "Kết thúc khung giờ",
-  "Window start": "Bắt đầu khung giờ"
+  "Window start": "Bắt đầu khung giờ",
+  "1 hour": "1 giờ",
+  "2 hours": "2 giờ",
+  "3 hours": "3 giờ",
+  "4 hours": "4 giờ",
+  "6 hours": "6 giờ",
+  "Check and install window": "Khung giờ kiểm tra và cài đặt",
+  "Day of the month": "Ngày trong tháng",
+  "Day {day} of the month": "Ngày {day} trong tháng",
+  "Days of the week": "Các ngày trong tuần",
+  "Every month (select day)": "Mỗi tháng (chọn ngày)",
+  "Every week (select days)": "Mỗi tuần (chọn các ngày)",
+  "Install start time": "Thời gian bắt đầu cài đặt",
+  "Next scheduled check and install window: {time}": "Khung giờ kiểm tra và cài đặt dự kiến tiếp theo: {time}",
+  "Schedule frequency": "Tần suất lịch trình",
+  "Update policy and schedule saved.": "Đã lưu chính sách và lịch trình cập nhật.",
+  "Window currently active": "Khung giờ hiện đang hoạt động",
+  "Window duration": "Thời lượng khung giờ"
 }

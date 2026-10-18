@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   RefreshCw, ArrowUpCircle, AlertTriangle, CheckCircle2,
-  Server, Clock, Settings2, ExternalLink, ShieldCheck, EyeOff, Eye, RotateCcw
+  Server, Clock, Settings2, ExternalLink, ShieldCheck, EyeOff, Eye, RotateCcw, Calendar
 } from 'lucide-react'
 import api from '../api'
 import { tx } from '../i18n/tx'
@@ -14,6 +14,11 @@ export default function SystemUpdates() {
   const [savingPolicy, setSavingPolicy] = useState(false)
   const [policy, setPolicy] = useState('approval_required')
   const [channel, setChannel] = useState('stable')
+  const [scheduleType, setScheduleType] = useState('weekly')
+  const [scheduleWeekdays, setScheduleWeekdays] = useState([6])
+  const [scheduleDayOfMonth, setScheduleDayOfMonth] = useState(1)
+  const [scheduleTime, setScheduleTime] = useState('03:00')
+  const [scheduleWindowHours, setScheduleWindowHours] = useState(2)
   const [message, setMessage] = useState(null)
   const [applying, setApplying] = useState(false)
   const [rollingBack, setRollingBack] = useState(false)
@@ -25,6 +30,11 @@ export default function SystemUpdates() {
         setData(r.data)
         setPolicy(r.data.policy || 'approval_required')
         setChannel(r.data.channel || 'stable')
+        setScheduleType(r.data.schedule_type || 'weekly')
+        setScheduleWeekdays(r.data.schedule_weekdays || [6])
+        setScheduleDayOfMonth(r.data.schedule_day_of_month || 1)
+        setScheduleTime(r.data.schedule_time || '03:00')
+        setScheduleWindowHours(r.data.schedule_window_hours || 2)
       })
       .catch(e => {
         setMessage({ type: 'error', text: e.response?.data?.detail || tx("Could not load update information.") })
@@ -58,6 +68,11 @@ export default function SystemUpdates() {
       setData(res.data)
       setPolicy(res.data.policy || 'approval_required')
       setChannel(res.data.channel || 'stable')
+      if (res.data.schedule_type) setScheduleType(res.data.schedule_type)
+      if (res.data.schedule_weekdays) setScheduleWeekdays(res.data.schedule_weekdays)
+      if (res.data.schedule_day_of_month) setScheduleDayOfMonth(res.data.schedule_day_of_month)
+      if (res.data.schedule_time) setScheduleTime(res.data.schedule_time)
+      if (res.data.schedule_window_hours) setScheduleWindowHours(res.data.schedule_window_hours)
       setMessage({ type: 'success', text: tx("Release check completed.") })
     } catch (e) {
       setMessage({ type: 'error', text: e.response?.data?.detail || tx("Failed to check for updates.") })
@@ -66,13 +81,30 @@ export default function SystemUpdates() {
     }
   }
 
+  const toggleWeekday = (dayIndex) => {
+    if (scheduleWeekdays.includes(dayIndex)) {
+      if (scheduleWeekdays.length === 1) return
+      setScheduleWeekdays(scheduleWeekdays.filter(d => d !== dayIndex).sort((a, b) => a - b))
+    } else {
+      setScheduleWeekdays([...scheduleWeekdays, dayIndex].sort((a, b) => a - b))
+    }
+  }
+
   const handleSavePolicy = async () => {
     setSavingPolicy(true)
     setMessage(null)
     try {
-      const res = await api.post('/system/updates/policy', { policy, channel })
+      const res = await api.post('/system/updates/policy', {
+        policy,
+        channel,
+        schedule_type: scheduleType,
+        schedule_weekdays: scheduleWeekdays,
+        schedule_day_of_month: parseInt(scheduleDayOfMonth, 10) || 1,
+        schedule_time: scheduleTime,
+        schedule_window_hours: parseInt(scheduleWindowHours, 10) || 2,
+      })
       setData(res.data)
-      setMessage({ type: 'success', text: tx("Update policy saved.") })
+      setMessage({ type: 'success', text: tx("Update policy and schedule saved.") })
     } catch (e) {
       setMessage({ type: 'error', text: e.response?.data?.detail || tx("Failed to save update policy.") })
     } finally {
@@ -272,6 +304,12 @@ export default function SystemUpdates() {
           <p className="text-xs text-slate-500 mt-2 capitalize">
             {channel === 'pre_release' ? tx("Pre-release channel") : tx("Stable channel")}
           </p>
+          {policy === 'auto_install' && data?.next_window && (
+            <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1 truncate" title={fmtDateTime(data.next_window)}>
+              <Clock size={11} className="shrink-0 text-shield-400" />
+              <span>{fmtDateTime(data.next_window)}</span>
+            </p>
+          )}
         </div>
       </div>
 
@@ -431,24 +469,142 @@ export default function SystemUpdates() {
           </label>
 
           {/* Policy Option: auto_install */}
-          <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-950/40 hover:bg-slate-950/80 cursor-pointer transition-colors">
-            <input
-              type="radio"
-              name="policy"
-              value="auto_install"
-              checked={policy === 'auto_install'}
-              onChange={(e) => setPolicy(e.target.value)}
-              className="mt-1 text-shield-600 focus:ring-shield-500 bg-slate-900 border-slate-700"
-            />
-            <div>
-              <p className="text-sm font-medium text-white">
-                {tx("Automatic install")}
-              </p>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {tx("Automatically pauses active removal jobs, drains background workers, and applies updates during scheduled maintenance.")}
-              </p>
-            </div>
-          </label>
+          <div>
+            <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-950/40 hover:bg-slate-950/80 cursor-pointer transition-colors">
+              <input
+                type="radio"
+                name="policy"
+                value="auto_install"
+                checked={policy === 'auto_install'}
+                onChange={(e) => setPolicy(e.target.value)}
+                className="mt-1 text-shield-600 focus:ring-shield-500 bg-slate-900 border-slate-700"
+              />
+              <div>
+                <p className="text-sm font-medium text-white">
+                  {tx("Automatic install")}
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {tx("Automatically pauses active removal jobs, drains background workers, and applies updates during scheduled maintenance.")}
+                </p>
+              </div>
+            </label>
+
+            {policy === 'auto_install' && (
+              <div className="ms-6 mt-2 p-4 rounded-lg bg-slate-950/70 border border-slate-800 space-y-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-200">
+                    <Clock size={14} className="text-shield-400" />
+                    <span>{tx("Check and install window")}</span>
+                  </div>
+                  {data?.in_update_window && (
+                    <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-950/80 text-emerald-300 border border-emerald-700/60">
+                      {tx("Window currently active")}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">{tx("Schedule frequency")}</label>
+                    <select
+                      value={scheduleType}
+                      onChange={(e) => setScheduleType(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-shield-500"
+                    >
+                      <option value="weekly">{tx("Every week (select days)")}</option>
+                      <option value="monthly">{tx("Every month (select day)")}</option>
+                    </select>
+                  </div>
+
+                  {scheduleType === 'monthly' ? (
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">{tx("Day of the month")}</label>
+                      <select
+                        value={scheduleDayOfMonth}
+                        onChange={(e) => setScheduleDayOfMonth(parseInt(e.target.value, 10))}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-shield-500"
+                      >
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                          <option key={d} value={d}>
+                            {tx("Day {day} of the month", { day: d })}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">{tx("Days of the week")}</label>
+                      <div className="flex flex-wrap gap-1">
+                        {[
+                          { index: 0, label: tx("Mon") },
+                          { index: 1, label: tx("Tue") },
+                          { index: 2, label: tx("Wed") },
+                          { index: 3, label: tx("Thu") },
+                          { index: 4, label: tx("Fri") },
+                          { index: 5, label: tx("Sat") },
+                          { index: 6, label: tx("Sun") },
+                        ].map(({ index, label }) => {
+                          const active = scheduleWeekdays.includes(index)
+                          return (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => toggleWeekday(index)}
+                              className={`px-2 py-1 text-xs rounded font-medium transition-colors ${
+                                active
+                                  ? 'bg-shield-600 text-white'
+                                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800/80">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">{tx("Install start time")}</label>
+                    <input
+                      type="time"
+                      value={scheduleTime}
+                      onChange={(e) => setScheduleTime(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-shield-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">{tx("Window duration")}</label>
+                    <select
+                      value={scheduleWindowHours}
+                      onChange={(e) => setScheduleWindowHours(parseInt(e.target.value, 10))}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-shield-500"
+                    >
+                      <option value={1}>{tx("1 hour")}</option>
+                      <option value={2}>{tx("2 hours")}</option>
+                      <option value={3}>{tx("3 hours")}</option>
+                      <option value={4}>{tx("4 hours")}</option>
+                      <option value={6}>{tx("6 hours")}</option>
+                    </select>
+                  </div>
+                </div>
+
+                {data?.next_window && (
+                  <p className="text-xs text-slate-400 flex items-center gap-1.5 pt-1">
+                    <Clock size={12} className="text-shield-400 shrink-0" />
+                    <span>
+                      {tx("Next scheduled check and install window: {time}", {
+                        time: fmtDateTime(data.next_window),
+                      })}
+                    </span>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Policy Option: disabled */}
           <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-950/40 hover:bg-slate-950/80 cursor-pointer transition-colors">

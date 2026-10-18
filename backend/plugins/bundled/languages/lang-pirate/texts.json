@@ -3137,5 +3137,22 @@
   "Scheduled windows": "Scheduled drydocks",
   "Scheduling...": "Laylin' the keel...",
   "Window end": "Anchor aweigh",
-  "Window start": "Drop anchor"
+  "Window start": "Drop anchor",
+  "1 hour": "1 glass",
+  "2 hours": "2 glasses",
+  "3 hours": "3 glasses",
+  "4 hours": "4 glasses",
+  "6 hours": "6 glasses",
+  "Check and install window": "Scoutin' an' fittin' window",
+  "Day of the month": "Day o' the moon",
+  "Day {day} of the month": "Day {day} o' the moon",
+  "Days of the week": "Days o' the week",
+  "Every month (select day)": "Every moon (pick a day)",
+  "Every week (select days)": "Every week (pick the days)",
+  "Install start time": "Hour to drop anchor an' install",
+  "Next scheduled check and install window: {time}": "Next charted scoutin' an' fittin' window: {time}",
+  "Schedule frequency": "Chart rhythm",
+  "Update policy and schedule saved.": "Articles an' refit chart stowed safely.",
+  "Window currently active": "Window be wide open now",
+  "Window duration": "Span o' the window"
 }
