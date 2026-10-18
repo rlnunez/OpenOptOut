@@ -44,7 +44,12 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 - **Decoupled SearXNG Master Secret:** Auto-generated SearXNG master secret with dynamic entropy length, fully decoupled from the primary application master key.
 - **Slimmed Active Roadmap:** [Roadmap (`docs/ROADMAP.md`)](docs/ROADMAP.md) now tracks only active, planned, and under-consideration initiatives, archiving historical milestones to the [Completed Milestones Archive (`docs/archive/COMPLETED_ROADMAP.md`)](docs/archive/COMPLETED_ROADMAP.md).
 
+### Fixed
+- **Seccomp Posture Reporting:** Probes importability of `seccomp` Python bindings rather than static library presence on disk, ensuring the Plugins console reflects real syscall filtering capability (PR #122).
+
 ### Security
+- **WebAuthn Fail-Closed Assertion Verification:** Validates passkey authentication responses strictly against stored ES256 and RS256 credentials, rejecting unsigned, forged, or mismatched assertions (PR #122).
+- **Unauthenticated Route Security Prober:** Automated security probe (`.github/security/probe_unauth.py`) and disposable demo seeder (`.github/security/seed_demo.py`) auditing ungated routes for auth bypass, SQL injection, path traversal, account enumeration, and data leakage (PR #122).
 - Memory zeroization for decrypted secrets and tokens (`core/memory_hygiene.py`).
 - Ephemeral in-memory tmpfs mounts for temporary browser artifacts (`/tmp:size=512M`).
 - Core dump suppression (`RLIMIT_CORE = 0`).
