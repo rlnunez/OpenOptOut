@@ -57,6 +57,11 @@ param(
     [string]$KeyType = "",
     [switch]$CloudflareProxy,
     [switch]$CloudflareAop,
+    [switch]$ClientMtls,
+    [switch]$NoClientMtls,
+    [string]$ClientMtlsCa,
+    [ValidateSet("", "require", "optional")]
+    [string]$ClientMtlsMode = "require",
     [switch]$Hsts,
     [switch]$NoHsts,
     [switch]$NoRateLimit,
@@ -155,7 +160,7 @@ function Test-HasEnv([string]$Path, [string]$Key) {
 
 $FrontDoorKeys = @("COMPOSE_PROFILES", "FRONT_DOOR", "HTTPS_CHECK_HOST", "HTTPS_MODE", "ACME_CHALLENGE",
                    "DOMAIN", "ACME_EMAIL", "ACME_CA", "ACME_CA_ROOT", "ACME_EAB_KID", "ACME_EAB_HMAC", "ACME_KEY_TYPE", "WEB_BIND", "WEB_PORT", "TRUSTED_PROXY_HOPS",
-                   "RATE_LIMIT", "CLOUDFLARE_PROXY", "CLOUDFLARE_AOP", "HSTS")
+                   "RATE_LIMIT", "CLOUDFLARE_PROXY", "CLOUDFLARE_AOP", "CLIENT_MTLS", "CLIENT_MTLS_CA_FILE", "CLIENT_MTLS_MODE", "HSTS")
 
 if ($Hsts -and $NoHsts) {
     Fail "-Hsts and -NoHsts cannot be used together."
@@ -445,6 +450,28 @@ if ($UseCfProxy -and -not $UseCfAop -and (Test-Interactive)) {
 }
 $CfAopValue = if ($UseCfAop) { "on" } else { "off" }
 
+$UseClientMtls = [bool]$ClientMtls
+if ($UseClientMtls -and $UseCfAop) {
+    Fail "-ClientMtls and -CloudflareAop cannot be used together: pick Cloudflare AOP or client mTLS."
+}
+if (-not $UseClientMtls -and -not $NoClientMtls -and -not $UseCfAop -and ($Mode -ne "none") -and (Test-Interactive)) {
+    Write-Host ""
+    Write-Host "Require a client certificate (self-managed mTLS) for all access?"
+    Write-Host "  Only devices presenting a client certificate signed by your local CA"
+    Write-Host "  can connect to this site. Keeps sign-in and setup completely private"
+    Write-Host "  without needing Cloudflare or third-party edge services."
+    if ((Ask "Enable client certificate mTLS? (y/n)" "n") -eq "y") { $UseClientMtls = $true }
+}
+$ClientMtlsValue = if ($UseClientMtls) { "on" } else { "off" }
+
+if ($UseClientMtls) {
+    if (-not $ClientMtlsCa -and -not (Test-HasEnv $EnvFile "CLIENT_MTLS_CA_FILE")) {
+        if (Test-Path "deploy/certs/client-ca.pem" -PathType Leaf) {
+            $ClientMtlsCa = "/certs/client-ca.pem"
+        }
+    }
+}
+
 # ── rate limits ──
 if ($RateLimit -lt 0 -or $AuthRateLimit -lt 0) { Fail "-RateLimit / -AuthRateLimit must be whole numbers above 0." }
 $Rl = if ($NoRateLimit) { "off" } else { "on" }
@@ -478,6 +505,7 @@ Write-Host ""
 $protectLabel = "rate-limits=$Rl  hsts=$HstsVal"
 if ($UseCfProxy) { $protectLabel += "  cloudflare-proxy=on" }
 if ($UseCfAop) { $protectLabel += "  cloudflare-aop=on" }
+if ($UseClientMtls) { $protectLabel += "  client-mtls=on" }
 Write-Host "About to set up:  proxy=$Proxy  certificate=$certLabel  $protectLabel  domain=$domainLabel$emailSuffix"
 if (Test-Interactive) {
     if ((Ask "Continue? (y/n)" "y") -ne "y") { Fail "Cancelled." }
@@ -495,6 +523,9 @@ if ($RateLimit -gt 0) { Set-EnvVar $EnvFile "RATE_LIMIT_PER_MINUTE" "$RateLimit"
 if ($AuthRateLimit -gt 0) { Set-EnvVar $EnvFile "AUTH_RATE_LIMIT_PER_MINUTE" "$AuthRateLimit" }
 Set-EnvVar $EnvFile "CLOUDFLARE_PROXY" $CfProxyValue
 Set-EnvVar $EnvFile "CLOUDFLARE_AOP" $CfAopValue
+Set-EnvVar $EnvFile "CLIENT_MTLS" $ClientMtlsValue
+if ($ClientMtlsCa) { Set-EnvVar $EnvFile "CLIENT_MTLS_CA_FILE" $ClientMtlsCa }
+if ($ClientMtlsMode) { Set-EnvVar $EnvFile "CLIENT_MTLS_MODE" $ClientMtlsMode }
 if ($Mode -ne "none") { Set-EnvVar $EnvFile "HSTS" $HstsVal }
 Set-EnvVar $EnvFile "FRONT_DOOR" $Proxy
 Set-EnvVar $EnvFile "HTTPS_CHECK_HOST" $Proxy   # the certificate monitor checks this container

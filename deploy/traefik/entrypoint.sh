@@ -15,6 +15,9 @@
 #   AUTH_RATE_LIMIT_PER_MINUTE        Sign-in limit per visitor (default 60)
 #   CLOUDFLARE_PROXY  on | off        Restrict access to Cloudflare IPs
 #   CLOUDFLARE_AOP    on | off        Cloudflare Authenticated Origin Pulls (mTLS)
+#   CLIENT_MTLS       on | off        Self-managed client certificate mTLS
+#   CLIENT_MTLS_CA_FILE               Path to client CA certificate
+#   CLIENT_MTLS_MODE  require | optional  Client cert verification mode (default require)
 #   DOMAIN                            Domain name(s) (comma-separated)
 #   ACME_EMAIL                        Registration email for the ACME CA
 #   ACME_KEY_TYPE                     Certificate key type (e.g. rsa2048, p256)
@@ -149,6 +152,28 @@ case "$AOP" in
     [ -f "$AOP_FILE" ] || die "Cloudflare Authenticated Origin Pull CA certificate not found: $AOP_FILE"
     ;;
   *) die "CLOUDFLARE_AOP must be on or off: $AOP" ;;
+esac
+
+CLIENT_MTLS="${CLIENT_MTLS:-off}"
+case "$CLIENT_MTLS" in
+  off) ;;
+  on)
+    [ "$MODE" != "none" ] || die "CLIENT_MTLS=on needs a certificate: client mTLS requires TLS."
+    [ "$AOP" != "on" ] || die "CLIENT_MTLS=on and CLOUDFLARE_AOP=on cannot be used together: pick Cloudflare AOP (for Cloudflare edge) or CLIENT_MTLS (for direct clients)."
+    MTLS_FILE="${CLIENT_MTLS_CA_FILE:-/certs/client-ca.pem}"
+    if [ ! -f "$MTLS_FILE" ] && [ -f "/deploy/certs/client-ca.pem" ]; then
+      MTLS_FILE="/deploy/certs/client-ca.pem"
+    fi
+    path_ok "$MTLS_FILE" || die "CLIENT_MTLS_CA_FILE must be an absolute path: $MTLS_FILE"
+    [ -f "$MTLS_FILE" ] || die "Client mTLS CA certificate not found: $MTLS_FILE"
+    MTLS_MODE="${CLIENT_MTLS_MODE:-require}"
+    case "$MTLS_MODE" in
+      require) TRAEFIK_MTLS_AUTH="RequireAndVerifyClientCert" ;;
+      optional) TRAEFIK_MTLS_AUTH="VerifyClientCertIfGiven" ;;
+      *) die "CLIENT_MTLS_MODE must be require or optional: $MTLS_MODE" ;;
+    esac
+    ;;
+  *) die "CLIENT_MTLS must be on or off: $CLIENT_MTLS" ;;
 esac
 
 HTTP_ADDR=":80"; HTTPS_ADDR=":443"
@@ -317,12 +342,17 @@ if [ -n "$CF_LIST" ]; then
         sourceRange: [$CF_LIST]"
 fi
 
-AOP_TLS=""
+CLIENT_AUTH_TLS=""
 if [ "$AOP" = "on" ]; then
-  AOP_TLS="      clientAuth:
+  CLIENT_AUTH_TLS="      clientAuth:
         caFiles:
           - \"$AOP_FILE\"
         clientAuthType: RequireAndVerifyClientCert"
+elif [ "$CLIENT_MTLS" = "on" ]; then
+  CLIENT_AUTH_TLS="      clientAuth:
+        caFiles:
+          - \"$MTLS_FILE\"
+        clientAuthType: $TRAEFIK_MTLS_AUTH"
 fi
 
 cat > "$CONF_DIR/dynamic.yml" <<EOF
@@ -364,11 +394,11 @@ tls:
   options:
     default:
       minVersion: VersionTLS12
-$AOP_TLS
+$CLIENT_AUTH_TLS
 $TLS_FILES
 EOF
 
-echo "OpenOptOut HTTPS (Traefik): mode=$MODE challenge=$CHALLENGE rate_limit=$RATE_LIMIT cloudflare_proxy=${CLOUDFLARE_PROXY:-off} cloudflare_aop=$AOP domain=${DOMAIN:-(any)} upstream=$UPSTREAM"
+echo "OpenOptOut HTTPS (Traefik): mode=$MODE challenge=$CHALLENGE rate_limit=$RATE_LIMIT cloudflare_proxy=${CLOUDFLARE_PROXY:-off} cloudflare_aop=$AOP client_mtls=${CLIENT_MTLS:-off} domain=${DOMAIN:-(any)} upstream=$UPSTREAM"
 if [ "${GENERATE_ONLY:-}" = "1" ]; then
   # Never print the EAB secret, even in test output.
   if [ -n "$EAB_HMAC" ]; then sed "s|$EAB_HMAC|(hidden)|" "$CONF_DIR/traefik.yml"; else cat "$CONF_DIR/traefik.yml"; fi

@@ -413,6 +413,7 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
   const [certificate, setCertificate] = useState('letsencrypt')
   const [rateLimit, setRateLimit] = useState(true)
   const [cloudflareProxy, setCloudflareProxy] = useState(false)
+  const [clientMtls, setClientMtls] = useState(false)
   const [hsts, setHsts] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -432,6 +433,7 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
           body.certificate = certificate
           body.rate_limit = rateLimit
           body.cloudflare_proxy = certificate === 'cloudflare-dns' && cloudflareProxy
+          body.client_mtls = certificate !== 'none' && clientMtls
         }
       }
       await api.post('/wizard/deployment', body)
@@ -525,6 +527,18 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
                     </div>
                   )}
                 </fieldset>
+                {certificate !== 'none' && (
+                  <fieldset className="space-y-2">
+                    <legend className="text-slate-300 text-xs font-medium mb-1.5">{tx("Client certificates (mTLS)")}</legend>
+                    <label className="flex items-start gap-2.5 p-2.5 rounded-lg border border-slate-700 cursor-pointer">
+                      <input type="checkbox" checked={clientMtls} onChange={e => setClientMtls(e.target.checked)} className="mt-1 accent-shield-500" />
+                      <div>
+                        <div className="text-slate-200 text-sm font-medium">{tx("Require a client certificate (mTLS)")}</div>
+                        <div className="text-slate-400 text-xs">{tx("Only devices with an installed client certificate can reach OpenOptOut. The reverse proxy checks the certificate before any request reaches the app. Unauthenticated requests are dropped at the TLS handshake.")}</div>
+                      </div>
+                    </label>
+                  </fieldset>
+                )}
               </>)}
             </div>
           )}

@@ -329,6 +329,46 @@ docker compose up -d --force-recreate caddy-extended    # or traefik
 
 **Residual risk:** If an attacker already knows your real IP from before you switched to Cloudflare, they can attempt direct connection floods to saturate your network bandwidth (though the front door will drop them during TLS handshake). Changing your server's public IP address after enabling Cloudflare Proxy and AOP prevents this.
 
+**Self-Managed Mutual TLS (mTLS) Client Certificates:**
+For operators self-hosting locally ($0, no third-party subscription, and no dependence on Cloudflare), OpenOptOut supports self-managed client-certificate authentication. In this tier, the reverse proxy (Caddy, Traefik, or Nginx) requires a client certificate signed by your local Certificate Authority (CA) before forwarding requests to the application. Unauthenticated connections are dropped at the TLS handshake before any request reaches the login page or API.
+
+1. **Initialize the local CA and issue device certificates:**
+   Run the CLI helper on the host:
+   ```bash
+   # Initialize private CA (places public CA cert in deploy/certs/client-ca.pem)
+   ./scripts/openoptout-mtls.sh init-ca
+
+   # Issue a client certificate for a device (.p12 bundle)
+   ./scripts/openoptout-mtls.sh issue "jordan-laptop"
+   ```
+   On Windows PowerShell:
+   ```powershell
+   .\scripts\openoptout-mtls.ps1 init-ca
+   .\scripts\openoptout-mtls.ps1 issue jordan-laptop
+   ```
+   Or use the Admin Console (**Settings → Security → Client-Certificate Authentication (mTLS)**) to generate the CA and download client `.p12` bundles directly.
+
+2. **Install the `.p12` certificate on client devices / browsers:**
+   - **macOS / iOS:** Double-click the `.p12` bundle to import it into Keychain Access or Profiles.
+   - **Windows:** Double-click the `.p12` bundle and complete the Certificate Import Wizard into the Current User Personal store.
+   - **Linux / Firefox:** Open Settings → Privacy & Security → Certificates → View Certificates → Your Certificates → Import.
+   - **Android:** Open Settings → Security → Encryption & credentials → Install a certificate → VPN & app user certificate.
+
+3. **Enable client mTLS on the reverse proxy:**
+   ```bash
+   ./scripts/enable-https.sh --client-mtls
+   docker compose up -d
+   ```
+   On Windows:
+   ```powershell
+   .\scripts\enable-https.ps1 -ClientMtls
+   docker compose up -d
+   ```
+
+*Mode:* By default (`CLIENT_MTLS_MODE=require`), connections without a valid client certificate signed by your CA are dropped at the TLS handshake before reaching HTTP or any login page. For environments where external uptime monitoring needs access without client certs, set `CLIENT_MTLS_MODE=optional` (client certificates are verified when presented). Note: internal container healthchecks (`http://localhost:8000/api/health`) bypass the reverse proxy on the internal Docker network and remain healthy under either mode.
+
+*Mutual exclusivity:* `CLIENT_MTLS` and `CLOUDFLARE_AOP` cannot be used simultaneously on the same proxy because AOP verifies Cloudflare's edge certificate, while client mTLS verifies end-user device certificates. Entrypoints cleanly fail closed if both are active.
+
 ## Monitoring
 
 If you're on the managed or native option, the daily certificate check also watches OpenOptOut's own HTTPS certificate, the same way it watches LDAP, SIP2, and SAML — see [docs/SSO.md](SSO.md#certificate-reminders). A failed automatic renewal shows up as a dashboard warning before it actually expires. On the Docker path this reaches the front-door container (`caddy` or `traefik`) over the internal Docker network; on the native path, set `HTTPS_CHECK_HOST=127.0.0.1` in `.env` (`enable-https-native.sh` does this for you) so it checks the local nginx/IIS instead. This check is skipped for `internal` mode (Caddy renews its own private CA itself) and Cloudflare Tunnel (Cloudflare holds the certificate), shows "no certificate yet" for `none`, and does nothing at all when HTTPS isn't configured through OpenOptOut (the external option).

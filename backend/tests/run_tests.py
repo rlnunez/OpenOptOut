@@ -4236,6 +4236,16 @@ def t_https_entrypoint():
             {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_CHALLENGE": "cloudflare",
              "CLOUDFLARE_API_TOKEN": "x" * 40, "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips,
              "CLOUDFLARE_AOP": "on", "CLOUDFLARE_AOP_CA_FILE": os.path.join(td, "nonexistent-ca.pem")},
+            # Client mTLS
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "CLIENT_MTLS": "maybe"},
+            {"HTTPS_MODE": "none", "DOMAIN": "a.org", "CLIENT_MTLS": "on"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "CLIENT_MTLS": "on",
+             "CLIENT_MTLS_CA_FILE": os.path.join(td, "nonexistent-ca.pem")},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "CLIENT_MTLS": "on",
+             "CLIENT_MTLS_MODE": "invalid"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_CHALLENGE": "cloudflare",
+             "CLOUDFLARE_API_TOKEN": "x" * 40, "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips,
+             "CLOUDFLARE_AOP": "on", "CLOUDFLARE_AOP_CA_FILE": aop_ca, "CLIENT_MTLS": "on"},
             # InCommon (beta): credentials required, well-formed, and only for ACME modes
             {"HTTPS_MODE": "incommon", "DOMAIN": "a.org"},
             {"HTTPS_MODE": "incommon", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1"},
@@ -4252,7 +4262,8 @@ def t_https_entrypoint():
         # We don't need the caddy binary here — GENERATE_ONLY=1 writes the file
         # and exits before exec'ing caddy — so this runs without any extra binary.
         cert_file = os.path.join(td, "cert.pem"); key_file = os.path.join(td, "key.pem")
-        open(cert_file, "w").close(); open(key_file, "w").close()
+        mtls_ca_file = os.path.join(td, "client-ca.pem")
+        open(cert_file, "w").close(); open(key_file, "w").close(); open(mtls_ca_file, "w").write("dummy-ca")
         good = [
             {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org", "ACME_EMAIL": "it@lib.org"},
             {"HTTPS_MODE": "letsencrypt-staging", "DOMAIN": "privacy.lib.org"},
@@ -4278,6 +4289,10 @@ def t_https_entrypoint():
             {"HTTPS_MODE": "custom", "DOMAIN": "privacy.lib.org", "TLS_CERT_FILE": cert_file,
              "TLS_KEY_FILE": key_file, "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips,
              "CLOUDFLARE_AOP": "on", "CLOUDFLARE_AOP_CA_FILE": aop_ca},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org", "CLIENT_MTLS": "on",
+             "CLIENT_MTLS_CA_FILE": mtls_ca_file},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org", "CLIENT_MTLS": "on",
+             "CLIENT_MTLS_CA_FILE": mtls_ca_file, "CLIENT_MTLS_MODE": "optional"},
         ]
         for env in good:
             r = run(env, cf)
@@ -4333,6 +4348,13 @@ def t_https_entrypoint():
                 assert "client_auth {" in content
                 assert "mode require_and_verify" in content
                 assert f"trusted_ca_cert_file {env.get('CLOUDFLARE_AOP_CA_FILE', aop_ca)}" in content
+            elif env.get("CLIENT_MTLS") == "on":
+                assert "client_auth {" in content
+                assert f"trusted_ca_cert_file {env['CLIENT_MTLS_CA_FILE']}" in content
+                if env.get("CLIENT_MTLS_MODE") == "optional":
+                    assert "mode verify_if_given" in content
+                else:
+                    assert "mode require_and_verify" in content
             else:
                 assert "client_auth" not in content
             if env["HTTPS_MODE"] == "none":
@@ -4403,6 +4425,16 @@ def t_https_traefik_entrypoint():
             {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_CHALLENGE": "cloudflare",
              "CLOUDFLARE_API_TOKEN": "x" * 40, "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips,
              "CLOUDFLARE_AOP": "on", "CLOUDFLARE_AOP_CA_FILE": os.path.join(td, "nonexistent-ca.pem")},
+            # Client mTLS
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "CLIENT_MTLS": "maybe"},
+            {"HTTPS_MODE": "none", "DOMAIN": "a.org", "CLIENT_MTLS": "on"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "CLIENT_MTLS": "on",
+             "CLIENT_MTLS_CA_FILE": os.path.join(td, "nonexistent-ca.pem")},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "CLIENT_MTLS": "on",
+             "CLIENT_MTLS_MODE": "invalid"},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "a.org", "ACME_CHALLENGE": "cloudflare",
+             "CLOUDFLARE_API_TOKEN": "x" * 40, "CLOUDFLARE_PROXY": "on", "CLOUDFLARE_IPS_FILE": cf_ips,
+             "CLOUDFLARE_AOP": "on", "CLOUDFLARE_AOP_CA_FILE": aop_ca, "CLIENT_MTLS": "on"},
             {"HTTPS_MODE": "incommon", "DOMAIN": "a.org"},
             {"HTTPS_MODE": "incommon", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": 'x"\nproviders: {}'},
             {"HTTPS_MODE": "custom", "DOMAIN": "a.org", "ACME_EAB_KID": "kid1", "ACME_EAB_HMAC": "c2VjcmV0LWhtYWMta2V5LWZvci10ZXN0aW5n"},
@@ -4413,7 +4445,8 @@ def t_https_traefik_entrypoint():
             assert r.returncode != 0, f"should have been refused but wasn't: {env}\nstdout={r.stdout}"
 
         cert_file = os.path.join(td, "cert.pem"); key_file = os.path.join(td, "key.pem")
-        open(cert_file, "w").close(); open(key_file, "w").close()
+        mtls_ca_file = os.path.join(td, "client-ca.pem")
+        open(cert_file, "w").close(); open(key_file, "w").close(); open(mtls_ca_file, "w").write("dummy-ca")
         good = [
             {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org, www.lib.org",
              "ACME_EMAIL": "it@lib.org"},
@@ -4434,6 +4467,10 @@ def t_https_traefik_entrypoint():
             {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org", "ACME_CHALLENGE": "cloudflare",
              "CLOUDFLARE_API_TOKEN": "t0ken-" + "x" * 34, "CLOUDFLARE_PROXY": "on",
              "CLOUDFLARE_IPS_FILE": cf_ips, "CLOUDFLARE_AOP": "on", "CLOUDFLARE_AOP_CA_FILE": aop_ca},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org", "CLIENT_MTLS": "on",
+             "CLIENT_MTLS_CA_FILE": mtls_ca_file},
+            {"HTTPS_MODE": "letsencrypt", "DOMAIN": "privacy.lib.org", "CLIENT_MTLS": "on",
+             "CLIENT_MTLS_CA_FILE": mtls_ca_file, "CLIENT_MTLS_MODE": "optional"},
         ]
         for env in good:
             r = run(env)
@@ -4480,6 +4517,11 @@ def t_https_traefik_entrypoint():
                 ca = dynamic["tls"]["options"]["default"]["clientAuth"]
                 assert ca["clientAuthType"] == "RequireAndVerifyClientCert"
                 assert ca["caFiles"] == [env.get("CLOUDFLARE_AOP_CA_FILE", aop_ca)]
+            elif env.get("CLIENT_MTLS") == "on":
+                ca = dynamic["tls"]["options"]["default"]["clientAuth"]
+                expected_type = "VerifyClientCertIfGiven" if env.get("CLIENT_MTLS_MODE") == "optional" else "RequireAndVerifyClientCert"
+                assert ca["clientAuthType"] == expected_type
+                assert ca["caFiles"] == [env["CLIENT_MTLS_CA_FILE"]]
             else:
                 assert "clientAuth" not in dynamic.get("tls", {}).get("options", {}).get("default", {})
             if env["HTTPS_MODE"] == "none":
@@ -5071,6 +5113,12 @@ def t_enable_https_script():
         (["--proxy", "caddy", "--cert", "cloudflare-dns", "--domain", "a.org", "--cf-token", token,
           "--cloudflare-proxy", "--cloudflare-aop"],
          {"CLOUDFLARE_PROXY": "on", "CLOUDFLARE_AOP": "on"}),
+        (["--proxy", "caddy", "--cert", "letsencrypt", "--domain", "a.org",
+          "--client-mtls"],
+         {"CLIENT_MTLS": "on", "CLIENT_MTLS_MODE": "require"}),
+        (["--proxy", "traefik", "--cert", "letsencrypt", "--domain", "a.org",
+          "--client-mtls", "--client-mtls-mode", "optional"],
+         {"CLIENT_MTLS": "on", "CLIENT_MTLS_MODE": "optional"}),
         (["--proxy", "traefik", "--cert", "cloudflare-dns", "--domain", "a.org"],   # token later
          {"COMPOSE_PROFILES": "https-traefik", "ACME_CHALLENGE": "cloudflare", "HTTPS_CHECK_HOST": "traefik"}),
         (["--proxy", "traefik", "--cert", "none"],
@@ -5102,6 +5150,9 @@ def t_enable_https_script():
         ["--proxy", "traefik", "--cert", "none", "--cloudflare-proxy"],
         ["--proxy", "cloudflare-tunnel", "--domain", "a.org", "--cloudflare-proxy"],
         ["--proxy", "caddy", "--cert", "cloudflare-dns", "--domain", "a.org", "--cloudflare-aop"],
+        # Cloudflare AOP and Client mTLS cannot be combined
+        ["--proxy", "caddy", "--cert", "cloudflare-dns", "--domain", "a.org", "--cf-token", token,
+         "--cloudflare-proxy", "--cloudflare-aop", "--client-mtls"],
         ["--proxy", "caddy", "--cert", "none", "--rate-limit", "0"],
         ["--proxy", "caddy", "--cert", "none", "--rate-limit", "12;rm"],
         # InCommon details are required during setup, and credentials only fit ACME modes
@@ -5142,6 +5193,8 @@ def t_wizard_commands_and_monitor_modes():
     assert "--no-rate-limit" in cfp["linux"] and "-NoRateLimit" in cfp["windows"]
     aop = cmds("caddy", "cloudflare-dns", "a.org", rate_limit=False, cloudflare_proxy=True, cloudflare_aop=True)
     assert "--cloudflare-aop" in aop["linux"] and "-CloudflareAop" in aop["windows"]
+    mtls_cmd = cmds("caddy", "letsencrypt", "a.org", client_mtls=True)
+    assert "--client-mtls" in mtls_cmd["linux"] and "-ClientMtls" in mtls_cmd["windows"]
     inc = cmds("traefik", "incommon", "privacy.univ.edu")
     assert inc["linux"] == "./scripts/enable-https.sh --proxy traefik --mode incommon --domain privacy.univ.edu"
     assert "-Mode incommon" in inc["windows"] and "--cert" not in inc["linux"]

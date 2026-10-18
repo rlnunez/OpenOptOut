@@ -1108,3 +1108,162 @@ def get_entropy_images(count: int = 8, _: User = Depends(require_permission("set
     from ..core.settings_store import generate_entropy_images
     return {"images": generate_entropy_images(count)}
 
+
+# ── Client-Certificate Authentication (mTLS) ───────────────────────────────
+
+class MtlsToggle(LimitedModel):
+    enabled: bool
+    mode: Optional[str] = "require"
+
+
+class MtlsCaInit(LimitedModel):
+    ca_pem: Optional[str] = None
+    days: Optional[int] = 3650
+
+
+class MtlsMintRequest(LimitedModel):
+    device_name: str
+    password: Optional[str] = ""
+    days: Optional[int] = 365
+
+
+class MtlsRevokeRequest(LimitedModel):
+    serial_or_name: str
+
+
+@router.get("/security/mtls")
+def get_mtls_settings(_: User = Depends(require_permission("settings.system"))):
+    from ..core.mtls import get_mtls_status
+    return get_mtls_status()
+
+
+@router.patch("/security/mtls")
+def update_mtls_settings(data: MtlsToggle, _: User = Depends(require_permission("settings.system"))):
+    s = load_settings()
+    sec = s.setdefault("security", {})
+    mtls_cfg = sec.setdefault("mtls", {})
+
+    dep = s.get("deployment", {})
+    if data.enabled and dep.get("cloudflare_aop"):
+        raise HTTPException(400, "Cloudflare AOP and client mTLS cannot be enabled simultaneously.")
+
+    mtls_cfg["enabled"] = bool(data.enabled)
+    mtls_cfg["mode"] = data.mode if data.mode in ("require", "optional") else "require"
+    _save(s)
+
+    from ..core.mtls import get_mtls_status
+    return get_mtls_status()
+
+
+@router.post("/security/mtls/ca")
+def initialize_mtls_ca(body: MtlsCaInit, _: User = Depends(require_permission("settings.system"))):
+    from ..core.mtls import generate_ca, sync_proxy_ca_file
+    s = load_settings()
+    sec = s.setdefault("security", {})
+    mtls_cfg = sec.setdefault("mtls", {})
+
+    if body.ca_pem:
+        from cryptography import x509
+        try:
+            cert = x509.load_pem_x509_certificate(body.ca_pem.encode("utf-8"))
+        except Exception as e:
+            raise HTTPException(400, f"Invalid PEM certificate: {e}")
+        mtls_cfg["ca_cert"] = body.ca_pem.strip()
+        mtls_cfg.pop("ca_key_enc", None)
+        sync_proxy_ca_file(body.ca_pem)
+    else:
+        try:
+            ca_cert_pem, ca_key_pem = generate_ca(days=body.days or 3650)
+        except Exception as e:
+            raise HTTPException(500, f"Could not generate CA certificate: {e}")
+        from ..core.settings_store import encrypt_password
+        mtls_cfg["ca_cert"] = ca_cert_pem
+        mtls_cfg["ca_key_enc"] = encrypt_password(ca_key_pem)
+        sync_proxy_ca_file(ca_cert_pem)
+
+    _save(s)
+    from ..core.mtls import get_mtls_status
+    return get_mtls_status()
+
+
+@router.post("/security/mtls/mint")
+def mint_mtls_client_cert(body: MtlsMintRequest, _: User = Depends(require_permission("settings.system"))):
+    import uuid
+    from ..core.mtls import mint_client_cert
+    from ..core.settings_store import decrypt_password
+
+    if not body.device_name or not body.device_name.strip():
+        raise HTTPException(400, "device_name is required")
+
+    s = load_settings()
+    sec = s.get("security", {}) or {}
+    mtls_cfg = sec.get("mtls", {}) or {}
+
+    ca_cert = mtls_cfg.get("ca_cert")
+    ca_key_enc = mtls_cfg.get("ca_key_enc")
+    if not ca_cert:
+        raise HTTPException(400, "No Client CA configured. Initialize a CA first.")
+    if not ca_key_enc:
+        raise HTTPException(
+            400,
+            "The CA private key is held offline. Use scripts/openoptout-mtls.sh on the host to issue client certificates.",
+        )
+
+    ca_key = decrypt_password(ca_key_enc)
+    if not ca_key:
+        raise HTTPException(500, "Could not decrypt CA private key.")
+
+    try:
+        minted = mint_client_cert(
+            ca_cert_pem=ca_cert,
+            ca_key_pem=ca_key,
+            device_name=body.device_name.strip(),
+            password=body.password or "",
+            days=body.days or 365,
+        )
+    except Exception as e:
+        raise HTTPException(500, f"Failed to issue client certificate: {e}")
+
+    clients = mtls_cfg.setdefault("clients", [])
+    entry = {
+        "id": str(uuid.uuid4()),
+        "name": minted["device_name"],
+        "serial": minted["serial"],
+        "issued_at": minted["issued_at"],
+        "expires_at": minted["expires_at"],
+        "revoked": False,
+    }
+    clients.append(entry)
+    _save(s)
+
+    return {
+        "ok": True,
+        "entry": entry,
+        "p12_base64": minted["p12_base64"],
+        "filename": minted["filename"],
+    }
+
+
+@router.post("/security/mtls/revoke")
+def revoke_mtls_client_cert(body: MtlsRevokeRequest, _: User = Depends(require_permission("settings.system"))):
+    import datetime
+    s = load_settings()
+    sec = s.get("security", {}) or {}
+    mtls_cfg = sec.get("mtls", {}) or {}
+    clients = mtls_cfg.get("clients", [])
+
+    found = False
+    target = body.serial_or_name.strip()
+    for c in clients:
+        if c.get("id") == target or c.get("serial") == target or c.get("name") == target:
+            c["revoked"] = True
+            c["revoked_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            found = True
+
+    if not found:
+        raise HTTPException(404, "Certificate not found")
+
+    _save(s)
+    return {"ok": True}
+
+

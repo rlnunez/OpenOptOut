@@ -141,7 +141,95 @@ def _checks() -> dict:
     https = https_cert_status()
     if https is not None:
         out["https"] = https
+    mtls = client_mtls_ca_status()
+    if mtls is not None:
+        out["client_mtls"] = mtls
     return out
+
+
+def client_mtls_ca_status():
+    """
+    Check the Client mTLS Certificate Authority (CA) certificate if Client mTLS
+    is configured or enabled. Returns status dict or None if not configured.
+    """
+    from .settings_store import load_settings
+    try:
+        from cryptography import x509
+        from .auth_providers import _cert_info
+    except ImportError:
+        return None
+
+    s = load_settings()
+    sec = s.get("security", {}) or {}
+    mtls_cfg = sec.get("mtls", {}) or {}
+
+    ca_pem = (mtls_cfg.get("ca_cert") or "").strip()
+    ca_file = os.getenv("CLIENT_MTLS_CA_FILE", "").strip()
+    enabled = os.getenv("CLIENT_MTLS", "").lower() in ("on", "true", "1") or mtls_cfg.get("enabled", False)
+
+    if not ca_pem:
+        candidates = [ca_file, "/certs/client-ca.pem", "deploy/certs/client-ca.pem", "deploy/ca/client-ca.pem"]
+        for p in candidates:
+            if p and os.path.isfile(p):
+                try:
+                    with open(p, "r", encoding="utf-8") as f:
+                        ca_pem = f.read().strip()
+                    break
+                except Exception:
+                    pass
+
+    if not ca_pem:
+        if enabled:
+            return {
+                "level": "error",
+                "checked_at": _now(),
+                "message": "Client mTLS is enabled, but no CA certificate was found.",
+            }
+        return None
+
+    try:
+        cert = x509.load_pem_x509_certificate(ca_pem.encode())
+        info = _cert_info(cert)
+    except Exception as e:
+        return {
+            "level": "error",
+            "checked_at": _now(),
+            "message": f"Could not read the Client mTLS CA certificate ({e}).",
+        }
+
+    now = _now()
+    days = info["days_left"]
+    date = info["not_after"][:10]
+    base = {
+        "checked_at": now,
+        "days_left": days,
+        "not_after": info["not_after"],
+        "issuer": info["issuer"],
+        "subject": info["subject"],
+    }
+    try:
+        from cryptography.hazmat.primitives import hashes
+        base["fingerprint"] = cert.fingerprint(hashes.SHA256()).hex(":")
+    except Exception:
+        pass
+
+    if days < 0:
+        return {
+            **base,
+            "level": "expired",
+            "message": f"Your Client mTLS CA certificate expired on {date}. Client certificates signed by it will be rejected.",
+        }
+    if days <= 30:
+        return {
+            **base,
+            "level": "warning",
+            "message": f"Your Client mTLS CA certificate expires on {date} ({days} days). Mint a new CA and re-issue client certificates before then.",
+        }
+    return {
+        **base,
+        "level": "ok",
+        "message": f"Client mTLS CA certificate valid until {date} ({days} days).",
+    }
 
 
 def https_cert_status():
@@ -180,7 +268,7 @@ def https_cert_status():
 
 
 LABELS = {"ldap": "LDAP directory", "sip2": "Library ILS (SIP2)", "saml": "SAML identity provider",
-          "https": "OpenOptOut HTTPS"}
+          "https": "OpenOptOut HTTPS", "client_mtls": "Client mTLS CA"}
 
 
 def alerts(state: dict = None) -> list:

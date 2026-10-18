@@ -3044,6 +3044,368 @@ function HstsSection({ userRole }) {
   )
 }
 
+function ClientMtlsSection({ userRole }) {
+  const isAdmin = userRole === 'super_admin'
+  const [data, setData] = useState(null)
+  const [enabled, setEnabled] = useState(false)
+  const [mode, setMode] = useState('require')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
+  const [copied, setCopied] = useState('')
+  const [showIssueModal, setShowIssueModal] = useState(false)
+  const [showCaModal, setShowCaModal] = useState(false)
+  const [caPemInput, setCaPemInput] = useState('')
+
+  const [devName, setDevName] = useState('')
+  const [devPass, setDevPass] = useState('')
+  const [devDays, setDevDays] = useState(365)
+  const [issuing, setIssuing] = useState(false)
+  const [issueResult, setIssueResult] = useState(null)
+
+  const reload = () => {
+    if (!isAdmin) return
+    api.get('/settings/security/mtls').then(r => {
+      setData(r.data)
+      setEnabled(!!r.data.enabled)
+      setMode(r.data.mode || 'require')
+    }).catch(() => {})
+  }
+
+  useEffect(() => {
+    reload()
+  }, [isAdmin])
+
+  if (!isAdmin) return null
+
+  const save = async () => {
+    setSaving(true)
+    setError('')
+    try {
+      const r = await api.patch('/settings/security/mtls', { enabled, mode })
+      setData(r.data)
+      setEnabled(!!r.data.enabled)
+      setMode(r.data.mode || 'require')
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (e) {
+      setError(e.response?.data?.detail || tx("Failed to save mTLS settings"))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const initCa = async (caPem = null) => {
+    setError('')
+    try {
+      const r = await api.post('/settings/security/mtls/ca', { ca_pem: caPem || null })
+      setData(r.data)
+      setShowCaModal(false)
+      setCaPemInput('')
+    } catch (e) {
+      setError(e.response?.data?.detail || tx("Failed to initialize CA"))
+    }
+  }
+
+  const issueCert = async (e) => {
+    e.preventDefault()
+    if (!devName.trim()) return
+    setIssuing(true)
+    setError('')
+    try {
+      const r = await api.post('/settings/security/mtls/mint', {
+        device_name: devName.trim(),
+        password: devPass,
+        days: Number(devDays) || 365,
+      })
+      const b64 = r.data.p12_base64
+      const filename = r.data.filename || `${devName.trim()}.p12`
+      const a = document.createElement('a')
+      a.href = `data:application/x-pkcs12;base64,${b64}`
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+
+      setIssueResult(r.data)
+      setDevName('')
+      setDevPass('')
+      reload()
+    } catch (err) {
+      setError(err.response?.data?.detail || tx("Failed to issue client certificate"))
+    } finally {
+      setIssuing(false)
+    }
+  }
+
+  const revokeCert = async (target) => {
+    if (!window.confirm(tx("Revoke this client certificate? The device will no longer be able to connect."))) return
+    setError('')
+    try {
+      await api.post('/settings/security/mtls/revoke', { serial_or_name: target })
+      reload()
+    } catch (err) {
+      setError(err.response?.data?.detail || tx("Failed to revoke certificate"))
+    }
+  }
+
+  const copyCmd = (text, id) => {
+    navigator.clipboard.writeText(text)
+    setCopied(id)
+    setTimeout(() => setCopied(''), 2000)
+  }
+
+  const caStatus = data?.ca_status
+
+  return (
+    <Section icon={ShieldCheck} title={tx("Client-Certificate Authentication (mTLS)")}
+      description={tx("Require devices to present a client certificate signed by your local CA before reaching OpenOptOut")}
+      adminOnly userRole={userRole}>
+      <div className="space-y-4">
+        {error && (
+          <div role="alert" className="p-3 rounded-lg border border-red-800 bg-red-950/40 text-red-300 text-xs flex items-start gap-2">
+            <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <label className="flex items-start gap-2.5 cursor-pointer">
+          <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} className="mt-1 accent-shield-500" />
+          <div>
+            <span className="text-slate-200 text-sm font-medium block">{tx("Enable Client-Certificate Authentication (mTLS)")}</span>
+            <span className="text-slate-400 text-xs block mt-0.5">
+              {tx("When enabled on your reverse proxy, only devices with a client certificate installed in their OS or browser keystore can reach the site. Unauthenticated requests are dropped at the TLS handshake.")}
+            </span>
+          </div>
+        </label>
+
+        {enabled && (
+          <div className="ps-6 space-y-3">
+            <div>
+              <label className={labelCls}>{tx("Verification Mode")}</label>
+              <select className={inp} value={mode} onChange={e => setMode(e.target.value)}>
+                <option value="require">{tx("Require certificate (strict — drop unauthenticated connections)")}</option>
+                <option value="optional">{tx("Optional certificate (accept if presented — useful for healthchecks)")}</option>
+              </select>
+            </div>
+
+            <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-700/60 space-y-2">
+              <span className="text-slate-300 text-xs font-medium block">
+                {tx("Host proxy setup command")}
+              </span>
+              <p className="text-slate-400 text-xs">
+                {tx("Run this command on your host server to configure Caddy or Traefik:")}
+              </p>
+              <div className="flex items-center justify-between gap-2 bg-slate-950 px-3 py-1.5 rounded-md border border-slate-800 font-mono text-xs text-slate-300">
+                <span className="truncate">{data?.commands?.linux || "./scripts/enable-https.sh --client-mtls"}</span>
+                <button type="button" onClick={() => copyCmd(data?.commands?.linux || "./scripts/enable-https.sh --client-mtls", 'linux')}
+                  className="shrink-0 text-slate-400 hover:text-white" title={tx("Copy command")}>
+                  {copied === 'linux' ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="p-3.5 rounded-lg border border-slate-700 bg-slate-800/40 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-200 text-sm font-medium flex items-center gap-1.5">
+              <Key size={14} className="text-shield-400" />
+              {tx("Local Certificate Authority (CA)")}
+            </span>
+            {caStatus && caStatus.level !== 'error' ? (
+              <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${caStatus.level === 'ok' ? 'bg-emerald-950 border border-emerald-700 text-emerald-300' : 'bg-amber-950 border border-amber-700 text-amber-300'}`}>
+                {caStatus.level === 'ok' ? tx("Active") : tx("Expires soon")}
+              </span>
+            ) : (
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                {tx("Not configured")}
+              </span>
+            )}
+          </div>
+
+          {caStatus && caStatus.level !== 'error' ? (
+            <div className="text-xs space-y-1 text-slate-300">
+              <div className="flex justify-between">
+                <span className="text-slate-400">{tx("Subject:")}</span>
+                <span className="font-mono">{caStatus.subject || "OpenOptOut Client CA"}</span>
+              </div>
+              {caStatus.fingerprint && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400">{tx("SHA-256:")}</span>
+                  <span className="font-mono text-[11px] truncate max-w-[280px]" title={caStatus.fingerprint}>{caStatus.fingerprint}</span>
+                </div>
+              )}
+              {caStatus.not_after && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400">{tx("Valid until:")}</span>
+                  <span>{fmtDate(caStatus.not_after)} ({caStatus.days_left} {tx("days")})</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-slate-400 text-xs">
+              {tx("No Client CA has been created yet. You can create one here or manage it offline with scripts/openoptout-mtls.sh.")}
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            {(!caStatus || caStatus.level === 'error') ? (
+              <>
+                <button type="button" onClick={() => initCa()}
+                  className="px-2.5 py-1 text-xs bg-shield-600 hover:bg-shield-500 text-white rounded-md font-medium">
+                  {tx("Create Local CA")}
+                </button>
+                <button type="button" onClick={() => setShowCaModal(true)}
+                  className="px-2.5 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-md font-medium">
+                  {tx("Upload CA Certificate")}
+                </button>
+              </>
+            ) : data?.can_mint_in_app && (
+              <button type="button" onClick={() => { setShowIssueModal(true); setIssueResult(null) }}
+                className="px-2.5 py-1 text-xs bg-shield-600 hover:bg-shield-500 text-white rounded-md font-medium flex items-center gap-1">
+                <Plus size={13} />
+                {tx("Issue Device Certificate")}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {data?.clients?.length > 0 && (
+          <div className="space-y-2">
+            <span className="text-slate-300 text-xs font-medium block">
+              {tx("Issued Client Certificates ({count})", { count: data.clients.length })}
+            </span>
+            <div className="overflow-x-auto rounded-lg border border-slate-700">
+              <table className="w-full text-start text-xs text-slate-300">
+                <thead className="bg-slate-800 text-slate-400">
+                  <tr>
+                    <th className="py-2 px-3 text-start font-medium">{tx("Device / Name")}</th>
+                    <th className="py-2 px-3 text-start font-medium">{tx("Serial")}</th>
+                    <th className="py-2 px-3 text-start font-medium">{tx("Issued")}</th>
+                    <th className="py-2 px-3 text-start font-medium">{tx("Status")}</th>
+                    <th className="py-2 px-3 text-end font-medium">{tx("Action")}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {data.clients.map((c, i) => (
+                    <tr key={c.id || i} className="hover:bg-slate-800/40">
+                      <td className="py-2 px-3 font-medium text-white">{c.name}</td>
+                      <td className="py-2 px-3 font-mono text-[11px] text-slate-400">{c.serial}</td>
+                      <td className="py-2 px-3 text-slate-400">{c.issued_at ? fmtDate(c.issued_at) : '—'}</td>
+                      <td className="py-2 px-3">
+                        <span className={`px-1.5 py-0.5 rounded-sm text-[10px] uppercase font-semibold ${c.revoked ? 'bg-red-950 text-red-300 border border-red-800' : 'bg-emerald-950 text-emerald-300 border border-emerald-800'}`}>
+                          {c.revoked ? tx("Revoked") : tx("Valid")}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-end">
+                        {!c.revoked && (
+                          <button type="button" onClick={() => revokeCert(c.id || c.serial)}
+                            className="text-red-400 hover:text-red-300 text-xs font-medium">
+                            {tx("Revoke")}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {showIssueModal && (
+          <div className="p-4 rounded-lg border border-slate-700 bg-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-white text-sm font-semibold">{tx("Issue Client Certificate")}</span>
+              <button type="button" onClick={() => setShowIssueModal(false)} className="text-slate-400 hover:text-white">
+                <X size={14} />
+              </button>
+            </div>
+            {issueResult ? (
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg border border-emerald-700 bg-emerald-950/40 text-emerald-200 text-xs">
+                  {tx("Client certificate issued and downloaded for {name}!", { name: issueResult.device_name })}
+                </div>
+                <div className="text-xs text-slate-300 space-y-1">
+                  <span className="font-semibold text-white block">{tx("How to install on your device:")}</span>
+                  <p>• {tx("macOS / iOS: Double-click the .p12 file to add it to Keychain Access or Profiles.")}</p>
+                  <p>• {tx("Windows: Double-click the .p12 file, choose Current User -> Personal store.")}</p>
+                  <p>• {tx("Linux / Firefox: Settings -> Privacy & Security -> View Certificates -> Import.")}</p>
+                  <p>• {tx("Android: Settings -> Security -> Install from device storage -> VPN & app user certificate.")}</p>
+                </div>
+                <button type="button" onClick={() => { setShowIssueModal(false); setIssueResult(null) }}
+                  className="px-3 py-1.5 text-xs bg-slate-700 text-white rounded-md">
+                  {tx("Done")}
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={issueCert} className="space-y-3">
+                <div>
+                  <label className={labelCls}>{tx("Device or User Name")}</label>
+                  <input className={inp} value={devName} onChange={e => setDevName(e.target.value)}
+                    placeholder={tx("e.g. Jordan's MacBook Pro")} required />
+                </div>
+                <div>
+                  <label className={labelCls}>{tx("Bundle Password (optional)")}</label>
+                  <input className={inp} type="password" value={devPass} onChange={e => setDevPass(e.target.value)}
+                    placeholder={tx("Password protecting the .p12 file")} />
+                </div>
+                <div>
+                  <label className={labelCls}>{tx("Validity (days)")}</label>
+                  <input className={inp} type="number" value={devDays} onChange={e => setDevDays(e.target.value)}
+                    min="1" max="1825" />
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button type="button" onClick={() => setShowIssueModal(false)}
+                    className="px-3 py-1.5 text-xs bg-slate-700 text-slate-300 rounded-md">
+                    {tx("Cancel")}
+                  </button>
+                  <button type="submit" disabled={issuing || !devName.trim()}
+                    className="px-3 py-1.5 text-xs bg-shield-600 hover:bg-shield-500 disabled:opacity-50 text-white rounded-md font-medium">
+                    {issuing ? tx("Generating…") : tx("Mint & Download .p12")}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
+
+        {showCaModal && (
+          <div className="p-4 rounded-lg border border-slate-700 bg-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-white text-sm font-semibold">{tx("Upload Existing CA Certificate")}</span>
+              <button type="button" onClick={() => setShowCaModal(false)} className="text-slate-400 hover:text-white">
+                <X size={14} />
+              </button>
+            </div>
+            <p className="text-slate-400 text-xs">
+              {tx("Paste your PEM-formatted CA certificate below. The private key will remain offline on your CA host.")}
+            </p>
+            <textarea className={`${inp} font-mono text-xs h-28`}
+              placeholder="-----BEGIN CERTIFICATE-----..."
+              value={caPemInput} onChange={e => setCaPemInput(e.target.value)} />
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setShowCaModal(false)}
+                className="px-3 py-1.5 text-xs bg-slate-700 text-slate-300 rounded-md">
+                {tx("Cancel")}
+              </button>
+              <button type="button" onClick={() => initCa(caPemInput)} disabled={!caPemInput.trim()}
+                className="px-3 py-1.5 text-xs bg-shield-600 hover:bg-shield-500 disabled:opacity-50 text-white rounded-md font-medium">
+                {tx("Save CA Certificate")}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end pt-2">
+          <SaveButton saving={saving} saved={saved} onClick={save} />
+        </div>
+      </div>
+    </Section>
+  )
+}
+
 function MasterSecretKeySection({ userRole }) {
   const [status, setStatus] = useState(null)
 
@@ -3105,6 +3467,7 @@ export default function Settings() {
       <SessionPolicySection userRole={user?.role} />
       <MasterSecretKeySection userRole={sectionRole('settings.system')} />
       <HstsSection userRole={sectionRole('settings.system')} />
+      <ClientMtlsSection userRole={sectionRole('settings.system')} />
       <EmailSection initial={settings?.email ?? {}} userRole={sectionRole('email.manage')}/>
       <SchedulerSection
         initial={settings?.scheduler ?? {}}

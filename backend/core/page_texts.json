@@ -816,7 +816,8 @@
   {
    "text": "Action",
    "where": [
-    "pages/BrokerHealth.jsx"
+    "pages/BrokerHealth.jsx",
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -840,6 +841,7 @@
   {
    "text": "Active",
    "where": [
+    "pages/Settings.jsx",
     "pages/Translations.jsx"
    ]
   },
@@ -1718,6 +1720,12 @@
    "text": "and {v} more",
    "where": [
     "pages/Dashboard.jsx"
+   ]
+  },
+  {
+   "text": "Android: Settings -> Security -> Install from device storage -> VPN & app user certificate.",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -2615,6 +2623,12 @@
    ]
   },
   {
+   "text": "Bundle Password (optional)",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Bureau addresses last checked {checked}. Check the bureau's website if a letter comes back.",
    "where": [
     "pages/CreditFreeze.jsx"
@@ -3281,9 +3295,21 @@
    ]
   },
   {
+   "text": "Client certificate issued and downloaded for {name}!",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Client certificate path",
    "where": [
     "pages/DatabaseAdmin.jsx"
+   ]
+  },
+  {
+   "text": "Client certificates (mTLS)",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -3326,6 +3352,12 @@
   },
   {
    "text": "Client secret (optional if already registered)",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Client-Certificate Authentication (mTLS)",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -3825,6 +3857,7 @@
    "text": "Copy command",
    "where": [
     "components/SecretKeyBanner.jsx",
+    "pages/Settings.jsx",
     "pages/SetupWizard.jsx"
    ]
   },
@@ -4507,6 +4540,12 @@
    ]
   },
   {
+   "text": "Create Local CA",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Create test broker",
    "where": [
     "pages/ParentCompanies.jsx"
@@ -5024,7 +5063,19 @@
    ]
   },
   {
+   "text": "Device / Name",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Device only saves email/username for quick prefill; session lifetime remains short.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Device or User Name",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -5631,6 +5682,12 @@
    ]
   },
   {
+   "text": "e.g. Jordan's MacBook Pro",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "e.g. lib1, lib2, lib3",
    "where": [
     "pages/Branding.jsx"
@@ -5963,6 +6020,12 @@
    "where": [
     "pages/Branding.jsx",
     "pages/Plugins.jsx"
+   ]
+  },
+  {
+   "text": "Enable Client-Certificate Authentication (mTLS)",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -6498,6 +6561,12 @@
    ]
   },
   {
+   "text": "Expires soon",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Export",
    "where": [
     "pages/BrokerPriority.jsx"
@@ -6600,6 +6669,12 @@
    ]
   },
   {
+   "text": "Failed to initialize CA",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Failed to initiate rollback.",
    "where": [
     "pages/SystemUpdates.jsx"
@@ -6612,6 +6687,12 @@
    ]
   },
   {
+   "text": "Failed to issue client certificate",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Failed to remove security key.",
    "where": [
     "pages/Settings.jsx"
@@ -6621,6 +6702,12 @@
    "text": "Failed to restore release.",
    "where": [
     "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Failed to revoke certificate",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -6645,6 +6732,12 @@
    "text": "Failed to save email settings",
    "where": [
     "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Failed to save mTLS settings",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -7219,6 +7312,12 @@
    ]
   },
   {
+   "text": "Generating…",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Get a copy of your data, see who looked at it, or delete it",
    "where": [
     "pages/Settings.jsx"
@@ -7577,6 +7676,12 @@
    ]
   },
   {
+   "text": "Host proxy setup command",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Host server updates and backups",
    "where": [
     "pages/Calendar.jsx"
@@ -7719,6 +7824,12 @@
    "text": "How to ask",
    "where": [
     "pages/Brokers.jsx"
+   ]
+  },
+  {
+   "text": "How to install on your device:",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -8322,6 +8433,30 @@
    ]
   },
   {
+   "text": "Issue Client Certificate",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Issue Device Certificate",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Issued",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Issued Client Certificates ({count})",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "It can't remove everything.",
    "where": [
     "components/TermsGate.jsx"
@@ -8883,6 +9018,12 @@
    ]
   },
   {
+   "text": "Linux / Firefox: Settings -> Privacy & Security -> View Certificates -> Import.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Linux / Mac",
    "where": [
     "pages/SetupWizard.jsx"
@@ -9030,6 +9171,12 @@
    ]
   },
   {
+   "text": "Local Certificate Authority (CA)",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Lock down key file permissions (required)",
    "where": [
     "components/SecretKeyBanner.jsx"
@@ -9120,6 +9267,12 @@
    "text": "Lowest",
    "where": [
     "pages/BrokerPriority.jsx"
+   ]
+  },
+  {
+   "text": "macOS / iOS: Double-click the .p12 file to add it to Keychain Access or Profiles.",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -9640,6 +9793,12 @@
   },
   {
    "text": "min around the clock — about {n} per batch.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Mint & Download .p12",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -10198,6 +10357,12 @@
    "text": "No brokers need review — everything is running clean.",
    "where": [
     "pages/BrokerHealth.jsx"
+   ]
+  },
+  {
+   "text": "No Client CA has been created yet. You can create one here or manage it offline with scripts/openoptout-mtls.sh.",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -11098,6 +11263,12 @@
    ]
   },
   {
+   "text": "Only devices with an installed client certificate can reach OpenOptOut. The reverse proxy checks the certificate before any request reaches the app. Unauthenticated requests are dropped at the TLS handshake.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Only for brokers with a plugin that nobody turned off on purpose.",
    "where": [
     "pages/BrokerUpdates.jsx"
@@ -11475,6 +11646,12 @@
    ]
   },
   {
+   "text": "Optional certificate (accept if presented — useful for healthchecks)",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Optional, any-of — e.g. staff,faculty",
    "where": [
     "pages/Branding.jsx"
@@ -11679,6 +11856,12 @@
    ]
   },
   {
+   "text": "Password protecting the .p12 file",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Password updated.",
    "where": [
     "pages/AdminPanel.jsx"
@@ -11778,6 +11961,12 @@
    "text": "Paste XML",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Paste your PEM-formatted CA certificate below. The private key will remain offline on your CA host.",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -13320,7 +13509,25 @@
    ]
   },
   {
+   "text": "Require a client certificate (mTLS)",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Require browsers to connect only over HTTPS",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Require certificate (strict — drop unauthenticated connections)",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Require devices to present a client certificate signed by your local CA before reaching OpenOptOut",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -13517,7 +13724,20 @@
   {
    "text": "Revoke",
    "where": [
-    "pages/AdminPanel.jsx"
+    "pages/AdminPanel.jsx",
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Revoke this client certificate? The device will no longer be able to connect.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Revoked",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -13639,6 +13859,12 @@
    "text": "Run the self-test",
    "where": [
     "pages/UsageStats.jsx"
+   ]
+  },
+  {
+   "text": "Run this command on your host server to configure Caddy or Traefik:",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -13773,6 +13999,12 @@
    "text": "Save as plugin",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Save CA Certificate",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -14589,6 +14821,12 @@
    ]
   },
   {
+   "text": "Serial",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Server address",
    "where": [
     "pages/Backups.jsx"
@@ -14744,6 +14982,12 @@
    "text": "Severity",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "SHA-256:",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -15522,6 +15766,7 @@
    "text": "Status",
    "where": [
     "pages/BrokerPriority.jsx",
+    "pages/Settings.jsx",
     "pages/StateRegistries.jsx",
     "pages/WorkerFleet.jsx"
    ]
@@ -15740,7 +15985,8 @@
   {
    "text": "Subject:",
    "where": [
-    "pages/ParentCompanies.jsx"
+    "pages/ParentCompanies.jsx",
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -17425,6 +17671,18 @@
    ]
   },
   {
+   "text": "Upload CA Certificate",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Upload Existing CA Certificate",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Upload failed (the inspector may have rejected it).",
    "where": [
     "pages/SetupWizard.jsx"
@@ -17761,6 +18019,24 @@
    ]
   },
   {
+   "text": "Valid",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Valid until:",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Validity (days)",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "variants {v}",
    "where": [
     "components/VariantCoverage.jsx"
@@ -17786,6 +18062,12 @@
   },
   {
    "text": "Verification Impact",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Verification Mode",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -18217,6 +18499,12 @@
    ]
   },
   {
+   "text": "When enabled on your reverse proxy, only devices with a client certificate installed in their OS or browser keystore can reach the site. Unauthenticated requests are dropped at the TLS handshake.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "When enabled, OpenOptOut verifies cryptographic Authenticator Attestation GUIDs (AAGUIDs) against certified YubiKey FIPS hardware (YubiKey 5 NFC FIPS, 5C FIPS, 5Ci FIPS, 5 Series FIPS 140-3).",
    "where": [
     "pages/Settings.jsx"
@@ -18479,6 +18767,12 @@
    "text": "Windows (PowerShell):",
    "where": [
     "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
+   "text": "Windows: Double-click the .p12 file, choose Current User -> Personal store.",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {

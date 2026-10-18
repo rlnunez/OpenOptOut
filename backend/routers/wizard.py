@@ -299,6 +299,7 @@ class DeploymentStep(LimitedModel):
     rate_limit: Optional[bool] = None   # Caddy/Traefik: per-visitor limits (default on)
     cloudflare_proxy: Optional[bool] = None  # Caddy/Traefik + cloudflare-dns only
     cloudflare_aop: Optional[bool] = None    # Cloudflare Authenticated Origin Pulls (AOP)
+    client_mtls: Optional[bool] = None       # Self-managed client-certificate mTLS (default off)
     hsts: Optional[bool] = None         # Enable HTTP Strict Transport Security when SSL is installed or handled externally
 
 
@@ -326,6 +327,7 @@ TUNNEL_WARNING = ("Cloudflare Tunnel: Cloudflare decrypts all traffic to this si
 def enable_https_commands(front_door: str, certificate: str, domain: str = "",
                           rate_limit: bool = True, cloudflare_proxy: bool = False,
                           cloudflare_aop: bool = False,
+                          client_mtls: bool = False,
                           hsts: bool = True) -> dict:
     """The exact host commands for a managed deployment's choices, for both Linux/macOS and Windows. Domain is only included if it's plainly a hostname list (it ends up in a command the admin copies into a shell)."""
     import re
@@ -342,6 +344,8 @@ def enable_https_commands(front_door: str, certificate: str, domain: str = "",
             sh += ["--cloudflare-proxy"]; ps += ["-CloudflareProxy"]
             if cloudflare_aop:
                 sh += ["--cloudflare-aop"]; ps += ["-CloudflareAop"]
+        if client_mtls and cert != "none":
+            sh += ["--client-mtls"]; ps += ["-ClientMtls"]
         if not rate_limit:
             sh += ["--no-rate-limit"]; ps += ["-NoRateLimit"]
         if not hsts and cert != "none":
@@ -401,6 +405,9 @@ def save_deployment(body: DeploymentStep, db: Session = Depends(get_db),
             if body.cloudflare_proxy and certificate != "cloudflare-dns":
                 raise HTTPException(400, "Cloudflare's proxy needs the 'cloudflare-dns' certificate option")
             deployment["cloudflare_proxy"] = bool(body.cloudflare_proxy)
+            if body.client_mtls and body.cloudflare_aop:
+                raise HTTPException(400, "Cloudflare AOP and client mTLS cannot be enabled simultaneously")
+            deployment["client_mtls"] = bool(body.client_mtls)
             ssl_installed = (certificate != "none")
         else:
             ssl_installed = True
@@ -411,6 +418,8 @@ def save_deployment(body: DeploymentStep, db: Session = Depends(get_db),
         hsts_enabled = bool(body.hsts) and ssl_installed
         deployment["hsts"] = hsts_enabled
         s.setdefault("security", {})["hsts"] = hsts_enabled
+    if body.client_mtls is not None:
+        s.setdefault("security", {}).setdefault("mtls", {})["enabled"] = bool(body.client_mtls)
     s["deployment"] = deployment
     _save(s)
     _mark_step("deployment", "done")
@@ -468,9 +477,14 @@ def complete(db: Session = Depends(get_db), user: User = Depends(get_current_use
                                          rate_limit=deployment.get("rate_limit", True),
                                          cloudflare_proxy=deployment.get("cloudflare_proxy", False),
                                          cloudflare_aop=deployment.get("cloudflare_aop", False),
+                                         client_mtls=deployment.get("client_mtls", False),
                                          hsts=deployment.get("hsts", True))
         warnings.append("Your front door isn't on yet: run the command shown below on the server, "
                         "then restart the containers.")
+        if deployment.get("client_mtls"):
+            warnings.append("You chose client-certificate authentication (mTLS). Use scripts/openoptout-mtls.sh "
+                            "to initialize your CA and issue certificates for each device before turning on "
+                            "mTLS enforcement on the proxy.")
         if front_door == "cloudflare-tunnel":
             warnings.append(TUNNEL_WARNING)
         elif deployment.get("cloudflare_proxy"):

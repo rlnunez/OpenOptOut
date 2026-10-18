@@ -16,6 +16,9 @@
 #   AUTH_RATE_LIMIT_PER_MINUTE        Sign-in limit per visitor (default 60)
 #   CLOUDFLARE_PROXY  on | off        Restrict access to Cloudflare IPs
 #   CLOUDFLARE_AOP    on | off        Cloudflare Authenticated Origin Pulls (mTLS)
+#   CLIENT_MTLS       on | off        Self-managed client certificate mTLS
+#   CLIENT_MTLS_CA_FILE               Path to client CA certificate
+#   CLIENT_MTLS_MODE  require | optional  Client cert verification mode (default require)
 #   DOMAIN                            Domain name(s) (comma-separated)
 #   ACME_EMAIL                        Registration email for the ACME CA
 #   ACME_KEY_TYPE                     Certificate key type (e.g. rsa2048, p256)
@@ -151,6 +154,42 @@ case "$AOP" in
   *) die "CLOUDFLARE_AOP must be on or off: $AOP" ;;
 esac
 
+CLIENT_MTLS="${CLIENT_MTLS:-off}"
+CLIENT_AUTH_DIRECTIVE=""
+case "$CLIENT_MTLS" in
+  off) ;;
+  on)
+    [ "$MODE" != "none" ] || die "CLIENT_MTLS=on needs a certificate: client mTLS requires TLS."
+    [ "$AOP" != "on" ] || die "CLIENT_MTLS=on and CLOUDFLARE_AOP=on cannot be used together: pick Cloudflare AOP (for Cloudflare edge) or CLIENT_MTLS (for direct clients)."
+    MTLS_FILE="${CLIENT_MTLS_CA_FILE:-/certs/client-ca.pem}"
+    if [ ! -f "$MTLS_FILE" ] && [ -f "/deploy/certs/client-ca.pem" ]; then
+      MTLS_FILE="/deploy/certs/client-ca.pem"
+    fi
+    path_ok "$MTLS_FILE" || die "CLIENT_MTLS_CA_FILE must be an absolute path: $MTLS_FILE"
+    [ -f "$MTLS_FILE" ] || die "Client mTLS CA certificate not found: $MTLS_FILE"
+    MTLS_MODE="${CLIENT_MTLS_MODE:-require}"
+    case "$MTLS_MODE" in
+      require) CAD_MTLS_MODE="require_and_verify" ;;
+      optional) CAD_MTLS_MODE="verify_if_given" ;;
+      *) die "CLIENT_MTLS_MODE must be require or optional: $MTLS_MODE" ;;
+    esac
+    CLIENT_AUTH_DIRECTIVE="
+		client_auth {
+			mode $CAD_MTLS_MODE
+			trusted_ca_cert_file $MTLS_FILE
+		}"
+    ;;
+  *) die "CLIENT_MTLS must be on or off: $CLIENT_MTLS" ;;
+esac
+
+if [ "$AOP" = "on" ]; then
+  CLIENT_AUTH_DIRECTIVE="
+		client_auth {
+			mode require_and_verify
+			trusted_ca_cert_file $AOP_FILE
+		}"
+fi
+
 # ── tls directive ─────────────────────────────────────────────────────────────
 if [ -n "$CA" ]; then
   TLS="	tls ${EMAIL} {
@@ -176,22 +215,14 @@ if [ -n "$CA" ]; then
 		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
 		resolvers 1.1.1.1 1.0.0.1"
   fi
-  if [ "$AOP" = "on" ]; then
-    TLS="$TLS
-		client_auth {
-			mode require_and_verify
-			trusted_ca_cert_file $AOP_FILE
-		}"
+  if [ -n "$CLIENT_AUTH_DIRECTIVE" ]; then
+    TLS="$TLS$CLIENT_AUTH_DIRECTIVE"
   fi
   TLS="$TLS
 	}"
 elif [ "$MODE" = "internal" ]; then
-  if [ "$AOP" = "on" ]; then
-    TLS="	tls internal {
-		client_auth {
-			mode require_and_verify
-			trusted_ca_cert_file $AOP_FILE
-		}
+  if [ -n "$CLIENT_AUTH_DIRECTIVE" ]; then
+    TLS="	tls internal {$CLIENT_AUTH_DIRECTIVE
 	}"
   else
     TLS="	tls internal"
@@ -206,12 +237,8 @@ else
   fi
   [ -f "$CERT" ] || die "Certificate file not found: $CERT (put it in ./deploy/certs)"
   [ -f "$KEY" ]  || die "Key file not found: $KEY (put it in ./deploy/certs)"
-  if [ "$AOP" = "on" ]; then
-    TLS="	tls $CERT $KEY {
-		client_auth {
-			mode require_and_verify
-			trusted_ca_cert_file $AOP_FILE
-		}
+  if [ -n "$CLIENT_AUTH_DIRECTIVE" ]; then
+    TLS="	tls $CERT $KEY {$CLIENT_AUTH_DIRECTIVE
 	}"
   else
     TLS="	tls $CERT $KEY"
@@ -322,7 +349,7 @@ $ROUTE
 }
 EOF
 
-echo "OpenOptOut HTTPS: mode=$MODE challenge=$CHALLENGE rate_limit=$RATE_LIMIT cloudflare_proxy=${CLOUDFLARE_PROXY:-off} cloudflare_aop=$AOP domain=${DOMAIN:-(any)} upstream=$UPSTREAM"
+echo "OpenOptOut HTTPS: mode=$MODE challenge=$CHALLENGE rate_limit=$RATE_LIMIT cloudflare_proxy=${CLOUDFLARE_PROXY:-off} cloudflare_aop=$AOP client_mtls=${CLIENT_MTLS:-off} domain=${DOMAIN:-(any)} upstream=$UPSTREAM"
 if [ "${GENERATE_ONLY:-}" = "1" ]; then
   cat "$CADDYFILE"
   exit 0

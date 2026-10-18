@@ -18,6 +18,12 @@
 # and add these two directives to the SSL server { ... } block:
 #   ssl_client_certificate /etc/ssl/certs/cloudflare-origin-pull-ca.pem;
 #   ssl_verify_client on;
+#
+# If enforcing self-managed client certificate mTLS (Option A/B):
+# Copy your client CA certificate to /etc/ssl/certs/openoptout-client-ca.pem
+# and add these directives to the SSL server { ... } block:
+#   ssl_client_certificate /etc/ssl/certs/openoptout-client-ca.pem;
+#   ssl_verify_client on;    # use 'optional' if healthchecks/monitors do not present a client cert
 
 server {
     listen 80;

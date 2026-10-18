@@ -35,6 +35,7 @@ cd "$(dirname "$0")/.."
 ENV_FILE=".env"; MODE=""; CERT=""; DOMAIN=""; EMAIL=""; ACME_CA=""; ACME_CA_ROOT_SRC=""
 YES=0; DISABLE=0; PROXY=""; CF_TOKEN=""; TUNNEL_TOKEN=""; CF_PROXY=""; CF_AOP=""; RL=on; RL_SITE=""; RL_AUTH=""
 EAB_KID=""; EAB_HMAC=""; KEY_TYPE=""; HSTS_VAL=""
+CLIENT_MTLS_VAL=""; CLIENT_MTLS_CA_VAL=""; CLIENT_MTLS_MODE_VAL=""
 INCOMMON_CA_DEFAULT="https://acme-us.certinext.io/v1/directory"
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -57,6 +58,10 @@ while [ $# -gt 0 ]; do
     --no-cloudflare-proxy) CF_PROXY=off; shift ;;
     --cloudflare-aop) CF_AOP=on; shift ;;
     --no-cloudflare-aop) CF_AOP=off; shift ;;
+    --client-mtls) CLIENT_MTLS_VAL=on; shift ;;
+    --no-client-mtls) CLIENT_MTLS_VAL=off; shift ;;
+    --client-mtls-ca) CLIENT_MTLS_CA_VAL="$2"; shift 2 ;;
+    --client-mtls-mode) CLIENT_MTLS_MODE_VAL="$2"; shift 2 ;;
     --hsts) HSTS_VAL=on; shift ;;
     --no-hsts) HSTS_VAL=off; shift ;;
     --no-rate-limit) RL=off; shift ;;
@@ -108,7 +113,7 @@ unset_env() {
 has_env() { [ -f "$ENV_FILE" ] && grep -q "^${1}=." "$ENV_FILE"; }
 backup() { [ -f "$ENV_FILE" ] && cp "$ENV_FILE" "${ENV_FILE}.bak.$(date +%Y%m%d%H%M%S)" && echo "Backed up $ENV_FILE"; return 0; }
 
-FRONT_DOOR_KEYS="COMPOSE_PROFILES FRONT_DOOR HTTPS_CHECK_HOST HTTPS_MODE ACME_CHALLENGE DOMAIN ACME_EMAIL ACME_CA ACME_CA_ROOT ACME_EAB_KID ACME_EAB_HMAC ACME_KEY_TYPE WEB_BIND WEB_PORT TRUSTED_PROXY_HOPS RATE_LIMIT CLOUDFLARE_PROXY CLOUDFLARE_AOP HSTS"
+FRONT_DOOR_KEYS="COMPOSE_PROFILES FRONT_DOOR HTTPS_CHECK_HOST HTTPS_MODE ACME_CHALLENGE DOMAIN ACME_EMAIL ACME_CA ACME_CA_ROOT ACME_EAB_KID ACME_EAB_HMAC ACME_KEY_TYPE WEB_BIND WEB_PORT TRUSTED_PROXY_HOPS RATE_LIMIT CLOUDFLARE_PROXY CLOUDFLARE_AOP CLIENT_MTLS CLIENT_MTLS_CA_FILE CLIENT_MTLS_MODE HSTS"
 
 if [ "$DISABLE" = 1 ]; then
   backup
@@ -378,6 +383,29 @@ if [ "$CF_PROXY" = on ] && [ -z "$CF_AOP" ] && interactive; then
 fi
 [ -n "$CF_AOP" ] || CF_AOP=off
 
+if [ "$CLIENT_MTLS_VAL" = on ] && [ "$CF_AOP" = on ]; then
+  die "--client-mtls and --cloudflare-aop cannot be used together: pick Cloudflare AOP or client mTLS."
+fi
+if [ "$CF_AOP" != on ] && [ -z "$CLIENT_MTLS_VAL" ] && [ "$MODE" != none ] && interactive; then
+  echo
+  echo "Require a client certificate (self-managed mTLS) for all access?"
+  echo "  Only devices presenting a client certificate signed by your local CA"
+  echo "  can connect to this site. Keeps sign-in and setup completely private"
+  echo "  without needing Cloudflare or third-party edge services."
+  [ "$(ask 'Enable client certificate mTLS? (y/n)' n)" = y ] && CLIENT_MTLS_VAL=on || CLIENT_MTLS_VAL=off
+fi
+[ -n "$CLIENT_MTLS_VAL" ] || CLIENT_MTLS_VAL=off
+
+if [ "$CLIENT_MTLS_VAL" = on ]; then
+  [ -n "$CLIENT_MTLS_MODE_VAL" ] || CLIENT_MTLS_MODE_VAL=require
+  case "$CLIENT_MTLS_MODE_VAL" in require|optional) ;; *) die "--client-mtls-mode must be require or optional" ;; esac
+  if [ -z "$CLIENT_MTLS_CA_VAL" ] && ! has_env CLIENT_MTLS_CA_FILE; then
+    if [ -f "./deploy/certs/client-ca.pem" ]; then
+      CLIENT_MTLS_CA_VAL="/certs/client-ca.pem"
+    fi
+  fi
+fi
+
 # ── rate limits ──
 num_ok() { [[ "$1" =~ ^[1-9][0-9]{0,6}$ ]]; }
 [ -z "$RL_SITE" ] || num_ok "$RL_SITE" || die "--rate-limit must be a whole number above 0"
@@ -403,6 +431,7 @@ echo
 PROTECT_LABEL="rate-limits=$RL  hsts=$HSTS_VAL"
 [ "$CF_PROXY" = on ] && PROTECT_LABEL="$PROTECT_LABEL  cloudflare-proxy=on"
 [ "$CF_AOP" = on ] && PROTECT_LABEL="$PROTECT_LABEL  cloudflare-aop=on"
+[ "$CLIENT_MTLS_VAL" = on ] && PROTECT_LABEL="$PROTECT_LABEL  client-mtls=on"
 echo "About to set up:  proxy=$PROXY  certificate=$CERT_LABEL  $PROTECT_LABEL  domain=${DOMAIN:-(any)}${EMAIL:+  email=$EMAIL}"
 if interactive; then [ "$(ask 'Continue? (y/n)' y)" = y ] || die "Cancelled."; fi
 
@@ -417,6 +446,9 @@ set_env RATE_LIMIT "$RL"
 [ -z "$RL_AUTH" ] || set_env AUTH_RATE_LIMIT_PER_MINUTE "$RL_AUTH"
 set_env CLOUDFLARE_PROXY "$CF_PROXY"
 set_env CLOUDFLARE_AOP "$CF_AOP"
+set_env CLIENT_MTLS "$CLIENT_MTLS_VAL"
+[ -z "$CLIENT_MTLS_CA_VAL" ] || set_env CLIENT_MTLS_CA_FILE "$CLIENT_MTLS_CA_VAL"
+[ -z "$CLIENT_MTLS_MODE_VAL" ] || set_env CLIENT_MTLS_MODE "$CLIENT_MTLS_MODE_VAL"
 [ "$MODE" = none ] || set_env HSTS "$HSTS_VAL"
 set_env FRONT_DOOR "$PROXY"
 set_env HTTPS_CHECK_HOST "$PROXY"   # the certificate monitor checks this container
@@ -475,6 +507,16 @@ if [ "$CF_PROXY" = on ]; then
     echo "  4. SSL/TLS > Origin Server: turn ON 'Authenticated Origin Pulls'."
   fi
   echo "Remember: Cloudflare can now see all traffic to this site."
+fi
+if [ "$CLIENT_MTLS_VAL" = on ]; then
+  echo
+  echo "Client certificate mTLS: make sure your client CA cert is in place:"
+  echo "  1. If you haven't created a CA yet, run:"
+  echo "     ./scripts/openoptout-mtls.sh init-ca"
+  echo "     (or copy your existing CA certificate to deploy/certs/client-ca.pem)"
+  echo "  2. Issue certificates for each device:"
+  echo "     ./scripts/openoptout-mtls.sh issue <device-name>"
+  echo "  3. Import the resulting .p12 into your device / browser certificate store."
 fi
 [ "$MODE" = internal ] && echo "Browsers will warn until Caddy's root CA is trusted — see docs/admin/https.md."
 if [ "$MODE" = incommon ]; then
