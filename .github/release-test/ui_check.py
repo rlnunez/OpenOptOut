@@ -170,20 +170,79 @@ def main():
         # ── 3. setup wizard: skip every step until the dashboard ─────────────
         rec.screen = "setup wizard"
         reached = False
-        for i in range(12):
-            btn = (visible(page, "button", "Go to dashboard")
-                   or visible(page, "button", re.compile(r"^\s*Skip Tutorial\s*$", re.I))
-                   or visible(page, "button", re.compile(r"^\s*Skip\s*$")))
-            if not btn:
+        for i in range(25):
+            # 3a. MFA setup screen in first-run (optional/skippable for super admin)
+            mfa_btn = (visible(page, "button", re.compile(r"^\s*Skip\s+for\s+now\s*$", re.I), timeout=1000)
+                       or visible(page, "button", re.compile(r"^\s*Skip\s*$", re.I), timeout=500))
+            body_sample = ""
+            try:
+                body_sample = page.inner_text("body")[:800]
+            except Exception:
+                pass
+            if mfa_btn and any(w in body_sample for w in ("MFA", "Super Admin", "compliance window", "Protect Your")):
+                snap(page, f"mfa-setup-{i + 1}")
+                mfa_btn.click()
+                settle(page, 5000)
+                time.sleep(0.5)
+                continue
+
+            # 3b. Terms gate (accept limits, notice, operator terms)
+            try:
+                cb = page.locator("input[type='checkbox']")
+                if cb.count() > 0 and cb.first.is_visible() and not cb.first.is_checked():
+                    cb.first.check()
+                    time.sleep(0.3)
+            except Exception:
+                pass
+
+            terms_btn = (visible(page, "button", re.compile(r"^\s*Continue\s*$", re.I), timeout=1000)
+                         or visible(page, "button", re.compile(r"^\s*I understand\s*$", re.I), timeout=1000)
+                         or visible(page, "button", re.compile(r"^\s*Accept\s*$", re.I), timeout=1000))
+            if terms_btn and terms_btn.is_enabled() and any(w in body_sample for w in ("OpenOptOut", "terms", "terms-title", "Before you start", "responsible", "guarantee removal")):
+                snap(page, f"terms-gate-{i + 1}")
+                terms_btn.click()
+                settle(page, 5000)
+                time.sleep(0.5)
+                continue
+
+            # 3c. Setup wizard summary: "Go to dashboard"
+            dash_btn = visible(page, "button", re.compile(r"^\s*Go to dashboard\s*$", re.I), timeout=1500)
+            if dash_btn:
+                snap(page, f"wizard-summary-{i + 1}")
+                dash_btn.click()
+                settle(page, 5000)
+                time.sleep(1)
+                # Dismiss welcome tour if it appears right after
+                tour = visible(page, "button", re.compile(r"^\s*Skip Tutorial\s*$", re.I), timeout=1500)
+                if tour:
+                    tour.click()
+                    settle(page, 3000)
                 reached = True
                 break
-            snap(page, f"wizard-{i + 1}")
-            btn.click()
-            settle(page, 5000)
+
+            # 3d. Setup wizard steps or tour: "Skip" or "Skip Tutorial"
+            skip_btn = (visible(page, "button", re.compile(r"^\s*Skip Tutorial\s*$", re.I), timeout=500)
+                        or visible(page, "button", re.compile(r"^\s*Skip\s*$", re.I), timeout=1000))
+            if skip_btn:
+                snap(page, f"wizard-{i + 1}")
+                skip_btn.click()
+                settle(page, 5000)
+                time.sleep(0.5)
+                continue
+
+            # 3e. Check if dashboard is already reached (no modals or gates blocking)
+            if ("/login" not in page.url and
+                not visible(page, "button", re.compile(r"^\s*Create administrator account\s*$", re.I), timeout=200) and
+                not visible(page, "button", re.compile(r"^\s*Go to dashboard\s*$", re.I), timeout=200) and
+                not any(w in body_sample for w in ("Before you start: what OpenOptOut can", "Step 2: MFA Setup"))):
+                reached = True
+                break
+
             time.sleep(0.5)
+
         snap(page, "dashboard")
         if not reached:
-            rec.error("Setup wizard stuck", "Still showing wizard buttons after 12 clicks.")
+            rec.error("Setup wizard stuck", "Still showing wizard buttons after 25 clicks.")
         steps.append(("Click through the setup wizard", reached,
                       "" if reached else "wizard never finished"))
 
@@ -198,6 +257,21 @@ def main():
                 rec.error("Page did not load", str(e))
             settle(page)
             time.sleep(0.5)
+
+            # Defensive: clear any unexpected terms modal or tutorial popup
+            try:
+                tb = page.locator("input[type='checkbox']")
+                if tb.count() > 0 and tb.first.is_visible() and not tb.first.is_checked():
+                    tb.first.check()
+                    time.sleep(0.2)
+            except Exception:
+                pass
+            cont = (visible(page, "button", re.compile(r"^\s*Continue\s*$", re.I), timeout=300)
+                    or visible(page, "button", re.compile(r"^\s*I understand\s*$", re.I), timeout=300))
+            if cont and cont.is_enabled():
+                cont.click()
+                settle(page, 2000)
+
             # Dismiss a welcome tour if it pops up, so it doesn't hide the page
             tour = visible(page, "button", re.compile(r"^\s*Skip Tutorial\s*$", re.I), timeout=300)
             if tour:

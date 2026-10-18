@@ -150,6 +150,14 @@ class Checker:
         st, state = self.call("GET", "/api/wizard/state")
         self.step("Setup wizard completed", st == 200 and state.get("completed"), short(state))
 
+    def accept_terms(self):
+        status, data = self.call("GET", "/api/terms/status")
+        if status != 200 or not isinstance(data, dict):
+            return
+        for need in data.get("needs") or []:
+            st, _ = self.call("POST", "/api/terms/accept", {"kind": need["kind"], "version": need["version"]})
+            self.step(f"Terms: accept '{need['kind']}'", st == 200)
+
     def first_member_id(self):
         status, members = self.call("GET", "/api/family")
         if not self.step("List family members", status == 200 and isinstance(members, list) and members,
@@ -252,6 +260,7 @@ def main():
         return write(args, c)
 
     if args.phase in ("fresh", "before-upgrade"):
+        c.accept_terms()
         c.finish_wizard()
         member = c.first_member_id()
         if member:
