@@ -1168,7 +1168,8 @@ def initialize_mtls_ca(body: MtlsCaInit, _: User = Depends(require_permission("s
         try:
             cert = x509.load_pem_x509_certificate(body.ca_pem.encode("utf-8"))
         except Exception as e:
-            raise HTTPException(400, f"Invalid PEM certificate: {e}")
+            logger.warning("Invalid PEM certificate uploaded: %s", e)
+            raise HTTPException(400, "Invalid PEM certificate format.")
         mtls_cfg["ca_cert"] = body.ca_pem.strip()
         mtls_cfg.pop("ca_key_enc", None)
         sync_proxy_ca_file(body.ca_pem)
@@ -1176,7 +1177,8 @@ def initialize_mtls_ca(body: MtlsCaInit, _: User = Depends(require_permission("s
         try:
             ca_cert_pem, ca_key_pem = generate_ca(days=body.days or 3650)
         except Exception as e:
-            raise HTTPException(500, f"Could not generate CA certificate: {e}")
+            logger.error("Failed to generate CA certificate: %s", e)
+            raise HTTPException(500, "Could not generate CA certificate.")
         from ..core.settings_store import encrypt_password
         mtls_cfg["ca_cert"] = ca_cert_pem
         mtls_cfg["ca_key_enc"] = encrypt_password(ca_key_pem)
@@ -1223,7 +1225,8 @@ def mint_mtls_client_cert(body: MtlsMintRequest, _: User = Depends(require_permi
             days=body.days or 365,
         )
     except Exception as e:
-        raise HTTPException(500, f"Failed to issue client certificate: {e}")
+        logger.error("Failed to issue client certificate: %s", e)
+        raise HTTPException(500, "Failed to issue client certificate.")
 
     clients = mtls_cfg.setdefault("clients", [])
     entry = {
