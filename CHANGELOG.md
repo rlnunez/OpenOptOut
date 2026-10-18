@@ -4,7 +4,7 @@ All notable changes to OpenOptOut are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Each completed roadmap item is cross-referenced with its architectural milestone number (e.g., `Roadmap Item #`). For detailed specifications, design rationale, and test verification notes for historical milestones up through v0.11.0, see the [Completed Milestones Archive (`docs/archive/COMPLETED_ROADMAP.md`)](docs/archive/COMPLETED_ROADMAP.md) (frozen at v0.11.0). All subsequent completed roadmap work, architectural improvements, and release notes are documented directly in this changelog.
+Each completed roadmap item is cross-referenced with its architectural milestone number (e.g., `Roadmap Item #`). For detailed specifications, design rationale, and test verification notes for historical milestones up through v0.11.0, see the [Completed Milestones Archive (`docs/archive/COMPLETED_ROADMAP.md`)](docs/archive/COMPLETED_ROADMAP.md) (frozen after v0.11.0 release). All subsequent completed roadmap work, architectural improvements, and release notes are documented directly in this changelog.
 
 ---
 

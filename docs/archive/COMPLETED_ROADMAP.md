@@ -1,10 +1,10 @@
 # OpenOptOut — Completed Architectural Work (Roadmap Archive)
 
 > [!IMPORTANT]
-> **Archived Historical Document — Frozen at v0.11.0**
-> This document is a historical archive frozen as of the v0.11.0 milestone (during 0.11.0-rc). It is no longer updated. All future architectural completions, feature additions, bug fixes, and release notes are documented directly in [CHANGELOG.md](../../CHANGELOG.md), with forward-looking roadmap items tracked in the live [Roadmap (`docs/ROADMAP.md`)](../ROADMAP.md).
+> **Archived Historical Document — Frozen After v0.11.0 Release**
+> This document archives detailed specifications, design rationale, and test verification notes for completed architectural roadmap milestones up through the v0.11.0 release (currently in 0.11.0-rc). Following the release of v0.11.0, this archive will be permanently frozen and no longer updated. All future architectural completions, feature additions, bug fixes, and release notes will be documented directly in [CHANGELOG.md](../../CHANGELOG.md), with forward-looking roadmap items tracked in the live [Roadmap (`docs/ROADMAP.md`)](../ROADMAP.md).
 
-Status: **Historical Archive (Frozen at v0.11.0).** This document preserves the detailed specifications, design rationale, and test verification notes for completed architectural roadmap milestones in OpenOptOut up through release 0.11.0.
+Status: **Historical Archive (Active through v0.11.0 release).** This document preserves the detailed specifications, design rationale, and test verification notes for completed architectural roadmap milestones in OpenOptOut up through release 0.11.0.
 
 For currently active and planned initiatives, see the live [Roadmap (`docs/ROADMAP.md`)](../ROADMAP.md). For all release notes, version history, and subsequent completions, see [CHANGELOG.md](../../CHANGELOG.md).
 
@@ -89,7 +89,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | [62](#item-62) | [Automated discovery response for inactive brokers](#item-62) | Complete (#108) |
 | [63](#item-63) | [Usage statistics API for institutional data warehouses](#item-63) | Complete (#110) |
 | [64](#item-64) | [Address-verified registration for housing communities](#item-64) | Complete (#116) |
-| [65](#item-65) | [Containerized release updater & Docker engine supervisor](#item-65) | In Progress / Implemented |
+| [65](#item-65) | [Containerized release updater & Docker engine supervisor](#item-65) | Complete |
 | [66](#item-66) | [Network circuit breaker & graceful offline halt](#item-66) | Complete |
 | [67](#item-67) | [High-risk mode for domestic violence survivors, doxxing targets & election workers](#item-67) | Considering / Planned |
 | [68](#item-68) | [Audit scope document for independent security review (Item 22)](#item-68) | Considering / Planned |
@@ -1202,7 +1202,7 @@ plugins/
 
 <a id="item-65"></a>
 ### 65. Containerized release updater & Docker engine supervisor
-**Goal:** Provide an automated, standalone updater container to safely synchronize Docker deployments with verified GitHub releases while respecting active removal jobs and administrator approval policies.
+**Goal:** Provide an automated, standalone updater container to safely synchronize Docker deployments with verified GitHub releases while respecting active removal jobs, distributed worker nodes, and administrator approval policies.
 
 - **Dedicated Sidecar/Container Architecture (`deploy/updater`):** Runs as an independent container with restricted Docker socket access to manage updates for OpenOptOut services without interrupting control plane stability.
 - **Configurable Governance Policies:**
@@ -1211,13 +1211,15 @@ plugins/
   - `notify_only` (broadcast release availability to administrators without pulling images)
   - `ignore_release` (skip specific release tag)
   - `ignore_all` (suppress all automated update workflows)
-- **Removal Job Mutual Exclusion:** Actively queries the OpenOptOut API/database prior to triggering container recreation, deferring updates if automated opt-out removals or verifications are actively running to prevent mid-flow job interruption.
+- **Removal Job Mutual Exclusion & Drain Barriers:** Actively queries the OpenOptOut API/database prior to triggering container recreation, deferring updates if automated opt-out removals or verifications are actively running to prevent mid-flow job interruption.
 - **Pre-Flight Snapshot & Automated Revert:** Tags running container images (`openoptout-rollback:api`, `openoptout-rollback:web`) and snapshots SQLite databases (`privacy_pipeline.db`) and settings before container recreation. If container recreation or post-update health verification fails within 90 seconds, the updater automatically reverts images, restores snapshots, restarts previous containers, and verifies application health.
 - **Manual Rollback:** Super administrators can initiate an on-demand rollback from the UI or API (`POST /api/system/updates/rollback`) to revert to the previous release snapshot if production issues arise.
+- **Scheduled Maintenance Windows & Downtime Notice Banners:** Calendar-based maintenance planning (`backend/core/calendar_plan.py`), automated dynamic scheduler pause/resume loops (`backend/core/scheduler.py`), update schedule windows, and user-facing downtime notice banners with configurable advance warning intervals (`0 = disabled`) translated across all 17 bundled language packs.
+- **Extended Multi-Node Worker Draining Coordination:** Cluster-wide fleet drain broadcasting (`POST /api/workers/fleet/drain`, `WorkerRegistry.set_fleet_drain`, and Redis key `ps:fleet:drain_all`), route alias `GET /api/workers/summary`, graceful in-flight task completion in `WorkerDaemon` without task cancellation, and automated pre-upgrade drain barriers and post-upgrade un-drain in `deploy/updater/updater.py`.
 - **Docker Engine Health & Version Checks:** Inspects the host Docker daemon version, alerting administrators when the host engine is outdated or reaching end-of-life.
 - **Supply Chain Security:** Pins base image dependencies by cryptographic digest (`@sha256`) and runs with drop-capabilities and read-only root filesystems where possible.
 
-**Status:** In Progress / Implemented (`deploy/updater`).
+**Status:** Complete.
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 

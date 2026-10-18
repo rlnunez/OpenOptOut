@@ -3,7 +3,7 @@
 Status: **Active Development.** This document tracks in-progress, planned, and under-consideration architectural work for OpenOptOut.
 
 > [!NOTE]
-> **Completed Milestones Archive:** Historical specifications, design rationale, and verification notes for milestones up through v0.11.0 are preserved in the [Completed Milestones Archive (`docs/archive/COMPLETED_ROADMAP.md`)](archive/COMPLETED_ROADMAP.md) (frozen at v0.11.0). All subsequent completed roadmap items, enhancements, and release notes are documented directly in [`CHANGELOG.md`](../CHANGELOG.md).
+> **Completed Milestones Archive:** Historical specifications, design rationale, and verification notes for completed milestones up through v0.11.0 are documented in the [Completed Milestones Archive (`docs/archive/COMPLETED_ROADMAP.md`)](archive/COMPLETED_ROADMAP.md) (frozen after v0.11.0 release). Subsequent completed roadmap items, enhancements, and release notes are documented directly in [`CHANGELOG.md`](../CHANGELOG.md).
 
 The guiding architectural principle: **the core does not contain broker-specific logic.** The core engine interprets declarative specifications detailing how a broker's opt-out functions (web forms, emails, required language/templates, multi-step flows) and executes them. Brokers are packaged as declarative specifications and optional isolated code extensions maintained independently.
 
