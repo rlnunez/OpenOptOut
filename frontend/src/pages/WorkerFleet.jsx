@@ -2,10 +2,11 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Server, Cpu, Activity, RefreshCw, AlertTriangle, CheckCircle2,
   Clock, HardDrive, Layers, Power, PowerOff, ShieldAlert,
-  Search, Trash2, ArrowUpRight, Gauge
+  Search, Trash2, ArrowUpRight, Gauge, Calculator
 } from 'lucide-react'
 import api from '../api'
 import { tx } from '../i18n/tx'
+import CapacityPlanner from '../components/CapacityPlanner'
 
 function fmtUptime(seconds) {
   if (!seconds || seconds <= 0) return tx("< 1m")
@@ -18,6 +19,7 @@ function fmtUptime(seconds) {
 }
 
 export default function WorkerFleet() {
+  const [viewMode, setViewMode] = useState('monitoring') // 'monitoring' | 'planner'
   const [workers, setWorkers] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -201,8 +203,38 @@ export default function WorkerFleet() {
         </div>
       )}
 
-      {/* Metric Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* View Mode Switcher */}
+      <div className="flex border-b border-slate-800 gap-2">
+        <button
+          onClick={() => setViewMode('monitoring')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            viewMode === 'monitoring'
+              ? 'border-shield-500 text-shield-400 font-semibold'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Activity size={16} />
+          {tx("Fleet Monitoring")}
+        </button>
+        <button
+          onClick={() => setViewMode('planner')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            viewMode === 'planner'
+              ? 'border-shield-500 text-shield-400 font-semibold'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Calculator size={16} />
+          {tx("Capacity Planner")}
+        </button>
+      </div>
+
+      {viewMode === 'planner' ? (
+        <CapacityPlanner fleetStats={stats} />
+      ) : (
+        <>
+          {/* Metric Stat Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Active Nodes */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-400">
@@ -577,6 +609,8 @@ export default function WorkerFleet() {
           </table>
         </div>
       </div>
+        </>
+      )}
     </div>
   )
 }

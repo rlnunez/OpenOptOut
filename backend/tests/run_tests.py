@@ -4953,6 +4953,59 @@ def t_hardware_benchmark_footprint():
     assert full["hardware_recommendations"]["standalone_family"]["min_ram_gb"] == 1.0
 
 
+@test(1, "hardware.capacity_planner_and_cli",
+      "Infrastructure capacity planner: empirical calculation models, hardware profile selection, and CLI tool execution.")
+def t_hardware_capacity_planner():
+    import subprocess
+    import json
+    from backend.core.capacity_planner import calculate_capacity_plan
+
+    # 1. Household scale: Profile A (1 slot, standalone)
+    plan_a = calculate_capacity_plan(profiles=10, brokers=80, target_days=7.0)
+    assert plan_a.total_jobs == 800
+    assert plan_a.required_slots == 1
+    assert plan_a.recommended_profile.profile_id == "Profile A"
+    assert plan_a.recommended_profile.topology == "standalone"
+    assert plan_a.ephemeral_tmpfs_mb >= 512
+
+    # 2. Housing authority scale: Profile B (2 slots, standalone)
+    plan_b = calculate_capacity_plan(profiles=1000, brokers=80, target_days=7.0)
+    assert plan_b.required_slots == 2
+    assert plan_b.recommended_profile.profile_id == "Profile B"
+    assert plan_b.recommended_profile.topology == "standalone"
+
+    # 3. Consortium scale: Profile C/D (Distributed cluster)
+    plan_c = calculate_capacity_plan(profiles=5000, brokers=80, target_days=7.0)
+    assert plan_c.required_slots >= 7
+    assert plan_c.recommended_profile.profile_id == "Profile C/D"
+    assert plan_c.recommended_profile.topology == "distributed"
+    assert plan_c.cluster_worker_nodes_needed >= 2
+    assert plan_c.cluster_total_worker_slots >= 8
+
+    # 4. Live fleet comparison: sufficient vs deficit
+    plan_fleet_ok = calculate_capacity_plan(profiles=100, brokers=80, target_days=7.0, current_fleet_slots=4)
+    assert plan_fleet_ok.current_fleet_deficit_slots == 0
+    assert plan_fleet_ok.current_fleet_est_completion_days is not None
+
+    plan_fleet_deficit = calculate_capacity_plan(profiles=5000, brokers=80, target_days=3.0, current_fleet_slots=2)
+    assert plan_fleet_deficit.current_fleet_deficit_slots > 0
+    assert plan_fleet_deficit.current_fleet_est_completion_days > 3.0
+
+    # 5. CLI execution check
+    repo_root = os.path.dirname(_BACKEND_DIR)
+    cli_path = os.path.join(repo_root, "scripts", "openoptout-calc.py")
+    res = subprocess.run(
+        [sys.executable, cli_path, "--profiles", "200", "--brokers", "80", "--days", "7", "--json"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    cli_data = json.loads(res.stdout)
+    assert cli_data["profiles"] == 200
+    assert cli_data["brokers"] == 80
+    assert "recommended_profile" in cli_data
+
+
 @test(1, "https.enable_script_paths",
       "scripts/enable-https.sh: each front door + certificate choice writes the right .env keys "
       "(profiles, challenge, tokens), the tunnel warning shows, and bad combinations are refused.")

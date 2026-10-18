@@ -19,6 +19,7 @@ from ..core.access import require_permission
 from ..core.distributed.registry import get_worker_registry, WorkerRegistry
 from ..core.distributed.queue import get_queue, JobQueue
 from ..core.distributed.ingestion import reclaim_orphaned_leases
+from ..core.capacity_planner import calculate_capacity_plan, CapacityPlanResult
 
 router = APIRouter(prefix="/api/workers", tags=["workers"])
 log = logging.getLogger(__name__)
@@ -160,3 +161,30 @@ def deregister_worker(
             log.warning("Failed to deregister worker from Redis: %s", e)
 
     return {"status": "success", "worker_id": worker_id, "message": "Worker deregistered"}
+
+
+@router.get("/capacity-plan", response_model=CapacityPlanResult)
+def get_capacity_plan(
+    profiles: int = Query(100, ge=1, le=1_000_000, description="Total profiles"),
+    brokers: int = Query(80, ge=1, le=1000, description="Active broker count"),
+    target_days: float = Query(7.0, ge=0.01, le=365.0, description="Target completion window in days"),
+    form_ratio: float = Query(0.85, ge=0.0, le=1.0, description="Form automation ratio"),
+    use_postgres: bool = Query(False, description="Whether deployment utilizes PostgreSQL"),
+    _ = Depends(require_permission("settings.system")),
+):
+    """
+    Calculate empirical infrastructure capacity requirements calibrated from Playwright Firefox benchmarks (Roadmap Item 9).
+    Includes live fleet comparison against active worker registry capacity.
+    """
+    reg = get_worker_registry()
+    fleet_summary = reg.get_fleet_summary(timeout_seconds=30.0)
+    current_fleet_slots = fleet_summary.get("total_slots", 0)
+
+    return calculate_capacity_plan(
+        profiles=profiles,
+        brokers=brokers,
+        target_days=target_days,
+        form_ratio=form_ratio,
+        use_postgres=use_postgres,
+        current_fleet_slots=current_fleet_slots,
+    )

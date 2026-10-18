@@ -33,7 +33,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | [6](#item-6) | [Automated broker health monitoring](#item-6) | Complete |
 | [7](#item-7) | [Distributed execution: control plane & worker fleet](#item-7) | Complete |
 | [8](#item-8) | [Add-on distribution: Git repo to marketplace](#item-8) | In Design / Active (Phase 8.1 In Design) |
-| [9](#item-9) | [Infrastructure capacity planner](#item-9) | Planned — pending empirical performance benchmarking |
+| [9](#item-9) | [Infrastructure capacity planner](#item-9) | Complete |
 | [10](#item-10) | [Email-first opt-outs via parent companies](#item-10) | Complete |
 | [11](#item-11) | [First-run setup wizard](#item-11) | Complete (Enhanced 7-step flow & bundle planned) |
 | [12](#item-12) | [School district authentication (Parent Portal SSO)](#item-12) | On-Demand (District Request Only) |
@@ -306,14 +306,18 @@ To ensure operational stability and maintain continuous testability without disr
 
 <a id="item-9"></a>
 ### 9. Infrastructure capacity planner
-**Goal:** Provide an administrative sizing calculator that estimates hardware and worker node requirements based on profile volume and broker distribution.
+**Goal:** Provide an empirical hardware and worker sizing calculator estimating host resources, concurrency slots, ephemeral tmpfs RAM, and bandwidth requirements based on community size and completion deadlines.
 
-**Architecture:**
-- **Input Parameters:** Available vCPU/RAM, active profiles, and broker selection breakdown (email vs. headless form vs. CAPTCHA-gated).
-- **Cost Weighting:** Differentiates lightweight email transmissions from memory-intensive Playwright browser sessions.
-- **Telemetry Integration:** Calibrates planning coefficients using empirical execution metrics from real worker runs.
+- **Empirical Modeling Engine (`backend/core/capacity_planner.py`):** Calibrated against Playwright Firefox empirical benchmarks ([Item 71](#item-71) / [`docs/admin/hardware-sizing.md`](../admin/hardware-sizing.md)). Models throughput at ~300 removals/hr per slot (12s per form), Firefox process base RAM (~125 MB), per-slot context memory (~45 MB), tmpfs peak (/tmp ~28 MB per slot with $2\times$ safety margin), control plane baseline (~180 MB API + ~64 MB SQLite / ~200 MB Postgres + ~512 MB OS), and proxy transfer (~1.2 MB per job).
+- **Topology & Hardware Profile Mapping:** Automatically recommends optimal deployment tier:
+  - *Profile A (Standalone Small):* 1 slot, 1–2 vCPU, 2 GB RAM, 512 MB tmpfs (households up to 10 profiles).
+  - *Profile B (Standalone Medium):* 2 slots, 2–4 vCPU, 4 GB RAM, 512 MB tmpfs (housing authorities / shelters 10–500 profiles).
+  - *Profile C/D (Distributed Cluster):* Control Plane + $\lceil N_{\text{slots}} / 4 \rceil$ 4-slot Worker Nodes (consortiums / libraries 500–50,000+ profiles).
+- **API & Live Fleet Telemetry (`GET /api/workers/capacity-plan`):** Compares computed requirements against active registered worker slots in real-time, calculating capacity deficits and estimating completion time at current capacity.
+- **Interactive Admin UI (`frontend/src/components/CapacityPlanner.jsx`):** Dedicated tab in Worker Fleet dashboard with reactive sliders (profiles, active brokers, target days), instant calculation, hardware breakdown cards, and quick presets.
+- **CLI Utility (`deploy/tools/openoptout-calc` and `scripts/openoptout-calc.py`):** Standalone command-line calculator with formatted ASCII sizing report and `--json` export for infrastructure automation (Terraform/Ansible).
 
-**Status:** Planned (pending empirical Firefox performance benchmarking under [Item 7](#item-7) and [Item 71](#item-71)).
+**Status:** Complete.
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 

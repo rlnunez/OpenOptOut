@@ -14,7 +14,6 @@ The guiding architectural principle: **the core does not contain broker-specific
 | # | Item | Status | Priority / Target |
 |---|------|--------|-------------------|
 | [8](#item-8) | [Add-on distribution: Git repo to curated marketplace](#item-8) | Active / In Design | High (Phase 8.1 Active) |
-| [9](#item-9) | [Infrastructure capacity planner](#item-9) | Planned | Medium (Post-benchmark) |
 | [11](#item-11) | [Setup wizard: Catalog step & recommended protections bundle](#item-11) | Planned | Medium (Follows Item 8) |
 | [12](#item-12) | [School district authentication (Parent Portal SSO)](#item-12) | On-Demand | District Request Only |
 | [14](#item-14) | [Extended DNS-01 ACME challenge providers (AWS, DigitalOcean, deSEC)](#item-14) | Planned | Medium |
@@ -50,16 +49,6 @@ The guiding architectural principle: **the core does not contain broker-specific
 - **Phase 8.3 — Cryptographic Code Signing & Marketplace Registry (Planned):**
   - **Cryptographic Provenance:** Author signing keys, catalog root of trust, and signature validation before extraction.
   - **Public Web Directory:** Searchable registry with ratings, usage telemetry, and security audit badges.
-
----
-
-<a id="item-9"></a>
-### 9. Infrastructure capacity planner
-**Goal:** Give operators empirical hardware and worker sizing recommendations based on community size, broker pool breadth, and scan cycles.
-
-- Interactive calculator in admin dashboard and CLI (`openoptout-calc`).
-- Takes patron/family count, active broker count, and target removal completion window (e.g. 7 days vs 30 days).
-- Outputs required CPU cores, RAM (ephemeral tmpfs allocation), worker concurrency, and residential proxy bandwidth estimates.
 
 ---
 
