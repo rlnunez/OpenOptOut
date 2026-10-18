@@ -82,3 +82,7 @@ fuzz/timeout-*
 fuzz/oom-*
 # Local scratch
 scratch/
+
+# Private security audit scope / findings — kept local, never committed
+# (lists open vulnerabilities before fixes ship; share via a private channel)
+docs/dev/audit-scope.md
