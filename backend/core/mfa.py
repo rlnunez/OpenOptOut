@@ -343,7 +343,9 @@ def verify_webauthn_assertion(
 ) -> bool:
     """
     Validate WebAuthn authentication response against stored public key.
-    Uses cryptography package if present, or validates structure.
+    Fails closed: True only when the signature verifies against the stored
+    ES256 or RS256 key. Anything else (bad signature, unknown algorithm,
+    malformed key, no cryptography package) is False.
     """
     client_data_raw = base64.urlsafe_b64decode(_b64_pad(credential.get("response", {}).get("clientDataJSON", "")))
     client_data = json.loads(client_data_raw.decode("utf-8"))
@@ -365,20 +367,27 @@ def verify_webauthn_assertion(
     signed_data = auth_data + hashlib.sha256(client_data_raw).digest()
 
     try:
-        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa
         from cryptography.hazmat.primitives import hashes
-        pub_hex = stored_key.get("public_key", "")
-        if pub_hex and stored_key.get("algorithm", -7) == -7:
-            pub_bytes = bytes.fromhex(pub_hex)
-            if len(pub_bytes) == 65 and pub_bytes[0] == 4:
-                public_key = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), pub_bytes)
-                public_key.verify(signature, signed_data, ec.ECDSA(hashes.SHA256()))
-                return True
+        pub = stored_key.get("public_key", "")
+        alg = stored_key.get("algorithm", -7)
+        if not pub:
+            return False
+        if alg == -7:  # ES256
+            pub_bytes = bytes.fromhex(pub)
+            if len(pub_bytes) != 65 or pub_bytes[0] != 4:
+                return False
+            public_key = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), pub_bytes)
+            public_key.verify(signature, signed_data, ec.ECDSA(hashes.SHA256()))
+            return True
+        if alg == -257:  # RS256
+            nums = json.loads(pub)
+            public_key = rsa.RSAPublicNumbers(int(nums["e"], 16), int(nums["n"], 16)).public_key()
+            public_key.verify(signature, signed_data, padding.PKCS1v15(), hashes.SHA256())
+            return True
     except Exception:
-        pass
-
-    # If signature verification succeeded or cryptography package is in pure-Python fallback
-    return True
+        return False
+    return False
 
 
 def _b64_pad(s: str) -> str:

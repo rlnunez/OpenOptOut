@@ -35,6 +35,7 @@ itself, and logs a clear warning that full sandboxing is not in effect.
 import os
 import sys
 import shutil
+import importlib.util
 import logging
 import platform
 import subprocess
@@ -166,10 +167,11 @@ def detect_capabilities() -> SandboxCapabilities:
                 ["unshare", "--fork", "--pid", "--mount-proc", "--", "true"])
             if caps.unshare and not caps.bubblewrap:
                 caps.readonly_code = _probe_readonly_mount()
-        # seccomp is available if we can import the helper or use a preload;
-        # we conservatively mark it available on Linux where libseccomp exists.
-        caps.seccomp    = os.path.exists("/usr/lib/x86_64-linux-gnu/libseccomp.so.2") \
-                          or os.path.exists("/lib/x86_64-linux-gnu/libseccomp.so.2")
+        # The filter (seccomp_filter.py) needs the `seccomp` bindings importable
+        # by this interpreter, which also runs the plugins. libseccomp.so being
+        # on disk isn't enough: Debian's python3-seccomp is built for Debian's
+        # python3, not the python.org interpreter in our image.
+        caps.seccomp    = importlib.util.find_spec("seccomp") is not None
         # Can drop privileges only if we're root (otherwise we're already
         # unprivileged, which is fine).
         caps.drop_privileges = (os.geteuid() == 0) if hasattr(os, "geteuid") else False
