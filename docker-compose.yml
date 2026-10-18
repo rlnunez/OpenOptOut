@@ -26,7 +26,9 @@ services:
     restart: unless-stopped
     environment:
       # ── Core (required) ─────────────────────────────────────────────────────
-      # Master key is stored in /data/secret.key via the UI (or set SECRET_KEY in .env)
+      # Master key: set SECRET_KEY in .env (the installer does this). If left
+      # blank, the app generates a strong key on first boot and persists it to
+      # /data/secret.key (0600); the admin UI can set a custom key to rotate it.
       - SECRET_KEY=${SECRET_KEY:-}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
       - SETTINGS_FILE=/data/openoptout_settings.json
