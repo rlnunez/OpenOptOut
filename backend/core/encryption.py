@@ -121,36 +121,65 @@ def _get_fernet() -> Optional[Fernet]:
     return _fernet_instance
 
 
+def is_production_mode() -> bool:
+    """Return True if running under strict production security enforcement."""
+    return os.getenv("OPENDATASENTRY_ENV", "").lower() == "production" or \
+           os.getenv("ENVIRONMENT", "").lower() == "production" or \
+           os.getenv("ENFORCE_ENCRYPTION_AT_REST", "").lower() in ("true", "1", "yes")
+
+
 def encrypt_field(value: Optional[str]) -> Optional[str]:
-    """Encrypt a string field value. Returns None if value is None."""
+    """Encrypt a string field value. Fails closed in production if key is missing."""
     if value is None:
         return None
     f = _get_fernet()
     if f is None:
-        return value   # encryption disabled — store plaintext
+        if is_production_mode():
+            raise RuntimeError(
+                "Encryption at rest is mandatory in production: FIELD_ENCRYPTION_KEY or SECRET_KEY is missing or invalid."
+            )
+        return value   # encryption disabled in dev/test — store plaintext
     return f.encrypt(value.encode()).decode()
 
 
 def decrypt_field(value: Optional[str]) -> Optional[str]:
-    """Decrypt a field value. Returns plaintext if not encrypted (graceful degradation)."""
+    """Decrypt a field value. Fails closed in production if key or decryption fails."""
     if value is None:
         return None
     f = _get_fernet()
     if f is None:
+        if is_production_mode():
+            raise RuntimeError(
+                "Decryption failed: FIELD_ENCRYPTION_KEY or SECRET_KEY is unavailable in production."
+            )
         return value
     try:
         return f.decrypt(value.encode()).decode()
     except (InvalidToken, Exception):
-        # Value was stored before encryption was enabled — return as-is
+        if is_production_mode():
+            raise RuntimeError(
+                "Field decryption failed in production: stored token is corrupted or key mismatch."
+            )
+        # Value was stored before encryption was enabled — return as-is in dev/test
         return value
 
 
-def hash_for_index(value: str) -> str:
+def hash_for_index(value: str, server_key: Optional[str] = None) -> str:
     """
-    SHA-256 hash of a value for use as a searchable index.
-    Emails are stored encrypted but looked up via their hash.
+    Keyed HMAC-SHA256 hash of a value for use as a searchable index (prevents rainbow table attacks).
     """
-    return hashlib.sha256(value.lower().strip().encode()).hexdigest()
+    if server_key is None:
+        server_key = os.getenv("FIELD_ENCRYPTION_KEY") or os.getenv("SECRET_KEY") or ""
+        if not server_key:
+            try:
+                from .settings_store import get_secret_key
+                server_key = get_secret_key()
+            except Exception:
+                server_key = ""
+    from .hkdf import hkdf_derive
+    import hmac
+    key = hkdf_derive(server_key.encode("utf-8"), info=b"openoptout:index-hash:v1")
+    return hmac.new(key, value.lower().strip().encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 # ── SQLAlchemy TypeDecorator for transparent field encryption ─────────────────
@@ -262,6 +291,8 @@ def create_encrypted_engine(database_url: str, **kwargs):
             try:
                 auto_encrypt_database_inplace(db_file, db_key)
             except Exception as e:
+                if is_production_mode():
+                    raise RuntimeError(f"Database auto-encryption failed in production: {e}") from e
                 log.error("Failed to auto-encrypt database %s: %s. Continuing with unencrypted fallback.", db_file, e)
                 return create_engine(database_url, connect_args={"check_same_thread": False}, **kwargs)
 
@@ -288,7 +319,12 @@ def create_encrypted_engine(database_url: str, **kwargs):
         log.info("SQLCipher encryption enabled for SQLite database")
         return engine
 
-    except ImportError:
+    except ImportError as e:
+        if is_production_mode():
+            raise RuntimeError(
+                "sqlcipher3 not installed — refusing to run with unencrypted SQLite in production. "
+                "Install sqlcipher3-binary or build with WITH_ENCRYPTION=true."
+            ) from e
         log.warning(
             "sqlcipher3 not installed — falling back to unencrypted SQLite. "
             "Install sqlcipher3-binary or build with WITH_ENCRYPTION=true to enable file-level encryption."

@@ -75,21 +75,31 @@ def canonical_json(data: Dict[str, Any]) -> str:
     return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
-def compute_envelope_hmac(data: Dict[str, Any], secret_key: Union[str, bytes]) -> str:
+def compute_envelope_hmac(data: Dict[str, Any], secret_key: Union[str, bytes], use_hkdf: bool = True) -> str:
     """
     Compute the HMAC-SHA256 hex digest for an envelope dictionary,
     strictly omitting any existing 'hmac_signature' field.
+    Uses HKDF to isolate the HMAC signing key from encryption keys and raw secrets.
     """
     if not secret_key:
         raise EnvelopeError("secret_key cannot be empty for HMAC computation")
+    from ..hkdf import hkdf_derive
     key_bytes = secret_key.encode("utf-8") if isinstance(secret_key, str) else secret_key
+    signing_key = hkdf_derive(key_bytes, info=b"openoptout:envelope:hmac:v1") if use_hkdf else key_bytes
     copy_dict = {k: v for k, v in data.items() if k != "hmac_signature"}
     canonical = canonical_json(copy_dict).encode("utf-8")
-    return hmac.new(key_bytes, canonical, hashlib.sha256).hexdigest()
+    return hmac.new(signing_key, canonical, hashlib.sha256).hexdigest()
 
 
 def _derive_symmetric_key(secret_key: Union[str, bytes]) -> bytes:
-    """Derive a 32-byte key using SHA-256 for authenticated payload encryption."""
+    """Derive an isolated 32-byte key using HKDF for authenticated payload encryption."""
+    from ..hkdf import hkdf_derive
+    raw = secret_key.encode("utf-8") if isinstance(secret_key, str) else secret_key
+    return hkdf_derive(raw, info=b"openoptout:envelope:encryption:v1")
+
+
+def _derive_legacy_symmetric_key(secret_key: Union[str, bytes]) -> bytes:
+    """Legacy SHA-256 derivation for backward-compatible decryption."""
     raw = secret_key.encode("utf-8") if isinstance(secret_key, str) else secret_key
     return hashlib.sha256(raw).digest()
 
@@ -124,44 +134,41 @@ def encrypt_payload_bytes(plaintext: bytes, secret_key: Union[str, bytes]) -> st
 
 def decrypt_payload_bytes(ciphertext_str: str, secret_key: Union[str, bytes]) -> bytes:
     """
-    Decrypt payload ciphertext back to raw bytes.
+    Decrypt payload ciphertext back to raw bytes using HKDF-derived key,
+    falling back to legacy key if needed.
     """
-    key_bytes = _derive_symmetric_key(secret_key)
-
-    if ciphertext_str.startswith("FNT:") and HAS_FERNET and Fernet is not None:
-        fernet_key = base64.urlsafe_b64encode(key_bytes)
-        f = Fernet(fernet_key)
-        token = ciphertext_str[4:].encode("ascii")
+    for key_bytes in (_derive_symmetric_key(secret_key), _derive_legacy_symmetric_key(secret_key)):
         try:
-            return f.decrypt(token)
-        except Exception as e:
-            raise EnvelopeTamperedError(f"Fernet payload decryption failed: {e}")
+            if ciphertext_str.startswith("FNT:") and HAS_FERNET and Fernet is not None:
+                fernet_key = base64.urlsafe_b64encode(key_bytes)
+                f = Fernet(fernet_key)
+                token = ciphertext_str[4:].encode("ascii")
+                return f.decrypt(token)
 
-    try:
-        blob = base64.b64decode(ciphertext_str)
-    except Exception as e:
-        raise EnvelopeInvalidError(f"Malformed base64 ciphertext: {e}")
+            blob = base64.b64decode(ciphertext_str)
+            if not blob.startswith(b"CTR1:") or len(blob) < 5 + 16 + 32:
+                continue
+            iv = blob[5:21]
+            expected_mac = blob[21:53]
+            ciphertext = blob[53:]
 
-    if not blob.startswith(b"CTR1:") or len(blob) < 5 + 16 + 32:
-        raise EnvelopeInvalidError("Unrecognized ciphertext envelope header or truncated payload")
+            actual_mac = hmac.new(key_bytes, b"ENC-CTR:" + iv + ciphertext, hashlib.sha256).digest()
+            if not hmac.compare_digest(actual_mac, expected_mac):
+                continue
 
-    iv = blob[5:21]
-    expected_mac = blob[21:53]
-    ciphertext = blob[53:]
+            plain_chunks = []
+            chunk_size = 32
+            for i in range(0, len(ciphertext), chunk_size):
+                chunk = ciphertext[i:i + chunk_size]
+                counter = (i // chunk_size).to_bytes(4, "big")
+                keystream = hmac.new(key_bytes, iv + counter, hashlib.sha256).digest()[:len(chunk)]
+                plain_chunks.append(bytes(a ^ b for a, b in zip(chunk, keystream)))
 
-    actual_mac = hmac.new(key_bytes, b"ENC-CTR:" + iv + ciphertext, hashlib.sha256).digest()
-    if not hmac.compare_digest(actual_mac, expected_mac):
-        raise EnvelopeTamperedError("Authenticated ciphertext MAC mismatch — payload was tampered")
+            return b"".join(plain_chunks)
+        except Exception:
+            continue
 
-    plain_chunks = []
-    chunk_size = 32
-    for i in range(0, len(ciphertext), chunk_size):
-        chunk = ciphertext[i:i + chunk_size]
-        counter = (i // chunk_size).to_bytes(4, "big")
-        keystream = hmac.new(key_bytes, iv + counter, hashlib.sha256).digest()[:len(chunk)]
-        plain_chunks.append(bytes(a ^ b for a, b in zip(chunk, keystream)))
-
-    return b"".join(plain_chunks)
+    raise EnvelopeTamperedError("Payload decryption or MAC verification failed")
 
 
 def _scrub_object_in_place(obj: Any) -> None:
@@ -237,13 +244,16 @@ class JobEnvelope:
         if not self.hmac_signature:
             raise EnvelopeTamperedError("Envelope has no HMAC signature")
 
-        expected = compute_envelope_hmac(self.to_dict(), secret_key)
+        expected = compute_envelope_hmac(self.to_dict(), secret_key, use_hkdf=True)
         # Compare as bytes: compare_digest() raises TypeError on non-ASCII str,
         # which let a crafted signature crash verification instead of failing it.
         if not hmac.compare_digest(self.hmac_signature.encode("utf-8"), expected.encode("utf-8")):
-            raise EnvelopeTamperedError(
-                f"HMAC signature mismatch on envelope '{self.envelope_id}' — payload was tampered"
-            )
+            # Fallback to legacy HMAC verification
+            legacy_expected = compute_envelope_hmac(self.to_dict(), secret_key, use_hkdf=False)
+            if not hmac.compare_digest(self.hmac_signature.encode("utf-8"), legacy_expected.encode("utf-8")):
+                raise EnvelopeTamperedError(
+                    f"HMAC signature mismatch on envelope '{self.envelope_id}' — payload was tampered"
+                )
 
         if not allow_expired and self.expires_at and time.time() > self.expires_at:
             raise EnvelopeExpiredError(
@@ -431,13 +441,16 @@ class JobResultEnvelope:
         if not self.hmac_signature:
             raise EnvelopeTamperedError("Result envelope has no HMAC signature")
 
-        expected = compute_envelope_hmac(self.to_dict(), secret_key)
+        expected = compute_envelope_hmac(self.to_dict(), secret_key, use_hkdf=True)
         # Compare as bytes: compare_digest() raises TypeError on non-ASCII str,
         # which let a crafted signature crash verification instead of failing it.
         if not hmac.compare_digest(self.hmac_signature.encode("utf-8"), expected.encode("utf-8")):
-            raise EnvelopeTamperedError(
-                f"HMAC signature mismatch on result envelope '{self.envelope_id}' — payload was tampered"
-            )
+            # Fallback to legacy HMAC verification
+            legacy_expected = compute_envelope_hmac(self.to_dict(), secret_key, use_hkdf=False)
+            if not hmac.compare_digest(self.hmac_signature.encode("utf-8"), legacy_expected.encode("utf-8")):
+                raise EnvelopeTamperedError(
+                    f"HMAC signature mismatch on result envelope '{self.envelope_id}' — payload was tampered"
+                )
         return True
 
     def zeroize(self) -> None:

@@ -48,7 +48,15 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 - **Seccomp Posture Reporting:** Probes importability of `seccomp` Python bindings rather than static library presence on disk, ensuring the Plugins console reflects real syscall filtering capability (PR #122).
 
 ### Security
-- **WebAuthn Fail-Closed Assertion Verification:** Validates passkey authentication responses strictly against stored ES256 and RS256 credentials, rejecting unsigned, forged, or mismatched assertions (PR #122).
+- **WebAuthn Fail-Closed Assertion Verification (G1):** Validates passkey authentication responses strictly against stored ES256 and RS256 credentials, rejecting unsigned, forged, or mismatched assertions (PR #122).
+- **WebAuthn Origin, RP ID, and Replay Counter Enforcement (G2):** Cryptographically binds expected RP ID and origin into MFA and passwordless tickets; validates authenticator `rpIdHash`, client `origin`, and signature counters (`signCount`) to prevent phishing and cloned authenticator replays.
+- **RFC 5869 HKDF Key Separation (G3, G6):** Subsystem keys for settings encryption, OAuth tokens, MFA challenge tickets, envelope HMAC signatures, and queue payload encryption derive from `SECRET_KEY` via HKDF (`backend/core/hkdf.py`), eliminating raw secret reuse while maintaining backward-compatible MultiFernet decryption.
+- **Fail-Closed Production Encryption-at-Rest Guards (G4):** In strict production mode (`ENFORCE_ENCRYPTION_AT_REST=true`), missing field keys or SQLCipher auto-encryption failures immediately halt the service with `RuntimeError` rather than falling back to unencrypted plaintext storage.
+- **Docker Seccomp Syscall Filtering Packaging (G5):** Shipped `libseccomp-dev` in backend Dockerfile and automated `pip install seccomp` compilation in `install_deps.py`, enabling native Linux syscall filtering inside container environments.
+- **Constant-Time TOTP Verification (G7):** Upgraded `verify_totp()` to `hmac.compare_digest` to eliminate theoretical side-channel timing attacks on one-time code checks.
+- **Keyed HMAC Backup Codes & Searchable Index Hashes (G8):** Backup recovery codes and database search hashes use HMAC-SHA256 with server-side keys derived via HKDF, defending against offline rainbow table attacks while preserving backward-compatible consumption of legacy unsalted codes.
+- **Accurate Security Policy & Fixed Documentation Links (G9):** Updated `SECURITY.md` to precisely outline unauthenticated endpoints, cryptographic key hierarchy, and working links to HTTPS and security scanning guides.
+- **Safe Administrative Registration Default (G10):** Changed default self-registration mode after initial instance bootstrap from `"open"` to `"admin_only"`, preventing unauthorized account creation on internet-exposed instances.
 - **Unauthenticated Route Security Prober:** Automated security probe (`.github/security/probe_unauth.py`) and disposable demo seeder (`.github/security/seed_demo.py`) auditing ungated routes for auth bypass, SQL injection, path traversal, account enumeration, and data leakage (PR #122).
 - Memory zeroization for decrypted secrets and tokens (`core/memory_hygiene.py`).
 - Ephemeral in-memory tmpfs mounts for temporary browser artifacts (`/tmp:size=512M`).

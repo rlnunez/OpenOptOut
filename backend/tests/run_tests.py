@@ -5777,6 +5777,127 @@ def t_mfa_webauthn_assertion_fails_closed():
         assert not mfa.verify_webauthn_assertion(cred(good), challenge, bad_key), f"accepted with key {bad_key}"
 
 
+    # RP ID binding test
+    auth_data_rp = hashlib.sha256(b"example.invalid").digest() + b"\x01" + b"\x00\x00\x00\x02"
+    signed_rp = auth_data_rp + hashlib.sha256(client_data).digest()
+    good_rp = ec_priv.sign(signed_rp, ec.ECDSA(hashes.SHA256()))
+    cred_rp = {"id": "k1", "response": {"clientDataJSON": b64(client_data),
+                                        "authenticatorData": b64(auth_data_rp), "signature": b64(good_rp)}}
+    assert mfa.verify_webauthn_assertion(cred_rp, challenge, ec_key, expected_rp_id="example.invalid"), "valid RP ID rejected"
+    assert not mfa.verify_webauthn_assertion(cred_rp, challenge, ec_key, expected_rp_id="attacker.invalid"), "mismatched RP ID accepted"
+
+    # Origin binding test
+    client_data_origin = json.dumps({"type": "webauthn.get", "challenge": challenge, "origin": "https://vault.example.org"}).encode()
+    signed_origin = auth_data_rp + hashlib.sha256(client_data_origin).digest()
+    good_origin = ec_priv.sign(signed_origin, ec.ECDSA(hashes.SHA256()))
+    cred_origin = {"id": "k1", "response": {"clientDataJSON": b64(client_data_origin),
+                                            "authenticatorData": b64(auth_data_rp), "signature": b64(good_origin)}}
+    assert mfa.verify_webauthn_assertion(cred_origin, challenge, ec_key, expected_origin="https://vault.example.org"), "valid origin rejected"
+    assert not mfa.verify_webauthn_assertion(cred_origin, challenge, ec_key, expected_origin="https://phishing.example.org"), "mismatched origin accepted"
+
+    # Counter replay detection
+    replay_key = dict(ec_key, counter=10)
+    assert not mfa.verify_webauthn_assertion(cred_rp, challenge, replay_key), "replayed counter accepted"
+
+
+@test(1, "security.hkdf_derivation_and_subsystem_keys",
+      "RFC 5869 HKDF derivation guarantees cryptographic isolation of settings, OAuth, and envelope keys.")
+def t_security_hkdf_derivation():
+    hkdf = _imp("core.hkdf")
+    master_secret = "master-secret-key-12345"
+
+    k_settings = hkdf.hkdf_derive(master_secret, info=b"openoptout:settings:v1")
+    k_oauth = hkdf.hkdf_derive(master_secret, info=b"openoptout:oauth:v1")
+    k_env_hmac = hkdf.hkdf_derive(master_secret, info=b"openoptout:envelope:hmac:v1")
+    k_env_enc = hkdf.hkdf_derive(master_secret, info=b"openoptout:envelope:encryption:v1")
+
+    # All derived keys are 32 bytes (256-bit)
+    for k in (k_settings, k_oauth, k_env_hmac, k_env_enc):
+        assert len(k) == 32, f"unexpected derived key length: {len(k)}"
+
+    # All subsystem keys are pairwise distinct
+    all_keys = [k_settings, k_oauth, k_env_hmac, k_env_enc]
+    assert len(set(all_keys)) == 4, "derived subsystem keys collide"
+
+    # Deterministic output for same input
+    assert hkdf.hkdf_derive(master_secret, info=b"openoptout:settings:v1") == k_settings
+
+
+@test(1, "security.backup_codes_hmac_and_totp_constant_time",
+      "TOTP constant-time verification, HMAC backup codes generation, and legacy SHA-256 fallback consumption.")
+def t_security_backup_codes_and_totp():
+    mfa = _imp("core.mfa")
+
+    # 1. Constant-time TOTP verification
+    totp_secret = mfa.generate_totp_secret()
+    code = mfa.get_totp(totp_secret)
+    assert mfa.verify_totp(code, totp_secret), "valid TOTP code rejected"
+    assert not mfa.verify_totp("000000" if code != "000000" else "111111", totp_secret), "invalid TOTP code accepted"
+    assert not mfa.verify_totp("", totp_secret), "empty TOTP code accepted"
+
+    # 2. Keyed HMAC backup codes generation and consumption
+    plain, hashed = mfa.generate_backup_codes(count=4, server_key="test-server-key")
+    assert len(plain) == 4 and len(hashed) == 4
+    for p in plain:
+        assert len(p) == 9 and p[4] == "-", f"invalid backup code format: {p}"
+
+    first_code = plain[0]
+    matched, remaining = mfa.verify_backup_code(first_code, hashed, server_key="test-server-key")
+    assert matched is True and len(remaining) == 3, "HMAC backup code verification failed"
+    # Consumed code cannot be reused
+    matched_again, _ = mfa.verify_backup_code(first_code, remaining, server_key="test-server-key")
+    assert matched_again is False, "consumed backup code accepted again"
+
+    # 3. Backward-compatible fallback for legacy unsalted SHA-256 backup codes
+    import hashlib
+    legacy_plain = "ABCD-1234"
+    legacy_hash = hashlib.sha256(legacy_plain.encode("utf-8")).hexdigest()
+    legacy_list = [legacy_hash, hashed[1]]
+    matched_legacy, rem_legacy = mfa.verify_backup_code(legacy_plain, legacy_list, server_key="test-server-key")
+    assert matched_legacy is True and len(rem_legacy) == 1, "legacy unsalted backup code fallback failed"
+
+
+@test(1, "security.encryption_at_rest_production_guards",
+      "In production mode (ENFORCE_ENCRYPTION_AT_REST), unencrypted fallback raises RuntimeError.")
+def t_security_encryption_at_rest_production_guards():
+    import os
+    enc = _imp("core.encryption")
+
+    # Save original environment
+    orig_env = os.environ.get("ENFORCE_ENCRYPTION_AT_REST")
+    orig_prod = os.environ.get("OPENDATASENTRY_ENV")
+    try:
+        os.environ["ENFORCE_ENCRYPTION_AT_REST"] = "true"
+        assert enc.is_production_mode() is True, "is_production_mode failed to detect enforcement flag"
+
+        # When Fernet instance is None in production, encrypt_field must fail closed
+        old_get_fernet = enc._get_fernet
+        enc._get_fernet = lambda: None
+        try:
+            try:
+                enc.encrypt_field("sensitive-pii-value")
+                assert False, "encrypt_field in production without key should have raised RuntimeError"
+            except RuntimeError as e:
+                assert "Encryption at rest is mandatory in production" in str(e)
+
+            try:
+                enc.decrypt_field("some-ciphertext")
+                assert False, "decrypt_field in production without key should have raised RuntimeError"
+            except RuntimeError as e:
+                assert "Decryption failed" in str(e)
+        finally:
+            enc._get_fernet = old_get_fernet
+    finally:
+        if orig_env is not None:
+            os.environ["ENFORCE_ENCRYPTION_AT_REST"] = orig_env
+        else:
+            os.environ.pop("ENFORCE_ENCRYPTION_AT_REST", None)
+        if orig_prod is not None:
+            os.environ["OPENDATASENTRY_ENV"] = orig_prod
+        else:
+            os.environ.pop("OPENDATASENTRY_ENV", None)
+
+
 @test(1, "mfa.passwordless_config_and_options",
       "Institutional passwordless configuration defaults, overrides, and discoverable options generation for local accounts.")
 def t_mfa_passwordless_config_and_options():
