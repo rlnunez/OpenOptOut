@@ -139,6 +139,9 @@ def evaluate_sso_login(result, provider_cfg: dict, registration_cfg: dict,
 
     # 6. existing user — linked login
     if user_exists:
+        if verified is not True and not allowed and not auto_provision_enabled(provider, cfg):
+            return _deny("The sign-in provider did not confirm this email address is verified. "
+                         "Cannot link to an existing account without email verification.")
         return Decision(True, "existing account")
 
     # 7. new user

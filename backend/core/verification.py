@@ -105,11 +105,16 @@ def browser_get(url: str, domain: str):
 
     async def go():
         from playwright.async_api import async_playwright
-        from .confirm_links import public_host
+        from .dns_guard import is_public_ip, public_host
+        from .proxy import get_proxy_for_context
         async with async_playwright() as p:
+            ctx_args = {}
+            proxy = get_proxy_for_context()
+            if proxy:
+                ctx_args["proxy"] = proxy
             b = await p.firefox.launch(headless=True)
             try:
-                ctx = await b.new_context()
+                ctx = await b.new_context(**ctx_args)
 
                 async def guard(route):
                     h = _host(route.request.url)
@@ -121,6 +126,13 @@ def browser_get(url: str, domain: str):
                 await ctx.route("**/*", guard)
                 page = await ctx.new_page()
                 resp = await page.goto(url, timeout=30000, wait_until="domcontentloaded")
+                if resp:
+                    try:
+                        server = await resp.server_addr() if callable(getattr(resp, "server_addr", None)) else None
+                        if server and server.get("ipAddress") and not is_public_ip(server["ipAddress"]):
+                            return url, 0, ""
+                    except Exception:
+                        pass
                 try:
                     await page.wait_for_load_state("networkidle", timeout=8000)
                 except Exception:

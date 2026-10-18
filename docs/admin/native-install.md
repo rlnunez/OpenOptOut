@@ -178,11 +178,12 @@ This automates virtualenv creation, dependency installation, Playwright Firefox 
    Edit it: set `SECRET_KEY` (minimum 128 characters, or generate it in the web UI upon first sign-in), add `SETTINGS_FILE=C:\OpenOptOut\data\openoptout_settings.json` and `LOGO_PATH=C:\OpenOptOut\data\logo`, create that `data` folder, and restrict file access to the service owner (`icacls .env /inheritance:r /grant:r "$($env:USERNAME):(R,W)"`).
 7. **Register the Windows Service with NSSM:**
    ```powershell
-   nssm install OpenOptOutAPI "C:\OpenOptOut\backend\venv\Scripts\uvicorn.exe" "app.main:app --host 127.0.0.1 --port 8000 --workers 2"
+   nssm install OpenOptOutAPI "C:\OpenOptOut\backend\venv\Scripts\uvicorn.exe" "app.main:app --host 127.0.0.1 --port 8000 --workers 1"
    nssm set OpenOptOutAPI AppDirectory "C:\OpenOptOut"
    nssm set OpenOptOutAPI AppEnvironmentExtra (Get-Content .env | Where-Object { $_ -match '=' })
    nssm start OpenOptOutAPI
    ```
+   *(Note: `--workers 1` is standard for native installs so that in-process rate limits, login throttles, and SSO single-use state checks remain consistent without requiring a separate Redis coordinator. Multi-worker scaling requires configuring an external Redis state store).*
    Confirm it's up: `Invoke-WebRequest http://127.0.0.1:8000/api/health` should return `{"status":"ok"}`.
 8. **Set up IIS:**
    - Install the **Application Request Routing (ARR)** and **URL Rewrite** modules (free, from Microsoft's IIS download page).

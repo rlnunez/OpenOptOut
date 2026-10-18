@@ -17,9 +17,9 @@ addresses in its /64.
 limit(name, per_minute): a FastAPI dependency allowing each client IP
 per_minute requests (token bucket, bursts up to per_minute) to the routes that
 share `name`; over the limit it answers 429 with Retry-After. State is in
-memory and per process (the Docker image runs one uvicorn process; the native
-service runs two workers, which doubles the effective limit), capped at
-MAX_KEYS entries.
+memory and per process (both Docker and native service run one uvicorn worker
+by default to keep rate limits and SSO state consistent; multi-worker requires
+an external store), capped at MAX_KEYS entries.
 """
 
 import ipaddress
@@ -29,7 +29,16 @@ import threading
 import time
 from typing import Optional
 
-from fastapi import HTTPException, Request
+try:
+    from fastapi import HTTPException, Request
+except ImportError:
+    class HTTPException(Exception):  # type: ignore
+        def __init__(self, status_code: int = 400, detail: str = "", headers: Optional[dict] = None):
+            super().__init__(detail)
+            self.status_code = status_code
+            self.detail = detail
+            self.headers = headers or {}
+    Request = object  # type: ignore
 
 MAX_KEYS = 50_000
 
@@ -69,8 +78,8 @@ def client_ip(request: Optional[Request]) -> Optional[str]:
     peer = client_obj.host if client_obj else ""
     hops = _hops()
     chain = [p for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()]
-    if hops and chain:
-        addr = chain[-hops] if len(chain) >= hops else chain[0]
+    if hops > 0 and len(chain) >= hops:
+        addr = chain[-hops]
         return _normalize(addr) or _normalize(peer) or peer
     return _normalize(peer) or peer
 

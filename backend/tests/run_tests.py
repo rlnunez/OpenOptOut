@@ -3266,6 +3266,11 @@ def t_sso_rules():
                           "hd": None, "groups": [], **k})
     # explicitly unverified email can't claim an EXISTING account
     assert not pol.evaluate_sso_login(u(email_verified=False), {}, {}, True, 5).allowed
+    # unverified / omitted claim (None) also cannot claim an existing account without allowed_domains or auto_provision
+    assert not pol.evaluate_sso_login(u(email_verified=None), {}, {}, True, 5).allowed
+    assert pol.evaluate_sso_login(u(email_verified=True), {}, {}, True, 5).allowed
+    assert pol.evaluate_sso_login(u(email_verified=None), {"allowed_domains": "x.org"}, {}, True, 5).allowed
+    assert pol.evaluate_sso_login(u(email_verified=None), {"auto_provision": True}, {}, True, 5).allowed
     # super admin is never auto-granted
     d = pol.evaluate_sso_login(u(), {"default_role": "super_admin"}, {}, False, 5)
     assert d.allowed and d.role == "parent" and d.downgraded, f"super_admin not capped: {d}"
@@ -5898,6 +5903,105 @@ def t_security_encryption_at_rest_production_guards():
             os.environ.pop("OPENDATASENTRY_ENV", None)
 
 
+@test(1, "security.dns_guard_rebinding_and_ssrf",
+      "DNS rebinding and SSRF protection: is_public_ip rejects internal ranges; safe_dns_context blocks rebinding.")
+def t_security_dns_guard_rebinding_and_ssrf():
+    import socket
+    dns = _imp("core.dns_guard")
+
+    # 1. is_public_ip checks
+    assert not dns.is_public_ip("127.0.0.1"), "loopback allowed"
+    assert not dns.is_public_ip("::1"), "IPv6 loopback allowed"
+    assert not dns.is_public_ip("10.0.0.1"), "private RFC 1918 (10/8) allowed"
+    assert not dns.is_public_ip("172.16.0.1"), "private RFC 1918 (172.16/12) allowed"
+    assert not dns.is_public_ip("192.168.1.1"), "private RFC 1918 (192.168/16) allowed"
+    assert not dns.is_public_ip("169.254.169.254"), "link-local / cloud metadata allowed"
+    assert not dns.is_public_ip("0.0.0.0"), "unspecified / 0.0.0.0 allowed"
+    assert not dns.is_public_ip("100.64.0.1"), "CGNAT allowed"
+    assert not dns.is_public_ip("255.255.255.255"), "broadcast allowed"
+    assert not dns.is_public_ip("::ffff:127.0.0.1"), "IPv4-mapped loopback allowed"
+    assert not dns.is_public_ip("::ffff:169.254.169.254"), "IPv4-mapped metadata allowed"
+    assert dns.is_public_ip("93.184.216.34"), "valid public IPv4 rejected"
+    assert dns.is_public_ip("2607:f8b0:4005:805::200e"), "valid public IPv6 rejected"
+
+    # 2. safe_dns_context intercepts socket.getaddrinfo and raises ValueError on non-public IPs
+    real_gai = socket.getaddrinfo
+    with dns.safe_dns_context():
+        # Active wrapper
+        assert socket.getaddrinfo != real_gai
+        # Should raise ValueError for private IP
+        try:
+            socket.getaddrinfo("127.0.0.1", 443)
+            assert False, "safe_dns_context should have raised ValueError for 127.0.0.1"
+        except ValueError as e:
+            assert "resolves to non-public IP" in str(e)
+    # Restored
+    assert socket.getaddrinfo == real_gai
+
+
+@test(1, "security.xff_short_chain_spoof_prevention",
+      "When XFF chain length is less than TRUSTED_PROXY_HOPS, rate_limit.client_ip uses TCP peer, never chain[0].")
+def t_security_xff_short_chain_spoof_prevention():
+    import os
+    from types import SimpleNamespace as NS
+    rl = _imp("core.rate_limit")
+
+    def req(peer, xff=None):
+        return NS(client=NS(host=peer), headers={"x-forwarded-for": xff} if xff else {})
+
+    orig_hops = os.environ.get("TRUSTED_PROXY_HOPS")
+    try:
+        # 2 hops expected: chain has only 1 hop -> must NOT fall back to chain[0]
+        os.environ["TRUSTED_PROXY_HOPS"] = "2"
+        assert rl.client_ip(req("192.0.2.1", "1.1.1.1")) == "192.0.2.1", "short chain spoofed via chain[0]"
+        # 3 hops expected: chain has 2 hops -> fallback to peer
+        os.environ["TRUSTED_PROXY_HOPS"] = "3"
+        assert rl.client_ip(req("192.0.2.1", "1.1.1.1, 2.2.2.2")) == "192.0.2.1"
+        # 3 hops expected: chain has 3 hops -> valid outermost trusted client
+        assert rl.client_ip(req("192.0.2.1", "8.8.8.8, 1.1.1.1, 2.2.2.2")) == "8.8.8.8"
+        # 0 hops: never trusts XFF
+        os.environ["TRUSTED_PROXY_HOPS"] = "0"
+        assert rl.client_ip(req("192.0.2.1", "8.8.8.8")) == "192.0.2.1"
+    finally:
+        if orig_hops is not None:
+            os.environ["TRUSTED_PROXY_HOPS"] = orig_hops
+        else:
+            os.environ.pop("TRUSTED_PROXY_HOPS", None)
+
+
+@test(1, "security.sso_unverified_email_linking_denied",
+      "SSO login into an existing account requires positive email_verified True unless allowed_domains or auto_provision is enabled.")
+def t_security_sso_unverified_email_linking_denied():
+    from types import SimpleNamespace as NS
+    pol = _imp("core.sso_policy")
+    u = lambda **k: NS(**{"provider": "generic_oidc", "email": "admin@example.com", "email_verified": None,
+                          "hd": None, "groups": [], **k})
+
+    # 1. Unverified (None or False) without allowed_domains or auto_provision is DENIED linking
+    res_none = pol.evaluate_sso_login(u(email_verified=None), {}, {}, user_exists=True, user_count=5)
+    assert not res_none.allowed, "None email_verified should not link to existing account"
+    assert "Cannot link to an existing account without email verification" in res_none.reason
+
+    res_false = pol.evaluate_sso_login(u(email_verified=False), {}, {}, user_exists=True, user_count=5)
+    assert not res_false.allowed, "False email_verified should not link to existing account"
+
+    # 2. Positively verified (True) is allowed to link
+    res_true = pol.evaluate_sso_login(u(email_verified=True), {}, {}, user_exists=True, user_count=5)
+    assert res_true.allowed is True
+
+    # 3. allowed_domains configured permits linking even if email_verified is None
+    res_allowed = pol.evaluate_sso_login(u(email_verified=None), {"allowed_domains": "example.com"}, {}, user_exists=True, user_count=5)
+    assert res_allowed.allowed is True
+
+    # 4. Explicit auto_provision permits linking
+    res_auto = pol.evaluate_sso_login(u(email_verified=None), {"auto_provision": True}, {}, user_exists=True, user_count=5)
+    assert res_auto.allowed is True
+
+    # 5. Directory providers (SAML, LDAP, SIP2) permit linking
+    res_saml = pol.evaluate_sso_login(u(provider="saml", email_verified=None), {}, {}, user_exists=True, user_count=5)
+    assert res_saml.allowed is True
+
+
 @test(1, "mfa.passwordless_config_and_options",
       "Institutional passwordless configuration defaults, overrides, and discoverable options generation for local accounts.")
 def t_mfa_passwordless_config_and_options():
@@ -7968,6 +8072,8 @@ def t_auth_per_ip_limits():
         os.environ["TRUSTED_PROXY_HOPS"] = "2"
         assert rl.client_ip(req("172.18.0.3", "198.51.100.7, 172.18.0.5")) == "198.51.100.7"
         assert rl.client_ip(req("172.18.0.3", "6.6.6.6, 198.51.100.7, 172.18.0.5")) == "198.51.100.7"
+        # Short chain (< hops): must never fall back to client-controlled chain[0], uses peer instead
+        assert rl.client_ip(req("172.18.0.3", "6.6.6.6")) == "172.18.0.3", "short chain must not use forged entry"
         # Direct exposure (0 hops): the header is never trusted.
         os.environ["TRUSTED_PROXY_HOPS"] = "0"
         assert rl.client_ip(req("203.0.113.9", "6.6.6.6")) == "203.0.113.9"
