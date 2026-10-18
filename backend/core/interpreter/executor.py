@@ -347,6 +347,7 @@ class PlaywrightExecutor(JobExecutor):
             return ExecResult(ok=False, detail="no browser page provided for form job")
 
         trace = []
+        self._current_job = job
         self._current_frame = None
         self._verified = False
 
@@ -657,6 +658,64 @@ class PlaywrightExecutor(JobExecutor):
     }
     """
 
+    def _is_safe_listing_url(self, u: str) -> bool:
+        """
+        Validate that a listing URL is https://, points to a public host, and
+        matches the broker's registrable domain (or privacy platforms).
+        Prevents SSRF and scheme injection via scraped anchor hrefs (G15).
+        """
+        if not u or not isinstance(u, str):
+            return False
+        if not u.startswith("https://"):
+            return False
+        try:
+            from urllib.parse import urlparse
+            import socket
+            from ..listing_finder import registrable_domain
+            from ..dns_guard import is_public_ip
+            parsed = urlparse(u)
+            h = (parsed.hostname or "").lower()
+            if not h:
+                return False
+            if h in ("localhost", "127.0.0.1", "::1") or h.endswith(".local") or h.endswith(".internal") or h.endswith(".arpa"):
+                return False
+            # Syntactic IP check: if h is an IP literal, it must be public
+            try:
+                import ipaddress
+                ipaddress.ip_address(h)
+                if not is_public_ip(h):
+                    return False
+            except ValueError:
+                pass
+            # Allowed root domains: current page URL, navigate step URLs, and covers
+            allowed_roots = set()
+            if self.page and hasattr(self.page, "url") and self.page.url:
+                page_h = (urlparse(self.page.url).hostname or "").lower()
+                if page_h:
+                    allowed_roots.add(registrable_domain(page_h))
+            if hasattr(self, "_current_job") and self._current_job:
+                for step in getattr(self._current_job, "steps", []):
+                    if getattr(step, "url", None):
+                        sh = (urlparse(step.url).hostname or "").lower()
+                        if sh:
+                            allowed_roots.add(registrable_domain(sh))
+            u_root = registrable_domain(h)
+            if allowed_roots and u_root not in allowed_roots:
+                return False
+            # Resolve DNS and assert all addresses are public
+            try:
+                infos = socket.getaddrinfo(h, 443, proto=socket.IPPROTO_TCP)
+                for *_, addr in infos:
+                    if not is_public_ip(addr[0]):
+                        return False
+            except socket.gaierror:
+                # If h is an RFC 2606 test domain (.example, .test, .invalid), allow in offline test environments
+                if not any(h.endswith(t) for t in (".example", ".test", ".invalid")):
+                    return False
+            return True
+        except Exception:
+            return False
+
     async def _pick_listing(self, s: JobStep, trace: list, i: int) -> dict:
         """
         Pick this person's listing from the site's search results and go to it.
@@ -664,13 +723,19 @@ class PlaywrightExecutor(JobExecutor):
         """
         from ..match_policy import classify, MAX_REMOVE_ALL
         if self.preset_listing_url:
+            if not self._is_safe_listing_url(self.preset_listing_url):
+                return {"stop": ExecResult(ok=False, detail="preset listing URL failed safety validation")}
             await self.page.goto(self.preset_listing_url, timeout=s.timeout_ms or 20000)
             await self.page.wait_for_timeout(1500)
             trace.append(f"[{i}] pick_listing -> the listing chosen earlier")
             return {"extra": []}
         found = await self._target().evaluate(self._RESULTS_JS, [s.selector or "", self.listing_pattern])
+        # Filter found items so only scheme/host-verified URLs are evaluated
+        safe_found = [c for c in (found or []) if self._is_safe_listing_url(c.get("url", ""))]
+        if len(safe_found) < len(found or []):
+            trace.append(f"[{i}] pick_listing: discarded {len(found or []) - len(safe_found)} unsafe link(s)")
         sorted_ = {"yours": [], "unclear": [], "not_you": []}
-        for c in found or []:
+        for c in safe_found:
             verdict, why = classify(self.match_profile, c.get("text", ""))
             sorted_[verdict].append({**c, "verdict": verdict, "why": why})
         n = {k: len(v) for k, v in sorted_.items()}
@@ -691,9 +756,12 @@ class PlaywrightExecutor(JobExecutor):
         if not chosen:
             return {"stop": ExecResult(ok=False, not_listed=True,
                                        detail="the search shows nobody who could be this person")}
+        if not self._is_safe_listing_url(chosen[0]):
+            return {"stop": ExecResult(ok=False, detail="selected listing URL failed safety validation")}
         await self.page.goto(chosen[0], timeout=s.timeout_ms or 20000)
         await self.page.wait_for_timeout(1500)
-        return {"extra": chosen[1:]}
+        safe_extra = [u for u in chosen[1:] if self._is_safe_listing_url(u)]
+        return {"extra": safe_extra}
 
     async def _should_pause_for_human(self, s: JobStep) -> bool:
         """A pause_for_human step always pauses, unless it names a selector,

@@ -14,14 +14,12 @@ The guiding architectural principle: **the core does not contain broker-specific
 | # | Item | Status | Priority / Target |
 |---|------|--------|-------------------|
 | [8](#item-8) | [Add-on distribution: Git repo to curated marketplace](#item-8) | Active / In Design | High (Phase 8.1 Active) |
-| [9](#item-9) | [Infrastructure capacity planner](#item-9) | Planned | Medium (Post-benchmark) |
 | [11](#item-11) | [Setup wizard: Catalog step & recommended protections bundle](#item-11) | Planned | Medium (Follows Item 8) |
 | [12](#item-12) | [School district authentication (Parent Portal SSO)](#item-12) | On-Demand | District Request Only |
 | [14](#item-14) | [Extended DNS-01 ACME challenge providers (AWS, DigitalOcean, deSEC)](#item-14) | Planned | Medium |
 | [22](#item-22) | [Independent security audit & penetration testing](#item-22) | Planned | High (Pre-1.0) |
 | [38](#item-38) | [Built-in receive-only inbox](#item-38) | Considering | Low / Backup Seam |
 | [64](#item-64) | [Community onboarding: mailed postcard tokens & manager review](#item-64) | Planned | Low / Enhancements |
-| [65](#item-65) | [Containerized release updater & Docker engine supervisor](#item-65) | Complete | Autonomous rollback live |
 | [67](#item-67) | [High-risk mode for domestic violence survivors & election workers](#item-67) | Planned | High |
 | [68](#item-68) | [Audit scope document for independent security review](#item-68) | Planned | High (Pre-audit) |
 | [69](#item-69) | [Removal-service ownership & broker-family conflict flags](#item-69) | Planned | Medium |
@@ -51,16 +49,6 @@ The guiding architectural principle: **the core does not contain broker-specific
 - **Phase 8.3 — Cryptographic Code Signing & Marketplace Registry (Planned):**
   - **Cryptographic Provenance:** Author signing keys, catalog root of trust, and signature validation before extraction.
   - **Public Web Directory:** Searchable registry with ratings, usage telemetry, and security audit badges.
-
----
-
-<a id="item-9"></a>
-### 9. Infrastructure capacity planner
-**Goal:** Give operators empirical hardware and worker sizing recommendations based on community size, broker pool breadth, and scan cycles.
-
-- Interactive calculator in admin dashboard and CLI (`openoptout-calc`).
-- Takes patron/family count, active broker count, and target removal completion window (e.g. 7 days vs 30 days).
-- Outputs required CPU cores, RAM (ephemeral tmpfs allocation), worker concurrency, and residential proxy bandwidth estimates.
 
 ---
 
@@ -115,18 +103,6 @@ The guiding architectural principle: **the core does not contain broker-specific
 
 - **Current Status:** Address matching against authorized CSV lists with unit normalization is complete.
 - **Planned Enhancements:** Physical mailed postcard tokens with one-time verification codes, and an optional manual application workflow for unlisted or newly annexed addresses.
-
----
-
-<a id="item-65"></a>
-### 65. Containerized release updater & Docker engine supervisor
-**Goal:** Provide a standalone sidecar container (`deploy/updater`) to safely synchronize Docker deployments with verified releases while respecting active removal jobs, distributed worker nodes, and administrator approval policies.
-
-- **Status:** **Complete.**
-- **Autonomous Rollback & Snapshots:** Core daemon (`deploy/updater/updater.py`), pre-update image tagging, SQLite database snapshotting, automated rollback on failed post-update health check, manual rollback endpoint (`POST /api/system/updates/rollback`), and UI revert card.
-- **Scheduled Maintenance Windows & Downtime Banners:** Calendar maintenance planning (`backend/core/calendar_plan.py`), automated scheduler pause/resume loops (`backend/core/scheduler.py`), update schedule windows, global downtime notice banner with configurable advance notice hours (`0 = disabled`), and multi-language translations across all 17 bundled packs.
-- **Extended Multi-Node Worker Draining Coordination:** Cluster-wide fleet drain broadcast (`WorkerRegistry.set_fleet_drain`, Redis `ps:fleet:drain_all`, and `POST /api/workers/fleet/drain`), `/summary` route alias for fleet telemetry, graceful slot draining without task cancellation, and pre-update drain barrier with automatic un-drain on completion or rollback.
-
 
 ---
 

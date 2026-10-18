@@ -176,15 +176,7 @@ def parse_registry(data: bytes, filename: str = "registry.csv") -> dict:
 
 # ── Fetching (only URLs an admin saved) ───────────────────────────────────────
 
-def _public_host(host: str) -> bool:
-    try:
-        for fam, _, _, _, addr in socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP):
-            ip = ipaddress.ip_address(addr[0])
-            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
-                return False
-        return True
-    except Exception:
-        return False
+from .dns_guard import public_host as _public_host, safe_dns_context
 
 
 def fetch_registry(url: str, timeout: int = 60) -> tuple:
@@ -195,8 +187,12 @@ def fetch_registry(url: str, timeout: int = 60) -> tuple:
     if not _public_host(u.hostname):
         raise ValueError("That address doesn't point to a public website.")
     import requests
-    r = requests.get(url, timeout=timeout, stream=True, allow_redirects=False,
-                     headers={"User-Agent": "OpenOptOut registry sync"})
+    try:
+        with safe_dns_context():
+            r = requests.get(url, timeout=timeout, stream=True, allow_redirects=False,
+                             headers={"User-Agent": "OpenOptOut registry sync"})
+    except ValueError as e:
+        raise ValueError("That address doesn't point to a public website.") from e
     if r.status_code in (301, 302, 303, 307, 308):
         raise ValueError(f"The registry moved (to {r.headers.get('Location', 'somewhere else')}). "
                          "Update the saved address.")

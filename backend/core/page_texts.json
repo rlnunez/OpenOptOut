@@ -92,6 +92,12 @@
    ]
   },
   {
+   "text": "(Required: {v} slots)",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "(round {round})",
    "where": [
     "pages/DeadlineReport.jsx"
@@ -841,6 +847,12 @@
    "text": "active",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Active Data Brokers",
+   "where": [
+    "components/CapacityPlanner.jsx"
    ]
   },
   {
@@ -2779,6 +2791,18 @@
    ]
   },
   {
+   "text": "Capacity deficit: {v} slot(s)",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
+   "text": "Capacity Planner",
+   "where": [
+    "pages/WorkerFleet.jsx"
+   ]
+  },
+  {
    "text": "CAPTCHA helper",
    "where": [
     "pages/Brokers.jsx"
@@ -3341,6 +3365,12 @@
    ]
   },
   {
+   "text": "Cluster Node Breakdown:",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Code (e.g. AO)",
    "where": [
     "pages/Branding.jsx"
@@ -3458,6 +3488,12 @@
    "text": "Compliant — honors opt-outs reliably",
    "where": [
     "pages/BrokerSubmit.jsx"
+   ]
+  },
+  {
+   "text": "concurrent slots",
+   "where": [
+    "components/CapacityPlanner.jsx"
    ]
   },
   {
@@ -3715,6 +3751,12 @@
    ]
   },
   {
+   "text": "Control Plane:",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Controls: {v} · Platform: {platform}",
    "where": [
     "pages/Plugins.jsx"
@@ -3815,6 +3857,12 @@
    "where": [
     "pages/Monitoring.jsx",
     "pages/UsageStats.jsx"
+   ]
+  },
+  {
+   "text": "Cores",
+   "where": [
+    "components/CapacityPlanner.jsx"
    ]
   },
   {
@@ -4520,6 +4568,12 @@
    ]
   },
   {
+   "text": "Current Active Fleet Capacity:",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Current order: <0/> (change it under <1>Settings → Schedule</1>).",
    "where": [
     "pages/BrokerNetwork.jsx"
@@ -4653,6 +4707,12 @@
    ]
   },
   {
+   "text": "Database Engine",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Database file encrypted: <0/> ({database_type}) · Personal details encrypted: <1/> · Logs kept for",
    "where": [
     "pages/PrivacyRecord.jsx"
@@ -4711,6 +4771,7 @@
   {
    "text": "days",
    "where": [
+    "components/CapacityPlanner.jsx",
     "pages/PrivacyRecord.jsx",
     "pages/Settings.jsx"
    ]
@@ -5176,6 +5237,12 @@
    "text": "Distributed",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Distributed Cluster",
+   "where": [
+    "components/CapacityPlanner.jsx"
    ]
   },
   {
@@ -5986,6 +6053,12 @@
    ]
   },
   {
+   "text": "encrypted disk",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Encrypted with AES-256 at rest",
    "where": [
     "components/UserWelcomeModal.jsx"
@@ -6149,6 +6222,12 @@
    ]
   },
   {
+   "text": "ephemeral /tmp",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Epsilon is one of the largest upstream data brokers, supplying data to hundreds of smaller sites. Removing from Epsilon can cause your information to disappear from many downstream sites automatically.\n\n**Required: email opt-out (not a web form)**\n\nSend to **all three** of these addresses in the same email:\n- `optout@epsilon.com`\n- `abacusoptout@epsilon.com`\n- `dataoptout1@epsilon.com`\n\n**Subject line:** `Data Removal Request — [Your Full Name]`\n\n**Body should include:**\n- Full name (and any variants/maiden names)\n- Current mailing address\n- Any previous addresses from the last 5 years\n- Statement: *\"Please remove all personal data associated with me from your databases and do not sell or share my information with any third parties.\"*\n\n**Timeline:** 4–6 weeks. Follow up if no response after 30 days. If you're in California, add: *\"I am exercising my rights under the California Consumer Privacy Act (CCPA), Cal. Civ. Code § 1798.105.\"*\n\n**Note:** Epsilon owns multiple brands. One email covers Epsilon Data Management, Abacus, FloSports data, and several others.",
    "where": [
     "pages/Help.jsx"
@@ -6200,6 +6279,18 @@
    "text": "errors:",
    "where": [
     "pages/BrokerSubmit.jsx"
+   ]
+  },
+  {
+   "text": "Estimate empirical hardware, concurrency, tmpfs RAM, and bandwidth requirements based on community size and completion deadlines.",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
+   "text": "estimated traffic",
+   "where": [
+    "components/CapacityPlanner.jsx"
    ]
   },
   {
@@ -6599,6 +6690,12 @@
    ]
   },
   {
+   "text": "Family / Patron Profiles",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Family member",
    "where": [
     "pages/Checklist.jsx",
@@ -6811,6 +6908,18 @@
    "text": "flagged for review",
    "where": [
     "pages/BrokerHealth.jsx"
+   ]
+  },
+  {
+   "text": "Fleet capacity is sufficient",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
+   "text": "Fleet Monitoring",
+   "where": [
+    "pages/WorkerFleet.jsx"
    ]
   },
   {
@@ -7462,6 +7571,12 @@
    ]
   },
   {
+   "text": "host machine",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Host server updates and backups",
    "where": [
     "pages/Calendar.jsx"
@@ -8029,6 +8144,12 @@
    "text": "Information, warnings and errors",
    "where": [
     "pages/Monitoring.jsx"
+   ]
+  },
+  {
+   "text": "Infrastructure Capacity Planner",
+   "where": [
+    "components/CapacityPlanner.jsx"
    ]
   },
   {
@@ -8810,6 +8931,12 @@
    ]
   },
   {
+   "text": "Live Fleet Telemetry Comparison",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Live Mixed Entropy Stream:",
    "where": [
     "components/SecretKeyBanner.jsx"
@@ -9560,6 +9687,12 @@
    ]
   },
   {
+   "text": "Model: {v} MB",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Modified",
    "where": [
     "pages/Translations.jsx"
@@ -10254,6 +10387,12 @@
    ]
   },
   {
+   "text": "No remote worker nodes currently registered. Single-node local execution will run at WORKER_CONCURRENCY.",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "No self-registration",
    "where": [
     "pages/Branding.jsx"
@@ -10323,6 +10462,12 @@
    "text": "Nobody outside your family.",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "nodes",
+   "where": [
+    "components/CapacityPlanner.jsx"
    ]
   },
   {
@@ -11756,6 +11901,12 @@
    ]
   },
   {
+   "text": "per worker node",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Per-member opt-out limits",
    "where": [
     "pages/Settings.jsx"
@@ -12118,6 +12269,12 @@
    ]
   },
   {
+   "text": "Presets:",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Press \"Check broker sites\" to look for {full_name} on every broker OpenOptOut knows.",
    "where": [
     "pages/Discovery.jsx"
@@ -12357,6 +12514,12 @@
    ]
   },
   {
+   "text": "Proxy Egress",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Prune",
    "where": [
     "pages/WorkerFleet.jsx"
@@ -12564,6 +12727,12 @@
    "text": "Reclaim Stalled Leases",
    "where": [
     "pages/WorkerFleet.jsx"
+   ]
+  },
+  {
+   "text": "Recommended Architecture",
+   "where": [
+    "components/CapacityPlanner.jsx"
    ]
   },
   {
@@ -12841,6 +13010,12 @@
    ]
   },
   {
+   "text": "removal jobs",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Removal report (PDF)",
    "where": [
     "pages/Reporting.jsx"
@@ -12850,6 +13025,12 @@
    "text": "Removal Requests",
    "where": [
     "components/UserWelcomeModal.jsx"
+   ]
+  },
+  {
+   "text": "removals / hr",
+   "where": [
+    "components/CapacityPlanner.jsx"
    ]
   },
   {
@@ -13172,6 +13353,12 @@
    "text": "Required groups / affiliations",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Required Slots",
+   "where": [
+    "components/CapacityPlanner.jsx"
    ]
   },
   {
@@ -14949,6 +15136,12 @@
    ]
   },
   {
+   "text": "slot(s)",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Small batches across 24 hours",
    "where": [
     "pages/Settings.jsx"
@@ -15199,6 +15392,18 @@
    "text": "Staff or admins who viewed, changed, exported or removed your family's details",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Standalone Node",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
+   "text": "Standalone Profile",
+   "where": [
+    "components/CapacityPlanner.jsx"
    ]
   },
   {
@@ -15460,6 +15665,12 @@
    ]
   },
   {
+   "text": "Storage (SSD)",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Storage address (leave empty for Amazon S3; https://storage.googleapis.com for Google Cloud Storage)",
    "where": [
     "pages/Backups.jsx"
@@ -15704,6 +15915,12 @@
    ]
   },
   {
+   "text": "System RAM",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "System updates",
    "where": [
     "components/Sidebar.jsx",
@@ -15747,9 +15964,21 @@
    ]
   },
   {
+   "text": "Target Completion Window (Days)",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Target PostgreSQL connection string",
    "where": [
     "pages/DatabaseAdmin.jsx"
+   ]
+  },
+  {
+   "text": "Target Throughput",
+   "where": [
+    "components/CapacityPlanner.jsx"
    ]
   },
   {
@@ -16553,6 +16782,12 @@
    ]
   },
   {
+   "text": "tmpfs RAM",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "To complain: California residents can file with the California Privacy Protection Agency (cppa.ca.gov); others with their state attorney general, or in the EU and UK with their data protection authority. Attach the downloaded file.",
    "where": [
     "pages/DeadlineReport.jsx"
@@ -16655,9 +16890,21 @@
    ]
   },
   {
+   "text": "total slots",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Total users",
    "where": [
     "pages/Reporting.jsx"
+   ]
+  },
+  {
+   "text": "Total Workload",
+   "where": [
+    "components/CapacityPlanner.jsx"
    ]
   },
   {
@@ -17520,6 +17767,12 @@
    ]
   },
   {
+   "text": "vCPU Cores",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Verbosity:",
    "where": [
     "pages/SystemLogs.jsx"
@@ -18272,6 +18525,12 @@
    ]
   },
   {
+   "text": "Worker Fleet:",
+   "where": [
+    "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
    "text": "Worker Node",
    "where": [
     "pages/WorkerFleet.jsx"
@@ -18287,6 +18546,12 @@
    "text": "Working on it",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Workload Parameters",
+   "where": [
+    "components/CapacityPlanner.jsx"
    ]
   },
   {

@@ -94,47 +94,13 @@ class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
         return fp
 
 
-def _is_public_host(host: str) -> bool:
+try:
+    from ..core.dns_guard import public_host as _is_public_host, safe_dns_context as _safe_dns_context
+except (ImportError, ValueError):
     try:
-        infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
-    except Exception:
-        return False
-    if not infos:
-        return False
-    for *_, addr in infos:
-        try:
-            ip = ipaddress.ip_address(addr[0])
-            if (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
-                    or ip.is_multicast or ip.is_unspecified):
-                return False
-        except Exception:
-            return False
-    return True
-
-
-@contextlib.contextmanager
-def _safe_dns_context():
-    real_getaddrinfo = socket.getaddrinfo
-
-    def safe_getaddrinfo(host, port, *args, **kwargs):
-        res = real_getaddrinfo(host, port, *args, **kwargs)
-        for *_, addr in res:
-            try:
-                ip = ipaddress.ip_address(addr[0])
-                if (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
-                        or ip.is_multicast or ip.is_unspecified):
-                    raise ValueError(f"Host {host} resolves to non-public IP: {ip}")
-            except ValueError:
-                raise
-            except Exception:
-                pass
-        return res
-
-    socket.getaddrinfo = safe_getaddrinfo
-    try:
-        yield
-    finally:
-        socket.getaddrinfo = real_getaddrinfo
+        from core.dns_guard import public_host as _is_public_host, safe_dns_context as _safe_dns_context
+    except ImportError:
+        from app.core.dns_guard import public_host as _is_public_host, safe_dns_context as _safe_dns_context
 
 
 class PluginManager:

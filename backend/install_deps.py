@@ -28,6 +28,16 @@ def main() -> None:
     else:
         print("SQLCipher disabled (WITH_ENCRYPTION=false) — file-level encryption disabled")
 
+    # Best-effort install of seccomp Python bindings for sandboxing syscall filter
+    try:
+        res = subprocess.run(pip_cmd + ["seccomp"])
+        if res.returncode == 0:
+            print("seccomp bindings installed successfully — syscall filtering enabled")
+        else:
+            print("INFO: seccomp pip install returned non-zero (optional syscall filter)")
+    except Exception:
+        pass
+
 
 if __name__ == "__main__":
     main()

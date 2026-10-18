@@ -161,7 +161,7 @@ def _check_registration_allowed(email: str, invite_code: Optional[str], db: Sess
     """
     s    = load_settings()
     reg  = s.get("registration", {})
-    mode = reg.get("mode", "open")   # open | domain | invite | admin_only
+    mode = reg.get("mode", "admin_only")   # admin_only | invite | domain | open
 
     # First user always allowed — becomes super_admin
     if db.query(User).count() == 0:
@@ -1023,6 +1023,8 @@ def get_webauthn_challenge_options(request: Request, data: dict = Body(..., max_
     rp_id = request.url.hostname
     opts = mfa.create_webauthn_authentication_options(keys, rp_id=rp_id)
     tdata["challenge"] = opts["challenge"]
+    tdata["rp_id"] = rp_id
+    tdata["origin"] = f"{request.url.scheme}://{request.url.netloc}"
     from ..core.settings_store import encrypt_password
     opts["mfa_ticket"] = encrypt_password(json.dumps(tdata))
     return opts
@@ -1049,8 +1051,12 @@ def verify_webauthn_login(data: VerifyWebAuthnIn, db: Session = Depends(get_db))
     if not matching_key:
         raise HTTPException(400, "Security key not registered on this account.")
     challenge = tdata.get("challenge", "")
-    if not mfa.verify_webauthn_assertion(data.credential, challenge, matching_key):
+    rp_id = tdata.get("rp_id")
+    origin = tdata.get("origin")
+    if not mfa.verify_webauthn_assertion(data.credential, challenge, matching_key, expected_rp_id=rp_id, expected_origin=origin):
         raise HTTPException(401, "Security key verification failed.")
+    user.webauthn_credentials = json.dumps(keys)
+    db.commit()
     remember_me = bool(tdata.get("remember_me", False))
     return {"access_token": create_user_token(user, remember_me=remember_me), "token_type": "bearer"}
 
@@ -1314,11 +1320,14 @@ def get_passwordless_options(req: PasswordlessOptionsIn, request: Request = None
                     keys = []
 
     rp_id = request.url.hostname if request else None
+    origin = f"{request.url.scheme}://{request.url.netloc}" if request else None
     opts = mfa.create_webauthn_authentication_options(keys, rp_id=rp_id)
     payload = {
         "uid": user_id,
         "email": req.email.strip().lower() if req.email else None,
         "challenge": opts["challenge"],
+        "rp_id": rp_id,
+        "origin": origin,
         "exp": int(time.time()) + 300,
         "type": "pwdless_passkey",
     }
@@ -1383,8 +1392,22 @@ def verify_passwordless_passkey(data: PasswordlessVerifyIn, request: Request = N
         raise HTTPException(400, "Passwordless authentication is only available for local accounts.")
 
     challenge = tdata.get("challenge", "")
-    if not mfa.verify_webauthn_assertion(cred, challenge, matching_key):
+    rp_id = tdata.get("rp_id")
+    origin = tdata.get("origin")
+    if not mfa.verify_webauthn_assertion(cred, challenge, matching_key, expected_rp_id=rp_id, expected_origin=origin):
         raise HTTPException(401, "Passkey authentication verification failed.")
+
+    # Persist updated signature counter to protect against replay
+    try:
+        user_keys = json.loads(user.webauthn_credentials or "[]")
+        for idx, k in enumerate(user_keys):
+            if k.get("id") == cred_id:
+                user_keys[idx] = matching_key
+                break
+        user.webauthn_credentials = json.dumps(user_keys)
+        db.commit()
+    except Exception:
+        pass
 
     token = create_user_token(user, remember_me=bool(data.remember_me))
     return {"access_token": token, "token_type": "bearer"}

@@ -7,8 +7,9 @@ looks like a credential is refused, and plugin-scoped settings live in a
 separate namespace from host settings.
 """
 
+import re
 import logging
-from typing import Optional
+from typing import Optional, Any
 
 log = logging.getLogger(__name__)
 
@@ -18,12 +19,23 @@ SECRET_MARKERS = (
     "password", "passwd", "secret", "token", "api_key", "apikey",
     "private_key", "client_secret", "encryption_key", "bind_password",
     "ils_password", "smtp_pass", "imap_pass", "_enc", "credential",
+    "proxy_url", "auth", "bearer", "cert", "cookie", "session",
 )
+
+_URL_CREDS_RE = re.compile(r"://[^:/\s]+:[^@/\s]+@")
 
 
 def _looks_secret(key: str) -> bool:
     k = key.lower()
     return any(marker in k for marker in SECRET_MARKERS)
+
+
+def _value_looks_secret(val: Any) -> bool:
+    """True if val contains embedded credentials, e.g. scheme://user:pass@host."""
+    if isinstance(val, str):
+        if _URL_CREDS_RE.search(val):
+            return True
+    return False
 
 
 class PluginSettingsAccessor:
@@ -32,6 +44,12 @@ class PluginSettingsAccessor:
 
     host_settings_loader() -> dict   (the full settings dict; may contain secrets)
     plugin_settings are stored under settings["plugin_settings"][plugin_id][key].
+
+    Security invariant (G16):
+      Credential-bearing settings must always be stored under marker-matching keys
+      (or nested dicts / external env files), never as bare non-secret scalars.
+      get_global_nonsecret inspects both key names and string scalar contents to
+      refuse secrets or embedded URL credentials.
     """
 
     def __init__(self, settings_loader, settings_saver):
@@ -57,13 +75,18 @@ class PluginSettingsAccessor:
     def get_global_nonsecret(self, key: str) -> Optional[str]:
         """
         Return a global setting ONLY if it is not a secret. Refuses anything
-        matching a secret marker, returning None as if it doesn't exist.
+        matching a secret marker or containing embedded credentials, returning
+        None as if it doesn't exist.
         """
         if _looks_secret(key):
             log.warning("Plugin attempted to read restricted setting '%s' — refused", key)
             return None
         s = self._load()
         val = s.get(key)
+        # Refuse values that contain embedded credentials (e.g. http://user:pass@host)
+        if _value_looks_secret(val):
+            log.warning("Setting '%s' contains embedded credentials — refused", key)
+            return None
         # Only return simple scalar values, never nested dicts that might
         # contain secrets deeper down.
         if isinstance(val, (str, int, float, bool)):

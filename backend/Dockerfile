@@ -29,7 +29,7 @@ RUN apt-get update && \
     libxrandr2 libxss1 libxtst6 xdg-utils \
     bubblewrap libseccomp2 python3-seccomp \
     xmlsec1 \
-    gcc build-essential libldap2-dev libsasl2-dev libsqlcipher-dev \
+    gcc build-essential libldap2-dev libsasl2-dev libsqlcipher-dev libseccomp-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # rclone, for the "Other cloud storage" backup option (Proton Drive, Box,

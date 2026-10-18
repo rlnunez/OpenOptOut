@@ -171,14 +171,18 @@ def _allowed(url: str, domain: str) -> bool:
 def http_get(url: str, domain: str):
     """(final_url, status, html) — https, public addresses only, redirects re-checked."""
     import requests
-    from .confirm_links import public_host
+    from .dns_guard import public_host, safe_dns_context
     cur = url
     for _ in range(5):
         if not _allowed(cur, domain) or not public_host(_host(cur)):
             return cur, 0, ""
-        r = requests.get(cur, timeout=15, allow_redirects=False, stream=True,
-                         headers={"User-Agent": "Mozilla/5.0 (OpenOptOut privacy-page finder)",
-                                  "Accept": "text/html,*/*"})
+        try:
+            with safe_dns_context():
+                r = requests.get(cur, timeout=15, allow_redirects=False, stream=True,
+                                 headers={"User-Agent": "Mozilla/5.0 (OpenOptOut privacy-page finder)",
+                                          "Accept": "text/html,*/*"})
+        except Exception:
+            return cur, 0, ""
         if r.status_code in (301, 302, 303, 307, 308) and r.headers.get("Location"):
             cur = urljoin(cur, r.headers["Location"])
             continue

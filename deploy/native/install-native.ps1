@@ -176,7 +176,7 @@ if (-not $Update) {
     Write-Host " First install steps still needed (docs/NATIVE_INSTALL.md has the full version):"
     Write-Host "   1. Review $EnvFile (database, email, etc — see .env.example)"
     Write-Host "   2. Register the Windows Service with NSSM (https://nssm.cc/):"
-    Write-Host "      nssm install OpenOptOutAPI `"$VenvDir\Scripts\uvicorn.exe`" `"app.main:app --host 127.0.0.1 --port 8000 --workers 2`""
+    Write-Host "      nssm install OpenOptOutAPI `"$VenvDir\Scripts\uvicorn.exe`" `"app.main:app --host 127.0.0.1 --port 8000 --workers 1`""
     Write-Host "      nssm set OpenOptOutAPI AppDirectory `"$RepoRoot`""
     Write-Host "      nssm start OpenOptOutAPI"
     Write-Host "      Invoke-WebRequest http://127.0.0.1:8000/api/health   # should say {`"status`":`"ok`"}"

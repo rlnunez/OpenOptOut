@@ -3266,6 +3266,11 @@ def t_sso_rules():
                           "hd": None, "groups": [], **k})
     # explicitly unverified email can't claim an EXISTING account
     assert not pol.evaluate_sso_login(u(email_verified=False), {}, {}, True, 5).allowed
+    # unverified / omitted claim (None) also cannot claim an existing account without allowed_domains or auto_provision
+    assert not pol.evaluate_sso_login(u(email_verified=None), {}, {}, True, 5).allowed
+    assert pol.evaluate_sso_login(u(email_verified=True), {}, {}, True, 5).allowed
+    assert pol.evaluate_sso_login(u(email_verified=None), {"allowed_domains": "x.org"}, {}, True, 5).allowed
+    assert pol.evaluate_sso_login(u(email_verified=None), {"auto_provision": True}, {}, True, 5).allowed
     # super admin is never auto-granted
     d = pol.evaluate_sso_login(u(), {"default_role": "super_admin"}, {}, False, 5)
     assert d.allowed and d.role == "parent" and d.downgraded, f"super_admin not capped: {d}"
@@ -4953,6 +4958,59 @@ def t_hardware_benchmark_footprint():
     assert full["hardware_recommendations"]["standalone_family"]["min_ram_gb"] == 1.0
 
 
+@test(1, "hardware.capacity_planner_and_cli",
+      "Infrastructure capacity planner: empirical calculation models, hardware profile selection, and CLI tool execution.")
+def t_hardware_capacity_planner():
+    import subprocess
+    import json
+    from backend.core.capacity_planner import calculate_capacity_plan
+
+    # 1. Household scale: Profile A (1 slot, standalone)
+    plan_a = calculate_capacity_plan(profiles=10, brokers=80, target_days=7.0)
+    assert plan_a.total_jobs == 800
+    assert plan_a.required_slots == 1
+    assert plan_a.recommended_profile.profile_id == "Profile A"
+    assert plan_a.recommended_profile.topology == "standalone"
+    assert plan_a.ephemeral_tmpfs_mb >= 512
+
+    # 2. Housing authority scale: Profile B (2 slots, standalone)
+    plan_b = calculate_capacity_plan(profiles=1000, brokers=80, target_days=7.0)
+    assert plan_b.required_slots == 2
+    assert plan_b.recommended_profile.profile_id == "Profile B"
+    assert plan_b.recommended_profile.topology == "standalone"
+
+    # 3. Consortium scale: Profile C/D (Distributed cluster)
+    plan_c = calculate_capacity_plan(profiles=5000, brokers=80, target_days=7.0)
+    assert plan_c.required_slots >= 7
+    assert plan_c.recommended_profile.profile_id == "Profile C/D"
+    assert plan_c.recommended_profile.topology == "distributed"
+    assert plan_c.cluster_worker_nodes_needed >= 2
+    assert plan_c.cluster_total_worker_slots >= 8
+
+    # 4. Live fleet comparison: sufficient vs deficit
+    plan_fleet_ok = calculate_capacity_plan(profiles=100, brokers=80, target_days=7.0, current_fleet_slots=4)
+    assert plan_fleet_ok.current_fleet_deficit_slots == 0
+    assert plan_fleet_ok.current_fleet_est_completion_days is not None
+
+    plan_fleet_deficit = calculate_capacity_plan(profiles=5000, brokers=80, target_days=3.0, current_fleet_slots=2)
+    assert plan_fleet_deficit.current_fleet_deficit_slots > 0
+    assert plan_fleet_deficit.current_fleet_est_completion_days > 3.0
+
+    # 5. CLI execution check
+    repo_root = os.path.dirname(_BACKEND_DIR)
+    cli_path = os.path.join(repo_root, "scripts", "openoptout-calc.py")
+    res = subprocess.run(
+        [sys.executable, cli_path, "--profiles", "200", "--brokers", "80", "--days", "7", "--json"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    cli_data = json.loads(res.stdout)
+    assert cli_data["profiles"] == 200
+    assert cli_data["brokers"] == 80
+    assert "recommended_profile" in cli_data
+
+
 @test(1, "https.enable_script_paths",
       "scripts/enable-https.sh: each front door + certificate choice writes the right .env keys "
       "(profiles, challenge, tokens), the tunnel warning shows, and bad combinations are refused.")
@@ -5722,6 +5780,295 @@ def t_mfa_webauthn_assertion_fails_closed():
                     {"id": "k1", "algorithm": -7, "public_key": ""},
                     {"id": "k1", "algorithm": -7, "public_key": "zz"}):
         assert not mfa.verify_webauthn_assertion(cred(good), challenge, bad_key), f"accepted with key {bad_key}"
+
+
+    # RP ID binding test
+    auth_data_rp = hashlib.sha256(b"example.invalid").digest() + b"\x01" + b"\x00\x00\x00\x02"
+    signed_rp = auth_data_rp + hashlib.sha256(client_data).digest()
+    good_rp = ec_priv.sign(signed_rp, ec.ECDSA(hashes.SHA256()))
+    cred_rp = {"id": "k1", "response": {"clientDataJSON": b64(client_data),
+                                        "authenticatorData": b64(auth_data_rp), "signature": b64(good_rp)}}
+    assert mfa.verify_webauthn_assertion(cred_rp, challenge, ec_key, expected_rp_id="example.invalid"), "valid RP ID rejected"
+    assert not mfa.verify_webauthn_assertion(cred_rp, challenge, ec_key, expected_rp_id="attacker.invalid"), "mismatched RP ID accepted"
+
+    # Origin binding test
+    client_data_origin = json.dumps({"type": "webauthn.get", "challenge": challenge, "origin": "https://vault.example.org"}).encode()
+    signed_origin = auth_data_rp + hashlib.sha256(client_data_origin).digest()
+    good_origin = ec_priv.sign(signed_origin, ec.ECDSA(hashes.SHA256()))
+    cred_origin = {"id": "k1", "response": {"clientDataJSON": b64(client_data_origin),
+                                            "authenticatorData": b64(auth_data_rp), "signature": b64(good_origin)}}
+    assert mfa.verify_webauthn_assertion(cred_origin, challenge, ec_key, expected_origin="https://vault.example.org"), "valid origin rejected"
+    assert not mfa.verify_webauthn_assertion(cred_origin, challenge, ec_key, expected_origin="https://phishing.example.org"), "mismatched origin accepted"
+
+    # Counter replay detection
+    replay_key = dict(ec_key, counter=10)
+    assert not mfa.verify_webauthn_assertion(cred_rp, challenge, replay_key), "replayed counter accepted"
+
+
+@test(1, "security.hkdf_derivation_and_subsystem_keys",
+      "RFC 5869 HKDF derivation guarantees cryptographic isolation of settings, OAuth, and envelope keys.")
+def t_security_hkdf_derivation():
+    hkdf = _imp("core.hkdf")
+    master_secret = "master-secret-key-12345"
+
+    k_settings = hkdf.hkdf_derive(master_secret, info=b"openoptout:settings:v1")
+    k_oauth = hkdf.hkdf_derive(master_secret, info=b"openoptout:oauth:v1")
+    k_env_hmac = hkdf.hkdf_derive(master_secret, info=b"openoptout:envelope:hmac:v1")
+    k_env_enc = hkdf.hkdf_derive(master_secret, info=b"openoptout:envelope:encryption:v1")
+
+    # All derived keys are 32 bytes (256-bit)
+    for k in (k_settings, k_oauth, k_env_hmac, k_env_enc):
+        assert len(k) == 32, f"unexpected derived key length: {len(k)}"
+
+    # All subsystem keys are pairwise distinct
+    all_keys = [k_settings, k_oauth, k_env_hmac, k_env_enc]
+    assert len(set(all_keys)) == 4, "derived subsystem keys collide"
+
+    # Deterministic output for same input
+    assert hkdf.hkdf_derive(master_secret, info=b"openoptout:settings:v1") == k_settings
+
+
+@test(1, "security.backup_codes_hmac_and_totp_constant_time",
+      "TOTP constant-time verification, HMAC backup codes generation, and legacy SHA-256 fallback consumption.")
+def t_security_backup_codes_and_totp():
+    mfa = _imp("core.mfa")
+
+    # 1. Constant-time TOTP verification
+    totp_secret = mfa.generate_totp_secret()
+    code = mfa.get_totp(totp_secret)
+    assert mfa.verify_totp(code, totp_secret), "valid TOTP code rejected"
+    assert not mfa.verify_totp("000000" if code != "000000" else "111111", totp_secret), "invalid TOTP code accepted"
+    assert not mfa.verify_totp("", totp_secret), "empty TOTP code accepted"
+
+    # 2. Keyed HMAC backup codes generation and consumption
+    plain, hashed = mfa.generate_backup_codes(count=4, server_key="test-server-key")
+    assert len(plain) == 4 and len(hashed) == 4
+    for p in plain:
+        assert len(p) == 9 and p[4] == "-", f"invalid backup code format: {p}"
+
+    first_code = plain[0]
+    matched, remaining = mfa.verify_backup_code(first_code, hashed, server_key="test-server-key")
+    assert matched is True and len(remaining) == 3, "HMAC backup code verification failed"
+    # Consumed code cannot be reused
+    matched_again, _ = mfa.verify_backup_code(first_code, remaining, server_key="test-server-key")
+    assert matched_again is False, "consumed backup code accepted again"
+
+    # 3. Backward-compatible fallback for legacy unsalted SHA-256 backup codes
+    import hashlib
+    legacy_plain = "ABCD-1234"
+    legacy_hash = hashlib.sha256(legacy_plain.encode("utf-8")).hexdigest()
+    legacy_list = [legacy_hash, hashed[1]]
+    matched_legacy, rem_legacy = mfa.verify_backup_code(legacy_plain, legacy_list, server_key="test-server-key")
+    assert matched_legacy is True and len(rem_legacy) == 1, "legacy unsalted backup code fallback failed"
+
+
+@test(1, "security.encryption_at_rest_production_guards",
+      "In production mode (ENFORCE_ENCRYPTION_AT_REST), unencrypted fallback raises RuntimeError.")
+def t_security_encryption_at_rest_production_guards():
+    import os
+    enc = _imp("core.encryption")
+
+    # Save original environment
+    orig_env = os.environ.get("ENFORCE_ENCRYPTION_AT_REST")
+    orig_prod = os.environ.get("OPENDATASENTRY_ENV")
+    try:
+        os.environ["ENFORCE_ENCRYPTION_AT_REST"] = "true"
+        assert enc.is_production_mode() is True, "is_production_mode failed to detect enforcement flag"
+
+        # When Fernet instance is None in production, encrypt_field must fail closed
+        old_get_fernet = enc._get_fernet
+        enc._get_fernet = lambda: None
+        try:
+            try:
+                enc.encrypt_field("sensitive-pii-value")
+                assert False, "encrypt_field in production without key should have raised RuntimeError"
+            except RuntimeError as e:
+                assert "Encryption at rest is mandatory in production" in str(e)
+
+            try:
+                enc.decrypt_field("some-ciphertext")
+                assert False, "decrypt_field in production without key should have raised RuntimeError"
+            except RuntimeError as e:
+                assert "Decryption failed" in str(e)
+        finally:
+            enc._get_fernet = old_get_fernet
+    finally:
+        if orig_env is not None:
+            os.environ["ENFORCE_ENCRYPTION_AT_REST"] = orig_env
+        else:
+            os.environ.pop("ENFORCE_ENCRYPTION_AT_REST", None)
+        if orig_prod is not None:
+            os.environ["OPENDATASENTRY_ENV"] = orig_prod
+        else:
+            os.environ.pop("OPENDATASENTRY_ENV", None)
+
+
+@test(1, "security.dns_guard_rebinding_and_ssrf",
+      "DNS rebinding and SSRF protection: is_public_ip rejects internal ranges; safe_dns_context blocks rebinding.")
+def t_security_dns_guard_rebinding_and_ssrf():
+    import socket
+    dns = _imp("core.dns_guard")
+
+    # 1. is_public_ip checks
+    assert not dns.is_public_ip("127.0.0.1"), "loopback allowed"
+    assert not dns.is_public_ip("::1"), "IPv6 loopback allowed"
+    assert not dns.is_public_ip("10.0.0.1"), "private RFC 1918 (10/8) allowed"
+    assert not dns.is_public_ip("172.16.0.1"), "private RFC 1918 (172.16/12) allowed"
+    assert not dns.is_public_ip("192.168.1.1"), "private RFC 1918 (192.168/16) allowed"
+    assert not dns.is_public_ip("169.254.169.254"), "link-local / cloud metadata allowed"
+    assert not dns.is_public_ip("0.0.0.0"), "unspecified / 0.0.0.0 allowed"
+    assert not dns.is_public_ip("100.64.0.1"), "CGNAT allowed"
+    assert not dns.is_public_ip("255.255.255.255"), "broadcast allowed"
+    assert not dns.is_public_ip("::ffff:127.0.0.1"), "IPv4-mapped loopback allowed"
+    assert not dns.is_public_ip("::ffff:169.254.169.254"), "IPv4-mapped metadata allowed"
+    assert dns.is_public_ip("93.184.216.34"), "valid public IPv4 rejected"
+    assert dns.is_public_ip("2607:f8b0:4005:805::200e"), "valid public IPv6 rejected"
+
+    # 2. safe_dns_context intercepts socket.getaddrinfo and raises ValueError on non-public IPs
+    real_gai = socket.getaddrinfo
+    with dns.safe_dns_context():
+        # Active wrapper
+        assert socket.getaddrinfo != real_gai
+        # Should raise ValueError for private IP
+        try:
+            socket.getaddrinfo("127.0.0.1", 443)
+            assert False, "safe_dns_context should have raised ValueError for 127.0.0.1"
+        except ValueError as e:
+            assert "resolves to non-public IP" in str(e)
+    # Restored
+    assert socket.getaddrinfo == real_gai
+
+
+@test(1, "security.xff_short_chain_spoof_prevention",
+      "When XFF chain length is less than TRUSTED_PROXY_HOPS, rate_limit.client_ip uses TCP peer, never chain[0].")
+def t_security_xff_short_chain_spoof_prevention():
+    import os
+    from types import SimpleNamespace as NS
+    rl = _imp("core.rate_limit")
+
+    def req(peer, xff=None):
+        return NS(client=NS(host=peer), headers={"x-forwarded-for": xff} if xff else {})
+
+    orig_hops = os.environ.get("TRUSTED_PROXY_HOPS")
+    try:
+        # 2 hops expected: chain has only 1 hop -> must NOT fall back to chain[0]
+        os.environ["TRUSTED_PROXY_HOPS"] = "2"
+        assert rl.client_ip(req("192.0.2.1", "1.1.1.1")) == "192.0.2.1", "short chain spoofed via chain[0]"
+        # 3 hops expected: chain has 2 hops -> fallback to peer
+        os.environ["TRUSTED_PROXY_HOPS"] = "3"
+        assert rl.client_ip(req("192.0.2.1", "1.1.1.1, 2.2.2.2")) == "192.0.2.1"
+        # 3 hops expected: chain has 3 hops -> valid outermost trusted client
+        assert rl.client_ip(req("192.0.2.1", "8.8.8.8, 1.1.1.1, 2.2.2.2")) == "8.8.8.8"
+        # 0 hops: never trusts XFF
+        os.environ["TRUSTED_PROXY_HOPS"] = "0"
+        assert rl.client_ip(req("192.0.2.1", "8.8.8.8")) == "192.0.2.1"
+    finally:
+        if orig_hops is not None:
+            os.environ["TRUSTED_PROXY_HOPS"] = orig_hops
+        else:
+            os.environ.pop("TRUSTED_PROXY_HOPS", None)
+
+
+@test(1, "security.sso_unverified_email_linking_denied",
+      "SSO login into an existing account requires positive email_verified True unless allowed_domains or auto_provision is enabled.")
+def t_security_sso_unverified_email_linking_denied():
+    from types import SimpleNamespace as NS
+    pol = _imp("core.sso_policy")
+    u = lambda **k: NS(**{"provider": "generic_oidc", "email": "admin@example.com", "email_verified": None,
+                          "hd": None, "groups": [], **k})
+
+    # 1. Unverified (None or False) without allowed_domains or auto_provision is DENIED linking
+    res_none = pol.evaluate_sso_login(u(email_verified=None), {}, {}, user_exists=True, user_count=5)
+    assert not res_none.allowed, "None email_verified should not link to existing account"
+    assert "Cannot link to an existing account without email verification" in res_none.reason
+
+    res_false = pol.evaluate_sso_login(u(email_verified=False), {}, {}, user_exists=True, user_count=5)
+    assert not res_false.allowed, "False email_verified should not link to existing account"
+
+    # 2. Positively verified (True) is allowed to link
+    res_true = pol.evaluate_sso_login(u(email_verified=True), {}, {}, user_exists=True, user_count=5)
+    assert res_true.allowed is True
+
+    # 3. allowed_domains configured permits linking even if email_verified is None
+    res_allowed = pol.evaluate_sso_login(u(email_verified=None), {"allowed_domains": "example.com"}, {}, user_exists=True, user_count=5)
+    assert res_allowed.allowed is True
+
+    # 4. Explicit auto_provision permits linking
+    res_auto = pol.evaluate_sso_login(u(email_verified=None), {"auto_provision": True}, {}, user_exists=True, user_count=5)
+    assert res_auto.allowed is True
+
+    # 5. Directory providers (SAML, LDAP, SIP2) permit linking
+    res_saml = pol.evaluate_sso_login(u(provider="saml", email_verified=None), {}, {}, user_exists=True, user_count=5)
+    assert res_saml.allowed is True
+
+
+@test(1, "security.executor_pick_listing_scheme_and_host_validation",
+      "Executor _pick_listing validates candidate URLs against scheme (https only), public IP, and broker domain allowlist.")
+def t_security_executor_pick_listing_validation():
+    ex_mod = _imp("core.interpreter.executor")
+    comp = _imp("core.interpreter.compiler")
+
+    class FakePage:
+        url = "https://broker.example/search"
+        async def goto(self, url, timeout=0): pass
+        async def wait_for_timeout(self, ms): pass
+
+    page = FakePage()
+    job = comp.Job(broker_id="b1", broker_name="Broker", member_id="m1", method="form",
+                   steps=[comp.JobStep(kind="navigate", url="https://broker.example/optout"),
+                          comp.JobStep(kind="pick_listing", selector="a.item")])
+    ex = ex_mod.PlaywrightExecutor(page=page)
+    ex._current_job = job
+
+    # Valid: https on matching broker domain
+    assert ex._is_safe_listing_url("https://broker.example/listing/123") is True
+    assert ex._is_safe_listing_url("https://sub.broker.example/item/456") is True
+
+    # Invalid scheme
+    assert ex._is_safe_listing_url("http://broker.example/listing/123") is False
+    assert ex._is_safe_listing_url("javascript:alert(1)") is False
+    assert ex._is_safe_listing_url("file:///etc/passwd") is False
+
+    # Invalid host (off-site / attacker)
+    assert ex._is_safe_listing_url("https://evil.com/phish") is False
+
+    # Invalid host (internal / SSRF / cloud metadata)
+    assert ex._is_safe_listing_url("https://127.0.0.1/admin") is False
+    assert ex._is_safe_listing_url("https://localhost/admin") is False
+    assert ex._is_safe_listing_url("https://169.254.169.254/latest/meta-data") is False
+    assert ex._is_safe_listing_url("https://10.0.0.1/internal") is False
+
+
+@test(1, "security.settings_read_credential_refusal",
+      "PluginSettingsAccessor refuses secret-matching keys and values containing embedded credentials.")
+def t_security_settings_read_credential_refusal():
+    sa = _imp("plugins.settings_access")
+
+    data = {
+        "theme": "dark",
+        "locale": "en",
+        "proxy_port": 8080,
+        "proxy_url": "http://user:pass@proxy.company.net:8080",
+        "auth_header": "Bearer secret-token-xyz",
+        "api_key": "live_key_abcdef",
+        "custom_gateway": "https://service_user:super_secret_pw@secure.gateway.net/api",
+        "safe_endpoint": "https://api.external-service.org/v1",
+    }
+    accessor = sa.PluginSettingsAccessor(settings_loader=lambda: data, settings_saver=lambda s: None)
+
+    # 1. Non-secret scalar values are allowed
+    assert accessor.get_global_nonsecret("theme") == "dark"
+    assert accessor.get_global_nonsecret("locale") == "en"
+    assert accessor.get_global_nonsecret("proxy_port") == "8080"
+    assert accessor.get_global_nonsecret("safe_endpoint") == "https://api.external-service.org/v1"
+
+    # 2. Key names matching secret markers are refused
+    assert accessor.get_global_nonsecret("proxy_url") is None
+    assert accessor.get_global_nonsecret("auth_header") is None
+    assert accessor.get_global_nonsecret("api_key") is None
+
+    # 3. Values containing embedded credentials in URLs are refused even under arbitrary key names
+    assert accessor.get_global_nonsecret("custom_gateway") is None
 
 
 @test(1, "mfa.passwordless_config_and_options",
@@ -7794,6 +8141,8 @@ def t_auth_per_ip_limits():
         os.environ["TRUSTED_PROXY_HOPS"] = "2"
         assert rl.client_ip(req("172.18.0.3", "198.51.100.7, 172.18.0.5")) == "198.51.100.7"
         assert rl.client_ip(req("172.18.0.3", "6.6.6.6, 198.51.100.7, 172.18.0.5")) == "198.51.100.7"
+        # Short chain (< hops): must never fall back to client-controlled chain[0], uses peer instead
+        assert rl.client_ip(req("172.18.0.3", "6.6.6.6")) == "172.18.0.3", "short chain must not use forged entry"
         # Direct exposure (0 hops): the header is never trusted.
         os.environ["TRUSTED_PROXY_HOPS"] = "0"
         assert rl.client_ip(req("203.0.113.9", "6.6.6.6")) == "203.0.113.9"

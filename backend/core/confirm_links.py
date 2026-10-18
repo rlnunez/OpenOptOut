@@ -254,19 +254,7 @@ def handle_reply(db, reqs: list, subject: str, text: str, links: list, sender: s
 
 # ── Clicking ──────────────────────────────────────────────────────────────────
 
-def public_host(host: str) -> bool:
-    try:
-        infos = socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
-    except Exception:
-        return False
-    if not infos:
-        return False
-    for *_, addr in infos:
-        ip = ipaddress.ip_address(addr[0])
-        if (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
-                or ip.is_multicast or ip.is_unspecified):
-            return False
-    return True
+from .dns_guard import is_public_ip, public_host, safe_dns_context
 
 
 def _verdict(status: int, body: str):
@@ -288,18 +276,20 @@ def http_visit(url: str, domains: set, get=None, resolve=None):
     Follow `url` with plain GETs. Returns (verdict, final_url). Every hop must
     be https, public, and on the broker's domains or a click-tracker; the final
     page must be on the broker's domains.
+    DNS resolution at socket connection is pinned to public addresses via safe_dns_context.
     """
     resolve = resolve or public_host
     if get is None:
         import requests
 
         def get(u):
-            r = requests.get(u, timeout=15, allow_redirects=False, stream=True,
-                             headers={"User-Agent": "Mozilla/5.0 (OpenOptOut confirmation)",
-                                      "Accept": "text/html,*/*"})
-            body = r.raw.read(400_000, decode_content=True).decode(r.encoding or "utf-8", "replace") \
-                if r.status_code < 300 else ""
-            return r.status_code, r.headers.get("Location", ""), body
+            with safe_dns_context():
+                r = requests.get(u, timeout=15, allow_redirects=False, stream=True,
+                                 headers={"User-Agent": "Mozilla/5.0 (OpenOptOut confirmation)",
+                                          "Accept": "text/html,*/*"})
+                body = r.raw.read(400_000, decode_content=True).decode(r.encoding or "utf-8", "replace") \
+                    if r.status_code < 300 else ""
+                return r.status_code, r.headers.get("Location", ""), body
     cur = url
     for _ in range(MAX_REDIRECTS + 1):
         host = _host(cur)
@@ -326,6 +316,7 @@ def http_visit(url: str, domains: set, get=None, resolve=None):
 async def _browser_press(url: str, domains: set) -> str:
     """Open the page in a headless browser and press its confirm button."""
     from playwright.async_api import async_playwright
+    from .proxy import get_proxy_for_context
 
     async def guard(route):
         req = route.request
@@ -340,12 +331,23 @@ async def _browser_press(url: str, domains: set) -> str:
         await route.continue_()
 
     async with async_playwright() as p:
+        ctx_args = {}
+        proxy = get_proxy_for_context()
+        if proxy:
+            ctx_args["proxy"] = proxy
         browser = await p.firefox.launch(headless=True)
         try:
-            ctx = await browser.new_context()
+            ctx = await browser.new_context(**ctx_args)
             await ctx.route("**/*", guard)
             page = await ctx.new_page()
-            await page.goto(url, timeout=20000, wait_until="domcontentloaded")
+            resp = await page.goto(url, timeout=20000, wait_until="domcontentloaded")
+            if resp:
+                try:
+                    server = await resp.server_addr() if callable(getattr(resp, "server_addr", None)) else None
+                    if server and server.get("ipAddress") and not is_public_ip(server["ipAddress"]):
+                        return "unreachable"
+                except Exception:
+                    pass
             body = await page.content()
             if SUCCESS_TEXT.search(_TAGS.sub(" ", body)):
                 return "ok"

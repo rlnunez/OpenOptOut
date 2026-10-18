@@ -5,9 +5,10 @@ without importing the full FastAPI router (avoids circular imports).
 
 import json, os, base64
 try:
-    from cryptography.fernet import Fernet
+    from cryptography.fernet import Fernet, MultiFernet
 except ImportError:
     Fernet = None
+    MultiFernet = None
 
 _DEFAULT_SETTINGS_FILE = "./openoptout_settings.json"
 _LEGACY_SETTINGS_FILE = "./privacyshield_settings.json"
@@ -475,13 +476,19 @@ def generate_entropy_images(count: int = 8) -> list[dict]:
 def _fernet():
     if Fernet is None:
         raise RuntimeError("cryptography package is required for password encryption")
-    raw    = get_secret_key()
-    # Repeat the key until it fills 32 bytes. Identical to the old
-    # `(raw * 4)[:32]` for keys of 8+ chars (existing data still decrypts),
-    # but no longer crashes on a shorter SECRET_KEY.
+    raw = get_secret_key()
+    from .hkdf import hkdf_derive
+    hkdf_key = base64.urlsafe_b64encode(hkdf_derive(raw.encode(), info=b"openoptout:settings:v1"))
+    fernet_primary = Fernet(hkdf_key)
+
+    # Legacy key: padded raw secret (retained for backward-compatible decryption of existing secrets)
     _kb = raw.encode() or b"\0"
     padded = (_kb * (32 // len(_kb) + 1))[:32]
-    return Fernet(base64.urlsafe_b64encode(padded))
+    fernet_legacy = Fernet(base64.urlsafe_b64encode(padded))
+
+    if MultiFernet is not None:
+        return MultiFernet([fernet_primary, fernet_legacy])
+    return fernet_primary
 
 
 def encrypt_password(plain: str) -> str:

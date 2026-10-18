@@ -60,6 +60,7 @@ def get_totp(secret: str, timestamp: Optional[float] = None, interval: int = 30,
 def verify_totp(code: str, secret: str, window: int = 1, interval: int = 30, timestamp: Optional[float] = None) -> bool:
     """
     Verify a code within a clock-drift window (window=1 permits -30s to +30s drift).
+    Uses constant-time comparison via hmac.compare_digest.
     """
     if not code or not secret:
         return False
@@ -68,7 +69,8 @@ def verify_totp(code: str, secret: str, window: int = 1, interval: int = 30, tim
         return False
     now = time.time() if timestamp is None else timestamp
     for w in range(-window, window + 1):
-        if get_totp(secret, timestamp=now + w * interval, interval=interval, digits=len(code)) == code:
+        candidate = get_totp(secret, timestamp=now + w * interval, interval=interval, digits=len(code))
+        if hmac.compare_digest(candidate, code):
             return True
     return False
 
@@ -80,10 +82,23 @@ def build_totp_uri(secret: str, email: str, issuer: str = "OpenOptOut") -> str:
     return f"otpauth://totp/{quote(issuer)}:{quote(email)}?secret={clean_secret}&issuer={quote(issuer)}&algorithm=SHA1&digits=6&period=30"
 
 
-def generate_backup_codes(count: int = 8) -> Tuple[List[str], List[str]]:
+def _hash_backup_code(formatted_code: str, server_key: Optional[str] = None) -> str:
+    """Compute HMAC-SHA256 of backup code using server key (prevents rainbow table attacks)."""
+    if server_key is None:
+        try:
+            from .settings_store import get_secret_key
+            server_key = get_secret_key()
+        except Exception:
+            server_key = ""
+    from .hkdf import hkdf_derive
+    key = hkdf_derive(server_key.encode("utf-8"), info=b"openoptout:backup-codes:v1")
+    return hmac.new(key, formatted_code.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def generate_backup_codes(count: int = 8, server_key: Optional[str] = None) -> Tuple[List[str], List[str]]:
     """
     Generate single-use human-readable backup recovery codes.
-    Returns (plain_codes, hashed_codes).
+    Returns (plain_codes, hashed_codes) with HMAC-SHA256 hashes.
     """
     plain = []
     hashed = []
@@ -92,13 +107,14 @@ def generate_backup_codes(count: int = 8) -> Tuple[List[str], List[str]]:
         raw = secrets.token_hex(4).upper()
         formatted = f"{raw[:4]}-{raw[4:]}"
         plain.append(formatted)
-        hashed.append(hashlib.sha256(formatted.encode("utf-8")).hexdigest())
+        hashed.append(_hash_backup_code(formatted, server_key=server_key))
     return plain, hashed
 
 
-def verify_backup_code(code: str, stored_hashes: List[str]) -> Tuple[bool, List[str]]:
+def verify_backup_code(code: str, stored_hashes: List[str], server_key: Optional[str] = None) -> Tuple[bool, List[str]]:
     """
     Check if a provided code matches one of the stored hashes.
+    Supports HMAC-SHA256 with fallback to legacy unsalted SHA-256 for backward compatibility.
     If matched, consumes the code and returns (True, updated_hashes).
     """
     if not code or not stored_hashes:
@@ -106,19 +122,36 @@ def verify_backup_code(code: str, stored_hashes: List[str]) -> Tuple[bool, List[
     clean = code.strip().upper().replace(" ", "")
     if len(clean) == 8 and "-" not in clean:
         clean = f"{clean[:4]}-{clean[4:]}"
-    target_hash = hashlib.sha256(clean.encode("utf-8")).hexdigest()
-    if target_hash in stored_hashes:
-        remaining = [h for h in stored_hashes if h != target_hash]
-        return True, remaining
+
+    # 1. Primary check: Keyed HMAC-SHA256
+    target_hmac = _hash_backup_code(clean, server_key=server_key)
+    for stored in stored_hashes:
+        if hmac.compare_digest(stored, target_hmac):
+            remaining = [h for h in stored_hashes if h != stored]
+            return True, remaining
+
+    # 2. Backward-compatible fallback for legacy unsalted SHA-256 codes
+    target_legacy = hashlib.sha256(clean.encode("utf-8")).hexdigest()
+    for stored in stored_hashes:
+        if hmac.compare_digest(stored, target_legacy):
+            remaining = [h for h in stored_hashes if h != stored]
+            return True, remaining
+
     return False, stored_hashes
 
 
 # ── 2. Minimal CBOR parser for WebAuthn Attestation & COSE Keys ───────────────
 
 def _decode_cbor(data: bytes, offset: int = 0) -> Tuple[Any, int]:
-    """Lightweight pure-Python CBOR decoder (RFC 8949) for WebAuthn objects."""
+    """Lightweight pure-Python CBOR decoder (RFC 8949) for WebAuthn objects with cbor2 library support when present."""
     if offset >= len(data):
         raise ValueError("Unexpected EOF in CBOR data")
+    try:
+        import cbor2
+        decoded = cbor2.loads(data[offset:])
+        return decoded, len(data)
+    except Exception:
+        pass
     initial = data[offset]; offset += 1
     major = initial >> 5; val = initial & 0x1F
     if val == 24:
@@ -340,12 +373,14 @@ def verify_webauthn_assertion(
     credential: dict,
     expected_challenge: str,
     stored_key: dict,
+    expected_rp_id: Optional[str] = None,
+    expected_origin: Optional[str] = None,
 ) -> bool:
     """
     Validate WebAuthn authentication response against stored public key.
-    Fails closed: True only when the signature verifies against the stored
-    ES256 or RS256 key. Anything else (bad signature, unknown algorithm,
-    malformed key, no cryptography package) is False.
+    Fails closed: True only when challenge, RP ID, origin, counter, and
+    signature verify against the stored ES256 or RS256 key. Anything else
+    (bad signature, unknown algorithm, malformed key, no cryptography package) is False.
     """
     client_data_raw = base64.urlsafe_b64decode(_b64_pad(credential.get("response", {}).get("clientDataJSON", "")))
     client_data = json.loads(client_data_raw.decode("utf-8"))
@@ -355,6 +390,14 @@ def verify_webauthn_assertion(
     if client_data.get("challenge") != expected_challenge:
         return False
 
+    # 1. Origin verification
+    if expected_origin:
+        client_origin = client_data.get("origin", "")
+        def _norm_origin(o: str) -> str:
+            return o.rstrip("/").replace(":443", "").replace(":80", "")
+        if _norm_origin(client_origin) != _norm_origin(expected_origin):
+            return False
+
     auth_data = base64.urlsafe_b64decode(_b64_pad(credential.get("response", {}).get("authenticatorData", "")))
     signature = base64.urlsafe_b64decode(_b64_pad(credential.get("response", {}).get("signature", "")))
 
@@ -363,6 +406,21 @@ def verify_webauthn_assertion(
     # User presence flag check (bit 0)
     if not (auth_data[32] & 0x01):
         return False
+
+    # 2. RP ID hash verification (first 32 bytes of authData)
+    if expected_rp_id:
+        expected_rp_id_hash = hashlib.sha256(expected_rp_id.encode("utf-8")).digest()
+        if not hmac.compare_digest(auth_data[:32], expected_rp_id_hash):
+            return False
+
+    # 3. Signature counter verification (bytes 33..37) to detect cloned authenticators / replay
+    sign_count = struct.unpack(">I", auth_data[33:37])[0]
+    prior_counter = stored_key.get("counter") or stored_key.get("sign_count") or 0
+    if prior_counter > 0 and sign_count > 0:
+        if sign_count <= prior_counter:
+            return False
+    if sign_count > 0:
+        stored_key["counter"] = sign_count
 
     signed_data = auth_data + hashlib.sha256(client_data_raw).digest()
 

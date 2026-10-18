@@ -14,9 +14,11 @@
 # if using scripts/enable-https-native.sh, etc). Adjust the paths below if you
 # installed somewhere else.
 #
-# Workers: 2 is a conservative default for a small-to-medium install. Increase
-# --workers for more concurrent users, roughly (2 x CPU cores) + 1 as a
-# starting point — watch memory, since each worker is a separate process.
+# Workers: 1 is the default for native single-node installs to keep in-process
+# security counters (per-IP/account rate limits, login failure lockouts) and
+# SSO transient state (OIDC state / SAML AuthnRequest checks) strictly consistent
+# without requiring an external Redis coordinator. For multi-worker setups,
+# configure external Redis/DB state stores so security state is not partitioned.
 
 [Unit]
 Description=OpenOptOut API
@@ -32,7 +34,7 @@ Group=openoptout
 WorkingDirectory=/opt/openoptout
 EnvironmentFile=/opt/openoptout/.env
 ExecStart=/opt/openoptout/venv/bin/uvicorn app.main:app \
-    --host 127.0.0.1 --port 8000 --workers 2
+    --host 127.0.0.1 --port 8000 --workers 1
 Restart=on-failure
 RestartSec=5
 
