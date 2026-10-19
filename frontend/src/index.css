@@ -344,117 +344,61 @@ html.theme-lcars button.rounded-md {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   WCAG 2.2 Level AAA High Contrast Modes (Dark vs Light)
+   WCAG 2.2 Level AAA High Contrast Mode (Single Unified Theme)
    ══════════════════════════════════════════════════════════════════════ */
 
-/* High Contrast: Dark Theme Base (Pure #000000 with #ffffff and #ffff00) */
-html.a11y-high-contrast-dark body,
-html.a11y-high-contrast-dark {
+/* High Contrast: Pure #000000 with #ffffff and #ffff00 */
+html.a11y-high-contrast body,
+html.a11y-high-contrast {
   background-color: #000000 !important;
   color: #ffffff !important;
 }
 
-html.a11y-high-contrast-dark .bg-slate-950,
-html.a11y-high-contrast-dark .bg-slate-900,
-html.a11y-high-contrast-dark .bg-slate-800,
-html.a11y-high-contrast-dark .bg-slate-950\/60,
-html.a11y-high-contrast-dark .bg-slate-950\/80,
-html.a11y-high-contrast-dark .bg-slate-900\/50,
-html.a11y-high-contrast-dark .bg-slate-900\/40,
-html.a11y-high-contrast-dark aside,
-html.a11y-high-contrast-dark header,
-html.a11y-high-contrast-dark nav {
+html.a11y-high-contrast .bg-slate-950,
+html.a11y-high-contrast .bg-slate-900,
+html.a11y-high-contrast .bg-slate-800,
+html.a11y-high-contrast .bg-slate-950\/60,
+html.a11y-high-contrast .bg-slate-950\/80,
+html.a11y-high-contrast .bg-slate-900\/50,
+html.a11y-high-contrast .bg-slate-900\/40,
+html.a11y-high-contrast aside,
+html.a11y-high-contrast header,
+html.a11y-high-contrast nav {
   background-color: #000000 !important;
   border-color: #ffffff !important;
 }
 
-html.a11y-high-contrast-dark .text-slate-400,
-html.a11y-high-contrast-dark .text-slate-500,
-html.a11y-high-contrast-dark .text-slate-600 {
+html.a11y-high-contrast .text-slate-400,
+html.a11y-high-contrast .text-slate-500,
+html.a11y-high-contrast .text-slate-600 {
   color: #f1f5f9 !important;
 }
 
-html.a11y-high-contrast-dark .border-slate-800,
-html.a11y-high-contrast-dark .border-slate-700,
-html.a11y-high-contrast-dark .border-slate-700\/50,
-html.a11y-high-contrast-dark .border-slate-800\/80 {
+html.a11y-high-contrast .border-slate-800,
+html.a11y-high-contrast .border-slate-700,
+html.a11y-high-contrast .border-slate-700\/50,
+html.a11y-high-contrast .border-slate-800\/80 {
   border-color: #ffffff !important;
   border-width: 2px !important;
 }
 
-html.a11y-high-contrast-dark :focus-visible {
+html.a11y-high-contrast :focus-visible {
   outline: 3px solid #ffff00 !important;
   outline-offset: 2px !important;
 }
 
-html.a11y-high-contrast-dark .bg-shield-600,
-html.a11y-high-contrast-dark .bg-blue-600,
-html.a11y-high-contrast-dark .bg-emerald-600 {
+html.a11y-high-contrast .bg-shield-600,
+html.a11y-high-contrast .bg-blue-600,
+html.a11y-high-contrast .bg-emerald-600 {
   background-color: #ffff00 !important;
   color: #000000 !important;
   font-weight: 700 !important;
 }
 
-html.a11y-high-contrast-dark .text-blue-400,
-html.a11y-high-contrast-dark .text-shield-400,
-html.a11y-high-contrast-dark .text-shield-500 {
+html.a11y-high-contrast .text-blue-400,
+html.a11y-high-contrast .text-shield-400,
+html.a11y-high-contrast .text-shield-500 {
   color: #ffff00 !important;
-  font-weight: 700 !important;
-}
-
-/* High Contrast: Light Theme Base (Pure #ffffff with #000000 and high-visibility blue) */
-html.a11y-high-contrast-light body,
-html.a11y-high-contrast-light {
-  background-color: #ffffff !important;
-  color: #000000 !important;
-}
-
-html.a11y-high-contrast-light .bg-slate-950,
-html.a11y-high-contrast-light .bg-slate-900,
-html.a11y-high-contrast-light .bg-slate-800,
-html.a11y-high-contrast-light .bg-slate-950\/60,
-html.a11y-high-contrast-light .bg-slate-950\/80,
-html.a11y-high-contrast-light .bg-slate-900\/50,
-html.a11y-high-contrast-light .bg-slate-900\/40,
-html.a11y-high-contrast-light aside,
-html.a11y-high-contrast-light header,
-html.a11y-high-contrast-light nav {
-  background-color: #ffffff !important;
-  border-color: #000000 !important;
-}
-
-html.a11y-high-contrast-light .text-white,
-html.a11y-high-contrast-light .text-slate-300,
-html.a11y-high-contrast-light .text-slate-400,
-html.a11y-high-contrast-light .text-slate-500,
-html.a11y-high-contrast-light .text-slate-600 {
-  color: #000000 !important;
-  font-weight: 600 !important;
-}
-
-html.a11y-high-contrast-light .border-slate-800,
-html.a11y-high-contrast-light .border-slate-700,
-html.a11y-high-contrast-light .border-slate-700\/50,
-html.a11y-high-contrast-light .border-slate-800\/80 {
-  border-color: #000000 !important;
-  border-width: 2px !important;
-}
-
-html.a11y-high-contrast-light :focus-visible {
-  outline: 3px solid #000000 !important;
-  outline-offset: 2px !important;
-}
-
-html.a11y-high-contrast-light .bg-shield-600,
-html.a11y-high-contrast-light .bg-blue-600 {
-  background-color: #0000ee !important;
-  color: #ffffff !important;
-  font-weight: 700 !important;
-}
-
-html.a11y-high-contrast-light .text-blue-400,
-html.a11y-high-contrast-light .text-shield-400 {
-  color: #0000cc !important;
   font-weight: 700 !important;
 }
 

@@ -71,15 +71,10 @@ export function AccessibilityProvider({ children }) {
     root.classList.remove('theme-light', 'theme-gray', 'theme-dark', 'theme-space', 'theme-lcars')
     root.classList.add(`theme-${resolvedTheme}`)
 
-    // Contrast classes
+    // Contrast class (single unified high contrast mode)
     root.classList.remove('a11y-high-contrast', 'a11y-high-contrast-light', 'a11y-high-contrast-dark')
     if (highContrast) {
       root.classList.add('a11y-high-contrast')
-      if (resolvedTheme === 'light') {
-        root.classList.add('a11y-high-contrast-light')
-      } else {
-        root.classList.add('a11y-high-contrast-dark')
-      }
     }
   }, [resolvedTheme, highContrast])
 

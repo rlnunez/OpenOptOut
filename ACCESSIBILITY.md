@@ -20,7 +20,7 @@ Starting in release `v0.10.0`, OpenOptOut includes a comprehensive accessibility
 
 ### 1. High-Contrast & Theme Controls
 - **Standard Themes**: Support for Light, Gray (reduced glare), Dark, and automatic System OS sync (`prefers-color-scheme`).
-- **High-Contrast Modes (WCAG 2.2 AAA)**: Dedicated high-contrast options (`.a11y-high-contrast-light` and `.a11y-high-contrast-dark`) enforcing text contrast ratios exceeding 7:1 for body copy and 4.5:1 for large text and interactive components.
+- **High-Contrast Mode (WCAG 2.2 AAA)**: Dedicated high-contrast mode (`.a11y-high-contrast`) enforcing text contrast ratios exceeding 7:1 for body copy and 4.5:1 for interactive components with 2px high-visibility borders.
 - **Color Independence**: Status indicators (such as broker removal pending, submitted, confirmed, or failed) use distinct icons, patterns, and descriptive text badges in addition to color.
 
 ### 2. Typography and Scalable Text
