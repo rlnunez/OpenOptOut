@@ -83,3 +83,41 @@ The user interface is engineered to comply with the highest tier of web accessib
 - **Typography & Dyslexia Support**: Self-hosted OpenDyslexic, Antonio, and JetBrains Mono fonts, configurable dynamically during first-run setup or account preferences.
 - **Zero Third-Party Assets**: All fonts, stylesheets, scripts, and iconography are 100% self-hosted to maintain air-gap readiness and prevent tracking.
 - **RTL & Logical Layouts**: Complete bidirectional mirroring using Tailwind start/end logical properties (`ms-`, `pe-`, `start-`, `text-start`).
+
+---
+
+## 5. OWASP ASVS 4.0.3 Level 2 Compliance
+
+OpenOptOut adheres to the **OWASP Application Security Verification Standard (ASVS) 4.0.3 Level 2** baseline for applications processing sensitive personal and family data:
+
+- **V2: Authentication & Password Security**:
+  - Minimum 12-character password policy enforced across registration, setup, and password changes (ASVS 2.1.1).
+  - Pre-hash dictionary screening rejecting the top 10,000 common and breach-compromised passwords (`core/password_check.py`, ASVS 2.1.7).
+  - Self-service password change route (`POST /api/auth/password/change`) requiring current password verification (ASVS 2.1.10).
+  - Token versioning (`token_version`) automatically terminating existing active JWT bearer sessions upon credential change or administrative reset (ASVS 3.3.4).
+  - Automated security email notifications dispatched when an administrator changes a user's role, password, or MFA status (ASVS 2.1.11).
+  - Elimination of account-enumeration oracles in password reset and magic link endpoints via constant-time responses and normalized timing (ASVS 2.2.2).
+  - IP and account rate-limiting on magic link generation to prevent inbox flooding (ASVS 2.3.1).
+- **V5: Validation, Sanitization & Encoding**:
+  - CSV formula injection protection (`core/csv_safety.py`) prepending single quotes to leading dangerous characters (`=`, `+`, `-`, `@`, `\t`, `\r`) in member and audit exports (ASVS 5.1.4).
+  - Content sniffing defense on user/brand SVG uploads enforcing `X-Content-Type-Options: nosniff` and XML root tag validation (ASVS 5.1.5).
+  - Audit log forging mitigation through control character escaping (`\r`, `\n`) in event log streams (ASVS 7.1.1).
+  - Strict input boundary validation capping profile and configuration text fields to prevent memory denial-of-service (ASVS 5.1.1).
+- **V8 & V13: Cryptographic & API Protection**:
+  - RFC 5869 HKDF domain separation isolating field encryption, session tokens, settings storage, and backup codes (ASVS 6.2.8).
+  - Unauthenticated OpenAPI / Swagger API schema endpoints disabled in production mode (`ENVIRONMENT=production` or `IS_PRODUCTION=true`, ASVS 13.1.5).
+
+---
+
+## 6. OWASP Top 10 for LLMs Hardening
+
+OpenOptOut integrates local and provider-based AI drafting assistants to parse broker opt-out flows while defending against large language model vulnerabilities:
+
+- **LLM01: Prompt Injection Defense**:
+  - Untrusted data broker HTML/text is strictly enclosed inside structured `<broker_page_content>` delimiters in `spec_drafter.py`.
+  - System prompts instruct the LLM that content within delimiters is untrusted observational data and cannot override system instructions or tool definitions.
+  - Operator UI (`SpecHelpers.jsx`) displays explicit visual warning banners reminding administrators that assistant suggestions must be reviewed before saving.
+- **LLM10: Unbounded Consumption Defense**:
+  - JSON Schema generation (`draft_schema()` in `core/ai_helpers.py`) strictly enforces bounded properties with explicit `maxLength` limits on strings and `maxItems` limits on arrays.
+  - Maximum output token caps (`max_output_tokens=16000`, `max_tokens=16000`) enforced across OpenAI, Anthropic, and compatible provider invocations to eliminate unbounded resource exhaustion and token depletion attacks.
+

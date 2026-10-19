@@ -8,6 +8,43 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ---
 
+## [0.11.0-rc8] — 2026-10-19
+
+### Added
+- **First-Boot Setup Wizard & Usability Configuration:**
+  - Modernized initial boot flow to immediately present language selection, accessibility preferences, theme selection (Light, Dark, High-Contrast), font size scaling (Admin account), and OpenDyslexic typography before account or system configuration.
+  - Granular setup steps making MFA, master encryption key generation, and system email skippable, while enforcing database and network configuration as required.
+  - Added dedicated AI connection setup near the end of the onboarding wizard.
+- **100% Self-Hosted Web Assets & Typography (WCAG 2.2 AAA):**
+  - Fully air-gapped web assets with zero external CDN dependencies: self-hosted Inter, JetBrains Mono, OpenDyslexic, and Antonio font families via npm `@fontsource` packages.
+  - Verified WCAG 2.2 Level AAA color contrast compliance across light, dark, and high-contrast palettes.
+- **ISO/IEC 27701 & COPPA Data Lifecycle & Tabbed Admin Navigation:**
+  - Granular retention schedules for member identity profiles, removal history logs, operator access logs, and temporary verification artifacts with preset intervals (`30d`, `90d`, `180d`, `1y`) and custom retention day inputs (`Admin → Settings → Lifecycle`).
+  - Automated cryptographic shredding upon member deletion overwriting sensitive PII records in-place with CSPRNG random bytes across multiple passes prior to row removal, followed by optional database vacuuming.
+  - Reorganized lengthy administrative settings view into clean, accessible top-level sub-menu tabs (`General`, `Security`, `Workers & Fleet`, `Lifecycle`, `Branding`, `Integrations`).
+- **NIST SP 800-38D AES-256-GCM AEAD Field & Backup Encryption:**
+  - Upgraded field-level encryption for sensitive PII to authenticated Galois/Counter Mode (AES-256-GCM) with 96-bit CSPRNG nonces and 128-bit authentication tags (`gcm1:`) under RFC 5869 HKDF domain separation (`openoptout:field-encryption-gcm:v1`).
+  - Transparent dual-decryption supporting both modern `gcm1:` and legacy Fernet ciphertexts.
+  - Streamed AES-256-GCM backup archives with 4 MiB chunks, sequential nonces, and header Authenticated Additional Data (AAD) binding.
+- **NIST SP 800-132 PBKDF2 Iteration Hardening:**
+  - Increased PBKDF2-HMAC-SHA256 password peppering iterations to 210,000 rounds before bcrypt hashing, with automatic background hash migration on successful authentication.
+  - Standalone PBKDF2 key derivation for encrypted backup archives with 210,000 iterations and 16-byte random salts.
+
+### Security
+- **OWASP ASVS 4.0.3 Level 2 Hardening (PR #137):**
+  - **V2 Authentication**: Raised minimum password length to 12 characters (ASVS 2.1.1); integrated pre-hash dictionary screening rejecting top-10,000 common and compromised passwords (ASVS 2.1.7); added self-service password change endpoint (`POST /api/auth/password/change`, ASVS 2.1.10); implemented `token_version` tracking on User models to immediately invalidate active JWT bearer tokens upon credential change (ASVS 3.3.4); and enabled automated user email alerts whenever an administrator modifies their account credentials or roles (ASVS 2.1.11).
+  - **V2 Account Protection**: Eliminated timing and account-enumeration oracles in password reset and magic link generation endpoints (ASVS 2.2.2); added IP and account rate-limiting on magic link dispatch (ASVS 2.3.1).
+  - **V5 Input & Output Sanitization**: Neutralized CSV formula injection risks in member and audit log exports (`core/csv_safety.py`, ASVS 5.1.4); hardened SVG logo uploads against MIME content sniffing via strict `nosniff` headers and XML tag checks (ASVS 5.1.5); escaped control characters in audit log output to prevent log forging (ASVS 7.1.1); and enforced bounded lengths on profile text inputs (ASVS 5.1.1).
+  - **V8 & V13 Architecture**: Enforced domain separation for field encryption keys via HKDF (`core/encryption.py`, ASVS 6.2.8); corrected database encryption bootstrap initialization order; and disabled unauthenticated OpenAPI/Swagger UI docs in production mode (ASVS 13.1.5).
+- **OWASP Top 10 for LLMs Hardening (PR #138):**
+  - **LLM10 Unbounded Consumption Defense**: Enforced strict schema bounds in `draft_schema()` with `maxLength` on all strings and `maxItems` on all arrays to eliminate unbounded JSON payload memory consumption during AI spec generation.
+  - Pinned OpenAI and compatible provider model invocations to bounded token ceilings (`max_output_tokens=16000` / `max_tokens=16000`).
+- **ISO/IEC 27701 Retention Floor & Access Log Scoping Fix (PR #139):**
+  - Preserved statutory 30-day minimum floor in `privacy_record.retention_days()`.
+  - Prevented member self-service deletions from polluting administrative staff access logs with spurious unauthorized audit rows.
+
+---
+
 ## [0.11.0-rc] — 2026-10-17
 
 ### Added

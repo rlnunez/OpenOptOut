@@ -85,6 +85,11 @@ The guiding architectural principle: **the core does not contain broker-specific
 
 - Audit scope document defined in [Item 68](#item-68).
 - Focus areas: PII zeroization in memory, sandbox escape resistance (bubblewrap/seccomp), authenticated encryption bounds, OAuth token handling, and SQLCipher key derivation.
+- **Internal Compliance Baselines Completed (v0.11.0-rc8):**
+  - **OWASP ASVS 4.0.3 Level 2**: 12-char minimum password policy, breached-password rejection, self-service password rotation, session token versioning, admin change notifications, CSV formula injection defense, and SVG content-sniffing protection (PR #137).
+  - **OWASP Top 10 for LLMs**: Hardened schema output bounds (`maxLength`/`maxItems`) and provider token limits (`max_tokens=16000`) for unbounded consumption defense (LLM10, PR #138).
+  - **NIST SP 800-38D & SP 800-132**: AES-256-GCM AEAD field and backup encryption, 210,000-iteration PBKDF2 password peppering, and RFC 5869 HKDF domain separation.
+  - **ISO/IEC 27701 & COPPA**: Granular data retention schedules, automated multi-pass crypto-shredding upon member deletion with SQLite vacuuming, and 30-day floor preservation (PR #139).
 
 ---
 
@@ -119,7 +124,9 @@ The guiding architectural principle: **the core does not contain broker-specific
 
 <a id="item-68"></a>
 ### 68. Audit scope document for independent security review
-**Goal:** Produce a concise, actionable audit scope document (`docs/dev/audit-scope.md`) defining architecture boundaries, threat models, cryptographic invariants, and test harnesses for external security evaluators.
+**Goal:** Produce a concise, actionable audit scope document (`docs/dev/audit-scope.md` and `docs/dev/compliance-standards.md`) defining architecture boundaries, threat models, cryptographic invariants, and test harnesses for external security evaluators.
+
+- **Status:** Active baseline document published at [`docs/dev/compliance-standards.md`](dev/compliance-standards.md) detailing NIST SP 800-38D, NIST SP 800-132, ISO/IEC 27701, COPPA, OWASP ASVS 4.0.3 L2, OWASP LLM Top 10, and WCAG 2.2 AAA controls.
 
 ---
 
