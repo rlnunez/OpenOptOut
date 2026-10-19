@@ -260,9 +260,11 @@ def main():
                 reached = True
                 break
 
-            # 3e. Setup wizard steps or tour: "Skip" or "Skip Tutorial"
+            # 3e. Setup wizard steps or tour: "Skip", "Continue", "Finish", or "Skip Tutorial"
             skip_btn = (visible(page, "button", re.compile(r"^\s*Skip Tutorial\s*$", re.I), timeout=500)
-                        or visible(page, "button", re.compile(r"^\s*Skip\s*$", re.I), timeout=1000))
+                        or visible(page, "button", re.compile(r"^\s*Skip\s*$", re.I), timeout=1000)
+                        or visible(page, "button", re.compile(r"^\s*Continue\s*$", re.I), timeout=500)
+                        or visible(page, "button", re.compile(r"^\s*(Finish|Complete)\s*(Setup)?\s*$", re.I), timeout=500))
             if skip_btn:
                 snap(page, f"wizard-{i + 1}")
                 skip_btn.click()
