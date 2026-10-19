@@ -88,12 +88,12 @@ RUN groupadd -g 1000 appuser && \
       [ -d "/app/$d" ] && touch "/app/$d/__init__.py"; \
     done
 
-# NOTE ON SECCOMP: python3-seccomp (installed above) provides libseccomp
-# bindings. If the slim Python image cannot import them, the plugin runner
-# degrades gracefully — namespace isolation (bubblewrap) + resource limits
-# still apply, and the admin UI reports the reduced posture. For guaranteed
-# seccomp on the python.org image, install the bindings into the app's
-# interpreter (e.g. build libseccomp bindings) — see docs/dev/plugins.md.
+# NOTE ON SECCOMP: the plugin syscall filter needs libseccomp (libseccomp2, installed
+# above) plus Python bindings that THIS interpreter can import. Debian's
+# python3-seccomp only serves the distro's own /usr/bin/python3, not the python.org
+# interpreter this image runs, so requirements.txt installs `pyseccomp` (pure Python
+# over ctypes) instead. If the bindings are ever missing the plugin runner degrades
+# gracefully and the admin UI reports the reduced posture.
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

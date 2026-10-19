@@ -4099,6 +4099,77 @@ def t_plugin_sandbox_bwrap_starts():
         shutil.rmtree(work, ignore_errors=True)
 
 
+@test(1, "plugins.seccomp_bindings_either_module_name",
+      "The syscall filter finds its bindings under either name (seccomp or pyseccomp), reports "
+      "itself inactive when neither imports, and the sandbox posture agrees with the loader.")
+def t_plugin_seccomp_bindings_resolve():
+    import platform, types
+    sf = _imp("plugins.seccomp_filter")
+    sandbox = _imp("plugins.sandbox")
+    saved = {k: sys.modules.get(k, "<absent>") for k in ("seccomp", "pyseccomp")}
+    try:
+        fake = types.ModuleType("pyseccomp")
+        # `seccomp` unimportable (None in sys.modules raises ImportError), `pyseccomp` present:
+        # this is the Docker image's situation, and the one the filter used to miss.
+        sys.modules["seccomp"] = None
+        sys.modules["pyseccomp"] = fake
+        assert sf.load_seccomp() is fake, "pyseccomp was not found as a fallback for seccomp"
+        # The distro module wins when both exist.
+        distro = types.ModuleType("seccomp")
+        sys.modules["seccomp"] = distro
+        assert sf.load_seccomp() is distro
+        # Neither importable: no bindings, filter reports inactive with a plain reason, and the
+        # posture does not claim a syscall filter that isn't there.
+        sys.modules["seccomp"] = None
+        sys.modules["pyseccomp"] = None
+        assert sf.load_seccomp() is None
+        res = sf.install_seccomp_filter(allow_network=False)
+        assert res["active"] is False and "INACTIVE" in res["reason"], res
+        if platform.system() == "Linux":
+            assert sandbox.detect_capabilities().seccomp is False, \
+                "posture claims seccomp although no bindings import"
+    finally:
+        for k, v in saved.items():
+            if v == "<absent>":
+                sys.modules.pop(k, None)
+            else:
+                sys.modules[k] = v
+
+
+@test(1, "plugins.seccomp_filter_really_blocks",
+      "Where the bindings import, the real filter loads in a child process and refuses exec and "
+      "sockets while ordinary threads still work.")
+def t_plugin_seccomp_really_blocks():
+    import json, platform, subprocess, textwrap
+    if platform.system() != "Linux":
+        raise Skip("seccomp is Linux only")
+    sf = _imp("plugins.seccomp_filter")
+    if sf.load_seccomp() is None:
+        raise Skip("no libseccomp Python bindings (seccomp / pyseccomp) installed")
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    code = textwrap.dedent("""
+        import sys, json, socket, threading, subprocess
+        sys.path.insert(0, %r)
+        from backend.plugins.seccomp_filter import install_seccomp_filter
+        r = install_seccomp_filter(allow_network=False)
+        out = {"active": r["active"], "reason": r["reason"]}
+        try: subprocess.run(["/bin/true"]); out["exec"] = "allowed"
+        except Exception: out["exec"] = "blocked"
+        try: socket.socket(); out["socket"] = "allowed"
+        except Exception: out["socket"] = "blocked"
+        t = threading.Thread(target=lambda: out.__setitem__("thread", "ok")); t.start(); t.join()
+        print(json.dumps(out))
+    """ % repo_root)
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr[-400:]
+    out = json.loads(r.stdout.strip().splitlines()[-1])
+    if not out["active"] and "load failed" in out["reason"]:
+        raise Skip("this kernel/container refuses to load a seccomp filter: " + out["reason"][:120])
+    assert out["active"], out
+    assert out["exec"] == "blocked" and out["socket"] == "blocked", out
+    assert out.get("thread") == "ok", "threads must keep working under the filter: %s" % out
+
+
 @test(1, "plugins.uds_handshake_and_thread_stack",
       "PluginManager._read_ready parses both TCP ports and Unix domain sockets, and "
       "threading stack size is reduced to prevent memory starvation.")

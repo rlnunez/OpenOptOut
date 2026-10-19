@@ -120,7 +120,10 @@ def test_bwrap_execution() -> Tuple[bool, str]:
 def test_seccomp_filter_support() -> Tuple[bool, str]:
     """Verify that libseccomp / python-seccomp can load filters."""
     try:
-        import seccomp
+        try:
+            import seccomp
+        except ImportError:
+            import pyseccomp as seccomp   # PyPI flavour, same API
         f = seccomp.SyscallFilter(seccomp.ALLOW)
         return True, "seccomp library loaded filter successfully"
     except ImportError:
