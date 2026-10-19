@@ -47,6 +47,7 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 - **Slimmed Active Roadmap:** [Roadmap (`docs/ROADMAP.md`)](docs/ROADMAP.md) now tracks only active, planned, and under-consideration initiatives, archiving historical milestones to the [Completed Milestones Archive (`docs/archive/COMPLETED_ROADMAP.md`)](docs/archive/COMPLETED_ROADMAP.md).
 
 ### Fixed
+- **Setup Wizard Secret Key Generation Accommodation:** Updated release-test scripts (`.github/release-test/ui_check.py` and `setup_check.py`) to detect and satisfy master secret key generation and file persistence prompts during automated first-run setup wizard walkthroughs.
 - **Content and Translation Catalog Release Testing:** Scoped error-phrase matching in `.github/release-test/ui_check.py` so that catalog and diagnostic pages (`/translations`, `/logs`, `/help`, `/plugin-help`) emit non-fatal warnings instead of triggering false-positive run failures on legitimate error message copies (PR #127).
 - **Setup Wizard Reverse Proxy Deployment Test:** Synchronized test assertions in `wizard.deployment_reverse_proxy_choice` (`backend/tests/run_tests.py`) to validate the new `client_mtls` reverse-proxy deployment configuration flag (PR #129).
 - **Playwright Headless Browser Container Dependencies:** Added `libasound2` to container package dependencies for headless Playwright browser automation in test execution environments.
