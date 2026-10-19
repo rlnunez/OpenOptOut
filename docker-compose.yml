@@ -99,6 +99,13 @@ services:
       # Single named volume holds the DB, settings, screenshots, logos, plugins,
       # and plugin storage (all live under /data). One volume = one backup unit.
       - app_data:/data
+      # Read-only: lets the app see a revoked-serial list written by
+      # scripts/openoptout-mtls.sh on the HOST, for the self-managed mTLS mode
+      # where the CA private key is kept offline and never given to the app
+      # (core/mtls.py). The app's own in-app-CA-key mint/revoke flow writes
+      # its half of that list under /data instead (always writable, no
+      # cross-container permissions to get right) — see core/mtls.py.
+      - ./deploy/certs:/certs:ro
     # Ephemeral RAM storage: guarantees temporary browser artifacts, downloads,
     # and profile caches vanish on reboot and never touch persistent disk.
     tmpfs:
@@ -212,6 +219,11 @@ services:
       - ./deploy/cloudflare/ip-ranges.txt:/deploy/cloudflare-ips.txt:ro   # CLOUDFLARE_PROXY=on
       - ./deploy/cloudflare/origin-pull-ca.pem:/deploy/origin-pull-ca.pem:ro   # CLOUDFLARE_AOP=on
       - ./deploy/certs:/certs:ro          # custom certs / internal CA root, if used
+      # Read-only: the app writes the self-managed mTLS client CA cert under
+      # /data/mtls (always writable from inside the api container, unlike a
+      # host bind mount) when the CA key is generated/held in-app rather than
+      # offline. See core/mtls.py:sync_proxy_ca_file.
+      - app_data:/app-data:ro
       # Issued certificates + ACME account. KEEP this volume: without it every
       # restart requests new certificates and can hit Let's Encrypt rate limits.
       - caddy_data:/data
@@ -302,6 +314,9 @@ services:
       - ./deploy/cloudflare/ip-ranges.txt:/deploy/cloudflare-ips.txt:ro   # CLOUDFLARE_PROXY=on
       - ./deploy/cloudflare/origin-pull-ca.pem:/deploy/origin-pull-ca.pem:ro   # CLOUDFLARE_AOP=on
       - ./deploy/certs:/certs:ro          # custom certs / internal CA root, if used
+      # Read-only: same app-generated mTLS client CA as the Caddy service
+      # above (core/mtls.py:sync_proxy_ca_file).
+      - app_data:/app-data:ro
       # Issued certificates + ACME account (acme.json). KEEP this volume, for the same rate-limit reason as caddy_data.
       - traefik_data:/data
     depends_on:

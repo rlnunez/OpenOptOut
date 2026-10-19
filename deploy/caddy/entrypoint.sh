@@ -162,8 +162,13 @@ case "$CLIENT_MTLS" in
     [ "$MODE" != "none" ] || die "CLIENT_MTLS=on needs a certificate: client mTLS requires TLS."
     [ "$AOP" != "on" ] || die "CLIENT_MTLS=on and CLOUDFLARE_AOP=on cannot be used together: pick Cloudflare AOP (for Cloudflare edge) or CLIENT_MTLS (for direct clients)."
     MTLS_FILE="${CLIENT_MTLS_CA_FILE:-/certs/client-ca.pem}"
-    if [ ! -f "$MTLS_FILE" ] && [ -f "/deploy/certs/client-ca.pem" ]; then
-      MTLS_FILE="/deploy/certs/client-ca.pem"
+    # /deploy/certs is never actually mounted (only /certs and /app-data are;
+    # see docker-compose.yml) -- that fallback never matched. /app-data/mtls is:
+    # where the app itself writes the CA cert when it holds the key in-app
+    # (core/mtls.py:sync_proxy_ca_file), as opposed to an admin placing one at
+    # /certs by hand for the CA-key-held-offline case.
+    if [ ! -f "$MTLS_FILE" ] && [ -f "/app-data/mtls/client-ca.pem" ]; then
+      MTLS_FILE="/app-data/mtls/client-ca.pem"
     fi
     path_ok "$MTLS_FILE" || die "CLIENT_MTLS_CA_FILE must be an absolute path: $MTLS_FILE"
     [ -f "$MTLS_FILE" ] || die "Client mTLS CA certificate not found: $MTLS_FILE"
@@ -311,8 +316,19 @@ if [ "$RATE_LIMIT" = "on" ]; then
 			}
 		}"
 fi
+if [ "$CLIENT_MTLS" = "on" ]; then
+  # client_auth above already required and verified a certificate signed by
+  # the trusted CA before any request gets here; this just tells the app
+  # WHICH one, so it can refuse a certificate that's since been revoked
+  # (TLS trust has no revocation list of its own -- see core/mtls.py).
+  REVERSE_PROXY="		reverse_proxy $UPSTREAM {
+			header_up X-Client-Cert-Serial {http.request.tls.client.serial}
+		}"
+else
+  REVERSE_PROXY="		reverse_proxy $UPSTREAM"
+fi
 ROUTE="${ROUTE:+$ROUTE
-}		reverse_proxy $UPSTREAM"
+}$REVERSE_PROXY"
 
 # Site address: the domain(s) for HTTPS. With no certificate ('none'), plain HTTP only — http:// tells Caddy not to fetch a certificate or redirect.
 SITE="$DOMAIN"

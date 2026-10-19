@@ -1267,6 +1267,21 @@ def revoke_mtls_client_cert(body: MtlsRevokeRequest, _: User = Depends(require_p
     if not found:
         raise HTTPException(404, "Certificate not found")
 
+    # The per-client "revoked" flag above is for display only; what actually
+    # stops the certificate from reaching the app is this file, which
+    # backend/main.py's revocation check reads on every request (see
+    # core/mtls.py). If it can't be written, fail loudly rather than reporting
+    # success for a revoke that silently did nothing.
+    from ..core.mtls import write_revoked_serials_file
+    all_revoked = [c["serial"] for c in clients if c.get("revoked") and c.get("serial")]
+    if not write_revoked_serials_file(all_revoked):
+        raise HTTPException(
+            500,
+            "The certificate was marked revoked, but the revocation list could not be saved "
+            "to disk, so it may still be accepted. Check that the app's data volume is writable "
+            "and try again.",
+        )
+
     _save(s)
     return {"ok": True}
 

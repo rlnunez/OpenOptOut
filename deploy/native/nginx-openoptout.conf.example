@@ -24,6 +24,13 @@
 # and add these directives to the SSL server { ... } block:
 #   ssl_client_certificate /etc/ssl/certs/openoptout-client-ca.pem;
 #   ssl_verify_client on;    # use 'optional' if healthchecks/monitors do not present a client cert
+#
+# nginx's ssl_verify_client only checks the certificate was signed by that CA
+# -- it has no revocation list of its own. Also add this inside location
+# /api/ { ... } below (alongside the other proxy_set_header lines) so
+# OpenOptOut can still refuse a certificate that's since been revoked
+# (Settings -> Client certificates (mTLS), or scripts/openoptout-mtls.sh):
+#   proxy_set_header X-Client-Cert-Serial $ssl_client_serial;
 
 server {
     listen 80;
