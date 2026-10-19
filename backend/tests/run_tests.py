@@ -7226,14 +7226,14 @@ def t_access_escalation():
             Create, Update = admin_router.CreateUserRequest, admin_router.UpdateUserRequest
 
             out = admin_router.create_user(Create(full_name="New", email="new@example.org",
-                                                  role="parent", password="password123"), session, mgr)
+                                                  role="parent", password="Xk9mQ2vLpR7z"), session, mgr)
             assert out.role == "parent"
             for role in ("super_admin", "manager"):
                 expect_http(403, admin_router.create_user, Create(full_name="X", email=f"{role}@example.org",
-                            role=role, password="password123"), session, mgr)
+                            role=role, password="Xk9mQ2vLpR7z"), session, mgr)
             expect_http(403, admin_router.update_user, parent.id, Update(role="super_admin"), session, mgr)
             expect_http(403, admin_router.update_user, sa.id, Update(full_name="Hacked"), session, mgr)
-            expect_http(403, admin_router.update_user, other_mgr.id, Update(password="password123"), session, mgr)
+            expect_http(403, admin_router.update_user, other_mgr.id, Update(password="Xk9mQ2vLpR7z"), session, mgr)
             expect_http(403, admin_router.delete_user, sa.id, session, mgr)
             admin_router.update_user(parent.id, Update(full_name="Renamed"), session, mgr)   # allowed
 
@@ -7351,11 +7351,11 @@ def t_access_scope_writes():
         # Creating: new accounts land in the manager's branch, never outside it.
         def create(email, actor, **kw):
             return admin_router.create_user(admin_router.CreateUserRequest(
-                full_name="N", email=email, role="parent", password="password123", **kw), session, actor)
+                full_name="N", email=email, role="parent", password="Xk9mQ2vLpR7z", **kw), session, actor)
         branch_of = lambda email: session.query(db.User).filter(db.User.email == email).one().branch_id
         n1 = create("n1@example.org", branch_mgr)
         assert branch_of("n1@example.org") == a1.id
-        admin_router.update_user(n1.id, Update(password="password123"), session, branch_mgr)
+        admin_router.update_user(n1.id, Update(password="Xk9mQ2vLpR7z"), session, branch_mgr)
         expect_http(403, create, "x1@example.org", branch_mgr, branch_id=b1.id)
         expect_http(400, create, "x2@example.org", system_mgr)   # two branches, none of its own
         create("n2@example.org", system_mgr, branch_id=a2.id)
@@ -7367,7 +7367,7 @@ def t_access_scope_writes():
         # Accounts: branch-scoped manager stays in A1.
         admin_router.update_user(p_a1.id, Update(full_name="Ok"), session, branch_mgr)
         for target in (p_a2, p_b1, p_none):
-            expect_http(403, admin_router.update_user, target.id, Update(password="password123"), session, branch_mgr)
+            expect_http(403, admin_router.update_user, target.id, Update(password="Xk9mQ2vLpR7z"), session, branch_mgr)
             expect_http(403, admin_router.delete_user, target.id, session, branch_mgr)
         expect_http(403, admin_router.create_grant, Grant(manager_id=p_a1.id, managed_id=p_b1.id), session, branch_mgr)
         g = admin_router.create_grant(Grant(manager_id=p_a1.id, managed_id=p_a1b.id), session, branch_mgr)
@@ -7380,7 +7380,7 @@ def t_access_scope_writes():
         admin_router.update_user(p_a2.id, Update(full_name="Ok"), session, system_mgr)
         expect_http(403, admin_router.delete_user, p_b1.id, session, system_mgr)
         admin_router.update_user(p_b1.id, Update(full_name="Ok"), session, cross_mgr)
-        admin_router.update_user(p_b1.id, Update(password="password123"), session, cross_mgr)
+        admin_router.update_user(p_b1.id, Update(password="Xk9mQ2vLpR7z"), session, cross_mgr)
 
         # Branch overrides: super admins, or managers granted the permission (any branch).
         gate = inspect.signature(consortium.override_patron_branch).parameters["current_user"].default.dependency
@@ -13985,7 +13985,9 @@ def t_security_scanner_regressions():
 
 
 @test(2, "security.mfa_stepup_password_length_hsts_and_svg_csp",
-      "MFA enrollment requires full sign-in once MFA is active; passwords require 8+ chars while shorter existing passwords still sign in; SVG logos carry CSP sandbox; HSTS toggles work.")
+      "MFA enrollment requires full sign-in once MFA is active; new passwords require 12+ chars and "
+      "aren't one of a small set of common/breached passwords, while shorter existing passwords "
+      "still sign in; SVG logos carry CSP sandbox; HSTS toggles work.")
 def t_security_tier2_regressions():
     try:
         import fastapi  # noqa: F401
@@ -13998,14 +14000,23 @@ def t_security_tier2_regressions():
     branding_router = _imp("routers.branding")
     from fastapi import HTTPException
 
-    # 1. Minimum password length = 8 chars, null bytes stripped
-    for short_pw in ("1", "1234567", "abc\x00def"):
+    # 1. Minimum password length = 12 chars, null bytes stripped
+    for short_pw in ("1", "1234567", "abc\x00def", "eleven_chr1"):
         try:
             auth_core.validate_password_length(short_pw)
             assert False, f"expected {short_pw!r} to be rejected"
         except ValueError as e:
-            assert "8 characters" in str(e)
-    auth_core.validate_password_length("12345678")
+            assert "12 characters" in str(e)
+    auth_core.validate_password_length("Xk7mQ2vLpR9z")
+
+    # 1b. A password that's long enough but is itself one of the most common/
+    # breached passwords (or that word with digits appended) is still refused.
+    for common_pw in ("password1234", "Qwerty123456", "letmein1234567"):
+        try:
+            auth_core.validate_password_length(common_pw)
+            assert False, f"expected common password {common_pw!r} to be rejected"
+        except ValueError as e:
+            assert "too common" in str(e)
 
     # 2. MFA step-up: mfa_ticket cannot enroll or replace MFA on an account that already has MFA
     u = db.User(

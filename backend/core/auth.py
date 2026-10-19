@@ -91,7 +91,7 @@ def _jwt_secret() -> str:
 # Minimum password length for new or updated local passwords. Existing shorter
 # passwords can still sign in via /api/auth/token (which does not call this
 # validator), matching what the sign-up page asks for.
-MIN_PASSWORD_CHARS = 8
+MIN_PASSWORD_CHARS = 12   # ASVS 4.0.3 V2.1.1
 
 # bcrypt only uses the first 72 BYTES of a password — anything past that is
 # silently ignored (not an error, not a truncation warning), which means two
@@ -125,6 +125,12 @@ def validate_password_length(password: Optional[str]) -> Optional[str]:
                 f"the limit is {MAX_PASSWORD_BYTES} bytes — fewer characters if it "
                 "contains accented or non-Latin characters, which take more than "
                 "one byte each)."
+            )
+        from .common_passwords import is_common_password
+        if is_common_password(password):
+            raise ValueError(
+                "That password is far too common and would be guessed quickly. "
+                "Please choose a less predictable one."
             )
     return password
 

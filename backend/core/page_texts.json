@@ -12275,7 +12275,7 @@
    ]
   },
   {
-   "text": "Password (min 8 characters)",
+   "text": "Password (min 12 characters)",
    "where": [
     "pages/Login.jsx",
     "pages/Signup.jsx"
@@ -18376,7 +18376,7 @@
    ]
   },
   {
-   "text": "Use a password of at least 8 characters",
+   "text": "Use a password of at least 12 characters",
    "where": [
     "pages/Login.jsx",
     "pages/Signup.jsx"
