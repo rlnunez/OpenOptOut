@@ -1364,7 +1364,7 @@
    ]
   },
   {
-   "text": "Administrator Account Details",
+   "text": "Administrator Account",
    "where": [
     "pages/Login.jsx"
    ]
@@ -1499,6 +1499,18 @@
    "text": "Aggregators first: brokers that feed other brokers (recommended)",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "AI Helper",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "AI Helper Connection (Optional)",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -1841,6 +1853,12 @@
    ]
   },
   {
+   "text": "Anthropic API Key",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Any address that accepts a JSON POST. With a secret, each message is signed (X-OpenOptOut-Signature).",
    "where": [
     "pages/Monitoring.jsx"
@@ -1916,6 +1934,12 @@
    "text": "API key",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "API Key (Optional)",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -2320,6 +2344,12 @@
    ]
   },
   {
+   "text": "Back to display options",
+   "where": [
+    "pages/Login.jsx"
+   ]
+  },
+  {
    "text": "Back to options",
    "where": [
     "pages/Login.jsx"
@@ -2393,6 +2423,12 @@
     "components/Sidebar.jsx",
     "pages/Backups.jsx",
     "server: monitoring.py"
+   ]
+  },
+  {
+   "text": "Balanced",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -3300,6 +3336,12 @@
    ]
   },
   {
+   "text": "Claude (Anthropic)",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Clean up now",
    "where": [
     "pages/PrivacyRecord.jsx"
@@ -3607,6 +3649,12 @@
    ]
   },
   {
+   "text": "Completely private. Connect your own LLM server running on your home network or this machine without third-party API fees.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Completing sign in…",
    "where": [
     "App.jsx"
@@ -3679,12 +3727,6 @@
    ]
   },
   {
-   "text": "Configure your language, theme, and accessibility settings first. Then create your super-admin account below.",
-   "where": [
-    "pages/Login.jsx"
-   ]
-  },
-  {
    "text": "Confirm Disable",
    "where": [
     "pages/Settings.jsx"
@@ -3724,6 +3766,12 @@
   },
   {
    "text": "Connect account",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Connect an AI helper to automatically draft and repair broker opt-out flows when websites change.",
    "where": [
     "pages/SetupWizard.jsx"
    ]
@@ -3830,9 +3878,33 @@
    ]
   },
   {
+   "text": "Connection test failed",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Connection test failed.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Connection timeout (seconds)",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Connection verified successfully!",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Connects OpenAI's reasoning models to parse form layouts and repair broken opt-out selectors.",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -3887,6 +3959,7 @@
    "text": "Continue",
    "where": [
     "components/TermsGate.jsx",
+    "pages/Login.jsx",
     "pages/SetupWizard.jsx",
     "pages/Signup.jsx"
    ]
@@ -3901,6 +3974,12 @@
    "text": "Continue to sign in",
    "where": [
     "pages/Inboxes.jsx"
+   ]
+  },
+  {
+   "text": "Continue without connecting an AI helper. Built-in heuristics handle standard broker opt-outs, and you can connect an AI helper anytime in Settings.",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -4668,6 +4747,12 @@
    ]
   },
   {
+   "text": "Create Administrator Account",
+   "where": [
+    "pages/Login.jsx"
+   ]
+  },
+  {
    "text": "Create administrator account",
    "where": [
     "pages/Login.jsx"
@@ -5080,6 +5165,12 @@
    "where": [
     "components/UserWelcomeModal.jsx",
     "pages/Login.jsx"
+   ]
+  },
+  {
+   "text": "Deep Reasoning",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -6907,6 +6998,12 @@
    ]
   },
   {
+   "text": "Failed to save AI helper configuration",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Failed to save branding",
    "where": [
     "pages/SetupWizard.jsx"
@@ -6996,6 +7093,18 @@
    "where": [
     "components/Sidebar.jsx",
     "pages/Family.jsx"
+   ]
+  },
+  {
+   "text": "Fast & Lightweight",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Fastest",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -9060,6 +9169,12 @@
    ]
   },
   {
+   "text": "Leave empty if none required",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Leave empty to keep {v}",
    "where": [
     "pages/Monitoring.jsx"
@@ -9423,6 +9538,12 @@
    "text": "Local Accounts Scope Notice",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Local AI Server (Offline / Self-Hosted)",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -10121,7 +10242,14 @@
   {
    "text": "Model",
    "where": [
+    "pages/SetupWizard.jsx",
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Model Identifier",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -10257,6 +10385,12 @@
    "text": "Must match how users reach this site, e.g. https://privacy.example.edu. Change this before registering at the IdP.",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Must support the standard OpenAI chat completions endpoint.",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -11690,6 +11824,18 @@
    ]
   },
   {
+   "text": "OpenAI (ChatGPT / Codex)",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "OpenAI API Key",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "OpenDyslexic font enabled",
    "where": [
     "context/AccessibilityContext.jsx"
@@ -12458,6 +12604,12 @@
    ]
   },
   {
+   "text": "Personalize your display, language, and accessibility preferences. These take effect immediately.",
+   "where": [
+    "pages/Login.jsx"
+   ]
+  },
+  {
    "text": "Phone & credit",
    "where": [
     "pages/Help.jsx"
@@ -13214,6 +13366,12 @@
    "text": "Reclaim Stalled Leases",
    "where": [
     "pages/WorkerFleet.jsx"
+   ]
+  },
+  {
+   "text": "Recommended",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -15150,9 +15308,21 @@
    ]
   },
   {
+   "text": "Server Base URL",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Server certificate: {message}",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Server Name",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -15672,6 +15842,12 @@
    ]
   },
   {
+   "text": "Skip AI Connection (Decide Later)",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Skip for now",
    "where": [
     "pages/Login.jsx"
@@ -15688,6 +15864,12 @@
    "where": [
     "components/Badge.jsx",
     "pages/CaptchaQueue.jsx"
+   ]
+  },
+  {
+   "text": "skipped",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -16122,7 +16304,7 @@
    ]
   },
   {
-   "text": "Step 1 of 2",
+   "text": "Step 1 of 3",
    "where": [
     "pages/Login.jsx"
    ]
@@ -16134,7 +16316,7 @@
    ]
   },
   {
-   "text": "Step 1: Account Created",
+   "text": "Step 2 of 3",
    "where": [
     "pages/Login.jsx"
    ]
@@ -16146,7 +16328,7 @@
    ]
   },
   {
-   "text": "Step 2: MFA Setup (Optional)",
+   "text": "Step 2: Account Created",
    "where": [
     "pages/Login.jsx"
    ]
@@ -16155,6 +16337,12 @@
    "text": "Step 3 of 3 — installed",
    "where": [
     "components/PluginUploadWizard.jsx"
+   ]
+  },
+  {
+   "text": "Step 3 of 3: MFA Setup (Optional)",
+   "where": [
+    "pages/Login.jsx"
    ]
   },
   {
@@ -16281,6 +16469,12 @@
    "text": "Store plugin data in the app database",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Stored encrypted with your master secret key.",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -16531,12 +16725,6 @@
    ]
   },
   {
-   "text": "System Setup & Administrator Account",
-   "where": [
-    "pages/Login.jsx"
-   ]
-  },
-  {
    "text": "System Setup Wizard",
    "where": [
     "pages/SetupWizard.jsx"
@@ -16694,6 +16882,12 @@
    ]
   },
   {
+   "text": "Test Connection",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Test connection",
    "where": [
     "pages/Branding.jsx",
@@ -16723,6 +16917,12 @@
    "text": "Test send failed",
    "where": [
     "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
+   "text": "Testing connection…",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -18389,6 +18589,12 @@
    ]
   },
   {
+   "text": "Uses Claude to inspect changed broker pages and intelligently draft updated form-filling steps.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Using default — change this immediately",
    "where": [
     "pages/Settings.jsx"
@@ -18797,15 +19003,21 @@
    ]
   },
   {
-   "text": "Welcome to the Raleigh Public Library Privacy Protection Service…",
+   "text": "Welcome & Display Options",
    "where": [
-    "pages/Branding.jsx"
+    "pages/Login.jsx"
    ]
   },
   {
-   "text": "Welcome — let's set up your system",
+   "text": "Welcome to OpenOptOut",
    "where": [
     "pages/Login.jsx"
+   ]
+  },
+  {
+   "text": "Welcome to the Raleigh Public Library Privacy Protection Service…",
+   "where": [
+    "pages/Branding.jsx"
    ]
   },
   {

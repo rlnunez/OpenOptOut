@@ -176,8 +176,17 @@ class Checker:
         if state.get("completed"):
             return self.step("Setup wizard completed", True, "already finished (in the browser)")
         self.ensure_secret_key()
-        for s in ("security", "database", "email", "deployment", "branding"):
-            if s not in (state.get("steps") or {}):
+        steps = state.get("steps") or {}
+        # Database and network/deployment are required and not skippable
+        if "database" not in steps:
+            st, b = self.call("POST", "/api/wizard/database", {"kind": "sqlite"})
+            self.step("Wizard: configure 'database' (sqlite)", st == 200, f"HTTP {st} {short(b)}")
+        if "deployment" not in steps:
+            st, b = self.call("POST", "/api/wizard/deployment", {"reverse_proxy": "none", "domain": ""})
+            self.step("Wizard: configure 'deployment' (reverse_proxy=none)", st == 200, f"HTTP {st} {short(b)}")
+        # Skippable steps: security (master key), email, ai, branding
+        for s in ("security", "email", "ai", "branding"):
+            if s not in steps:
                 st, b = self.call("POST", "/api/wizard/skip", {"step": s})
                 self.step(f"Wizard: skip '{s}' step", st == 200, f"HTTP {st} {short(b)}")
         st, b = self.call("POST", "/api/wizard/complete")

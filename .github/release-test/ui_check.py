@@ -152,6 +152,13 @@ def main():
             steps.append(("Open the site", False, str(e)[:200]))
             return finish(args, rec, steps, browser, fatal=True)
         settle(page)
+        # Advance through first-boot usability / language personalization screen if presented
+        continue_usability_btn = visible(page, "button", re.compile(r"^\s*Continue\s*$", re.I), timeout=5000)
+        if continue_usability_btn and not visible(page, "button", "Create administrator account", timeout=500):
+            snap(page, "first-run-usability")
+            continue_usability_btn.click()
+            settle(page)
+
         create_btn = visible(page, "button", "Create administrator account", timeout=20000)
         snap(page, "first-run")
         if not create_btn:

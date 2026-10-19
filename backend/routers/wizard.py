@@ -514,6 +514,107 @@ def save_deployment(body: DeploymentStep, db: Session = Depends(get_db),
     return {"ok": True}
 
 
+# ── Step 4: AI Helpers (Optional) ─────────────────────────────────────────────
+
+class AIStep(LimitedModel):
+    provider: Optional[str] = "none"  # "none" | "claude" | "openai" | "local"
+    api_key: Optional[str] = None
+    model: Optional[str] = None
+    local_name: Optional[str] = None
+    local_base_url: Optional[str] = None
+    local_model: Optional[str] = None
+    auto_repair: Optional[bool] = True
+
+
+@router.get("/ai")
+def get_ai_settings(user: User = Depends(get_current_user)):
+    """Return public AI helper configuration for the wizard."""
+    _admin(user)
+    from ..core import ai_helpers as ai
+    s = _load()
+    pub = ai.public(s)
+    configured = any(p.get("configured") for p in pub.get("providers", {}).values()) or bool(pub.get("local"))
+    return {"public": pub, "configured": configured}
+
+
+@router.post("/ai")
+def save_ai_helper(body: AIStep, user: User = Depends(get_current_user)):
+    """Save AI helper configuration in the wizard, or skip if none selected."""
+    _admin(user)
+    from ..core import ai_helpers as ai
+    provider = (body.provider or "none").strip().lower()
+
+    if provider in ("none", ""):
+        _mark_step("ai", "skipped")
+        return {"ok": True, "provider": "none", "skipped": True}
+
+    if provider in ("claude", "openai"):
+        if not body.api_key:
+            raise HTTPException(400, "API key is required for cloud AI providers.")
+        ai.save_provider(provider, enabled=True, model=body.model, api_key=body.api_key)
+        if body.auto_repair is not False:
+            ai.save_options(repair_broken_steps=True)
+        _mark_step("ai", "done")
+        return {"ok": True, "provider": provider}
+
+    if provider == "local":
+        name = (body.local_name or "Local Model").strip()
+        base_url = (body.local_base_url or "http://localhost:11434/v1").strip()
+        model = (body.local_model or "default").strip()
+        ai.save_local(None, name=name, base_url=base_url, model=model, api_key=body.api_key, enabled=True)
+        if body.auto_repair is not False:
+            ai.save_options(repair_broken_steps=True)
+        _mark_step("ai", "done")
+        return {"ok": True, "provider": "local"}
+
+    raise HTTPException(400, f"Unsupported AI provider: {provider}")
+
+
+@router.post("/ai/test")
+def test_ai_connection(body: AIStep, user: User = Depends(get_current_user)):
+    """Test AI helper connection before saving."""
+    _admin(user)
+    from ..core import ai_helpers as ai
+    provider = (body.provider or "").strip().lower()
+    if provider not in ("claude", "openai", "local"):
+        raise HTTPException(400, "Invalid provider to test")
+
+    try:
+        if provider in ("claude", "openai"):
+            test_cfg = {
+                "ai_helpers": {
+                    "providers": {
+                        provider: {
+                            "enabled": True,
+                            "model": body.model or ai.PROVIDERS[provider]["default_model"],
+                            "api_key_enc": _encrypt(body.api_key or ""),
+                        }
+                    }
+                }
+            }
+            return ai.test_connection(test_cfg, provider)
+        elif provider == "local":
+            local_id = "test-probe"
+            test_cfg = {
+                "ai_helpers": {
+                    "local": {
+                        local_id: {
+                            "name": body.local_name or "Local Probe",
+                            "base_url": body.local_base_url or "http://localhost:11434/v1",
+                            "model": body.local_model or "default",
+                            "api_key_enc": _encrypt(body.api_key or "") if body.api_key else None,
+                            "enabled": True,
+                        }
+                    }
+                }
+            }
+            return ai.test_connection(test_cfg, f"{ai.LOCAL}{local_id}")
+    except ai.AIError as e:
+        return {"ok": False, "message": str(e)}
+    except Exception as e:
+        return {"ok": False, "message": f"Connection test failed: {e}"}
+
+
 # ── Skip a step / finish ──────────────────────────────────────────────────────
 
 class SkipStep(LimitedModel):
@@ -523,9 +624,9 @@ class SkipStep(LimitedModel):
 @router.post("/skip")
 def skip_step(body: SkipStep, db: Session = Depends(get_db),
               user: User = Depends(get_current_user)):
-    """Record that a step was skipped (all steps are skippable)."""
+    """Record that a step was skipped."""
     _admin(user)
-    if body.step not in ("security", "database", "email", "deployment", "branding"):
+    if body.step not in ("security", "database", "email", "deployment", "branding", "ai"):
         raise HTTPException(400, "unknown step")
     _mark_step(body.step, "skipped")
     return {"ok": True, "skipped": body.step}

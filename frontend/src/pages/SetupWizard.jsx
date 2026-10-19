@@ -8,8 +8,8 @@ import api from '../api'
 import { tx, txr } from '../i18n/tx'
 import { SecretKeyGeneratorPanel } from '../components/SecretKeyBanner'
 
-const EXPRESS_STEPS = ['security', 'database', 'deployment', 'email', 'summary']
-const ADVANCED_STEPS = ['security', 'database', 'email', 'deployment', 'branding', 'summary']
+const EXPRESS_STEPS = ['security', 'database', 'deployment', 'email', 'ai', 'summary']
+const ADVANCED_STEPS = ['security', 'database', 'deployment', 'email', 'ai', 'branding', 'summary']
 
 export default function SetupWizard({ onDone }) {
   const [mode, setMode] = useState('express') // 'express' | 'advanced'
@@ -154,7 +154,6 @@ export default function SetupWizard({ onDone }) {
               {step === 1 && (
                 <ExpressDatabaseStep
                   onNext={next}
-                  onSkip={() => skip('database')}
                   onBack={back}
                   busy={busy}
                   setError={setError}
@@ -163,7 +162,6 @@ export default function SetupWizard({ onDone }) {
               {step === 2 && (
                 <ExpressDeploymentStep
                   onNext={next}
-                  onSkip={() => skip('deployment')}
                   onBack={back}
                   busy={busy}
                   setError={setError}
@@ -173,14 +171,24 @@ export default function SetupWizard({ onDone }) {
               )}
               {step === 3 && (
                 <ExpressEmailStep
-                  onNext={finish}
-                  onSkip={async () => { await skip('email'); finish() }}
+                  onNext={next}
+                  onSkip={() => skip('email')}
                   onBack={back}
                   busy={busy}
                   setError={setError}
                 />
               )}
-              {step === 4 && <SummaryStep summary={summary} onDone={onDone} />}
+              {step === 4 && (
+                <AIStep
+                  onNext={finish}
+                  onSkip={async () => { await skip('ai'); finish() }}
+                  onBack={back}
+                  busy={busy}
+                  setError={setError}
+                  isLastStep={true}
+                />
+              )}
+              {step === 5 && <SummaryStep summary={summary} onDone={onDone} />}
             </>
           ) : (
             <>
@@ -195,13 +203,20 @@ export default function SetupWizard({ onDone }) {
               {step === 1 && (
                 <DatabaseStep
                   onNext={next}
-                  onSkip={() => skip('database')}
                   onBack={back}
                   busy={busy}
                   setError={setError}
                 />
               )}
               {step === 2 && (
+                <DeploymentStep
+                  onNext={next}
+                  onBack={back}
+                  busy={busy}
+                  setError={setError}
+                />
+              )}
+              {step === 3 && (
                 <EmailStep
                   onNext={next}
                   onSkip={() => skip('email')}
@@ -210,16 +225,17 @@ export default function SetupWizard({ onDone }) {
                   setError={setError}
                 />
               )}
-              {step === 3 && (
-                <DeploymentStep
+              {step === 4 && (
+                <AIStep
                   onNext={next}
-                  onSkip={() => skip('deployment')}
+                  onSkip={() => skip('ai')}
                   onBack={back}
                   busy={busy}
                   setError={setError}
+                  isLastStep={false}
                 />
               )}
-              {step === 4 && (
+              {step === 5 && (
                 <BrandingStep
                   onNext={finish}
                   onSkip={async () => { await skip('branding'); finish() }}
@@ -228,7 +244,7 @@ export default function SetupWizard({ onDone }) {
                   setError={setError}
                 />
               )}
-              {step === 5 && <SummaryStep summary={summary} onDone={onDone} />}
+              {step === 6 && <SummaryStep summary={summary} onDone={onDone} />}
             </>
           )}
         </div>
@@ -428,7 +444,7 @@ function SecurityStep({ onNext, onSkip, onBack, busy, setError }) {
 }
 
 // ── Express Step 1: Database ──────────────────────────────────────────────────
-function ExpressDatabaseStep({ onNext, onBack, onSkip, busy, setError }) {
+function ExpressDatabaseStep({ onNext, onBack, busy, setError }) {
   const [saving, setSaving] = useState(false)
 
   const save = async () => {
@@ -465,13 +481,13 @@ function ExpressDatabaseStep({ onNext, onBack, onSkip, busy, setError }) {
           </div>
         </div>
       </div>
-      <Buttons onBack={onBack} onSkip={onSkip} onNext={save} nextLabel={tx("Continue")} busy={saving || busy} />
+      <Buttons onBack={onBack} onNext={save} nextLabel={tx("Continue")} busy={saving || busy} />
     </div>
   )
 }
 
 // ── Express Step 2: Deployment ────────────────────────────────────────────────
-function ExpressDeploymentStep({ onNext, onBack, onSkip, busy, setError, deployment, setDeployment }) {
+function ExpressDeploymentStep({ onNext, onBack, busy, setError, deployment, setDeployment }) {
   const [saving, setSaving] = useState(false)
 
   const save = async () => {
@@ -564,7 +580,7 @@ function ExpressDeploymentStep({ onNext, onBack, onSkip, busy, setError, deploym
         </label>
       </div>
 
-      <Buttons onBack={onBack} onSkip={onSkip} onNext={save} nextLabel={tx("Continue")} busy={saving || busy} />
+      <Buttons onBack={onBack} onNext={save} nextLabel={tx("Continue")} busy={saving || busy} />
     </div>
   )
 }
@@ -657,13 +673,13 @@ function ExpressEmailStep({ onNext, onBack, onSkip, busy, setError }) {
         </label>
       </div>
 
-      <Buttons onBack={onBack} onSkip={onSkip} onNext={save} nextLabel={tx("Complete Setup")} busy={saving || busy} />
+      <Buttons onBack={onBack} onSkip={onSkip} onNext={save} nextLabel={tx("Continue")} busy={saving || busy} />
     </div>
   )
 }
 
 // ── Step 1: Database ──────────────────────────────────────────────────────────
-function DatabaseStep({ onNext, onSkip, busy, setError }) {
+function DatabaseStep({ onNext, onBack, busy, setError }) {
   const [kind, setKind] = useState('sqlite')
   const [pg, setPg] = useState({ host: '', port: 5432, database: '', username: '', password: '', sslmode: 'prefer' })
   const [saving, setSaving] = useState(false)
@@ -711,7 +727,7 @@ function DatabaseStep({ onNext, onSkip, busy, setError }) {
           </div>
         )}
       </div>
-      <Buttons onSkip={onSkip} onNext={save} busy={saving || busy} />
+      <Buttons onBack={onBack} onNext={save} busy={saving || busy} />
     </div>
   )
 }
@@ -972,7 +988,7 @@ function SubChoice({ name, value, current, onChange, title, children, warn }) {
   )
 }
 
-function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
+function DeploymentStep({ onNext, onBack, busy, setError }) {
   const [mode, setMode] = useState('managed')
   const [domain, setDomain] = useState('')
   const [frontDoor, setFrontDoor] = useState('caddy')
@@ -1144,7 +1160,296 @@ function DeploymentStep({ onNext, onSkip, onBack, busy, setError }) {
           </label>
         )}
       </div>
-      <Buttons onBack={onBack} onSkip={onSkip} onNext={save} busy={saving || busy} />
+      <Buttons onBack={onBack} onNext={save} busy={saving || busy} />
+    </div>
+  )
+}
+
+// ── Step: AI Helpers Connection ──────────────────────────────────────────────
+function AIStep({ onNext, onSkip, onBack, busy, setError, isLastStep }) {
+  const [provider, setProvider] = useState('none') // 'none' | 'claude' | 'openai' | 'local'
+  const [apiKey, setApiKey] = useState('')
+  const [model, setModel] = useState('')
+  const [localName, setLocalName] = useState('LM Studio')
+  const [localBaseUrl, setLocalBaseUrl] = useState('http://localhost:1234/v1')
+  const [localModel, setLocalModel] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState(null)
+
+  const testConnection = async () => {
+    setTesting(true); setTestResult(null); setError('')
+    try {
+      const res = await api.post('/wizard/ai/test', {
+        provider,
+        api_key: apiKey,
+        model,
+        local_name: localName,
+        local_base_url: localBaseUrl,
+        local_model: localModel,
+      })
+      setTestResult(res.data)
+    } catch (e) {
+      setTestResult({ ok: false, message: e.response?.data?.detail || tx("Connection test failed.") })
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  const save = async () => {
+    setSaving(true); setError('')
+    try {
+      if (provider === 'none') {
+        await api.post('/wizard/skip', { step: 'ai' })
+      } else {
+        await api.post('/wizard/ai', {
+          provider,
+          api_key: apiKey,
+          model,
+          local_name: localName,
+          local_base_url: localBaseUrl,
+          local_model: localModel,
+          auto_repair: true,
+        })
+      }
+      onNext()
+    } catch (e) {
+      setError(e.response?.data?.detail || tx("Failed to save AI helper configuration"))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div>
+      <StepHeader
+        icon={Sparkles}
+        title={tx("AI Helper Connection (Optional)")}
+        subtitle={tx("Connect an AI helper to automatically draft and repair broker opt-out flows when websites change.")}
+      />
+
+      <div className="space-y-3">
+        {/* Option 1: None / Skip for now */}
+        <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
+          provider === 'none' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-800 bg-slate-900/40 hover:border-slate-700'
+        }`}>
+          <input
+            type="radio"
+            name="wizard_ai_provider"
+            checked={provider === 'none'}
+            onChange={() => { setProvider('none'); setTestResult(null) }}
+            className="mt-1 accent-shield-500"
+          />
+          <div className="space-y-1">
+            <div className="text-slate-200 text-sm font-medium">
+              {tx("Skip AI Connection (Decide Later)")}
+            </div>
+            <p className="text-slate-400 text-xs leading-relaxed">
+              {tx("Continue without connecting an AI helper. Built-in heuristics handle standard broker opt-outs, and you can connect an AI helper anytime in Settings.")}
+            </p>
+          </div>
+        </label>
+
+        {/* Option 2: Claude (Anthropic) */}
+        <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
+          provider === 'claude' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-800 bg-slate-900/40 hover:border-slate-700'
+        }`}>
+          <input
+            type="radio"
+            name="wizard_ai_provider"
+            checked={provider === 'claude'}
+            onChange={() => { setProvider('claude'); setModel('claude-opus-5-5'); setTestResult(null) }}
+            className="mt-1 accent-shield-500"
+          />
+          <div className="flex-1 space-y-2">
+            <div className="text-slate-200 text-sm font-medium flex items-center justify-between">
+              <span>{tx("Claude (Anthropic)")}</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">Messages API</span>
+            </div>
+            <p className="text-slate-400 text-xs">
+              {tx("Uses Claude to inspect changed broker pages and intelligently draft updated form-filling steps.")}
+            </p>
+            {provider === 'claude' && (
+              <div className="pt-2 space-y-2.5">
+                <div>
+                  <label className="text-[11px] text-slate-300 font-medium block mb-1">{tx("Anthropic API Key")}</label>
+                  <input
+                    type="password"
+                    className={inp}
+                    placeholder="sk-ant-api03-..."
+                    value={apiKey}
+                    onChange={e => setApiKey(e.target.value)}
+                  />
+                  <p className="text-[10px] text-slate-500 mt-0.5">{tx("Stored encrypted with your master secret key.")}</p>
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-300 font-medium block mb-1">{tx("Model")}</label>
+                  <select className={inp} value={model} onChange={e => setModel(e.target.value)}>
+                    <option value="claude-opus-5-5">Claude Opus 5.5 ({tx("Recommended")})</option>
+                    <option value="claude-sonnet-5-5">Claude Sonnet 5.5 ({tx("Balanced")})</option>
+                    <option value="claude-haiku-5-5">Claude Haiku 5.5 ({tx("Fastest")})</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={testConnection}
+                  disabled={testing || !apiKey}
+                  className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-200 hover:text-white text-xs disabled:opacity-40 transition-colors"
+                >
+                  {testing ? tx("Testing connection…") : tx("Test Connection")}
+                </button>
+              </div>
+            )}
+          </div>
+        </label>
+
+        {/* Option 3: OpenAI (ChatGPT / Codex) */}
+        <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
+          provider === 'openai' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-800 bg-slate-900/40 hover:border-slate-700'
+        }`}>
+          <input
+            type="radio"
+            name="wizard_ai_provider"
+            checked={provider === 'openai'}
+            onChange={() => { setProvider('openai'); setModel('gpt-4o'); setTestResult(null) }}
+            className="mt-1 accent-shield-500"
+          />
+          <div className="flex-1 space-y-2">
+            <div className="text-slate-200 text-sm font-medium flex items-center justify-between">
+              <span>{tx("OpenAI (ChatGPT / Codex)")}</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">Responses API</span>
+            </div>
+            <p className="text-slate-400 text-xs">
+              {tx("Connects OpenAI's reasoning models to parse form layouts and repair broken opt-out selectors.")}
+            </p>
+            {provider === 'openai' && (
+              <div className="pt-2 space-y-2.5">
+                <div>
+                  <label className="text-[11px] text-slate-300 font-medium block mb-1">{tx("OpenAI API Key")}</label>
+                  <input
+                    type="password"
+                    className={inp}
+                    placeholder="sk-proj-..."
+                    value={apiKey}
+                    onChange={e => setApiKey(e.target.value)}
+                  />
+                  <p className="text-[10px] text-slate-500 mt-0.5">{tx("Stored encrypted with your master secret key.")}</p>
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-300 font-medium block mb-1">{tx("Model")}</label>
+                  <select className={inp} value={model} onChange={e => setModel(e.target.value)}>
+                    <option value="gpt-4o">GPT-4o ({tx("Recommended")})</option>
+                    <option value="gpt-4o-mini">GPT-4o mini ({tx("Fast & Lightweight")})</option>
+                    <option value="o1-preview">o1-preview ({tx("Deep Reasoning")})</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={testConnection}
+                  disabled={testing || !apiKey}
+                  className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-200 hover:text-white text-xs disabled:opacity-40 transition-colors"
+                >
+                  {testing ? tx("Testing connection…") : tx("Test Connection")}
+                </button>
+              </div>
+            )}
+          </div>
+        </label>
+
+        {/* Option 4: Local Model (LM Studio, Ollama, etc.) */}
+        <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
+          provider === 'local' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-800 bg-slate-900/40 hover:border-slate-700'
+        }`}>
+          <input
+            type="radio"
+            name="wizard_ai_provider"
+            checked={provider === 'local'}
+            onChange={() => { setProvider('local'); setTestResult(null) }}
+            className="mt-1 accent-shield-500"
+          />
+          <div className="flex-1 space-y-2">
+            <div className="text-slate-200 text-sm font-medium flex items-center justify-between">
+              <span>{tx("Local AI Server (Offline / Self-Hosted)")}</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">Ollama / LM Studio</span>
+            </div>
+            <p className="text-slate-400 text-xs">
+              {tx("Completely private. Connect your own LLM server running on your home network or this machine without third-party API fees.")}
+            </p>
+            {provider === 'local' && (
+              <div className="pt-2 space-y-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] text-slate-300 font-medium block mb-1">{tx("Server Name")}</label>
+                    <input
+                      className={inp}
+                      placeholder="LM Studio / Local Ollama"
+                      value={localName}
+                      onChange={e => setLocalName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-300 font-medium block mb-1">{tx("Model Identifier")}</label>
+                    <input
+                      className={inp}
+                      placeholder="e.g. qwen2.5-coder, llama3"
+                      value={localModel}
+                      onChange={e => setLocalModel(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-300 font-medium block mb-1">{tx("Server Base URL")}</label>
+                  <input
+                    className={inp}
+                    placeholder="http://localhost:11434/v1 or http://192.168.1.50:1234/v1"
+                    value={localBaseUrl}
+                    onChange={e => setLocalBaseUrl(e.target.value)}
+                  />
+                  <p className="text-[10px] text-slate-500 mt-0.5">{tx("Must support the standard OpenAI chat completions endpoint.")}</p>
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-300 font-medium block mb-1">{tx("API Key (Optional)")}</label>
+                  <input
+                    type="password"
+                    className={inp}
+                    placeholder={tx("Leave empty if none required")}
+                    value={apiKey}
+                    onChange={e => setApiKey(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={testConnection}
+                  disabled={testing || !localBaseUrl}
+                  className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-200 hover:text-white text-xs disabled:opacity-40 transition-colors"
+                >
+                  {testing ? tx("Testing connection…") : tx("Test Connection")}
+                </button>
+              </div>
+            )}
+          </div>
+        </label>
+      </div>
+
+      {testResult && (
+        <div className={`mt-3 p-3 rounded-lg border text-xs flex items-start gap-2 ${
+          testResult.ok ? 'border-emerald-700/60 bg-emerald-950/20 text-emerald-300' : 'border-red-700/60 bg-red-950/20 text-red-300'
+        }`}>
+          {testResult.ok ? <Check size={14} className="mt-0.5 shrink-0" /> : <AlertTriangle size={14} className="mt-0.5 shrink-0" />}
+          <div>
+            <div className="font-semibold">{testResult.ok ? tx("Connection verified successfully!") : tx("Connection test failed")}</div>
+            {testResult.message && <div className="mt-0.5 opacity-90">{testResult.message}</div>}
+          </div>
+        </div>
+      )}
+
+      <Buttons
+        onBack={onBack}
+        onSkip={onSkip}
+        onNext={save}
+        nextLabel={isLastStep ? tx("Complete Setup") : tx("Continue")}
+        busy={saving || busy}
+      />
     </div>
   )
 }
@@ -1329,11 +1634,11 @@ function SummaryStep({ summary, onDone }) {
             {tx("✓ 0600 file secured")}
           </span>
         </div>
-        {['database', 'email', 'deployment', 'branding'].map(s => (
+        {['database', 'deployment', 'email', 'ai', 'branding'].map(s => (
           <div key={s} className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50">
-            <span className="text-slate-300 text-sm capitalize">{s}</span>
+            <span className="text-slate-300 text-sm capitalize">{s === 'ai' ? tx("AI Helper") : s}</span>
             <span className={`text-xs ${steps[s] === 'done' ? 'text-emerald-400' : 'text-slate-500'}`}>
-              {steps[s] === 'done' ? tx("✓ configured") : 'skipped'}
+              {steps[s] === 'done' ? tx("✓ configured") : tx("skipped")}
             </span>
           </div>
         ))}

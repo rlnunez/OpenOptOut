@@ -67,8 +67,8 @@ export default function Login() {
   const [copiedCodes, setCopiedCodes]         = useState(false)
   const [copiedSecret, setCopiedSecret]       = useState(false)
 
-  // First-run Setup Step 2: Super Admin MFA (skippable)
-  const [setupStep, setSetupStep]               = useState('account') // 'account' | 'mfa'
+  // First-run Setup: 'usability' (language & accessibility) -> 'account' (admin credentials) -> 'mfa' (skippable MFA)
+  const [setupStep, setSetupStep]               = useState('usability') // 'usability' | 'account' | 'mfa'
   const [setupMfaMode, setSetupMfaMode]         = useState('choose')  // 'choose' | 'totp' | 'webauthn' | 'codes'
   const [setupTotpData, setSetupTotpData]       = useState(null)
   const [setupTotpCode, setSetupTotpCode]       = useState('')
@@ -629,16 +629,16 @@ export default function Login() {
           {needsSetup === null ? (
             <div className="text-center text-slate-500 text-sm py-6">{tx("Loading…")}</div>
           ) : needsSetup ? (
-            setupStep === 'account' ? (
+            setupStep === 'usability' ? (
               <div>
                 <div className="flex items-center justify-between mb-3 text-xs text-slate-400">
-                  <span className="font-semibold text-shield-400">{tx("Step 1 of 2")}</span>
-                  <span>{tx("System Setup & Administrator Account")}</span>
+                  <span className="font-semibold text-shield-400">{tx("Step 1 of 3")}</span>
+                  <span>{tx("Welcome & Display Options")}</span>
                 </div>
                 <div className="mb-5">
-                  <h2 className="text-white font-semibold text-base">{tx("Welcome — let's set up your system")}</h2>
+                  <h2 className="text-white font-semibold text-base">{tx("Welcome to OpenOptOut")}</h2>
                   <p className="text-slate-400 text-xs mt-1">
-                    {tx("Configure your language, theme, and accessibility settings first. Then create your super-admin account below.")}
+                    {tx("Personalize your display, language, and accessibility preferences. These take effect immediately.")}
                   </p>
                 </div>
 
@@ -774,7 +774,7 @@ export default function Login() {
                 </div>
 
                 {/* 5. Font Size Scaling */}
-                <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2 mb-5">
+                <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2 mb-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
                       <Type size={14} className="text-shield-400" />
@@ -810,44 +810,62 @@ export default function Login() {
                   </div>
                 </div>
 
-                {/* 6. Administrator Account Form */}
-                <div className="pt-4 border-t border-slate-800">
-                  <div className="mb-3">
-                    <h3 className="text-white font-semibold text-xs flex items-center gap-1.5">
-                      <Lock size={13} className="text-shield-400" />
-                      <span>{tx("Administrator Account Details")}</span>
-                    </h3>
-                    <p className="text-slate-400 text-[11px] mt-0.5">
-                      {tx("No accounts exist yet. Create the administrator account below. This first account has full super-admin access; you can add more users afterward.")}
-                    </p>
-                  </div>
-                  <form onSubmit={submitSetup} className="space-y-3">
-                    <input className={inp} placeholder={tx("Your name")} value={setupName}
-                      onChange={e => setSetupName(e.target.value)} required />
-                    <input className={inp} type="email" placeholder={tx("Admin email")} value={email}
-                      onChange={e => setEmail(e.target.value)} required />
-                    <input className={inp} type="password" placeholder={tx("Password (min 8 characters)")}
-                      value={password} onChange={e => setPw(e.target.value)} required />
-                    <input className={inp} type="password" placeholder={tx("Confirm password")}
-                      value={setupConfirm} onChange={e => setSetupConfirm(e.target.value)} required />
-
-                    {error && <p className="text-red-400 text-xs">{error}</p>}
-                    <button type="submit" disabled={loading}
-                      className="w-full bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white text-sm rounded-lg py-2 flex items-center justify-center gap-1.5 font-medium transition-colors">
-                      {loading ? tx("Creating account…") : <><span>{tx("Create administrator account")}</span><ChevronRight size={15} /></>}
-                    </button>
-                  </form>
+                {/* Continue to Account Setup */}
+                <button
+                  type="button"
+                  onClick={() => setSetupStep('account')}
+                  className="w-full bg-shield-600 hover:bg-shield-700 text-white text-sm rounded-lg py-2.5 flex items-center justify-center gap-1.5 font-medium transition-colors shadow-xs"
+                >
+                  <span>{tx("Continue")}</span>
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            ) : setupStep === 'account' ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setSetupStep('usability')}
+                  className="text-xs text-slate-400 hover:text-white flex items-center gap-1 mb-3 transition-colors"
+                >
+                  <ArrowLeft size={13} />
+                  <span>{tx("Back to display options")}</span>
+                </button>
+                <div className="flex items-center justify-between mb-3 text-xs text-slate-400">
+                  <span className="font-semibold text-shield-400">{tx("Step 2 of 3")}</span>
+                  <span>{tx("Administrator Account")}</span>
                 </div>
+                <div className="mb-5">
+                  <h2 className="text-white font-semibold text-base">{tx("Create Administrator Account")}</h2>
+                  <p className="text-slate-400 text-xs mt-1">
+                    {tx("No accounts exist yet. Create the administrator account below. This first account has full super-admin access; you can add more users afterward.")}
+                  </p>
+                </div>
+                <form onSubmit={submitSetup} className="space-y-3">
+                  <input className={inp} placeholder={tx("Your name")} value={setupName}
+                    onChange={e => setSetupName(e.target.value)} required />
+                  <input className={inp} type="email" placeholder={tx("Admin email")} value={email}
+                    onChange={e => setEmail(e.target.value)} required />
+                  <input className={inp} type="password" placeholder={tx("Password (min 8 characters)")}
+                    value={password} onChange={e => setPw(e.target.value)} required />
+                  <input className={inp} type="password" placeholder={tx("Confirm password")}
+                    value={setupConfirm} onChange={e => setSetupConfirm(e.target.value)} required />
+
+                  {error && <p className="text-red-400 text-xs">{error}</p>}
+                  <button type="submit" disabled={loading}
+                    className="w-full bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white text-sm rounded-lg py-2.5 flex items-center justify-center gap-1.5 font-medium transition-colors">
+                    {loading ? tx("Creating account…") : <><span>{tx("Create administrator account")}</span><ChevronRight size={15} /></>}
+                  </button>
+                </form>
               </div>
             ) : (
-              /* Step 2: Super Admin MFA Setup (Optional / Skippable) */
+              /* Step 3: Super Admin MFA Setup (Optional / Skippable) */
               <div className="space-y-4">
                 <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-800">
                   <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
                     <Check size={13} />
-                    <span>{tx("Step 1: Account Created")}</span>
+                    <span>{tx("Step 2: Account Created")}</span>
                   </div>
-                  <span className="text-shield-400 font-semibold">{tx("Step 2: MFA Setup (Optional)")}</span>
+                  <span className="text-shield-400 font-semibold">{tx("Step 3 of 3: MFA Setup (Optional)")}</span>
                 </div>
 
                 <div>
