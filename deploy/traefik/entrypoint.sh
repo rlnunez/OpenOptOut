@@ -161,8 +161,13 @@ case "$CLIENT_MTLS" in
     [ "$MODE" != "none" ] || die "CLIENT_MTLS=on needs a certificate: client mTLS requires TLS."
     [ "$AOP" != "on" ] || die "CLIENT_MTLS=on and CLOUDFLARE_AOP=on cannot be used together: pick Cloudflare AOP (for Cloudflare edge) or CLIENT_MTLS (for direct clients)."
     MTLS_FILE="${CLIENT_MTLS_CA_FILE:-/certs/client-ca.pem}"
-    if [ ! -f "$MTLS_FILE" ] && [ -f "/deploy/certs/client-ca.pem" ]; then
-      MTLS_FILE="/deploy/certs/client-ca.pem"
+    # /deploy/certs is never actually mounted (only /certs and /app-data are;
+    # see docker-compose.yml) -- that fallback never matched. /app-data/mtls is:
+    # where the app itself writes the CA cert when it holds the key in-app
+    # (core/mtls.py:sync_proxy_ca_file), as opposed to an admin placing one at
+    # /certs by hand for the CA-key-held-offline case.
+    if [ ! -f "$MTLS_FILE" ] && [ -f "/app-data/mtls/client-ca.pem" ]; then
+      MTLS_FILE="/app-data/mtls/client-ca.pem"
     fi
     path_ok "$MTLS_FILE" || die "CLIENT_MTLS_CA_FILE must be an absolute path: $MTLS_FILE"
     [ -f "$MTLS_FILE" ] || die "Client mTLS CA certificate not found: $MTLS_FILE"
@@ -332,6 +337,21 @@ $SOURCE
         period: 1m
         burst: $RL_AUTH_BURST
 $SOURCE"
+fi
+if [ "$CLIENT_MTLS" = "on" ]; then
+  # clientAuth above already required and verified a certificate signed by
+  # the trusted CA before any request gets here; this just tells the app
+  # WHICH one, as a header, so it can refuse a certificate that's since been
+  # revoked (TLS trust has no revocation list of its own -- core/mtls.py).
+  # Prepended before the Cloudflare-only check below, so if both are ever
+  # combined, the cheaper IP-allowlist rejection still runs first.
+  SITE_MW="openoptout-passclientcert, $SITE_MW"
+  AUTH_MW="openoptout-passclientcert, $AUTH_MW"
+  PROTECT_MW="$PROTECT_MW
+    openoptout-passclientcert:
+      passTLSClientCert:
+        info:
+          serialNumber: true"
 fi
 if [ -n "$CF_LIST" ]; then
   SITE_MW="openoptout-cloudflare-only, $SITE_MW"

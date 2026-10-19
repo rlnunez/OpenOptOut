@@ -256,6 +256,26 @@ function Invoke-Revoke {
         exit 1
     }
     $json | ConvertTo-Json -Depth 5 | Out-File -FilePath $IndexFile -Encoding utf8
+
+    # backend/main.py's request-time revocation check reads this file -- it's
+    # how a certificate revoked here, with the CA key kept offline and never
+    # given to the app, is actually refused rather than just recorded. Write
+    # the FULL current list (not an append), so a status flipped back to
+    # "active" here doesn't linger as revoked.
+    $revoked = @($json | Where-Object { $_.status -eq "revoked" -and $_.serial } | ForEach-Object { [string]$_.serial } | Sort-Object -Unique)
+    try {
+        if (-not (Test-Path $ProxyCertsDir)) { New-Item -ItemType Directory -Path $ProxyCertsDir -Force | Out-Null }
+        # Built by hand, not ConvertTo-Json: on Windows PowerShell 5.1 (no
+        # -AsArray), ConvertTo-Json silently collapses a one-element array to
+        # a bare scalar, which would read back as a single malformed serial
+        # instead of a one-item list. Serials are decimal digits only, so no
+        # escaping is needed beyond stripping any stray quote.
+        $items = ($revoked | ForEach-Object { '"' + ($_ -replace '"', '') + '"' }) -join ","
+        Set-Content -Path (Join-Path $ProxyCertsDir "revoked.json") -Value "{`"revoked_serials`": [$items]}" -Encoding utf8
+    } catch {
+        Write-Warning "Could not write $ProxyCertsDir/revoked.json ($_) -- the app won't see this revocation until it can."
+    }
+
     Write-Host "✓ Certificate recorded as revoked." -ForegroundColor Green
 }
 

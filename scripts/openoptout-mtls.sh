@@ -379,6 +379,23 @@ if not found:
 
 with open(idx_file, "w") as f:
     json.dump(data, f, indent=2)
+
+# core/mtls.py's request-time revocation check (backend/main.py) reads this
+# file -- it's how a certificate revoked here, with the CA key kept offline
+# and never given to the app, is actually refused rather than just recorded.
+# Write the FULL current list (not an append), so a status flipped back to
+# "active" here doesn't linger as revoked.
+revoked = sorted({str(e.get("serial")) for e in data if e.get("status") == "revoked" and e.get("serial")})
+proxy_certs_dir = "$PROXY_CERTS_DIR"
+import os
+try:
+    os.makedirs(proxy_certs_dir, exist_ok=True)
+    with open(os.path.join(proxy_certs_dir, "revoked.json"), "w") as f:
+        json.dump({"revoked_serials": revoked}, f, indent=2)
+        f.write("\n")
+except OSError as e:
+    print(f"Warning: could not write {proxy_certs_dir}/revoked.json ({e}) -- "
+          "the app won't see this revocation until it can.", file=sys.stderr)
 PYEOF
 
   echo -e "${GREEN}✓ Certificate recorded as revoked.${NC}"
