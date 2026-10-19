@@ -89,7 +89,6 @@
   "a11y.theme_dark": "深色",
   "a11y.theme_system": "跟随系统（自动）",
   "a11y.theme_space": "太空探索",
-  "a11y.theme_lcars": "太空探索",
   "a11y.font_size": "文字大小",
   "a11y.font_preview_label": "实时预览",
   "a11y.font_preview_sample": "这段文字会实时显示您所选的字号。OpenOptOut 中的所有表格、表单和菜单都会按比例调整。",

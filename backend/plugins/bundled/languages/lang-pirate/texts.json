@@ -3304,7 +3304,6 @@
   "AAA high contrast": "Triple-A High Visibility",
   "Dark (ADA Compliant)": "Night Watch (ADA Shipshape)",
   "Gray": "Sea Fog",
-  "LCARS amber": "Lantern Amber",
   "Light (ADA Compliant)": "High Noon (ADA Shipshape)",
   "Space Explorer (ADA Compliant)": "Star Voyager (ADA Shipshape)",
   "100% Default": "100% Standard Course",
@@ -3324,5 +3323,6 @@
   "Space (ADA)": "Star Chart (ADA)",
   "Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.": "Rig all ship letters with OpenDyslexic weighted bottoms to keep words from capsizing in rough seas.",
   "System Language": "Vessel's Tongue",
-  "System Setup & Administrator Account": "Ship Outfitting & Captain's Register"
+  "System Setup & Administrator Account": "Ship Outfitting & Captain's Register",
+  "Cosmic amber": "Cosmic Amber"
 }

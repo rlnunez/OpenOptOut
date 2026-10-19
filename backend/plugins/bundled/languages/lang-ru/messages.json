@@ -89,7 +89,6 @@
   "a11y.theme_dark": "Тёмная",
   "a11y.theme_system": "Как в системе (авто)",
   "a11y.theme_space": "Космос",
-  "a11y.theme_lcars": "Космос",
   "a11y.font_size": "Размер текста",
   "a11y.font_preview_label": "Предпросмотр",
   "a11y.font_preview_sample": "Этот текст сразу показывает выбранный размер шрифта. Все таблицы, формы и меню OpenOptOut меняются пропорционально.",

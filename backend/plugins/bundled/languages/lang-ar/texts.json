@@ -3304,7 +3304,6 @@
   "AAA high contrast": "تباين عالٍ AAA",
   "Dark (ADA Compliant)": "داكن (متوافق مع ADA)",
   "Gray": "رمادي",
-  "LCARS amber": "كهرماني LCARS",
   "Light (ADA Compliant)": "فاتح (متوافق مع ADA)",
   "Space Explorer (ADA Compliant)": "مستكشف الفضاء (متوافق مع ADA)",
   "100% Default": "100% الافتراضي",
@@ -3324,5 +3323,6 @@
   "Space (ADA)": "الفضاء (ADA)",
   "Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.": "يبدل الخط في كامل النظام إلى OpenDyslexic بقواعد ثقيلة لتحسين تدفق القراءة.",
   "System Language": "لغة النظام",
-  "System Setup & Administrator Account": "إعداد النظام وحساب المسؤول"
+  "System Setup & Administrator Account": "إعداد النظام وحساب المسؤول",
+  "Cosmic amber": "كهرماني كوني"
 }

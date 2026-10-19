@@ -3304,7 +3304,6 @@
   "AAA high contrast": "Высокая контрастность AAA",
   "Dark (ADA Compliant)": "Темная (соответствует ADA)",
   "Gray": "Серый",
-  "LCARS amber": "Янтарный LCARS",
   "Light (ADA Compliant)": "Светлая (соответствует ADA)",
   "Space Explorer (ADA Compliant)": "Исследователь космоса (соответствует ADA)",
   "100% Default": "100% По умолчанию",
@@ -3324,5 +3323,6 @@
   "Space (ADA)": "Космос (ADA)",
   "Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.": "Переключает шрифт всей платформы на OpenDyslexic с утяжеленными нижними частями букв для облегчения чтения.",
   "System Language": "Язык системы",
-  "System Setup & Administrator Account": "Настройка системы и учетная запись администратора"
+  "System Setup & Administrator Account": "Настройка системы и учетная запись администратора",
+  "Cosmic amber": "Космический янтарь"
 }

@@ -7,12 +7,7 @@ const AccessibilityContext = createContext(null)
 export function AccessibilityProvider({ children }) {
   // Theme state: 'light' | 'gray' | 'dark' | 'system' | 'space'
   const [theme, setThemeState] = useState(() => {
-    const saved = localStorage.getItem('app_theme')
-    if (saved === 'lcars') {
-      localStorage.setItem('app_theme', 'space')
-      return 'space'
-    }
-    return saved || 'dark'
+    return localStorage.getItem('app_theme') || 'dark'
   })
 
   // System OS color scheme listener
@@ -78,12 +73,9 @@ export function AccessibilityProvider({ children }) {
       'theme-light', 'theme-light-ada',
       'theme-gray',
       'theme-dark', 'theme-dark-ada',
-      'theme-space', 'theme-space-ada', 'theme-lcars'
+      'theme-space', 'theme-space-ada'
     )
     root.classList.add(`theme-${baseTheme}`)
-    if (baseTheme === 'space') {
-      root.classList.add('theme-lcars')
-    }
     if (isAda) {
       root.classList.add(`theme-${baseTheme}-ada`)
     }
@@ -155,7 +147,7 @@ export function AccessibilityProvider({ children }) {
         if (res.data?.accessibility_settings) {
           const cfg = res.data.accessibility_settings
           if (cfg.theme) {
-            const normalized = cfg.theme === 'lcars' ? 'space' : cfg.theme
+            const normalized = cfg.theme
             if (['light', 'light-ada', 'gray', 'dark', 'dark-ada', 'system', 'space', 'space-ada'].includes(normalized)) {
               setThemeState(normalized)
               localStorage.setItem('app_theme', normalized)
@@ -203,7 +195,7 @@ export function AccessibilityProvider({ children }) {
   }, [theme, highContrast, dyslexicFont, fontSize, reducedMotion, enhancedTargets])
 
   const setTheme = (nextTheme) => {
-    const target = nextTheme === 'lcars' ? 'space' : nextTheme
+    const target = nextTheme
     const valid = ['light', 'light-ada', 'gray', 'dark', 'dark-ada', 'system', 'space', 'space-ada']
     if (!valid.includes(target)) return
     setThemeState(target)

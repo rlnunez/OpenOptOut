@@ -3302,7 +3302,6 @@
   "AAA high contrast": "Utofautishaji wa juu wa AAA",
   "Dark (ADA Compliant)": "Giza (Inatii ADA)",
   "Gray": "Kijivu",
-  "LCARS amber": "Kahawia ya LCARS",
   "Light (ADA Compliant)": "Nyeupe (Inatii ADA)",
   "Space Explorer (ADA Compliant)": "Mvumbuzi wa Anga (Inatii ADA)",
   "100% Default": "100% Ya Msingi",
@@ -3322,5 +3321,6 @@
   "Space (ADA)": "Anga (ADA)",
   "Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.": "Hubadilisha taipografia kwenye jukwaa zima kuwa OpenDyslexic yenye sehemu za chini nzito ili kuboresha usomaji.",
   "System Language": "Lugha ya Mfumo",
-  "System Setup & Administrator Account": "Usanidi wa Mfumo na Akaunti ya Msimamizi"
+  "System Setup & Administrator Account": "Usanidi wa Mfumo na Akaunti ya Msimamizi",
+  "Cosmic amber": "Kahawia ya ulimwengu"
 }

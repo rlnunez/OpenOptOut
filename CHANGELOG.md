@@ -86,7 +86,7 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 ## [0.10.2] — 2026-10-11
 
 ### Added
-- **Space Explorer (LCARS) High-Contrast Theme (Roadmap Item 27):** High-contrast color scheme with proportional font scaling and OpenDyslexic priority overrides.
+- **Space Explorer High-Contrast Theme (Roadmap Item 27):** High-contrast color scheme with proportional font scaling and OpenDyslexic priority overrides.
 - **Docker Version Propagation:** Consolidated versioning to root `VERSION` file, ensuring container builds reflect the exact semantic release tag.
 
 ---

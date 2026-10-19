@@ -221,7 +221,7 @@ export default function UserWelcomeModal() {
                       { id: 'dark-ada', label: t('a11y.theme_dark_ada', 'Dark (ADA)'), icon: Eye, desc: tx("AAA 21:1 contrast") },
                       { id: 'light', label: t('a11y.theme_light', 'Light'), icon: Sun, desc: tx("Crisp white") },
                       { id: 'light-ada', label: t('a11y.theme_light_ada', 'Light (ADA)'), icon: Eye, desc: tx("AAA high contrast") },
-                      { id: 'space', label: t('a11y.theme_space', 'Space Explorer'), icon: Compass, desc: tx("LCARS amber") },
+                      { id: 'space', label: t('a11y.theme_space', 'Space Explorer'), icon: Compass, desc: tx("Cosmic amber") },
                       { id: 'space-ada', label: t('a11y.theme_space_ada', 'Space (ADA)'), icon: Eye, desc: tx("AAA high contrast") },
                       { id: 'gray', label: t('a11y.theme_gray', 'Gray'), icon: Sliders, desc: tx("Slate neutral") },
                       { id: 'system', label: t('a11y.theme_system', 'System'), icon: Laptop, desc: tx("Auto match") },

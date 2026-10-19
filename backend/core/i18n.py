@@ -160,7 +160,6 @@ MASTER_DICTIONARY: List[Dict[str, str]] = [
     {"key": "a11y.theme_dark", "default_text": "Dark", "location": "Global / Accessibility", "description": "Dark theme label"},
     {"key": "a11y.theme_system", "default_text": "System (Auto)", "location": "Global / Accessibility", "description": "Auto OS color scheme theme label"},
     {"key": "a11y.theme_space", "default_text": "Space Explorer", "location": "Global / Accessibility", "description": "Space Explorer high-contrast theme label"},
-    {"key": "a11y.theme_lcars", "default_text": "Space Explorer", "location": "Global / Accessibility", "description": "Legacy fallback for Space Explorer theme"},
     {"key": "a11y.font_size", "default_text": "Font Size & Scaling", "location": "Global / Accessibility", "description": "Font scaling slider label"},
     {"key": "a11y.font_preview_label", "default_text": "Live Preview", "location": "Global / Accessibility", "description": "Live preview label for font slider"},
     {"key": "a11y.font_preview_sample", "default_text": "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.", "location": "Global / Accessibility", "description": "Sample text inside font size preview box"},

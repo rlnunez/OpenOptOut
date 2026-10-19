@@ -3304,7 +3304,6 @@
   "AAA high contrast": "Alto contraste AAA",
   "Dark (ADA Compliant)": "Escuro (compatível com ADA)",
   "Gray": "Cinza",
-  "LCARS amber": "Âmbar LCARS",
   "Light (ADA Compliant)": "Claro (compatível com ADA)",
   "Space Explorer (ADA Compliant)": "Explorador Espacial (compatível com ADA)",
   "100% Default": "100% Padrão",
@@ -3324,5 +3323,6 @@
   "Space (ADA)": "Espaço (ADA)",
   "Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.": "Alterna a tipografia em toda a plataforma para OpenDyslexic com bases pesadas para melhorar o fluxo de leitura.",
   "System Language": "Idioma do sistema",
-  "System Setup & Administrator Account": "Configuração do sistema e conta de administrador"
+  "System Setup & Administrator Account": "Configuração do sistema e conta de administrador",
+  "Cosmic amber": "Âmbar cósmico"
 }

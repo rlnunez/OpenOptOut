@@ -4039,6 +4039,13 @@
    ]
   },
   {
+   "text": "Cosmic amber",
+   "where": [
+    "components/UserWelcomeModal.jsx",
+    "pages/Login.jsx"
+   ]
+  },
+  {
    "text": "Could not check file permissions.",
    "where": [
     "components/SecretKeyBanner.jsx"
@@ -9020,13 +9027,6 @@
    "text": "Latest release",
    "where": [
     "pages/SystemUpdates.jsx"
-   ]
-  },
-  {
-   "text": "LCARS amber",
-   "where": [
-    "components/UserWelcomeModal.jsx",
-    "pages/Login.jsx"
    ]
   },
   {

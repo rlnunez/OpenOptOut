@@ -142,14 +142,7 @@ html.a11y-dyslexic-font.theme-space *,
 html.a11y-dyslexic-font.theme-space button,
 html.a11y-dyslexic-font.theme-space input,
 html.a11y-dyslexic-font.theme-space select,
-html.a11y-dyslexic-font.theme-space textarea,
-html.a11y-dyslexic-font.theme-lcars,
-html.a11y-dyslexic-font.theme-lcars body,
-html.a11y-dyslexic-font.theme-lcars *,
-html.a11y-dyslexic-font.theme-lcars button,
-html.a11y-dyslexic-font.theme-lcars input,
-html.a11y-dyslexic-font.theme-lcars select,
-html.a11y-dyslexic-font.theme-lcars textarea {
+html.a11y-dyslexic-font.theme-space textarea {
   font-family: 'OpenDyslexic', system-ui, sans-serif !important;
   letter-spacing: 0.02em !important;
   text-transform: none !important;
@@ -231,9 +224,7 @@ html.theme-gray .bg-slate-800 {
 
 /* ── Space Explorer Theme ── */
 html.theme-space body,
-html.theme-space,
-html.theme-lcars body,
-html.theme-lcars {
+html.theme-space {
   background-color: #000000 !important;
   color: #ff9900 !important;
   font-family: 'Antonio', 'Swiss 911', 'Oswald', sans-serif-condensed, sans-serif !important;
@@ -243,17 +234,12 @@ html.theme-lcars {
 html.theme-space button,
 html.theme-space input,
 html.theme-space select,
-html.theme-space textarea,
-html.theme-lcars button,
-html.theme-lcars input,
-html.theme-lcars select,
-html.theme-lcars textarea {
+html.theme-space textarea {
   font-family: 'Antonio', 'Swiss 911', 'Oswald', sans-serif-condensed, sans-serif !important;
   letter-spacing: 0.03em;
 }
 
-html.theme-space .bg-slate-950,
-html.theme-lcars .bg-slate-950 {
+html.theme-space .bg-slate-950 {
   background-color: #000000 !important;
 }
 
@@ -261,60 +247,41 @@ html.theme-space .bg-slate-900,
 html.theme-space .bg-slate-900\/50,
 html.theme-space .bg-slate-900\/40,
 html.theme-space aside,
-html.theme-space header,
-html.theme-lcars .bg-slate-900,
-html.theme-lcars .bg-slate-900\/50,
-html.theme-lcars .bg-slate-900\/40,
-html.theme-lcars aside,
-html.theme-lcars header {
+html.theme-space header {
   background-color: #080808 !important;
   border-color: #cc99cc !important;
 }
 
 html.theme-space .bg-slate-800,
 html.theme-space .bg-slate-950\/60,
-html.theme-space .bg-slate-950\/80,
-html.theme-lcars .bg-slate-800,
-html.theme-lcars .bg-slate-950\/60,
-html.theme-lcars .bg-slate-950\/80 {
+html.theme-space .bg-slate-950\/80 {
   background-color: #141414 !important;
   border-color: #ff9900 !important;
 }
 
-html.theme-space .text-white,
-html.theme-lcars .text-white {
+html.theme-space .text-white {
   color: #ffaa66 !important;
 }
 
 html.theme-space .text-slate-300,
-html.theme-space .text-slate-400,
-html.theme-lcars .text-slate-300,
-html.theme-lcars .text-slate-400 {
+html.theme-space .text-slate-400 {
   color: #ff9900 !important;
 }
 
 html.theme-space .text-slate-500,
-html.theme-space .text-slate-600,
-html.theme-lcars .text-slate-500,
-html.theme-lcars .text-slate-600 {
+html.theme-space .text-slate-600 {
   color: #cc99cc !important;
 }
 
 html.theme-space .border-slate-800,
 html.theme-space .border-slate-700,
 html.theme-space .border-slate-700\/50,
-html.theme-space .border-slate-800\/80,
-html.theme-lcars .border-slate-800,
-html.theme-lcars .border-slate-700,
-html.theme-lcars .border-slate-700\/50,
-html.theme-lcars .border-slate-800\/80 {
+html.theme-space .border-slate-800\/80 {
   border-color: #ff9900 !important;
 }
 
 html.theme-space .bg-shield-600,
-html.theme-space .bg-blue-600,
-html.theme-lcars .bg-shield-600,
-html.theme-lcars .bg-blue-600 {
+html.theme-space .bg-blue-600 {
   background-color: #ff9900 !important;
   color: #000000 !important;
   font-weight: 700 !important;
@@ -322,23 +289,17 @@ html.theme-lcars .bg-blue-600 {
 
 html.theme-space .text-blue-400,
 html.theme-space .text-shield-400,
-html.theme-space .text-shield-500,
-html.theme-lcars .text-blue-400,
-html.theme-lcars .text-shield-400,
-html.theme-lcars .text-shield-500 {
+html.theme-space .text-shield-500 {
   color: #9999ff !important;
 }
 
-html.theme-space :focus-visible,
-html.theme-lcars :focus-visible {
+html.theme-space :focus-visible {
   outline: 3px solid #ff9900 !important;
   outline-offset: 2px !important;
 }
 
 html.theme-space button.rounded-lg,
-html.theme-space button.rounded-md,
-html.theme-lcars button.rounded-lg,
-html.theme-lcars button.rounded-md {
+html.theme-space button.rounded-md {
   border-radius: 9999px !important;
 }
 
@@ -751,8 +712,7 @@ html.a11y-dyslexic-font aside[aria-label="Main sidebar"] {
 /* 6. Resilient Word Wrapping & Text Bounds */
 html.a11y-large-text,
 html.a11y-dyslexic-font,
-html.theme-space,
-html.theme-lcars {
+html.theme-space {
   overflow-wrap: break-word;
   word-wrap: break-word;
 }
@@ -768,11 +728,7 @@ html.a11y-dyslexic-font h4,
 html.theme-space h1,
 html.theme-space h2,
 html.theme-space h3,
-html.theme-space h4,
-html.theme-lcars h1,
-html.theme-lcars h2,
-html.theme-lcars h3,
-html.theme-lcars h4 {
+html.theme-space h4 {
   overflow-wrap: break-word;
   word-break: break-word;
 }
@@ -785,8 +741,7 @@ html.theme-lcars h4 {
 
 html.a11y-large-text .fixed.inset-0 > div:not([aria-hidden="true"]),
 html.a11y-dyslexic-font .fixed.inset-0 > div:not([aria-hidden="true"]),
-html.theme-space .fixed.inset-0 > div:not([aria-hidden="true"]),
-html.theme-lcars .fixed.inset-0 > div:not([aria-hidden="true"]) {
+html.theme-space .fixed.inset-0 > div:not([aria-hidden="true"]) {
   max-height: calc(100vh - 1.5rem);
 }
 

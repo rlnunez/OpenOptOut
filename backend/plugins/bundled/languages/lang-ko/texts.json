@@ -3304,7 +3304,6 @@
   "AAA high contrast": "AAA 고대비",
   "Dark (ADA Compliant)": "다크 (ADA 준수)",
   "Gray": "그레이",
-  "LCARS amber": "LCARS 호박색",
   "Light (ADA Compliant)": "라이트 (ADA 준수)",
   "Space Explorer (ADA Compliant)": "우주 탐험가 (ADA 준수)",
   "100% Default": "100% 기본",
@@ -3324,5 +3323,6 @@
   "Space (ADA)": "우주 (ADA)",
   "Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.": "플랫폼 전반의 서체를 글자 하단이 강조된 OpenDyslexic으로 전환하여 읽기 흐름을 향상시킵니다.",
   "System Language": "시스템 언어",
-  "System Setup & Administrator Account": "시스템 설정 및 관리자 계정"
+  "System Setup & Administrator Account": "시스템 설정 및 관리자 계정",
+  "Cosmic amber": "우주 호박색"
 }

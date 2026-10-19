@@ -3302,7 +3302,6 @@
   "AAA high contrast": "Висока контрастність AAA",
   "Dark (ADA Compliant)": "Темна (відповідає ADA)",
   "Gray": "Сірий",
-  "LCARS amber": "Бурштиновий LCARS",
   "Light (ADA Compliant)": "Світла (відповідає ADA)",
   "Space Explorer (ADA Compliant)": "Дослідник космосу (відповідає ADA)",
   "100% Default": "100% За замовчуванням",
@@ -3322,5 +3321,6 @@
   "Space (ADA)": "Космос (ADA)",
   "Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.": "Перемикає шрифт платформи на OpenDyslexic із обважненим низом літер для полегшення читання.",
   "System Language": "Мова системи",
-  "System Setup & Administrator Account": "Налаштування системи та обліковий запис адміністратора"
+  "System Setup & Administrator Account": "Налаштування системи та обліковий запис адміністратора",
+  "Cosmic amber": "Космічний бурштин"
 }

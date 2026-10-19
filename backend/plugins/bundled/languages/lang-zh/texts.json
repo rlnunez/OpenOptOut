@@ -3304,7 +3304,6 @@
   "AAA high contrast": "AAA 高对比度",
   "Dark (ADA Compliant)": "深色（符合 ADA）",
   "Gray": "灰色",
-  "LCARS amber": "LCARS 琥珀色",
   "Light (ADA Compliant)": "浅色（符合 ADA）",
   "Space Explorer (ADA Compliant)": "太空探索（符合 ADA）",
   "100% Default": "100% 默认",
@@ -3324,5 +3323,6 @@
   "Space (ADA)": "太空 (ADA)",
   "Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.": "全平台切换为具有加重底部的 OpenDyslexic 字体，以改善阅读流畅度。",
   "System Language": "系统语言",
-  "System Setup & Administrator Account": "系统配置与管理员账户"
+  "System Setup & Administrator Account": "系统配置与管理员账户",
+  "Cosmic amber": "宇宙琥珀色"
 }

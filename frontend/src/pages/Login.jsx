@@ -697,7 +697,7 @@ export default function Login() {
                       { id: 'dark-ada', label: tx("Dark (ADA)"), icon: Eye, desc: tx("AAA 21:1 contrast") },
                       { id: 'light', label: tx("Light"), icon: Sun, desc: tx("Crisp white") },
                       { id: 'light-ada', label: tx("Light (ADA)"), icon: Eye, desc: tx("AAA high contrast") },
-                      { id: 'space', label: tx("Space Explorer"), icon: Compass, desc: tx("LCARS amber") },
+                      { id: 'space', label: tx("Space Explorer"), icon: Compass, desc: tx("Cosmic amber") },
                       { id: 'space-ada', label: tx("Space (ADA)"), icon: Eye, desc: tx("AAA high contrast") },
                       { id: 'gray', label: tx("Gray"), icon: Sliders, desc: tx("Slate neutral") },
                       { id: 'system', label: tx("System"), icon: Laptop, desc: tx("Auto match") },

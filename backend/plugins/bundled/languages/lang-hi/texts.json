@@ -3304,7 +3304,6 @@
   "AAA high contrast": "AAA उच्च कंट्रास्ट",
   "Dark (ADA Compliant)": "गहरा (ADA अनुपालक)",
   "Gray": "धूसर",
-  "LCARS amber": "LCARS एम्बर",
   "Light (ADA Compliant)": "हल्का (ADA अनुपालक)",
   "Space Explorer (ADA Compliant)": "अंतरिक्ष अन्वेषक (ADA अनुपालक)",
   "100% Default": "100% डिफ़ॉल्ट",
@@ -3324,5 +3323,6 @@
   "Space (ADA)": "अंतरिक्ष (ADA)",
   "Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.": "पढ़ने के प्रवाह को बेहतर बनाने के लिए पूरे प्लेटफॉर्म में फ़ॉन्ट को भारी नीचे वाले OpenDyslexic में बदलता है।",
   "System Language": "सिस्टम भाषा",
-  "System Setup & Administrator Account": "सिस्टम सेटअप और प्रशासक खाता"
+  "System Setup & Administrator Account": "सिस्टम सेटअप और प्रशासक खाता",
+  "Cosmic amber": "कॉस्मिक एम्बर"
 }

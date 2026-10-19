@@ -3303,7 +3303,6 @@
   "AAA high contrast": "Kontras tinggi AAA",
   "Dark (ADA Compliant)": "Gelap (Sesuai ADA)",
   "Gray": "Abu-abu",
-  "LCARS amber": "Kuning jingga LCARS",
   "Light (ADA Compliant)": "Terang (Sesuai ADA)",
   "Space Explorer (ADA Compliant)": "Penjelajah Luar Angkasa (Sesuai ADA)",
   "100% Default": "100% Default",
@@ -3323,5 +3322,6 @@
   "Space (ADA)": "Luar Angkasa (ADA)",
   "Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.": "Mengalihkan tipografi ke OpenDyslexic dengan bagian bawah lebih tebal untuk meningkatkan kelancaran membaca.",
   "System Language": "Bahasa Sistem",
-  "System Setup & Administrator Account": "Pengaturan Sistem & Akun Administrator"
+  "System Setup & Administrator Account": "Pengaturan Sistem & Akun Administrator",
+  "Cosmic amber": "Kuning jingga kosmik"
 }

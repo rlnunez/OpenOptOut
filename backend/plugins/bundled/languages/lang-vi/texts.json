@@ -3304,7 +3304,6 @@
   "AAA high contrast": "Độ tương phản cao AAA",
   "Dark (ADA Compliant)": "Tối (Tuân thủ ADA)",
   "Gray": "Xám",
-  "LCARS amber": "Hổ phách LCARS",
   "Light (ADA Compliant)": "Sáng (Tuân thủ ADA)",
   "Space Explorer (ADA Compliant)": "Khám phá không gian (Tuân thủ ADA)",
   "100% Default": "100% Mặc định",
@@ -3324,5 +3323,6 @@
   "Space (ADA)": "Vũ trụ (ADA)",
   "Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.": "Chuyển kiểu chữ toàn hệ thống sang OpenDyslexic với phần chân chữ đậm hơn để cải thiện luồng đọc.",
   "System Language": "Ngôn ngữ hệ thống",
-  "System Setup & Administrator Account": "Thiết lập hệ thống & Tài khoản quản trị viên"
+  "System Setup & Administrator Account": "Thiết lập hệ thống & Tài khoản quản trị viên",
+  "Cosmic amber": "Hổ phách vũ trụ"
 }
