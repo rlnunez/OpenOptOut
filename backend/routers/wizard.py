@@ -33,7 +33,10 @@ from cryptography.fernet import Fernet
 from ..core.limits import LimitedModel, LONG_TEXT_MAX
 from ..models.database import get_db, User
 from ..core.auth import get_current_user
-from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE, get_secret_key
+from ..core.settings_store import (
+    load_settings, save_settings, SETTINGS_FILE, get_secret_key,
+    get_secret_key_status, read_secret_key_file,
+)
 
 router = APIRouter(prefix="/api/wizard", tags=["wizard"])
 
@@ -106,10 +109,19 @@ def list_email_providers(db: Session = Depends(get_db),
     return {"providers": out}
 
 
+class WizardModeStep(LimitedModel):
+    mode: str  # "express" | "advanced"
+
+
+class ExpressSetupStep(LimitedModel):
+    domain: Optional[str] = ""
+    local_only: bool = False
+
+
 @router.get("/state")
 def get_state(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """Current wizard progress — what's done/skipped, and whether email is set
-    (so the summary can warn if it isn't)."""
+    """Current wizard progress — what's done/skipped, whether email is set,
+    wizard mode (express vs advanced), and active security status."""
     _admin(user)
     from ..core.settings_store import is_hsts_enabled
     s = _load()
@@ -117,14 +129,90 @@ def get_state(db: Session = Depends(get_db), user: User = Depends(get_current_us
     email = s.get("email", {})
     email_configured = bool(email.get("mode")) and (
         email.get("provider") or email.get("smtp_host"))
+    sec_status = get_secret_key_status()
     return {
         "completed": wiz.get("completed", False),
+        "mode": wiz.get("mode", "express"),
         "steps": wiz.get("steps", {}),
         "email_configured": email_configured,
         "db_kind": s.get("database", {}).get("kind", "sqlite"),
         "reverse_proxy": s.get("deployment", {}).get("reverse_proxy", "unset"),
         "hsts": is_hsts_enabled(s),
+        "security": {
+            "has_valid_file_key": sec_status.get("has_valid_file_key", False),
+            "permissions_secure": sec_status.get("permissions_secure", False),
+            "active_key_length": sec_status.get("active_key_length", 0),
+            "file_path": sec_status.get("file_path", ""),
+        },
     }
+
+
+@router.get("/master-key")
+def get_master_key(user: User = Depends(get_current_user)):
+    """Return the master encryption key and file status for display and copy in the wizard."""
+    _admin(user)
+    key = read_secret_key_file() or get_secret_key()
+    status = get_secret_key_status()
+    return {
+        "key": key,
+        "status": status,
+    }
+
+
+@router.post("/mode")
+def set_mode(body: WizardModeStep, user: User = Depends(get_current_user)):
+    """Select wizard mode: 'express' (average home user) or 'advanced' (granular control)."""
+    _admin(user)
+    if body.mode not in ("express", "advanced"):
+        raise HTTPException(400, "mode must be 'express' or 'advanced'")
+    s = _load()
+    wiz = _wizard_state(s)
+    wiz["mode"] = body.mode
+    s["wizard"] = wiz
+    _save(s)
+    return {"ok": True, "mode": body.mode}
+
+
+@router.post("/express")
+def apply_express_setup(body: ExpressSetupStep, db: Session = Depends(get_db),
+                        user: User = Depends(get_current_user)):
+    """Apply safe zero-configuration express defaults for home users:
+    - SQLite database (local encrypted storage)
+    - Managed reverse proxy (Caddy + Let's Encrypt with domain if provided, or local access)
+    - Records express mode and completes the wizard."""
+    _admin(user)
+    s = _load()
+    wiz = _wizard_state(s)
+    wiz["mode"] = "express"
+
+    # 1. Database: ensure local SQLite
+    s.setdefault("database", {})["kind"] = "sqlite"
+    wiz.setdefault("steps", {})["database"] = "done"
+
+    # 2. Deployment: safe managed defaults
+    domain = (body.domain or "").strip()[:255]
+    if body.local_only or not domain:
+        s["deployment"] = {
+            "reverse_proxy": "none",
+            "domain": "",
+            "rate_limit": True,
+            "hsts": False,
+        }
+    else:
+        s["deployment"] = {
+            "reverse_proxy": "managed",
+            "front_door": "caddy",
+            "certificate": "letsencrypt",
+            "domain": domain,
+            "rate_limit": True,
+            "cloudflare_proxy": False,
+            "client_mtls": False,
+            "hsts": True,
+        }
+    wiz.setdefault("steps", {})["deployment"] = "done"
+    s["wizard"] = wiz
+    _save(s)
+    return complete(db=db, user=user)
 
 
 # ── Step 1: Database ──────────────────────────────────────────────────────────
@@ -437,7 +525,7 @@ def skip_step(body: SkipStep, db: Session = Depends(get_db),
               user: User = Depends(get_current_user)):
     """Record that a step was skipped (all steps are skippable)."""
     _admin(user)
-    if body.step not in ("database", "email", "deployment", "branding"):
+    if body.step not in ("security", "database", "email", "deployment", "branding"):
         raise HTTPException(400, "unknown step")
     _mark_step(body.step, "skipped")
     return {"ok": True, "skipped": body.step}

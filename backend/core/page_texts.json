@@ -760,9 +760,21 @@
    ]
   },
   {
+   "text": "Access & Network Connection",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Access key",
    "where": [
     "pages/Backups.jsx"
+   ]
+  },
+  {
+   "text": "Access OpenOptOut via your local home network (e.g. http://localhost:8000 or http://192.168.1.x:8000). Completely private and not accessible from the public internet.",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -861,6 +873,12 @@
    "text": "Active Evaluation Rule:",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Active Master Encryption Key",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -1342,6 +1360,18 @@
    ]
   },
   {
+   "text": "Advanced Mode: granular control for administrators.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Advanced Setup",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Advanced: use a separate account for the tool's own admin/notification email",
    "where": [
     "pages/SetupWizard.jsx"
@@ -1497,6 +1527,12 @@
    "text": "All pending opt-outs (up to the daily cap) are sent at {v}. Simple, but creates a traffic burst that some brokers may flag.",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "All personal family details stored by OpenOptOut are encrypted using this master key.",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -2149,6 +2185,12 @@
    "text": "Automatic checks are turned off.",
    "where": [
     "components/RemovalChecks.jsx"
+   ]
+  },
+  {
+   "text": "Automatic Cryptographic Protection",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -2914,6 +2956,12 @@
    ]
   },
   {
+   "text": "chars entropy",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Check",
    "where": [
     "components/ResidentAddresses.jsx"
@@ -3165,6 +3213,12 @@
    "text": "Choose another",
    "where": [
     "components/PluginUploadWizard.jsx"
+   ]
+  },
+  {
+   "text": "Choose how you and your family will access the OpenOptOut interface.",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -3487,6 +3541,12 @@
    ]
   },
   {
+   "text": "Complete Setup",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Complete Setup & Continue",
    "where": [
     "pages/Login.jsx"
@@ -3553,6 +3613,12 @@
    ]
   },
   {
+   "text": "Configure Later in Settings (Fastest)",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Configure passwordless sign-in methods (FIDO2 Passkeys and one-time email codes) for local user and staff accounts.",
    "where": [
     "pages/Settings.jsx"
@@ -3612,6 +3678,12 @@
    "text": "Connect an email inbox",
    "where": [
     "pages/Checklist.jsx"
+   ]
+  },
+  {
+   "text": "Connect an Email Provider Now",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -3761,6 +3833,7 @@
    "text": "Continue",
    "where": [
     "components/TermsGate.jsx",
+    "pages/SetupWizard.jsx",
     "pages/Signup.jsx"
    ]
   },
@@ -3818,7 +3891,8 @@
   {
    "text": "Copied!",
    "where": [
-    "pages/Login.jsx"
+    "pages/Login.jsx",
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -3858,6 +3932,18 @@
    "where": [
     "components/SecretKeyBanner.jsx",
     "pages/Settings.jsx",
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Copy Key",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Copy key to clipboard",
+   "where": [
     "pages/SetupWizard.jsx"
    ]
   },
@@ -4631,6 +4717,12 @@
    ]
   },
   {
+   "text": "Custom Domain with Automatic HTTPS",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Custom key set",
    "where": [
     "pages/Settings.jsx"
@@ -4737,6 +4829,12 @@
     "pages/Settings.jsx",
     "pages/SetupWizard.jsx",
     "server: monitoring.py"
+   ]
+  },
+  {
+   "text": "Database & Local Storage",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -5724,6 +5822,12 @@
    ]
   },
   {
+   "text": "e.g. privacy.myfamily.org",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "e.g. privacy@example.org",
    "where": [
     "pages/Terms.jsx"
@@ -6549,6 +6653,12 @@
    ]
   },
   {
+   "text": "Expand",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Expires (optional)",
    "where": [
     "pages/Branding.jsx"
@@ -6594,6 +6704,18 @@
    "text": "Exporting…",
    "where": [
     "pages/SystemLogs.jsx"
+   ]
+  },
+  {
+   "text": "Express Mode: zero-touch defaults tailored for home users.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Express Setup",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -6690,6 +6812,12 @@
    "text": "Failed to issue client certificate",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Failed to load master encryption key",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -7568,13 +7696,20 @@
    "where": [
     "pages/BrokerSubmit.jsx",
     "pages/Dashboard.jsx",
-    "pages/IdentityVault.jsx"
+    "pages/IdentityVault.jsx",
+    "pages/SetupWizard.jsx"
    ]
   },
   {
    "text": "Hide details",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "Hide key",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -8372,6 +8507,12 @@
    ]
   },
   {
+   "text": "Interactive Entropy Generator (Optional Chaos & Randomness)",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "invalid",
    "where": [
     "pages/Plugins.jsx"
@@ -8599,6 +8740,12 @@
    "text": "Key generation method",
    "where": [
     "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
+   "text": "Key loaded in memory",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -9006,6 +9153,12 @@
    ]
   },
   {
+   "text": "Link Gmail, Outlook, Yahoo, or your personal mail server for instant system alerts.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Link shown at registration",
    "where": [
     "pages/Branding.jsx"
@@ -9102,6 +9255,12 @@
    ]
   },
   {
+   "text": "Loading master key…",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Loading searches…",
    "where": [
     "components/FindListings.jsx"
@@ -9174,6 +9333,12 @@
    "text": "Local Certificate Authority (CA)",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Local Network Access (Recommended for Home Users)",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -9548,6 +9713,18 @@
    ]
   },
   {
+   "text": "Master Encryption Key",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Master Encryption Key & System Security",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Master Secret Key & Entropy Generator",
    "where": [
     "pages/Settings.jsx"
@@ -9807,6 +9984,12 @@
    "text": "Mistakes can happen.",
    "where": [
     "components/TermsGate.jsx"
+   ]
+  },
+  {
+   "text": "Mix custom entropy from mouse physics, keyboard timings, and image chunk shuffling. Any new key saved here will automatically update secret.key.",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -11453,6 +11636,12 @@
    ]
   },
   {
+   "text": "OpenOptOut generated this high-entropy encryption key at first install and saved it with strict file permissions (0600) on your server. It secures family records, identity tokens, and broker credentials.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "OpenOptOut got as far as it could. Each one says exactly what's left.",
    "where": [
     "pages/Checklist.jsx"
@@ -11502,6 +11691,12 @@
   },
   {
    "text": "OpenOptOut runs directly on this VM or bare-metal host (systemd on Linux, a Windows Service on Windows) — no Docker. HTTPS is handled the same way: certbot + nginx on Linux, or win-acme + IIS on Windows. See docs/admin/native-install.md.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "OpenOptOut stores family records in a high-speed encrypted local SQLite database.",
    "where": [
     "pages/SetupWizard.jsx"
    ]
@@ -13692,6 +13887,18 @@
    ]
   },
   {
+   "text": "Reveal",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Reveal key",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Revert to {version}",
    "where": [
     "pages/SystemUpdates.jsx"
@@ -14534,6 +14741,12 @@
    ]
   },
   {
+   "text": "Securely publish OpenOptOut on your own domain. Caddy automatically provisions free Let's Encrypt TLS certificates and blocks malicious traffic.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Security Key & Biometrics",
    "where": [
     "pages/Login.jsx"
@@ -15355,6 +15568,12 @@
    ]
   },
   {
+   "text": "Skip for now and launch the dashboard immediately. You or your family can link email accounts anytime in the Settings page.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Skipped",
    "where": [
     "components/Badge.jsx",
@@ -15580,6 +15799,12 @@
   },
   {
    "text": "SQLite (this machine)",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "SQLite Local Database (Pre-configured & Ready)",
    "where": [
     "pages/SetupWizard.jsx"
    ]
@@ -16137,6 +16362,12 @@
    ]
   },
   {
+   "text": "System Email (Optional)",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "System logs",
    "where": [
     "components/Sidebar.jsx"
@@ -16164,6 +16395,12 @@
    "text": "System RAM",
    "where": [
     "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
+   "text": "System Setup Wizard",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -16989,6 +17226,12 @@
    "text": "Timezone",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Tip: Copy and back up this master key to your password manager (e.g. 1Password, Bitwarden, Apple Keychain). You will need it if you ever migrate or restore from backup.",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -17882,6 +18125,12 @@
    "text": "Used as email surrogate for patron accounts",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Used for password recovery and administrator alerts. Opt-outs are always sent from each family member's own connected inbox.",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -19100,9 +19349,21 @@
    ]
   },
   {
+   "text": "Zero configuration required. All family opt-out logs, broker manifests, and identity vault entries are encrypted locally on this server's filesystem.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Zero Mailbox Clutter",
    "where": [
     "components/UserWelcomeModal.jsx"
+   ]
+  },
+  {
+   "text": "Zero network latency · Automatic file backups supported",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -19789,6 +20050,12 @@
    "text": "⚠ {overwrites_manual} of those were set <0>manually</0> and will be overwritten.",
    "where": [
     "pages/BrokerPriority.jsx"
+   ]
+  },
+  {
+   "text": "✓ 0600 file secured",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {

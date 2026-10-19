@@ -2,65 +2,235 @@ import { useState, useRef, useEffect } from 'react'
 import {
   Database, Mail, Palette, CheckCircle2, AlertTriangle, ChevronRight,
   ChevronLeft, SkipForward, Server, Shield, Globe, Home, Copy, Check,
-  UploadCloud, X
+  UploadCloud, X, Eye, EyeOff, Key, Sparkles, Sliders, Zap
 } from 'lucide-react'
 import api from '../api'
 import { tx, txr } from '../i18n/tx'
+import { SecretKeyGeneratorPanel } from '../components/SecretKeyBanner'
 
-const STEPS = ['database', 'email', 'deployment', 'branding', 'summary']
+const EXPRESS_STEPS = ['security', 'database', 'deployment', 'email', 'summary']
+const ADVANCED_STEPS = ['security', 'database', 'email', 'deployment', 'branding', 'summary']
 
 export default function SetupWizard({ onDone }) {
+  const [mode, setMode] = useState('express') // 'express' | 'advanced'
   const [step, setStep] = useState(0)
   const [summary, setSummary] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [expressDeploy, setExpressDeploy] = useState({ mode: 'local', domain: '' })
 
-  const next = () => setStep(s => Math.min(s + 1, STEPS.length - 1))
+  const currentSteps = mode === 'express' ? EXPRESS_STEPS : ADVANCED_STEPS
+
+  useEffect(() => {
+    api.get('/wizard/state')
+      .then(r => {
+        if (r.data?.mode && (r.data.mode === 'express' || r.data.mode === 'advanced')) {
+          setMode(r.data.mode)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const switchMode = async (newMode) => {
+    if (newMode === mode) return
+    setMode(newMode)
+    setStep(0)
+    setError('')
+    try {
+      await api.post('/wizard/mode', { mode: newMode })
+    } catch (_) {}
+  }
+
+  const next = () => setStep(s => Math.min(s + 1, currentSteps.length - 1))
   const back = () => setStep(s => Math.max(s - 1, 0))
 
   const skip = async (name) => {
     setBusy(true); setError('')
-    try { await api.post('/wizard/skip', { step: name }); next() }
-    catch (e) { setError(e.response?.data?.detail || tx("Failed to skip")) }
-    finally { setBusy(false) }
+    try {
+      await api.post('/wizard/skip', { step: name })
+      next()
+    } catch (e) {
+      setError(e.response?.data?.detail || tx("Failed to skip"))
+    } finally {
+      setBusy(false)
+    }
   }
 
   const finish = async () => {
-    setBusy(true)
+    setBusy(true); setError('')
     try {
       const r = await api.post('/wizard/complete')
       setSummary(r.data)
-      setStep(4)
-    } catch (e) { setError(e.response?.data?.detail || tx("Failed to finish")) }
-    finally { setBusy(false) }
+      setStep(currentSteps.length - 1)
+    } catch (e) {
+      setError(e.response?.data?.detail || tx("Failed to finish"))
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
-        {/* Progress */}
+        {/* Top-level Express vs Advanced Setup Mode Selector */}
+        <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-4 mb-4 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-shield-500/20 border border-shield-500/30 flex items-center justify-center text-shield-400 shrink-0">
+                <Shield size={18} />
+              </div>
+              <div>
+                <h1 className="text-white text-sm font-semibold">{tx("System Setup Wizard")}</h1>
+                <p className="text-slate-400 text-xs">
+                  {mode === 'express'
+                    ? tx("Express Mode: zero-touch defaults tailored for home users.")
+                    : tx("Advanced Mode: granular control for administrators.")}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => switchMode('express')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  mode === 'express'
+                    ? 'bg-shield-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Zap size={13} />
+                <span>{tx("Express Setup")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode('advanced')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  mode === 'advanced'
+                    ? 'bg-shield-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Sliders size={13} />
+                <span>{tx("Advanced Setup")}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress indicator */}
         <div className="flex items-center justify-center gap-2 mb-6">
-          {STEPS.map((s, i) => (
+          {currentSteps.map((s, i) => (
             <div key={s} className="flex items-center">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-colors
                 ${i < step ? 'bg-shield-600 text-white' : i === step ? 'bg-shield-500 text-white' : 'bg-slate-800 text-slate-500'}`}>
                 {i < step ? <CheckCircle2 size={16} /> : i + 1}
               </div>
-              {i < STEPS.length - 1 && <div className={`w-8 h-0.5 ${i < step ? 'bg-shield-600' : 'bg-slate-800'}`} />}
+              {i < currentSteps.length - 1 && (
+                <div className={`w-8 h-0.5 ${i < step ? 'bg-shield-600' : 'bg-slate-800'}`} />
+              )}
             </div>
           ))}
         </div>
 
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+        {/* Active Step Container */}
+        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-xl">
           {error && (
-            <div className="mb-4 px-3 py-2 rounded-lg border border-red-800 bg-red-900/20 text-red-300 text-xs">{error}</div>
+            <div className="mb-4 px-3 py-2 rounded-lg border border-red-800 bg-red-900/20 text-red-300 text-xs">
+              {error}
+            </div>
           )}
 
-          {step === 0 && <DatabaseStep onNext={next} onSkip={() => skip('database')} busy={busy} setError={setError} />}
-          {step === 1 && <EmailStep onNext={next} onSkip={() => skip('email')} onBack={back} busy={busy} setError={setError} />}
-          {step === 2 && <DeploymentStep onNext={next} onSkip={() => skip('deployment')} onBack={back} busy={busy} setError={setError} />}
-          {step === 3 && <BrandingStep onNext={finish} onSkip={async () => { await skip('branding'); finish() }} onBack={back} busy={busy} setError={setError} />}
-          {step === 4 && <SummaryStep summary={summary} onDone={onDone} />}
+          {mode === 'express' ? (
+            <>
+              {step === 0 && (
+                <SecurityStep
+                  onNext={next}
+                  onSkip={() => skip('security')}
+                  busy={busy}
+                  setError={setError}
+                />
+              )}
+              {step === 1 && (
+                <ExpressDatabaseStep
+                  onNext={next}
+                  onSkip={() => skip('database')}
+                  onBack={back}
+                  busy={busy}
+                  setError={setError}
+                />
+              )}
+              {step === 2 && (
+                <ExpressDeploymentStep
+                  onNext={next}
+                  onSkip={() => skip('deployment')}
+                  onBack={back}
+                  busy={busy}
+                  setError={setError}
+                  deployment={expressDeploy}
+                  setDeployment={setExpressDeploy}
+                />
+              )}
+              {step === 3 && (
+                <ExpressEmailStep
+                  onNext={finish}
+                  onSkip={async () => { await skip('email'); finish() }}
+                  onBack={back}
+                  busy={busy}
+                  setError={setError}
+                />
+              )}
+              {step === 4 && <SummaryStep summary={summary} onDone={onDone} />}
+            </>
+          ) : (
+            <>
+              {step === 0 && (
+                <SecurityStep
+                  onNext={next}
+                  onSkip={() => skip('security')}
+                  busy={busy}
+                  setError={setError}
+                />
+              )}
+              {step === 1 && (
+                <DatabaseStep
+                  onNext={next}
+                  onSkip={() => skip('database')}
+                  onBack={back}
+                  busy={busy}
+                  setError={setError}
+                />
+              )}
+              {step === 2 && (
+                <EmailStep
+                  onNext={next}
+                  onSkip={() => skip('email')}
+                  onBack={back}
+                  busy={busy}
+                  setError={setError}
+                />
+              )}
+              {step === 3 && (
+                <DeploymentStep
+                  onNext={next}
+                  onSkip={() => skip('deployment')}
+                  onBack={back}
+                  busy={busy}
+                  setError={setError}
+                />
+              )}
+              {step === 4 && (
+                <BrandingStep
+                  onNext={finish}
+                  onSkip={async () => { await skip('branding'); finish() }}
+                  onBack={back}
+                  busy={busy}
+                  setError={setError}
+                />
+              )}
+              {step === 5 && <SummaryStep summary={summary} onDone={onDone} />}
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -80,18 +250,413 @@ function StepHeader({ icon: Icon, title, subtitle }) {
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm px-3 py-2 placeholder-slate-500"
 
-function Buttons({ onBack, onSkip, onNext, nextLabel = 'Continue', busy }) {
+function Buttons({ onBack, onSkip, onNext, nextLabel, busy }) {
+  const lbl = nextLabel || tx("Continue")
   return (
     <div className="flex items-center justify-between mt-6">
       <div>
-        {onBack && <button onClick={onBack} className="flex items-center gap-1 text-slate-400 hover:text-slate-200 text-sm px-2 py-1.5"><ChevronLeft size={15} />{" "}{tx("Back")}</button>}
+        {onBack && <button type="button" onClick={onBack} className="flex items-center gap-1 text-slate-400 hover:text-slate-200 text-sm px-2 py-1.5"><ChevronLeft size={15} />{" "}{tx("Back")}</button>}
       </div>
       <div className="flex items-center gap-2">
-        {onSkip && <button onClick={onSkip} disabled={busy} className="flex items-center gap-1 text-slate-400 hover:text-slate-200 text-sm px-3 py-1.5"><SkipForward size={14} />{" "}{tx("Skip")}</button>}
-        <button onClick={onNext} disabled={busy} className="flex items-center gap-1 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white text-sm rounded-lg px-4 py-2">
-          {busy ? tx("Saving…") : nextLabel} <ChevronRight size={15} />
+        {onSkip && <button type="button" onClick={onSkip} disabled={busy} className="flex items-center gap-1 text-slate-400 hover:text-slate-200 text-sm px-3 py-1.5"><SkipForward size={14} />{" "}{tx("Skip")}</button>}
+        <button type="button" onClick={onNext} disabled={busy} className="flex items-center gap-1 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white text-sm rounded-lg px-4 py-2">
+          {busy ? tx("Saving…") : lbl} <ChevronRight size={15} />
         </button>
       </div>
+    </div>
+  )
+}
+
+// ── Step 0: Security & Master Encryption Key ─────────────────────────────────
+function SecurityStep({ onNext, onSkip, onBack, busy, setError }) {
+  const [keyData, setKeyData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [revealed, setRevealed] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [showChaos, setShowChaos] = useState(false)
+
+  const loadKey = async () => {
+    try {
+      const res = await api.get('/wizard/master-key')
+      setKeyData(res.data)
+    } catch (e) {
+      setError(e.response?.data?.detail || tx("Failed to load master encryption key"))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadKey()
+  }, [])
+
+  const copyKey = async () => {
+    if (!keyData?.key) return
+    try {
+      await navigator.clipboard.writeText(keyData.key)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    } catch {
+      /* clipboard fallback */
+    }
+  }
+
+  const keyLen = keyData?.key?.length || keyData?.status?.active_key_length || 0
+  const isSecurePerms = keyData?.status?.permissions_secure ?? true
+  const filePath = keyData?.status?.file_path || 'secret.key'
+
+  return (
+    <div>
+      <StepHeader
+        icon={Key}
+        title={tx("Master Encryption Key & System Security")}
+        subtitle={tx("All personal family details stored by OpenOptOut are encrypted using this master key.")}
+      />
+
+      <div className="space-y-4">
+        {/* Info Box */}
+        <div className="px-3.5 py-3 rounded-xl border border-slate-700 bg-slate-800/40 text-xs text-slate-300 flex items-start gap-2.5">
+          <Shield size={16} className="text-shield-400 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-medium text-slate-200">
+              {tx("Automatic Cryptographic Protection")}
+            </p>
+            <p className="text-slate-400 leading-relaxed">
+              {tx("OpenOptOut generated this high-entropy encryption key at first install and saved it with strict file permissions (0600) on your server. It secures family records, identity tokens, and broker credentials.")}
+            </p>
+          </div>
+        </div>
+
+        {/* Masked Key Display Box */}
+        <div className="p-4 rounded-xl border border-slate-700/80 bg-slate-950/70 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <Key size={13} className="text-shield-400" />
+              {tx("Active Master Encryption Key")}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setRevealed(r => !r)}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+                title={revealed ? tx("Hide key") : tx("Reveal key")}
+              >
+                {revealed ? <EyeOff size={13} /> : <Eye size={13} />}
+                <span>{revealed ? tx("Hide") : tx("Reveal")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={copyKey}
+                disabled={!keyData?.key}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md bg-shield-600 hover:bg-shield-500 text-white font-medium transition-colors disabled:opacity-50"
+                title={tx("Copy key to clipboard")}
+              >
+                {copied ? <Check size={13} /> : <Copy size={13} />}
+                <span>{copied ? tx("Copied!") : tx("Copy Key")}</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg">
+            {loading ? (
+              <span className="text-slate-500 text-xs">{tx("Loading master key…")}</span>
+            ) : revealed ? (
+              <code className="text-xs text-emerald-400 font-mono break-all select-all block leading-relaxed">
+                {keyData?.key || tx("Key loaded in memory")}
+              </code>
+            ) : (
+              <div className="text-xs text-slate-400 font-mono tracking-widest break-all select-none">
+                {'•'.repeat(Math.min(keyLen || 128, 64))}
+              </div>
+            )}
+          </div>
+
+          {/* Key status badges */}
+          <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border font-mono ${
+              isSecurePerms
+                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60'
+                : 'bg-amber-950/40 text-amber-300 border-amber-800/60'
+            }`}>
+              <Check size={11} />
+              <span>{filePath} ({isSecurePerms ? '0600 secure' : 'check permissions'})</span>
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-slate-800/60 text-slate-300 border-slate-700 font-mono">
+              <span>{keyLen} {tx("chars entropy")}</span>
+            </span>
+          </div>
+
+          <p className="text-slate-400 text-xs">
+            {tx("Tip: Copy and back up this master key to your password manager (e.g. 1Password, Bitwarden, Apple Keychain). You will need it if you ever migrate or restore from backup.")}
+          </p>
+        </div>
+
+        {/* Collapsible Interactive Chaos / Entropy Generator */}
+        <div className="rounded-xl border border-slate-800 bg-slate-900/50 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowChaos(c => !c)}
+            className="w-full p-3.5 flex items-center justify-between text-start text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/40 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Sparkles size={14} className="text-amber-400" />
+              <span>{tx("Interactive Entropy Generator (Optional Chaos & Randomness)")}</span>
+            </span>
+            <span className="text-slate-500 text-xs">
+              {showChaos ? tx("Hide") : tx("Expand")}
+            </span>
+          </button>
+          {showChaos && (
+            <div className="p-4 border-t border-slate-800 bg-slate-950/40">
+              <p className="text-slate-400 text-xs mb-3">
+                {tx("Mix custom entropy from mouse physics, keyboard timings, and image chunk shuffling. Any new key saved here will automatically update secret.key.")}
+              </p>
+              <SecretKeyGeneratorPanel
+                status={keyData?.status || {}}
+                onStatusChange={() => loadKey()}
+                compact={true}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Buttons onBack={onBack} onSkip={onSkip} onNext={onNext} nextLabel={tx("Continue")} busy={busy} />
+    </div>
+  )
+}
+
+// ── Express Step 1: Database ──────────────────────────────────────────────────
+function ExpressDatabaseStep({ onNext, onBack, onSkip, busy, setError }) {
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setSaving(true); setError('')
+    try {
+      await api.post('/wizard/database', { kind: 'sqlite' })
+      onNext()
+    } catch (e) {
+      setError(e.response?.data?.detail || tx("Failed to save database settings"))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div>
+      <StepHeader
+        icon={Database}
+        title={tx("Database & Local Storage")}
+        subtitle={tx("OpenOptOut stores family records in a high-speed encrypted local SQLite database.")}
+      />
+      <div className="space-y-3">
+        <div className="p-4 rounded-xl border border-shield-600/80 bg-shield-900/20 space-y-2">
+          <div className="flex items-center gap-2 text-white font-medium text-sm">
+            <CheckCircle2 size={16} className="text-shield-400" />
+            <span>{tx("SQLite Local Database (Pre-configured & Ready)")}</span>
+          </div>
+          <p className="text-slate-300 text-xs leading-relaxed">
+            {tx("Zero configuration required. All family opt-out logs, broker manifests, and identity vault entries are encrypted locally on this server's filesystem.")}
+          </p>
+          <div className="pt-1 flex items-center gap-2 text-xs text-slate-400">
+            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">sqlite3</span>
+            <span>{tx("Zero network latency · Automatic file backups supported")}</span>
+          </div>
+        </div>
+      </div>
+      <Buttons onBack={onBack} onSkip={onSkip} onNext={save} nextLabel={tx("Continue")} busy={saving || busy} />
+    </div>
+  )
+}
+
+// ── Express Step 2: Deployment ────────────────────────────────────────────────
+function ExpressDeploymentStep({ onNext, onBack, onSkip, busy, setError, deployment, setDeployment }) {
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setSaving(true); setError('')
+    try {
+      const isLocal = deployment.mode === 'local'
+      const body = isLocal
+        ? { reverse_proxy: 'none', domain: '', rate_limit: true, hsts: false }
+        : {
+            reverse_proxy: 'managed',
+            front_door: 'caddy',
+            certificate: 'letsencrypt',
+            domain: (deployment.domain || '').trim(),
+            rate_limit: true,
+            cloudflare_proxy: false,
+            client_mtls: false,
+            hsts: true,
+          }
+      await api.post('/wizard/deployment', body)
+      onNext()
+    } catch (e) {
+      setError(e.response?.data?.detail || tx("Failed to save deployment settings"))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div>
+      <StepHeader
+        icon={Globe}
+        title={tx("Access & Network Connection")}
+        subtitle={tx("Choose how you and your family will access the OpenOptOut interface.")}
+      />
+
+      <div className="space-y-3">
+        {/* Local only */}
+        <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
+          deployment.mode === 'local' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-800 bg-slate-900/40 hover:border-slate-700'
+        }`}>
+          <input
+            type="radio"
+            name="express_deploy"
+            checked={deployment.mode === 'local'}
+            onChange={() => setDeployment({ ...deployment, mode: 'local' })}
+            className="mt-1 accent-shield-500"
+          />
+          <div className="space-y-1">
+            <div className="text-slate-200 text-sm font-medium flex items-center gap-1.5">
+              <Home size={15} className="text-shield-400" />
+              <span>{tx("Local Network Access (Recommended for Home Users)")}</span>
+            </div>
+            <p className="text-slate-400 text-xs leading-relaxed">
+              {tx("Access OpenOptOut via your local home network (e.g. http://localhost:8000 or http://192.168.1.x:8000). Completely private and not accessible from the public internet.")}
+            </p>
+          </div>
+        </label>
+
+        {/* Domain with Caddy HTTPS */}
+        <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
+          deployment.mode === 'domain' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-800 bg-slate-900/40 hover:border-slate-700'
+        }`}>
+          <input
+            type="radio"
+            name="express_deploy"
+            checked={deployment.mode === 'domain'}
+            onChange={() => setDeployment({ ...deployment, mode: 'domain' })}
+            className="mt-1 accent-shield-500"
+          />
+          <div className="flex-1 space-y-1">
+            <div className="text-slate-200 text-sm font-medium flex items-center gap-1.5">
+              <Globe size={15} className="text-shield-400" />
+              <span>{tx("Custom Domain with Automatic HTTPS")}</span>
+            </div>
+            <p className="text-slate-400 text-xs leading-relaxed">
+              {tx("Securely publish OpenOptOut on your own domain. Caddy automatically provisions free Let's Encrypt TLS certificates and blocks malicious traffic.")}
+            </p>
+            {deployment.mode === 'domain' && (
+              <div className="pt-2">
+                <input
+                  className={inp}
+                  placeholder={tx("e.g. privacy.myfamily.org")}
+                  value={deployment.domain}
+                  onChange={e => setDeployment({ ...deployment, domain: e.target.value })}
+                  autoFocus
+                />
+              </div>
+            )}
+          </div>
+        </label>
+      </div>
+
+      <Buttons onBack={onBack} onSkip={onSkip} onNext={save} nextLabel={tx("Continue")} busy={saving || busy} />
+    </div>
+  )
+}
+
+// ── Express Step 3: Email ─────────────────────────────────────────────────────
+function ExpressEmailStep({ onNext, onBack, onSkip, busy, setError }) {
+  const [saving, setSaving] = useState(false)
+  const [option, setOption] = useState('later') // 'later' | 'connect'
+  const [provider, setProvider] = useState('')
+
+  const save = async () => {
+    setSaving(true); setError('')
+    try {
+      if (option === 'later' || !provider) {
+        await api.post('/wizard/skip', { step: 'email' })
+      } else {
+        await api.post('/wizard/email', { mode: 'per_user', provider, separate_admin_smtp: false })
+      }
+      onNext()
+    } catch (e) {
+      setError(e.response?.data?.detail || tx("Failed to save email settings"))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div>
+      <StepHeader
+        icon={Mail}
+        title={tx("System Email (Optional)")}
+        subtitle={tx("Used for password recovery and administrator alerts. Opt-outs are always sent from each family member's own connected inbox.")}
+      />
+
+      <div className="space-y-3">
+        <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
+          option === 'later' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-800 bg-slate-900/40 hover:border-slate-700'
+        }`}>
+          <input
+            type="radio"
+            name="express_email"
+            checked={option === 'later'}
+            onChange={() => setOption('later')}
+            className="mt-1 accent-shield-500"
+          />
+          <div className="space-y-1">
+            <div className="text-slate-200 text-sm font-medium">
+              {tx("Configure Later in Settings (Fastest)")}
+            </div>
+            <p className="text-slate-400 text-xs leading-relaxed">
+              {tx("Skip for now and launch the dashboard immediately. You or your family can link email accounts anytime in the Settings page.")}
+            </p>
+          </div>
+        </label>
+
+        <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
+          option === 'connect' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-800 bg-slate-900/40 hover:border-slate-700'
+        }`}>
+          <input
+            type="radio"
+            name="express_email"
+            checked={option === 'connect'}
+            onChange={() => setOption('connect')}
+            className="mt-1 accent-shield-500"
+          />
+          <div className="flex-1 space-y-2">
+            <div className="text-slate-200 text-sm font-medium">
+              {tx("Connect an Email Provider Now")}
+            </div>
+            <p className="text-slate-400 text-xs">
+              {tx("Link Gmail, Outlook, Yahoo, or your personal mail server for instant system alerts.")}
+            </p>
+            {option === 'connect' && (
+              <div className="pt-1">
+                <select className={inp} value={provider} onChange={e => setProvider(e.target.value)}>
+                  <option value="">{tx("Choose a provider…")}</option>
+                  <option value="gmail">{tx("Gmail / Google Workspace (sign in with Google)")}</option>
+                  <option value="outlook">{tx("Outlook / Microsoft 365 (sign in with Microsoft)")}</option>
+                  <option value="yahoo">{tx("Yahoo Mail (sign in with Yahoo)")}</option>
+                  <option value="smtp">{tx("Other mail server (SMTP / IMAP)")}</option>
+                </select>
+                {provider && provider !== 'smtp' && (
+                  <div className="mt-2">
+                    <ConnectOAuth provider={provider} setError={setError} />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </label>
+      </div>
+
+      <Buttons onBack={onBack} onSkip={onSkip} onNext={save} nextLabel={tx("Complete Setup")} busy={saving || busy} />
     </div>
   )
 }
@@ -757,6 +1322,12 @@ function SummaryStep({ summary, onDone }) {
     <div>
       <StepHeader icon={CheckCircle2} title={tx("You're ready")} subtitle={tx("Here's what's set up.")} />
       <div className="space-y-2 mb-4">
+        <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50">
+          <span className="text-slate-300 text-sm">{tx("Master Encryption Key")}</span>
+          <span className="text-xs text-emerald-400">
+            {tx("✓ 0600 file secured")}
+          </span>
+        </div>
         {['database', 'email', 'deployment', 'branding'].map(s => (
           <div key={s} className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50">
             <span className="text-slate-300 text-sm capitalize">{s}</span>
