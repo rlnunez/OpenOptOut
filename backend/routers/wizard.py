@@ -620,9 +620,11 @@ def test_ai_connection(body: AIStep, user: User = Depends(get_current_user)):
             }
             return ai.test_connection(test_cfg, f"{ai.LOCAL}{local_id}")
     except ai.AIError as e:
-        return {"ok": False, "message": str(e)}
+        logger.warning("Wizard AI connection test failed: %s", e)
+        return {"ok": False, "message": "Connection test failed. Check the endpoint URL and API key."}
     except Exception as e:
-        return {"ok": False, "message": f"Connection test failed: {e}"}
+        logger.warning("Wizard AI connection test encountered an unexpected error: %s", e)
+        return {"ok": False, "message": "Connection test failed. Please verify provider settings and credentials."}
 
 
 # ── Skip a step / finish ──────────────────────────────────────────────────────
