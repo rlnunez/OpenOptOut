@@ -8142,7 +8142,8 @@ def t_sso_login_works():
 
 
 @test(2, "auth.passwordless_local_account_restrictions",
-      "Passwordless local endpoints reject external IdP accounts and permit local accounts only.")
+      "Passwordless local endpoints only ever act on local accounts; an external IdP account gets the same "
+      "answer as an unknown email, never a distinguishable error that would leak its existence or provider.")
 def t_auth_passwordless_local_account_restrictions():
     from types import SimpleNamespace as NS
     try:
@@ -8180,23 +8181,36 @@ def t_auth_passwordless_local_account_restrictions():
     auth_router.load_settings = fake_settings
     try:
 
-        # Request options for external account should be rejected
+        # Passwordless options for an external (SSO/LDAP) account must NOT be
+        # distinguishable from an unknown email — no error, no keys, no uid.
+        # (A distinguishable 400 here would be an account-enumeration oracle:
+        # anyone who knows or guesses an address could learn it's an SSO/LDAP
+        # account on this server.)
         req_ext = auth_router.PasswordlessOptionsIn(email="ldap@library.org")
-        try:
-            auth_router.get_passwordless_options(req_ext, db=s)
-            assert False, "External account should be rejected from local passwordless auth"
-        except HTTPException as exc:
-            assert exc.status_code == 400
-            assert "only available for local accounts" in exc.detail.lower()
+        res_ext = auth_router.get_passwordless_options(req_ext, db=s)
+        req_unknown = auth_router.PasswordlessOptionsIn(email="nobody@library.org")
+        res_unknown = auth_router.get_passwordless_options(req_unknown, db=s)
+        assert res_ext["options"]["allowCredentials"] == res_unknown["options"]["allowCredentials"] == []
+        import json as _json
+        assert _json.loads(settings_store.decrypt_password(res_ext["ticket"]))["uid"] is None
+        assert _json.loads(settings_store.decrypt_password(res_unknown["ticket"]))["uid"] is None
 
-        # Magic link for external account should be rejected
-        magic_ext = auth_router.MagicLinkRequestIn(email="ldap@library.org")
+        # Magic link for an external account is the same: no code emailed,
+        # same generic response as an unknown email — never a distinguishable
+        # error that would leak account existence or provider.
+        system_mail = _imp("core.system_mail")
+        sent_ext = []
+        orig_send_ext = system_mail.send
+        system_mail.send = lambda to, subject, body: sent_ext.append((to, body)) or True
         try:
-            auth_router.request_magic_link(magic_ext, db=s)
-            assert False, "External account should be rejected from magic link auth"
-        except HTTPException as exc:
-            assert exc.status_code == 400
-            assert "only available for local accounts" in exc.detail.lower()
+            magic_ext = auth_router.MagicLinkRequestIn(email="ldap@library.org")
+            res_ext2 = auth_router.request_magic_link(magic_ext, db=s)
+            assert len(sent_ext) == 0, "no code should be emailed for an SSO/LDAP account"
+            magic_unknown = auth_router.MagicLinkRequestIn(email="nobody-else@library.org")
+            res_unknown2 = auth_router.request_magic_link(magic_unknown, db=s)
+            assert res_ext2["message"] == res_unknown2["message"]
+        finally:
+            system_mail.send = orig_send_ext
 
         # Magic link for local account: the code is emailed, never returned
         system_mail = _imp("core.system_mail")

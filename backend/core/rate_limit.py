@@ -119,3 +119,32 @@ def limit(name: str, per_minute: int):
 
     dependency.rate_limit = (name, per_minute)     # lets tests audit which routes are limited
     return dependency
+
+
+def limit_value(name: str, value: str, capacity: int, per_seconds: float = 60.0) -> None:
+    """Rate-limit by an arbitrary value instead of client IP. Call this
+    directly from inside a route body (not as a FastAPI dependency) to cap a
+    sensitive action against one target — e.g. one email address, for a
+    magic-link/sign-in-code request — across however many source IPs an
+    attacker rotates through, in addition to the IP-keyed `limit()`
+    dependency already on the route (that one protects the server from one
+    IP; this one protects one account from the whole internet). Raises the
+    same 429 + Retry-After as `limit()`. Shares the same bucket store, keyed
+    so it never collides with an IP-keyed bucket of the same `name`."""
+    capacity = float(capacity)
+    rate = capacity / per_seconds
+    refill = capacity / rate
+    now = _now()
+    bucket_key = (f"value:{name}", value)
+    with _lock:
+        _prune(now)
+        tokens, last, _ = _buckets.pop(bucket_key, (capacity, now, 0))
+        tokens = min(capacity, tokens + (now - last) * rate)
+        allowed = tokens >= 1
+        if allowed:
+            tokens -= 1
+        _buckets[bucket_key] = [tokens, now, now + refill]
+    if not allowed:
+        wait = math.ceil((1 - tokens) / rate)
+        raise HTTPException(429, f"Too many requests. Try again in {wait} seconds.",
+                            headers={"Retry-After": str(wait)})

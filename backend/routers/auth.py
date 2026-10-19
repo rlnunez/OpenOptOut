@@ -81,7 +81,7 @@ class RegisterRequest(LimitedModel):
     email_code: Optional[str] = None
     address_token: Optional[str] = None
     preferred_language: Optional[str] = "en"
-    accessibility_settings: Optional[Dict[str, Any]] = None
+    accessibility_settings: Optional[Dict[str, Any]] = Field(None, max_length=100)
     set_system_default_language: Optional[bool] = False
 
     _validate_password = field_validator("password")(validate_password_length)
@@ -1341,15 +1341,17 @@ def get_passwordless_options(req: PasswordlessOptionsIn, request: Request = None
     user_id = None
     if req.email:
         user = db.query(User).filter(User.email == req.email.strip().lower()).first()
-        if user:
-            if not _is_local_user(user):
-                raise HTTPException(400, "Passwordless authentication is only available for local accounts.")
-            if user.webauthn_credentials:
-                try:
-                    keys = json.loads(user.webauthn_credentials)
-                    user_id = user.id
-                except Exception:
-                    keys = []
+        # Whether this email exists, belongs to a local account, or has a
+        # passkey registered is never distinguishable from the response: an
+        # unknown email, an SSO/LDAP account, and a local account with no
+        # passkey all fall through to the same empty-keys shape below, so
+        # none of those cases becomes an account-enumeration oracle.
+        if user and _is_local_user(user) and user.webauthn_credentials:
+            try:
+                keys = json.loads(user.webauthn_credentials)
+                user_id = user.id
+            except Exception:
+                keys = []
 
     rp_id = request.url.hostname if request else None
     origin = f"{request.url.scheme}://{request.url.netloc}" if request else None
@@ -1457,16 +1459,25 @@ def request_magic_link(req: MagicLinkRequestIn, request: Request = None, db: Ses
         raise HTTPException(400, "Email code sign-in is disabled by security policy.")
 
     email_clean = req.email.strip().lower()
+    # The route's `limit("signin", 30)` dependency caps requests per source
+    # IP; it does nothing to stop one target address being flooded with
+    # sign-in codes from many IPs. Cap per-address too — same 429 shape.
+    rate_limit.limit_value("magic-link", email_clean, capacity=5, per_seconds=300)
     user = db.query(User).filter(func.lower(User.email) == email_clean).first()
-    if user and not _is_local_user(user):
-        raise HTTPException(400, "Email code sign-in is only available for local accounts.")
+    # An SSO/LDAP account is treated the same as "no local account": no code
+    # is sent, and the response below is identical either way. Rejecting it
+    # with its own distinguishable error would let anyone who knows or
+    # guesses an address learn whether it's an SSO/LDAP account on this
+    # server — an enumeration oracle, for no real benefit (the person at
+    # that address still can't sign in with a code they were never sent).
+    mail_eligible = bool(user) and _is_local_user(user)
 
     code = f"{secrets.randbelow(900000) + 100000}"
     code_hash = hashlib.sha256(code.encode()).hexdigest()
     payload = {
         "email": email_clean,
         "code_hash": code_hash,
-        "uid": user.id if user else None,
+        "uid": user.id if mail_eligible else None,
         "exp": int(time.time()) + 600,
         "type": "magic_code",
     }
@@ -1475,7 +1486,7 @@ def request_magic_link(req: MagicLinkRequestIn, request: Request = None, db: Ses
     # The code is only ever emailed. The answer is the same whether or not the
     # account exists or the email went out, so it can't be used to find accounts
     # or to sign in as someone else.
-    if user:
+    if mail_eligible:
         from ..core import system_mail
         system_mail.send(
             user.email,
