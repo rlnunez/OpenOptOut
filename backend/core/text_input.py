@@ -68,14 +68,29 @@ def _clean(value: str) -> str:
     return " ".join(value.split())           # collapse runs of spaces, trim ends
 
 
-def clean_name(value: Optional[str], *, required: bool = True,
-               label: str = "Name") -> Optional[str]:
-    """Validate a name a person typed. For use as a pydantic field_validator:
-    a ValueError becomes a clean 422 with this plain-English message.
+def clean_text(value: Optional[str], *, required: bool = True, label: str = "Value",
+               max_chars: Optional[int] = None) -> Optional[str]:
+    """Validate free text typed into the app, or taken from an external
+    sign-in/library system, that isn't necessarily a person's name — an
+    address, phone number, or email address identifying a family member.
+    Same cleaning as clean_name (control characters, bidi overrides, lone
+    surrogates), for use as a pydantic field_validator or called directly.
 
-    required=True  — the cleaned name must not be empty.
+    This text is stored and later copied, unescaped, into opt-out emails and
+    letters sent to data brokers (see core.optout_engine.render_template) —
+    an embedded \\r or \\n here can't forge another mail header (the stdlib
+    email package itself rejects that at send time), but it can silently
+    break that one send, or throw off anything else that renders the value
+    as a single line (logs, CSV exports). Stripped here instead, so a typo
+    or a copy-paste artifact fails as a clear form error, not as a mystery
+    downstream.
+
+    required=True  — the cleaned text must not be empty.
     required=False — None and "" pass through unchanged (an optional field,
-                     or "" meaning "clear this value")."""
+                     or "" meaning "clear this value").
+    max_chars=None — no length cap of its own; callers that already cap
+                     length elsewhere (e.g. LimitedModel's TEXT_MAX) can
+                     leave this unset."""
     if value is None:
         return None
     if not isinstance(value, str):
@@ -85,12 +100,23 @@ def clean_name(value: Optional[str], *, required: bool = True,
         if required:
             raise ValueError(f"Please enter a {label.lower()}.")
         return ""
-    if len(cleaned) > MAX_NAME_CHARS:
+    if max_chars is not None and len(cleaned) > max_chars:
         raise ValueError(
             f"{label} is too long ({len(cleaned)} characters). "
-            f"Please keep it to {MAX_NAME_CHARS} characters or fewer."
+            f"Please keep it to {max_chars} characters or fewer."
         )
     return cleaned
+
+
+def clean_name(value: Optional[str], *, required: bool = True,
+               label: str = "Name") -> Optional[str]:
+    """Validate a name a person typed. For use as a pydantic field_validator:
+    a ValueError becomes a clean 422 with this plain-English message.
+
+    required=True  — the cleaned name must not be empty.
+    required=False — None and "" pass through unchanged (an optional field,
+                     or "" meaning "clear this value")."""
+    return clean_text(value, required=required, label=label, max_chars=MAX_NAME_CHARS)
 
 
 def clean_name_lenient(value: Optional[str], fallback: str = "") -> str:
@@ -103,4 +129,15 @@ def clean_name_lenient(value: Optional[str], fallback: str = "") -> str:
         cleaned = cleaned[:MAX_NAME_CHARS].rstrip()
     if not cleaned and fallback:
         cleaned = _clean(fallback)[:MAX_NAME_CHARS].rstrip()
+    return cleaned
+
+
+def clean_text_lenient(value: Optional[str], max_chars: int = 4000) -> str:
+    """Clean an address, phone number, or email address that came from
+    somewhere the person can't easily fix — a sign-in provider's demographic
+    attributes, or a library ILS's patron record. Never raises: an over-long
+    value is shortened instead of blocking the sign-in or import."""
+    cleaned = _clean(value) if isinstance(value, str) else ""
+    if len(cleaned) > max_chars:
+        cleaned = cleaned[:max_chars].rstrip()
     return cleaned

@@ -7,13 +7,13 @@ Super admins bypass all checks. Parents only access explicitly granted profiles.
 import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 from ..core.limits import LimitedModel
 from ..models.database import get_db, FamilyMember, Identity, User
-from ..core.text_input import clean_name
+from ..core.text_input import clean_name, clean_text
 from ..core.auth import (
     get_current_user, get_accessible_member_ids,
     assert_can_view, assert_can_edit
@@ -39,6 +39,13 @@ class IdentityOut(BaseModel):
         from_attributes = True
 
 
+# Labels for the error message when a saved detail's value is empty or
+# contains only characters that get cleaned away (control characters, bidi
+# overrides) — see core.text_input.clean_text.
+_IDENTITY_LABELS = {"name": "Name", "email": "Email address", "phone": "Phone number",
+                    "address": "Address"}
+
+
 class IdentityCreate(LimitedModel):
     kind: str
     value: str
@@ -46,12 +53,20 @@ class IdentityCreate(LimitedModel):
     is_deed: bool = False
     is_mortgage: bool = False
 
+    @model_validator(mode="after")
+    def _clean_value(self):
+        self.value = clean_text(self.value, label=_IDENTITY_LABELS.get(self.kind, "Value"))
+        return self
+
 
 class IdentityUpdate(LimitedModel):
     value: Optional[str] = None
     is_primary: Optional[bool] = None
     is_deed: Optional[bool] = None
     is_mortgage: Optional[bool] = None
+
+    _validate_value = field_validator("value")(
+        lambda v: clean_text(v, required=False, label="Value"))
 
 
 class MemberOut(BaseModel):
@@ -427,7 +442,7 @@ def decide_ils_import(
         db.add(member)
         db.flush()
 
-    from ..core.text_input import clean_name_lenient
+    from ..core.text_input import clean_name_lenient, clean_text
     val = clean_name_lenient(str(data.get("name") or ""))
     if val:
         db.add(Identity(member_id=member.id, kind="name", value=val, is_primary=True))
@@ -435,17 +450,22 @@ def decide_ils_import(
         if not current_user.full_name or current_user.full_name.startswith("Patron "):
             current_user.full_name = val
 
-    if data.get("email"):
-        db.add(Identity(member_id=member.id, kind="email", value=str(data["email"]).strip().lower(), is_primary=True))
+    email_val = clean_text(str(data["email"]).strip().lower(), required=False, label="Email address") \
+        if data.get("email") else ""
+    if email_val:
+        db.add(Identity(member_id=member.id, kind="email", value=email_val, is_primary=True))
 
-    if data.get("phone"):
-        db.add(Identity(member_id=member.id, kind="phone", value=str(data["phone"]).strip(), is_primary=True))
+    phone_val = clean_text(str(data["phone"]).strip(), required=False, label="Phone number") \
+        if data.get("phone") else ""
+    if phone_val:
+        db.add(Identity(member_id=member.id, kind="phone", value=phone_val, is_primary=True))
 
     addr_str = data.get("raw_address") or data.get("address") or ""
     if not addr_str and (data.get("city") or data.get("state")):
         addr_str = ", ".join(filter(None, [data.get("address"), data.get("city"), data.get("state")]))
-    if addr_str:
-        db.add(Identity(member_id=member.id, kind="address", value=str(addr_str).strip(), is_primary=True))
+    addr_val = clean_text(str(addr_str).strip(), required=False, label="Address") if addr_str else ""
+    if addr_val:
+        db.add(Identity(member_id=member.id, kind="address", value=addr_val, is_primary=True))
 
     if data.get("birthdate"):
         from ..core.age import parse_dob, age_on
