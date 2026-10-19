@@ -180,11 +180,11 @@ def main():
         reached = False
         for i in range(25):
             # 3a. MFA setup screen in first-run (optional/skippable for super admin)
-            mfa_btn = (visible(page, "button", re.compile(r"^\s*Skip\s+for\s+now\s*$", re.I), timeout=1000)
+            mfa_btn = (visible(page, "button", re.compile(r"Skip\s+for\s+now", re.I), timeout=1000)
                        or visible(page, "button", re.compile(r"^\s*Skip\s*$", re.I), timeout=500))
             body_sample = ""
             try:
-                body_sample = page.inner_text("body")[:800]
+                body_sample = page.inner_text("body")[:2000]
             except Exception:
                 pass
             if mfa_btn and any(w in body_sample for w in ("MFA", "Super Admin", "compliance window", "Protect Your")):
@@ -195,29 +195,37 @@ def main():
                 continue
 
             # 3b. Terms gate (accept limits, notice, operator terms)
-            try:
-                cb = page.locator("input[type='checkbox']")
-                if cb.count() > 0 and cb.first.is_visible() and not cb.first.is_checked():
-                    cb.first.check()
-                    time.sleep(0.3)
-            except Exception:
-                pass
+            is_terms = (page.locator("#terms-title").count() > 0 and page.locator("#terms-title").first.is_visible()) or \
+                       any(w in body_sample for w in ("Before you start: what OpenOptOut", "terms-title", "guarantee removal", "How OpenOptOut works for you", "Terms for this server"))
+            if is_terms:
+                try:
+                    cb = page.locator("section[aria-labelledby='terms-title'] input[type='checkbox'], input[type='checkbox']")
+                    if cb.count() > 0 and cb.first.is_visible() and not cb.first.is_checked():
+                        cb.first.check(force=True)
+                        time.sleep(0.3)
+                    if cb.count() > 0 and cb.first.is_visible() and not cb.first.is_checked():
+                        cb_lbl = page.locator("section[aria-labelledby='terms-title'] label, label:has(input[type='checkbox'])")
+                        if cb_lbl.count() > 0:
+                            cb_lbl.first.click(force=True)
+                            time.sleep(0.3)
+                except Exception:
+                    pass
 
-            terms_btn = (visible(page, "button", re.compile(r"^\s*Continue\s*$", re.I), timeout=1000)
-                         or visible(page, "button", re.compile(r"^\s*I understand\s*$", re.I), timeout=1000)
-                         or visible(page, "button", re.compile(r"^\s*Accept\s*$", re.I), timeout=1000))
-            if terms_btn and terms_btn.is_enabled() and any(w in body_sample for w in ("OpenOptOut", "terms", "terms-title", "Before you start", "responsible", "guarantee removal")):
-                snap(page, f"terms-gate-{i + 1}")
-                terms_btn.click()
-                settle(page, 5000)
-                time.sleep(0.5)
-                continue
+                terms_btn = (visible(page, "button", re.compile(r"^\s*Continue\s*$", re.I), timeout=1500)
+                             or visible(page, "button", re.compile(r"^\s*I understand\s*$", re.I), timeout=1500)
+                             or visible(page, "button", re.compile(r"^\s*Accept\s*$", re.I), timeout=1500))
+                if terms_btn and terms_btn.is_enabled():
+                    snap(page, f"terms-gate-{i + 1}")
+                    terms_btn.click()
+                    settle(page, 5000)
+                    time.sleep(0.5)
+                    continue
 
             # 3c. Secret key generation banner / modal (if prompted during setup wizard)
             key_banner_btn = (visible(page, "button", re.compile(r"^\s*Generate & Save Master Key\s*$", re.I), timeout=500)
                               or visible(page, "button", re.compile(r"^\s*Save Master Key to File\s*$", re.I), timeout=500)
                               or visible(page, "button", re.compile(r"^\s*Use This Key\s*$", re.I), timeout=500))
-            if key_banner_btn or any(w in body_sample for w in ("master secret key", "Critical Security Action")):
+            if key_banner_btn or any(w in body_sample for w in ("Critical Security Action",)):
                 snap(page, f"secret-key-{i + 1}")
                 if key_banner_btn and re.search(r"Generate & Save Master Key", key_banner_btn.inner_text(), re.I):
                     key_banner_btn.click()
@@ -265,7 +273,7 @@ def main():
                         or visible(page, "button", re.compile(r"^\s*Skip\s*$", re.I), timeout=1000)
                         or visible(page, "button", re.compile(r"^\s*Continue\s*$", re.I), timeout=500)
                         or visible(page, "button", re.compile(r"^\s*(Finish|Complete)\s*(Setup)?\s*$", re.I), timeout=500))
-            if skip_btn:
+            if skip_btn and skip_btn.is_enabled():
                 snap(page, f"wizard-{i + 1}")
                 skip_btn.click()
                 settle(page, 5000)
@@ -276,7 +284,7 @@ def main():
             if ("/login" not in page.url and
                 not visible(page, "button", re.compile(r"^\s*Create administrator account\s*$", re.I), timeout=200) and
                 not visible(page, "button", re.compile(r"^\s*Go to dashboard\s*$", re.I), timeout=200) and
-                not any(w in body_sample for w in ("Before you start: what OpenOptOut can", "Step 2: MFA Setup"))):
+                not any(w in body_sample for w in ("Before you start: what OpenOptOut can", "Step 2: MFA Setup", "System Setup Wizard"))):
                 reached = True
                 break
 

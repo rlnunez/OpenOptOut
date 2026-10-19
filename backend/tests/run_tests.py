@@ -9060,6 +9060,64 @@ def t_wizard_deployment():
     #   wrong deployment technology, or silently leave a deployment on plain HTTP.
 
 
+@test(2, "wizard.express_mode_and_master_key",
+      "The wizard mode selector switches between express and advanced, express setup applies "
+      "zero-touch defaults (SQLite, local/managed proxy), and master key status is securely readable.")
+def t_wizard_express_mode():
+    from types import SimpleNamespace as NS
+    try:
+        wiz = _imp("routers.wizard")
+        from fastapi import HTTPException
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    import copy
+    store = {}
+    orig_load, orig_save = wiz._load, wiz._save
+    wiz._load = lambda: copy.deepcopy(store)
+    def fake_save(data):
+        store.clear(); store.update(data)
+    wiz._save = fake_save
+    admin = NS(is_super_admin=True)
+
+    try:
+        # Default state is express mode
+        state = wiz.get_state(db=None, user=admin)
+        assert state["mode"] == "express"
+        assert "security" in state
+
+        # Switching to advanced mode persists
+        res = wiz.set_mode(wiz.WizardModeStep(mode="advanced"), user=admin)
+        assert res["ok"] is True and res["mode"] == "advanced"
+        assert store["wizard"]["mode"] == "advanced"
+
+        # Invalid mode is rejected
+        try:
+            wiz.set_mode(wiz.WizardModeStep(mode="invalid_mode"), user=admin)
+            raise AssertionError("invalid mode was accepted")
+        except HTTPException as e:
+            assert e.status_code == 400
+
+        # Skip security step works
+        wiz.skip_step(wiz.SkipStep(step="security"), db=None, user=admin)
+        assert store["wizard"]["steps"]["security"] == "skipped"
+
+        # Express setup applies safe home-user defaults
+        summary = wiz.apply_express_setup(wiz.ExpressSetupStep(domain="", local_only=True),
+                                          db=None, user=admin)
+        assert store["wizard"]["mode"] == "express"
+        assert store["database"]["kind"] == "sqlite"
+        assert store["deployment"]["reverse_proxy"] == "none"
+        assert store["wizard"]["completed"] is True
+        assert summary["completed"] is True
+
+        # Master key endpoint returns key and status
+        key_data = wiz.get_master_key(user=admin)
+        assert "key" in key_data and "status" in key_data
+    finally:
+        wiz._load, wiz._save = orig_load, orig_save
+
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  TIER 3 — plugin protocol (needs grpcio + compiled proto stubs)
