@@ -64,6 +64,21 @@ class Checker:
                 raw = r.read()
                 return r.status, _json(raw)
         except urllib.error.HTTPError as e:
+            if e.code == 401 and getattr(self, "creds", None) and not path.endswith("/token") and not path.endswith("/register"):
+                try:
+                    tok_req = urllib.request.Request(
+                        self.base + "/api/auth/token",
+                        data=urllib.parse.urlencode({"username": self.creds["email"], "password": self.creds["password"]}).encode(),
+                        method="POST",
+                        headers={"Content-Type": "application/x-www-form-urlencoded"},
+                    )
+                    with urllib.request.urlopen(tok_req, timeout=10) as r:
+                        tb = _json(r.read())
+                    if isinstance(tb, dict) and tb.get("access_token"):
+                        self.token = tb["access_token"]
+                        return self.call(method, path, body=body, form=form, timeout=timeout)
+                except Exception:
+                    pass
             return e.code, _json(e.read())
 
     def step(self, name, ok, note=""):
@@ -121,6 +136,7 @@ class Checker:
             self.step("Log in", False, "an account already exists but no credentials were saved")
             return None
 
+        self.creds = creds
         status, body = self.call("POST", "/api/auth/token",
                                  form={"username": creds["email"], "password": creds["password"]})
         if not self.step("Log in with the administrator account", status == 200,
@@ -142,6 +158,13 @@ class Checker:
         if data.get("needs_key"):
             key = secrets.token_hex(64)
             st, b = self.call("POST", "/api/settings/security/secret-key", {"key": key})
+            if st == 200 and isinstance(b, dict) and b.get("access_token"):
+                self.token = b["access_token"]
+            elif getattr(self, "creds", None):
+                st_tok, b_tok = self.call("POST", "/api/auth/token",
+                                          form={"username": self.creds["email"], "password": self.creds["password"]})
+                if st_tok == 200 and isinstance(b_tok, dict) and b_tok.get("access_token"):
+                    self.token = b_tok["access_token"]
             self.step("Master secret key: generated and saved", st == 200, f"HTTP {st} {short(b)}")
         else:
             self.step("Master secret key: verified present", True, f"length={data.get('active_key_length')}")

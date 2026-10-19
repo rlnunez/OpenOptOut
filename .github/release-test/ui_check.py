@@ -92,8 +92,11 @@ def main():
         path = os.path.join(shots, f"{shot_no[0]:02d}-{name}.png")
         try:
             page.screenshot(path=path, full_page=True)
-        except Exception as e:  # noqa: BLE001
-            rec.warn("screenshot", f"{name}: {e}")
+        except Exception:
+            try:
+                page.screenshot(path=path, full_page=False)
+            except Exception as e:  # noqa: BLE001
+                rec.warn("screenshot", f"{name}: {e}")
         return path
 
     def settle(page, ms=8000):
