@@ -170,10 +170,30 @@ def main():
 
         # ── 2. create the administrator through the form ─────────────────────
         rec.screen = "create administrator"
-        page.get_by_placeholder("Your name").fill("Release Test Admin")
-        page.get_by_placeholder("Admin email").fill(email)
-        page.get_by_placeholder("Password (min 8 characters)").fill(password)
-        page.get_by_placeholder("Confirm password").fill(password)
+        name_input = page.get_by_placeholder("Your name")
+        if name_input.count() > 0:
+            name_input.first.fill("Release Test Admin")
+        else:
+            page.locator("input:not([type='password']):not([type='email'])").first.fill("Release Test Admin")
+
+        email_input = page.get_by_placeholder("Admin email")
+        if email_input.count() > 0:
+            email_input.first.fill(email)
+        else:
+            page.locator("input[type='email']").first.fill(email)
+
+        pw_input = page.get_by_placeholder(re.compile(r"Password\s*\(min\s*\d+\s*characters\)", re.I))
+        if pw_input.count() > 0:
+            pw_input.first.fill(password)
+        else:
+            page.locator("input[type='password']").first.fill(password)
+
+        conf_input = page.get_by_placeholder(re.compile(r"Confirm password", re.I))
+        if conf_input.count() > 0:
+            conf_input.first.fill(password)
+        else:
+            page.locator("input[type='password']").nth(1).fill(password)
+
         create_btn.click()
         settle(page)
         time.sleep(1)
