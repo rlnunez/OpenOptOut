@@ -94,10 +94,13 @@ docker compose exec api python -m core.encryption decrypt --inplace
 docker compose exec api python -m core.encryption encrypt --inplace
 ```
 
-### Layer 2: Field-Level Encryption (Fernet)
-Sensitive Personally Identifiable Information (PII) — including member name variants, email addresses, phone numbers, and physical addresses — can be encrypted with authenticated symmetric encryption (Fernet) before insertion into database columns.
-- Configured by setting `FIELD_ENCRYPTION_KEY` in `.env` (generate using `openssl rand -base64 32`).
+### Layer 2: Field-Level Encryption (NIST SP 800-38D AES-256-GCM & Fernet)
+Sensitive Personally Identifiable Information (PII) — including member name variants, email addresses, phone numbers, and physical addresses — is encrypted with authenticated symmetric encryption prior to writing to database columns:
+- **Primary Mode**: NIST SP 800-38D AES-256-GCM AEAD encryption with a 96-bit CSPRNG nonce and 128-bit authentication tag (`gcm1:...`).
+- **Backward Compatibility**: Dual-decryption engine seamlessly decrypts existing `gAAAAA...` Fernet tokens while writing new fields in AES-256-GCM.
+- **Key Derivation**: Keys are derived from `FIELD_ENCRYPTION_KEY` or `SECRET_KEY` using HKDF-SHA256 with domain separation (`openoptout:field-encryption-gcm:v1`).
 - Protects patron PII even if database read replicas, query logs, or unencrypted database dumps are exposed.
+- See the full [Security & Cryptographic Compliance Standards](../dev/compliance-standards.md) for architectural details.
 
 ### Managed PostgreSQL Encryption
 When using PostgreSQL on managed cloud infrastructure (e.g. AWS RDS, Google Cloud SQL, Azure Database for PostgreSQL), combine OpenOptOut field-level encryption with cloud provider volume encryption:

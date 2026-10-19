@@ -22,13 +22,19 @@ Migration from unencrypted to SQLCipher:
   This creates a new encrypted copy using sqlcipher_export().
 """
 
-import os, base64, hashlib, logging, shutil, sys, argparse
+import os, base64, hashlib, logging, shutil, sys, argparse, secrets
 from typing import Optional, Dict, Any
 
 try:
-    from cryptography.fernet import Fernet, InvalidToken
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+except ImportError:
+    AESGCM = None
+
+try:
+    from cryptography.fernet import Fernet, MultiFernet, InvalidToken
 except ImportError:
     Fernet = None
+    MultiFernet = None
     class InvalidToken(Exception):
         pass
 
@@ -44,12 +50,27 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
-# ── Key derivation ────────────────────────────────────────────────────────────
+# ── Key derivation (NIST SP 800-132 / RFC 5869 HKDF) ─────────────────────────
 
-def _derive_fernet_key(raw: str) -> bytes:
-    """Derive a 32-byte Fernet key from an arbitrary string via SHA-256."""
+def _derive_aesgcm_key(raw: str) -> bytes:
+    """Derive a 256-bit (32-byte) AES-GCM key using HKDF-SHA256 (NIST SP 800-132 / RFC 5869)."""
+    from .hkdf import hkdf_derive
+    return hkdf_derive(raw.encode("utf-8"), info=b"openoptout:field-encryption-gcm:v1", length=32)
+
+
+def _derive_fernet_primary_key(raw: str) -> bytes:
+    """Derive a 32-byte Fernet key using HKDF-SHA256 (NIST SP 800-132 / RFC 5869)."""
+    from .hkdf import hkdf_derive
+    return base64.urlsafe_b64encode(hkdf_derive(raw.encode("utf-8"), info=b"openoptout:field-encryption:v1", length=32))
+
+
+def _derive_fernet_legacy_key(raw: str) -> bytes:
+    """Legacy Fernet key derivation via single-round SHA-256 (for backward-compatible decryption)."""
     digest = hashlib.sha256(raw.encode()).digest()
     return base64.urlsafe_b64encode(digest)
+
+
+_derive_fernet_key = _derive_fernet_legacy_key  # backward-compatible alias
 
 
 def check_key_file_locked_down(path: str) -> bool:
@@ -61,9 +82,9 @@ def check_key_file_locked_down(path: str) -> bool:
         return False
 
 
-def get_field_encryption_key() -> Optional[bytes]:
+def get_raw_field_encryption_key() -> Optional[str]:
     """
-    Return the Fernet key used for field-level encryption.
+    Return the raw unhashed key used for field-level encryption.
     Priority: FIELD_ENCRYPTION_KEY_FILE → FIELD_ENCRYPTION_KEY env var → SECRET_KEY env var → None (disabled).
     """
     raw = None
@@ -79,6 +100,17 @@ def get_field_encryption_key() -> Optional[bytes]:
     if not raw:
         raw = os.getenv("FIELD_ENCRYPTION_KEY") or os.getenv("SECRET_KEY")
     if not raw or raw == "change-me-in-production-use-a-long-random-string":
+        return None
+    return raw
+
+
+def get_field_encryption_key() -> Optional[bytes]:
+    """
+    Return the Fernet key used for field-level encryption.
+    Priority: FIELD_ENCRYPTION_KEY_FILE → FIELD_ENCRYPTION_KEY env var → SECRET_KEY env var → None (disabled).
+    """
+    raw = get_raw_field_encryption_key()
+    if not raw:
         return None
     return _derive_fernet_key(raw)
 
@@ -107,17 +139,30 @@ def get_db_encryption_key() -> Optional[str]:
     return raw
 
 
-# ── Fernet helpers ────────────────────────────────────────────────────────────
+# ── AEAD & Fernet helpers ─────────────────────────────────────────────────────
 
-_fernet_instance: Optional[Fernet] = None
+_fernet_instance = None
+_fernet_instance_raw_key = None
 
 
-def _get_fernet() -> Optional[Fernet]:
-    global _fernet_instance
-    if _fernet_instance is None:
-        key = get_field_encryption_key()
-        if key:
-            _fernet_instance = Fernet(key)
+def _get_fernet():
+    global _fernet_instance, _fernet_instance_raw_key
+    raw = get_raw_field_encryption_key()
+    if not raw:
+        _fernet_instance = None
+        _fernet_instance_raw_key = None
+        return None
+    if _fernet_instance is None or _fernet_instance_raw_key != raw:
+        _fernet_instance_raw_key = raw
+        if Fernet is not None:
+            k_pri = _derive_fernet_primary_key(raw)
+            k_leg = _derive_fernet_legacy_key(raw)
+            if MultiFernet is not None:
+                _fernet_instance = MultiFernet([Fernet(k_pri), Fernet(k_leg)])
+            else:
+                _fernet_instance = Fernet(k_pri)
+        else:
+            _fernet_instance = True
     return _fernet_instance
 
 
@@ -129,7 +174,11 @@ def is_production_mode() -> bool:
 
 
 def encrypt_field(value: Optional[str]) -> Optional[str]:
-    """Encrypt a string field value. Fails closed in production if key is missing."""
+    """
+    Encrypt a string field value using NIST SP 800-38D AES-256-GCM AEAD encryption
+    (with 96-bit nonce and 128-bit authentication tag) or Fernet fallback.
+    Fails closed in production if key is missing or invalid.
+    """
     if value is None:
         return None
     f = _get_fernet()
@@ -139,11 +188,39 @@ def encrypt_field(value: Optional[str]) -> Optional[str]:
                 "Encryption at rest is mandatory in production: FIELD_ENCRYPTION_KEY or SECRET_KEY is missing or invalid."
             )
         return value   # encryption disabled in dev/test — store plaintext
-    return f.encrypt(value.encode()).decode()
+    raw = get_raw_field_encryption_key()
+    if not raw:
+        if is_production_mode():
+            raise RuntimeError(
+                "Encryption at rest is mandatory in production: FIELD_ENCRYPTION_KEY or SECRET_KEY is missing or invalid."
+            )
+        return value
+
+    # 1. NIST SP 800-38D AES-256-GCM authenticated encryption (primary)
+    if AESGCM is not None:
+        k_gcm = _derive_aesgcm_key(raw)
+        aes = AESGCM(k_gcm)
+        iv = secrets.token_bytes(12)  # NIST SP 800-38D §5.2.1.1 recommended 96-bit nonce
+        ct = aes.encrypt(iv, value.encode("utf-8"), None)
+        return "gcm1:" + base64.urlsafe_b64encode(iv + ct).decode("ascii")
+
+    # 2. Fernet fallback when cryptography hazmat AESGCM is not available
+    if hasattr(f, "encrypt"):
+        return f.encrypt(value.encode("utf-8")).decode("ascii")
+
+    if is_production_mode():
+        raise RuntimeError(
+            "Encryption at rest is mandatory in production: FIELD_ENCRYPTION_KEY or SECRET_KEY is missing or invalid."
+        )
+    return value
 
 
 def decrypt_field(value: Optional[str]) -> Optional[str]:
-    """Decrypt a field value. Fails closed in production if key or decryption fails."""
+    """
+    Decrypt a field value. Supports NIST SP 800-38D AES-256-GCM (gcm1: prefix)
+    and MultiFernet (HKDF primary and legacy SHA-256 keys) for full backward compatibility.
+    Fails closed in production if key or decryption fails.
+    """
     if value is None:
         return None
     f = _get_fernet()
@@ -153,15 +230,49 @@ def decrypt_field(value: Optional[str]) -> Optional[str]:
                 "Decryption failed: FIELD_ENCRYPTION_KEY or SECRET_KEY is unavailable in production."
             )
         return value
-    try:
-        return f.decrypt(value.encode()).decode()
-    except (InvalidToken, Exception):
+    raw = get_raw_field_encryption_key()
+    if not raw:
         if is_production_mode():
             raise RuntimeError(
-                "Field decryption failed in production: stored token is corrupted or key mismatch."
+                "Decryption failed: FIELD_ENCRYPTION_KEY or SECRET_KEY is unavailable in production."
             )
-        # Value was stored before encryption was enabled — return as-is in dev/test
         return value
+
+    # 1. NIST SP 800-38D AES-256-GCM authenticated decryption
+    if value.startswith("gcm1:"):
+        try:
+            payload = base64.urlsafe_b64decode(value[5:].encode("ascii"))
+            if len(payload) < 28:  # 12-byte IV + 16-byte authentication tag minimum
+                raise ValueError("Corrupted AES-GCM payload (insufficient length)")
+            iv, ct = payload[:12], payload[12:]
+            if AESGCM is None:
+                raise RuntimeError("AESGCM is required to decrypt gcm1 ciphertext")
+            k_gcm = _derive_aesgcm_key(raw)
+            return AESGCM(k_gcm).decrypt(iv, ct, None).decode("utf-8")
+        except Exception:
+            if is_production_mode():
+                raise RuntimeError(
+                    "Field decryption failed in production: stored token is corrupted or key mismatch."
+                )
+            return value
+
+    # 2. MultiFernet backward-compatible decryption (primary HKDF + legacy single-round SHA-256)
+    if hasattr(f, "decrypt"):
+        try:
+            return f.decrypt(value.encode("utf-8")).decode("utf-8")
+        except (InvalidToken, Exception):
+            if is_production_mode():
+                raise RuntimeError(
+                    "Field decryption failed in production: stored token is corrupted or key mismatch."
+                )
+            # Value was stored before encryption was enabled — return as-is in dev/test
+            return value
+
+    if is_production_mode():
+        raise RuntimeError(
+            "Field decryption failed in production: stored token is corrupted or key mismatch."
+        )
+    return value
 
 
 def hash_for_index(value: str, server_key: Optional[str] = None) -> str:

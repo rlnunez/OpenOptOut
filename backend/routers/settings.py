@@ -23,14 +23,22 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 # ── Encryption ────────────────────────────────────────────────────────────────
 
-def _fernet() -> Fernet:
-    raw    = get_secret_key()
-    # Repeat the key until it fills 32 bytes. Identical to the old
-    # `(raw * 4)[:32]` for keys of 8+ chars (existing data still decrypts),
-    # but no longer crashes on a shorter SECRET_KEY.
+def _fernet():
+    raw = get_secret_key()
+    from ..core.hkdf import hkdf_derive
+    hkdf_key = base64.urlsafe_b64encode(hkdf_derive(raw.encode(), info=b"openoptout:settings:v1"))
+    fernet_primary = Fernet(hkdf_key)
+
+    # Legacy key: padded raw secret (retained for backward-compatible decryption of existing secrets)
     _kb = raw.encode() or b"\0"
     padded = (_kb * (32 // len(_kb) + 1))[:32]
-    return Fernet(base64.urlsafe_b64encode(padded))
+    fernet_legacy = Fernet(base64.urlsafe_b64encode(padded))
+
+    try:
+        from cryptography.fernet import MultiFernet
+        return MultiFernet([fernet_primary, fernet_legacy])
+    except ImportError:
+        return fernet_primary
 
 def _encrypt(v: str) -> str:
     return _fernet().encrypt(v.encode()).decode()

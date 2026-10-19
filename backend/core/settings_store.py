@@ -354,9 +354,17 @@ def get_secret_key_status() -> dict:
 def _fernet_for_key(raw: str):
     if Fernet is None:
         raise RuntimeError("cryptography package is required for password encryption")
+    from .hkdf import hkdf_derive
+    hkdf_key = base64.urlsafe_b64encode(hkdf_derive(raw.encode(), info=b"openoptout:settings:v1"))
+    fernet_primary = Fernet(hkdf_key)
+
     _kb = raw.encode() or b"\0"
     padded = (_kb * (32 // len(_kb) + 1))[:32]
-    return Fernet(base64.urlsafe_b64encode(padded))
+    fernet_legacy = Fernet(base64.urlsafe_b64encode(padded))
+
+    if MultiFernet is not None:
+        return MultiFernet([fernet_primary, fernet_legacy])
+    return fernet_primary
 
 
 def save_secret_key_file(new_key: str) -> dict:

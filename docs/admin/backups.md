@@ -11,7 +11,7 @@
 
 ## How it's protected
 
-Everything is encrypted with **AES-256-GCM** before it leaves the server. The key comes from your **backup passphrase**, stretched with scrypt. The file is written in authenticated pieces, so a backup that was cut short, reordered or changed is refused.
+Everything is encrypted with **AES-256-GCM** (NIST SP 800-38D) before it leaves the server. The key comes from your **backup passphrase**, stretched with NIST SP 800-132 PBKDF2-HMAC-SHA256 (210,000 rounds with a 128-bit salt) or scrypt. The file is written in 4 MiB authenticated streaming frames with 96-bit nonces and authenticated additional data (AAD), so a backup that was cut short, reordered or changed is immediately refused. See [Security & Cryptographic Compliance Standards](../dev/compliance-standards.md) for full details.
 
 Nobody can read a backup without the passphrase, including whoever stores it. Keep the passphrase somewhere that isn't the server. If it's lost, the backups can't be restored.
 

@@ -51,6 +51,8 @@ log = logging.getLogger(__name__)
 MAGIC = b"OOBACKUP1\n"
 FRAME = 4 * 1024 * 1024
 SCRYPT = {"n": 2 ** 15, "r": 8, "p": 1}
+DEFAULT_KDF = "scrypt"
+PBKDF2_ITERATIONS = 210_000
 PREFIX = "openoptout-backup-"
 SUFFIX = ".oobackup"
 DEFAULTS = {"enabled": False, "schedule": "daily", "hour": 3, "keep": 14, "destinations": [],
@@ -63,22 +65,31 @@ def settings_of(cfg: dict) -> dict:
     return out
 
 
-# ── Encryption ────────────────────────────────────────────────────────────────
+# ── Encryption (NIST SP 800-38D AES-GCM + NIST SP 800-132 PBKDF2 / scrypt) ───
 
 def _key(passphrase: str, salt: bytes, kdf: dict) -> bytes:
-    return hashlib.scrypt(passphrase.encode("utf-8"), salt=salt, n=kdf["n"], r=kdf["r"], p=kdf["p"],
+    kdf_type = (kdf or {}).get("kdf", "scrypt")
+    if kdf_type in ("pbkdf2", "pbkdf2_sha256"):
+        iterations = (kdf or {}).get("iterations", PBKDF2_ITERATIONS)
+        return hashlib.pbkdf2_hmac("sha256", passphrase.encode("utf-8"), salt, iterations, dklen=32)
+    return hashlib.scrypt(passphrase.encode("utf-8"), salt=salt, n=kdf.get("n", SCRYPT["n"]), r=kdf.get("r", SCRYPT["r"]), p=kdf.get("p", SCRYPT["p"]),
                           maxmem=128 * 1024 * 1024, dklen=32)
 
 
-def encrypt_file(src: str, dst: str, passphrase: str) -> None:
+def encrypt_file(src: str, dst: str, passphrase: str, kdf_type: Optional[str] = None) -> None:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     if not passphrase or len(passphrase) < 12:
         raise ValueError("The backup passphrase must be at least 12 characters.")
+    selected_kdf = kdf_type or DEFAULT_KDF
     salt, prefix = secrets.token_bytes(16), secrets.token_bytes(8)
-    header = {"kdf": "scrypt", **SCRYPT, "salt": base64.b64encode(salt).decode(), "frame": FRAME,
+    if selected_kdf in ("pbkdf2", "pbkdf2_sha256"):
+        kdf_info = {"kdf": "pbkdf2_sha256", "iterations": PBKDF2_ITERATIONS}
+    else:
+        kdf_info = {"kdf": "scrypt", **SCRYPT}
+    header = {**kdf_info, "salt": base64.b64encode(salt).decode(), "frame": FRAME,
               "created": datetime.utcnow().isoformat() + "Z"}
     hdr = json.dumps(header, sort_keys=True).encode() + b"\n"
-    aes = AESGCM(_key(passphrase, salt, SCRYPT))
+    aes = AESGCM(_key(passphrase, salt, header))
     with open(src, "rb") as fi, open(dst, "wb") as fo:
         fo.write(MAGIC + hdr)
         idx = 0

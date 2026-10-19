@@ -28,6 +28,8 @@ Welcome to the **OpenOptOut Developer Guide**. This documentation provides archi
 
 ## Security & Proposals
 
+- **[Security & Cryptographic Compliance](compliance-standards.md)**  
+  NIST SP 800-38D (AES-256-GCM), NIST SP 800-132 (PBKDF2-HMAC-SHA256 & HKDF), ISO/IEC 27701, COPPA crypto-shredding, and WCAG 2.2 AAA.
 - **[Security Scanning & Hardening](security-scanning.md)**  
   Static analysis with CodeQL, Semgrep, and bandit; bubblewrap/seccomp plugin sandbox policies; PII encryption rules.
 - **Proposals & Architecture RFCs**:

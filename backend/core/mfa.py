@@ -671,8 +671,11 @@ def create_mfa_ticket(user_id: int, email: str, remember_me: bool = False) -> st
     except Exception:
         # Fallback to HMAC-SHA256 signature when Fernet is unavailable
         from .settings_store import get_secret_key
+        from .hkdf import hkdf_derive
+        sec = get_secret_key().encode("utf-8")
+        signing_key = hkdf_derive(sec, info=b"openoptout:mfa-ticket:v1")
         b64_payload = base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
-        sig = hmac.new(get_secret_key().encode(), b64_payload.encode(), hashlib.sha256).hexdigest()
+        sig = hmac.new(signing_key, b64_payload.encode(), hashlib.sha256).hexdigest()
         return f"hmac:{b64_payload}:{sig}"
 
 
@@ -690,9 +693,12 @@ def verify_mfa_ticket(ticket: str) -> Optional[dict]:
         parts = ticket.split(":")
         if len(parts) == 3:
             from .settings_store import get_secret_key
+            from .hkdf import hkdf_derive
             _, b64_payload, sig = parts
-            expected_sig = hmac.new(get_secret_key().encode(), b64_payload.encode(), hashlib.sha256).hexdigest()
-            if hmac.compare_digest(sig, expected_sig):
+            sec = get_secret_key().encode("utf-8")
+            expected_sig = hmac.new(hkdf_derive(sec, info=b"openoptout:mfa-ticket:v1"), b64_payload.encode(), hashlib.sha256).hexdigest()
+            legacy_sig = hmac.new(sec, b64_payload.encode(), hashlib.sha256).hexdigest()
+            if hmac.compare_digest(sig, expected_sig) or hmac.compare_digest(sig, legacy_sig):
                 pad = (4 - len(b64_payload) % 4) % 4
                 try:
                     raw = base64.urlsafe_b64decode(b64_payload + "=" * pad).decode()

@@ -46,12 +46,22 @@ def _admin(user: User):
         raise HTTPException(403, "Super admin access required")
 
 
-def _fernet() -> Fernet:
+def _fernet():
     raw = get_secret_key()
-    # Repeat key until 32 bytes; maintains backward compatibility with keys >= 8 chars while safely supporting shorter keys.
+    from ..core.hkdf import hkdf_derive
+    hkdf_key = base64.urlsafe_b64encode(hkdf_derive(raw.encode(), info=b"openoptout:settings:v1"))
+    fernet_primary = Fernet(hkdf_key)
+
+    # Legacy key: padded raw secret (retained for backward-compatible decryption of existing secrets)
     _kb = raw.encode() or b"\0"
     padded = (_kb * (32 // len(_kb) + 1))[:32]
-    return Fernet(base64.urlsafe_b64encode(padded))
+    fernet_legacy = Fernet(base64.urlsafe_b64encode(padded))
+
+    try:
+        from cryptography.fernet import MultiFernet
+        return MultiFernet([fernet_primary, fernet_legacy])
+    except ImportError:
+        return fernet_primary
 
 
 def _encrypt(v: str) -> str:

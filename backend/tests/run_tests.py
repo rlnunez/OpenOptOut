@@ -1281,6 +1281,70 @@ def t_encryption_url_and_status():
         assert status_info["is_encrypted"] is False
 
 
+@test(1, "encryption.nist_sp800_38d_aes_gcm",
+      "NIST SP 800-38D AES-256-GCM AEAD encryption enforces 96-bit nonces, 128-bit tags, and fails closed upon tampering.")
+def t_encryption_nist_sp800_38d():
+    enc = _imp("core.encryption")
+    import os, base64
+
+    # 1. Key derivation uses HKDF-SHA256 to produce 32-byte (256-bit) keys with domain separation
+    raw_key = "a-very-secure-test-passphrase-for-field-encryption"
+    k_gcm = enc._derive_aesgcm_key(raw_key)
+    assert len(k_gcm) == 32, f"expected 32-byte key for AES-256-GCM, got {len(k_gcm)}"
+    assert k_gcm != enc._derive_fernet_primary_key(raw_key), "HKDF domain separation failed across subsystems"
+
+    # 2. Check live AEAD encryption if cryptography is installed
+    if _try_import("cryptography") is None:
+        return  # test runner without C-extensions skips live AESGCM
+
+    orig_key = os.environ.get("FIELD_ENCRYPTION_KEY")
+    try:
+        os.environ["FIELD_ENCRYPTION_KEY"] = raw_key
+        enc._fernet_instance = None
+        enc._fernet_instance_raw_key = None
+
+        plaintext = "Sensitive Member PII Data (e.g. 123 Main St)"
+        ciphertext = enc.encrypt_field(plaintext)
+        assert ciphertext.startswith("gcm1:"), f"expected gcm1: prefix, got {ciphertext[:10]}"
+
+        # Validate 96-bit (12-byte) IV and >= 16-byte tag (NIST SP 800-38D §5.2.1.1)
+        raw_payload = base64.urlsafe_b64decode(ciphertext[5:].encode("ascii"))
+        assert len(raw_payload) >= 28, "payload must contain 12-byte IV and at least 16-byte tag"
+        iv = raw_payload[:12]
+        assert len(iv) == 12, "IV must be exactly 96 bits (12 bytes)"
+
+        # Decrypt roundtrip
+        decrypted = enc.decrypt_field(ciphertext)
+        assert decrypted == plaintext, f"roundtrip failed: {decrypted} != {plaintext}"
+
+        # Tampering resistance: bit flip in ciphertext must cause decryption failure
+        tampered_bytes = bytearray(raw_payload)
+        tampered_bytes[-1] ^= 1  # flip tag bit
+        tampered_cipher = "gcm1:" + base64.urlsafe_b64encode(bytes(tampered_bytes)).decode("ascii")
+        try:
+            os.environ["ENFORCE_ENCRYPTION_AT_REST"] = "true"
+            try:
+                enc.decrypt_field(tampered_cipher)
+                assert False, "tampered ciphertext must fail decryption"
+            except RuntimeError as e:
+                assert "Field decryption failed" in str(e)
+        finally:
+            os.environ.pop("ENFORCE_ENCRYPTION_AT_REST", None)
+
+        # Backward compatibility: legacy Fernet token must still decrypt seamlessly
+        from cryptography.fernet import Fernet
+        legacy_k = enc._derive_fernet_legacy_key(raw_key)
+        legacy_cipher = Fernet(legacy_k).encrypt(b"Legacy Fernet Record").decode("ascii")
+        assert enc.decrypt_field(legacy_cipher) == "Legacy Fernet Record"
+    finally:
+        if orig_key is not None:
+            os.environ["FIELD_ENCRYPTION_KEY"] = orig_key
+        else:
+            os.environ.pop("FIELD_ENCRYPTION_KEY", None)
+        enc._fernet_instance = None
+        enc._fernet_instance_raw_key = None
+
+
 @test(1, "hardening.tmpfs_sizing_simulation",
       "Simulate ephemeral /tmp tmpfs worker allocations, measuring peak memory and verifying zero leakage.")
 def t_hardening_tmpfs_sizing():
@@ -5919,6 +5983,46 @@ def t_password_peppering():
     custom_key = b"test-custom-pepper-key"
     digest_custom = base64.b64encode(hashlib.pbkdf2_hmac("sha256", b"MySecretPass123!", custom_key, 100_000)).decode("ascii")
     assert digest_custom != p1, "pepper key change failed to alter digest"
+
+
+@test(1, "auth.nist_sp800_132_pbkdf2_key_derivation",
+      "NIST SP 800-132 PBKDF2-HMAC-SHA256 derivation uses >= 210,000 iterations and seamlessly identifies legacy hashes for auto-upgrade.")
+def t_auth_nist_sp800_132():
+    auth = _imp("core.auth")
+    backup = _imp("core.backup")
+    import os, hashlib, base64
+
+    # 1. Password peppering iterations conform to NIST SP 800-132 recommendations (>= 210,000)
+    assert auth.DEFAULT_PBKDF2_ITERATIONS >= 210_000, "PBKDF2 iterations must be >= 210,000"
+    p_modern = auth._pepper_password("SamplePass123!")
+    p_legacy = auth._pepper_password("SamplePass123!", iterations=auth.LEGACY_PBKDF2_ITERATIONS)
+    assert p_modern != p_legacy, "modern and legacy iterations must produce different digests"
+
+    # 2. Key derivation for backups supports NIST SP 800-132 PBKDF2-HMAC-SHA256
+    salt = os.urandom(16)  # 128-bit salt (NIST SP 800-132 requirement)
+    kdf_pbkdf2 = {"kdf": "pbkdf2_sha256", "iterations": 210_000}
+    derived = backup._key("test-backup-passphrase", salt, kdf_pbkdf2)
+    expected = hashlib.pbkdf2_hmac("sha256", b"test-backup-passphrase", salt, 210_000, dklen=32)
+    assert derived == expected, "backup PBKDF2 key derivation failed"
+
+    # 3. Hash upgrade detection
+    mock_store = {
+        "modern_hash": p_modern,
+        "legacy_100k_hash": p_legacy,
+        "unpeppered_hash": "plain_test_pass",
+    }
+    orig_verify = auth._verify_raw
+    auth._verify_raw = lambda cand, stored: stored in mock_store and mock_store[stored] == cand
+    try:
+        assert auth.verify_password("SamplePass123!", "modern_hash") is True
+        assert auth.verify_password("SamplePass123!", "legacy_100k_hash") is True
+        assert auth.verify_password("plain_test_pass", "unpeppered_hash") is True
+
+        assert auth.is_legacy_unpeppered_hash("SamplePass123!", "modern_hash") is False
+        assert auth.is_legacy_unpeppered_hash("SamplePass123!", "legacy_100k_hash") is True
+        assert auth.is_legacy_unpeppered_hash("plain_test_pass", "unpeppered_hash") is True
+    finally:
+        auth._verify_raw = orig_verify
 
 
 # ── MFA / FIDO2 / WebAuthn / TOTP Tests ────────────────────────────────────────

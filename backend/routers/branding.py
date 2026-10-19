@@ -35,15 +35,23 @@ def _logo_exists() -> bool:
 
 # ── Encryption (reuse from settings) ─────────────────────────────────────────
 
-def _fernet() -> Fernet:
+def _fernet():
     from ..core.settings_store import get_secret_key
-    raw    = get_secret_key()
-    # Repeat the key until it fills 32 bytes. Identical to the old
-    # `(raw * 4)[:32]` for keys of 8+ chars (existing data still decrypts),
-    # but no longer crashes on a shorter SECRET_KEY.
+    raw = get_secret_key()
+    from ..core.hkdf import hkdf_derive
+    hkdf_key = b64lib.urlsafe_b64encode(hkdf_derive(raw.encode(), info=b"openoptout:settings:v1"))
+    fernet_primary = Fernet(hkdf_key)
+
+    # Legacy key: padded raw secret (retained for backward-compatible decryption of existing secrets)
     _kb = raw.encode() or b"\0"
     padded = (_kb * (32 // len(_kb) + 1))[:32]
-    return Fernet(b64lib.urlsafe_b64encode(padded))
+    fernet_legacy = Fernet(b64lib.urlsafe_b64encode(padded))
+
+    try:
+        from cryptography.fernet import MultiFernet
+        return MultiFernet([fernet_primary, fernet_legacy])
+    except ImportError:
+        return fernet_primary
 
 def _encrypt(v: str) -> str: return _fernet().encrypt(v.encode()).decode()
 def _decrypt(v: str) -> str:
