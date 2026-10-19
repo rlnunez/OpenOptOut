@@ -4358,8 +4358,15 @@ def t_https_entrypoint():
                     assert "mode verify_if_given" in content
                 else:
                     assert "mode require_and_verify" in content
+                # client_auth only checks the CA signed it, not whether it's since
+                # been revoked (no CRL support here) -- the app does that, given
+                # which certificate authenticated. header_up must be INSIDE the
+                # reverse_proxy block, not a bare top-level directive.
+                assert "header_up X-Client-Cert-Serial {http.request.tls.client.serial}" in content
+                assert re.search(r"reverse_proxy [^\n{]+\{\s*\n\s*header_up X-Client-Cert-Serial", content)
             else:
                 assert "client_auth" not in content
+                assert "X-Client-Cert-Serial" not in content
             if env["HTTPS_MODE"] == "none":
                 # Plain HTTP: no certificate, no HSTS, no redirect.
                 assert "tls " not in content and "Strict-Transport-Security" not in content
@@ -4525,8 +4532,15 @@ def t_https_traefik_entrypoint():
                 expected_type = "VerifyClientCertIfGiven" if env.get("CLIENT_MTLS_MODE") == "optional" else "RequireAndVerifyClientCert"
                 assert ca["clientAuthType"] == expected_type
                 assert ca["caFiles"] == [env["CLIENT_MTLS_CA_FILE"]]
+                # clientAuth only checks the CA signed it, not whether it's since
+                # been revoked (no CRL support here) -- the app does that, given
+                # which certificate authenticated. Must run on both routers, first.
+                assert mws["openoptout-passclientcert"]["passTLSClientCert"]["info"]["serialNumber"] is True
+                for r_ in (router, signin):
+                    assert r_["middlewares"][0] == "openoptout-passclientcert"
             else:
                 assert "clientAuth" not in dynamic.get("tls", {}).get("options", {}).get("default", {})
+                assert "openoptout-passclientcert" not in mws
             if env["HTTPS_MODE"] == "none":
                 # Plain HTTP on port 80: no redirect, no TLS, no HSTS, no resolver.
                 assert "http" not in (static["entryPoints"]["web"] or {})
@@ -5267,6 +5281,156 @@ def t_client_mtls_mint():
     enc_kw = mtls.mint_client_cert(ca_cert, ca_key, "Laptop", password="SecretPassword123")
     assert enc_kw["device_name"] == "Laptop"
     assert len(enc_kw["p12_base64"]) > 100
+
+
+@test(1, "security.mtls_revocation_enforced_across_both_stores",
+      "A client-certificate serial revoked through either the admin API (core/mtls.py, when the CA "
+      "key is held in-app) or scripts/openoptout-mtls.sh (CA key offline) is refused regardless of "
+      "which format the reverse proxy reported it in, and un-revoking actually clears it.")
+def t_mtls_revocation_union_and_normalization():
+    import json, tempfile
+    try:
+        mtls = _imp("core.mtls")
+        ss = _imp("core.settings_store")
+    except ImportError as e:
+        raise Skip(f"needs backend package layout: {e}")
+
+    orig_settings_file_env = os.environ.get("SETTINGS_FILE")
+    orig_ss_settings_file = ss.SETTINGS_FILE
+    orig_mtls_settings_file = mtls.SETTINGS_FILE
+    orig_cache = dict(mtls._revoked_cache)
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            # own_mtls_dir() anchors off SETTINGS_FILE's directory -- the same
+            # thing get_secret_key_file_path() does -- so this is the one env
+            # var that needs to point into the sandbox for both the "own" (in-
+            # app) store and the module whose constant mtls.py imported.
+            os.environ["SETTINGS_FILE"] = os.path.join(d, "openoptout_settings.json")
+            ss.SETTINGS_FILE = os.environ["SETTINGS_FILE"]
+            mtls.SETTINGS_FILE = os.environ["SETTINGS_FILE"]
+            mtls._revoked_cache.update({"state": None, "forms": frozenset()})
+
+            own_dir = mtls.own_mtls_dir()
+            assert own_dir and os.path.isdir(own_dir), "own_mtls_dir() did not create its directory"
+
+            # Nothing revoked yet.
+            assert not mtls.is_serial_revoked("1001")
+
+            # In-app path: revoke decimal "1001" via write_revoked_serials_file.
+            assert mtls.write_revoked_serials_file(["1001"]) is True
+            assert mtls.is_serial_revoked("1001"), "decimal serial not recognized after revoking"
+            # A proxy reporting the SAME certificate in hex (nginx-style, colon-
+            # separated) must still match -- 1001 decimal == 0x3e9.
+            assert mtls.is_serial_revoked("03:E9"), "colon-separated hex form of a revoked serial not recognized"
+            assert mtls.is_serial_revoked("3e9"), "bare hex form of a revoked serial not recognized"
+            assert not mtls.is_serial_revoked("1002"), "an unrelated serial was reported as revoked"
+
+            # Offline-CA-key path: scripts/openoptout-mtls.sh writes its own file
+            # (deploy/certs/revoked.json relative to cwd, or /certs/revoked.json
+            # in the container); simulate it with the relative candidate.
+            ext_dir = os.path.join(d, "deploy", "certs")
+            os.makedirs(ext_dir, exist_ok=True)
+            cwd = os.getcwd()
+            os.chdir(d)
+            try:
+                mtls._revoked_cache.update({"state": None, "forms": frozenset()})
+                with open(os.path.join(ext_dir, "revoked.json"), "w") as f:
+                    json.dump({"revoked_serials": ["ab:cd:ef"]}, f)
+                # Both stores' revocations apply -- union, not "last one wins".
+                assert mtls.is_serial_revoked("1001"), "in-app revocation lost once the external file exists"
+                assert mtls.is_serial_revoked("ABCDEF"), "external store's hex serial not recognized"
+                assert mtls.is_serial_revoked(int("abcdef", 16)), "decimal form of the external hex serial not recognized"
+            finally:
+                os.chdir(cwd)
+
+            # Un-revoking the in-app store (full list no longer includes "1001")
+            # actually clears IT -- overwrite, not append-only -- while the
+            # external store's own revocation (a different serial) is untouched.
+            assert mtls.write_revoked_serials_file([]) is True
+            os.chdir(d)
+            try:
+                mtls._revoked_cache.update({"state": None, "forms": frozenset()})
+                assert not mtls.is_serial_revoked("1001"), "un-revoked serial still reported as revoked"
+                assert mtls.is_serial_revoked("ABCDEF"), "external store's own revocation was lost too"
+                os.remove(os.path.join(ext_dir, "revoked.json"))
+                mtls._revoked_cache.update({"state": None, "forms": frozenset()})
+                assert not mtls.is_serial_revoked("ABCDEF"), "removing the external file left a stale revocation"
+            finally:
+                os.chdir(cwd)
+
+            assert not mtls.is_serial_revoked(""), "empty serial must never be treated as revoked"
+            assert not mtls.is_serial_revoked(None)
+        finally:
+            if orig_settings_file_env is not None:
+                os.environ["SETTINGS_FILE"] = orig_settings_file_env
+            else:
+                os.environ.pop("SETTINGS_FILE", None)
+            ss.SETTINGS_FILE = orig_ss_settings_file
+            mtls.SETTINGS_FILE = orig_mtls_settings_file
+            mtls._revoked_cache.update(orig_cache)
+
+
+@test(1, "security.mtls_revocation_middleware_blocks_only_revoked_requests",
+      "backend.main's reject_revoked_client_certs middleware refuses a request whose forwarded "
+      "client-certificate serial is revoked (Caddy/nginx header or Traefik's packed header), lets "
+      "everything else through unchanged, and never treats an absent header as a block.")
+def t_mtls_revocation_middleware():
+    try:
+        main_mod = _import_app_main()
+        mtls = _imp("core.mtls")
+    except Exception as e:
+        raise Skip(f"needs the full app + its dependencies importable: {e}")
+
+    import asyncio
+    from starlette.requests import Request
+
+    orig_is_revoked = mtls.is_serial_revoked
+    REVOKED, OK = "DEADBEEF", "CAFE1234"   # both valid hex, as a real serial would be
+    try:
+        mtls.is_serial_revoked = lambda s: s == REVOKED
+
+        async def call_next(_req):
+            class _Resp:
+                status_code = 200
+            return _Resp()
+
+        def make_request(headers: dict) -> Request:
+            raw = [(k.lower().encode(), v.encode()) for k, v in headers.items()]
+            scope = {"type": "http", "method": "GET", "path": "/api/health", "headers": raw}
+            return Request(scope)
+
+        async def run(headers):
+            req = make_request(headers)
+            return await main_mod.reject_revoked_client_certs(req, call_next)
+
+        # No client-cert header at all: nothing to check, request proceeds.
+        resp = asyncio.run(run({}))
+        assert resp.status_code == 200
+
+        # Caddy/nginx-style header, not revoked: proceeds.
+        resp = asyncio.run(run({"X-Client-Cert-Serial": OK}))
+        assert resp.status_code == 200
+
+        # Caddy/nginx-style header, revoked: refused, before any route logic.
+        resp = asyncio.run(run({"X-Client-Cert-Serial": REVOKED}))
+        assert resp.status_code == 403
+
+        # Traefik packs several fields into one header as name="value" pairs.
+        resp = asyncio.run(run({
+            "X-Forwarded-Tls-Client-Cert-Info": f'Subject="CN=ok";SerialNumber="{OK}"'}))
+        assert resp.status_code == 200
+        resp = asyncio.run(run({
+            "X-Forwarded-Tls-Client-Cert-Info": f'Subject="CN=bad";SerialNumber="{REVOKED}"'}))
+        assert resp.status_code == 403
+
+        # A plain X-Client-Cert-Serial takes priority over Traefik's header if
+        # both are somehow present, rather than silently preferring either.
+        resp = asyncio.run(run({
+            "X-Client-Cert-Serial": OK,
+            "X-Forwarded-Tls-Client-Cert-Info": f'SerialNumber="{REVOKED}"'}))
+        assert resp.status_code == 200
+    finally:
+        mtls.is_serial_revoked = orig_is_revoked
 
 
 @test(1, "https.cloudflare_ip_list",
@@ -8882,10 +9046,12 @@ def _import_app_main():
     """
     Import the FastAPI app module. In the container it's `app.main` (the code is
     the `app` package); from a bare backend checkout run as a package it may be
-    `main`. main.py uses relative imports, so it must be imported as part of a
-    package — try the packaged name first.
+    `main`; run as `python -m backend.tests.run_tests` from the repo root (the
+    documented invocation — AGENTS.md) it's `backend.main`. main.py uses
+    relative imports, so it must be imported as part of a package — try the
+    packaged name first.
     """
-    for name in ("app.main", "main"):
+    for name in ("app.main", "main", "backend.main"):
         try:
             return importlib.import_module(name)
         except Exception:

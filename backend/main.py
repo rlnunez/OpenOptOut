@@ -1,4 +1,5 @@
 import os
+import re
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -117,6 +118,48 @@ async def add_security_headers(request, call_next):
             "default-src 'none'; style-src 'unsafe-inline'; sandbox",
         )
     return response
+
+
+# Traefik's passTLSClientCert middleware packs several fields into one header
+# as name="value" pairs; this pulls out just SerialNumber.
+_TRAEFIK_CERT_SERIAL_RE = re.compile(r'SerialNumber="?([0-9A-Fa-f:]+)"?')
+
+
+@app.middleware("http")
+async def reject_revoked_client_certs(request, call_next):
+    """
+    Self-managed mTLS (core/mtls.py, docs/admin/https.md) authenticates a
+    device at the TLS layer against the client CA, but none of the three
+    supported reverse proxies (Caddy, Traefik, nginx) check a revocation list
+    at that layer -- a revoked certificate still authenticates there until it
+    expires. The proxy entrypoints instead forward the serial of whichever
+    certificate authenticated the connection (X-Client-Cert-Serial, or
+    Traefik's X-Forwarded-Tls-Client-Cert-Info), so this can still refuse it.
+
+    The TLS handshake the header describes is real cryptography the proxy
+    already performed; a forged header can only name a certificate that the
+    client did NOT present, which this check can only use to BLOCK (an
+    already-revoked identity) -- never to grant anything a client without a
+    valid certificate wouldn't already get from the route's own auth. Like
+    core/rate_limit.py's trust in X-Forwarded-For, this assumes the API is
+    reachable only through the configured proxy -- see docs/admin/https.md.
+
+    No header present -> nothing to check here; pass through unchanged. That
+    covers mTLS being off, mode=optional with no client cert offered, and any
+    proxy this project doesn't yet forward the serial for.
+    """
+    serial = request.headers.get("x-client-cert-serial")
+    if not serial:
+        m = _TRAEFIK_CERT_SERIAL_RE.search(request.headers.get("x-forwarded-tls-client-cert-info", ""))
+        serial = m.group(1) if m else None
+    if serial:
+        from .core.mtls import is_serial_revoked
+        if is_serial_revoked(serial):
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "This client certificate has been revoked. Contact an administrator for a new one."},
+            )
+    return await call_next(request)
 
 
 @app.exception_handler(OverflowError)
