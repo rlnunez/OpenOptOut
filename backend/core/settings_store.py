@@ -97,6 +97,7 @@ FORBIDDEN_SECRET_KEYS = frozenset({
     "change-me-please",
     "change-me-please-32-chars-minimum",
     "change-me-to-a-long-random-string",
+    "change-me-to-a-long-random-string-at-least-128-characters-long",
     "change-me-in-production-use-a-long-random-string",
     "openoptout-default-pepper-key",
     "changeme",
@@ -147,7 +148,7 @@ def is_valid_secret_key(key: str | None) -> bool:
     if not key or not isinstance(key, str):
         return False
     cleaned = key.replace("\x00", "").strip()
-    if not cleaned or cleaned.lower() in FORBIDDEN_SECRET_KEYS:
+    if not cleaned or cleaned.lower() in FORBIDDEN_SECRET_KEYS or cleaned.lower().startswith("change-me"):
         return False
     return True
 

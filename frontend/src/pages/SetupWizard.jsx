@@ -302,6 +302,7 @@ function SecurityStep({ onNext, onSkip, onBack, busy, setError }) {
   }
 
   const keyLen = keyData?.key?.length || keyData?.status?.active_key_length || 0
+  const fileExists = keyData?.status?.file_exists ?? false
   const isSecurePerms = keyData?.status?.permissions_secure ?? true
   const filePath = keyData?.status?.file_path || 'secret.key'
 
@@ -374,12 +375,12 @@ function SecurityStep({ onNext, onSkip, onBack, busy, setError }) {
           {/* Key status badges */}
           <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border font-mono ${
-              isSecurePerms
+              fileExists && isSecurePerms
                 ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60'
                 : 'bg-amber-950/40 text-amber-300 border-amber-800/60'
             }`}>
               <Check size={11} />
-              <span>{filePath} ({isSecurePerms ? '0600 secure' : 'check permissions'})</span>
+              <span>{filePath} ({fileExists && isSecurePerms ? '0600 secure' : fileExists ? 'check permissions' : 'saved'})</span>
             </span>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-slate-800/60 text-slate-300 border-slate-700 font-mono">
               <span>{keyLen} {tx("chars entropy")}</span>

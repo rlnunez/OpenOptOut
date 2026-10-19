@@ -784,12 +784,6 @@
    ]
   },
   {
-   "text": "Accessibility & Typography",
-   "where": [
-    "pages/Login.jsx"
-   ]
-  },
-  {
    "text": "Account connected",
    "where": [
     "pages/SetupWizard.jsx"
@@ -6274,12 +6268,6 @@
    ]
   },
   {
-   "text": "Enforces maximum visual contrast across the interface.",
-   "where": [
-    "pages/Login.jsx"
-   ]
-  },
-  {
    "text": "English Name",
    "where": [
     "pages/Translations.jsx"
@@ -11588,12 +11576,6 @@
    ]
   },
   {
-   "text": "OpenDyslexic typography is active and will be saved to your profile.",
-   "where": [
-    "pages/Login.jsx"
-   ]
-  },
-  {
    "text": "OpenDyslexic typography is active. Letters have unique heavy bottoms to prevent flipping and confusion.",
    "where": [
     "components/UserWelcomeModal.jsx"
@@ -16317,12 +16299,6 @@
    "text": "Switch your interface language anytime from the menu bar with full RTL and LTR support.",
    "where": [
     "components/UserWelcomeModal.jsx"
-   ]
-  },
-  {
-   "text": "Switches typography to OpenDyslexic with weighted bottoms to enhance reading flow.",
-   "where": [
-    "pages/Login.jsx"
    ]
   },
   {

@@ -621,56 +621,6 @@ export default function Login() {
                   <input className={inp} type="password" placeholder={tx("Confirm password")}
                     value={setupConfirm} onChange={e => setSetupConfirm(e.target.value)} required />
 
-                  {/* Accessibility & Typography Options for New Account */}
-                  <div className="pt-2 border-t border-slate-800 space-y-2">
-                    <p className="text-slate-400 text-xs font-medium flex items-center gap-1.5">
-                      <BookOpen size={13} className="text-purple-400" />
-                      <span>{tx("Accessibility & Typography")}</span>
-                    </p>
-
-                    <label className="flex items-start gap-2.5 p-2.5 rounded-lg border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={dyslexicFont}
-                        onChange={(e) => setDyslexicFont(e.target.checked)}
-                        className="mt-0.5 w-4 h-4 rounded text-purple-600 focus:ring-purple-400 border-slate-700 bg-slate-900 cursor-pointer"
-                      />
-                      <div className="space-y-0.5 text-start">
-                        <span className="text-xs font-semibold text-white flex items-center gap-1.5">
-                          <span>{tx("Dyslexia-Friendly Font (OpenDyslexic)")}</span>
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">{"OpenDyslexic"}</span>
-                        </span>
-                        <p className="text-[11px] text-slate-400 leading-normal">
-                          {tx("Switches typography to OpenDyslexic with weighted bottoms to enhance reading flow.")}
-                        </p>
-                      </div>
-                    </label>
-
-                    {dyslexicFont && (
-                      <div className="p-2 rounded border border-purple-500/30 bg-purple-950/20 text-[11px] text-purple-200" style={{ fontFamily: "'OpenDyslexic', system-ui, sans-serif" }}>
-                        {tx("OpenDyslexic typography is active and will be saved to your profile.")}
-                      </div>
-                    )}
-
-                    <label className="flex items-start gap-2.5 p-2.5 rounded-lg border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={highContrast}
-                        onChange={(e) => setHighContrast(e.target.checked)}
-                        className="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-yellow-400 border-slate-700 bg-slate-900 cursor-pointer"
-                      />
-                      <div className="space-y-0.5 text-start">
-                        <span className="text-xs font-semibold text-white flex items-center gap-1.5">
-                          <span>{tx("High Contrast Mode (WCAG 2.2 AAA)")}</span>
-                          <span className="text-[10px] px-1 py-0.2 rounded bg-yellow-400/20 text-yellow-300 font-mono">7:1+</span>
-                        </span>
-                        <p className="text-[11px] text-slate-400 leading-normal">
-                          {tx("Enforces maximum visual contrast across the interface.")}
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-
                   {error && <p className="text-red-400 text-xs">{error}</p>}
                   <button type="submit" disabled={loading}
                     className="w-full bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white text-sm rounded-lg py-2 flex items-center justify-center gap-1.5 font-medium transition-colors">
