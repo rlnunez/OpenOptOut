@@ -223,7 +223,7 @@ def ensure_bootstrap_secret_key() -> str:
         os.environ["SECRET_KEY"] = generated
         _USING_BOOTSTRAP_KEY = False
         log.warning(
-            "No SECRET_KEY was configured; generated and persisted a master key at %s (0600). "
+            "No master key was configured; generated and persisted a key at %s (0600). "
             "Set a custom key from the admin UI to rotate it.", path)
         return generated
     except FileExistsError:
@@ -242,8 +242,8 @@ def ensure_bootstrap_secret_key() -> str:
         os.environ["SECRET_KEY"] = generated
         _USING_BOOTSTRAP_KEY = True
         log.warning(
-            "No SECRET_KEY configured and %s is not writable (%s); using a temporary in-memory key "
-            "for this process. Set SECRET_KEY in the environment or the admin UI to persist one.",
+            "No master key configured and %s is not writable (%s); using a temporary in-memory key "
+            "for this process. Configure a master key in the environment or the admin UI to persist one.",
             path, e)
         return generated
 
