@@ -6,6 +6,11 @@ OpenOptOut supports SQLite for personal/family deployments and PostgreSQL for en
 
 ## Backend Selection
 
+### Setup Wizard Onboarding
+When completing first-run onboarding via the **Setup Wizard**:
+- **Express Mode:** Automatically selects SQLite with safe local encryption defaults and zero manual configuration required.
+- **Advanced Mode:** Allows configuring external PostgreSQL connection strings, testing live database connectivity, and tuning SSL/TLS settings directly from the setup wizard.
+
 ### SQLite (Default)
 SQLite is pre-configured and zero-maintenance. The database is stored inside a Docker volume at `/data/privacy_pipeline.db` (or `./privacy_pipeline.db` in native installs) and persists across restarts.
 - **Recommended for:** Personal use, families, and staff-only institutional deployments (up to a few hundred users).
@@ -14,7 +19,7 @@ SQLite is pre-configured and zero-maintenance. The database is stored inside a D
 ### PostgreSQL (Institutional Scale)
 PostgreSQL is recommended for patron-facing deployments, school districts, universities, and organizations serving thousands of concurrent users.
 
-To switch to PostgreSQL, set `DATABASE_URL` in your `.env` file:
+To switch to PostgreSQL, set `DATABASE_URL` in your `.env` file (or configure it during the Advanced Setup Wizard):
 ```env
 DATABASE_URL=postgresql://user:password@db.example.org:5432/openoptout
 ```
