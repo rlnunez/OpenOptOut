@@ -1,11 +1,103 @@
-# Accessibility
+# Accessibility Statement and Conformance Guide
 
-OpenOptOut is designed to be accessible, usable, and comfortable for all families and administrators.
+OpenOptOut is dedicated to ensuring digital privacy tools are universally accessible to everyone, including individuals with disabilities, neurodivergent users, and patrons using assistive technologies. As an open-source platform purpose-built for families and public institutions (such as libraries, credit unions, and educational organizations), digital accessibility is a core architectural requirement.
 
-The web interface is engineered to comply with **WCAG 2.2 Level AAA** (Web Content Accessibility Guidelines):
+---
 
-- **High-Contrast & Themes**: Built-in Light, Dark, and High-Contrast themes delivering contrast ratios exceeding WCAG AAA minimums (>7:1 for standard text, >4.5:1 for large text, and >14:1 in high contrast).
-- **Dyslexia & Typography Support**: Native support for OpenDyslexic, Antonio, and JetBrains Mono fonts, configurable dynamically during first-run setup or account preferences.
-- **100% Self-Hosted Web Assets**: All fonts, stylesheets, scripts, and iconography are 100% self-hosted with zero external CDN dependencies to maintain privacy and air-gap readiness.
-- **Right-to-Left (RTL) Layouts**: Bidirectional layout mirroring using start/end logical properties across all views for Arabic and Urdu.
-- **Accessible Navigation**: Complete keyboard navigation support, visible focus rings, ARIA landmarks, and screen-reader announcements.
+## Conformance Standards
+
+OpenOptOut's user interface is designed and evaluated against the following standards:
+
+- **Web Content Accessibility Guidelines (WCAG) 2.2**: Conforming to **Level AA** across all primary workflows, with targeted **Level AAA** enhancements implemented in contrast, target sizing, and motion safety.
+- **Section 508 of the U.S. Rehabilitation Act**: Aligned with federal accessibility requirements for public sector and federally funded deployments.
+- **EN 301 549**: Conforming to European accessibility standards for public procurement of ICT products and services.
+
+---
+
+## Core Accessibility Features
+
+Starting in release `v0.10.0`, OpenOptOut includes a comprehensive accessibility architecture managed through the central Accessibility Provider (`frontend/src/context/AccessibilityContext.jsx`):
+
+### 1. High-Contrast & Theme Controls
+- **Dual Standard & ADA Compliant Themes**: Full paired theme architecture offering dedicated standard and WCAG 2.2 Level AAA compliant editions for all primary visual modes:
+  - **Dark**: Standard Dark (`.theme-dark`, `#020617` base with slate cards) and Dark ADA (`.theme-dark-ada` / `.a11y-high-contrast-dark`, pure `#000000` void with `#ffffff` text, 2px white borders, and `#ffff00` 21:1 contrast accents).
+  - **Light**: Standard Light (`.theme-light`, `#f8fafc` soft white) and Light ADA (`.theme-light-ada` / `.a11y-high-contrast-light`, pure `#ffffff` canvas with pitch black `#000000` text, 2px black borders, and high-visibility `#0000ee` blue accents).
+  - **Space Explorer**: Standard Space Explorer (`.theme-space`, cosmic amber and purple accents) and Space Explorer ADA (`.theme-space-ada` / `.a11y-high-contrast-space`, pure black void with high-luminosity `#ffb800` amber text, white headings, and 2px high-visibility amber borders).
+  - **Neutral & System**: Gray (slate neutral for reduced glare) and System (dynamic OS sync matching `prefers-color-scheme`).
+- **High-Contrast Synchronization**: Toggling High Contrast Mode dynamically switches any active theme into its corresponding WCAG AAA ADA compliant counterpart and back.
+- **Color Independence**: Status indicators (such as broker removal pending, submitted, confirmed, or failed) use distinct icons, patterns, and descriptive text badges in addition to color.
+
+### 2. Typography and Scalable Text
+- **Fluid Font Scaling**: Built-in text resizing controls scaling UI typography from 100% to 150% without clipping or overflowing layout containers (`--a11y-font-size`).
+- **Reflow & Zoom**: Full support for browser zoom up to 200% and 400% without horizontal scrolling or loss of functionality (WCAG 1.4.4 and 1.4.10).
+- **Legible Font Stacks**: System-native UI typography engineered for readability, clear letterform distinction, and adequate character spacing.
+- **Dyslexia-Friendly Typography (OpenDyslexic)**: Users can switch to OpenDyslexic (`.a11y-dyslexic-font`), a specialized typeface designed to mitigate reading errors with heavy weighted bottoms, unique letter shaping, and wide apertures. Packaged locally via self-hosted assets to preserve strict air-gapped privacy.
+- **100% Self-Hosted Web Assets & Typography**: All typefaces (Inter, JetBrains Mono, OpenDyslexic, Antonio) are locally bundled and self-hosted via npm `@fontsource` packages. Zero calls are made to external CDNs or third-party font registries, guaranteeing air-gapped operational readiness, zero tracking, and fast offline availability.
+
+### 3. Motion & Vestibular Safety
+- **Reduced Motion Support**: Immediate respect for OS-level `prefers-reduced-motion` settings, plus an in-app toggle (`.a11y-reduced-motion`).
+- **Disabling Non-Essential Animations**: Eliminates vestibular triggers, animated transitions, layout shifts, and looping spinners, replacing them with static state indicators.
+
+### 4. Touch & Click Target Sizing (WCAG 2.2 AAA)
+- **Enhanced Targets**: Enabling Enhanced Target Sizing (`.a11y-enhanced-targets`) expands interactive elements (buttons, inputs, checkboxes, table actions) to meet or exceed 44x44 CSS pixels.
+- **Adequate Spacing**: Sufficient separation between adjacent interactive elements prevents accidental activation for users with motor tremors or limited precision.
+
+### 5. Keyboard Navigation & Focus Management
+- **Skip Link Navigation**: An accessible skip link (`SkipLink.jsx`) appears on initial keyboard focus (`Tab`), allowing users to bypass navigation sidebars and jump straight to main content.
+- **Prominent Focus Indicators**: High-contrast, custom focus outlines (minimum 3px solid rings with high visual separation) guarantee keyboard position is always clear.
+- **Logical Tab Order**: All interactive controls, forms, modal dialogs, and setup wizard steps follow an intuitive, predictable DOM reading order.
+- **Modal Focus Traps**: Dialogs and popups trap focus appropriately while open, restore focus to the triggering element upon close, and dismiss cleanly with the `Escape` key.
+
+### 6. Screen Readers & Assistive Technologies
+- **Semantic Structure**: Proper HTML5 landmarks (`<nav>`, `<header>`, `<main>`, `<aside>`, `<footer>`) and strict heading hierarchies (`h1` through `h4`) allow efficient screen reader navigation.
+- **Live Announcements**: Critical notifications, broker submission progress, and error alerts are announced to assistive technology using `aria-live="polite"` regions.
+- **Descriptive ARIA Attributes**: All icon-only buttons, disclosure widgets, form controls, and multi-step progress indicators include descriptive `aria-label`, `aria-describedby`, and `aria-expanded` attributes.
+- **Accessible Breadcrumbs**: Dynamic breadcrumb trails (`Breadcrumbs.jsx`) provide contextual location awareness with structured navigation landmarks and `aria-current="page"` markup.
+
+### 7. Bidirectional & Right-to-Left (RTL) Mirroring
+- **Logical Property Layouts**: Built entirely using CSS logical start/end properties (`ms-`, `pe-`, `start-`, `text-start`, `border-s-`) throughout all views and components, ensuring seamless bidirectional layout mirroring for right-to-left languages (Arabic and Urdu).
+- **Directional Icon Mirroring**: Navigation arrows, directional disclosure markers, and action icons automatically mirror when rendered in an RTL context (`dir="rtl"`).
+
+### 8. First-Boot Accessibility & Setup Wizard Priority
+- **Immediate Usability Configuration**: Accessibility is the first thing presented during first-boot onboarding. The Setup Wizard presents language selection, accessibility preferences, high-contrast themes, font scaling, and OpenDyslexic typography on the initial screen before requiring any system or account setup.
+
+### 9. Persistent User Preferences
+- **Cross-Device Persistence**: Accessibility settings are stored locally in `localStorage` for instant client-side rendering and synced to the authenticated user account profile via `/i18n/user/preference`.
+
+---
+
+## WCAG 2.2 Conformance Matrix
+
+| Principle | Guideline | Status | Notes |
+|---|---|---|---|
+| **Perceivable** | 1.1 Text Alternatives | Conforms (AA) | All informative imagery and SVG icons provide descriptive alt text or ARIA labels; decorative elements use `aria-hidden="true"`. |
+| | 1.3 Adaptable | Conforms (AA) | Meaningful sequence, semantic landmarks, and form field autocomplete attributes are maintained throughout. |
+| | 1.4 Distinguishable | Conforms (AAA) | High-contrast modes exceed 7:1 contrast; font scaling up to 150% is supported; text spacing and reflow up to 400% zoom are verified. |
+| **Operable** | 2.1 Keyboard Accessible | Conforms (AA) | All actions are fully executable via keyboard alone; no keyboard traps exist. |
+| | 2.4 Navigable | Conforms (AAA) | Skip-to-content links provided; visible focus rings; hierarchical page titles and breadcrumbs. |
+| | 2.5 Input Modalities | Conforms (AAA) | Enhanced target sizing option enforces 44x44px minimum touch targets. |
+| **Understandable**| 3.1 Readable | Conforms (AA) | Programmatic language tags (`lang` attribute) are updated dynamically with internationalization changes. |
+| | 3.2 Predictable | Conforms (AA) | UI components behave consistently; theme and setting changes apply predictably without unexpected context switches. |
+| | 3.3 Input Assistance | Conforms (AA) | Accessible error identification, inline validation cues, and descriptive input error messages. |
+| **Robust** | 4.1 Compatible | Conforms (AA) | Valid HTML markup, standard ARIA roles, and verified compatibility with modern assistive technologies. |
+
+---
+
+## Assistive Technology Testing
+
+OpenOptOut is evaluated using a combination of automated scans and manual testing:
+
+- **Automated Scanning**: Continuous audits via `axe-core`, Lighthouse, and Playwright automated accessibility probes.
+- **Screen Readers**: Tested with Apple VoiceOver (macOS / iOS) and NVDA (Windows) across Chromium and Firefox browsers.
+- **Keyboard-Only**: Rigorous manual verification of all workflows (registration, onboarding wizard, vault management, broker opt-out triggering, and settings configuration) without a pointer device.
+
+---
+
+## Feedback and Reporting
+
+We actively welcome feedback on the accessibility of OpenOptOut. If you encounter an accessibility barrier or have a suggestion to improve assistive technology support:
+
+- **GitHub Issues**: Open an issue on our [GitHub repository](https://github.com/rlnunez/OpenOptOut/issues) with the `a11y` or `accessibility` label.
+- **Maintainer Contact**: Email Robert Nunez at [nunez.robert@gmail.com](mailto:nunez.robert@gmail.com) with the subject line `Accessibility Feedback: OpenOptOut`.
+
+Please include the page or component where the issue occurred, the assistive technology or browser used, and a brief description of the encountered barrier. We treat accessibility bugs with high priority and commit to prompt review and resolution.
