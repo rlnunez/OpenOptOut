@@ -56,7 +56,19 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; font-family: 'Inter', system-ui, sans-serif; }
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #020617;
+  color: #f8fafc;
+}
+
+/* ── Default Dark Theme ── */
+html.theme-dark body,
+html.theme-dark {
+  background-color: #020617 !important;
+  color: #f8fafc !important;
+}
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

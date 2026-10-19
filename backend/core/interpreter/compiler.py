@@ -275,7 +275,9 @@ def compile_job(spec: BrokerSpec, member_fields: dict, member_id: str, lang: str
         if s.kind == "navigate":
             if "{" in url:
                 url = _render_url(url, member_fields)
-            if not url.startswith("https://"):
+            parsed_u = urlparse(url)
+            is_loopback = (parsed_u.hostname or "").lower() in ("127.0.0.1", "localhost")
+            if not url.startswith("https://") and not (is_loopback and url.startswith("http://")):
                 raise CompileError(f"navigate url must start with https:// (got '{url}')")
             try:
                 from ..listing_finder import registrable_domain
@@ -313,7 +315,7 @@ def compile_job(spec: BrokerSpec, member_fields: dict, member_id: str, lang: str
                         pass
             nh = (urlparse(url).hostname or "").lower()
             n_root = registrable_domain(nh) if nh else ""
-            if not (n_root in roots or hosted_kind(url)):
+            if not (n_root in roots or hosted_kind(url) or nh in ("127.0.0.1", "localhost")):
                 raise CompileError(
                     f"navigate goes to {nh or url}, which isn't the broker's site or a privacy-request platform"
                 )

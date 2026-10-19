@@ -591,6 +591,7 @@ def complete(db: Session = Depends(get_db), user: User = Depends(get_current_use
                         "unencrypted. Put it behind HTTPS before real people use it.")
     return {
         "ok": True,
+        "completed": True,
         "steps": steps,
         "email_configured": email_ok,
         "reverse_proxy": reverse_proxy,
