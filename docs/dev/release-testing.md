@@ -10,7 +10,7 @@ Publishing a release or pre-release triggers the **Release test** workflow (`.gi
 |---|---|
 | Install | Runs the real installer: `install.sh --docker --ref <tag>` |
 | Start-up | Verifies container availability and `/api/health` response |
-| Browser walk-through | Playwright Chrome executes first-run wizard, creates admin account, traverses all pages, verifies lack of console/render errors, and captures screenshots |
+| Browser walk-through | Playwright Chrome executes first-run wizard (navigating Express/Advanced mode selection, master key verification, terms agreement, and MFA setup), creates admin account, traverses all pages, verifies lack of console/render errors, and captures screenshots |
 | API checks | Verifies reported version matches tag, session persistence, Identity Vault encryption/roundtrip, and returns 200 OK across all GET endpoints |
 | Diagnostics | Runs `tests.run_tests`, `plugins.preflight_sandbox`, and `plugins.smoke_test` inside API container |
 | Log scan | Counts and aggregates container ERROR/CRITICAL lines, Python tracebacks, and web server errors |
