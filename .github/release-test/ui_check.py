@@ -213,7 +213,39 @@ def main():
                 time.sleep(0.5)
                 continue
 
-            # 3c. Setup wizard summary: "Go to dashboard"
+            # 3c. Secret key generation banner / modal (if prompted during setup wizard)
+            key_banner_btn = (visible(page, "button", re.compile(r"^\s*Generate & Save Master Key\s*$", re.I), timeout=500)
+                              or visible(page, "button", re.compile(r"^\s*Save Master Key to File\s*$", re.I), timeout=500)
+                              or visible(page, "button", re.compile(r"^\s*Use This Key\s*$", re.I), timeout=500))
+            if key_banner_btn or any(w in body_sample for w in ("master secret key", "Critical Security Action")):
+                snap(page, f"secret-key-{i + 1}")
+                if key_banner_btn and re.search(r"Generate & Save Master Key", key_banner_btn.inner_text(), re.I):
+                    key_banner_btn.click()
+                    settle(page, 2000)
+                    time.sleep(0.3)
+                try:
+                    txt = page.locator("#master-secret-key-input, textarea[id*='secret-key']")
+                    if txt.count() > 0 and txt.first.is_visible():
+                        val = txt.first.input_value()
+                        if len(val.strip()) < 128:
+                            auto_key = secrets.token_hex(64)  # 128 hex chars
+                            txt.first.fill(auto_key)
+                            time.sleep(0.3)
+                        save_btn = visible(page, "button", re.compile(r"^\s*Save Master Key to File\s*$", re.I), timeout=1000)
+                        if save_btn and save_btn.is_enabled():
+                            save_btn.click()
+                            settle(page, 4000)
+                            time.sleep(0.5)
+                except Exception:
+                    pass
+                v_btn = visible(page, "button", re.compile(r"^\s*Verify File Permissions\s*$", re.I), timeout=500)
+                if v_btn and v_btn.is_enabled():
+                    v_btn.click()
+                    settle(page, 2000)
+                if key_banner_btn:
+                    continue
+
+            # 3d. Setup wizard summary: "Go to dashboard"
             dash_btn = visible(page, "button", re.compile(r"^\s*Go to dashboard\s*$", re.I), timeout=1500)
             if dash_btn:
                 snap(page, f"wizard-summary-{i + 1}")
@@ -228,7 +260,7 @@ def main():
                 reached = True
                 break
 
-            # 3d. Setup wizard steps or tour: "Skip" or "Skip Tutorial"
+            # 3e. Setup wizard steps or tour: "Skip" or "Skip Tutorial"
             skip_btn = (visible(page, "button", re.compile(r"^\s*Skip Tutorial\s*$", re.I), timeout=500)
                         or visible(page, "button", re.compile(r"^\s*Skip\s*$", re.I), timeout=1000))
             if skip_btn:
@@ -238,7 +270,7 @@ def main():
                 time.sleep(0.5)
                 continue
 
-            # 3e. Check if dashboard is already reached (no modals or gates blocking)
+            # 3f. Check if dashboard is already reached (no modals or gates blocking)
             if ("/login" not in page.url and
                 not visible(page, "button", re.compile(r"^\s*Create administrator account\s*$", re.I), timeout=200) and
                 not visible(page, "button", re.compile(r"^\s*Go to dashboard\s*$", re.I), timeout=200) and
@@ -285,6 +317,21 @@ def main():
             if tour:
                 tour.click()
                 settle(page, 3000)
+
+            # Defensive: clear any unexpected secret key prompt
+            sk_btn = visible(page, "button", re.compile(r"^\s*Save Master Key to File\s*$", re.I), timeout=200)
+            if sk_btn and sk_btn.is_enabled():
+                try:
+                    txt = page.locator("#master-secret-key-input, textarea[id*='secret-key']")
+                    if txt.count() > 0 and txt.first.is_visible():
+                        val = txt.first.input_value()
+                        if len(val.strip()) < 128:
+                            txt.first.fill(secrets.token_hex(64))
+                            time.sleep(0.2)
+                        sk_btn.click()
+                        settle(page, 2000)
+                except Exception:
+                    pass
             text = ""
             try:
                 text = page.inner_text("body")

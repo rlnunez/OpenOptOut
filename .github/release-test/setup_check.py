@@ -135,12 +135,24 @@ class Checker:
                   status == 200 and body.get("needs_setup") is False, short(body))
         return creds
 
+    def ensure_secret_key(self):
+        status, data = self.call("GET", "/api/settings/security/secret-key")
+        if status != 200 or not isinstance(data, dict):
+            return
+        if data.get("needs_key"):
+            key = secrets.token_hex(64)
+            st, b = self.call("POST", "/api/settings/security/secret-key", {"key": key})
+            self.step("Master secret key: generated and saved", st == 200, f"HTTP {st} {short(b)}")
+        else:
+            self.step("Master secret key: verified present", True, f"length={data.get('active_key_length')}")
+
     def finish_wizard(self):
         status, state = self.call("GET", "/api/wizard/state")
         if not self.step("Read setup wizard state", status == 200, f"HTTP {status} {short(state)}"):
             return
         if state.get("completed"):
             return self.step("Setup wizard completed", True, "already finished (in the browser)")
+        self.ensure_secret_key()
         for s in ("database", "email", "deployment", "branding"):
             if s not in (state.get("steps") or {}):
                 st, b = self.call("POST", "/api/wizard/skip", {"step": s})
@@ -260,6 +272,7 @@ def main():
         return write(args, c)
 
     if args.phase in ("fresh", "before-upgrade"):
+        c.ensure_secret_key()
         c.accept_terms()
         c.finish_wizard()
         member = c.first_member_id()
