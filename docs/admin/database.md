@@ -100,7 +100,7 @@ Sensitive Personally Identifiable Information (PII) — including member name va
 - **Backward Compatibility**: Dual-decryption engine seamlessly decrypts existing `gAAAAA...` Fernet tokens while writing new fields in AES-256-GCM.
 - **Key Derivation**: Keys are derived from `FIELD_ENCRYPTION_KEY` or `SECRET_KEY` using HKDF-SHA256 with domain separation (`openoptout:field-encryption-gcm:v1`).
 - Protects patron PII even if database read replicas, query logs, or unencrypted database dumps are exposed.
-- See the full [Security & Cryptographic Compliance Standards](../dev/compliance-standards.md) for architectural details.
+- See the full [Security Policy](../../SECURITY.md) for architectural details.
 
 ### Managed PostgreSQL Encryption
 When using PostgreSQL on managed cloud infrastructure (e.g. AWS RDS, Google Cloud SQL, Azure Database for PostgreSQL), combine OpenOptOut field-level encryption with cloud provider volume encryption:

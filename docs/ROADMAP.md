@@ -124,9 +124,9 @@ The guiding architectural principle: **the core does not contain broker-specific
 
 <a id="item-68"></a>
 ### 68. Audit scope document for independent security review
-**Goal:** Produce a concise, actionable audit scope document (`docs/dev/audit-scope.md` and `docs/dev/compliance-standards.md`) defining architecture boundaries, threat models, cryptographic invariants, and test harnesses for external security evaluators.
+**Goal:** Produce a concise, actionable audit scope document (`docs/dev/audit-scope.md`) defining architecture boundaries, threat models, cryptographic invariants, and test harnesses for external security evaluators.
 
-- **Status:** Active baseline document published at [`docs/dev/compliance-standards.md`](dev/compliance-standards.md) detailing NIST SP 800-38D, NIST SP 800-132, ISO/IEC 27701, COPPA, OWASP ASVS 4.0.3 L2, OWASP LLM Top 10, and WCAG 2.2 AAA controls.
+- **Status:** Baseline security, cryptographic, and accessibility standards consolidated in [`SECURITY.md`](../SECURITY.md) and [`ACCESSIBILITY.md`](../ACCESSIBILITY.md) (NIST SP 800-38D, NIST SP 800-132, ISO/IEC 27701, COPPA, OWASP ASVS 4.0.3 L2, OWASP LLM Top 10, and WCAG 2.2 AAA).
 
 ---
 
