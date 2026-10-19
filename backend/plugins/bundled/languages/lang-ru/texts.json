@@ -3297,5 +3297,7 @@
   "Used for password recovery and administrator alerts. Opt-outs are always sent from each family member's own connected inbox.": "Используется для восстановления пароля и системных оповещений. Запросы всегда отправляются из личных ящиков членов семьи.",
   "Zero configuration required. All family opt-out logs, broker manifests, and identity vault entries are encrypted locally on this server's filesystem.": "Конфигурация не требуется. Все записи надежно зашифрованы локально на диске.",
   "Zero network latency · Automatic file backups supported": "Нулевая сетевая задержка · Поддержка автоматического резервного копирования",
-  "✓ 0600 file secured": "✓ Файл защищен правами 0600"
+  "✓ 0600 file secured": "✓ Файл защищен правами 0600",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "Помощник написал это после прочтения собственной страницы брокера. Считайте это сводкой, а не надёжной инструкцией — страницу брокера нельзя проверить, и её формулировка может быть специально составлена, чтобы обмануть того, кто проверяет этот черновик.",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Помощник написал эту инструкцию после прочтения собственной страницы брокера — прежде чем доверять ей, проверьте, что она говорит именно то, что вы ожидаете."
 }

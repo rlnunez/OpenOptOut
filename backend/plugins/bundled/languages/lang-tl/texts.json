@@ -3297,5 +3297,7 @@
   "Used for password recovery and administrator alerts. Opt-outs are always sent from each family member's own connected inbox.": "Ginagamit para sa pagbawi ng password at mga alerto ng admin.",
   "Zero configuration required. All family opt-out logs, broker manifests, and identity vault entries are encrypted locally on this server's filesystem.": "Walang kinakailangang configuration. Lahat ay naka-encrypt nang lokal sa disk.",
   "Zero network latency · Automatic file backups supported": "Walang latency sa network · Sinusuportahan ang awtomatikong pag-backup ng file",
-  "✓ 0600 file secured": "✓ 0600 file na-secure"
+  "✓ 0600 file secured": "✓ 0600 file na-secure",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "Isinulat ito ng katulong matapos basahin ang sariling pahina ng broker. Ituring itong buod, hindi mapagkakatiwalaang tagubilin — hindi maberipika ang pahina ng broker, at posibleng ginawa ang pananalita nito upang linlangin ang sinumang susuri sa draft na ito.",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Isinulat ang tagubiling ito ng katulong matapos basahin ang sariling pahina ng broker — tiyaking sinasabi nito ang inaasahan mo bago umasa dito."
 }

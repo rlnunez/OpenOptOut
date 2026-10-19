@@ -3297,5 +3297,7 @@
   "Used for password recovery and administrator alerts. Opt-outs are always sent from each family member's own connected inbox.": "Dùng để khôi phục mật khẩu và thông báo quản trị viên.",
   "Zero configuration required. All family opt-out logs, broker manifests, and identity vault entries are encrypted locally on this server's filesystem.": "Không cần cấu hình. Mọi dữ liệu đều được mã hóa cục bộ trên đĩa.",
   "Zero network latency · Automatic file backups supported": "Không có độ trễ mạng · Hỗ trợ sao lưu tệp tự động",
-  "✓ 0600 file secured": "✓ Tệp 0600 đã được bảo mật"
+  "✓ 0600 file secured": "✓ Tệp 0600 đã được bảo mật",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "Trợ lý đã viết điều này sau khi đọc chính trang của nhà môi giới. Hãy coi đây là bản tóm tắt, không phải hướng dẫn đáng tin cậy — trang của nhà môi giới không thể được xác minh, và lời văn của nó có thể được tạo ra để đánh lạc hướng người xem lại bản thảo này.",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Trợ lý đã viết hướng dẫn này sau khi đọc chính trang của nhà môi giới — hãy kiểm tra xem nó có nói đúng điều bạn mong đợi không trước khi tin vào nó."
 }

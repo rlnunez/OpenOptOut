@@ -3297,5 +3297,7 @@
   "Used for password recovery and administrator alerts. Opt-outs are always sent from each family member's own connected inbox.": "Used for hailing frequencies and Cap'n's notices.",
   "Zero configuration required. All family opt-out logs, broker manifests, and identity vault entries are encrypted locally on this server's filesystem.": "No rigging needed. All crew ledgers are locked down tight.",
   "Zero network latency · Automatic file backups supported": "Zero drag on the hull · Auto-stowage enabled",
-  "✓ 0600 file secured": "✓ Hatches battened to 0600"
+  "✓ 0600 file secured": "✓ Hatches battened to 0600",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "The helper scrawled this after readin' the broker's own page, savvy. Treat it as a yarn, not an order ye can trust — a broker's page can't be verified, and its words might be rigged t' trick whoever reviews this here draft.",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "The helper scrawled this order after readin' the broker's own page — check it says what ye expect afore trustin' it, arr."
 }

@@ -3297,5 +3297,7 @@
   "Used for password recovery and administrator alerts. Opt-outs are always sent from each family member's own connected inbox.": "Dient zur Passwortwiederherstellung und für Administratorwarnungen. Abmeldungen werden stets vom jeweiligen persönlichen Postfach gesendet.",
   "Zero configuration required. All family opt-out logs, broker manifests, and identity vault entries are encrypted locally on this server's filesystem.": "Keine Konfiguration erforderlich. Alle Protokolle und Identitätseinträge werden lokal auf dem Dateisystem verschlüsselt.",
   "Zero network latency · Automatic file backups supported": "Keine Netzwerklatenz · Automatische Dateisicherungen unterstützt",
-  "✓ 0600 file secured": "✓ Datei mit 0600 gesichert"
+  "✓ 0600 file secured": "✓ Datei mit 0600 gesichert",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "Der Helfer hat dies geschrieben, nachdem er die Seite des Brokers selbst gelesen hat. Behandle es als Zusammenfassung, nicht als vertrauenswürdige Anweisung — die Seite eines Brokers lässt sich nicht überprüfen, und ihr Wortlaut könnte so gestaltet sein, dass er diejenige oder denjenigen täuscht, die diesen Entwurf prüft.",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Der Helfer hat diese Anweisung geschrieben, nachdem er die Seite des Brokers selbst gelesen hat — prüfe, ob sie das sagt, was du erwartest, bevor du dich darauf verlässt."
 }

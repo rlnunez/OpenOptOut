@@ -3295,5 +3295,7 @@
   "Used for password recovery and administrator alerts. Opt-outs are always sent from each family member's own connected inbox.": "Hutumika kwa urejeshaji nenosiri na arifa za msimamizi.",
   "Zero configuration required. All family opt-out logs, broker manifests, and identity vault entries are encrypted locally on this server's filesystem.": "Hakuna usanidi unaohitajika. Kila kitu kimesimbwa kwenye diski.",
   "Zero network latency · Automatic file backups supported": "Hakuna ucheleweshaji wa mtandao · Hifadhi rudufu za faili zinatumika",
-  "✓ 0600 file secured": "✓ Faili ya 0600 imelindwa"
+  "✓ 0600 file secured": "✓ Faili ya 0600 imelindwa",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "Msaidizi aliandika hii baada ya kusoma ukurasa wa broker mwenyewe. Ichukulie kama muhtasari, si maagizo ya kuaminika — ukurasa wa broker hauwezi kuthibitishwa, na maneno yake yanaweza kuwa yamepangwa kumdanganya yeyote anayepitia rasimu hii.",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Msaidizi aliandika maagizo haya baada ya kusoma ukurasa wa broker mwenyewe — hakikisha yanasema unachotarajia kabla ya kuyategemea."
 }
