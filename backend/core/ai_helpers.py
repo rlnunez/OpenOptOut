@@ -91,14 +91,21 @@ class AIError(Exception):
 
 def draft_schema() -> dict:
     """JSON Schema for a draft. Every property is required and objects are
-    closed, which all three services' structured-output modes accept."""
+    closed, which all three services' structured-output modes accept.
+
+    Every string and array also carries a length/item cap: without one, a
+    model (misbehaving, manipulated by injected page content, or just given
+    a free hand by its own provider's defaults) can return a technically
+    schema-valid draft that's unboundedly expensive to generate and to store
+    — OWASP LLM10 (Unbounded Consumption). These caps are generous for any
+    real opt-out flow, not a tight fit."""
     from .interpreter.broker_spec import STEP_KINDS, KNOWN_FIELDS, REQUIREMENTS
-    s = lambda: {"type": "string"}
+    s = lambda n=2000: {"type": "string", "maxLength": n}
     step = {
         "type": "object",
         "properties": {
             "kind": {"type": "string", "enum": sorted(STEP_KINDS)},
-            "selector": s(), "url": s(), "value": s(), "text": s(),
+            "selector": s(300), "url": s(), "value": s(), "text": s(),
             "field": {"type": "string", "enum": [""] + sorted(KNOWN_FIELDS)},
             "optional": {"type": "boolean"},
         },
@@ -108,14 +115,14 @@ def draft_schema() -> dict:
     props = {
         "method": {"type": "string", "enum": ["form", "manual"]},
         "opt_out_url": s(),
-        "steps": {"type": "array", "items": step},
-        "success_text": s(),
-        "success_selector": s(),
-        "instructions": s(),
-        "requires": {"type": "array", "items": {"type": "string", "enum": sorted(REQUIREMENTS)}},
+        "steps": {"type": "array", "items": step, "maxItems": 60},
+        "success_text": s(500),
+        "success_selector": s(300),
+        "instructions": s(4000),
+        "requires": {"type": "array", "items": {"type": "string", "enum": sorted(REQUIREMENTS)}, "maxItems": 20},
         "lookup_by": {"type": "string", "enum": ["", "name", "phone", "email"]},
         "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
-        "notes": s(),
+        "notes": s(4000),
     }
     return {"type": "object", "properties": props, "required": list(props), "additionalProperties": False}
 
@@ -448,11 +455,11 @@ def _claude(key: str, model: str, prompt: str, schema: dict, max_tokens: int = 1
     return _parse_json("claude", text)
 
 
-def _openai(key: str, model: str, prompt: str, schema: dict) -> dict:
+def _openai(key: str, model: str, prompt: str, schema: dict, max_output_tokens: int = 16000) -> dict:
     status, data = TRANSPORT("POST", "https://api.openai.com/v1/responses", {
         "Authorization": f"Bearer {key}", "Content-Type": "application/json",
     }, {
-        "model": model,
+        "model": model, "max_output_tokens": max_output_tokens,
         "input": [{"role": "system", "content": system_prompt()}, {"role": "user", "content": prompt}],
         "text": {"format": {"type": "json_schema", "name": "broker_steps", "schema": schema, "strict": True}},
     })
@@ -483,7 +490,7 @@ def _openai_compatible(label: str, base_url: str, key: str, model: str, prompt: 
                {"type": "json_object"}, None]
     status, data = 0, None
     for fmt in formats:
-        body = {"model": model, "messages": messages, "temperature": 0}
+        body = {"model": model, "messages": messages, "temperature": 0, "max_tokens": 16000}
         if fmt:
             body["response_format"] = fmt
         status, data = TRANSPORT("POST", base_url + "/chat/completions", headers, body, timeout)
