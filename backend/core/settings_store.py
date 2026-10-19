@@ -3,12 +3,14 @@ Thin helpers used by scheduler.py to read settings and decrypt passwords
 without importing the full FastAPI router (avoids circular imports).
 """
 
-import json, os, base64
+import json, os, base64, logging
 try:
     from cryptography.fernet import Fernet, MultiFernet
 except ImportError:
     Fernet = None
     MultiFernet = None
+
+log = logging.getLogger(__name__)
 
 _DEFAULT_SETTINGS_FILE = "./openoptout_settings.json"
 _LEGACY_SETTINGS_FILE = "./privacyshield_settings.json"
@@ -177,10 +179,21 @@ def get_secret_key() -> str:
 
 
 def ensure_bootstrap_secret_key() -> str:
-    """Ensure the server has a valid runtime secret key on startup.
-    If secret.key exists, load it. If SECRET_KEY is missing or 'change-me-please',
-    generate an in-memory 128-character ephemeral key until the admin saves their
-    permanent 128+ character key to secret.key via the UI."""
+    """Ensure the server has a valid, persistent master key on startup.
+
+    Order of precedence:
+      1. A valid key already in secret.key → use it.
+      2. A valid SECRET_KEY in the environment (set by the installer's .env, a
+         Docker/K8s secret, etc.) → use it.
+      3. Neither → generate a strong 128+ character key and PERSIST it to
+         secret.key (0600). This makes the key a first-boot artifact for every
+         install path — the installer, a manual `docker compose up`, or an
+         automated test — so the app never runs on a throwaway key and the
+         web-UI master-key step becomes optional (rotation only).
+
+    Only if the key location can't be written (e.g. a read-only filesystem) do
+    we fall back to an in-memory ephemeral key for this process.
+    """
     global _USING_BOOTSTRAP_KEY
     file_key = read_secret_key_file()
     if file_key and is_valid_user_secret_key(file_key):
@@ -191,12 +204,48 @@ def ensure_bootstrap_secret_key() -> str:
     if is_valid_secret_key(env_key):
         _USING_BOOTSTRAP_KEY = False
         return env_key
+
     import secrets
     n_bytes = secrets.randbelow(65) + 64  # random length: 128..256 hex chars
-    bootstrap = secrets.token_hex(n_bytes)
-    os.environ["SECRET_KEY"] = bootstrap
-    _USING_BOOTSTRAP_KEY = True
-    return bootstrap
+    generated = secrets.token_hex(n_bytes)
+    path = get_secret_key_file_path()
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        # Exclusive create so concurrent workers can't clobber each other; the
+        # first worker writes, the rest read back its key below.
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            os.write(fd, (generated + "\n").encode("utf-8"))
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        _secret_file_cache["mtime"] = None
+        os.environ["SECRET_KEY"] = generated
+        _USING_BOOTSTRAP_KEY = False
+        log.warning(
+            "No SECRET_KEY was configured; generated and persisted a master key at %s (0600). "
+            "Set a custom key from the admin UI to rotate it.", path)
+        return generated
+    except FileExistsError:
+        # Another worker created it first — adopt that key so every worker agrees.
+        _secret_file_cache["mtime"] = None
+        existing = read_secret_key_file()
+        if existing and is_valid_user_secret_key(existing):
+            os.environ["SECRET_KEY"] = existing
+            _USING_BOOTSTRAP_KEY = False
+            return existing
+        os.environ["SECRET_KEY"] = generated
+        _USING_BOOTSTRAP_KEY = True
+        return generated
+    except OSError as e:
+        # Read-only key location: keep working this process with an in-memory key.
+        os.environ["SECRET_KEY"] = generated
+        _USING_BOOTSTRAP_KEY = True
+        log.warning(
+            "No SECRET_KEY configured and %s is not writable (%s); using a temporary in-memory key "
+            "for this process. Set SECRET_KEY in the environment or the admin UI to persist one.",
+            path, e)
+        return generated
 
 
 def get_security_key_files() -> list[str]:

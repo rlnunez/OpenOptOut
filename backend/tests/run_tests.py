@@ -5968,6 +5968,50 @@ def t_security_backup_codes_and_totp():
     assert matched_legacy is True and len(rem_legacy) == 1, "legacy unsalted backup code fallback failed"
 
 
+@test(1, "security.secret_key_persisted_on_first_boot",
+      "With no SECRET_KEY configured, startup generates a strong key and PERSISTS it to secret.key "
+      "(0600), so the key is a first-boot artifact and the app never runs on a throwaway key.")
+def t_security_secret_key_persisted_on_first_boot():
+    import os, tempfile, stat
+    ss = _imp("core.settings_store")
+
+    orig_file = os.environ.get("SECRET_KEY_FILE")
+    orig_key = os.environ.get("SECRET_KEY")
+    orig_boot = ss._USING_BOOTSTRAP_KEY
+    orig_cache = dict(ss._secret_file_cache)
+    with tempfile.TemporaryDirectory() as d:
+        key_path = os.path.join(d, "secret.key")
+        try:
+            os.environ["SECRET_KEY_FILE"] = key_path
+            os.environ.pop("SECRET_KEY", None)
+            ss._secret_file_cache.update({"mtime": None, "path": None, "key": None})
+
+            k1 = ss.ensure_bootstrap_secret_key()
+            assert os.path.isfile(key_path), "secret.key was not persisted on first boot"
+            assert ss.is_valid_user_secret_key(k1), "generated key is not a valid 128+ char master key"
+            assert ss._USING_BOOTSTRAP_KEY is False, "a persisted key must not be marked ephemeral"
+            assert os.environ.get("SECRET_KEY") == k1, "env SECRET_KEY not set to the generated key"
+            if os.name == "posix":
+                mode = stat.S_IMODE(os.stat(key_path).st_mode)
+                assert mode == 0o600, f"secret.key must be 0600, got {oct(mode)}"
+            on_disk = open(key_path).read().strip()
+            assert on_disk == k1, "persisted key differs from the returned key"
+
+            # A second boot loads the SAME key from the file (no regeneration).
+            os.environ.pop("SECRET_KEY", None)
+            ss._secret_file_cache.update({"mtime": None, "path": None, "key": None})
+            k2 = ss.ensure_bootstrap_secret_key()
+            assert k2 == k1, "second boot did not reuse the persisted key"
+            assert ss._USING_BOOTSTRAP_KEY is False
+        finally:
+            if orig_file is not None: os.environ["SECRET_KEY_FILE"] = orig_file
+            else: os.environ.pop("SECRET_KEY_FILE", None)
+            if orig_key is not None: os.environ["SECRET_KEY"] = orig_key
+            else: os.environ.pop("SECRET_KEY", None)
+            ss._USING_BOOTSTRAP_KEY = orig_boot
+            ss._secret_file_cache.update(orig_cache)
+
+
 @test(1, "security.encryption_at_rest_production_guards",
       "In production mode (ENFORCE_ENCRYPTION_AT_REST), unencrypted fallback raises RuntimeError.")
 def t_security_encryption_at_rest_production_guards():
