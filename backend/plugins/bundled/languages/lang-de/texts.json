@@ -3253,5 +3253,7 @@
   "Validity (days)": "Gültigkeit (Tage)",
   "Verification Mode": "Verifizierungsmodus",
   "When enabled on your reverse proxy, only devices with a client certificate installed in their OS or browser keystore can reach the site. Unauthenticated requests are dropped at the TLS handshake.": "Wenn auf Ihrem Reverse Proxy aktiviert, können nur Geräte mit einem im Betriebssystem- oder Browser-Keystore installierten Client-Zertifikat die Website erreichen. Nicht authentifizierte Anfragen werden beim TLS-Handshake verworfen.",
-  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: Doppelklicken Sie auf die .p12-Datei, wählen Sie Aktueller Benutzer -> Eigene Zertifikate."
+  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: Doppelklicken Sie auf die .p12-Datei, wählen Sie Aktueller Benutzer -> Eigene Zertifikate.",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "Der Helfer hat dies geschrieben, nachdem er die Seite des Brokers selbst gelesen hat. Behandle es als Zusammenfassung, nicht als vertrauenswürdige Anweisung — die Seite eines Brokers lässt sich nicht überprüfen, und ihr Wortlaut könnte so gestaltet sein, dass er diejenige oder denjenigen täuscht, die diesen Entwurf prüft.",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Der Helfer hat diese Anweisung geschrieben, nachdem er die Seite des Brokers selbst gelesen hat — prüfe, ob sie das sagt, was du erwartest, bevor du dich darauf verlässt."
 }

@@ -3251,5 +3251,7 @@
   "Validity (days)": "Muda wa uhalali (siku)",
   "Verification Mode": "Hali ya Uthibitishaji",
   "When enabled on your reverse proxy, only devices with a client certificate installed in their OS or browser keystore can reach the site. Unauthenticated requests are dropped at the TLS handshake.": "Ikiwezeshwa kwenye proksi yako ya nyuma, ni vifaa vilivyo na cheti cha mteja vilivyosakinishwa kwenye hifadhi ya funguo za Mfumo wa Uendeshaji au kivinjari ndivyo vinavyoweza kufikia tovuti. Maombi ambayo hayajathibitishwa hutupiliwa mbali wakati wa kupeana mikono kwa TLS.",
-  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: Bofya mara mbili faili ya .p12, chagua Mtumiaji wa Sasa -> Hifadhi ya Kibinafsi."
+  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: Bofya mara mbili faili ya .p12, chagua Mtumiaji wa Sasa -> Hifadhi ya Kibinafsi.",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "Msaidizi aliandika hii baada ya kusoma ukurasa wa broker mwenyewe. Ichukulie kama muhtasari, si maagizo ya kuaminika — ukurasa wa broker hauwezi kuthibitishwa, na maneno yake yanaweza kuwa yamepangwa kumdanganya yeyote anayepitia rasimu hii.",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Msaidizi aliandika maagizo haya baada ya kusoma ukurasa wa broker mwenyewe — hakikisha yanasema unachotarajia kabla ya kuyategemea."
 }

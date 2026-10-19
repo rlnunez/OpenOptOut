@@ -3253,5 +3253,7 @@
   "Validity (days)": "Bisa (mga araw)",
   "Verification Mode": "Paraan ng Pag-verify",
   "When enabled on your reverse proxy, only devices with a client certificate installed in their OS or browser keystore can reach the site. Unauthenticated requests are dropped at the TLS handshake.": "Kapag pinagana sa iyong reverse proxy, tanging ang mga device na may client certificate na naka-install sa kanilang OS o browser keystore ang makakarating sa site. Ang mga hindi napatunayang kahilingan ay ibinabagsak sa TLS handshake.",
-  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: I-double click ang .p12 file, piliin ang Current User -> Personal store."
+  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: I-double click ang .p12 file, piliin ang Current User -> Personal store.",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "Isinulat ito ng katulong matapos basahin ang sariling pahina ng broker. Ituring itong buod, hindi mapagkakatiwalaang tagubilin — hindi maberipika ang pahina ng broker, at posibleng ginawa ang pananalita nito upang linlangin ang sinumang susuri sa draft na ito.",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Isinulat ang tagubiling ito ng katulong matapos basahin ang sariling pahina ng broker — tiyaking sinasabi nito ang inaasahan mo bago umasa dito."
 }

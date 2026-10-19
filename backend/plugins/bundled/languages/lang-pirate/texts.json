@@ -3253,5 +3253,7 @@
   "Validity (days)": "Voyage length (days)",
   "Verification Mode": "Inspection Orders",
   "When enabled on your reverse proxy, only devices with a client certificate installed in their OS or browser keystore can reach the site. Unauthenticated requests are dropped at the TLS handshake.": "When ordered at the harbor gate, only vessels carryin' a sealed commission in their ship's chest may anchor. All others walk the plank at the TLS salute.",
-  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: Double-tap the .p12 file, elect Current User -> Personal locker."
+  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: Double-tap the .p12 file, elect Current User -> Personal locker.",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "The helper scrawled this after readin' the broker's own page, savvy. Treat it as a yarn, not an order ye can trust — a broker's page can't be verified, and its words might be rigged t' trick whoever reviews this here draft.",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "The helper scrawled this order after readin' the broker's own page — check it says what ye expect afore trustin' it, arr."
 }

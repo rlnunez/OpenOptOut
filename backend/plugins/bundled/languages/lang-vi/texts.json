@@ -3253,5 +3253,7 @@
   "Validity (days)": "Thời hạn hiệu lực (ngày)",
   "Verification Mode": "Chế độ xác minh",
   "When enabled on your reverse proxy, only devices with a client certificate installed in their OS or browser keystore can reach the site. Unauthenticated requests are dropped at the TLS handshake.": "Khi được bật trên proxy ngược của bạn, chỉ các thiết bị có chứng chỉ máy khách được cài đặt trong kho khóa hệ điều hành hoặc trình duyệt mới có thể truy cập trang web. Các yêu cầu chưa xác thực sẽ bị hủy trong quá trình bắt tay TLS.",
-  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: Nhấp đúp vào tệp .p12, chọn Người dùng hiện tại -> Kho cá nhân."
+  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: Nhấp đúp vào tệp .p12, chọn Người dùng hiện tại -> Kho cá nhân.",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "Trợ lý đã viết điều này sau khi đọc chính trang của nhà môi giới. Hãy coi đây là bản tóm tắt, không phải hướng dẫn đáng tin cậy — trang của nhà môi giới không thể được xác minh, và lời văn của nó có thể được tạo ra để đánh lạc hướng người xem lại bản thảo này.",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Trợ lý đã viết hướng dẫn này sau khi đọc chính trang của nhà môi giới — hãy kiểm tra xem nó có nói đúng điều bạn mong đợi không trước khi tin vào nó."
 }

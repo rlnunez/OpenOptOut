@@ -198,7 +198,12 @@ function DraftCard({ d, settings, open, onToggle, act, exportZip }) {
         <div className="mt-3 border-t border-slate-700/50 pt-3 space-y-3 text-sm">
           {detail.notes && (
             <div>
-              <div className="text-slate-400 text-xs mb-1">{tx("Notes from the helper")}</div>
+              <div className="text-slate-400 text-xs mb-1 flex items-center gap-1">
+                {tx("Notes from the helper")}
+                <span title={tx("The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.")}>
+                  <AlertTriangle size={12} className="text-amber-400" aria-hidden="true" />
+                </span>
+              </div>
               <p className="text-slate-300 whitespace-pre-line">{detail.notes}</p>
             </div>
           )}
@@ -224,6 +229,11 @@ function DraftCard({ d, settings, open, onToggle, act, exportZip }) {
                   <li key={i} className={detail.rehearsal?.failed === i ? 'text-amber-300' : (detail.rehearsal?.stop === i ? 'text-sky-300' : '')}>
                     {s.words}{detail.rehearsal?.stop === i ? `  ← ${tx("final click: checked, not pressed")}` : ''}
                     {detail.rehearsal?.failed === i ? `  ← ${tx("stopped here")}` : ''}
+                    {s.kind === 'pause_for_human' && (
+                      <span title={tx("The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.")}>
+                        {" "}<AlertTriangle size={11} className="inline text-amber-400 align-text-top" aria-hidden="true" />
+                      </span>
+                    )}
                   </li>
                 ))}
               </ol>

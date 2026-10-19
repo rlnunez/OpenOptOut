@@ -3252,5 +3252,7 @@
   "Validity (days)": "Masa berlaku (hari)",
   "Verification Mode": "Mode Verifikasi",
   "When enabled on your reverse proxy, only devices with a client certificate installed in their OS or browser keystore can reach the site. Unauthenticated requests are dropped at the TLS handshake.": "Saat diaktifkan pada proksi terbalik Anda, hanya perangkat dengan sertifikat klien yang terpasang di keystore OS atau browser yang dapat menjangkau situs. Permintaan yang tidak terautentikasi ditolak pada jabat tangan TLS.",
-  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: Klik dua kali berkas .p12, pilih Pengguna Saat Ini -> Penyimpanan Pribadi."
+  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: Klik dua kali berkas .p12, pilih Pengguna Saat Ini -> Penyimpanan Pribadi.",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "Asisten menulis ini setelah membaca halaman broker itu sendiri. Perlakukan sebagai ringkasan, bukan instruksi tepercaya — halaman broker tidak bisa diverifikasi, dan kata-katanya bisa saja dirancang untuk menyesatkan siapa pun yang meninjau draf ini.",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Asisten menulis instruksi ini setelah membaca halaman broker itu sendiri — periksa apakah isinya sesuai harapan Anda sebelum mengandalkannya."
 }

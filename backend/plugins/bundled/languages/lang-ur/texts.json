@@ -3251,5 +3251,7 @@
   "Validity (days)": "میعاد (دن)",
   "Verification Mode": "تصدیقی موڈ",
   "When enabled on your reverse proxy, only devices with a client certificate installed in their OS or browser keystore can reach the site. Unauthenticated requests are dropped at the TLS handshake.": "جب آپ کی ریورس پراکسی پر فعال ہوتا ہے، تو صرف وہ آلات سائٹ تک پہنچ سکتے ہیں جن کے OS یا براؤزر کی اسٹور میں کلائنٹ سرٹیفکیٹ انسٹال ہو۔ غیر تصدیق شدہ درخواستیں TLS ہینڈ شیک پر ختم کر دی جاتی ہیں۔",
-  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: .p12 فائل پر ڈبل کلک کریں، موجودہ صارف -> ذاتی اسٹور منتخب کریں۔"
+  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: .p12 فائل پر ڈبل کلک کریں، موجودہ صارف -> ذاتی اسٹور منتخب کریں۔",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "یہ مددگار نے بروکر کے اپنے صفحے کو پڑھنے کے بعد لکھا ہے۔ اسے خلاصہ سمجھیں، قابلِ اعتماد ہدایت نہیں — بروکر کے صفحے کی تصدیق نہیں کی جا سکتی، اور اس کے الفاظ اس شخص کو گمراہ کرنے کے لیے بنائے گئے ہو سکتے ہیں جو اس مسودے کا جائزہ لے رہا ہے۔",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "یہ ہدایت مددگار نے بروکر کے اپنے صفحے کو پڑھنے کے بعد لکھی ہے — اس پر اعتماد کرنے سے پہلے چیک کریں کہ یہ وہی کہتی ہے جس کی آپ توقع رکھتے ہیں۔"
 }

@@ -3253,5 +3253,7 @@
   "Validity (days)": "الصلاحية (بالأيام)",
   "Verification Mode": "وضع التحقق",
   "When enabled on your reverse proxy, only devices with a client certificate installed in their OS or browser keystore can reach the site. Unauthenticated requests are dropped at the TLS handshake.": "عند التمكين على الوكيل العكسي، يمكن فقط للأجهزة التي تحتوي على شهادة عميل مثبتة في مخزن مفاتيح نظام التشغيل أو المتصفح الوصول إلى الموقع. يتم إسقاط الطلبات غير المصادق عليها أثناء مصافحة TLS.",
-  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "ويندوز: انقر نقراً مزدوجاً فوق ملف .p12، واختر المستخدم الحالي -> المخزن الشخصي."
+  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "ويندوز: انقر نقراً مزدوجاً فوق ملف .p12، واختر المستخدم الحالي -> المخزن الشخصي.",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "كتب المساعد هذا بعد قراءة صفحة السمسار نفسها. تعامل معه كملخص، لا كتوجيه موثوق — فصفحة السمسار لا يمكن التحقق منها، وقد تكون صياغتها معدّة لتضليل من يراجع هذه المسودة.",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "كتب المساعد هذا التوجيه بعد قراءة صفحة السمسار نفسها — تحقق من أنه يقول ما تتوقعه قبل الاعتماد عليه."
 }

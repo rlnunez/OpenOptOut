@@ -3253,5 +3253,7 @@
   "Validity (days)": "有效期限（天）",
   "Verification Mode": "验证模式",
   "When enabled on your reverse proxy, only devices with a client certificate installed in their OS or browser keystore can reach the site. Unauthenticated requests are dropped at the TLS handshake.": "在反向代理上启用后，只有在其操作系统或浏览器证书库中安装了客户端证书的设备才能访问本站点。未通过认证的请求将在 TLS 握手阶段被直接丢弃。",
-  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows：双击 .p12 文件，选择“当前用户” -> “个人”存储。"
+  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows：双击 .p12 文件，选择“当前用户” -> “个人”存储。",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "此说明是助手在阅读该数据经纪商自己的页面后写下的。请把它当作摘要，而不是可信的指示——经纪商的页面无法核实，其措辞可能是特意设计来误导审阅此草稿的人的。",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "此指示是助手在阅读该数据经纪商自己的页面后写下的——在依赖它之前，请核实它所说的是否符合你的预期。"
 }

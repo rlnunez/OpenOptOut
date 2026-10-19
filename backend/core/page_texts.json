@@ -16492,6 +16492,18 @@
    ]
   },
   {
+   "text": "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.",
+   "where": [
+    "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
    "text": "The ILS certificate is always verified. If it comes from an internal CA or is self-signed, paste that CA certificate here — don't paste the ILS server's own certificate, or sign-in will break the next time it renews.",
    "where": [
     "pages/Branding.jsx"

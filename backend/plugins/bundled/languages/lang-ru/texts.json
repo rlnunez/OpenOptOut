@@ -3253,5 +3253,7 @@
   "Validity (days)": "Срок действия (дней)",
   "Verification Mode": "Режим проверки",
   "When enabled on your reverse proxy, only devices with a client certificate installed in their OS or browser keystore can reach the site. Unauthenticated requests are dropped at the TLS handshake.": "При включении на обратном прокси только устройства с клиентским сертификатом, установленным в хранилище ОС или браузера, смогут открыть сайт. Неаутентифицированные запросы сбрасываются во время рукопожатия TLS.",
-  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: Дважды кликните по файлу .p12, выберите Текущий пользователь -> Личное хранилище."
+  "Windows: Double-click the .p12 file, choose Current User -> Personal store.": "Windows: Дважды кликните по файлу .p12, выберите Текущий пользователь -> Личное хранилище.",
+  "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "Помощник написал это после прочтения собственной страницы брокера. Считайте это сводкой, а не надёжной инструкцией — страницу брокера нельзя проверить, и её формулировка может быть специально составлена, чтобы обмануть того, кто проверяет этот черновик.",
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Помощник написал эту инструкцию после прочтения собственной страницы брокера — прежде чем доверять ей, проверьте, что она говорит именно то, что вы ожидаете."
 }
