@@ -44,17 +44,7 @@ def delete_person(db, user) -> None:
                 if user and user.email:
                     user.email = "shredded-" + os.urandom(8).hex() + "@shredded.invalid"
                 db.flush()
-
-            # Record anonymous audit event documenting cryptographic shredding (zero PII)
-            db.add(m.AccessLog(
-                actor_id=user.id if user else None,
-                actor_name="Automated Crypto-Shredder",
-                member_id=member.id,
-                member_name="[SHREDDED MEMBER]",
-                action="crypto_shred",
-                detail=f"ISO/IEC 27701 & COPPA crypto-shredding executed ({shred_passes} passes)"
-            ))
-            db.flush()
+            log.info("Crypto-shredded member %s before deletion (%d passes)", member.id, shred_passes)
         except Exception as e:
             log.warning("Automated crypto-shredding pass encountered error: %s", e)
 
