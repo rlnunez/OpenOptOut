@@ -45,6 +45,7 @@ import struct
 import tarfile
 import tempfile
 from datetime import datetime, timedelta
+from typing import Optional
 
 log = logging.getLogger(__name__)
 
