@@ -172,7 +172,15 @@ class SchedulerConfig(LimitedModel):
 
 
 class PrivacyDataSettings(LimitedModel):
-    auto_purge_logs_days: Optional[int] = 365
+    auto_purge_logs_days:          Optional[int]  = 365
+    logs_retention_days:           Optional[int]  = 365
+    artifacts_retention_days:      Optional[int]  = 90
+    coppa_children_retention_days: Optional[int]  = 30
+    audit_access_retention_days:   Optional[int]  = 365
+    crypto_shredding_enabled:      Optional[bool] = True
+    crypto_shredding_passes:       Optional[int]  = 3
+    crypto_shredding_vacuum:       Optional[bool] = True
+    coppa_strict_shredding:        Optional[bool] = True
 
 
 class AllSettings(BaseModel):
@@ -444,6 +452,13 @@ def save_privacy(data: PrivacyDataSettings, _: User = Depends(require_permission
     d = data.model_dump()
     if d.get("auto_purge_logs_days") is not None and d["auto_purge_logs_days"] < 30:
         raise HTTPException(400, "Keep logs for at least 30 days.")
+    if d.get("logs_retention_days") is not None and d["logs_retention_days"] < 7:
+        raise HTTPException(400, "Logs retention must be at least 7 days.")
+    if d.get("audit_access_retention_days") is not None and d["audit_access_retention_days"] < 90:
+        raise HTTPException(400, "Audit access log retention must be at least 90 days.")
+    # Keep auto_purge_logs_days in sync with logs_retention_days
+    if d.get("logs_retention_days") is not None:
+        d["auto_purge_logs_days"] = d["logs_retention_days"]
     s["privacy"] = {**(s.get("privacy") or {}), **d}   # keeps the last-run record
     _save(s)
     return s["privacy"]

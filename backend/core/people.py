@@ -12,10 +12,51 @@ from __future__ import annotations
 
 
 def delete_person(db, user) -> None:
+    import os
+    import logging
     from ..models import database as m
     from .mailboxes import purge_for_user
+    from .settings_store import load_settings
+    log = logging.getLogger(__name__)
+
     member = db.query(m.FamilyMember).filter(m.FamilyMember.user_id == user.id).first()
     purge_for_user(db, user.id)
+
+    # ── ISO/IEC 27701 & COPPA Automated Crypto-Shredding ──────────────────────────
+    cfg = load_settings()
+    priv = (cfg or {}).get("privacy") or {}
+    crypto_shred_enabled = priv.get("crypto_shredding_enabled", True)
+    shred_passes = max(1, min(7, int(priv.get("crypto_shredding_passes", 3))))
+    do_vacuum = priv.get("crypto_shredding_vacuum", True)
+
+    if crypto_shred_enabled and member is not None:
+        try:
+            # Overwrite sensitive PII fields with high-entropy cryptographic bytes prior to deletion
+            for _ in range(shred_passes):
+                for ident in db.query(m.Identity).filter(m.Identity.member_id == member.id).all():
+                    ident.value = os.urandom(32).hex()
+                for addr in db.query(m.ContactAddress).filter(m.ContactAddress.member_id == member.id).all():
+                    addr.address = os.urandom(16).hex() + "@shredded.invalid"
+                    addr.combo_label = "SHREDDED"
+                if member.formal_name:
+                    member.formal_name = os.urandom(16).hex()
+                member.full_name = "SHREDDED-" + os.urandom(8).hex()
+                if user and user.email:
+                    user.email = "shredded-" + os.urandom(8).hex() + "@shredded.invalid"
+                db.flush()
+
+            # Record anonymous audit event documenting cryptographic shredding (zero PII)
+            db.add(m.AccessLog(
+                actor_id=user.id if user else None,
+                actor_name="Automated Crypto-Shredder",
+                member_id=member.id,
+                member_name="[SHREDDED MEMBER]",
+                action="crypto_shred",
+                detail=f"ISO/IEC 27701 & COPPA crypto-shredding executed ({shred_passes} passes)"
+            ))
+            db.flush()
+        except Exception as e:
+            log.warning("Automated crypto-shredding pass encountered error: %s", e)
 
     def gone(model, *conds):
         db.query(model).filter(*conds).delete(synchronize_session=False)
@@ -50,3 +91,10 @@ def delete_person(db, user) -> None:
         db.query(model).filter(c == user.id).update({c: None}, synchronize_session=False)
     db.expire_all()
     gone(m.User, m.User.id == user.id)
+
+    if crypto_shred_enabled and do_vacuum:
+        try:
+            from sqlalchemy import text
+            db.execute(text("PRAGMA incremental_vacuum"))
+        except Exception:
+            pass

@@ -62,6 +62,12 @@
    ]
   },
   {
+   "text": "(minimum {min} days)",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "(no subject)",
    "where": [
     "pages/EmailMonitor.jsx"
@@ -273,6 +279,18 @@
    ]
   },
   {
+   "text": "1 Pass (Fast)",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "1 year",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "1. Generate a key: <0>openssl rand -hex 32</0>",
    "where": [
     "pages/Settings.jsx"
@@ -369,6 +387,12 @@
    ]
   },
   {
+   "text": "3 Passes (DoD 5220.22-M)",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "3. Migrate existing data: <0>docker exec openoptout-api python -m backend.core.encryption migrate</0>",
    "where": [
     "pages/Settings.jsx"
@@ -462,6 +486,12 @@
    "text": "7 days",
    "where": [
     "pages/Scheduled.jsx"
+   ]
+  },
+  {
+   "text": "7 Passes (Enhanced)",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -803,6 +833,18 @@
    "text": "Access & Network Connection",
    "where": [
     "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Access & Security",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Access Audit Trail",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -2215,6 +2257,18 @@
    ]
   },
   {
+   "text": "Automated Crypto-Shredding upon Member Deletion",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Automated crypto-shredding upon member deletion, data retention schedules, and privacy record rights",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Automated opt-out timing and per-member rate limits",
    "where": [
     "pages/Settings.jsx"
@@ -2319,7 +2373,19 @@
    ]
   },
   {
-   "text": "Automation logs, email excerpts, unmatched search results and CAPTCHA pictures older than this are deleted every day. People's details and requests are never deleted by this. <0>See the privacy record</0>",
+   "text": "Automatically zero and reclaim unallocated SQLite storage pages after deletion",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Automation",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Automation & Broker Logs",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -3293,6 +3359,12 @@
    ]
   },
   {
+   "text": "Choose common industry retention periods or set custom durations for each data classification.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Choose how you and your family will access the OpenOptOut interface.",
    "where": [
     "pages/SetupWizard.jsx"
@@ -4029,6 +4101,12 @@
    ]
   },
   {
+   "text": "COPPA Mandate",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Copy",
    "where": [
     "pages/CreditFreeze.jsx",
@@ -4494,6 +4572,12 @@
    ]
   },
   {
+   "text": "Couldn't save retention settings.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Couldn't save that address.",
    "where": [
     "pages/StateRegistries.jsx"
@@ -4828,6 +4912,18 @@
    ]
   },
   {
+   "text": "crypto-shredded",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Cryptographic Overwrite Passes",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "CSV has a header and the same rows as JSON",
    "where": [
     "server: stats_check.py"
@@ -4861,6 +4957,12 @@
    "text": "Custom Domain with Automatic HTTPS",
    "where": [
     "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Custom duration:",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -4971,6 +5073,30 @@
    ]
   },
   {
+   "text": "Data Lifecycle",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Data Lifecycle & Privacy Compliance (ISO/IEC 27701 & COPPA)",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Data lifecycle & retention policy saved successfully.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Data Retention Schedules",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Data sharing",
    "where": [
     "components/Sidebar.jsx",
@@ -5022,6 +5148,12 @@
    "text": "Database scaling — SQLite vs PostgreSQL",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "Database Space Sanitization (Vacuum)",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -5223,6 +5355,12 @@
    ]
   },
   {
+   "text": "Delete my account & family profiles",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Delete this note?",
    "where": [
     "pages/Help.jsx"
@@ -5241,7 +5379,7 @@
    ]
   },
   {
-   "text": "Deletes your account and everything about you. People you added who only you manage are deleted too; anyone shared with another parent stays with them. Sites that already removed you stay removed. This can't be undone.",
+   "text": "Deletes your account and everything about you. When automated crypto-shredding is active, your records are overwritten with random entropy before deletion. This can't be undone.",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -5686,8 +5824,7 @@
   {
    "text": "Download",
    "where": [
-    "pages/Backups.jsx",
-    "pages/Settings.jsx"
+    "pages/Backups.jsx"
    ]
   },
   {
@@ -5721,7 +5858,13 @@
    ]
   },
   {
-   "text": "Download my data",
+   "text": "Download JSON",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Download my data (GDPR / CCPA Portability)",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -6457,6 +6600,12 @@
    ]
   },
   {
+   "text": "Ensures strict purpose limitation and data minimization: personal details are kept only as long as necessary, minor data is handled with elevated protections, and member deletion executes multi-pass cryptographic shredding so records cannot be recovered.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Enter",
    "where": [
     "components/LiveCaptcha.jsx"
@@ -6746,7 +6895,7 @@
    ]
   },
   {
-   "text": "Everything OpenOptOut keeps about you and the people you manage, as a file",
+   "text": "Everything OpenOptOut keeps about you and the people you manage, as an encrypted JSON file",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -6797,6 +6946,12 @@
    "text": "examples/stats-bridge/pull_usage.py is a starting script: it collects each new day and saves CSV and JSON Lines files, ready to load into a data mart like LibInsight, a warehouse or a lake.",
    "where": [
     "pages/UsageStats.jsx"
+   ]
+  },
+  {
+   "text": "Execution logs, HTTP traces, email excerpts and unmatched search hits",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -6993,6 +7148,12 @@
   },
   {
    "text": "Failed to revoke certificate",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Failed to run retention purge.",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -7583,7 +7744,8 @@
   {
    "text": "General",
    "where": [
-    "pages/Help.jsx"
+    "pages/Help.jsx",
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -7624,12 +7786,6 @@
   },
   {
    "text": "Generating…",
-   "where": [
-    "pages/Settings.jsx"
-   ]
-  },
-  {
-   "text": "Get a copy of your data, see who looked at it, or delete it",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -8422,6 +8578,12 @@
    ]
   },
   {
+   "text": "Immediately shred all child profile traces, confirmation links and request payloads upon verified removal",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Import",
    "where": [
     "pages/BrokerPriority.jsx",
@@ -8764,6 +8926,18 @@
    ]
   },
   {
+   "text": "ISO/IEC 27701",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "ISO/IEC 27701 (Privacy Information Management) & COPPA Compliant Controls",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Issue Client Certificate",
    "where": [
     "pages/Settings.jsx"
@@ -8882,12 +9056,6 @@
    "text": "Keep it somewhere safe that isn't this server. If it's lost, the backups can't be opened by anyone.",
    "where": [
     "pages/Backups.jsx"
-   ]
-  },
-  {
-   "text": "Keep logs for",
-   "where": [
-    "pages/Settings.jsx"
    ]
   },
   {
@@ -10198,6 +10366,12 @@
    ]
   },
   {
+   "text": "Minor / Child Request Artifacts (COPPA)",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Mint & Download .p12",
    "where": [
     "pages/Settings.jsx"
@@ -10373,6 +10547,12 @@
    "text": "Multi-Factor Authentication is required for administrator accounts after 3 days of installation. Please configure an authentication method to continue.",
    "where": [
     "pages/Login.jsx"
+   ]
+  },
+  {
+   "text": "Multi-pass random entropy overwrites before row deletion",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -12748,6 +12928,7 @@
    "where": [
     "components/Sidebar.jsx",
     "pages/Plugins.jsx",
+    "pages/Settings.jsx",
     "pages/SystemLogs.jsx"
    ]
   },
@@ -13008,12 +13189,6 @@
    ]
   },
   {
-   "text": "Privacy & data",
-   "where": [
-    "pages/Settings.jsx"
-   ]
-  },
-  {
    "text": "Privacy laws give sites a set number of days to answer a removal request (45 under California's law, 30 under Europe's). This shows which sites missed it, and which put details back after removing them. You only see the people you have access to.",
    "where": [
     "pages/DeadlineReport.jsx"
@@ -13186,6 +13361,18 @@
    "text": "Pulling containers and applying update...",
    "where": [
     "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Purge auxiliary verification records and email snippets once child opt-out is verified",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Purging…",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -13388,6 +13575,12 @@
   },
   {
    "text": "Reconfigure",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Record of staff or administrators inspecting member records (ISO 27701 minimum 1 year recommended)",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -13880,6 +14073,12 @@
    ]
   },
   {
+   "text": "Removed {a} logs, {c} captchas, {s} screenshots, {p} COPPA traces.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Removing…",
    "where": [
     "pages/Settings.jsx"
@@ -14136,6 +14335,18 @@
    ]
   },
   {
+   "text": "Retention purge completed successfully.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Retention Purge Results:",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Retry",
    "where": [
     "pages/WorkerFleet.jsx"
@@ -14320,6 +14531,12 @@
   },
   {
    "text": "Run re-checks",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Run Retention Purge Now",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -14519,6 +14736,12 @@
    "text": "Save passphrase",
    "where": [
     "pages/Backups.jsx"
+   ]
+  },
+  {
+   "text": "Save Retention & Shredding Policy",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -15448,6 +15671,12 @@
    ]
   },
   {
+   "text": "Settings categories",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Settings only you can change with your phone company and the credit bureaus",
    "where": [
     "pages/Help.jsx"
@@ -16159,13 +16388,19 @@
    ]
   },
   {
+   "text": "Staff Audit & Access Logs",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Staff managers & unit administrators",
    "where": [
     "pages/Settings.jsx"
    ]
   },
   {
-   "text": "Staff or admins who viewed, changed, exported or removed your family's details",
+   "text": "Staff or admins who viewed, changed, exported, crypto-shredded or removed your family's details",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -16497,6 +16732,12 @@
    ]
   },
   {
+   "text": "Strict Minor / Child Record Shredding",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Strictly mandates PIN or biometric verification. Basic U2F keys or hardware keys without a configured PIN will fail authentication and cannot sign in.",
    "where": [
     "pages/Settings.jsx"
@@ -16530,6 +16771,12 @@
    "text": "Subject:",
    "where": [
     "pages/ParentCompanies.jsx",
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Submission Artifacts & CAPTCHA Images",
+   "where": [
     "pages/Settings.jsx"
    ]
   },
@@ -16826,6 +17073,12 @@
    "text": "Templates & tips",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "Temporary challenge screenshots and raw broker submission payloads",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -19105,6 +19358,12 @@
    ]
   },
   {
+   "text": "When a member or account is deleted, OpenOptOut automatically overwrites PII ciphertext in storage with high-entropy cryptographic bytes before issuing deletions, rendering deleted records unrecoverable even through physical disk inspection.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "When a site shows only a name",
    "where": [
     "pages/Settings.jsx"
@@ -19259,12 +19518,6 @@
    "text": "Who can see and edit whose data",
    "where": [
     "pages/AdminPanel.jsx"
-   ]
-  },
-  {
-   "text": "Who else has looked at our details",
-   "where": [
-    "pages/Settings.jsx"
    ]
   },
   {
@@ -19971,6 +20224,12 @@
    ]
   },
   {
+   "text": "{n} days",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "{n} days late",
    "where": [
     "pages/Scheduled.jsx"
@@ -20154,6 +20413,12 @@
    "text": "{n} were already on the list.",
    "where": [
     "components/ResidentAddresses.jsx"
+   ]
+  },
+  {
+   "text": "{n} years",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {

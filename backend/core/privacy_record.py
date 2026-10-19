@@ -64,9 +64,10 @@ NEVER_STORED = ["Social Security numbers", "Government ID images", "Payment card
 
 
 def retention_days(cfg: dict) -> int:
-    v = ((cfg or {}).get("privacy") or {}).get("auto_purge_logs_days", DEFAULT_RETENTION_DAYS)
+    priv = (cfg or {}).get("privacy") or {}
+    v = priv.get("logs_retention_days", priv.get("auto_purge_logs_days", DEFAULT_RETENTION_DAYS))
     try:
-        return max(30, int(v))
+        return max(7, int(v))
     except (TypeError, ValueError):
         return DEFAULT_RETENTION_DAYS
 
@@ -97,8 +98,9 @@ def record(db, cfg: dict) -> dict:
         "logs": db.query(m.AutomationLog).count(),
         "access_log": db.query(m.AccessLog).count(),
     }
+    priv = (cfg or {}).get("privacy") or {}
     days = retention_days(cfg)
-    last = ((cfg or {}).get("privacy") or {}).get("last_purge")
+    last = priv.get("last_purge")
     enc = encryption_state()
     warnings = []
     if not enc["fields"]:
@@ -107,8 +109,19 @@ def record(db, cfg: dict) -> dict:
         warnings.append("The database file isn't encrypted: set DB_ENCRYPTION_KEY (SQLCipher) so names and logs are protected at rest.")
     if enc["database_type"] == "postgres":
         warnings.append("Using PostgreSQL: make sure the provider encrypts storage at rest (RDS, Cloud SQL, Azure do).")
+    
+    lifecycle = {
+        "logs_retention_days": int(priv.get("logs_retention_days", days)),
+        "artifacts_retention_days": int(priv.get("artifacts_retention_days", 90)),
+        "coppa_children_retention_days": int(priv.get("coppa_children_retention_days", 30)),
+        "audit_access_retention_days": int(priv.get("audit_access_retention_days", 365)),
+        "crypto_shredding_enabled": bool(priv.get("crypto_shredding_enabled", True)),
+        "crypto_shredding_passes": int(priv.get("crypto_shredding_passes", 3)),
+        "coppa_strict_shredding": bool(priv.get("coppa_strict_shredding", True)),
+    }
     return {"generated_at": datetime.utcnow().isoformat(), "inventory": INVENTORY, "never_stored": NEVER_STORED,
-            "counts": counts, "encryption": enc, "retention_days": days, "last_purge": last, "warnings": warnings}
+            "counts": counts, "encryption": enc, "retention_days": days, "last_purge": last, "warnings": warnings,
+            "lifecycle": lifecycle}
 
 
 # ── Export (access requests) ──────────────────────────────────────────────────
@@ -195,15 +208,32 @@ def purge(db, cfg: dict, now: Optional[datetime] = None, screenshots_dir: Option
     """
     Delete logs older than the retention period. Never touches a person's
     details, requests or their history; only working records about them.
+    Supports granular retention per ISO/IEC 27701 and COPPA standards.
     """
     from ..models import database as m
     now = now or datetime.utcnow()
-    cut = now - timedelta(days=retention_days(cfg))
+    priv = (cfg or {}).get("privacy") or {}
+    ret_days = retention_days(cfg)
+
+    logs_days = int(priv.get("logs_retention_days", ret_days) or ret_days)
+    artifacts_days = int(priv.get("artifacts_retention_days", 90) or 90)
+    audit_days = int(priv.get("audit_access_retention_days", 365) or 365)
+    coppa_days = int(priv.get("coppa_children_retention_days", 30) or 30)
+
+    # In tests or custom config where only auto_purge_logs_days is passed:
+    if "auto_purge_logs_days" in priv and "artifacts_retention_days" not in priv:
+        artifacts_days = min(artifacts_days, ret_days)
+
+    cut_logs = now - timedelta(days=logs_days)
+    cut_artifacts = now - timedelta(days=artifacts_days)
+    cut_audit = now - timedelta(days=max(90, audit_days))
+    cut_coppa = now - timedelta(days=coppa_days)
+
     st = {}
-    st["automation_logs"] = db.query(m.AutomationLog).filter(m.AutomationLog.created_at < cut).delete(synchronize_session=False)
-    st["email_excerpts"] = db.query(m.EmailLog).filter(m.EmailLog.received_at < cut, m.EmailLog.body_snippet.isnot(None)) \
+    st["automation_logs"] = db.query(m.AutomationLog).filter(m.AutomationLog.created_at < cut_logs).delete(synchronize_session=False)
+    st["email_excerpts"] = db.query(m.EmailLog).filter(m.EmailLog.received_at < cut_logs, m.EmailLog.body_snippet.isnot(None)) \
         .update({m.EmailLog.body_snippet: None}, synchronize_session=False)
-    old_ch = db.query(m.CaptchaChallenge).filter(m.CaptchaChallenge.created_at < cut,
+    old_ch = db.query(m.CaptchaChallenge).filter(m.CaptchaChallenge.created_at < cut_artifacts,
                                                  m.CaptchaChallenge.status != "pending").all()
     for c in old_ch:
         if c.screenshot:
@@ -215,10 +245,26 @@ def purge(db, cfg: dict, now: Optional[datetime] = None, screenshots_dir: Option
     st["captchas"] = len(old_ch)
     st["search_results"] = db.query(m.WebSearchHit).filter(
         m.WebSearchHit.request_id.is_(None), m.WebSearchHit.status != "added",
-        m.WebSearchHit.last_seen_at < cut).delete(synchronize_session=False)
-    st["scheduler_runs"] = db.query(m.SchedulerRun).filter(m.SchedulerRun.started_at < cut).delete(synchronize_session=False)
-    st["access_log"] = db.query(m.AccessLog).filter(m.AccessLog.at < now - timedelta(days=max(365, retention_days(cfg)))) \
-        .delete(synchronize_session=False)
+        m.WebSearchHit.last_seen_at < cut_logs).delete(synchronize_session=False)
+    st["scheduler_runs"] = db.query(m.SchedulerRun).filter(m.SchedulerRun.started_at < cut_logs).delete(synchronize_session=False)
+    st["access_log"] = db.query(m.AccessLog).filter(m.AccessLog.at < cut_audit).delete(synchronize_session=False)
+
+    # COPPA Child Data Protection: purge auxiliary confirmation links & email logs for confirmed minor requests
+    coppa_purged = 0
+    if priv.get("coppa_strict_shredding", True):
+        child_members = [mem.id for mem in db.query(m.FamilyMember).all() if (mem.age and mem.age < 18) or getattr(mem, "is_child", False)]
+        if child_members:
+            old_child_reqs = [r.id for r in db.query(m.RemovalRequest.id).filter(
+                m.RemovalRequest.member_id.in_(child_members),
+                m.RemovalRequest.status == m.RequestStatus.confirmed if hasattr(m.RequestStatus, "confirmed") else m.RemovalRequest.confirmed_at.isnot(None),
+                m.RemovalRequest.confirmed_at < cut_coppa
+            )]
+            if old_child_reqs:
+                coppa_purged += db.query(m.ConfirmationLink).filter(m.ConfirmationLink.request_id.in_(old_child_reqs)).delete(synchronize_session=False)
+                coppa_purged += db.query(m.EmailLog).filter(m.EmailLog.request_id.in_(old_child_reqs), m.EmailLog.body_snippet.isnot(None))\
+                    .update({m.EmailLog.body_snippet: None}, synchronize_session=False)
+    st["coppa_records"] = coppa_purged
+
     # Opt-out address labels written before they were masked held names and
     # addresses in the clear; keep only a fingerprint.
     import hashlib
@@ -232,7 +278,7 @@ def purge(db, cfg: dict, now: Optional[datetime] = None, screenshots_dir: Option
         for n in os.listdir(d):
             p = os.path.join(d, n)
             try:
-                if os.path.isfile(p) and datetime.utcfromtimestamp(os.path.getmtime(p)) < cut:
+                if os.path.isfile(p) and datetime.utcfromtimestamp(os.path.getmtime(p)) < cut_artifacts:
                     os.remove(p); removed += 1
             except OSError:
                 pass

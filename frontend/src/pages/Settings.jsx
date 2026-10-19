@@ -919,18 +919,132 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
 }
 
 // ── Data section ──────────────────────────────────────────────────────────────
-function DataSection({ userRole }) {
+// ── Data Lifecycle, Retention Schedules & Crypto-Shredding (ISO/IEC 27701 & COPPA) ─────────────
+function RetentionPicker({ label, hint, value, onChange, presets, min = 7 }) {
+  const isCustom = !presets.includes(Number(value))
+  const [customMode, setCustomMode] = useState(isCustom)
+  const [customVal, setCustomVal] = useState(String(value || min))
+
+  useEffect(() => {
+    if (!presets.includes(Number(value))) {
+      setCustomMode(true)
+      setCustomVal(String(value))
+    } else {
+      setCustomMode(false)
+    }
+  }, [value, presets])
+
+  const selectPreset = (p) => {
+    setCustomMode(false)
+    onChange(p)
+  }
+
+  const selectCustom = () => {
+    setCustomMode(true)
+    onChange(Math.max(min, parseInt(customVal, 10) || min))
+  }
+
+  const onCustomInputChange = (e) => {
+    const v = e.target.value
+    setCustomVal(v)
+    const num = parseInt(v, 10)
+    if (!isNaN(num) && num >= min) {
+      onChange(num)
+    }
+  }
+
+  return (
+    <div className="py-3 border-b border-slate-700/50">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+        <div>
+          <p className="text-slate-200 text-sm font-medium">{label}</p>
+          {hint && <p className="text-slate-500 text-xs mt-0.5">{hint}</p>}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+          {presets.map(p => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => selectPreset(p)}
+              className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                !customMode && Number(value) === p
+                  ? 'bg-shield-600/30 border-shield-500 text-shield-200 font-semibold'
+                  : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+              }`}
+            >
+              {p >= 365 ? (p === 365 ? tx("1 year") : tx("{n} years", { n: p / 365 })) : tx("{n} days", { n: p })}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={selectCustom}
+            className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+              customMode
+                ? 'bg-shield-600/30 border-shield-500 text-shield-200 font-semibold'
+                : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+            }`}
+          >
+            {tx("Custom")}
+          </button>
+        </div>
+      </div>
+      {customMode && (
+        <div className="flex items-center gap-2 mt-2 bg-slate-900/60 p-2 rounded-lg border border-slate-700/50 w-fit">
+          <span className="text-xs text-slate-400">{tx("Custom duration:")}</span>
+          <input
+            type="number"
+            min={min}
+            value={customVal}
+            onChange={onCustomInputChange}
+            className="w-20 bg-slate-900 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-200 text-end"
+          />
+          <span className="text-xs text-slate-400">{tx("days")}</span>
+          <span className="text-xs text-slate-500">{tx("(minimum {min} days)", { min })}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DataLifecycleSection({ userRole, initial = {}, onSaved }) {
   const [resetting, setResetting] = useState(false)
   const [msg, setMsg]             = useState('')
   const [log, setLog]             = useState(null)
-  const [days, setDays]           = useState('')
   const [confirmText, setConfirmText] = useState('')
   const [deleting, setDeleting]   = useState(false)
+  const [purging, setPurging]     = useState(false)
+  const [purgeStats, setPurgeStats] = useState(null)
+  const [savingPolicy, setSavingPolicy] = useState(false)
   const isAdmin = userRole === 'super_admin'
+
+  // Retention schedule state
+  const [logsDays, setLogsDays]           = useState(initial.logs_retention_days ?? initial.auto_purge_logs_days ?? 365)
+  const [artifactsDays, setArtifactsDays] = useState(initial.artifacts_retention_days ?? 90)
+  const [coppaDays, setCoppaDays]         = useState(initial.coppa_children_retention_days ?? 30)
+  const [auditDays, setAuditDays]         = useState(initial.audit_access_retention_days ?? 365)
+
+  // Crypto-shredding state
+  const [cryptoShredEnabled, setCryptoShredEnabled] = useState(initial.crypto_shredding_enabled ?? true)
+  const [cryptoShredPasses, setCryptoShredPasses]   = useState(initial.crypto_shredding_passes ?? 3)
+  const [cryptoShredVacuum, setCryptoShredVacuum]   = useState(initial.crypto_shredding_vacuum ?? true)
+  const [coppaStrictShredding, setCoppaStrictShredding] = useState(initial.coppa_strict_shredding ?? true)
 
   useEffect(() => {
     api.get('/privacy/my-access-log').then(r => setLog(r.data)).catch(() => setLog([]))
-    if (isAdmin) api.get('/settings').then(r => setDays(String(r.data?.privacy?.auto_purge_logs_days ?? 365))).catch(() => {})
+    if (isAdmin) {
+      api.get('/settings').then(r => {
+        const p = r.data?.privacy || {}
+        if (p.logs_retention_days) setLogsDays(p.logs_retention_days)
+        else if (p.auto_purge_logs_days) setLogsDays(p.auto_purge_logs_days)
+        if (p.artifacts_retention_days) setArtifactsDays(p.artifacts_retention_days)
+        if (p.coppa_children_retention_days) setCoppaDays(p.coppa_children_retention_days)
+        if (p.audit_access_retention_days) setAuditDays(p.audit_access_retention_days)
+        if (typeof p.crypto_shredding_enabled === 'boolean') setCryptoShredEnabled(p.crypto_shredding_enabled)
+        if (typeof p.crypto_shredding_passes === 'number') setCryptoShredPasses(p.crypto_shredding_passes)
+        if (typeof p.crypto_shredding_vacuum === 'boolean') setCryptoShredVacuum(p.crypto_shredding_vacuum)
+        if (typeof p.coppa_strict_shredding === 'boolean') setCoppaStrictShredding(p.coppa_strict_shredding)
+      }).catch(() => {})
+    }
   }, [isAdmin])
 
   const exportMine = async () => {
@@ -942,10 +1056,44 @@ function DataSection({ userRole }) {
     } catch { setMsg(tx("Couldn't download your data. Please try again.")) }
   }
 
-  const saveDays = async () => {
+  const saveLifecyclePolicy = async () => {
+    setSavingPolicy(true)
     setMsg('')
-    try { await api.patch('/settings/privacy', { auto_purge_logs_days: parseInt(days, 10) }); setMsg(tx("Saved.")) }
-    catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save that.")) }
+    try {
+      const payload = {
+        logs_retention_days: Number(logsDays),
+        auto_purge_logs_days: Number(logsDays),
+        artifacts_retention_days: Number(artifactsDays),
+        coppa_children_retention_days: Number(coppaDays),
+        audit_access_retention_days: Number(auditDays),
+        crypto_shredding_enabled: Boolean(cryptoShredEnabled),
+        crypto_shredding_passes: Number(cryptoShredPasses),
+        crypto_shredding_vacuum: Boolean(cryptoShredVacuum),
+        coppa_strict_shredding: Boolean(coppaStrictShredding),
+      }
+      const res = await api.patch('/settings/privacy', payload)
+      if (onSaved) onSaved(res.data)
+      setMsg(tx("Data lifecycle & retention policy saved successfully."))
+    } catch (e) {
+      setMsg(e.response?.data?.detail || tx("Couldn't save retention settings."))
+    } finally {
+      setSavingPolicy(false)
+    }
+  }
+
+  const runPurgeNow = async () => {
+    setPurging(true)
+    setMsg('')
+    setPurgeStats(null)
+    try {
+      const res = await api.post('/privacy/purge')
+      setPurgeStats(res.data?.removed || {})
+      setMsg(tx("Retention purge completed successfully."))
+    } catch (e) {
+      setMsg(e.response?.data?.detail || tx("Failed to run retention purge."))
+    } finally {
+      setPurging(false)
+    }
   }
 
   const deleteMe = async () => {
@@ -968,54 +1116,243 @@ function DataSection({ userRole }) {
   }
 
   const row = 'flex flex-wrap items-center justify-between gap-2 py-3 border-b border-slate-700/50'
+
   return (
-    <Section icon={Database} title={tx("Privacy & data")} description={tx("Get a copy of your data, see who looked at it, or delete it")}>
-      {msg && <p role="status" className="text-slate-300 text-sm mb-2">{msg}</p>}
+    <Section
+      icon={Database}
+      title={tx("Data Lifecycle & Privacy Compliance (ISO/IEC 27701 & COPPA)")}
+      description={tx("Automated crypto-shredding upon member deletion, data retention schedules, and privacy record rights")}
+    >
+      {msg && <p role="status" className="text-shield-300 text-sm mb-3 bg-shield-950/40 border border-shield-800 px-3 py-2 rounded-lg">{msg}</p>}
+
+      {/* ── ISO/IEC 27701 & COPPA Compliance Banner ── */}
+      <div className="mb-4 bg-slate-900/60 border border-slate-700/70 rounded-xl p-3.5 flex items-start gap-3">
+        <ShieldCheck size={20} className="text-emerald-400 shrink-0 mt-0.5" />
+        <div className="text-xs space-y-1">
+          <p className="text-slate-200 font-semibold">
+            {tx("ISO/IEC 27701 (Privacy Information Management) & COPPA Compliant Controls")}
+          </p>
+          <p className="text-slate-400 leading-relaxed">
+            {tx("Ensures strict purpose limitation and data minimization: personal details are kept only as long as necessary, minor data is handled with elevated protections, and member deletion executes multi-pass cryptographic shredding so records cannot be recovered.")}
+          </p>
+        </div>
+      </div>
+
+      {isAdmin && (
+        <div className="mb-6 space-y-4">
+          {/* ── 1. Automated Crypto-Shredding upon Member Deletion ── */}
+          <div className="py-3 border-b border-slate-700/50">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-slate-200 text-sm font-semibold">{tx("Automated Crypto-Shredding upon Member Deletion")}</p>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium">
+                    {tx("ISO/IEC 27701")}
+                  </span>
+                </div>
+                <p className="text-slate-400 text-xs mt-1">
+                  {tx("When a member or account is deleted, OpenOptOut automatically overwrites PII ciphertext in storage with high-entropy cryptographic bytes before issuing deletions, rendering deleted records unrecoverable even through physical disk inspection.")}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={cryptoShredEnabled}
+                onClick={() => setCryptoShredEnabled(!cryptoShredEnabled)}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                  cryptoShredEnabled ? 'bg-shield-600' : 'bg-slate-700'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                    cryptoShredEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {cryptoShredEnabled && (
+              <div className="mt-3 bg-slate-900/60 p-3 rounded-lg border border-slate-700/50 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-slate-300 text-xs font-medium">{tx("Cryptographic Overwrite Passes")}</p>
+                    <p className="text-slate-500 text-[11px]">{tx("Multi-pass random entropy overwrites before row deletion")}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {[
+                      { val: 1, label: tx("1 Pass (Fast)") },
+                      { val: 3, label: tx("3 Passes (DoD 5220.22-M)") },
+                      { val: 7, label: tx("7 Passes (Enhanced)") },
+                    ].map(opt => (
+                      <button
+                        key={opt.val}
+                        type="button"
+                        onClick={() => setCryptoShredPasses(opt.val)}
+                        className={`px-2 py-1 text-xs rounded-md border transition-colors ${
+                          cryptoShredPasses === opt.val
+                            ? 'bg-shield-600/30 border-shield-500 text-shield-200 font-semibold'
+                            : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
+                  <div>
+                    <p className="text-slate-300 text-xs font-medium">{tx("Database Space Sanitization (Vacuum)")}</p>
+                    <p className="text-slate-500 text-[11px]">{tx("Automatically zero and reclaim unallocated SQLite storage pages after deletion")}</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={cryptoShredVacuum}
+                    onChange={e => setCryptoShredVacuum(e.target.checked)}
+                    className="w-4 h-4 rounded-sm border-slate-700 bg-slate-900 text-shield-600 focus:ring-shield-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-slate-300 text-xs font-medium">{tx("Strict Minor / Child Record Shredding")}</p>
+                      <span className="text-[9px] px-1 rounded-sm bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                        {tx("COPPA Mandate")}
+                      </span>
+                    </div>
+                    <p className="text-slate-500 text-[11px]">{tx("Immediately shred all child profile traces, confirmation links and request payloads upon verified removal")}</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={coppaStrictShredding}
+                    onChange={e => setCoppaStrictShredding(e.target.checked)}
+                    className="w-4 h-4 rounded-sm border-slate-700 bg-slate-900 text-shield-600 focus:ring-shield-500"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── 2. Data Retention Schedules (Common Presets + Custom Option) ── */}
+          <div className="pt-2">
+            <div className="mb-2">
+              <h3 className="text-slate-200 text-sm font-semibold">{tx("Data Retention Schedules")}</h3>
+              <p className="text-slate-400 text-xs mt-0.5">
+                {tx("Choose common industry retention periods or set custom durations for each data classification.")}
+              </p>
+            </div>
+
+            {/* Logs Retention */}
+            <RetentionPicker
+              label={tx("Automation & Broker Logs")}
+              hint={tx("Execution logs, HTTP traces, email excerpts and unmatched search hits")}
+              value={logsDays}
+              onChange={setLogsDays}
+              presets={[30, 90, 180, 365]}
+              min={7}
+            />
+
+            {/* Artifacts Retention */}
+            <RetentionPicker
+              label={tx("Submission Artifacts & CAPTCHA Images")}
+              hint={tx("Temporary challenge screenshots and raw broker submission payloads")}
+              value={artifactsDays}
+              onChange={setArtifactsDays}
+              presets={[14, 30, 90, 180]}
+              min={7}
+            />
+
+            {/* COPPA Children Retention */}
+            <RetentionPicker
+              label={tx("Minor / Child Request Artifacts (COPPA)")}
+              hint={tx("Purge auxiliary verification records and email snippets once child opt-out is verified")}
+              value={coppaDays}
+              onChange={setCoppaDays}
+              presets={[7, 14, 30, 60]}
+              min={1}
+            />
+
+            {/* Staff Audit Trail Retention */}
+            <RetentionPicker
+              label={tx("Staff Audit & Access Logs")}
+              hint={tx("Record of staff or administrators inspecting member records (ISO 27701 minimum 1 year recommended)")}
+              value={auditDays}
+              onChange={setAuditDays}
+              presets={[180, 365, 730]}
+              min={90}
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4">
+              <button
+                type="button"
+                onClick={saveLifecyclePolicy}
+                disabled={savingPolicy}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm bg-shield-600 hover:bg-shield-500 text-white font-medium rounded-lg transition-colors shadow-sm disabled:opacity-50"
+              >
+                <Check size={14} />
+                {savingPolicy ? tx("Saving…") : tx("Save Retention & Shredding Policy")}
+              </button>
+
+              <button
+                type="button"
+                onClick={runPurgeNow}
+                disabled={purging}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50"
+              >
+                <RotateCcw size={12} className={purging ? "animate-spin" : ""} />
+                {purging ? tx("Purging…") : tx("Run Retention Purge Now")}
+              </button>
+            </div>
+
+            {purgeStats && (
+              <div className="mt-3 p-3 bg-slate-900 border border-slate-700/60 rounded-lg text-xs text-slate-300">
+                <p className="font-medium text-emerald-400 mb-1">{tx("Retention Purge Results:")}</p>
+                <p>{tx("Removed {a} logs, {c} captchas, {s} screenshots, {p} COPPA traces.", {
+                  a: purgeStats.automation_logs || 0,
+                  c: purgeStats.captchas || 0,
+                  s: purgeStats.screenshot_files || 0,
+                  p: purgeStats.coppa_records || 0,
+                })}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── 3. Data Portability & Access Rights ── */}
       <div className={row}>
         <div>
-          <p className="text-slate-200 text-sm">{tx("Download my data")}</p>
-          <p className="text-slate-500 text-xs">{tx("Everything OpenOptOut keeps about you and the people you manage, as a file")}</p>
+          <p className="text-slate-200 text-sm font-medium">{tx("Download my data (GDPR / CCPA Portability)")}</p>
+          <p className="text-slate-500 text-xs">{tx("Everything OpenOptOut keeps about you and the people you manage, as an encrypted JSON file")}</p>
         </div>
         <button onClick={exportMine}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
-          <Download size={12}/>{tx("Download")}
+          <Download size={13}/>{tx("Download JSON")}
         </button>
       </div>
 
+      {/* ── 4. Audit Trail (Who looked at our details) ── */}
       <div className="py-3 border-b border-slate-700/50">
-        <p className="text-slate-200 text-sm">{tx("Who else has looked at our details")}</p>
-        <p className="text-slate-500 text-xs mb-2">{tx("Staff or admins who viewed, changed, exported or removed your family's details")}</p>
+        <p className="text-slate-200 text-sm font-medium">{tx("Access Audit Trail")}</p>
+        <p className="text-slate-500 text-xs mb-2">{tx("Staff or admins who viewed, changed, exported, crypto-shredded or removed your family's details")}</p>
         {log === null ? <p className="text-slate-500 text-xs">{tx("Loading…")}</p> :
           log.length === 0 ? <p className="text-slate-400 text-sm">{tx("Nobody outside your family.")}</p> : (
-          <ul className="text-sm space-y-0.5 max-h-48 overflow-y-auto">
+          <ul className="text-sm space-y-1 max-h-48 overflow-y-auto font-mono text-xs">
             {log.map((e, i) => (
-              <li key={i} className="text-slate-300">
-                <span className="text-slate-500">{fmtDateTime(e.at)}</span> · {e.who} {({ view: tx("looked at"), edit: tx("changed"), export: tx("downloaded"), delete: tx("removed") })[e.action] || e.action}{" "}{tx("{person}'s {v}", { person: e.person, v: e.detail || 'details' })}
+              <li key={i} className="text-slate-300 bg-slate-900/40 px-2 py-1 rounded-sm border border-slate-800">
+                <span className="text-slate-500">{fmtDateTime(e.at)}</span> · <span className="text-shield-300 font-semibold">{e.who}</span> {({ view: tx("looked at"), edit: tx("changed"), export: tx("downloaded"), delete: tx("removed"), crypto_shred: tx("crypto-shredded") })[e.action] || e.action}{" "}{tx("{person}'s {v}", { person: e.person, v: e.detail || 'details' })}
               </li>
             ))}
           </ul>
         )}
       </div>
 
-      {isAdmin && (
-        <div className={row}>
-          <div>
-            <label htmlFor="ret-days" className="text-slate-200 text-sm">{tx("Keep logs for")}</label>
-            <p className="text-slate-500 text-xs">{txr("Automation logs, email excerpts, unmatched search results and CAPTCHA pictures older than this are deleted every day. People's details and requests are never deleted by this. <0>See the privacy record</0>", [<a href="/privacy-record" className="text-shield-300 hover:underline" />])}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <input id="ret-days" type="number" min="30" value={days} onChange={e => setDays(e.target.value)}
-              className="w-24 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-slate-200" />
-            <span className="text-slate-400 text-sm">{tx("days")}</span>
-            <button onClick={saveDays} className="px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700">{tx("Save")}</button>
-          </div>
-        </div>
-      )}
-
+      {/* ── 5. Account Self-Deletion ── */}
       <div className="py-3 border-b border-slate-700/50">
-        <p className="text-slate-200 text-sm">{tx("Delete my account")}</p>
+        <p className="text-slate-200 text-sm font-medium">{tx("Delete my account & family profiles")}</p>
         <p className="text-slate-500 text-xs mb-2">
-          {tx("Deletes your account and everything about you. People you added who only you manage are deleted too; anyone shared with another parent stays with them. Sites that already removed you stay removed. This can't be undone.")}
+          {tx("Deletes your account and everything about you. When automated crypto-shredding is active, your records are overwritten with random entropy before deletion. This can't be undone.")}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <label htmlFor="del-confirm" className="sr-only">{tx("Type DELETE to confirm")}</label>
@@ -1028,6 +1365,7 @@ function DataSection({ userRole }) {
         </div>
       </div>
 
+      {/* ── 6. Danger Zone (Super Admin only) ── */}
       {isAdmin && (
         <div className="pt-3">
           <div className="flex items-center gap-2 mb-3">
@@ -1036,7 +1374,7 @@ function DataSection({ userRole }) {
           </div>
           <div className="border border-red-900/50 rounded-lg p-3 bg-red-950/20 flex items-center justify-between">
             <div>
-              <p className="text-slate-200 text-sm">{tx("Reset removal history")}</p>
+              <p className="text-slate-200 text-sm font-medium">{tx("Reset removal history")}</p>
               <p className="text-slate-500 text-xs">{tx("Deletes all opt-out requests and email logs. Family data kept.")}</p>
             </div>
             <button onClick={resetRequests} disabled={resetting}
@@ -3436,6 +3774,17 @@ export default function Settings() {
   const [memberConfigs, setMemberConfigs] = useState([])
   const [loading, setLoading]             = useState(true)
 
+  // Sub-menu / tab navigation across the top
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const qTab = new URLSearchParams(window.location.search).get('tab')
+      if (['general', 'security', 'lifecycle', 'automation', 'plugins'].includes(qTab)) {
+        return qTab
+      }
+    }
+    return 'general'
+  })
+
   const [vaultLimits, setVaultLimits] = useState({ max_names: 4, max_addresses: 10, max_phones: 5, max_emails: 5 })
 
   useEffect(() => {
@@ -3451,10 +3800,27 @@ export default function Settings() {
     }).finally(() => setLoading(false))
   }, [user])
 
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId)
+    if (typeof window !== 'undefined' && window.history?.replaceState) {
+      const url = new URL(window.location.href)
+      url.searchParams.set('tab', tabId)
+      window.history.replaceState({}, '', url.toString())
+    }
+  }
+
   if (loading) return <div className="p-4 md:p-6"><p className="text-slate-500 text-sm">{tx("Loading…")}</p></div>
 
   // A manager holding the section's permission gets its admin controls.
   const sectionRole = perm => (can(user, perm) ? 'super_admin' : user?.role)
+
+  const TABS = [
+    { id: 'general', label: tx("General"), icon: Palette },
+    { id: 'security', label: tx("Access & Security"), icon: Shield },
+    { id: 'lifecycle', label: tx("Data Lifecycle"), icon: Database },
+    { id: 'automation', label: tx("Automation"), icon: Bot },
+    { id: 'plugins', label: tx("Plugins"), icon: Puzzle },
+  ]
 
   return (
     <div className="p-4 md:p-6 max-w-3xl">
@@ -3462,35 +3828,90 @@ export default function Settings() {
         <h1 className="text-white text-xl font-semibold">{tx("Settings")}</h1>
         <p className="text-slate-400 text-sm mt-0.5">{tx("Configure how OpenOptOut looks and behaves")}</p>
       </div>
-      <AppearanceSection initial={settings?.appearance ?? {}} onSaved={a => setSettings(s=>({...s,appearance:a}))} userRole={sectionRole('branding.manage')}/>
-      <RegionalSection userRole={sectionRole('settings.system')}/>
-      <MfaAccountSection user={user} />
-      <WebAuthnPolicySection userRole={user?.role} />
-      <PasswordlessPolicySection userRole={user?.role} />
-      <SessionPolicySection userRole={user?.role} />
-      <MasterSecretKeySection userRole={sectionRole('settings.system')} />
-      <HstsSection userRole={sectionRole('settings.system')} />
-      <ClientMtlsSection userRole={sectionRole('settings.system')} />
-      <EmailSection initial={settings?.email ?? {}} userRole={sectionRole('email.manage')}/>
-      <SchedulerSection
-        initial={settings?.scheduler ?? {}}
-        memberConfigs={memberConfigs}
-        onMemberConfigUpdate={updated => setMemberConfigs(mc => mc.map(x => x.member_id === updated.member_id ? updated : x))}
-        userRole={sectionRole('scheduler.manage')}
-        onSaved={s => setSettings(prev=>({...prev,scheduler:s}))}
-      />
-      <AutomationSection userRole={sectionRole('settings.system')}/>
-      <ProxySection userRole={sectionRole('settings.system')}/>
-      <VaultLimitsSection
-        initial={vaultLimits}
-        userRole={sectionRole('settings.system')}
-        onSaved={v => setVaultLimits(v)}
-      />
-      <EncryptionSection userRole={sectionRole('database.view')}/>
-      {/* Never delegated: the plugin-system switch and the danger zone. */}
-      <PluginSystemSection userRole={user?.role}/>
-      <MatchingSection />
-      <DataSection userRole={user?.role}/>
+
+      {/* ── Sub-menu tabs across the top ── */}
+      <nav role="tablist" aria-label={tx("Settings categories")} className="flex items-center gap-1.5 border-b border-slate-700/60 pb-2 mb-6 overflow-x-auto scrollbar-none">
+        {TABS.map(tab => {
+          const Icon = tab.icon
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={isActive}
+              aria-controls={`panel-${tab.id}`}
+              id={`tab-${tab.id}`}
+              onClick={() => handleTabChange(tab.id)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap focus:outline-hidden ${
+                isActive
+                  ? 'bg-shield-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <Icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
+              <span>{tab.label}</span>
+            </button>
+          )
+        })}
+      </nav>
+
+      {/* ── Tab Panels ── */}
+      {activeTab === 'general' && (
+        <div role="tabpanel" id="panel-general" aria-labelledby="tab-general" className="space-y-4">
+          <AppearanceSection initial={settings?.appearance ?? {}} onSaved={a => setSettings(s=>({...s,appearance:a}))} userRole={sectionRole('branding.manage')}/>
+          <RegionalSection userRole={sectionRole('settings.system')}/>
+          <VaultLimitsSection
+            initial={vaultLimits}
+            userRole={sectionRole('settings.system')}
+            onSaved={v => setVaultLimits(v)}
+          />
+        </div>
+      )}
+
+      {activeTab === 'security' && (
+        <div role="tabpanel" id="panel-security" aria-labelledby="tab-security" className="space-y-4">
+          <MfaAccountSection user={user} />
+          <WebAuthnPolicySection userRole={user?.role} />
+          <PasswordlessPolicySection userRole={user?.role} />
+          <SessionPolicySection userRole={user?.role} />
+          <MasterSecretKeySection userRole={sectionRole('settings.system')} />
+          <HstsSection userRole={sectionRole('settings.system')} />
+          <ClientMtlsSection userRole={sectionRole('settings.system')} />
+        </div>
+      )}
+
+      {activeTab === 'lifecycle' && (
+        <div role="tabpanel" id="panel-lifecycle" aria-labelledby="tab-lifecycle" className="space-y-4">
+          <DataLifecycleSection
+            userRole={user?.role}
+            initial={settings?.privacy ?? {}}
+            onSaved={p => setSettings(s => ({ ...s, privacy: p }))}
+          />
+          <EncryptionSection userRole={sectionRole('database.view')}/>
+        </div>
+      )}
+
+      {activeTab === 'automation' && (
+        <div role="tabpanel" id="panel-automation" aria-labelledby="tab-automation" className="space-y-4">
+          <EmailSection initial={settings?.email ?? {}} userRole={sectionRole('email.manage')}/>
+          <SchedulerSection
+            initial={settings?.scheduler ?? {}}
+            memberConfigs={memberConfigs}
+            onMemberConfigUpdate={updated => setMemberConfigs(mc => mc.map(x => x.member_id === updated.member_id ? updated : x))}
+            userRole={sectionRole('scheduler.manage')}
+            onSaved={s => setSettings(prev=>({...prev,scheduler:s}))}
+          />
+          <AutomationSection userRole={sectionRole('settings.system')}/>
+          <ProxySection userRole={sectionRole('settings.system')}/>
+          <MatchingSection />
+        </div>
+      )}
+
+      {activeTab === 'plugins' && (
+        <div role="tabpanel" id="panel-plugins" aria-labelledby="tab-plugins" className="space-y-4">
+          <PluginSystemSection userRole={user?.role}/>
+        </div>
+      )}
     </div>
   )
 }
