@@ -32,8 +32,29 @@ runtime the plugin needs.
 import os
 import sys
 import logging
+import importlib
 
 log = logging.getLogger(__name__)
+
+
+def load_seccomp():
+    """The libseccomp Python bindings module, or None if neither flavour imports.
+
+    Two packages provide the same API under different names:
+      - `seccomp`    — libseccomp's own bindings (Debian's python3-seccomp). They
+                       are built for the distro's /usr/bin/python3 only, so the
+                       image's own interpreter (python.org build) cannot see them.
+      - `pyseccomp`  — the PyPI package (pure Python over ctypes). This is what
+                       requirements.txt installs, so it works in any interpreter.
+    There is no PyPI package called `seccomp`, so `pip install seccomp` can never
+    succeed — which is why the filter was silently inactive in the Docker image.
+    """
+    for name in ("seccomp", "pyseccomp"):
+        try:
+            return importlib.import_module(name)
+        except Exception:
+            continue
+    return None
 
 
 # Syscalls we deny outright. Names are matched against libseccomp's resolver;
@@ -126,10 +147,10 @@ def install_seccomp_filter(allow_network: bool) -> dict:
         result["reason"] = f"prctl unavailable: {e}"
         # continue; seccomp lib may still work
 
-    try:
-        import seccomp  # python-seccomp / libseccomp bindings
-    except Exception as e:
-        result["reason"] = f"libseccomp not available ({e}); syscall filtering INACTIVE"
+    seccomp = load_seccomp()
+    if seccomp is None:
+        result["reason"] = ("libseccomp Python bindings not available (neither 'seccomp' nor "
+                            "'pyseccomp' imports); syscall filtering INACTIVE")
         log.warning(result["reason"])
         return result
 

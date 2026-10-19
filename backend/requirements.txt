@@ -60,3 +60,7 @@ paramiko==5.0.0
 reportlab==4.4.4
 # CAPTCHA privacy masking & image processing (core/captcha_privacy.py)
 pillow==12.3.0
+# Syscall filter for the plugin sandbox (module name: pyseccomp). Pure Python over
+# libseccomp2; Linux only. The "seccomp" module from Debian's python3-seccomp is
+# not visible to this interpreter, and there is no PyPI package called "seccomp".
+pyseccomp==0.1.2; sys_platform == "linux"
