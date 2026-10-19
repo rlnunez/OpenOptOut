@@ -13332,7 +13332,8 @@ _GOOD_DRAFT = {"method": "form", "opt_out_url": "https://acme.example/privacy",
 
 
 @test(1, "ai.draft_schema_closed",
-      "The draft shape every AI helper must return is closed, fully required, and limited to the spec's own step kinds and member fields.")
+      "The draft shape every AI helper must return is closed, fully required, limited to the spec's own "
+      "step kinds and member fields, and every string/array carries a length/item cap (OWASP LLM10).")
 def t_ai_schema():
     ai = _imp("core.ai_helpers")
     bs = _imp("core.interpreter.broker_spec")
@@ -13346,6 +13347,20 @@ def t_ai_schema():
     assert "contact_email" in ai.system_prompt() and "{fields}" not in ai.system_prompt()
     # IF THIS FAILS: a helper could return steps the interpreter doesn't know, or a
     #   structured-output mode would reject the schema (all three need closed objects).
+
+    # A schema-valid draft is still cheap to generate and to store: no string
+    # field is unbounded, and the steps/requires arrays have an item cap.
+    for name, prop in step["properties"].items():
+        if prop.get("type") == "string" and "enum" not in prop:
+            assert isinstance(prop.get("maxLength"), int), f"step.{name} has no maxLength"
+    for name, prop in sch["properties"].items():
+        if prop.get("type") == "string" and "enum" not in prop:
+            assert isinstance(prop.get("maxLength"), int), f"{name} has no maxLength"
+        if prop.get("type") == "array":
+            assert isinstance(prop.get("maxItems"), int), f"{name} array has no maxItems"
+    # IF THIS FAILS: a model (misbehaving, or steered by injected page content) could
+    #   return a technically schema-valid draft that's unboundedly expensive to
+    #   generate or to store.
 
 
 @test(1, "ai.provider_requests",
