@@ -80,6 +80,9 @@ class RegisterRequest(LimitedModel):
     email_token: Optional[str] = None
     email_code: Optional[str] = None
     address_token: Optional[str] = None
+    preferred_language: Optional[str] = "en"
+    accessibility_settings: Optional[Dict[str, Any]] = None
+    set_system_default_language: Optional[bool] = False
 
     _validate_password = field_validator("password")(validate_password_length)
     _validate_name = field_validator("full_name")(clean_name)
@@ -199,7 +202,9 @@ def _check_registration_allowed(email: str, invite_code: Optional[str], db: Sess
 
 def _create_user_and_member(db: Session, email: str, full_name: str,
                              role: UserRole, hashed_pw: Optional[str] = None,
-                             created_by: Optional[int] = None) -> User:
+                             created_by: Optional[int] = None,
+                             preferred_language: str = "en",
+                             accessibility_settings: Optional[str] = None) -> User:
     clean_email = email.strip().lower() if email else ""
     # Every sign-up path lands here, including names sent by SSO, LDAP and
     # library systems that never pass through a request model's validator.
@@ -210,6 +215,8 @@ def _create_user_and_member(db: Session, email: str, full_name: str,
         full_name=full_name,
         role=role,
         created_by_id=created_by,
+        preferred_language=preferred_language or "en",
+        accessibility_settings=accessibility_settings,
     )
     db.add(user); db.flush()
     db.add(FamilyMember(user_id=user.id, full_name=full_name))
@@ -387,10 +394,21 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     pwdless_cfg = mfa.get_passwordless_config()
     if not req.password and not (pwdless_cfg.get("enabled") and pwdless_cfg.get("enforce_passwordless_local")):
         raise HTTPException(400, "Password is required")
+    a11y_str = json.dumps(req.accessibility_settings) if req.accessibility_settings else None
     user = _create_user_and_member(
         db, clean_email, req.full_name, role,
         hashed_pw=hash_password(req.password) if req.password else None,
+        preferred_language=req.preferred_language or "en",
+        accessibility_settings=a11y_str,
     )
+    if role == UserRole.super_admin and (req.set_system_default_language or req.preferred_language):
+        try:
+            from ..core import i18n
+            cfg = i18n.get_i18n_settings()
+            cfg["default_language"] = req.preferred_language or "en"
+            i18n.save_i18n_settings(cfg)
+        except Exception:
+            pass
     if req.email_token:
         from ..core import code_attempts
         code_attempts.used(req.email_token)

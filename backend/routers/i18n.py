@@ -218,3 +218,24 @@ def update_translations(
         "is_rtl": i18n.is_rtl_language(locale),
         "translations": updated_dict,
     }
+
+
+@router.get("/settings")
+def get_i18n_system_settings():
+    """Retrieve system-wide i18n settings (default language, enabled languages)."""
+    return i18n.get_i18n_settings()
+
+
+@router.put("/settings")
+def update_i18n_system_settings(
+    body: Dict[str, Any],
+    current_user: User = Depends(require_permission("settings.system")),
+):
+    """Update system-wide i18n settings (e.g. changing the default language for the rest of the system)."""
+    cfg = i18n.get_i18n_settings()
+    if "default_language" in body:
+        cfg["default_language"] = str(body["default_language"]).strip()
+    if "enabled_languages" in body and isinstance(body["enabled_languages"], list):
+        cfg["enabled_languages"] = [str(x).strip() for x in body["enabled_languages"]]
+    i18n.save_i18n_settings(cfg)
+    return {"ok": True, "settings": cfg}

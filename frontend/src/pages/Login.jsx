@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import {
   ShieldCheck, CreditCard, Users, Key, Smartphone, Fingerprint, Lock,
   ShieldAlert, Copy, Check, ArrowLeft, RefreshCw, ChevronRight, Clock, Mail,
-  BookOpen, Eye, Sun
+  BookOpen, Eye, Sun, Moon, Laptop, Globe, Type, Palette, Compass, Sliders, ToggleLeft, ToggleRight
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
 import { useAccessibility } from '../context/AccessibilityContext'
+import { useLanguage } from '../i18n/LanguageContext'
 import api from '../api'
 import { performWebAuthnAuthenticate, performWebAuthnRegister } from '../utils/webauthn'
 import { tx } from '../i18n/tx'
@@ -17,9 +18,11 @@ const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 te
 export default function Login() {
   const { login, completeMfaLogin } = useAuth()
   const { branding } = useBranding()
+  const { language, setLanguage, availableLanguages, isRTL } = useLanguage()
   const {
     theme, setTheme, highContrast, setHighContrast,
-    dyslexicFont, setDyslexicFont, fontSize, reducedMotion, enhancedTargets
+    dyslexicFont, setDyslexicFont, fontSize, setFontSize,
+    reducedMotion, setReducedMotion, enhancedTargets, setEnhancedTargets
   } = useAccessibility()
   const navigate     = useNavigate()
 
@@ -286,18 +289,45 @@ export default function Login() {
   const oidcLogin = provider => { window.location.href = `/api/auth/oidc/${provider}/login` }
 
   // First-run: create the initial administrator, then log them straight in.
-  const [setupName, setSetupName] = useState('')
+  const [setupName, setSetupName] = useState(() => sessionStorage.getItem('setup_draft_name') || '')
   const [setupConfirm, setSetupConfirm] = useState('')
+  const [setSystemDefaultLanguage, setSetSystemDefaultLanguage] = useState(true)
+
+  // Keep setup draft in sessionStorage so language switch reload doesn't wipe them
+  useEffect(() => {
+    if (setupName) sessionStorage.setItem('setup_draft_name', setupName)
+  }, [setupName])
+  useEffect(() => {
+    if (email) sessionStorage.setItem('setup_draft_email', email)
+  }, [email])
+
   const submitSetup = async e => {
     e.preventDefault(); setError('')
     if (password.length < 8) { setError(tx("Use a password of at least 8 characters")); return }
     if (password !== setupConfirm) { setError(tx("The two passwords don't match.")); return }
     setLoading(true)
     try {
-      await api.post('/auth/register', { email, full_name: setupName, password })
+      await api.post('/auth/register', {
+        email,
+        full_name: setupName,
+        password,
+        preferred_language: language,
+        set_system_default_language: setSystemDefaultLanguage,
+        accessibility_settings: {
+          theme,
+          high_contrast: highContrast,
+          dyslexic_font: dyslexicFont,
+          font_size: fontSize,
+          reduced_motion: reducedMotion,
+          enhanced_targets: enhancedTargets,
+        }
+      })
+      sessionStorage.removeItem('setup_draft_name')
+      sessionStorage.removeItem('setup_draft_email')
       await login(email, password)   // first user is created as super_admin
       try {
         await api.post('/i18n/user/preference', {
+          language,
           accessibility_settings: {
             theme,
             high_contrast: highContrast,
@@ -580,7 +610,7 @@ export default function Login() {
         </button>
       </div>
 
-      <div className={`w-full transition-all duration-200 ${needsSetup ? 'max-w-md' : 'max-w-sm'}`}>
+      <div className={`w-full transition-all duration-200 ${needsSetup ? 'max-w-xl' : 'max-w-sm'}`}>
 
         {/* Logo / name */}
         <div className="flex flex-col items-center mb-8">
@@ -603,30 +633,211 @@ export default function Login() {
               <div>
                 <div className="flex items-center justify-between mb-3 text-xs text-slate-400">
                   <span className="font-semibold text-shield-400">{tx("Step 1 of 2")}</span>
-                  <span>{tx("Create Account")}</span>
+                  <span>{tx("System Setup & Administrator Account")}</span>
                 </div>
-                <div className="mb-4">
-                  <h2 className="text-white font-semibold text-sm">{tx("Welcome — let's set up your system")}</h2>
-                  <p className="text-slate-500 text-xs mt-1">
-                    {tx("No accounts exist yet. Create the administrator account below. This first account has full super-admin access; you can add more users afterward.")}
+                <div className="mb-5">
+                  <h2 className="text-white font-semibold text-base">{tx("Welcome — let's set up your system")}</h2>
+                  <p className="text-slate-400 text-xs mt-1">
+                    {tx("Configure your language, theme, and accessibility settings first. Then create your super-admin account below.")}
                   </p>
                 </div>
-                <form onSubmit={submitSetup} className="space-y-3">
-                  <input className={inp} placeholder={tx("Your name")} value={setupName}
-                    onChange={e => setSetupName(e.target.value)} required />
-                  <input className={inp} type="email" placeholder={tx("Admin email")} value={email}
-                    onChange={e => setEmail(e.target.value)} required />
-                  <input className={inp} type="password" placeholder={tx("Password (min 8 characters)")}
-                    value={password} onChange={e => setPw(e.target.value)} required />
-                  <input className={inp} type="password" placeholder={tx("Confirm password")}
-                    value={setupConfirm} onChange={e => setSetupConfirm(e.target.value)} required />
 
-                  {error && <p className="text-red-400 text-xs">{error}</p>}
-                  <button type="submit" disabled={loading}
-                    className="w-full bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white text-sm rounded-lg py-2 flex items-center justify-center gap-1.5 font-medium transition-colors">
-                    {loading ? tx("Creating account…") : <><span>{tx("Create administrator account")}</span><ChevronRight size={15} /></>}
-                  </button>
-                </form>
+                {/* 1. System Language & System Default */}
+                <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2.5 mb-4">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="setup-language" className="text-xs font-semibold text-white flex items-center gap-1.5">
+                      <Globe size={14} className="text-shield-400" />
+                      <span>{tx("System Language")}</span>
+                    </label>
+                    {isRTL && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono">
+                        {tx("RTL")}
+                      </span>
+                    )}
+                  </div>
+                  <select
+                    id="setup-language"
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-hidden focus:border-shield-500"
+                  >
+                    {availableLanguages.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.native_name} ({lang.name}){lang.is_rtl ? ' — RTL' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <label className="flex items-start gap-2 cursor-pointer pt-0.5">
+                    <input
+                      type="checkbox"
+                      checked={setSystemDefaultLanguage}
+                      onChange={(e) => setSetSystemDefaultLanguage(e.target.checked)}
+                      className="mt-0.5 rounded border-slate-700 text-shield-600 focus:ring-shield-500 bg-slate-900 cursor-pointer"
+                    />
+                    <div className="text-xs">
+                      <span className="font-medium text-slate-200">{tx("Set as default language for the rest of the system")}</span>
+                      <p className="text-slate-400 text-[11px] mt-0.5">
+                        {tx("New users, patron portals, and automated notifications will default to this language.")}
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* 2. Color Theme Selection */}
+                <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2 mb-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-white flex items-center gap-1.5">
+                      <Palette size={14} className="text-shield-400" />
+                      <span>{tx("Color Theme")}</span>
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                    {[
+                      { id: 'dark', label: tx("Dark"), icon: Moon, desc: tx("Deep black") },
+                      { id: 'dark-ada', label: tx("Dark (ADA)"), icon: Eye, desc: tx("AAA 21:1 contrast") },
+                      { id: 'light', label: tx("Light"), icon: Sun, desc: tx("Crisp white") },
+                      { id: 'light-ada', label: tx("Light (ADA)"), icon: Eye, desc: tx("AAA high contrast") },
+                      { id: 'space', label: tx("Space Explorer"), icon: Compass, desc: tx("LCARS amber") },
+                      { id: 'space-ada', label: tx("Space (ADA)"), icon: Eye, desc: tx("AAA high contrast") },
+                      { id: 'gray', label: tx("Gray"), icon: Sliders, desc: tx("Slate neutral") },
+                      { id: 'system', label: tx("System"), icon: Laptop, desc: tx("Auto match") },
+                    ].map((item) => {
+                      const Icon = item.icon
+                      const isActive = theme === item.id
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setTheme(item.id)}
+                          className={`p-2 rounded-xl border text-center flex flex-col items-center gap-1 transition-all ${
+                            isActive
+                              ? 'border-shield-500 bg-shield-500/10 text-white ring-1 ring-shield-500/50 font-semibold'
+                              : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:text-white hover:border-slate-700'
+                          }`}
+                        >
+                          <Icon size={14} className={isActive ? 'text-shield-400' : 'text-slate-400'} />
+                          <span className="text-xs">{item.label}</span>
+                          <span className="text-[10px] text-slate-400 opacity-80">{item.desc}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* 3. High Contrast Checkbox */}
+                <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-start gap-2.5 mb-4">
+                  <input
+                    type="checkbox"
+                    id="setup-high-contrast"
+                    checked={highContrast}
+                    onChange={(e) => setHighContrast(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded text-shield-600 focus:ring-yellow-400 border-slate-700 bg-slate-900 cursor-pointer"
+                  />
+                  <div className="space-y-0.5 flex-1">
+                    <label htmlFor="setup-high-contrast" className="text-xs font-semibold text-white flex items-center gap-2 cursor-pointer">
+                      <span>{tx("Make High Contrast (WCAG 2.2 AAA)")}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-yellow-400/20 text-yellow-300 font-mono">{tx("AAA 7:1+")}</span>
+                    </label>
+                    <p className="text-[11px] text-slate-400 leading-normal">
+                      {tx("Enforces maximum contrast (21:1) adapting to your chosen theme. Light theme renders crisp black-on-white; dark theme renders vivid white-on-black; space explorer renders high-contrast amber with 2px high-visibility borders.")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 4. Dyslexia-Friendly Typography */}
+                <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5 pe-2">
+                      <div className="flex items-center gap-1.5">
+                        <BookOpen size={14} className="text-purple-400" />
+                        <span className="text-xs font-semibold text-white">{tx("Dyslexia-Friendly Font (OpenDyslexic)")}</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">{"OpenDyslexic"}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-normal">
+                        {tx("Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.")}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDyslexicFont(!dyslexicFont)}
+                      className="p-1 text-slate-400 hover:text-white shrink-0 focus-visible:outline-2 focus-visible:outline-shield-400"
+                      aria-label={tx("Dyslexia-Friendly Font (OpenDyslexic)")}
+                    >
+                      {dyslexicFont ? <ToggleRight size={22} className="text-purple-400" /> : <ToggleLeft size={22} className="text-slate-600" />}
+                    </button>
+                  </div>
+                  {dyslexicFont && (
+                    <div className="p-2 rounded-lg border border-purple-500/30 bg-purple-950/20 text-xs text-purple-200" style={{ fontFamily: "'OpenDyslexic', system-ui, sans-serif" }}>
+                      {tx("OpenDyslexic typography is active. Letters have unique heavy bottoms to prevent flipping and confusion.")}
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. Font Size Scaling */}
+                <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2 mb-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
+                      <Type size={14} className="text-shield-400" />
+                      <span>{tx("Font Size & Scaling")}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-mono font-bold text-shield-400">{fontSize}%</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
+                        {fontSize <= 100 ? tx("Default") : fontSize <= 120 ? tx("Comfortable") : fontSize <= 135 ? tx("Enhanced") : tx("AAA Large")}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+                    {[
+                      { size: 100, label: tx("100% Default") },
+                      { size: 115, label: tx("115% Comfortable") },
+                      { size: 130, label: tx("130% Enhanced") },
+                      { size: 150, label: tx("150% Large") },
+                    ].map((opt) => (
+                      <button
+                        key={opt.size}
+                        type="button"
+                        onClick={() => setFontSize(opt.size)}
+                        className={`py-1.5 px-1 rounded-lg border text-center text-xs transition-colors ${
+                          fontSize === opt.size
+                            ? 'border-shield-500 bg-shield-500/20 text-white font-semibold'
+                            : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 6. Administrator Account Form */}
+                <div className="pt-4 border-t border-slate-800">
+                  <div className="mb-3">
+                    <h3 className="text-white font-semibold text-xs flex items-center gap-1.5">
+                      <Lock size={13} className="text-shield-400" />
+                      <span>{tx("Administrator Account Details")}</span>
+                    </h3>
+                    <p className="text-slate-400 text-[11px] mt-0.5">
+                      {tx("No accounts exist yet. Create the administrator account below. This first account has full super-admin access; you can add more users afterward.")}
+                    </p>
+                  </div>
+                  <form onSubmit={submitSetup} className="space-y-3">
+                    <input className={inp} placeholder={tx("Your name")} value={setupName}
+                      onChange={e => setSetupName(e.target.value)} required />
+                    <input className={inp} type="email" placeholder={tx("Admin email")} value={email}
+                      onChange={e => setEmail(e.target.value)} required />
+                    <input className={inp} type="password" placeholder={tx("Password (min 8 characters)")}
+                      value={password} onChange={e => setPw(e.target.value)} required />
+                    <input className={inp} type="password" placeholder={tx("Confirm password")}
+                      value={setupConfirm} onChange={e => setSetupConfirm(e.target.value)} required />
+
+                    {error && <p className="text-red-400 text-xs">{error}</p>}
+                    <button type="submit" disabled={loading}
+                      className="w-full bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white text-sm rounded-lg py-2 flex items-center justify-center gap-1.5 font-medium transition-colors">
+                      {loading ? tx("Creating account…") : <><span>{tx("Create administrator account")}</span><ChevronRight size={15} /></>}
+                    </button>
+                  </form>
+                </div>
               </div>
             ) : (
               /* Step 2: Super Admin MFA Setup (Optional / Skippable) */

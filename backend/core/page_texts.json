@@ -297,15 +297,39 @@
    ]
   },
   {
+   "text": "100% Default",
+   "where": [
+    "pages/Login.jsx"
+   ]
+  },
+  {
    "text": "100% Entropy collected — 128-character key generated!",
    "where": [
     "components/SecretKeyBanner.jsx"
    ]
   },
   {
+   "text": "115% Comfortable",
+   "where": [
+    "pages/Login.jsx"
+   ]
+  },
+  {
    "text": "12-hour (3:05 PM)",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "130% Enhanced",
+   "where": [
+    "pages/Login.jsx"
+   ]
+  },
+  {
+   "text": "150% Large",
+   "where": [
+    "pages/Login.jsx"
    ]
   },
   {
@@ -737,25 +761,29 @@
   {
    "text": "AAA 21:1 contrast",
    "where": [
-    "components/UserWelcomeModal.jsx"
+    "components/UserWelcomeModal.jsx",
+    "pages/Login.jsx"
    ]
   },
   {
    "text": "AAA 7:1+",
    "where": [
-    "components/UserWelcomeModal.jsx"
+    "components/UserWelcomeModal.jsx",
+    "pages/Login.jsx"
    ]
   },
   {
    "text": "AAA high contrast",
    "where": [
-    "components/UserWelcomeModal.jsx"
+    "components/UserWelcomeModal.jsx",
+    "pages/Login.jsx"
    ]
   },
   {
    "text": "AAA Large",
    "where": [
-    "components/UserWelcomeModal.jsx"
+    "components/UserWelcomeModal.jsx",
+    "pages/Login.jsx"
    ]
   },
   {
@@ -1333,6 +1361,12 @@
    "text": "Administrative Mandate: Compliant",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Administrator Account Details",
+   "where": [
+    "pages/Login.jsx"
    ]
   },
   {
@@ -2122,7 +2156,8 @@
   {
    "text": "Auto match",
    "where": [
-    "components/UserWelcomeModal.jsx"
+    "components/UserWelcomeModal.jsx",
+    "pages/Login.jsx"
    ]
   },
   {
@@ -3493,6 +3528,12 @@
    ]
   },
   {
+   "text": "Color Theme",
+   "where": [
+    "pages/Login.jsx"
+   ]
+  },
+  {
    "text": "Columns used: {v}",
    "where": [
     "pages/StateRegistries.jsx"
@@ -3513,7 +3554,8 @@
   {
    "text": "Comfortable",
    "where": [
-    "components/UserWelcomeModal.jsx"
+    "components/UserWelcomeModal.jsx",
+    "pages/Login.jsx"
    ]
   },
   {
@@ -3634,6 +3676,12 @@
    "text": "Configure standard session duration and role-specific Remember Me behavior (prefilling username vs extending session).",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Configure your language, theme, and accessibility settings first. Then create your super-admin account below.",
+   "where": [
+    "pages/Login.jsx"
    ]
   },
   {
@@ -4595,12 +4643,6 @@
    ]
   },
   {
-   "text": "Create Account",
-   "where": [
-    "pages/Login.jsx"
-   ]
-  },
-  {
    "text": "Create account",
    "where": [
     "pages/Signup.jsx"
@@ -4677,7 +4719,8 @@
   {
    "text": "Crisp white",
    "where": [
-    "components/UserWelcomeModal.jsx"
+    "components/UserWelcomeModal.jsx",
+    "pages/Login.jsx"
    ]
   },
   {
@@ -4780,6 +4823,7 @@
    "text": "Dark",
    "where": [
     "context/AccessibilityContext.jsx",
+    "pages/Login.jsx",
     "pages/Settings.jsx"
    ]
   },
@@ -4788,6 +4832,12 @@
    "where": [
     "context/AccessibilityContext.jsx",
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Dark (ADA)",
+   "where": [
+    "pages/Login.jsx"
    ]
   },
   {
@@ -5021,13 +5071,15 @@
   {
    "text": "Deep black",
    "where": [
-    "components/UserWelcomeModal.jsx"
+    "components/UserWelcomeModal.jsx",
+    "pages/Login.jsx"
    ]
   },
   {
    "text": "Default",
    "where": [
-    "components/UserWelcomeModal.jsx"
+    "components/UserWelcomeModal.jsx",
+    "pages/Login.jsx"
    ]
   },
   {
@@ -6282,6 +6334,12 @@
    ]
   },
   {
+   "text": "Enforces maximum contrast (21:1) adapting to your chosen theme. Light theme renders crisp black-on-white; dark theme renders vivid white-on-black; space explorer renders high-contrast amber with 2px high-visibility borders.",
+   "where": [
+    "pages/Login.jsx"
+   ]
+  },
+  {
    "text": "English Name",
    "where": [
     "pages/Translations.jsx"
@@ -6290,7 +6348,8 @@
   {
    "text": "Enhanced",
    "where": [
-    "components/UserWelcomeModal.jsx"
+    "components/UserWelcomeModal.jsx",
+    "pages/Login.jsx"
    ]
   },
   {
@@ -7176,6 +7235,12 @@
    ]
   },
   {
+   "text": "Font Size & Scaling",
+   "where": [
+    "pages/Login.jsx"
+   ]
+  },
+  {
    "text": "For a district, apartment complex, senior living or other housing community. Anyone who knows an address on the list can pass this check, so it keeps the service for your community but doesn't prove where someone lives. New accounts can't start from Google or Microsoft sign-in buttons; people can link them after signing up.",
    "where": [
     "pages/Branding.jsx"
@@ -7588,7 +7653,8 @@
   {
    "text": "Gray",
    "where": [
-    "context/AccessibilityContext.jsx"
+    "context/AccessibilityContext.jsx",
+    "pages/Login.jsx"
    ]
   },
   {
@@ -8959,7 +9025,8 @@
   {
    "text": "LCARS amber",
    "where": [
-    "components/UserWelcomeModal.jsx"
+    "components/UserWelcomeModal.jsx",
+    "pages/Login.jsx"
    ]
   },
   {
@@ -9134,6 +9201,7 @@
    "text": "Light",
    "where": [
     "context/AccessibilityContext.jsx",
+    "pages/Login.jsx",
     "pages/Settings.jsx"
    ]
   },
@@ -9142,6 +9210,12 @@
    "where": [
     "context/AccessibilityContext.jsx",
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Light (ADA)",
+   "where": [
+    "pages/Login.jsx"
    ]
   },
   {
@@ -9594,6 +9668,12 @@
    "text": "Make active",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Make High Contrast (WCAG 2.2 AAA)",
+   "where": [
+    "pages/Login.jsx"
    ]
   },
   {
@@ -10424,6 +10504,12 @@
    "text": "New steps",
    "where": [
     "pages/SpecHelpers.jsx"
+   ]
+  },
+  {
+   "text": "New users, patron portals, and automated notifications will default to this language.",
+   "where": [
+    "pages/Login.jsx"
    ]
   },
   {
@@ -11612,7 +11698,8 @@
   {
    "text": "OpenDyslexic typography is active. Letters have unique heavy bottoms to prevent flipping and confusion.",
    "where": [
-    "components/UserWelcomeModal.jsx"
+    "components/UserWelcomeModal.jsx",
+    "pages/Login.jsx"
    ]
   },
   {
@@ -14051,6 +14138,7 @@
    "text": "RTL",
    "where": [
     "components/UserWelcomeModal.jsx",
+    "pages/Login.jsx",
     "pages/Translations.jsx"
    ]
   },
@@ -15105,6 +15193,12 @@
    ]
   },
   {
+   "text": "Set as default language for the rest of the system",
+   "where": [
+    "pages/Login.jsx"
+   ]
+  },
+  {
    "text": "Set banner",
    "where": [
     "pages/Branding.jsx"
@@ -15605,7 +15699,8 @@
   {
    "text": "Slate neutral",
    "where": [
-    "components/UserWelcomeModal.jsx"
+    "components/UserWelcomeModal.jsx",
+    "pages/Login.jsx"
    ]
   },
   {
@@ -15777,9 +15872,16 @@
    ]
   },
   {
+   "text": "Space (ADA)",
+   "where": [
+    "pages/Login.jsx"
+   ]
+  },
+  {
    "text": "Space Explorer",
    "where": [
     "context/AccessibilityContext.jsx",
+    "pages/Login.jsx",
     "pages/Settings.jsx"
    ]
   },
@@ -16343,6 +16445,12 @@
    ]
   },
   {
+   "text": "Switches typography across the platform to OpenDyslexic with weighted bottoms to enhance reading flow.",
+   "where": [
+    "pages/Login.jsx"
+   ]
+  },
+  {
    "text": "Synthesized 128-character key:",
    "where": [
     "components/SecretKeyBanner.jsx"
@@ -16352,6 +16460,7 @@
    "text": "System",
    "where": [
     "context/AccessibilityContext.jsx",
+    "pages/Login.jsx",
     "pages/Settings.jsx"
    ]
   },
@@ -16386,6 +16495,12 @@
    ]
   },
   {
+   "text": "System Language",
+   "where": [
+    "pages/Login.jsx"
+   ]
+  },
+  {
    "text": "System logs",
    "where": [
     "components/Sidebar.jsx"
@@ -16413,6 +16528,12 @@
    "text": "System RAM",
    "where": [
     "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
+   "text": "System Setup & Administrator Account",
+   "where": [
+    "pages/Login.jsx"
    ]
   },
   {
