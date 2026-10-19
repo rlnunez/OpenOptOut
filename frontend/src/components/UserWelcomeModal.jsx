@@ -215,13 +215,16 @@ export default function UserWelcomeModal() {
                   <label className="text-xs font-medium text-slate-300">
                     {t('a11y.theme', 'Color Theme')}
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
-                      { id: 'light', label: t('a11y.theme_light', 'Light'), icon: Sun, desc: tx("Crisp white") },
-                      { id: 'gray', label: t('a11y.theme_gray', 'Gray'), icon: Sliders, desc: tx("Slate neutral") },
                       { id: 'dark', label: t('a11y.theme_dark', 'Dark'), icon: Moon, desc: tx("Deep black") },
+                      { id: 'dark-ada', label: t('a11y.theme_dark_ada', 'Dark (ADA)'), icon: Eye, desc: tx("AAA 21:1 contrast") },
+                      { id: 'light', label: t('a11y.theme_light', 'Light'), icon: Sun, desc: tx("Crisp white") },
+                      { id: 'light-ada', label: t('a11y.theme_light_ada', 'Light (ADA)'), icon: Eye, desc: tx("AAA high contrast") },
+                      { id: 'space', label: t('a11y.theme_space', 'Space Explorer'), icon: Compass, desc: tx("LCARS amber") },
+                      { id: 'space-ada', label: t('a11y.theme_space_ada', 'Space (ADA)'), icon: Eye, desc: tx("AAA high contrast") },
+                      { id: 'gray', label: t('a11y.theme_gray', 'Gray'), icon: Sliders, desc: tx("Slate neutral") },
                       { id: 'system', label: t('a11y.theme_system', 'System'), icon: Laptop, desc: tx("Auto match") },
-                      { id: 'space', label: t('a11y.theme_space', 'Space Explorer'), icon: Compass, desc: tx("Deep space") },
                     ].map(item => {
                       const Icon = item.icon
                       const isActive = theme === item.id
@@ -260,7 +263,7 @@ export default function UserWelcomeModal() {
                       <span className="text-[10px] px-1.5 py-0.2 rounded bg-yellow-400/20 text-yellow-300 font-mono">{tx("AAA 7:1+")}</span>
                     </label>
                     <p className="text-[11px] text-slate-400 leading-normal">
-                      {t('a11y.contrast_checkbox_desc', 'Enforces maximum contrast (21:1) adapting to your chosen theme. Light theme renders crisp black-on-white; dark theme renders vivid white-on-black with high-visibility borders.')}
+                      {t('a11y.contrast_checkbox_desc', 'Enforces maximum contrast (21:1) adapting to your chosen theme. Light theme renders crisp black-on-white; dark theme renders vivid white-on-black; space explorer renders high-contrast amber with 2px high-visibility borders.')}
                     </p>
                   </div>
                 </div>

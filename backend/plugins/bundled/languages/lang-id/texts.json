@@ -3298,5 +3298,12 @@
   "Zero network latency · Automatic file backups supported": "Nol latensi jaringan · Mendukung pencadangan berkas otomatis",
   "✓ 0600 file secured": "✓ Berkas 0600 diamankan",
   "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "Asisten menulis ini setelah membaca halaman broker itu sendiri. Perlakukan sebagai ringkasan, bukan instruksi tepercaya — halaman broker tidak bisa diverifikasi, dan kata-katanya bisa saja dirancang untuk menyesatkan siapa pun yang meninjau draf ini.",
-  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Asisten menulis instruksi ini setelah membaca halaman broker itu sendiri — periksa apakah isinya sesuai harapan Anda sebelum mengandalkannya."
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Asisten menulis instruksi ini setelah membaca halaman broker itu sendiri — periksa apakah isinya sesuai harapan Anda sebelum mengandalkannya.",
+  "AAA 21:1 contrast": "Kontras AAA 21:1",
+  "AAA high contrast": "Kontras tinggi AAA",
+  "Dark (ADA Compliant)": "Gelap (Sesuai ADA)",
+  "Gray": "Abu-abu",
+  "LCARS amber": "Kuning jingga LCARS",
+  "Light (ADA Compliant)": "Terang (Sesuai ADA)",
+  "Space Explorer (ADA Compliant)": "Penjelajah Luar Angkasa (Sesuai ADA)"
 }

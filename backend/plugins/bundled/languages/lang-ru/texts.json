@@ -3299,5 +3299,12 @@
   "Zero network latency · Automatic file backups supported": "Нулевая сетевая задержка · Поддержка автоматического резервного копирования",
   "✓ 0600 file secured": "✓ Файл защищен правами 0600",
   "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "Помощник написал это после прочтения собственной страницы брокера. Считайте это сводкой, а не надёжной инструкцией — страницу брокера нельзя проверить, и её формулировка может быть специально составлена, чтобы обмануть того, кто проверяет этот черновик.",
-  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Помощник написал эту инструкцию после прочтения собственной страницы брокера — прежде чем доверять ей, проверьте, что она говорит именно то, что вы ожидаете."
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Помощник написал эту инструкцию после прочтения собственной страницы брокера — прежде чем доверять ей, проверьте, что она говорит именно то, что вы ожидаете.",
+  "AAA 21:1 contrast": "Контрастность AAA 21:1",
+  "AAA high contrast": "Высокая контрастность AAA",
+  "Dark (ADA Compliant)": "Темная (соответствует ADA)",
+  "Gray": "Серый",
+  "LCARS amber": "Янтарный LCARS",
+  "Light (ADA Compliant)": "Светлая (соответствует ADA)",
+  "Space Explorer (ADA Compliant)": "Исследователь космоса (соответствует ADA)"
 }

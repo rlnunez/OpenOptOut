@@ -735,7 +735,19 @@
    ]
   },
   {
+   "text": "AAA 21:1 contrast",
+   "where": [
+    "components/UserWelcomeModal.jsx"
+   ]
+  },
+  {
    "text": "AAA 7:1+",
+   "where": [
+    "components/UserWelcomeModal.jsx"
+   ]
+  },
+  {
+   "text": "AAA high contrast",
    "where": [
     "components/UserWelcomeModal.jsx"
    ]
@@ -4767,6 +4779,14 @@
   {
    "text": "Dark",
    "where": [
+    "context/AccessibilityContext.jsx",
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Dark (ADA Compliant)",
+   "where": [
+    "context/AccessibilityContext.jsx",
     "pages/Settings.jsx"
    ]
   },
@@ -5000,12 +5020,6 @@
   },
   {
    "text": "Deep black",
-   "where": [
-    "components/UserWelcomeModal.jsx"
-   ]
-  },
-  {
-   "text": "Deep space",
    "where": [
     "components/UserWelcomeModal.jsx"
    ]
@@ -7572,6 +7586,12 @@
    ]
   },
   {
+   "text": "Gray",
+   "where": [
+    "context/AccessibilityContext.jsx"
+   ]
+  },
+  {
    "text": "greater than (>)",
    "where": [
     "pages/Branding.jsx"
@@ -8937,6 +8957,12 @@
    ]
   },
   {
+   "text": "LCARS amber",
+   "where": [
+    "components/UserWelcomeModal.jsx"
+   ]
+  },
+  {
    "text": "LDAP / Active Directory",
    "where": [
     "pages/Branding.jsx"
@@ -9107,6 +9133,14 @@
   {
    "text": "Light",
    "where": [
+    "context/AccessibilityContext.jsx",
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Light (ADA Compliant)",
+   "where": [
+    "context/AccessibilityContext.jsx",
     "pages/Settings.jsx"
    ]
   },
@@ -15750,6 +15784,13 @@
    ]
   },
   {
+   "text": "Space Explorer (ADA Compliant)",
+   "where": [
+    "context/AccessibilityContext.jsx",
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Specific tactics for brokers that don't comply with standard opt-outs",
    "where": [
     "pages/Help.jsx"
@@ -16310,6 +16351,7 @@
   {
    "text": "System",
    "where": [
+    "context/AccessibilityContext.jsx",
     "pages/Settings.jsx"
    ]
   },

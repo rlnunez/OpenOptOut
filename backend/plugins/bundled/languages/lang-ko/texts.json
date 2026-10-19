@@ -3299,5 +3299,12 @@
   "Zero network latency · Automatic file backups supported": "네트워크 지연 없음 · 자동 파일 백업 지원",
   "✓ 0600 file secured": "✓ 0600 파일 보안 적용 완료",
   "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "이 내용은 도우미가 브로커 자체 페이지를 읽은 뒤 작성한 것입니다. 신뢰할 수 있는 지시가 아니라 요약으로 취급하세요 — 브로커의 페이지는 검증할 수 없으며, 이 초안을 검토하는 사람을 속이도록 문구가 꾸며졌을 수 있습니다.",
-  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "이 지시는 도우미가 브로커 자체 페이지를 읽은 뒤 작성한 것입니다 — 신뢰하기 전에 원하는 내용과 일치하는지 확인하세요."
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "이 지시는 도우미가 브로커 자체 페이지를 읽은 뒤 작성한 것입니다 — 신뢰하기 전에 원하는 내용과 일치하는지 확인하세요.",
+  "AAA 21:1 contrast": "AAA 21:1 대비",
+  "AAA high contrast": "AAA 고대비",
+  "Dark (ADA Compliant)": "다크 (ADA 준수)",
+  "Gray": "그레이",
+  "LCARS amber": "LCARS 호박색",
+  "Light (ADA Compliant)": "라이트 (ADA 준수)",
+  "Space Explorer (ADA Compliant)": "우주 탐험가 (ADA 준수)"
 }

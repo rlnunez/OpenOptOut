@@ -3299,5 +3299,12 @@
   "Zero network latency · Automatic file backups supported": "Walang latency sa network · Sinusuportahan ang awtomatikong pag-backup ng file",
   "✓ 0600 file secured": "✓ 0600 file na-secure",
   "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "Isinulat ito ng katulong matapos basahin ang sariling pahina ng broker. Ituring itong buod, hindi mapagkakatiwalaang tagubilin — hindi maberipika ang pahina ng broker, at posibleng ginawa ang pananalita nito upang linlangin ang sinumang susuri sa draft na ito.",
-  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Isinulat ang tagubiling ito ng katulong matapos basahin ang sariling pahina ng broker — tiyaking sinasabi nito ang inaasahan mo bago umasa dito."
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Isinulat ang tagubiling ito ng katulong matapos basahin ang sariling pahina ng broker — tiyaking sinasabi nito ang inaasahan mo bago umasa dito.",
+  "AAA 21:1 contrast": "Kontras na AAA 21:1",
+  "AAA high contrast": "Mataas na kontras na AAA",
+  "Dark (ADA Compliant)": "Madilim (Sumusunod sa ADA)",
+  "Gray": "Abo",
+  "LCARS amber": "Kulay-amber ng LCARS",
+  "Light (ADA Compliant)": "Maliwanag (Sumusunod sa ADA)",
+  "Space Explorer (ADA Compliant)": "Explorer ng Kalawakan (Sumusunod sa ADA)"
 }

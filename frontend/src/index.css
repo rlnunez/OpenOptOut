@@ -343,62 +343,368 @@ html.theme-lcars button.rounded-md {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   WCAG 2.2 Level AAA High Contrast Mode (Single Unified Theme)
+   WCAG 2.2 Level AAA High Contrast Modes (Dark ADA, Light ADA, Space Explorer ADA)
    ══════════════════════════════════════════════════════════════════════ */
 
-/* High Contrast: Pure #000000 with #ffffff and #ffff00 */
-html.a11y-high-contrast body,
-html.a11y-high-contrast {
+/* ── Dark ADA Theme (WCAG 2.2 Level AAA: Pure #000000 with #ffffff and #ffff00) ── */
+html.a11y-high-contrast-dark body,
+html.a11y-high-contrast-dark,
+html.theme-dark-ada body,
+html.theme-dark-ada,
+html.theme-dark.a11y-high-contrast body,
+html.theme-dark.a11y-high-contrast,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) body,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) {
   background-color: #000000 !important;
   color: #ffffff !important;
 }
 
-html.a11y-high-contrast .bg-slate-950,
-html.a11y-high-contrast .bg-slate-900,
-html.a11y-high-contrast .bg-slate-800,
-html.a11y-high-contrast .bg-slate-950\/60,
-html.a11y-high-contrast .bg-slate-950\/80,
-html.a11y-high-contrast .bg-slate-900\/50,
-html.a11y-high-contrast .bg-slate-900\/40,
-html.a11y-high-contrast aside,
-html.a11y-high-contrast header,
-html.a11y-high-contrast nav {
+html.a11y-high-contrast-dark .bg-slate-950,
+html.a11y-high-contrast-dark .bg-slate-900,
+html.a11y-high-contrast-dark .bg-slate-800,
+html.a11y-high-contrast-dark .bg-slate-950\/60,
+html.a11y-high-contrast-dark .bg-slate-950\/80,
+html.a11y-high-contrast-dark .bg-slate-900\/50,
+html.a11y-high-contrast-dark .bg-slate-900\/40,
+html.a11y-high-contrast-dark aside,
+html.a11y-high-contrast-dark header,
+html.a11y-high-contrast-dark nav,
+html.theme-dark-ada .bg-slate-950,
+html.theme-dark-ada .bg-slate-900,
+html.theme-dark-ada .bg-slate-800,
+html.theme-dark-ada .bg-slate-950\/60,
+html.theme-dark-ada .bg-slate-950\/80,
+html.theme-dark-ada .bg-slate-900\/50,
+html.theme-dark-ada .bg-slate-900\/40,
+html.theme-dark-ada aside,
+html.theme-dark-ada header,
+html.theme-dark-ada nav,
+html.theme-dark.a11y-high-contrast .bg-slate-950,
+html.theme-dark.a11y-high-contrast .bg-slate-900,
+html.theme-dark.a11y-high-contrast .bg-slate-800,
+html.theme-dark.a11y-high-contrast .bg-slate-950\/60,
+html.theme-dark.a11y-high-contrast .bg-slate-950\/80,
+html.theme-dark.a11y-high-contrast .bg-slate-900\/50,
+html.theme-dark.a11y-high-contrast .bg-slate-900\/40,
+html.theme-dark.a11y-high-contrast aside,
+html.theme-dark.a11y-high-contrast header,
+html.theme-dark.a11y-high-contrast nav,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-slate-950,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-slate-900,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-slate-800,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-slate-950\/60,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-slate-950\/80,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-slate-900\/50,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-slate-900\/40,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) aside,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) header,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) nav {
   background-color: #000000 !important;
   border-color: #ffffff !important;
 }
 
-html.a11y-high-contrast .text-slate-400,
-html.a11y-high-contrast .text-slate-500,
-html.a11y-high-contrast .text-slate-600 {
+html.a11y-high-contrast-dark .text-slate-400,
+html.a11y-high-contrast-dark .text-slate-500,
+html.a11y-high-contrast-dark .text-slate-600,
+html.theme-dark-ada .text-slate-400,
+html.theme-dark-ada .text-slate-500,
+html.theme-dark-ada .text-slate-600,
+html.theme-dark.a11y-high-contrast .text-slate-400,
+html.theme-dark.a11y-high-contrast .text-slate-500,
+html.theme-dark.a11y-high-contrast .text-slate-600,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .text-slate-400,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .text-slate-500,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .text-slate-600 {
   color: #f1f5f9 !important;
 }
 
-html.a11y-high-contrast .border-slate-800,
-html.a11y-high-contrast .border-slate-700,
-html.a11y-high-contrast .border-slate-700\/50,
-html.a11y-high-contrast .border-slate-800\/80 {
+html.a11y-high-contrast-dark .border-slate-800,
+html.a11y-high-contrast-dark .border-slate-700,
+html.a11y-high-contrast-dark .border-slate-700\/50,
+html.a11y-high-contrast-dark .border-slate-800\/80,
+html.theme-dark-ada .border-slate-800,
+html.theme-dark-ada .border-slate-700,
+html.theme-dark-ada .border-slate-700\/50,
+html.theme-dark-ada .border-slate-800\/80,
+html.theme-dark.a11y-high-contrast .border-slate-800,
+html.theme-dark.a11y-high-contrast .border-slate-700,
+html.theme-dark.a11y-high-contrast .border-slate-700\/50,
+html.theme-dark.a11y-high-contrast .border-slate-800\/80,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .border-slate-800,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .border-slate-700,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .border-slate-700\/50,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .border-slate-800\/80 {
   border-color: #ffffff !important;
   border-width: 2px !important;
 }
 
-html.a11y-high-contrast :focus-visible {
+html.a11y-high-contrast-dark :focus-visible,
+html.theme-dark-ada :focus-visible,
+html.theme-dark.a11y-high-contrast :focus-visible,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) :focus-visible {
   outline: 3px solid #ffff00 !important;
   outline-offset: 2px !important;
 }
 
-html.a11y-high-contrast .bg-shield-600,
-html.a11y-high-contrast .bg-blue-600,
-html.a11y-high-contrast .bg-emerald-600 {
+html.a11y-high-contrast-dark .bg-shield-600,
+html.a11y-high-contrast-dark .bg-blue-600,
+html.a11y-high-contrast-dark .bg-emerald-600,
+html.theme-dark-ada .bg-shield-600,
+html.theme-dark-ada .bg-blue-600,
+html.theme-dark-ada .bg-emerald-600,
+html.theme-dark.a11y-high-contrast .bg-shield-600,
+html.theme-dark.a11y-high-contrast .bg-blue-600,
+html.theme-dark.a11y-high-contrast .bg-emerald-600,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-shield-600,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-blue-600,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-emerald-600 {
   background-color: #ffff00 !important;
   color: #000000 !important;
   font-weight: 700 !important;
 }
 
-html.a11y-high-contrast .text-blue-400,
-html.a11y-high-contrast .text-shield-400,
-html.a11y-high-contrast .text-shield-500 {
+html.a11y-high-contrast-dark .text-blue-400,
+html.a11y-high-contrast-dark .text-shield-400,
+html.a11y-high-contrast-dark .text-shield-500,
+html.theme-dark-ada .text-blue-400,
+html.theme-dark-ada .text-shield-400,
+html.theme-dark-ada .text-shield-500,
+html.theme-dark.a11y-high-contrast .text-blue-400,
+html.theme-dark.a11y-high-contrast .text-shield-400,
+html.theme-dark.a11y-high-contrast .text-shield-500,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .text-blue-400,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .text-shield-400,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .text-shield-500 {
   color: #ffff00 !important;
   font-weight: 700 !important;
+}
+
+/* ── Light ADA Theme (WCAG 2.2 Level AAA: Pure #ffffff with #000000 and high-visibility blue) ── */
+html.a11y-high-contrast-light body,
+html.a11y-high-contrast-light,
+html.theme-light-ada body,
+html.theme-light-ada,
+html.theme-light.a11y-high-contrast body,
+html.theme-light.a11y-high-contrast {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+html.a11y-high-contrast-light .bg-slate-950,
+html.a11y-high-contrast-light .bg-slate-900,
+html.a11y-high-contrast-light .bg-slate-800,
+html.a11y-high-contrast-light .bg-slate-950\/60,
+html.a11y-high-contrast-light .bg-slate-950\/80,
+html.a11y-high-contrast-light .bg-slate-900\/50,
+html.a11y-high-contrast-light .bg-slate-900\/40,
+html.a11y-high-contrast-light aside,
+html.a11y-high-contrast-light header,
+html.a11y-high-contrast-light nav,
+html.theme-light-ada .bg-slate-950,
+html.theme-light-ada .bg-slate-900,
+html.theme-light-ada .bg-slate-800,
+html.theme-light-ada .bg-slate-950\/60,
+html.theme-light-ada .bg-slate-950\/80,
+html.theme-light-ada .bg-slate-900\/50,
+html.theme-light-ada .bg-slate-900\/40,
+html.theme-light-ada aside,
+html.theme-light-ada header,
+html.theme-light-ada nav,
+html.theme-light.a11y-high-contrast .bg-slate-950,
+html.theme-light.a11y-high-contrast .bg-slate-900,
+html.theme-light.a11y-high-contrast .bg-slate-800,
+html.theme-light.a11y-high-contrast .bg-slate-950\/60,
+html.theme-light.a11y-high-contrast .bg-slate-950\/80,
+html.theme-light.a11y-high-contrast .bg-slate-900\/50,
+html.theme-light.a11y-high-contrast .bg-slate-900\/40,
+html.theme-light.a11y-high-contrast aside,
+html.theme-light.a11y-high-contrast header,
+html.theme-light.a11y-high-contrast nav {
+  background-color: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+html.a11y-high-contrast-light .text-white,
+html.a11y-high-contrast-light .text-slate-300,
+html.a11y-high-contrast-light .text-slate-400,
+html.a11y-high-contrast-light .text-slate-500,
+html.a11y-high-contrast-light .text-slate-600,
+html.theme-light-ada .text-white,
+html.theme-light-ada .text-slate-300,
+html.theme-light-ada .text-slate-400,
+html.theme-light-ada .text-slate-500,
+html.theme-light-ada .text-slate-600,
+html.theme-light.a11y-high-contrast .text-white,
+html.theme-light.a11y-high-contrast .text-slate-300,
+html.theme-light.a11y-high-contrast .text-slate-400,
+html.theme-light.a11y-high-contrast .text-slate-500,
+html.theme-light.a11y-high-contrast .text-slate-600 {
+  color: #000000 !important;
+  font-weight: 600 !important;
+}
+
+html.a11y-high-contrast-light .border-slate-800,
+html.a11y-high-contrast-light .border-slate-700,
+html.a11y-high-contrast-light .border-slate-700\/50,
+html.a11y-high-contrast-light .border-slate-800\/80,
+html.theme-light-ada .border-slate-800,
+html.theme-light-ada .border-slate-700,
+html.theme-light-ada .border-slate-700\/50,
+html.theme-light-ada .border-slate-800\/80,
+html.theme-light.a11y-high-contrast .border-slate-800,
+html.theme-light.a11y-high-contrast .border-slate-700,
+html.theme-light.a11y-high-contrast .border-slate-700\/50,
+html.theme-light.a11y-high-contrast .border-slate-800\/80 {
+  border-color: #000000 !important;
+  border-width: 2px !important;
+}
+
+html.a11y-high-contrast-light :focus-visible,
+html.theme-light-ada :focus-visible,
+html.theme-light.a11y-high-contrast :focus-visible {
+  outline: 3px solid #000000 !important;
+  outline-offset: 2px !important;
+}
+
+html.a11y-high-contrast-light .bg-shield-600,
+html.a11y-high-contrast-light .bg-blue-600,
+html.theme-light-ada .bg-shield-600,
+html.theme-light-ada .bg-blue-600,
+html.theme-light.a11y-high-contrast .bg-shield-600,
+html.theme-light.a11y-high-contrast .bg-blue-600 {
+  background-color: #0000ee !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html.a11y-high-contrast-light .text-blue-400,
+html.a11y-high-contrast-light .text-shield-400,
+html.theme-light-ada .text-blue-400,
+html.theme-light-ada .text-shield-400,
+html.theme-light.a11y-high-contrast .text-blue-400,
+html.theme-light.a11y-high-contrast .text-shield-400 {
+  color: #0000cc !important;
+  font-weight: 700 !important;
+}
+
+/* ── Space Explorer ADA Theme (WCAG 2.2 Level AAA: Pitch Black with Luminous Amber & White) ── */
+html.a11y-high-contrast-space body,
+html.a11y-high-contrast-space,
+html.theme-space-ada body,
+html.theme-space-ada,
+html.theme-space.a11y-high-contrast body,
+html.theme-space.a11y-high-contrast {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  font-family: 'Antonio', 'Swiss 911', 'Oswald', sans-serif-condensed, sans-serif !important;
+  letter-spacing: 0.04em;
+}
+
+html.a11y-high-contrast-space .bg-slate-950,
+html.a11y-high-contrast-space .bg-slate-900,
+html.a11y-high-contrast-space .bg-slate-800,
+html.a11y-high-contrast-space .bg-slate-950\/60,
+html.a11y-high-contrast-space .bg-slate-950\/80,
+html.a11y-high-contrast-space .bg-slate-900\/50,
+html.a11y-high-contrast-space .bg-slate-900\/40,
+html.a11y-high-contrast-space aside,
+html.a11y-high-contrast-space header,
+html.a11y-high-contrast-space nav,
+html.theme-space-ada .bg-slate-950,
+html.theme-space-ada .bg-slate-900,
+html.theme-space-ada .bg-slate-800,
+html.theme-space-ada .bg-slate-950\/60,
+html.theme-space-ada .bg-slate-950\/80,
+html.theme-space-ada .bg-slate-900\/50,
+html.theme-space-ada .bg-slate-900\/40,
+html.theme-space-ada aside,
+html.theme-space-ada header,
+html.theme-space-ada nav,
+html.theme-space.a11y-high-contrast .bg-slate-950,
+html.theme-space.a11y-high-contrast .bg-slate-900,
+html.theme-space.a11y-high-contrast .bg-slate-800,
+html.theme-space.a11y-high-contrast .bg-slate-950\/60,
+html.theme-space.a11y-high-contrast .bg-slate-950\/80,
+html.theme-space.a11y-high-contrast .bg-slate-900\/50,
+html.theme-space.a11y-high-contrast .bg-slate-900\/40,
+html.theme-space.a11y-high-contrast aside,
+html.theme-space.a11y-high-contrast header,
+html.theme-space.a11y-high-contrast nav {
+  background-color: #000000 !important;
+  border-color: #ff9900 !important;
+}
+
+html.a11y-high-contrast-space .text-white,
+html.theme-space-ada .text-white,
+html.theme-space.a11y-high-contrast .text-white {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html.a11y-high-contrast-space .text-slate-300,
+html.a11y-high-contrast-space .text-slate-400,
+html.a11y-high-contrast-space .text-slate-500,
+html.a11y-high-contrast-space .text-slate-600,
+html.theme-space-ada .text-slate-300,
+html.theme-space-ada .text-slate-400,
+html.theme-space-ada .text-slate-500,
+html.theme-space-ada .text-slate-600,
+html.theme-space.a11y-high-contrast .text-slate-300,
+html.theme-space.a11y-high-contrast .text-slate-400,
+html.theme-space.a11y-high-contrast .text-slate-500,
+html.theme-space.a11y-high-contrast .text-slate-600 {
+  color: #ffb800 !important;
+  font-weight: 600 !important;
+}
+
+html.a11y-high-contrast-space .border-slate-800,
+html.a11y-high-contrast-space .border-slate-700,
+html.a11y-high-contrast-space .border-slate-700\/50,
+html.a11y-high-contrast-space .border-slate-800\/80,
+html.theme-space-ada .border-slate-800,
+html.theme-space-ada .border-slate-700,
+html.theme-space-ada .border-slate-700\/50,
+html.theme-space-ada .border-slate-800\/80,
+html.theme-space.a11y-high-contrast .border-slate-800,
+html.theme-space.a11y-high-contrast .border-slate-700,
+html.theme-space.a11y-high-contrast .border-slate-700\/50,
+html.theme-space.a11y-high-contrast .border-slate-800\/80 {
+  border-color: #ff9900 !important;
+  border-width: 2px !important;
+}
+
+html.a11y-high-contrast-space :focus-visible,
+html.theme-space-ada :focus-visible,
+html.theme-space.a11y-high-contrast :focus-visible {
+  outline: 3px solid #ffff00 !important;
+  outline-offset: 2px !important;
+}
+
+html.a11y-high-contrast-space .bg-shield-600,
+html.a11y-high-contrast-space .bg-blue-600,
+html.a11y-high-contrast-space .bg-emerald-600,
+html.theme-space-ada .bg-shield-600,
+html.theme-space-ada .bg-blue-600,
+html.theme-space-ada .bg-emerald-600,
+html.theme-space.a11y-high-contrast .bg-shield-600,
+html.theme-space.a11y-high-contrast .bg-blue-600,
+html.theme-space.a11y-high-contrast .bg-emerald-600 {
+  background-color: #ff9900 !important;
+  color: #000000 !important;
+  font-weight: 800 !important;
+}
+
+html.a11y-high-contrast-space .text-blue-400,
+html.a11y-high-contrast-space .text-shield-400,
+html.a11y-high-contrast-space .text-shield-500,
+html.theme-space-ada .text-blue-400,
+html.theme-space-ada .text-shield-400,
+html.theme-space-ada .text-shield-500,
+html.theme-space.a11y-high-contrast .text-blue-400,
+html.theme-space.a11y-high-contrast .text-shield-400,
+html.theme-space.a11y-high-contrast .text-shield-500 {
+  color: #ff9900 !important;
+  font-weight: 800 !important;
 }
 
 /* 2. Target Size Enhanced (SC 2.5.5 Level AAA: Min 44x44 CSS pixels) */

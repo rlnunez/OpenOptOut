@@ -3297,5 +3297,12 @@
   "Zero network latency · Automatic file backups supported": "Hakuna ucheleweshaji wa mtandao · Hifadhi rudufu za faili zinatumika",
   "✓ 0600 file secured": "✓ Faili ya 0600 imelindwa",
   "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "Msaidizi aliandika hii baada ya kusoma ukurasa wa broker mwenyewe. Ichukulie kama muhtasari, si maagizo ya kuaminika — ukurasa wa broker hauwezi kuthibitishwa, na maneno yake yanaweza kuwa yamepangwa kumdanganya yeyote anayepitia rasimu hii.",
-  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Msaidizi aliandika maagizo haya baada ya kusoma ukurasa wa broker mwenyewe — hakikisha yanasema unachotarajia kabla ya kuyategemea."
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "Msaidizi aliandika maagizo haya baada ya kusoma ukurasa wa broker mwenyewe — hakikisha yanasema unachotarajia kabla ya kuyategemea.",
+  "AAA 21:1 contrast": "Utofautishaji wa AAA 21:1",
+  "AAA high contrast": "Utofautishaji wa juu wa AAA",
+  "Dark (ADA Compliant)": "Giza (Inatii ADA)",
+  "Gray": "Kijivu",
+  "LCARS amber": "Kahawia ya LCARS",
+  "Light (ADA Compliant)": "Nyeupe (Inatii ADA)",
+  "Space Explorer (ADA Compliant)": "Mvumbuzi wa Anga (Inatii ADA)"
 }

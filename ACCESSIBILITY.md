@@ -19,8 +19,12 @@ OpenOptOut's user interface is designed and evaluated against the following stan
 Starting in release `v0.10.0`, OpenOptOut includes a comprehensive accessibility architecture managed through the central Accessibility Provider (`frontend/src/context/AccessibilityContext.jsx`):
 
 ### 1. High-Contrast & Theme Controls
-- **Standard Themes**: Support for Light, Gray (reduced glare), Dark, and automatic System OS sync (`prefers-color-scheme`).
-- **High-Contrast Mode (WCAG 2.2 AAA)**: Dedicated high-contrast mode (`.a11y-high-contrast`) enforcing text contrast ratios exceeding 7:1 for body copy and 4.5:1 for interactive components with 2px high-visibility borders.
+- **Dual Standard & ADA Compliant Themes**: Full paired theme architecture offering dedicated standard and WCAG 2.2 Level AAA compliant editions for all primary visual modes:
+  - **Dark**: Standard Dark (`.theme-dark`, `#020617` base with slate cards) and Dark ADA (`.theme-dark-ada` / `.a11y-high-contrast-dark`, pure `#000000` void with `#ffffff` text, 2px white borders, and `#ffff00` 21:1 contrast accents).
+  - **Light**: Standard Light (`.theme-light`, `#f8fafc` soft white) and Light ADA (`.theme-light-ada` / `.a11y-high-contrast-light`, pure `#ffffff` canvas with pitch black `#000000` text, 2px black borders, and high-visibility `#0000ee` blue accents).
+  - **Space Explorer**: Standard Space Explorer (`.theme-space`, LCARS amber and purple accents) and Space Explorer ADA (`.theme-space-ada` / `.a11y-high-contrast-space`, pure black void with high-luminosity `#ffb800` amber text, white headings, and 2px high-visibility amber borders).
+  - **Neutral & System**: Gray (slate neutral for reduced glare) and System (dynamic OS sync matching `prefers-color-scheme`).
+- **High-Contrast Synchronization**: Toggling High Contrast Mode dynamically switches any active theme into its corresponding WCAG AAA ADA compliant counterpart and back.
 - **Color Independence**: Status indicators (such as broker removal pending, submitted, confirmed, or failed) use distinct icons, patterns, and descriptive text badges in addition to color.
 
 ### 2. Typography and Scalable Text

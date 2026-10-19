@@ -225,13 +225,16 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
                 <select
                   value={theme}
                   onChange={(e) => setTheme(e.target.value)}
-                  className="bg-transparent text-white text-xs border-0 focus:ring-0 cursor-pointer pe-1 truncate max-w-[110px]"
+                  className="bg-transparent text-white text-xs border-0 focus:ring-0 cursor-pointer pe-1 truncate max-w-[130px]"
                 >
                   <option value="dark" className="bg-slate-900 text-white">{t('a11y.theme_dark', 'Dark')}</option>
+                  <option value="dark-ada" className="bg-slate-900 text-white">{t('a11y.theme_dark_ada', 'Dark (ADA Compliant)')}</option>
                   <option value="light" className="bg-slate-900 text-white">{t('a11y.theme_light', 'Light')}</option>
+                  <option value="light-ada" className="bg-slate-900 text-white">{t('a11y.theme_light_ada', 'Light (ADA Compliant)')}</option>
+                  <option value="space" className="bg-slate-900 text-white">{t('a11y.theme_space', 'Space Explorer')}</option>
+                  <option value="space-ada" className="bg-slate-900 text-white">{t('a11y.theme_space_ada', 'Space Explorer (ADA Compliant)')}</option>
                   <option value="gray" className="bg-slate-900 text-white">{t('a11y.theme_gray', 'Gray')}</option>
                   <option value="system" className="bg-slate-900 text-white">{t('a11y.theme_system', 'System')}</option>
-                  <option value="space" className="bg-slate-900 text-white">{t('a11y.theme_space', 'Space Explorer')}</option>
                 </select>
               </div>
 

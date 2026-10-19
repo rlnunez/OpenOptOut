@@ -3297,5 +3297,12 @@
   "Zero network latency · Automatic file backups supported": "نیٹ ورک کی تاخیر صفر · خودکار فائل بیک اپ کی معاونت",
   "✓ 0600 file secured": "✓ فائل 0600 اجازتوں کے ساتھ محفوظ",
   "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "یہ مددگار نے بروکر کے اپنے صفحے کو پڑھنے کے بعد لکھا ہے۔ اسے خلاصہ سمجھیں، قابلِ اعتماد ہدایت نہیں — بروکر کے صفحے کی تصدیق نہیں کی جا سکتی، اور اس کے الفاظ اس شخص کو گمراہ کرنے کے لیے بنائے گئے ہو سکتے ہیں جو اس مسودے کا جائزہ لے رہا ہے۔",
-  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "یہ ہدایت مددگار نے بروکر کے اپنے صفحے کو پڑھنے کے بعد لکھی ہے — اس پر اعتماد کرنے سے پہلے چیک کریں کہ یہ وہی کہتی ہے جس کی آپ توقع رکھتے ہیں۔"
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "یہ ہدایت مددگار نے بروکر کے اپنے صفحے کو پڑھنے کے بعد لکھی ہے — اس پر اعتماد کرنے سے پہلے چیک کریں کہ یہ وہی کہتی ہے جس کی آپ توقع رکھتے ہیں۔",
+  "AAA 21:1 contrast": "AAA 21:1 کنٹراسٹ",
+  "AAA high contrast": "AAA اعلی کنٹراسٹ",
+  "Dark (ADA Compliant)": "ڈارک (ADA کے مطابق)",
+  "Gray": "سرمئی",
+  "LCARS amber": "LCARS امبر",
+  "Light (ADA Compliant)": "لائٹ (ADA کے مطابق)",
+  "Space Explorer (ADA Compliant)": "خلائی ایکسپلورر (ADA کے مطابق)"
 }

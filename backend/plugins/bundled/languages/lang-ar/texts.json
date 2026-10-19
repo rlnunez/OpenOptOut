@@ -3299,5 +3299,12 @@
   "Zero network latency · Automatic file backups supported": "بدون تأخير شبكي · يدعم النسخ الاحتياطي التلقائي للملفات",
   "✓ 0600 file secured": "✓ الملف مؤمن بصلاحية 0600",
   "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "كتب المساعد هذا بعد قراءة صفحة السمسار نفسها. تعامل معه كملخص، لا كتوجيه موثوق — فصفحة السمسار لا يمكن التحقق منها، وقد تكون صياغتها معدّة لتضليل من يراجع هذه المسودة.",
-  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "كتب المساعد هذا التوجيه بعد قراءة صفحة السمسار نفسها — تحقق من أنه يقول ما تتوقعه قبل الاعتماد عليه."
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "كتب المساعد هذا التوجيه بعد قراءة صفحة السمسار نفسها — تحقق من أنه يقول ما تتوقعه قبل الاعتماد عليه.",
+  "AAA 21:1 contrast": "تباين AAA 21:1",
+  "AAA high contrast": "تباين عالٍ AAA",
+  "Dark (ADA Compliant)": "داكن (متوافق مع ADA)",
+  "Gray": "رمادي",
+  "LCARS amber": "كهرماني LCARS",
+  "Light (ADA Compliant)": "فاتح (متوافق مع ADA)",
+  "Space Explorer (ADA Compliant)": "مستكشف الفضاء (متوافق مع ADA)"
 }

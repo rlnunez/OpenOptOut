@@ -84,9 +84,12 @@ function PasswordField({ label, hint, value, onChange, isSet }) {
 // ── Appearance ────────────────────────────────────────────────────────────────
 const THEMES = [
   { value: 'dark', label: tx("Dark"), icon: Moon },
+  { value: 'dark-ada', label: tx("Dark (ADA Compliant)"), icon: Eye },
   { value: 'light', label: tx("Light"), icon: Sun },
-  { value: 'system', label: tx("System"), icon: Monitor },
+  { value: 'light-ada', label: tx("Light (ADA Compliant)"), icon: Eye },
   { value: 'space', label: tx("Space Explorer"), icon: Compass },
+  { value: 'space-ada', label: tx("Space Explorer (ADA Compliant)"), icon: Eye },
+  { value: 'system', label: tx("System"), icon: Monitor },
 ]
 const ACCENT_PRESETS = [
   { color: '#6366f1', label: tx("Indigo") }, { color: '#0ea5e9', label: tx("Sky") },

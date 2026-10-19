@@ -3299,5 +3299,12 @@
   "Zero network latency · Automatic file backups supported": "零网络延迟 · 支持自动文件备份",
   "✓ 0600 file secured": "✓ 0600 文件安全已加固",
   "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "此说明是助手在阅读该数据经纪商自己的页面后写下的。请把它当作摘要，而不是可信的指示——经纪商的页面无法核实，其措辞可能是特意设计来误导审阅此草稿的人的。",
-  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "此指示是助手在阅读该数据经纪商自己的页面后写下的——在依赖它之前，请核实它所说的是否符合你的预期。"
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "此指示是助手在阅读该数据经纪商自己的页面后写下的——在依赖它之前，请核实它所说的是否符合你的预期。",
+  "AAA 21:1 contrast": "AAA 21:1 对比度",
+  "AAA high contrast": "AAA 高对比度",
+  "Dark (ADA Compliant)": "深色（符合 ADA）",
+  "Gray": "灰色",
+  "LCARS amber": "LCARS 琥珀色",
+  "Light (ADA Compliant)": "浅色（符合 ADA）",
+  "Space Explorer (ADA Compliant)": "太空探索（符合 ADA）"
 }

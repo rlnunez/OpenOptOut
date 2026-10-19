@@ -58,25 +58,54 @@ export function AccessibilityProvider({ children }) {
     return () => mq.removeEventListener('change', handler)
   }, [])
 
-  // Compute resolved theme ('light', 'gray', or 'dark')
-  const resolvedTheme = theme === 'system'
-    ? (systemPrefersDark ? 'dark' : 'light')
-    : theme
+  // Compute base theme ('light', 'gray', 'dark', 'space') and ADA compliance flag
+  const isAda = highContrast || (typeof theme === 'string' && theme.endsWith('-ada'))
+  let baseTheme = theme
+  if (theme === 'dark-ada') baseTheme = 'dark'
+  else if (theme === 'light-ada') baseTheme = 'light'
+  else if (theme === 'space-ada') baseTheme = 'space'
+  else if (theme === 'system') {
+    baseTheme = systemPrefersDark ? 'dark' : 'light'
+  }
+  const resolvedTheme = baseTheme
 
-  // Sync theme and high contrast classes to <html>
+  // Sync theme and contrast classes to <html>
   useEffect(() => {
     const root = document.documentElement
 
     // Remove old theme classes
-    root.classList.remove('theme-light', 'theme-gray', 'theme-dark', 'theme-space', 'theme-lcars')
-    root.classList.add(`theme-${resolvedTheme}`)
-
-    // Contrast class (single unified high contrast mode)
-    root.classList.remove('a11y-high-contrast', 'a11y-high-contrast-light', 'a11y-high-contrast-dark')
-    if (highContrast) {
-      root.classList.add('a11y-high-contrast')
+    root.classList.remove(
+      'theme-light', 'theme-light-ada',
+      'theme-gray',
+      'theme-dark', 'theme-dark-ada',
+      'theme-space', 'theme-space-ada', 'theme-lcars'
+    )
+    root.classList.add(`theme-${baseTheme}`)
+    if (baseTheme === 'space') {
+      root.classList.add('theme-lcars')
     }
-  }, [resolvedTheme, highContrast])
+    if (isAda) {
+      root.classList.add(`theme-${baseTheme}-ada`)
+    }
+
+    // Contrast classes: global a11y-high-contrast plus variant-specific class
+    root.classList.remove(
+      'a11y-high-contrast',
+      'a11y-high-contrast-light',
+      'a11y-high-contrast-dark',
+      'a11y-high-contrast-space'
+    )
+    if (isAda) {
+      root.classList.add('a11y-high-contrast')
+      if (baseTheme === 'light') {
+        root.classList.add('a11y-high-contrast-light')
+      } else if (baseTheme === 'space') {
+        root.classList.add('a11y-high-contrast-space')
+      } else {
+        root.classList.add('a11y-high-contrast-dark')
+      }
+    }
+  }, [baseTheme, isAda])
 
   // Sync font size variable and large-text flag
   useEffect(() => {
@@ -127,7 +156,7 @@ export function AccessibilityProvider({ children }) {
           const cfg = res.data.accessibility_settings
           if (cfg.theme) {
             const normalized = cfg.theme === 'lcars' ? 'space' : cfg.theme
-            if (['light', 'gray', 'dark', 'system', 'space'].includes(normalized)) {
+            if (['light', 'light-ada', 'gray', 'dark', 'dark-ada', 'system', 'space', 'space-ada'].includes(normalized)) {
               setThemeState(normalized)
               localStorage.setItem('app_theme', normalized)
             }
@@ -175,11 +204,35 @@ export function AccessibilityProvider({ children }) {
 
   const setTheme = (nextTheme) => {
     const target = nextTheme === 'lcars' ? 'space' : nextTheme
-    if (!['light', 'gray', 'dark', 'system', 'space'].includes(target)) return
+    const valid = ['light', 'light-ada', 'gray', 'dark', 'dark-ada', 'system', 'space', 'space-ada']
+    if (!valid.includes(target)) return
     setThemeState(target)
     localStorage.setItem('app_theme', target)
-    persistSettings({ theme: target })
-    announce(`Theme switched to ${target === 'space' ? tx("Space Explorer") : target}`)
+
+    const isTargetAda = target.endsWith('-ada')
+    if (isTargetAda) {
+      setHighContrastState(true)
+      localStorage.setItem('a11y_high_contrast', 'true')
+      persistSettings({ theme: target, high_contrast: true })
+    } else if (target === 'dark' || target === 'light' || target === 'space' || target === 'gray') {
+      setHighContrastState(false)
+      localStorage.setItem('a11y_high_contrast', 'false')
+      persistSettings({ theme: target, high_contrast: false })
+    } else {
+      persistSettings({ theme: target })
+    }
+
+    const themeNames = {
+      'space': tx("Space Explorer"),
+      'space-ada': tx("Space Explorer (ADA Compliant)"),
+      'dark': tx("Dark"),
+      'dark-ada': tx("Dark (ADA Compliant)"),
+      'light': tx("Light"),
+      'light-ada': tx("Light (ADA Compliant)"),
+      'gray': tx("Gray"),
+      'system': tx("System"),
+    }
+    announce(`Theme switched to ${themeNames[target] || target}`)
   }
 
   const setFontSize = (size) => {
@@ -193,7 +246,26 @@ export function AccessibilityProvider({ children }) {
     const next = Boolean(val)
     setHighContrastState(next)
     localStorage.setItem('a11y_high_contrast', String(next))
-    persistSettings({ high_contrast: next })
+
+    let nextTheme = theme
+    if (next) {
+      if (theme === 'dark') nextTheme = 'dark-ada'
+      else if (theme === 'light') nextTheme = 'light-ada'
+      else if (theme === 'space') nextTheme = 'space-ada'
+    } else {
+      if (theme === 'dark-ada') nextTheme = 'dark'
+      else if (theme === 'light-ada') nextTheme = 'light'
+      else if (theme === 'space-ada') nextTheme = 'space'
+    }
+
+    if (nextTheme !== theme) {
+      setThemeState(nextTheme)
+      localStorage.setItem('app_theme', nextTheme)
+      persistSettings({ theme: nextTheme, high_contrast: next })
+    } else {
+      persistSettings({ high_contrast: next })
+    }
+
     announce(next ? tx("High Contrast Mode enabled") : tx("High Contrast Mode disabled"))
   }
 

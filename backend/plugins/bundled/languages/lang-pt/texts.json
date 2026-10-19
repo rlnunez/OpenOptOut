@@ -3299,5 +3299,12 @@
   "Zero network latency · Automatic file backups supported": "Zero latência de rede · Suporte a backups automáticos",
   "✓ 0600 file secured": "✓ Arquivo 0600 protegido",
   "The helper wrote this after reading the broker's own page. Treat it as a summary, not a trusted instruction — a broker's page can't be verified, and its wording could be crafted to mislead whoever reviews this draft.": "O assistente escreveu isto depois de ler a própria página do corretor. Trate como um resumo, não como uma instrução confiável — a página de um corretor não pode ser verificada, e seu texto pode ter sido criado para enganar quem revisar este rascunho.",
-  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "O assistente escreveu esta instrução depois de ler a própria página do corretor — verifique se ela diz o que você espera antes de confiar nela."
+  "The helper wrote this instruction after reading the broker's own page — verify it says what you expect before relying on it.": "O assistente escreveu esta instrução depois de ler a própria página do corretor — verifique se ela diz o que você espera antes de confiar nela.",
+  "AAA 21:1 contrast": "Contraste AAA 21:1",
+  "AAA high contrast": "Alto contraste AAA",
+  "Dark (ADA Compliant)": "Escuro (compatível com ADA)",
+  "Gray": "Cinza",
+  "LCARS amber": "Âmbar LCARS",
+  "Light (ADA Compliant)": "Claro (compatível com ADA)",
+  "Space Explorer (ADA Compliant)": "Explorador Espacial (compatível com ADA)"
 }
