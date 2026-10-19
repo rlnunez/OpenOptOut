@@ -21,7 +21,7 @@ from ..core.auth import (
     hash_password, verify_password, is_legacy_unpeppered_hash, create_access_token,
     get_current_user, get_current_user_optional, require_super_admin, validate_password_length
 )
-from ..core.text_input import clean_name, clean_name_lenient
+from ..core.text_input import clean_name, clean_name_lenient, clean_text_lenient
 from ..core.session_policy import create_user_token
 from ..core.access import require_permission
 from ..core import login_throttle, rate_limit
@@ -412,7 +412,9 @@ def _link_home(db: Session, user: User, home: dict):
         user.branch_source = "address"
     member = db.query(FamilyMember).filter(FamilyMember.user_id == user.id).first()
     if member:
-        db.add(Identity(member_id=member.id, kind="address", value=home["line"], is_primary=True))
+        addr = clean_text_lenient(home["line"])
+        if addr:
+            db.add(Identity(member_id=member.id, kind="address", value=addr, is_primary=True))
     db.commit()
 
 
@@ -728,11 +730,17 @@ def _resolve_external_user(result, db: Session, remember_me: bool = False) -> di
                     member.formal_name = forced_name
                     user.full_name = forced_name
                 if "email" in forced and demos.get("email"):
-                    db.add(Identity(member_id=member.id, kind="email", value=demos["email"], is_primary=True))
+                    v = clean_text_lenient(demos["email"])
+                    if v:
+                        db.add(Identity(member_id=member.id, kind="email", value=v, is_primary=True))
                 if "phone" in forced and demos.get("phone"):
-                    db.add(Identity(member_id=member.id, kind="phone", value=demos["phone"], is_primary=True))
+                    v = clean_text_lenient(demos["phone"])
+                    if v:
+                        db.add(Identity(member_id=member.id, kind="phone", value=v, is_primary=True))
                 if "address" in forced and demos.get("address"):
-                    db.add(Identity(member_id=member.id, kind="address", value=demos["address"], is_primary=True))
+                    v = clean_text_lenient(demos["address"])
+                    if v:
+                        db.add(Identity(member_id=member.id, kind="address", value=v, is_primary=True))
                 if "birthdate" in forced and demos.get("birthdate"):
                     try:
                         from ..core.sip2_rules import dob_to_age
@@ -771,11 +779,17 @@ def _resolve_external_user(result, db: Session, remember_me: bool = False) -> di
                             db.add(Identity(member_id=member.id, kind="name", value=patron_name, is_primary=True))
                             member.formal_name = patron_name
                         if patron_fields.get("email"):
-                            db.add(Identity(member_id=member.id, kind="email", value=patron_fields["email"], is_primary=True))
+                            v = clean_text_lenient(patron_fields["email"])
+                            if v:
+                                db.add(Identity(member_id=member.id, kind="email", value=v, is_primary=True))
                         if patron_fields.get("phone"):
-                            db.add(Identity(member_id=member.id, kind="phone", value=patron_fields["phone"], is_primary=True))
+                            v = clean_text_lenient(patron_fields["phone"])
+                            if v:
+                                db.add(Identity(member_id=member.id, kind="phone", value=v, is_primary=True))
                         if patron_fields.get("address"):
-                            db.add(Identity(member_id=member.id, kind="address", value=patron_fields["address"], is_primary=True))
+                            v = clean_text_lenient(patron_fields["address"])
+                            if v:
+                                db.add(Identity(member_id=member.id, kind="address", value=v, is_primary=True))
                         if patron_fields.get("birthdate"):
                             try:
                                 from ..core.sip2_rules import dob_to_age
