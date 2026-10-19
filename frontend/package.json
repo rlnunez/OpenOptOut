@@ -5,6 +5,8 @@
   "type": "module",
   "dependencies": {
     "@fontsource/antonio": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
     "@fontsource/opendyslexic": "^5.3.0",
     "axios": "^1.7.2",
     "lucide-react": "^1.52.0",
@@ -15,13 +17,13 @@
     "recharts": "^3.10.1"
   },
   "devDependencies": {
+    "@babel/parser": "7.26.3",
+    "@babel/traverse": "7.26.4",
     "@tailwindcss/postcss": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.2",
     "postcss": "^8.5.29",
     "tailwindcss": "^4.3.3",
-    "vite": "^8.3.3",
-    "@babel/parser": "7.26.3",
-    "@babel/traverse": "7.26.4"
+    "vite": "^8.3.3"
   },
   "scripts": {
     "dev": "vite",
