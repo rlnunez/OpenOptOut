@@ -8304,6 +8304,65 @@ def t_auth_passwordless_local_account_restrictions():
         s.close()
 
 
+@test(2, "auth.change_own_password",
+      "A signed-in local account can rotate its own password with the current one, which bumps "
+      "token_version (signing out other sessions) and emails a notice; the wrong current password, "
+      "or an SSO/LDAP account with no local password, is refused.")
+def t_auth_change_own_password():
+    try:
+        from fastapi import HTTPException
+        auth_router = _imp("routers.auth")
+        db, s = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    local_user = db.User(email="jordan@example.invalid", full_name="Jordan Example",
+                         hashed_password=auth_router.hash_password("CurrentPassw0rd!"), auth_source=None)
+    ext_user = db.User(email="ldap@library.org", full_name="LDAP User",
+                       hashed_password="hashed_pw", auth_source="ldap")
+    s.add_all([local_user, ext_user]); s.commit()
+
+    system_mail = _imp("core.system_mail")
+    sent = []
+    orig_send = system_mail.send
+    system_mail.send = lambda to, subject, body: sent.append((to, subject)) or True
+    try:
+        # Wrong current password is refused.
+        try:
+            auth_router.change_own_password(
+                auth_router.ChangePasswordIn(current_password="wrong", new_password="NewPassw0rd1234"),
+                db=s, current_user=local_user)
+            assert False, "wrong current password should be refused"
+        except HTTPException as e:
+            assert e.status_code == 400
+
+        # An SSO/LDAP account has no local password to change.
+        try:
+            auth_router.change_own_password(
+                auth_router.ChangePasswordIn(current_password="whatever", new_password="NewPassw0rd1234"),
+                db=s, current_user=ext_user)
+            assert False, "an SSO/LDAP account should be refused"
+        except HTTPException as e:
+            assert e.status_code == 400
+        assert len(sent) == 0
+
+        # The right current password rotates it, bumps token_version (every
+        # other session, and the request's own now-stale token, stop
+        # working), issues a fresh token, and notifies the account owner.
+        old_token_version = local_user.token_version or 0
+        out = auth_router.change_own_password(
+            auth_router.ChangePasswordIn(current_password="CurrentPassw0rd!", new_password="NewPassw0rd1234"),
+            db=s, current_user=local_user)
+        assert out.get("access_token")
+        assert (local_user.token_version or 0) == old_token_version + 1
+        assert auth_router.verify_password("NewPassw0rd1234", local_user.hashed_password)
+        assert not auth_router.verify_password("CurrentPassw0rd!", local_user.hashed_password)
+        assert len(sent) == 1 and sent[0][0] == local_user.email
+    finally:
+        system_mail.send = orig_send
+        s.close()
+
+
 @test(2, "registration.residents_only_signup",
       "With the address check on, people can only sign up at an address on the uploaded list: "
       "addresses are matched in any common spelling, a row without a unit covers the building, the "

@@ -149,6 +149,12 @@ class MagicLinkRequestIn(LimitedModel):
     email: EmailStr
 
 
+class ChangePasswordIn(LimitedModel):
+    current_password: str
+    new_password: str
+
+    _validate_new = field_validator("new_password")(validate_password_length)
+
 class MagicLinkVerifyIn(LimitedModel):
     token: str
     code: str
@@ -577,6 +583,33 @@ def toggle_unified_view(unified: bool, db: Session = Depends(get_db),
                          current_user: User = Depends(get_current_user)):
     current_user.unified_view = unified; db.commit()
     return {"unified_view": unified}
+
+
+@router.post("/me/password")
+def change_own_password(data: ChangePasswordIn, db: Session = Depends(get_db),
+                         current_user: User = Depends(get_current_user)):
+    """A signed-in local account rotates its own password, without an admin's
+    involvement. Requires the current password; an SSO/LDAP/SIP2 account has
+    no local password to change."""
+    if not current_user.hashed_password or not _is_local_user(current_user):
+        raise HTTPException(400, "This account signs in through an external provider and has no password to change here.")
+    if not verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(400, "Current password is incorrect.")
+    current_user.hashed_password = hash_password(data.new_password)
+    current_user.token_version = (getattr(current_user, "token_version", 0) or 0) + 1
+    db.commit()
+    from ..core import system_mail
+    system_mail.send(
+        current_user.email,
+        "Your OpenOptOut password was changed",
+        "Your account's password was just changed. If you didn't do this, "
+        "contact your administrator right away.",
+    )
+    # Every other session (including this request's own now-stale token) was
+    # just invalidated by the token_version bump above — issue a fresh one so
+    # the caller isn't immediately signed out by the change they just made.
+    token = create_user_token(current_user)
+    return {"ok": True, "access_token": token, "token_type": "bearer"}
 
 
 @router.post("/signout")
@@ -1212,6 +1245,13 @@ def disable_totp(
     current_user.totp_enabled = False
     current_user.totp_secret_enc = None
     db.commit()
+    from ..core import system_mail
+    system_mail.send(
+        current_user.email,
+        "Two-factor authentication was turned off on your OpenOptOut account",
+        "The authenticator app method was just turned off on your account. "
+        "If you didn't do this, change your password now and re-enable MFA from Settings.",
+    )
     return {"disabled": True}
 
 

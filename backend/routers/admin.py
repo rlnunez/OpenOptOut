@@ -289,6 +289,14 @@ def update_user(
 
     db.commit()
     db.refresh(user)
+    if req.password is not None:
+        from ..core import system_mail
+        system_mail.send(
+            user.email,
+            "Your OpenOptOut password was reset by an administrator",
+            "An administrator just reset the password on your account. If you didn't "
+            "expect this, contact your administrator right away.",
+        )
     return _user_out(user)
 
 
