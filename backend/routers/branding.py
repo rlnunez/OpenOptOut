@@ -236,6 +236,25 @@ def save_branding(data: BrandingConfig, _: User = Depends(require_permission("br
     return data
 
 
+def _sniff_image_kind(data: bytes) -> Optional[str]:
+    """Identify png/jpeg/webp/svg from the file's own bytes — never trust
+    Content-Type alone to decide what gets written to disk and later served
+    back by get_logo(): the client sets that header and can claim anything
+    regardless of what the body actually contains."""
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "png"
+    if data[:3] == b"\xff\xd8\xff":
+        return "jpeg"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "webp"
+    # SVG has no fixed magic number (it's XML); accept it only if an <svg
+    # tag actually appears near the start, after any BOM/XML declaration/
+    # DOCTYPE/comments — not just because the upload claimed to be one.
+    if b"<svg" in data[:4096].lower():
+        return "svg"
+    return None
+
+
 @router.post("/logo")
 def upload_logo(file: UploadFile = File(...), _: User = Depends(require_permission("branding.manage"))):
     # Was: ext always came out "png" for jpeg/webp uploads too (only svg was
@@ -248,6 +267,8 @@ def upload_logo(file: UploadFile = File(...), _: User = Depends(require_permissi
     # Read (bounded) before touching the old logo, so a too-big upload
     # leaves the current logo in place.
     data = read_upload(file, LOGO_MAX_BYTES, "logo")
+    if _sniff_image_kind(data) != ext:
+        raise HTTPException(400, "That file's content doesn't match a PNG, SVG, JPEG, or WebP image.")
     # Clear any previously uploaded logo in a DIFFERENT format first — now that
     # jpeg/webp get their own real extension, an old file in another format
     # would otherwise linger on disk and get served ahead of the one just

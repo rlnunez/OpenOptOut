@@ -3694,7 +3694,8 @@ def t_consortium_scoping():
 
 
 @test(1, "logs.sanitization_and_redaction",
-      "Diagnostic logs sanitize passwords, bearer tokens, SIP2 credentials, and auth headers.")
+      "Diagnostic logs sanitize passwords, bearer tokens, SIP2 credentials, auth headers, "
+      "and embedded newlines that could forge a fake log entry.")
 def t_logs_sanitization():
     lc = _imp("core.logging_config")
     s = lc.sanitize_log_message
@@ -3733,6 +3734,14 @@ def t_logs_sanitization():
     assert "|CO[REDACTED]" in san4
     assert "secretpin" not in san4
     assert "sipuserpass" not in san4
+
+    # 5. Log forging (CWE-117): an embedded \r/\n can't fabricate what looks
+    # like a second, separately-timestamped log entry for anyone or anything
+    # reading the log file or the admin's Logs page later.
+    raw5 = "Sign-in failed for name\r\n2026-01-01 00:00:00 [INFO] [app] fake entry injected by attacker"
+    san5 = s(raw5)
+    assert "\r" not in san5 and "\n" not in san5
+    assert "fake entry injected by attacker" in san5  # neutralized, not hidden — still a single visible line
 
 
 @test(1, "logs.ring_buffer_and_filtering",
@@ -7999,8 +8008,9 @@ def t_plugin_upload_wizard():
 
 @test(2, "branding.logo_extension_mapping",
       "Uploaded logos are saved under their REAL file extension (jpeg/webp, not silently "
-      "mislabeled as png), replacing any previous logo in a different format, and "
-      "GET /config detects all four supported formats — not just png/svg.")
+      "mislabeled as png), replacing any previous logo in a different format, GET /config "
+      "detects all four supported formats, and a body whose actual bytes don't match its "
+      "claimed Content-Type is refused rather than trusted.")
 def t_logo_extension_mapping():
     from types import SimpleNamespace as NS
     import tempfile, io, os
@@ -8014,8 +8024,20 @@ def t_logo_extension_mapping():
         orig_path = branding.LOGO_PATH
         branding.LOGO_PATH = tmp
         try:
-            def fake_upload(content_type, data=b"fake-bytes"):
-                f = NS(content_type=content_type, file=io.BytesIO(data))
+            # Real magic bytes per format — upload_logo now sniffs the body
+            # itself rather than trusting Content-Type alone (see
+            # branding.test_rejects_content_mismatching_bytes below), so a
+            # bare placeholder payload would be refused before any of this
+            # test's actual behavior (extension mapping) runs.
+            _MAGIC = {
+                "image/jpeg": b"\xff\xd8\xff" + b"\x00" * 16,
+                "image/webp": b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 8,
+                "image/png": b"\x89PNG\r\n\x1a\n" + b"\x00" * 16,
+                "image/svg+xml": b"<?xml version='1.0'?><svg xmlns='http://www.w3.org/2000/svg'></svg>",
+            }
+
+            def fake_upload(content_type, data=None):
+                f = NS(content_type=content_type, file=io.BytesIO(data if data is not None else _MAGIC.get(content_type, b"fake-bytes")))
                 return branding.upload_logo(file=f, _=admin)
 
             # Was: every non-svg upload got hardcoded ext="png", so a jpeg or
@@ -8042,8 +8064,17 @@ def t_logo_extension_mapping():
             # An unsupported type is refused, not silently accepted.
             from fastapi import HTTPException
             try:
-                fake_upload("image/gif")
+                fake_upload("image/gif", data=b"GIF89a")
                 raise AssertionError("a gif upload was not rejected")
+            except HTTPException as e:
+                assert e.status_code == 400
+
+            # A file whose CONTENT doesn't match its claimed Content-Type is
+            # refused too — a client fully controls that header and could set
+            # it to anything regardless of what bytes it actually sends.
+            try:
+                fake_upload("image/png", data=b"<html>not actually a png</html>")
+                raise AssertionError("content not matching the claimed type was not rejected")
             except HTTPException as e:
                 assert e.status_code == 400
         finally:

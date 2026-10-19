@@ -290,12 +290,13 @@ def _usage(db, params: dict, allowed: List[dict], today: date):
     for inst in chosen:
         rows += usage(db, inst, begin, end, granularity, metrics, today)
     if fmt == "csv":
+        from .csv_safety import csv_safe
         buf = io.StringIO()
         w = csv.writer(buf, lineterminator="\n")
         cols = ["institution", "period_start", "period_end", "complete"] + metrics
         w.writerow(cols)
         for r in rows:
-            w.writerow([str(r[c]).lower() if isinstance(r[c], bool) else r[c] for c in cols])
+            w.writerow([csv_safe(str(r[c]).lower() if isinstance(r[c], bool) else r[c]) for c in cols])
         return 200, buf.getvalue(), "text/csv"
     return 200, {"from": begin.isoformat(), "to": end.isoformat(), "granularity": granularity, "timezone": "UTC",
                  "generated_at": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",

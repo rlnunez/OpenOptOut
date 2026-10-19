@@ -58,10 +58,24 @@ from .core.scheduler import start_scheduler, stop_scheduler
 from .core.version import get_version, get_commit, version_string
 from .core.logging_config import init_logging
 
+# The interactive Swagger/ReDoc explorer UIs hand an unauthenticated visitor
+# a human-browsable map of every route and field name on an appliance that
+# holds families' (including children's) PII — reconnaissance a WAF or log
+# review won't flag, since it looks like ordinary docs traffic. They're off
+# by default; set ENABLE_API_DOCS=true (for local development) to turn them
+# back on. /openapi.json itself stays on: the bundled reverse-proxy configs
+# (Caddy/Traefik/nginx) only ever forward /api/* to this API, so the raw
+# schema isn't part of the normal deployment's public surface either way,
+# and the release-test harness relies on fetching it directly to sweep every
+# GET endpoint for server errors.
+_enable_interactive_docs = os.getenv("ENABLE_API_DOCS", "").lower() in ("true", "1", "yes")
+
 app = FastAPI(
     title="OpenOptOut API",
     description="Open-source personal data removal pipeline",
     version=get_version(),
+    docs_url="/docs" if _enable_interactive_docs else None,
+    redoc_url="/redoc" if _enable_interactive_docs else None,
 )
 
 _cors_origins_env = os.getenv("ALLOWED_ORIGINS") or os.getenv("CORS_ORIGINS")

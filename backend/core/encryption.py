@@ -47,7 +47,18 @@ log = logging.getLogger(__name__)
 # ── Key derivation ────────────────────────────────────────────────────────────
 
 def _derive_fernet_key(raw: str) -> bytes:
-    """Derive a 32-byte Fernet key from an arbitrary string via SHA-256."""
+    """Derive the field-encryption Fernet key from the root secret via HKDF
+    (RFC 5869) — the same primitive core.oauth_engine and hash_for_index
+    already use, with its own `info` label so this key is cryptographically
+    isolated from theirs despite sharing the same root secret."""
+    from .hkdf import hkdf_derive
+    return base64.urlsafe_b64encode(hkdf_derive(raw.encode(), info=b"openoptout:field-encryption:v1"))
+
+
+def _derive_fernet_key_legacy(raw: str) -> bytes:
+    """The ORIGINAL derivation (bare SHA-256, no domain separation) — kept
+    ONLY so decrypt_field() can still read a value that was encrypted before
+    this module switched to HKDF. Never used to encrypt new data."""
     digest = hashlib.sha256(raw.encode()).digest()
     return base64.urlsafe_b64encode(digest)
 
@@ -61,9 +72,9 @@ def check_key_file_locked_down(path: str) -> bool:
         return False
 
 
-def get_field_encryption_key() -> Optional[bytes]:
+def get_field_encryption_key_material() -> Optional[str]:
     """
-    Return the Fernet key used for field-level encryption.
+    Return the raw secret field encryption keys derive from, before HKDF.
     Priority: FIELD_ENCRYPTION_KEY_FILE → FIELD_ENCRYPTION_KEY env var → SECRET_KEY env var → None (disabled).
     """
     raw = None
@@ -80,7 +91,15 @@ def get_field_encryption_key() -> Optional[bytes]:
         raw = os.getenv("FIELD_ENCRYPTION_KEY") or os.getenv("SECRET_KEY")
     if not raw or raw == "change-me-in-production-use-a-long-random-string":
         return None
-    return _derive_fernet_key(raw)
+    return raw
+
+
+def get_field_encryption_key() -> Optional[bytes]:
+    """Return the Fernet key used for field-level encryption (see
+    get_field_encryption_key_material() for where the root secret comes
+    from)."""
+    raw = get_field_encryption_key_material()
+    return _derive_fernet_key(raw) if raw else None
 
 
 def get_db_encryption_key() -> Optional[str]:
@@ -110,6 +129,7 @@ def get_db_encryption_key() -> Optional[str]:
 # ── Fernet helpers ────────────────────────────────────────────────────────────
 
 _fernet_instance: Optional[Fernet] = None
+_legacy_fernet_instance: Optional[Fernet] = None
 
 
 def _get_fernet() -> Optional[Fernet]:
@@ -119,6 +139,17 @@ def _get_fernet() -> Optional[Fernet]:
         if key:
             _fernet_instance = Fernet(key)
     return _fernet_instance
+
+
+def _get_legacy_fernet() -> Optional[Fernet]:
+    """The pre-HKDF Fernet instance, decrypt-only, for a field value written
+    before this module switched derivations."""
+    global _legacy_fernet_instance
+    if _legacy_fernet_instance is None:
+        raw = get_field_encryption_key_material()
+        if raw:
+            _legacy_fernet_instance = Fernet(_derive_fernet_key_legacy(raw))
+    return _legacy_fernet_instance
 
 
 def is_production_mode() -> bool:
@@ -156,6 +187,16 @@ def decrypt_field(value: Optional[str]) -> Optional[str]:
     try:
         return f.decrypt(value.encode()).decode()
     except (InvalidToken, Exception):
+        # Might be a value written before field encryption switched its key
+        # derivation from bare SHA-256 to HKDF (see _derive_fernet_key) —
+        # try the old derivation before giving up. Never used to re-encrypt;
+        # the next write re-encrypts with the current (HKDF) key.
+        legacy = _get_legacy_fernet()
+        if legacy is not None:
+            try:
+                return legacy.decrypt(value.encode()).decode()
+            except Exception:
+                pass
         if is_production_mode():
             raise RuntimeError(
                 "Field decryption failed in production: stored token is corrupted or key mismatch."
