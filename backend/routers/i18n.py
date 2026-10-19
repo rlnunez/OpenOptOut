@@ -226,16 +226,21 @@ def get_i18n_system_settings():
     return i18n.get_i18n_settings()
 
 
+class I18nSystemSettingsIn(LimitedModel):
+    default_language: Optional[str] = Field(None, max_length=20)
+    enabled_languages: Optional[List[str]] = Field(None, max_length=200)
+
+
 @router.put("/settings")
 def update_i18n_system_settings(
-    body: Dict[str, Any],
+    body: I18nSystemSettingsIn,
     current_user: User = Depends(require_permission("settings.system")),
 ):
     """Update system-wide i18n settings (e.g. changing the default language for the rest of the system)."""
     cfg = i18n.get_i18n_settings()
-    if "default_language" in body:
-        cfg["default_language"] = str(body["default_language"]).strip()
-    if "enabled_languages" in body and isinstance(body["enabled_languages"], list):
-        cfg["enabled_languages"] = [str(x).strip() for x in body["enabled_languages"]]
+    if body.default_language is not None:
+        cfg["default_language"] = body.default_language.strip()
+    if body.enabled_languages is not None:
+        cfg["enabled_languages"] = [str(x).strip() for x in body.enabled_languages]
     i18n.save_i18n_settings(cfg)
     return {"ok": True, "settings": cfg}

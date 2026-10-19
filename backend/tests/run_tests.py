@@ -3758,7 +3758,8 @@ def t_consortium_scoping():
 
 
 @test(1, "logs.sanitization_and_redaction",
-      "Diagnostic logs sanitize passwords, bearer tokens, SIP2 credentials, and auth headers.")
+      "Diagnostic logs sanitize passwords, bearer tokens, SIP2 credentials, auth headers, "
+      "and embedded newlines that could forge a fake log entry.")
 def t_logs_sanitization():
     lc = _imp("core.logging_config")
     s = lc.sanitize_log_message
@@ -3797,6 +3798,14 @@ def t_logs_sanitization():
     assert "|CO[REDACTED]" in san4
     assert "secretpin" not in san4
     assert "sipuserpass" not in san4
+
+    # 5. Log forging (CWE-117): an embedded \r/\n can't fabricate what looks
+    # like a second, separately-timestamped log entry for anyone or anything
+    # reading the log file or the admin's Logs page later.
+    raw5 = "Sign-in failed for name\r\n2026-01-01 00:00:00 [INFO] [app] fake entry injected by attacker"
+    san5 = s(raw5)
+    assert "\r" not in san5 and "\n" not in san5
+    assert "fake entry injected by attacker" in san5  # neutralized, not hidden — still a single visible line
 
 
 @test(1, "logs.ring_buffer_and_filtering",
@@ -7321,14 +7330,14 @@ def t_access_escalation():
             Create, Update = admin_router.CreateUserRequest, admin_router.UpdateUserRequest
 
             out = admin_router.create_user(Create(full_name="New", email="new@example.org",
-                                                  role="parent", password="password123"), session, mgr)
+                                                  role="parent", password="Xk9mQ2vLpR7z"), session, mgr)
             assert out.role == "parent"
             for role in ("super_admin", "manager"):
                 expect_http(403, admin_router.create_user, Create(full_name="X", email=f"{role}@example.org",
-                            role=role, password="password123"), session, mgr)
+                            role=role, password="Xk9mQ2vLpR7z"), session, mgr)
             expect_http(403, admin_router.update_user, parent.id, Update(role="super_admin"), session, mgr)
             expect_http(403, admin_router.update_user, sa.id, Update(full_name="Hacked"), session, mgr)
-            expect_http(403, admin_router.update_user, other_mgr.id, Update(password="password123"), session, mgr)
+            expect_http(403, admin_router.update_user, other_mgr.id, Update(password="Xk9mQ2vLpR7z"), session, mgr)
             expect_http(403, admin_router.delete_user, sa.id, session, mgr)
             admin_router.update_user(parent.id, Update(full_name="Renamed"), session, mgr)   # allowed
 
@@ -7446,11 +7455,11 @@ def t_access_scope_writes():
         # Creating: new accounts land in the manager's branch, never outside it.
         def create(email, actor, **kw):
             return admin_router.create_user(admin_router.CreateUserRequest(
-                full_name="N", email=email, role="parent", password="password123", **kw), session, actor)
+                full_name="N", email=email, role="parent", password="Xk9mQ2vLpR7z", **kw), session, actor)
         branch_of = lambda email: session.query(db.User).filter(db.User.email == email).one().branch_id
         n1 = create("n1@example.org", branch_mgr)
         assert branch_of("n1@example.org") == a1.id
-        admin_router.update_user(n1.id, Update(password="password123"), session, branch_mgr)
+        admin_router.update_user(n1.id, Update(password="Xk9mQ2vLpR7z"), session, branch_mgr)
         expect_http(403, create, "x1@example.org", branch_mgr, branch_id=b1.id)
         expect_http(400, create, "x2@example.org", system_mgr)   # two branches, none of its own
         create("n2@example.org", system_mgr, branch_id=a2.id)
@@ -7462,7 +7471,7 @@ def t_access_scope_writes():
         # Accounts: branch-scoped manager stays in A1.
         admin_router.update_user(p_a1.id, Update(full_name="Ok"), session, branch_mgr)
         for target in (p_a2, p_b1, p_none):
-            expect_http(403, admin_router.update_user, target.id, Update(password="password123"), session, branch_mgr)
+            expect_http(403, admin_router.update_user, target.id, Update(password="Xk9mQ2vLpR7z"), session, branch_mgr)
             expect_http(403, admin_router.delete_user, target.id, session, branch_mgr)
         expect_http(403, admin_router.create_grant, Grant(manager_id=p_a1.id, managed_id=p_b1.id), session, branch_mgr)
         g = admin_router.create_grant(Grant(manager_id=p_a1.id, managed_id=p_a1b.id), session, branch_mgr)
@@ -7475,7 +7484,7 @@ def t_access_scope_writes():
         admin_router.update_user(p_a2.id, Update(full_name="Ok"), session, system_mgr)
         expect_http(403, admin_router.delete_user, p_b1.id, session, system_mgr)
         admin_router.update_user(p_b1.id, Update(full_name="Ok"), session, cross_mgr)
-        admin_router.update_user(p_b1.id, Update(password="password123"), session, cross_mgr)
+        admin_router.update_user(p_b1.id, Update(password="Xk9mQ2vLpR7z"), session, cross_mgr)
 
         # Branch overrides: super admins, or managers granted the permission (any branch).
         gate = inspect.signature(consortium.override_patron_branch).parameters["current_user"].default.dependency
@@ -8103,8 +8112,9 @@ def t_plugin_upload_wizard():
 
 @test(2, "branding.logo_extension_mapping",
       "Uploaded logos are saved under their REAL file extension (jpeg/webp, not silently "
-      "mislabeled as png), replacing any previous logo in a different format, and "
-      "GET /config detects all four supported formats — not just png/svg.")
+      "mislabeled as png), replacing any previous logo in a different format, GET /config "
+      "detects all four supported formats, and a body whose actual bytes don't match its "
+      "claimed Content-Type is refused rather than trusted.")
 def t_logo_extension_mapping():
     from types import SimpleNamespace as NS
     import tempfile, io, os
@@ -8118,8 +8128,20 @@ def t_logo_extension_mapping():
         orig_path = branding.LOGO_PATH
         branding.LOGO_PATH = tmp
         try:
-            def fake_upload(content_type, data=b"fake-bytes"):
-                f = NS(content_type=content_type, file=io.BytesIO(data))
+            # Real magic bytes per format — upload_logo now sniffs the body
+            # itself rather than trusting Content-Type alone (see
+            # branding.test_rejects_content_mismatching_bytes below), so a
+            # bare placeholder payload would be refused before any of this
+            # test's actual behavior (extension mapping) runs.
+            _MAGIC = {
+                "image/jpeg": b"\xff\xd8\xff" + b"\x00" * 16,
+                "image/webp": b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 8,
+                "image/png": b"\x89PNG\r\n\x1a\n" + b"\x00" * 16,
+                "image/svg+xml": b"<?xml version='1.0'?><svg xmlns='http://www.w3.org/2000/svg'></svg>",
+            }
+
+            def fake_upload(content_type, data=None):
+                f = NS(content_type=content_type, file=io.BytesIO(data if data is not None else _MAGIC.get(content_type, b"fake-bytes")))
                 return branding.upload_logo(file=f, _=admin)
 
             # Was: every non-svg upload got hardcoded ext="png", so a jpeg or
@@ -8146,8 +8168,17 @@ def t_logo_extension_mapping():
             # An unsupported type is refused, not silently accepted.
             from fastapi import HTTPException
             try:
-                fake_upload("image/gif")
+                fake_upload("image/gif", data=b"GIF89a")
                 raise AssertionError("a gif upload was not rejected")
+            except HTTPException as e:
+                assert e.status_code == 400
+
+            # A file whose CONTENT doesn't match its claimed Content-Type is
+            # refused too — a client fully controls that header and could set
+            # it to anything regardless of what bytes it actually sends.
+            try:
+                fake_upload("image/png", data=b"<html>not actually a png</html>")
+                raise AssertionError("content not matching the claimed type was not rejected")
             except HTTPException as e:
                 assert e.status_code == 400
         finally:
@@ -8246,7 +8277,8 @@ def t_sso_login_works():
 
 
 @test(2, "auth.passwordless_local_account_restrictions",
-      "Passwordless local endpoints reject external IdP accounts and permit local accounts only.")
+      "Passwordless local endpoints only ever act on local accounts; an external IdP account gets the same "
+      "answer as an unknown email, never a distinguishable error that would leak its existence or provider.")
 def t_auth_passwordless_local_account_restrictions():
     from types import SimpleNamespace as NS
     try:
@@ -8284,23 +8316,36 @@ def t_auth_passwordless_local_account_restrictions():
     auth_router.load_settings = fake_settings
     try:
 
-        # Request options for external account should be rejected
+        # Passwordless options for an external (SSO/LDAP) account must NOT be
+        # distinguishable from an unknown email — no error, no keys, no uid.
+        # (A distinguishable 400 here would be an account-enumeration oracle:
+        # anyone who knows or guesses an address could learn it's an SSO/LDAP
+        # account on this server.)
         req_ext = auth_router.PasswordlessOptionsIn(email="ldap@library.org")
-        try:
-            auth_router.get_passwordless_options(req_ext, db=s)
-            assert False, "External account should be rejected from local passwordless auth"
-        except HTTPException as exc:
-            assert exc.status_code == 400
-            assert "only available for local accounts" in exc.detail.lower()
+        res_ext = auth_router.get_passwordless_options(req_ext, db=s)
+        req_unknown = auth_router.PasswordlessOptionsIn(email="nobody@library.org")
+        res_unknown = auth_router.get_passwordless_options(req_unknown, db=s)
+        assert res_ext["options"]["allowCredentials"] == res_unknown["options"]["allowCredentials"] == []
+        import json as _json
+        assert _json.loads(settings_store.decrypt_password(res_ext["ticket"]))["uid"] is None
+        assert _json.loads(settings_store.decrypt_password(res_unknown["ticket"]))["uid"] is None
 
-        # Magic link for external account should be rejected
-        magic_ext = auth_router.MagicLinkRequestIn(email="ldap@library.org")
+        # Magic link for an external account is the same: no code emailed,
+        # same generic response as an unknown email — never a distinguishable
+        # error that would leak account existence or provider.
+        system_mail = _imp("core.system_mail")
+        sent_ext = []
+        orig_send_ext = system_mail.send
+        system_mail.send = lambda to, subject, body: sent_ext.append((to, body)) or True
         try:
-            auth_router.request_magic_link(magic_ext, db=s)
-            assert False, "External account should be rejected from magic link auth"
-        except HTTPException as exc:
-            assert exc.status_code == 400
-            assert "only available for local accounts" in exc.detail.lower()
+            magic_ext = auth_router.MagicLinkRequestIn(email="ldap@library.org")
+            res_ext2 = auth_router.request_magic_link(magic_ext, db=s)
+            assert len(sent_ext) == 0, "no code should be emailed for an SSO/LDAP account"
+            magic_unknown = auth_router.MagicLinkRequestIn(email="nobody-else@library.org")
+            res_unknown2 = auth_router.request_magic_link(magic_unknown, db=s)
+            assert res_ext2["message"] == res_unknown2["message"]
+        finally:
+            system_mail.send = orig_send_ext
 
         # Magic link for local account: the code is emailed, never returned
         system_mail = _imp("core.system_mail")
@@ -8360,6 +8405,65 @@ def t_auth_passwordless_local_account_restrictions():
         mfa.load_settings = orig_mfa
         if hasattr(auth_router, "load_settings"):
             auth_router.load_settings = orig_auth
+        s.close()
+
+
+@test(2, "auth.change_own_password",
+      "A signed-in local account can rotate its own password with the current one, which bumps "
+      "token_version (signing out other sessions) and emails a notice; the wrong current password, "
+      "or an SSO/LDAP account with no local password, is refused.")
+def t_auth_change_own_password():
+    try:
+        from fastapi import HTTPException
+        auth_router = _imp("routers.auth")
+        db, s = _memory_db()
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    local_user = db.User(email="jordan@example.invalid", full_name="Jordan Example",
+                         hashed_password=auth_router.hash_password("CurrentPassw0rd!"), auth_source=None)
+    ext_user = db.User(email="ldap@library.org", full_name="LDAP User",
+                       hashed_password="hashed_pw", auth_source="ldap")
+    s.add_all([local_user, ext_user]); s.commit()
+
+    system_mail = _imp("core.system_mail")
+    sent = []
+    orig_send = system_mail.send
+    system_mail.send = lambda to, subject, body: sent.append((to, subject)) or True
+    try:
+        # Wrong current password is refused.
+        try:
+            auth_router.change_own_password(
+                auth_router.ChangePasswordIn(current_password="wrong", new_password="NewPassw0rd1234"),
+                db=s, current_user=local_user)
+            assert False, "wrong current password should be refused"
+        except HTTPException as e:
+            assert e.status_code == 400
+
+        # An SSO/LDAP account has no local password to change.
+        try:
+            auth_router.change_own_password(
+                auth_router.ChangePasswordIn(current_password="whatever", new_password="NewPassw0rd1234"),
+                db=s, current_user=ext_user)
+            assert False, "an SSO/LDAP account should be refused"
+        except HTTPException as e:
+            assert e.status_code == 400
+        assert len(sent) == 0
+
+        # The right current password rotates it, bumps token_version (every
+        # other session, and the request's own now-stale token, stop
+        # working), issues a fresh token, and notifies the account owner.
+        old_token_version = local_user.token_version or 0
+        out = auth_router.change_own_password(
+            auth_router.ChangePasswordIn(current_password="CurrentPassw0rd!", new_password="NewPassw0rd1234"),
+            db=s, current_user=local_user)
+        assert out.get("access_token")
+        assert (local_user.token_version or 0) == old_token_version + 1
+        assert auth_router.verify_password("NewPassw0rd1234", local_user.hashed_password)
+        assert not auth_router.verify_password("CurrentPassw0rd!", local_user.hashed_password)
+        assert len(sent) == 1 and sent[0][0] == local_user.email
+    finally:
+        system_mail.send = orig_send
         s.close()
 
 
@@ -14059,7 +14163,9 @@ def t_security_scanner_regressions():
 
 
 @test(2, "security.mfa_stepup_password_length_hsts_and_svg_csp",
-      "MFA enrollment requires full sign-in once MFA is active; passwords require 8+ chars while shorter existing passwords still sign in; SVG logos carry CSP sandbox; HSTS toggles work.")
+      "MFA enrollment requires full sign-in once MFA is active; new passwords require 12+ chars and "
+      "aren't one of a small set of common/breached passwords, while shorter existing passwords "
+      "still sign in; SVG logos carry CSP sandbox; HSTS toggles work.")
 def t_security_tier2_regressions():
     try:
         import fastapi  # noqa: F401
@@ -14072,14 +14178,23 @@ def t_security_tier2_regressions():
     branding_router = _imp("routers.branding")
     from fastapi import HTTPException
 
-    # 1. Minimum password length = 8 chars, null bytes stripped
-    for short_pw in ("1", "1234567", "abc\x00def"):
+    # 1. Minimum password length = 12 chars, null bytes stripped
+    for short_pw in ("1", "1234567", "abc\x00def", "eleven_chr1"):
         try:
             auth_core.validate_password_length(short_pw)
             assert False, f"expected {short_pw!r} to be rejected"
         except ValueError as e:
-            assert "8 characters" in str(e)
-    auth_core.validate_password_length("12345678")
+            assert "12 characters" in str(e)
+    auth_core.validate_password_length("Xk7mQ2vLpR9z")
+
+    # 1b. A password that's long enough but is itself one of the most common/
+    # breached passwords (or that word with digits appended) is still refused.
+    for common_pw in ("password1234", "Qwerty123456", "letmein1234567"):
+        try:
+            auth_core.validate_password_length(common_pw)
+            assert False, f"expected common password {common_pw!r} to be rejected"
+        except ValueError as e:
+            assert "too common" in str(e)
 
     # 2. MFA step-up: mfa_ticket cannot enroll or replace MFA on an account that already has MFA
     u = db.User(

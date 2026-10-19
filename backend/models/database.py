@@ -21,6 +21,24 @@ from ..core.encryption import create_encrypted_engine, EncryptedText
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./privacy_pipeline.db")
 
+# create_encrypted_engine() (below) decides whether to enable SQLCipher by
+# reading DB_ENCRYPTION_KEY/SQLCIPHER_KEY/SECRET_KEY from the environment —
+# but SECRET_KEY is normally bootstrapped (generated and persisted on first
+# boot) by main.py's startup event, which runs AFTER this module is imported.
+# That ordering bug meant whole-database encryption silently never activated
+# on a plain `docker compose up` with no key set in .env, even though it's
+# meant to be on by default: this module is also imported directly (CLI
+# tools, migrations, tests) with no FastAPI startup event at all. Bootstrap
+# the key here, before the engine is created, so it's always in place in
+# time — this call is idempotent (it reads back an existing key file/env
+# value first) and never raises, so it's safe to also run again from the
+# startup event.
+try:
+    from ..core.settings_store import ensure_bootstrap_secret_key as _ensure_secret_key
+    _ensure_secret_key()
+except Exception:
+    pass
+
 engine = create_encrypted_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

@@ -99,11 +99,12 @@ CSV_COLUMNS = ["site", "person", "round", "law_days", "sent", "due", "replied", 
 
 def to_csv(rep: dict) -> str:
     import csv, io
+    from .csv_safety import csv_safe
     buf = io.StringIO()
     w = csv.DictWriter(buf, fieldnames=CSV_COLUMNS, extrasaction="ignore")
     w.writeheader()
     for r in rep["rows"]:
-        w.writerow(r)
+        w.writerow({k: csv_safe(v) for k, v in r.items()})
     return buf.getvalue()
 
 

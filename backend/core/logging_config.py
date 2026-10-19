@@ -52,6 +52,16 @@ _RE_JSON_SECRETS = re.compile(
 _RE_SIP2_AUTH = re.compile(r"\|(AD|CO)([^|\r\n]+)")
 _RE_AUTH_HEADER = re.compile(r"(?i)\b(Authorization:\s*)([^\r\n]+)")
 
+# Every C0 control character, including \r and \n. Run LAST, on the whole
+# formatted line: anything upstream (a route handler, a plugin, a future
+# log.warning() nobody thought to sanitize) can put attacker-controlled text
+# straight into a log call, and this is the one place every log line passes
+# through (SanitizingFormatter.format(), below) regardless. Without this, an
+# embedded \r/\n lets that text forge what looks like a second, separate,
+# fully-timestamped log entry (CWE-117) to anyone or anything reading the
+# log file or the admin's Logs page later.
+_RE_CONTROL_CHARS = re.compile(r"[\x00-\x1f]")
+
 
 def sanitize_log_message(msg: str) -> str:
     """
@@ -65,6 +75,7 @@ def sanitize_log_message(msg: str) -> str:
     msg = _RE_JSON_SECRETS.sub(r'\1"[REDACTED]"', msg)
     msg = _RE_SIP2_AUTH.sub(r"|\1[REDACTED]", msg)
     msg = _RE_AUTH_HEADER.sub(r"\1[REDACTED]", msg)
+    msg = _RE_CONTROL_CHARS.sub(" ", msg)
     return msg
 
 

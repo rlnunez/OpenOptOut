@@ -70,7 +70,8 @@ def _derive_fernet_legacy_key(raw: str) -> bytes:
     return base64.urlsafe_b64encode(digest)
 
 
-_derive_fernet_key = _derive_fernet_legacy_key  # backward-compatible alias
+_derive_fernet_key = _derive_fernet_primary_key
+_derive_fernet_key_legacy = _derive_fernet_legacy_key
 
 
 def check_key_file_locked_down(path: str) -> bool:
@@ -82,9 +83,9 @@ def check_key_file_locked_down(path: str) -> bool:
         return False
 
 
-def get_raw_field_encryption_key() -> Optional[str]:
+def get_field_encryption_key_material() -> Optional[str]:
     """
-    Return the raw unhashed key used for field-level encryption.
+    Return the raw secret field encryption keys derive from, before HKDF.
     Priority: FIELD_ENCRYPTION_KEY_FILE → FIELD_ENCRYPTION_KEY env var → SECRET_KEY env var → None (disabled).
     """
     raw = None
@@ -104,15 +105,15 @@ def get_raw_field_encryption_key() -> Optional[str]:
     return raw
 
 
+get_raw_field_encryption_key = get_field_encryption_key_material  # alias
+
+
 def get_field_encryption_key() -> Optional[bytes]:
-    """
-    Return the Fernet key used for field-level encryption.
-    Priority: FIELD_ENCRYPTION_KEY_FILE → FIELD_ENCRYPTION_KEY env var → SECRET_KEY env var → None (disabled).
-    """
-    raw = get_raw_field_encryption_key()
-    if not raw:
-        return None
-    return _derive_fernet_key(raw)
+    """Return the Fernet key used for field-level encryption (see
+    get_field_encryption_key_material() for where the root secret comes
+    from)."""
+    raw = get_field_encryption_key_material()
+    return _derive_fernet_key(raw) if raw else None
 
 
 def get_db_encryption_key() -> Optional[str]:
@@ -141,13 +142,14 @@ def get_db_encryption_key() -> Optional[str]:
 
 # ── AEAD & Fernet helpers ─────────────────────────────────────────────────────
 
-_fernet_instance = None
-_fernet_instance_raw_key = None
+_fernet_instance: Optional[Any] = None
+_fernet_instance_raw_key: Optional[str] = None
+_legacy_fernet_instance: Optional[Fernet] = None
 
 
 def _get_fernet():
     global _fernet_instance, _fernet_instance_raw_key
-    raw = get_raw_field_encryption_key()
+    raw = get_field_encryption_key_material()
     if not raw:
         _fernet_instance = None
         _fernet_instance_raw_key = None
@@ -164,6 +166,17 @@ def _get_fernet():
         else:
             _fernet_instance = True
     return _fernet_instance
+
+
+def _get_legacy_fernet() -> Optional[Fernet]:
+    """The pre-HKDF Fernet instance, decrypt-only, for a field value written
+    before this module switched derivations."""
+    global _legacy_fernet_instance
+    if _legacy_fernet_instance is None:
+        raw = get_field_encryption_key_material()
+        if raw and Fernet is not None:
+            _legacy_fernet_instance = Fernet(_derive_fernet_legacy_key(raw))
+    return _legacy_fernet_instance
 
 
 def is_production_mode() -> bool:
@@ -188,7 +201,7 @@ def encrypt_field(value: Optional[str]) -> Optional[str]:
                 "Encryption at rest is mandatory in production: FIELD_ENCRYPTION_KEY or SECRET_KEY is missing or invalid."
             )
         return value   # encryption disabled in dev/test — store plaintext
-    raw = get_raw_field_encryption_key()
+    raw = get_field_encryption_key_material()
     if not raw:
         if is_production_mode():
             raise RuntimeError(
@@ -230,7 +243,7 @@ def decrypt_field(value: Optional[str]) -> Optional[str]:
                 "Decryption failed: FIELD_ENCRYPTION_KEY or SECRET_KEY is unavailable in production."
             )
         return value
-    raw = get_raw_field_encryption_key()
+    raw = get_field_encryption_key_material()
     if not raw:
         if is_production_mode():
             raise RuntimeError(
@@ -261,6 +274,12 @@ def decrypt_field(value: Optional[str]) -> Optional[str]:
         try:
             return f.decrypt(value.encode("utf-8")).decode("utf-8")
         except (InvalidToken, Exception):
+            legacy = _get_legacy_fernet()
+            if legacy is not None:
+                try:
+                    return legacy.decrypt(value.encode("utf-8")).decode("utf-8")
+                except Exception:
+                    pass
             if is_production_mode():
                 raise RuntimeError(
                     "Field decryption failed in production: stored token is corrupted or key mismatch."
