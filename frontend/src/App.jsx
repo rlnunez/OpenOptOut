@@ -191,7 +191,7 @@ function RequireAuth({ children }) {
     return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-500 text-sm">{tx("Loading…")}</p></div>
   // Before anything else, what they still have to accept (core/terms.py).
   if (wizard && !wizard.completed)
-    return <TermsGate><SecretKeyBanner /><SetupWizard onDone={() => setWizard({ ...wizard, completed: true })} /></TermsGate>
+    return <TermsGate><SetupWizard onDone={() => setWizard({ ...wizard, completed: true })} /></TermsGate>
   return <TermsGate>{children}</TermsGate>
 }
 

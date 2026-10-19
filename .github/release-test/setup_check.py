@@ -153,7 +153,7 @@ class Checker:
         if state.get("completed"):
             return self.step("Setup wizard completed", True, "already finished (in the browser)")
         self.ensure_secret_key()
-        for s in ("database", "email", "deployment", "branding"):
+        for s in ("security", "database", "email", "deployment", "branding"):
             if s not in (state.get("steps") or {}):
                 st, b = self.call("POST", "/api/wizard/skip", {"step": s})
                 self.step(f"Wizard: skip '{s}' step", st == 200, f"HTTP {st} {short(b)}")
