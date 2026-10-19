@@ -67,7 +67,7 @@ def retention_days(cfg: dict) -> int:
     priv = (cfg or {}).get("privacy") or {}
     v = priv.get("logs_retention_days", priv.get("auto_purge_logs_days", DEFAULT_RETENTION_DAYS))
     try:
-        return max(7, int(v))
+        return max(30, int(v))
     except (TypeError, ValueError):
         return DEFAULT_RETENTION_DAYS
 
