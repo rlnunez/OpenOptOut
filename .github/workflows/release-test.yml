@@ -30,9 +30,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to test (blank = newest release, including pre-releases)"
+        description: "Branch, commit or release tag to test (default: main)"
         required: false
-        default: ""
+        default: "main"
       upgrade_from:
         description: "Upgrade test: start from this tag (blank = the previous full release, 'none' = skip)"
         required: false
@@ -70,33 +70,46 @@ jobs:
           INPUT_TAG: ${{ inputs.tag }}
           INPUT_FROM: ${{ inputs.upgrade_from }}
         run: |
-          gh api "repos/$REPO/releases?per_page=100" > releases.json
+          gh api "repos/$REPO/releases?per_page=100" > releases.json 2>/dev/null || echo "[]" > releases.json
           python3 - <<'EOF'
           import json, os, re, sys
-          rels = [r for r in json.load(open("releases.json")) if not r["draft"]]
-          rels.sort(key=lambda r: r["published_at"] or "", reverse=True)
-          tag = os.environ.get("EVENT_TAG") or os.environ.get("INPUT_TAG") or (rels[0]["tag_name"] if rels else "")
+          try:
+              rels = [r for r in json.load(open("releases.json")) if not r.get("draft")]
+          except Exception:
+              rels = []
+          rels.sort(key=lambda r: r.get("published_at") or "", reverse=True)
+          input_tag = os.environ.get("INPUT_TAG", "").strip()
+          event_tag = os.environ.get("EVENT_TAG", "").strip()
+          tag = event_tag or input_tag or "main"
           if not tag:
-              sys.exit("::error::No release found to test.")
-          me = next((r for r in rels if r["tag_name"] == tag), None)
-          if me is None:
-              sys.exit(f"::error::'{tag}' is not a published release.")
+              sys.exit("::error::No release or branch found to test.")
+          me = next((r for r in rels if r.get("tag_name") == tag), None)
+          if me is not None:
+              is_prerelease = me.get("prerelease", False)
+              published_at = me.get("published_at") or ""
+          else:
+              # Testing a branch, commit or unreleased ref (e.g. main)
+              is_prerelease = True
+              published_at = "9999-99-99T99:99:99Z"
+
           frm = os.environ.get("INPUT_FROM", "").strip()
           if frm.lower() == "none":
               prev = ""
           elif frm:
               prev = frm
           else:
-              older = [r for r in rels if not r["prerelease"] and (r["published_at"] or "") < (me["published_at"] or "")
-                       and r["tag_name"] != tag]
+              older = [r for r in rels if not r.get("prerelease") and (r.get("published_at") or "") < published_at
+                       and r.get("tag_name") != tag]
               prev = older[0]["tag_name"] if older else ""
-          safe = re.compile(r"^[A-Za-z0-9._-]+$")
+
+          safe = re.compile(r"^[A-Za-z0-9._/-]+$")
           for t in (tag, prev):
               if t and not safe.match(t):
-                  sys.exit(f"::error::Unexpected characters in tag {t!r}")
+                  sys.exit(f"::error::Unexpected characters in tag/ref {t!r}")
+
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-              f.write(f"tag={tag}\nprevious={prev}\nprerelease={str(me['prerelease']).lower()}\n")
-          print(f"Testing {tag} (pre-release: {me['prerelease']}); upgrade from: {prev or '(none)'}")
+              f.write(f"tag={tag}\nprevious={prev}\nprerelease={str(is_prerelease).lower()}\n")
+          print(f"Testing {tag} (pre-release: {is_prerelease}); upgrade from: {prev or '(none)'}")
           EOF
 
   # ── Fresh install, the way a new user does it ──────────────────────────────
@@ -327,6 +340,7 @@ jobs:
           set -o pipefail
           {
             git fetch --tags --force origin
+            git fetch origin "$TAG" || true
             git reset --hard
             git checkout --force --quiet "$TAG"
             docker compose down

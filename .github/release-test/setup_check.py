@@ -105,8 +105,8 @@ class Checker:
 
     def check_version(self, health, expect):
         got = str(health.get("version", ""))
-        if not expect:
-            return self.step("Version reported", True, got)
+        if not expect or expect.lower() in ("main", "master", "head", "latest"):
+            return self.step("Version reported", bool(got), f"{got} (ref: {expect or 'any'})")
         want = expect.lstrip("vV")
         return self.step("Version matches the release tag", got.lstrip("vV") == want,
                          f"API reports {got!r}, release tag is {expect!r}")
