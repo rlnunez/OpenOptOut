@@ -34,8 +34,8 @@ VAULT_SAMPLE = [
     ("address", "123 Example Street, Springfield, ZZ 00000"),
 ]
 
-# GET endpoints that are slow on purpose, stream forever, or reach the internet.
-SKIP_GET_SUBSTRINGS = ("stream", "/events", "/sse", "/download", "/export")
+# GET endpoints that are slow on purpose, stream forever, reach the internet, or require external OAuth/SAML redirect state.
+SKIP_GET_SUBSTRINGS = ("stream", "/events", "/sse", "/download", "/export", "/callback", "/saml/login")
 
 
 class Checker:
@@ -188,6 +188,9 @@ class Checker:
         for s in ("security", "email", "ai", "branding"):
             if s not in steps:
                 st, b = self.call("POST", "/api/wizard/skip", {"step": s})
+                # On older releases (e.g. v0.10.2 before-upgrade), newer steps like 'security' or 'ai' don't exist yet
+                if st == 400 and isinstance(b, dict) and b.get("detail") == "unknown step":
+                    continue
                 self.step(f"Wizard: skip '{s}' step", st == 200, f"HTTP {st} {short(b)}")
         st, b = self.call("POST", "/api/wizard/complete")
         self.step("Wizard: finish", st == 200, f"HTTP {st} {short(b)}")
