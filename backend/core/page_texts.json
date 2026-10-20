@@ -1901,6 +1901,12 @@
    ]
   },
   {
+   "text": "Antigravity (Google)",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Any address that accepts a JSON POST. With a secret, each message is signed (X-OpenOptOut-Signature).",
    "where": [
     "pages/Monitoring.jsx"
@@ -3728,12 +3734,6 @@
    ]
   },
   {
-   "text": "Completely private. Connect your own LLM server running on your home network or this machine without third-party API fees.",
-   "where": [
-    "pages/SetupWizard.jsx"
-   ]
-  },
-  {
    "text": "Completing sign in…",
    "where": [
     "App.jsx"
@@ -3976,12 +3976,6 @@
   },
   {
    "text": "Connection verified successfully!",
-   "where": [
-    "pages/SetupWizard.jsx"
-   ]
-  },
-  {
-   "text": "Connects OpenAI's reasoning models to parse form layouts and repair broken opt-out selectors.",
    "where": [
     "pages/SetupWizard.jsx"
    ]
@@ -7855,6 +7849,12 @@
    "text": "Gone",
    "where": [
     "components/RemovalChecks.jsx"
+   ]
+  },
+  {
+   "text": "Google AI / Gemini API Key",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -18855,7 +18855,25 @@
    ]
   },
   {
-   "text": "Uses Claude to inspect changed broker pages and intelligently draft updated form-filling steps.",
+   "text": "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.",
    "where": [
     "pages/SetupWizard.jsx"
    ]

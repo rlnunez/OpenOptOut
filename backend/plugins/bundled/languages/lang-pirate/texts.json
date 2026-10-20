@@ -3423,5 +3423,11 @@
   "Master Encryption Key & Entropy Generation": "Master Cryptic Key & Chaos Spewin'",
   "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "Command-line riggins spawn a plain master key in .env or secret.key by their lonesome. In this here wizard, lay yer eyes on the Interactive Chaos Engine below as it forges a fierce high-entropy key from shufflin' portraits, ambient winds, and cutlass keystrokes, or paste yer own secret glyphs.",
   "Command-line default": "Command-line default",
-  "Current key saved on the server (used for headless command-line setups):": "Current key stashed in the ship's hold (used for headless command-line voyages):"
+  "Current key saved on the server (used for headless command-line setups):": "Current key stashed in the ship's hold (used for headless command-line voyages):",
+  "Antigravity (Google)": "Antigravity (Google)",
+  "Google AI / Gemini API Key": "Google AI / Gemini Letter of Mark",
+  "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Employs Antigravity to scout broker docks, draft fresh escape maneuvers, and patch broken form riggin'.",
+  "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Employs Claude to scout broker docks, draft fresh escape maneuvers, and patch broken form riggin'.",
+  "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Employs OpenAI to scout broker docks, draft fresh escape maneuvers, and patch broken form riggin'.",
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Employs yer own shipboard brainbox to scout broker docks, draft fresh escape maneuvers, and patch broken form riggin' completely off the grid."
 }

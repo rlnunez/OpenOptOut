@@ -3423,5 +3423,11 @@
   "Master Encryption Key & Entropy Generation": "مفتاح التشفير الرئيسي وتوليد الإنتروبيا",
   "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "تُنشئ عمليات التثبيت عبر سطر الأوامر تلقائيًا مفتاحًا رئيسيًا أساسيًا في .env أو secret.key. في معالج الإعداد هذا، شاهد منشئ الإنتروبيا التفاعلي أدناه ينشئ مفتاحًا مخصصًا عالي الإنتروبيا من خلط الصور وفيزياء البيئة وتوقيت لوحة المفاتيح، أو الصق مفتاحك المخصص.",
   "Command-line default": "الافتراضي لسطر الأوامر",
-  "Current key saved on the server (used for headless command-line setups):": "المفتاح الحالي المحفوظ على الخادم (المستخدم لإعدادات سطر الأوامر دون واجهة):"
+  "Current key saved on the server (used for headless command-line setups):": "المفتاح الحالي المحفوظ على الخادم (المستخدم لإعدادات سطر الأوامر دون واجهة):",
+  "Antigravity (Google)": "أنتيجرافيتي (جوجل)",
+  "Google AI / Gemini API Key": "مفتاح Google AI / Gemini API",
+  "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "يستخدم أنتيجرافيتي لفحص صفحات الوسطاء وصياغة خطوات إلغاء الاشتراك الجديدة وإصلاح محددات ملء النماذج المعطلة.",
+  "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "يستخدم كلود لفحص صفحات الوسطاء وصياغة خطوات إلغاء الاشتراك الجديدة وإصلاح محددات ملء النماذج المعطلة.",
+  "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "يستخدم OpenAI لفحص صفحات الوسطاء وصياغة خطوات إلغاء الاشتراك الجديدة وإصلاح محددات ملء النماذج المعطلة.",
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "يستخدم نموذجك اللغوي المحلي لفحص صفحات الوسطاء وصياغة خطوات إلغاء الاشتراك الجديدة وإصلاح محددات ملء النماذج المعطلة دون اتصال بالإنترنت تمامًا."
 }

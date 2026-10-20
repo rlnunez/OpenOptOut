@@ -3421,5 +3421,11 @@
   "Master Encryption Key & Entropy Generation": "Головний ключ шифрування та генерація ентропії",
   "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "Встановлення через командний рядок автоматично створює базовий головний ключ у файлі .env або secret.key. У цьому майстрі налаштування спостерігайте, як інтерактивний генератор ентропії створює власний ключ високої ентропії на основі перемішування зображень, фізики навколишнього середовища та таймінгу клавіатури, або вставте власний ключ.",
   "Command-line default": "За замовчуванням для командного рядка",
-  "Current key saved on the server (used for headless command-line setups):": "Поточний ключ, збережений на сервері (використовується для налаштувань командного рядка без графічного інтерфейсу):"
+  "Current key saved on the server (used for headless command-line setups):": "Поточний ключ, збережений на сервері (використовується для налаштувань командного рядка без графічного інтерфейсу):",
+  "Antigravity (Google)": "Antigravity (Google)",
+  "Google AI / Gemini API Key": "Ключ API Google AI / Gemini",
+  "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Використовує Antigravity для перевірки сторінок брокерів, складання нових кроків відмови та відновлення зламаних селекторів заповнення форм.",
+  "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Використовує Claude для перевірки сторінок брокерів, складання нових кроків відмови та відновлення зламаних селекторів заповнення форм.",
+  "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Використовує OpenAI для перевірки сторінок брокерів, складання нових кроків відмови та відновлення зламаних селекторів заповнення форм.",
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Використовує вашу локальну LLM для перевірки сторінок брокерів, складання нових кроків відмови та відновлення зламаних селекторів форм повністю в автономному режимі."
 }

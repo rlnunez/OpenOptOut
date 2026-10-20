@@ -3423,5 +3423,11 @@
   "Master Encryption Key & Entropy Generation": "Haupt-Verschlüsselungsschlüssel & Entropie-Generierung",
   "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "Befehlszeileninstallationen generieren automatisch einen Basis-Hauptschlüssel in .env oder secret.key. Beobachten Sie in diesem Einrichtungsassistenten, wie der interaktive Entropie-Generator unten einen individuellen Hochenergie-Schlüssel aus Bildmischung, Umgebungsphysik und Tastatur-Timing erstellt, oder fügen Sie Ihren eigenen Schlüssel ein.",
   "Command-line default": "Befehlszeilen-Standard",
-  "Current key saved on the server (used for headless command-line setups):": "Aktuell auf dem Server gespeicherter Schlüssel (für Headless-Befehlszeilen-Setups):"
+  "Current key saved on the server (used for headless command-line setups):": "Aktuell auf dem Server gespeicherter Schlüssel (für Headless-Befehlszeilen-Setups):",
+  "Antigravity (Google)": "Antigravity (Google)",
+  "Google AI / Gemini API Key": "Google AI / Gemini API-Schlüssel",
+  "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Verwendet Antigravity, um Broker-Seiten zu prüfen, neue Opt-out-Schritte zu entwerfen und defekte Formularausfüll-Selektoren zu reparieren.",
+  "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Verwendet Claude, um Broker-Seiten zu prüfen, neue Opt-out-Schritte zu entwerfen und defekte Formularausfüll-Selektoren zu reparieren.",
+  "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Verwendet OpenAI, um Broker-Seiten zu prüfen, neue Opt-out-Schritte zu entwerfen und defekte Formularausfüll-Selektoren zu reparieren.",
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Verwendet Ihr lokales LLM, um Broker-Seiten zu prüfen, neue Opt-out-Schritte zu entwerfen und defekte Formularausfüll-Selektoren vollständig offline zu reparieren."
 }

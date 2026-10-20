@@ -3423,5 +3423,11 @@
   "Master Encryption Key & Entropy Generation": "Pangunahing Susi ng Pag-encrypt at Pagbuo ng Entropy",
   "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "Ang mga pag-install ng command-line ay awtomatikong bumubuo ng baseline na master key sa .env o secret.key. Sa setup wizard na ito, panoorin ang Interactive Entropy Generator sa ibaba na lumikha ng custom na high-entropy key mula sa pagbabalasa ng imahe, ambient physics, at timing ng keyboard, o i-paste ang iyong sariling custom key.",
   "Command-line default": "Default ng command-line",
-  "Current key saved on the server (used for headless command-line setups):": "Kasalukuyang susi na naka-save sa server (ginagamit para sa mga headless command-line setup):"
+  "Current key saved on the server (used for headless command-line setups):": "Kasalukuyang susi na naka-save sa server (ginagamit para sa mga headless command-line setup):",
+  "Antigravity (Google)": "Antigravity (Google)",
+  "Google AI / Gemini API Key": "Google AI / Gemini API Key",
+  "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Gumagamit ng Antigravity upang suriin ang mga pahina ng broker, mag-draft ng mga bagong hakbang sa pag-opt-out, at ayusin ang mga sirang selector ng pagpuno ng form.",
+  "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Gumagamit ng Claude upang suriin ang mga pahina ng broker, mag-draft ng mga bagong hakbang sa pag-opt-out, at ayusin ang mga sirang selector ng pagpuno ng form.",
+  "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Gumagamit ng OpenAI upang suriin ang mga pahina ng broker, mag-draft ng mga bagong hakbang sa pag-opt-out, at ayusin ang mga sirang selector ng pagpuno ng form.",
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Gumagamit ng iyong lokal na LLM upang suriin ang mga pahina ng broker, mag-draft ng mga bagong hakbang sa pag-opt-out, at ayusin ang mga sirang selector ng pagpuno ng form nang ganap na offline."
 }

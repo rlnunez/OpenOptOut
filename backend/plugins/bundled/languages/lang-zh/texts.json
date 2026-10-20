@@ -3423,5 +3423,11 @@
   "Master Encryption Key & Entropy Generation": "主加密密钥与熵生成",
   "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "命令行安装会在 .env 或 secret.key 中自动生成基线主密钥。在此设置向导中，请观看下方的交互式熵生成器通过图像混洗、环境物理特性和键盘击键时序生成高熵自定义密钥，或粘贴您自己的自定义密钥。",
   "Command-line default": "命令行默认",
-  "Current key saved on the server (used for headless command-line setups):": "当前保存在服务器上的密钥（用于无头命令行配置）："
+  "Current key saved on the server (used for headless command-line setups):": "当前保存在服务器上的密钥（用于无头命令行配置）：",
+  "Antigravity (Google)": "Antigravity (Google)",
+  "Google AI / Gemini API Key": "Google AI / Gemini API 密钥",
+  "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "使用 Antigravity 检查数据经纪商页面、起草新的退出步骤并修复损坏的表单填充选择器。",
+  "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "使用 Claude 检查数据经纪商页面、起草新的退出步骤并修复损坏的表单填充选择器。",
+  "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "使用 OpenAI 检查数据经纪商页面、起草新的退出步骤并修复损坏的表单填充选择器。",
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "完全离线使用本地大语言模型检查数据经纪商页面、起草新的退出步骤并修复损坏的表单填充选择器。"
 }

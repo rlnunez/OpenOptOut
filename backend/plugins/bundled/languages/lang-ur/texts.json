@@ -3421,5 +3421,11 @@
   "Master Encryption Key & Entropy Generation": "ماسٹر انکرپشن کلید اور اینٹروپی جنریشن",
   "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "کمانڈ لائن انسٹالیشنز خود بخود .env یا secret.key میں بیس لائن ماسٹر کلید تیار کرتی ہیں۔ اس سیٹ اپ وزرڈ میں، نیچے دیئے گئے انٹرایکٹو اینٹروپی جنریٹر کو تصویر کی ردوبدل، محیطی طبیعیات، اور کی بورڈ کے اوقات سے کسٹم ہائی اینٹروپی کلید بناتے ہوئے دیکھیں، یا اپنی کسٹم کلید چسپاں کریں۔",
   "Command-line default": "کمانڈ لائن ڈیفالٹ",
-  "Current key saved on the server (used for headless command-line setups):": "سرور پر محفوظ کردہ موجودہ کلید (ہیڈ لیس کمانڈ لائن سیٹ اپ کے لیے استعمال ہوتی ہے):"
+  "Current key saved on the server (used for headless command-line setups):": "سرور پر محفوظ کردہ موجودہ کلید (ہیڈ لیس کمانڈ لائن سیٹ اپ کے لیے استعمال ہوتی ہے):",
+  "Antigravity (Google)": "اینٹی گریویٹی (گوگل)",
+  "Google AI / Gemini API Key": "گوگل اے آئی / جیمنی API کلید",
+  "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "بروکر کے صفحات کا معائنہ کرنے، نئے آپٹ آؤٹ اقدامات کا مسودہ تیار کرنے، اور ٹوٹے ہوئے فارم بھرنے والے سلیکٹرز کی مرمت کے لیے اینٹی گریویٹی کا استعمال کرتا ہے۔",
+  "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "بروکر کے صفحات کا معائنہ کرنے، نئے آپٹ آؤٹ اقدامات کا مسودہ تیار کرنے، اور ٹوٹے ہوئے فارم بھرنے والے سلیکٹرز کی مرمت کے لیے کلاڈ کا استعمال کرتا ہے۔",
+  "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "بروکر کے صفحات کا معائنہ کرنے، نئے آپٹ آؤٹ اقدامات کا مسودہ تیار کرنے، اور ٹوٹے ہوئے فارم بھرنے والے سلیکٹرز کی مرمت کے لیے OpenAI کا استعمال کرتا ہے۔",
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "مکمل طور پر آف لائن رہتے ہوئے بروکر کے صفحات کا معائنہ کرنے، نئے آپٹ آؤٹ اقدامات کا مسودہ تیار کرنے، اور فارم بھرنے والے سلیکٹرز کی مرمت کے لیے آپ کے مقامی LLM کا استعمال کرتا ہے۔"
 }

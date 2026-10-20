@@ -3421,5 +3421,11 @@
   "Master Encryption Key & Entropy Generation": "Ufunguo Mkuu wa Usimbaji fiche na Uundaji wa Entropia",
   "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "Usakinishaji wa safu ya amri huunda kiotomatiki ufunguo mkuu wa msingi katika .env au secret.key. Katika kichawi hiki cha usanidi, tazama Jenereta ya Entropia shirikishi hapa chini ikitengeneza ufunguo maalum wa entropia ya juu kutoka kwa mchanganyiko wa picha, fizikia ya mazingira, na muda wa kibodi, au bandika ufunguo wako maalum.",
   "Command-line default": "Chaguo-msingi la safu ya amri",
-  "Current key saved on the server (used for headless command-line setups):": "Ufunguo wa sasa uliohifadhiwa kwenye seva (hutumika kwa mipangilio ya safu ya amri isiyo na skrini):"
+  "Current key saved on the server (used for headless command-line setups):": "Ufunguo wa sasa uliohifadhiwa kwenye seva (hutumika kwa mipangilio ya safu ya amri isiyo na skrini):",
+  "Antigravity (Google)": "Antigravity (Google)",
+  "Google AI / Gemini API Key": "Ufunguo wa API wa Google AI / Gemini",
+  "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Hutumia Antigravity kukagua kurasa za madalali, kuandaa hatua mpya za kujiondoa, na kurekebisha viteuzi vilivyovunjika vya kujaza fomu.",
+  "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Hutumia Claude kukagua kurasa za madalali, kuandaa hatua mpya za kujiondoa, na kurekebisha viteuzi vilivyovunjika vya kujaza fomu.",
+  "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Hutumia OpenAI kukagua kurasa za madalali, kuandaa hatua mpya za kujiondoa, na kurekebisha viteuzi vilivyovunjika vya kujaza fomu.",
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Hutumia LLM yako ya ndani kukagua kurasa za madalali, kuandaa hatua mpya za kujiondoa, na kurekebisha viteuzi vilivyovunjika vya kujaza fomu nje ya mtandao kabisa."
 }

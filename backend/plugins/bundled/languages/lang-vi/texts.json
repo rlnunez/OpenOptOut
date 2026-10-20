@@ -3423,5 +3423,11 @@
   "Master Encryption Key & Entropy Generation": "Khóa mã hóa chính & Tạo entropy",
   "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "Quá trình cài đặt bằng dòng lệnh sẽ tự động tạo khóa chính cơ bản trong .env hoặc secret.key. Trong trình hướng dẫn thiết lập này, hãy xem Trình tạo entropy tương tác bên dưới tạo khóa tùy chỉnh có độ entropy cao từ việc xáo trộn hình ảnh, vật lý môi trường xung quanh và thời gian bàn phím hoặc dán khóa tùy chỉnh của riêng bạn.",
   "Command-line default": "Mặc định dòng lệnh",
-  "Current key saved on the server (used for headless command-line setups):": "Khóa hiện tại được lưu trên máy chủ (được sử dụng cho các thiết lập dòng lệnh không giao diện):"
+  "Current key saved on the server (used for headless command-line setups):": "Khóa hiện tại được lưu trên máy chủ (được sử dụng cho các thiết lập dòng lệnh không giao diện):",
+  "Antigravity (Google)": "Antigravity (Google)",
+  "Google AI / Gemini API Key": "Khóa API Google AI / Gemini",
+  "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Sử dụng Antigravity để kiểm tra các trang của nhà môi giới, phác thảo các bước chọn không tham gia mới và sửa các bộ chọn điền biểu mẫu bị hỏng.",
+  "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Sử dụng Claude để kiểm tra các trang của nhà môi giới, phác thảo các bước chọn không tham gia mới và sửa các bộ chọn điền biểu mẫu bị hỏng.",
+  "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Sử dụng OpenAI để kiểm tra các trang của nhà môi giới, phác thảo các bước chọn không tham gia mới và sửa các bộ chọn điền biểu mẫu bị hỏng.",
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Sử dụng LLM cục bộ của bạn để kiểm tra các trang của nhà môi giới, phác thảo các bước chọn không tham gia mới và sửa các bộ chọn biểu mẫu bị hỏng hoàn toàn ngoại tuyến."
 }

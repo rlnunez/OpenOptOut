@@ -3421,5 +3421,11 @@
   "Master Encryption Key & Entropy Generation": "Clave de cifrado maestra y generación de entropía",
   "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "Las instalaciones por línea de comandos generan automáticamente una clave maestra básica en .env o secret.key. En este asistente de configuración, observe cómo el Generador interactivo de entropía a continuación crea una clave personalizada de alta entropía a partir de la mezcla de imágenes, física ambiental y tiempos de teclado, o pegue su propia clave personalizada.",
   "Command-line default": "Predeterminado de línea de comandos",
-  "Current key saved on the server (used for headless command-line setups):": "Clave actual guardada en el servidor (utilizada para instalaciones sin interfaz por línea de comandos):"
+  "Current key saved on the server (used for headless command-line setups):": "Clave actual guardada en el servidor (utilizada para instalaciones sin interfaz por línea de comandos):",
+  "Antigravity (Google)": "Antigravity (Google)",
+  "Google AI / Gemini API Key": "Clave de API de Google AI / Gemini",
+  "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Utiliza Antigravity para inspeccionar las páginas de los brókers, redactar nuevos pasos de exclusión y reparar selectores de formularios rotos.",
+  "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Utiliza Claude para inspeccionar las páginas de los brókers, redactar nuevos pasos de exclusión y reparar selectores de formularios rotos.",
+  "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Utiliza OpenAI para inspeccionar las páginas de los brókers, redactar nuevos pasos de exclusión y reparar selectores de formularios rotos.",
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Utiliza su LLM local para inspeccionar las páginas de los brókers, redactar nuevos pasos de exclusión y reparar selectores de formularios rotos completamente sin conexión."
 }

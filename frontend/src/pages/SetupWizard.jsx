@@ -1191,7 +1191,7 @@ function DeploymentStep({ onNext, onBack, busy, setError }) {
 
 // ── Step: AI Helpers Connection ──────────────────────────────────────────────
 function AIStep({ onNext, onSkip, onBack, busy, setError, isLastStep }) {
-  const [provider, setProvider] = useState('none') // 'none' | 'claude' | 'openai' | 'local'
+  const [provider, setProvider] = useState('none') // 'none' | 'claude' | 'openai' | 'antigravity' | 'local'
   const [apiKey, setApiKey] = useState('')
   const [model, setModel] = useState('')
   const [localName, setLocalName] = useState('LM Studio')
@@ -1291,7 +1291,7 @@ function AIStep({ onNext, onSkip, onBack, busy, setError, isLastStep }) {
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">Messages API</span>
             </div>
             <p className="text-slate-400 text-xs">
-              {tx("Uses Claude to inspect changed broker pages and intelligently draft updated form-filling steps.")}
+              {tx("Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.")}
             </p>
             {provider === 'claude' && (
               <div className="pt-2 space-y-2.5">
@@ -1344,7 +1344,7 @@ function AIStep({ onNext, onSkip, onBack, busy, setError, isLastStep }) {
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">Responses API</span>
             </div>
             <p className="text-slate-400 text-xs">
-              {tx("Connects OpenAI's reasoning models to parse form layouts and repair broken opt-out selectors.")}
+              {tx("Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.")}
             </p>
             {provider === 'openai' && (
               <div className="pt-2 space-y-2.5">
@@ -1380,7 +1380,60 @@ function AIStep({ onNext, onSkip, onBack, busy, setError, isLastStep }) {
           </div>
         </label>
 
-        {/* Option 4: Local Model (LM Studio, Ollama, etc.) */}
+        {/* Option 4: Antigravity (Google) */}
+        <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
+          provider === 'antigravity' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-800 bg-slate-900/40 hover:border-slate-700'
+        }`}>
+          <input
+            type="radio"
+            name="wizard_ai_provider"
+            checked={provider === 'antigravity'}
+            onChange={() => { setProvider('antigravity'); setModel('gemini-3.8-flash'); setTestResult(null) }}
+            className="mt-1 accent-shield-500"
+          />
+          <div className="flex-1 space-y-2">
+            <div className="text-slate-200 text-sm font-medium flex items-center justify-between">
+              <span>{tx("Antigravity (Google)")}</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">Gemini Interactions API</span>
+            </div>
+            <p className="text-slate-400 text-xs">
+              {tx("Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.")}
+            </p>
+            {provider === 'antigravity' && (
+              <div className="pt-2 space-y-2.5">
+                <div>
+                  <label className="text-[11px] text-slate-300 font-medium block mb-1">{tx("Google AI / Gemini API Key")}</label>
+                  <input
+                    type="password"
+                    className={inp}
+                    placeholder="AIzaSy..."
+                    value={apiKey}
+                    onChange={e => setApiKey(e.target.value)}
+                  />
+                  <p className="text-[10px] text-slate-500 mt-0.5">{tx("Stored encrypted with your master secret key.")}</p>
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-300 font-medium block mb-1">{tx("Model")}</label>
+                  <select className={inp} value={model} onChange={e => setModel(e.target.value)}>
+                    <option value="gemini-3.8-flash">Gemini 3.8 Flash ({tx("Recommended")})</option>
+                    <option value="gemini-3.6-flash">Gemini 3.6 Flash ({tx("Balanced")})</option>
+                    <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite ({tx("Fastest")})</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={testConnection}
+                  disabled={testing || !apiKey}
+                  className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-200 hover:text-white text-xs disabled:opacity-40 transition-colors"
+                >
+                  {testing ? tx("Testing connection…") : tx("Test Connection")}
+                </button>
+              </div>
+            )}
+          </div>
+        </label>
+
+        {/* Option 5: Local Model (LM Studio, Ollama, etc.) */}
         <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
           provider === 'local' ? 'border-shield-600 bg-shield-900/20' : 'border-slate-800 bg-slate-900/40 hover:border-slate-700'
         }`}>
@@ -1397,7 +1450,7 @@ function AIStep({ onNext, onSkip, onBack, busy, setError, isLastStep }) {
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">Ollama / LM Studio</span>
             </div>
             <p className="text-slate-400 text-xs">
-              {tx("Completely private. Connect your own LLM server running on your home network or this machine without third-party API fees.")}
+              {tx("Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.")}
             </p>
             {provider === 'local' && (
               <div className="pt-2 space-y-2.5">

@@ -3422,5 +3422,11 @@
   "Master Encryption Key & Entropy Generation": "Kunci Enkripsi Utama & Pembuatan Entropi",
   "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "Instalasi baris perintah secara otomatis menghasilkan kunci master dasar di .env atau secret.key. Di wisaya penyiapan ini, saksikan Generator Entropi Interaktif di bawah membuat kunci kustom berentropi tinggi dari pengacakan gambar, fisika ambien, dan pengaturan waktu papan ketik, atau tempel kunci kustom Anda sendiri.",
   "Command-line default": "Bawaan baris perintah",
-  "Current key saved on the server (used for headless command-line setups):": "Kunci saat ini disimpan di server (digunakan untuk pengaturan baris perintah tanpa monitor/headless):"
+  "Current key saved on the server (used for headless command-line setups):": "Kunci saat ini disimpan di server (digunakan untuk pengaturan baris perintah tanpa monitor/headless):",
+  "Antigravity (Google)": "Antigravity (Google)",
+  "Google AI / Gemini API Key": "Kunci API Google AI / Gemini",
+  "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Menggunakan Antigravity untuk memeriksa halaman broker, menyusun langkah-langkah opt-out baru, dan memperbaiki pemilih pengisian formulir yang rusak.",
+  "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Menggunakan Claude untuk memeriksa halaman broker, menyusun langkah-langkah opt-out baru, dan memperbaiki pemilih pengisian formulir yang rusak.",
+  "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Menggunakan OpenAI untuk memeriksa halaman broker, menyusun langkah-langkah opt-out baru, dan memperbaiki pemilih pengisian formulir yang rusak.",
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Menggunakan LLM lokal Anda untuk memeriksa halaman broker, menyusun langkah-langkah opt-out baru, dan memperbaiki pemilih pengisian formulir yang rusak sepenuhnya secara offline."
 }

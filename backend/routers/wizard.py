@@ -527,7 +527,7 @@ def save_deployment(body: DeploymentStep, db: Session = Depends(get_db),
 # ── Step 4: AI Helpers (Optional) ─────────────────────────────────────────────
 
 class AIStep(LimitedModel):
-    provider: Optional[str] = "none"  # "none" | "claude" | "openai" | "local"
+    provider: Optional[str] = "none"  # "none" | "claude" | "openai" | "antigravity" | "local"
     api_key: Optional[str] = None
     model: Optional[str] = None
     local_name: Optional[str] = None
@@ -558,7 +558,7 @@ def save_ai_helper(body: AIStep, user: User = Depends(get_current_user)):
         _mark_step("ai", "skipped")
         return {"ok": True, "provider": "none", "skipped": True}
 
-    if provider in ("claude", "openai"):
+    if provider in ("claude", "openai", "antigravity"):
         if not body.api_key:
             raise HTTPException(400, "API key is required for cloud AI providers.")
         ai.save_provider(provider, enabled=True, model=body.model, api_key=body.api_key)
@@ -586,11 +586,11 @@ def test_ai_connection(body: AIStep, user: User = Depends(get_current_user)):
     _admin(user)
     from ..core import ai_helpers as ai
     provider = (body.provider or "").strip().lower()
-    if provider not in ("claude", "openai", "local"):
+    if provider not in ("claude", "openai", "antigravity", "local"):
         raise HTTPException(400, "Invalid provider to test")
 
     try:
-        if provider in ("claude", "openai"):
+        if provider in ("claude", "openai", "antigravity"):
             test_cfg = {
                 "ai_helpers": {
                     "providers": {
