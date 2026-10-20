@@ -3427,5 +3427,8 @@
   "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Używa Antigravity do sprawdzania stron brokerów, tworzenia nowych kroków rezygnacji i naprawiania uszkodzonych selektorów formularzy.",
   "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Używa Claude do sprawdzania stron brokerów, tworzenia nowych kroków rezygnacji i naprawiania uszkodzonych selektorów formularzy.",
   "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Używa OpenAI do sprawdzania stron brokerów, tworzenia nowych kroków rezygnacji i naprawiania uszkodzonych selektorów formularzy.",
-  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Używa Twojego lokalnego LLM do sprawdzania stron brokerów, tworzenia nowych kroków rezygnacji i naprawiania uszkodzonych selektorów formularzy całkowicie offline."
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Używa Twojego lokalnego LLM do sprawdzania stron brokerów, tworzenia nowych kroków rezygnacji i naprawiania uszkodzonych selektorów formularzy całkowicie offline.",
+  "Live Preview": "Podgląd na żywo",
+  "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "Ten tekst przedstawia podgląd wybranego rozmiaru czcionki w czasie rzeczywistym. Wszystkie tabele, formularze i menu dostosowują się proporcjonalnie w całym OpenOptOut.",
+  "Use arrow keys to adjust in 5% increments.": "Użyj klawiszy strzałek, aby dostosować w krokach co 5%."
 }

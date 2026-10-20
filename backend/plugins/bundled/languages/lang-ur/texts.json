@@ -3427,5 +3427,8 @@
   "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "بروکر کے صفحات کا معائنہ کرنے، نئے آپٹ آؤٹ اقدامات کا مسودہ تیار کرنے، اور ٹوٹے ہوئے فارم بھرنے والے سلیکٹرز کی مرمت کے لیے اینٹی گریویٹی کا استعمال کرتا ہے۔",
   "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "بروکر کے صفحات کا معائنہ کرنے، نئے آپٹ آؤٹ اقدامات کا مسودہ تیار کرنے، اور ٹوٹے ہوئے فارم بھرنے والے سلیکٹرز کی مرمت کے لیے کلاڈ کا استعمال کرتا ہے۔",
   "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "بروکر کے صفحات کا معائنہ کرنے، نئے آپٹ آؤٹ اقدامات کا مسودہ تیار کرنے، اور ٹوٹے ہوئے فارم بھرنے والے سلیکٹرز کی مرمت کے لیے OpenAI کا استعمال کرتا ہے۔",
-  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "مکمل طور پر آف لائن رہتے ہوئے بروکر کے صفحات کا معائنہ کرنے، نئے آپٹ آؤٹ اقدامات کا مسودہ تیار کرنے، اور فارم بھرنے والے سلیکٹرز کی مرمت کے لیے آپ کے مقامی LLM کا استعمال کرتا ہے۔"
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "مکمل طور پر آف لائن رہتے ہوئے بروکر کے صفحات کا معائنہ کرنے، نئے آپٹ آؤٹ اقدامات کا مسودہ تیار کرنے، اور فارم بھرنے والے سلیکٹرز کی مرمت کے لیے آپ کے مقامی LLM کا استعمال کرتا ہے۔",
+  "Live Preview": "لائیو پیش نظارہ",
+  "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "یہ متن حقیقی وقت میں آپ کے منتخب کردہ فونٹ سائز کا پیش نظارہ کرتا ہے۔ OpenOptOut میں تمام جداول، فارم اور مینو متناسب طور پر ایڈجسٹ ہوتے ہیں۔",
+  "Use arrow keys to adjust in 5% increments.": "5٪ کے اضافے سے ایڈجسٹ کرنے کے لیے تیر والے بٹن استعمال کریں۔"
 }

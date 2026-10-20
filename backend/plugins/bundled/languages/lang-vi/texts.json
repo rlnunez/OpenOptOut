@@ -3429,5 +3429,8 @@
   "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Sử dụng Antigravity để kiểm tra các trang của nhà môi giới, phác thảo các bước chọn không tham gia mới và sửa các bộ chọn điền biểu mẫu bị hỏng.",
   "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Sử dụng Claude để kiểm tra các trang của nhà môi giới, phác thảo các bước chọn không tham gia mới và sửa các bộ chọn điền biểu mẫu bị hỏng.",
   "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Sử dụng OpenAI để kiểm tra các trang của nhà môi giới, phác thảo các bước chọn không tham gia mới và sửa các bộ chọn điền biểu mẫu bị hỏng.",
-  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Sử dụng LLM cục bộ của bạn để kiểm tra các trang của nhà môi giới, phác thảo các bước chọn không tham gia mới và sửa các bộ chọn biểu mẫu bị hỏng hoàn toàn ngoại tuyến."
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Sử dụng LLM cục bộ của bạn để kiểm tra các trang của nhà môi giới, phác thảo các bước chọn không tham gia mới và sửa các bộ chọn biểu mẫu bị hỏng hoàn toàn ngoại tuyến.",
+  "Live Preview": "Xem trước trực tiếp",
+  "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "Văn bản này xem trước kích thước phông chữ bạn đã chọn theo thời gian thực. Tất cả các bảng, biểu mẫu và menu đều điều chỉnh theo tỷ lệ trên OpenOptOut.",
+  "Use arrow keys to adjust in 5% increments.": "Sử dụng các phím mũi tên để điều chỉnh theo từng mức 5%."
 }

@@ -28,10 +28,16 @@ export function AccessibilityProvider({ children }) {
     return localStorage.getItem('a11y_dyslexic_font') === 'true'
   })
 
-  // Font size scaling (100% to 150%)
+  // Font size scaling (100% to 150% in 5% increments)
   const [fontSize, setFontSizeState] = useState(() => {
     const saved = localStorage.getItem('a11y_font_size')
-    return saved ? parseInt(saved, 10) : 100
+    if (saved) {
+      const parsed = parseInt(saved, 10)
+      if (!isNaN(parsed)) {
+        return Math.min(150, Math.max(100, Math.round(parsed / 5) * 5))
+      }
+    }
+    return 100
   })
 
   const [reducedMotion, setReducedMotionState] = useState(() => {
@@ -162,8 +168,9 @@ export function AccessibilityProvider({ children }) {
             localStorage.setItem('a11y_dyslexic_font', String(cfg.dyslexic_font))
           }
           if (typeof cfg.font_size === 'number') {
-            setFontSizeState(cfg.font_size)
-            localStorage.setItem('a11y_font_size', String(cfg.font_size))
+            const num = Math.min(150, Math.max(100, Math.round(cfg.font_size / 5) * 5))
+            setFontSizeState(num)
+            localStorage.setItem('a11y_font_size', String(num))
           }
           if (typeof cfg.reduced_motion === 'boolean') {
             setReducedMotionState(cfg.reduced_motion)
@@ -228,10 +235,11 @@ export function AccessibilityProvider({ children }) {
   }
 
   const setFontSize = (size) => {
-    const num = Math.min(150, Math.max(100, Math.round(Number(size))))
+    const num = Math.min(150, Math.max(100, Math.round(Number(size) / 5) * 5))
     setFontSizeState(num)
     localStorage.setItem('a11y_font_size', String(num))
     persistSettings({ font_size: num })
+    announce(`Font size set to ${num}%`)
   }
 
   const setHighContrast = (val) => {

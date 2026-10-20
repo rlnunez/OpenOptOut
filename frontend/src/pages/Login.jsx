@@ -12,6 +12,7 @@ import { useLanguage } from '../i18n/LanguageContext'
 import api from '../api'
 import { performWebAuthnAuthenticate, performWebAuthnRegister } from '../utils/webauthn'
 import { tx } from '../i18n/tx'
+import FontSizeSlider from '../components/FontSizeSlider'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
@@ -774,41 +775,12 @@ export default function Login() {
                 </div>
 
                 {/* 5. Font Size Scaling */}
-                <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2 mb-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
-                      <Type size={14} className="text-shield-400" />
-                      <span>{tx("Font Size & Scaling")}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-mono font-bold text-shield-400">{fontSize}%</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
-                        {fontSize <= 100 ? tx("Default") : fontSize <= 120 ? tx("Comfortable") : fontSize <= 135 ? tx("Enhanced") : tx("AAA Large")}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-4 gap-1.5 pt-0.5">
-                    {[
-                      { size: 100, label: tx("100% Default") },
-                      { size: 115, label: tx("115% Comfortable") },
-                      { size: 130, label: tx("130% Enhanced") },
-                      { size: 150, label: tx("150% Large") },
-                    ].map((opt) => (
-                      <button
-                        key={opt.size}
-                        type="button"
-                        onClick={() => setFontSize(opt.size)}
-                        className={`py-1.5 px-1 rounded-lg border text-center text-xs transition-colors ${
-                          fontSize === opt.size
-                            ? 'border-shield-500 bg-shield-500/20 text-white font-semibold'
-                            : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <FontSizeSlider
+                  id="login-font-size-slider"
+                  color="shield"
+                  showPreview={true}
+                  className="mb-6"
+                />
 
                 {/* Continue to Account Setup */}
                 <button

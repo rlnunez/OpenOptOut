@@ -3429,5 +3429,8 @@
   "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "使用 Antigravity 检查数据经纪商页面、起草新的退出步骤并修复损坏的表单填充选择器。",
   "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "使用 Claude 检查数据经纪商页面、起草新的退出步骤并修复损坏的表单填充选择器。",
   "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "使用 OpenAI 检查数据经纪商页面、起草新的退出步骤并修复损坏的表单填充选择器。",
-  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "完全离线使用本地大语言模型检查数据经纪商页面、起草新的退出步骤并修复损坏的表单填充选择器。"
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "完全离线使用本地大语言模型检查数据经纪商页面、起草新的退出步骤并修复损坏的表单填充选择器。",
+  "Live Preview": "实时预览",
+  "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "此文本实时预览您所选的字体大小。OpenOptOut 中的所有表格、表单和菜单都会按比例进行调整。",
+  "Use arrow keys to adjust in 5% increments.": "使用方向键以 5% 的增量进行调整。"
 }

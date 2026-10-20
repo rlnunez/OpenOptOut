@@ -745,3 +745,18 @@ html.theme-space .fixed.inset-0 > div:not([aria-hidden="true"]) {
   max-height: calc(100vh - 1.5rem);
 }
 
+/* 8. Accessible Sliders & Range Inputs (WCAG 2.2 AAA / ADA) */
+input[type="range"]:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+html.a11y-high-contrast input[type="range"] {
+  border: 1px solid currentColor;
+}
+
+html.a11y-enhanced-targets input[type="range"] {
+  min-height: 38px;
+}
+
+

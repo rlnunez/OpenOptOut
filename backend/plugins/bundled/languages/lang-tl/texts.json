@@ -3429,5 +3429,8 @@
   "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Gumagamit ng Antigravity upang suriin ang mga pahina ng broker, mag-draft ng mga bagong hakbang sa pag-opt-out, at ayusin ang mga sirang selector ng pagpuno ng form.",
   "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Gumagamit ng Claude upang suriin ang mga pahina ng broker, mag-draft ng mga bagong hakbang sa pag-opt-out, at ayusin ang mga sirang selector ng pagpuno ng form.",
   "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Gumagamit ng OpenAI upang suriin ang mga pahina ng broker, mag-draft ng mga bagong hakbang sa pag-opt-out, at ayusin ang mga sirang selector ng pagpuno ng form.",
-  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Gumagamit ng iyong lokal na LLM upang suriin ang mga pahina ng broker, mag-draft ng mga bagong hakbang sa pag-opt-out, at ayusin ang mga sirang selector ng pagpuno ng form nang ganap na offline."
+  "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Gumagamit ng iyong lokal na LLM upang suriin ang mga pahina ng broker, mag-draft ng mga bagong hakbang sa pag-opt-out, at ayusin ang mga sirang selector ng pagpuno ng form nang ganap na offline.",
+  "Live Preview": "Live na Preview",
+  "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "Ipinapakita ng tekstong ito ang napiling laki ng font nang real time. Ang lahat ng talahanayan, form, at menu ay proporsyonal na nag-aayos sa buong OpenOptOut.",
+  "Use arrow keys to adjust in 5% increments.": "Gamitin ang mga arrow key upang i-adjust sa 5% na pagtaas."
 }

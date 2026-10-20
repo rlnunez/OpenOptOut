@@ -7,6 +7,7 @@ import { useLanguage } from '../i18n/LanguageContext'
 import { useAccessibility } from '../context/AccessibilityContext'
 import api from '../api'
 import { tx } from '../i18n/tx'
+import FontSizeSlider from './FontSizeSlider'
 
 export default function UserWelcomeModal() {
   const { language, setLanguage, availableLanguages, isRTL, t, showWelcomeTour, completeWelcomeTour } = useLanguage()
@@ -298,44 +299,11 @@ export default function UserWelcomeModal() {
                 </div>
 
                 {/* 4. Proportional Font Size Slider with Real-Time Live Preview */}
-                <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
-                      <Type size={15} className="text-blue-400" />
-                      <span>{t('a11y.font_size', 'Font Size & Scaling')}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-mono font-bold text-blue-400">{fontSize}%</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
-                        {fontSize <= 100 ? tx("Default") : fontSize <= 120 ? tx("Comfortable") : fontSize <= 135 ? tx("Enhanced") : tx("AAA Large")}
-                      </span>
-                    </div>
-                  </div>
-
-                  <input
-                    type="range"
-                    min="100"
-                    max="150"
-                    step="5"
-                    value={fontSize}
-                    onChange={(e) => setFontSize(Number(e.target.value))}
-                    className="w-full accent-blue-500 cursor-pointer"
-                    aria-label={t('a11y.font_size', 'Font Size Scaling')}
-                  />
-
-                  {/* Live Font Scaling Preview Box */}
-                  <div className="p-3 rounded-lg border border-slate-800/80 bg-slate-900/60 space-y-1">
-                    <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">
-                      {t('a11y.font_preview_label', 'Live Preview')}
-                    </p>
-                    <p className="text-sm font-semibold text-white">
-                      {tx("Sample Heading (Scales with Slider)")}
-                    </p>
-                    <p className="text-xs text-slate-300">
-                      {t('a11y.font_preview_sample', 'This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.')}
-                    </p>
-                  </div>
-                </div>
+                <FontSizeSlider
+                  id="welcome-font-size-slider"
+                  color="blue"
+                  showPreview={true}
+                />
 
                 {/* 5. Reduced Motion Toggle */}
                 <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">

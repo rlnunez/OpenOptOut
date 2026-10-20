@@ -315,39 +315,15 @@
    ]
   },
   {
-   "text": "100% Default",
-   "where": [
-    "pages/Login.jsx"
-   ]
-  },
-  {
    "text": "100% Entropy collected — 128-character key generated!",
    "where": [
     "components/SecretKeyBanner.jsx"
    ]
   },
   {
-   "text": "115% Comfortable",
-   "where": [
-    "pages/Login.jsx"
-   ]
-  },
-  {
    "text": "12-hour (3:05 PM)",
    "where": [
     "pages/Settings.jsx"
-   ]
-  },
-  {
-   "text": "130% Enhanced",
-   "where": [
-    "pages/Login.jsx"
-   ]
-  },
-  {
-   "text": "150% Large",
-   "where": [
-    "pages/Login.jsx"
    ]
   },
   {
@@ -812,8 +788,7 @@
   {
    "text": "AAA Large",
    "where": [
-    "components/UserWelcomeModal.jsx",
-    "pages/Login.jsx"
+    "components/FontSizeSlider.jsx"
    ]
   },
   {
@@ -3669,8 +3644,7 @@
   {
    "text": "Comfortable",
    "where": [
-    "components/UserWelcomeModal.jsx",
-    "pages/Login.jsx"
+    "components/FontSizeSlider.jsx"
    ]
   },
   {
@@ -5315,8 +5289,7 @@
   {
    "text": "Default",
    "where": [
-    "components/UserWelcomeModal.jsx",
-    "pages/Login.jsx"
+    "components/FontSizeSlider.jsx"
    ]
   },
   {
@@ -6596,8 +6569,7 @@
   {
    "text": "Enhanced",
    "where": [
-    "components/UserWelcomeModal.jsx",
-    "pages/Login.jsx"
+    "components/FontSizeSlider.jsx"
    ]
   },
   {
@@ -7521,7 +7493,7 @@
   {
    "text": "Font Size & Scaling",
    "where": [
-    "pages/Login.jsx"
+    "components/FontSizeSlider.jsx"
    ]
   },
   {
@@ -9626,6 +9598,12 @@
    "text": "Live Mixed Entropy Stream:",
    "where": [
     "components/SecretKeyBanner.jsx"
+   ]
+  },
+  {
+   "text": "Live Preview",
+   "where": [
+    "components/FontSizeSlider.jsx"
    ]
   },
   {
@@ -14636,7 +14614,7 @@
   {
    "text": "Sample Heading (Scales with Slider)",
    "where": [
-    "components/UserWelcomeModal.jsx"
+    "components/FontSizeSlider.jsx"
    ]
   },
   {
@@ -17791,6 +17769,12 @@
    ]
   },
   {
+   "text": "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.",
+   "where": [
+    "components/FontSizeSlider.jsx"
+   ]
+  },
+  {
    "text": "This will change {would_change} of {total_matched} matched broker(s).",
    "where": [
     "pages/BrokerPriority.jsx"
@@ -18652,6 +18636,12 @@
    "text": "Use a security key, fingerprint or phone",
    "where": [
     "pages/Login.jsx"
+   ]
+  },
+  {
+   "text": "Use arrow keys to adjust in 5% increments.",
+   "where": [
+    "components/FontSizeSlider.jsx"
    ]
   },
   {
