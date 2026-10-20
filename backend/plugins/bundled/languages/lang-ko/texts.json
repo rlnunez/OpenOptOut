@@ -3419,5 +3419,9 @@
   "Temporary challenge screenshots and raw broker submission payloads": "임시 인증 스크린샷 및 원시 브로커 제출 페이로드",
   "When a member or account is deleted, OpenOptOut automatically overwrites PII ciphertext in storage with high-entropy cryptographic bytes before issuing deletions, rendering deleted records unrecoverable even through physical disk inspection.": "구성원이나 계정이 삭제되면 OpenOptOut은 삭제 전 저장소의 PII 암호문을 고엔트로피 무작위 바이트로 덮어써 디스크 포렌식 분석으로도 복구할 수 없도록 만듭니다.",
   "{n} days": "{n}일",
-  "{n} years": "{n}년"
+  "{n} years": "{n}년",
+  "Master Encryption Key & Entropy Generation": "마스터 암호화 키 및 엔트로피 생성",
+  "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "명령줄 설치는 .env 또는 secret.key에 기본 마스터 키를 자동으로 생성합니다. 이 설정 마법사에서는 아래의 대화형 엔트로피 생성기가 이미지 셔플링, 주변 물리적 특성 및 키보드 타이밍을 통해 고엔트로피 사용자 정의 키를 생성하는 과정을 지켜보거나 고유한 사용자 정의 키를 붙여넣으세요.",
+  "Command-line default": "명령줄 기본값",
+  "Current key saved on the server (used for headless command-line setups):": "서버에 저장된 현재 키(헤드리스 명령줄 설정에 사용됨):"
 }

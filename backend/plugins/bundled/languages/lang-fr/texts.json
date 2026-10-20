@@ -3419,5 +3419,9 @@
   "Temporary challenge screenshots and raw broker submission payloads": "Captures temporaires de défis et données brutes soumises aux courtiers",
   "When a member or account is deleted, OpenOptOut automatically overwrites PII ciphertext in storage with high-entropy cryptographic bytes before issuing deletions, rendering deleted records unrecoverable even through physical disk inspection.": "Lors de la suppression d'un membre ou compte, OpenOptOut écrase automatiquement le texte chiffré des données personnelles avec des octets cryptographiques d'entropie élevée avant suppression, empêchant toute récupération physique.",
   "{n} days": "{n} jours",
-  "{n} years": "{n} ans"
+  "{n} years": "{n} ans",
+  "Master Encryption Key & Entropy Generation": "Clé de chiffrement principale et génération d'entropie",
+  "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "Les installations en ligne de commande génèrent automatiquement une clé principale de base dans .env ou secret.key. Dans cet assistant de configuration, regardez le générateur d'entropie interactif ci-dessous créer une clé personnalisée à haute entropie à partir du mélange d'images, de la physique ambiante et du timing du clavier, ou collez votre propre clé personnalisée.",
+  "Command-line default": "Par défaut en ligne de commande",
+  "Current key saved on the server (used for headless command-line setups):": "Clé actuelle enregistrée sur le serveur (utilisée pour les configurations sans interface en ligne de commande) :"
 }

@@ -3419,5 +3419,9 @@
   "Temporary challenge screenshots and raw broker submission payloads": "临时人机验证截图与提交给数据经纪人的原始请求载荷",
   "When a member or account is deleted, OpenOptOut automatically overwrites PII ciphertext in storage with high-entropy cryptographic bytes before issuing deletions, rendering deleted records unrecoverable even through physical disk inspection.": "删除成员或账户时，OpenOptOut 会在删除前自动使用高熵加密随机字节覆盖底层存储中的 PII 密文，即使进行物理磁盘取证分析也无法恢复任何记录。",
   "{n} days": "{n} 天",
-  "{n} years": "{n} 年"
+  "{n} years": "{n} 年",
+  "Master Encryption Key & Entropy Generation": "主加密密钥与熵生成",
+  "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "命令行安装会在 .env 或 secret.key 中自动生成基线主密钥。在此设置向导中，请观看下方的交互式熵生成器通过图像混洗、环境物理特性和键盘击键时序生成高熵自定义密钥，或粘贴您自己的自定义密钥。",
+  "Command-line default": "命令行默认",
+  "Current key saved on the server (used for headless command-line setups):": "当前保存在服务器上的密钥（用于无头命令行配置）："
 }

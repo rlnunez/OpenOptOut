@@ -3419,5 +3419,9 @@
   "Temporary challenge screenshots and raw broker submission payloads": "Ảnh chụp màn hình thử thách tạm thời và dữ liệu gửi đến nhà môi giới",
   "When a member or account is deleted, OpenOptOut automatically overwrites PII ciphertext in storage with high-entropy cryptographic bytes before issuing deletions, rendering deleted records unrecoverable even through physical disk inspection.": "Khi một thành viên hoặc tài khoản bị xóa, OpenOptOut tự động ghi đè dữ liệu mã hóa bằng các byte ngẫu nhiên trước khi xóa, khiến hồ sơ không thể khôi phục ngay cả khi kiểm tra đĩa vật lý.",
   "{n} days": "{n} ngày",
-  "{n} years": "{n} năm"
+  "{n} years": "{n} năm",
+  "Master Encryption Key & Entropy Generation": "Khóa mã hóa chính & Tạo entropy",
+  "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "Quá trình cài đặt bằng dòng lệnh sẽ tự động tạo khóa chính cơ bản trong .env hoặc secret.key. Trong trình hướng dẫn thiết lập này, hãy xem Trình tạo entropy tương tác bên dưới tạo khóa tùy chỉnh có độ entropy cao từ việc xáo trộn hình ảnh, vật lý môi trường xung quanh và thời gian bàn phím hoặc dán khóa tùy chỉnh của riêng bạn.",
+  "Command-line default": "Mặc định dòng lệnh",
+  "Current key saved on the server (used for headless command-line setups):": "Khóa hiện tại được lưu trên máy chủ (được sử dụng cho các thiết lập dòng lệnh không giao diện):"
 }

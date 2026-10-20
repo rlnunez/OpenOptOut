@@ -3417,5 +3417,9 @@
   "Temporary challenge screenshots and raw broker submission payloads": "عارضی چیلنج اسکرین شاٹس اور بروکر کو بھیجے گئے خام پیلوڈز",
   "When a member or account is deleted, OpenOptOut automatically overwrites PII ciphertext in storage with high-entropy cryptographic bytes before issuing deletions, rendering deleted records unrecoverable even through physical disk inspection.": "جب کوئی رکن یا اکاؤنٹ حذف ہوتا ہے تو OpenOptOut حذف کرنے سے پہلے اسٹوریج میں موجود ڈیٹا کو بے ترتیب بائٹس سے اوور رائٹ کر دیتا ہے جس سے ریکارڈ ناقابل بحال بن جاتا ہے۔",
   "{n} days": "{n} دن",
-  "{n} years": "{n} سال"
+  "{n} years": "{n} سال",
+  "Master Encryption Key & Entropy Generation": "ماسٹر انکرپشن کلید اور اینٹروپی جنریشن",
+  "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "کمانڈ لائن انسٹالیشنز خود بخود .env یا secret.key میں بیس لائن ماسٹر کلید تیار کرتی ہیں۔ اس سیٹ اپ وزرڈ میں، نیچے دیئے گئے انٹرایکٹو اینٹروپی جنریٹر کو تصویر کی ردوبدل، محیطی طبیعیات، اور کی بورڈ کے اوقات سے کسٹم ہائی اینٹروپی کلید بناتے ہوئے دیکھیں، یا اپنی کسٹم کلید چسپاں کریں۔",
+  "Command-line default": "کمانڈ لائن ڈیفالٹ",
+  "Current key saved on the server (used for headless command-line setups):": "سرور پر محفوظ کردہ موجودہ کلید (ہیڈ لیس کمانڈ لائن سیٹ اپ کے لیے استعمال ہوتی ہے):"
 }

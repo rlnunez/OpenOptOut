@@ -39,7 +39,7 @@ function mixBytesToKey(seedBytes, targetLen = 128) {
   return out.join('')
 }
 
-export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = false }) {
+export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = false, autoStart = false }) {
   const [tab, setTab] = useState('images') // 'images' | 'mouse'
   const [keyInput, setKeyInput] = useState('')
   const [imageCount, setImageCount] = useState(8)
@@ -64,17 +64,35 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
   const [savedNotice, setSavedNotice] = useState('')
   const [copiedCmd, setCopiedCmd] = useState('')
   const timersRef = useRef([])
+  const autoStartedRef = useRef(false)
+
+  const stageRef = useRef(stage)
+  stageRef.current = stage
+  const tabRef = useRef(tab)
+  tabRef.current = tab
+  const generatingRef = useRef(generating)
+  generatingRef.current = generating
+
+  const clearTimers = () => {
+    timersRef.current.forEach(t => {
+      clearTimeout(t)
+      clearInterval(t)
+    })
+    timersRef.current = []
+  }
 
   useEffect(() => {
     return () => {
-      timersRef.current.forEach(t => clearTimeout(t))
+      clearTimers()
     }
   }, [])
 
-  const clearTimers = () => {
-    timersRef.current.forEach(t => clearTimeout(t))
-    timersRef.current = []
-  }
+  useEffect(() => {
+    if (autoStart && !autoStartedRef.current && stage === 0) {
+      autoStartedRef.current = true
+      runImageChaosGenerator()
+    }
+  }, [autoStart])
 
   const finalizeCombinedKey = () => {
     clearTimers()
@@ -217,6 +235,26 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
             mouseTargetLenRef.current = pickRandomKeyLength(rawBytes)
             const initialPreview = mixBytesToKey(rawBytes, mouseTargetLenRef.current)
             setScramblePreview(initialPreview)
+
+            // Live ambient entropy pulses so user can watch entropy accumulate in real time
+            const ambientTicker = setInterval(() => {
+              if (stageRef.current !== 5 || entropyPoolRef.current.length >= 160) {
+                clearInterval(ambientTicker)
+                return
+              }
+              const randArr = new Uint8Array(4)
+              if (window.crypto && window.crypto.getRandomValues) {
+                window.crypto.getRandomValues(randArr)
+              } else {
+                for (let k = 0; k < 4; k++) randArr[k] = Math.floor(Math.random() * 256)
+              }
+              const canvasW = canvasRef.current?.width || 520
+              const canvasH = canvasRef.current?.height || 96
+              const rx = (randArr[0] * 31 + randArr[1]) % canvasW
+              const ry = (randArr[2] * 17 + randArr[3]) % canvasH
+              recordEntropyEvent(rx, ry, randArr[0] ^ randArr[2])
+            }, 75)
+            timersRef.current.push(ambientTicker)
           }, 600))
         }, 650))
       }, 650))
@@ -232,7 +270,7 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
       (Math.floor(now * 1000) & 0xff)
     )
 
-    if (tab === 'images' && stage === 5) {
+    if (tabRef.current === 'images' && stageRef.current === 5) {
       const count = Math.min(160, entropyPoolRef.current.length)
       const pct = Math.min(100, Math.round((count / 160) * 100))
       setEntropyProgress(pct)
@@ -257,7 +295,7 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
       const preview = mixBytesToKey(combined, mouseTargetLenRef.current)
       setScramblePreview(preview)
 
-      if (pct >= 100 && !generating) {
+      if (pct >= 100 && !generatingRef.current) {
         finalizeCombinedKey()
       }
       return

@@ -3419,5 +3419,9 @@
   "Temporary challenge screenshots and raw broker submission payloads": "Pansamantalang screenshot ng hamon at raw submission payload para sa broker",
   "When a member or account is deleted, OpenOptOut automatically overwrites PII ciphertext in storage with high-entropy cryptographic bytes before issuing deletions, rendering deleted records unrecoverable even through physical disk inspection.": "Kapag binura ang isang miyembro o account, awtomatikong pinapatungan ng OpenOptOut ang PII ciphertext ng mga cryptographic byte bago burahin, na ginagawang imposible itong mabawi.",
   "{n} days": "{n} araw",
-  "{n} years": "{n} taon"
+  "{n} years": "{n} taon",
+  "Master Encryption Key & Entropy Generation": "Pangunahing Susi ng Pag-encrypt at Pagbuo ng Entropy",
+  "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "Ang mga pag-install ng command-line ay awtomatikong bumubuo ng baseline na master key sa .env o secret.key. Sa setup wizard na ito, panoorin ang Interactive Entropy Generator sa ibaba na lumikha ng custom na high-entropy key mula sa pagbabalasa ng imahe, ambient physics, at timing ng keyboard, o i-paste ang iyong sariling custom key.",
+  "Command-line default": "Default ng command-line",
+  "Current key saved on the server (used for headless command-line setups):": "Kasalukuyang susi na naka-save sa server (ginagamit para sa mga headless command-line setup):"
 }

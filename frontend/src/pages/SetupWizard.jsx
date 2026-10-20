@@ -289,7 +289,8 @@ function SecurityStep({ onNext, onSkip, onBack, busy, setError }) {
   const [loading, setLoading] = useState(true)
   const [revealed, setRevealed] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [showChaos, setShowChaos] = useState(false)
+  const [showActiveKey, setShowActiveKey] = useState(false)
+  const [showChaos, setShowChaos] = useState(true)
 
   const loadKey = async () => {
     try {
@@ -336,79 +337,15 @@ function SecurityStep({ onNext, onSkip, onBack, busy, setError }) {
           <Shield size={16} className="text-shield-400 shrink-0 mt-0.5" />
           <div className="space-y-1">
             <p className="font-medium text-slate-200">
-              {tx("Automatic Cryptographic Protection")}
+              {tx("Master Encryption Key & Entropy Generation")}
             </p>
             <p className="text-slate-400 leading-relaxed">
-              {tx("OpenOptOut generated this high-entropy encryption key at first install and saved it with strict file permissions (0600) on your server. It secures family records, identity tokens, and broker credentials.")}
+              {tx("Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.")}
             </p>
           </div>
         </div>
 
-        {/* Masked Key Display Box */}
-        <div className="p-4 rounded-xl border border-slate-700/80 bg-slate-950/70 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Key size={13} className="text-shield-400" />
-              {tx("Active Master Encryption Key")}
-            </span>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setRevealed(r => !r)}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
-                title={revealed ? tx("Hide key") : tx("Reveal key")}
-              >
-                {revealed ? <EyeOff size={13} /> : <Eye size={13} />}
-                <span>{revealed ? tx("Hide") : tx("Reveal")}</span>
-              </button>
-              <button
-                type="button"
-                onClick={copyKey}
-                disabled={!keyData?.key}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md bg-shield-600 hover:bg-shield-500 text-white font-medium transition-colors disabled:opacity-50"
-                title={tx("Copy key to clipboard")}
-              >
-                {copied ? <Check size={13} /> : <Copy size={13} />}
-                <span>{copied ? tx("Copied!") : tx("Copy Key")}</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg">
-            {loading ? (
-              <span className="text-slate-500 text-xs">{tx("Loading master key…")}</span>
-            ) : revealed ? (
-              <code className="text-xs text-emerald-400 font-mono break-all select-all block leading-relaxed">
-                {keyData?.key || tx("Key loaded in memory")}
-              </code>
-            ) : (
-              <div className="text-xs text-slate-400 font-mono tracking-widest break-all select-none">
-                {'•'.repeat(Math.min(keyLen || 128, 64))}
-              </div>
-            )}
-          </div>
-
-          {/* Key status badges */}
-          <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border font-mono ${
-              fileExists && isSecurePerms
-                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60'
-                : 'bg-amber-950/40 text-amber-300 border-amber-800/60'
-            }`}>
-              <Check size={11} />
-              <span>{filePath} ({fileExists && isSecurePerms ? '0600 secure' : fileExists ? 'check permissions' : 'saved'})</span>
-            </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-slate-800/60 text-slate-300 border-slate-700 font-mono">
-              <span>{keyLen} {tx("chars entropy")}</span>
-            </span>
-          </div>
-
-          <p className="text-slate-400 text-xs">
-            {tx("Tip: Copy and back up this master key to your password manager (e.g. 1Password, Bitwarden, Apple Keychain). You will need it if you ever migrate or restore from backup.")}
-          </p>
-        </div>
-
-        {/* Collapsible Interactive Chaos / Entropy Generator */}
+        {/* Collapsible Interactive Chaos / Entropy Generator (Expanded by default) */}
         <div className="rounded-xl border border-slate-800 bg-slate-900/50 overflow-hidden">
           <button
             type="button"
@@ -417,7 +354,7 @@ function SecurityStep({ onNext, onSkip, onBack, busy, setError }) {
           >
             <span className="flex items-center gap-2">
               <Sparkles size={14} className="text-amber-400" />
-              <span>{tx("Interactive Entropy Generator (Optional Chaos & Randomness)")}</span>
+              <span className="font-semibold text-slate-200">{tx("Interactive Entropy Generator (Optional Chaos & Randomness)")}</span>
             </span>
             <span className="text-slate-500 text-xs">
               {showChaos ? tx("Hide") : tx("Expand")}
@@ -432,7 +369,94 @@ function SecurityStep({ onNext, onSkip, onBack, busy, setError }) {
                 status={keyData?.status || {}}
                 onStatusChange={() => loadKey()}
                 compact={true}
+                autoStart={true}
               />
+            </div>
+          )}
+        </div>
+
+        {/* Collapsible Active Master Encryption Key (Collapsed by default) */}
+        <div className="rounded-xl border border-slate-800 bg-slate-900/50 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowActiveKey(k => !k)}
+            className="w-full p-3.5 flex items-center justify-between text-start text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/40 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Key size={14} className="text-shield-400" />
+              <span className="font-semibold uppercase tracking-wider">{tx("Active Master Encryption Key")}</span>
+              <span className="text-[11px] text-slate-500 font-mono">
+                ({keyLen} {tx("characters")})
+              </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                {tx("Command-line default")}
+              </span>
+            </span>
+            <span className="text-slate-500 text-xs">
+              {showActiveKey ? tx("Hide") : tx("Expand")}
+            </span>
+          </button>
+          {showActiveKey && (
+            <div className="p-4 border-t border-slate-800 bg-slate-950/70 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400">
+                  {tx("Current key saved on the server (used for headless command-line setups):")}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setRevealed(r => !r)}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+                    title={revealed ? tx("Hide key") : tx("Reveal key")}
+                  >
+                    {revealed ? <EyeOff size={13} /> : <Eye size={13} />}
+                    <span>{revealed ? tx("Hide") : tx("Reveal")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={copyKey}
+                    disabled={!keyData?.key}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md bg-shield-600 hover:bg-shield-500 text-white font-medium transition-colors disabled:opacity-50"
+                    title={tx("Copy key to clipboard")}
+                  >
+                    {copied ? <Check size={13} /> : <Copy size={13} />}
+                    <span>{copied ? tx("Copied!") : tx("Copy Key")}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg">
+                {loading ? (
+                  <span className="text-slate-500 text-xs">{tx("Loading master key…")}</span>
+                ) : revealed ? (
+                  <code className="text-xs text-emerald-400 font-mono break-all select-all block leading-relaxed">
+                    {keyData?.key || tx("Key loaded in memory")}
+                  </code>
+                ) : (
+                  <div className="text-xs text-slate-400 font-mono tracking-widest break-all select-none">
+                    {'•'.repeat(Math.min(keyLen || 128, 64))}
+                  </div>
+                )}
+              </div>
+
+              {/* Key status badges */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border font-mono ${
+                  fileExists && isSecurePerms
+                    ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60'
+                    : 'bg-amber-950/40 text-amber-300 border-amber-800/60'
+                }`}>
+                  <Check size={11} />
+                  <span>{filePath} ({fileExists && isSecurePerms ? '0600 secure' : fileExists ? 'check permissions' : 'saved'})</span>
+                </span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-slate-800/60 text-slate-300 border-slate-700 font-mono">
+                  <span>{keyLen} {tx("chars entropy")}</span>
+                </span>
+              </div>
+
+              <p className="text-slate-400 text-xs">
+                {tx("Tip: Copy and back up this master key to your password manager (e.g. 1Password, Bitwarden, Apple Keychain). You will need it if you ever migrate or restore from backup.")}
+              </p>
             </div>
           )}
         </div>

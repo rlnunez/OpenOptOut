@@ -3418,5 +3418,9 @@
   "Temporary challenge screenshots and raw broker submission payloads": "Tangkapan layar tantangan sementara dan muatan pengiriman broker mentah",
   "When a member or account is deleted, OpenOptOut automatically overwrites PII ciphertext in storage with high-entropy cryptographic bytes before issuing deletions, rendering deleted records unrecoverable even through physical disk inspection.": "Saat anggota atau akun dihapus, OpenOptOut secara otomatis menimpa teks tersandi PII dengan byte kriptografi berentropi tinggi sebelum menghapus, membuat catatan tidak dapat dipulihkan bahkan melalui analisis disk fisik.",
   "{n} days": "{n} hari",
-  "{n} years": "{n} tahun"
+  "{n} years": "{n} tahun",
+  "Master Encryption Key & Entropy Generation": "Kunci Enkripsi Utama & Pembuatan Entropi",
+  "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "Instalasi baris perintah secara otomatis menghasilkan kunci master dasar di .env atau secret.key. Di wisaya penyiapan ini, saksikan Generator Entropi Interaktif di bawah membuat kunci kustom berentropi tinggi dari pengacakan gambar, fisika ambien, dan pengaturan waktu papan ketik, atau tempel kunci kustom Anda sendiri.",
+  "Command-line default": "Bawaan baris perintah",
+  "Current key saved on the server (used for headless command-line setups):": "Kunci saat ini disimpan di server (digunakan untuk pengaturan baris perintah tanpa monitor/headless):"
 }

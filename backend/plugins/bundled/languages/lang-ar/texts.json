@@ -3419,5 +3419,9 @@
   "Temporary challenge screenshots and raw broker submission payloads": "لقطات شاشة التحديات المؤقتة وحمولات الإرسال الخام للوسطاء",
   "When a member or account is deleted, OpenOptOut automatically overwrites PII ciphertext in storage with high-entropy cryptographic bytes before issuing deletions, rendering deleted records unrecoverable even through physical disk inspection.": "عند حذف عضو أو حساب، يكتب OpenOptOut تلقائيًا بايتات عشوائية عالية الإنتروبيا فوق النصوص المشفرة لبيانات الهوية قبل حذفها، مما يمنع استرجاع السجلات حتى بالفحص الجنائي للقرص.",
   "{n} days": "{n} أيام",
-  "{n} years": "{n} سنوات"
+  "{n} years": "{n} سنوات",
+  "Master Encryption Key & Entropy Generation": "مفتاح التشفير الرئيسي وتوليد الإنتروبيا",
+  "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "تُنشئ عمليات التثبيت عبر سطر الأوامر تلقائيًا مفتاحًا رئيسيًا أساسيًا في .env أو secret.key. في معالج الإعداد هذا، شاهد منشئ الإنتروبيا التفاعلي أدناه ينشئ مفتاحًا مخصصًا عالي الإنتروبيا من خلط الصور وفيزياء البيئة وتوقيت لوحة المفاتيح، أو الصق مفتاحك المخصص.",
+  "Command-line default": "الافتراضي لسطر الأوامر",
+  "Current key saved on the server (used for headless command-line setups):": "المفتاح الحالي المحفوظ على الخادم (المستخدم لإعدادات سطر الأوامر دون واجهة):"
 }

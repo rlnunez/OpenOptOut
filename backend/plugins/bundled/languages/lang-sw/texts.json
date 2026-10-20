@@ -3417,5 +3417,9 @@
   "Temporary challenge screenshots and raw broker submission payloads": "Picha za skrini za muda za changamoto na data mbichi zilizotumwa kwa dalali",
   "When a member or account is deleted, OpenOptOut automatically overwrites PII ciphertext in storage with high-entropy cryptographic bytes before issuing deletions, rendering deleted records unrecoverable even through physical disk inspection.": "Mwanachama au akaunti inapofutwa, OpenOptOut hufuta taarifa zilizosimbwa kwa nambari za nasibu kabla ya kuzifuta, na kufanya isiwezekane kurejesha taarifa hizo hata kwa uchunguzi wa maunzi.",
   "{n} days": "siku {n}",
-  "{n} years": "miaka {n}"
+  "{n} years": "miaka {n}",
+  "Master Encryption Key & Entropy Generation": "Ufunguo Mkuu wa Usimbaji fiche na Uundaji wa Entropia",
+  "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "Usakinishaji wa safu ya amri huunda kiotomatiki ufunguo mkuu wa msingi katika .env au secret.key. Katika kichawi hiki cha usanidi, tazama Jenereta ya Entropia shirikishi hapa chini ikitengeneza ufunguo maalum wa entropia ya juu kutoka kwa mchanganyiko wa picha, fizikia ya mazingira, na muda wa kibodi, au bandika ufunguo wako maalum.",
+  "Command-line default": "Chaguo-msingi la safu ya amri",
+  "Current key saved on the server (used for headless command-line setups):": "Ufunguo wa sasa uliohifadhiwa kwenye seva (hutumika kwa mipangilio ya safu ya amri isiyo na skrini):"
 }

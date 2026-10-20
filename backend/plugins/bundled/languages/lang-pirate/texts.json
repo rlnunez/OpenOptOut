@@ -3419,5 +3419,9 @@
   "Temporary challenge screenshots and raw broker submission payloads": "Temporary glass views and scoundrel submission crates",
   "When a member or account is deleted, OpenOptOut automatically overwrites PII ciphertext in storage with high-entropy cryptographic bytes before issuing deletions, rendering deleted records unrecoverable even through physical disk inspection.": "When a matey walks the plank, OpenOptOut blasts ciphered charts with pure noise so neither diver nor navy officer can piece 'em together again.",
   "{n} days": "{n} days on the sea",
-  "{n} years": "{n} years"
+  "{n} years": "{n} years",
+  "Master Encryption Key & Entropy Generation": "Master Cryptic Key & Chaos Spewin'",
+  "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.": "Command-line riggins spawn a plain master key in .env or secret.key by their lonesome. In this here wizard, lay yer eyes on the Interactive Chaos Engine below as it forges a fierce high-entropy key from shufflin' portraits, ambient winds, and cutlass keystrokes, or paste yer own secret glyphs.",
+  "Command-line default": "Command-line default",
+  "Current key saved on the server (used for headless command-line setups):": "Current key stashed in the ship's hold (used for headless command-line voyages):"
 }

@@ -2307,12 +2307,6 @@
    ]
   },
   {
-   "text": "Automatic Cryptographic Protection",
-   "where": [
-    "pages/SetupWizard.jsx"
-   ]
-  },
-  {
    "text": "Automatic install",
    "where": [
     "pages/SystemUpdates.jsx"
@@ -3095,7 +3089,8 @@
   {
    "text": "characters",
    "where": [
-    "components/SecretKeyBanner.jsx"
+    "components/SecretKeyBanner.jsx",
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -3694,6 +3689,18 @@
    "text": "Comma-separated, e.g. library.org, city.gov",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Command-line default",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -4933,6 +4940,12 @@
    "text": "Current Active Fleet Capacity:",
    "where": [
     "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
+   "text": "Current key saved on the server (used for headless command-line setups):",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -10110,6 +10123,12 @@
    ]
   },
   {
+   "text": "Master Encryption Key & Entropy Generation",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Master Encryption Key & System Security",
    "where": [
     "pages/SetupWizard.jsx"
@@ -12062,12 +12081,6 @@
    "text": "OpenOptOut doesn't know {domain} yet. You can still add it; it will go on your checklist.",
    "where": [
     "components/FindListings.jsx"
-   ]
-  },
-  {
-   "text": "OpenOptOut generated this high-entropy encryption key at first install and saved it with strict file permissions (0600) on your server. It secures family records, identity tokens, and broker credentials.",
-   "where": [
-    "pages/SetupWizard.jsx"
    ]
   },
   {
