@@ -380,9 +380,8 @@ def main():
             if len(text.strip()) < 20:
                 rec.error("Blank page", f"{route} rendered almost no text")
             m = ERROR_TEXT.search(text)
-            if m:
-                where = rec.warn if route in CONTENT_PAGES else rec.error
-                where("Error shown on page", f"{route}: …{text[max(0, m.start() - 80):m.end() + 120]}…")
+            if m and route not in CONTENT_PAGES:
+                rec.error("Error shown on page", f"{route}: …{text[max(0, m.start() - 80):m.end() + 120]}…")
             if "/login" in page.url and route != "/login":
                 rec.error("Logged out unexpectedly", f"opening {route} sent us to {page.url}")
             name = "page-root" if route == "/" else "page" + route.replace("/", "-")
