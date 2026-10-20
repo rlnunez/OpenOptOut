@@ -28,6 +28,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem('token', data.access_token)
     const me = await api.get('/auth/me')
     setUser(me.data)
+    window.dispatchEvent(new Event('auth-changed'))
     return me.data
   }
 
@@ -35,6 +36,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem('token', token)
     const me = await api.get('/auth/me')
     setUser(me.data)
+    window.dispatchEvent(new Event('auth-changed'))
     return me.data
   }
 
@@ -42,6 +44,7 @@ export function AuthProvider({ children }) {
     try { await api.post('/auth/signout') } catch {}
     localStorage.removeItem('token')
     setUser(null)
+    window.dispatchEvent(new Event('auth-changed'))
   }
 
   return (

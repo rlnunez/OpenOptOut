@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import api from '../api'
 import { tx } from '../i18n/tx'
 
@@ -60,12 +60,11 @@ export function AccessibilityProvider({ children }) {
   }, [])
 
   // Compute base theme ('light', 'gray', 'dark', 'space') and ADA compliance flag
-  const isAda = highContrast || (typeof theme === 'string' && theme.endsWith('-ada'))
+  const isAda = Boolean(highContrast || (typeof theme === 'string' && theme.endsWith('-ada')))
   let baseTheme = theme
-  if (theme === 'dark-ada') baseTheme = 'dark'
-  else if (theme === 'light-ada') baseTheme = 'light'
-  else if (theme === 'space-ada') baseTheme = 'space'
-  else if (theme === 'system') {
+  if (typeof theme === 'string' && theme.endsWith('-ada')) {
+    baseTheme = theme.replace(/-ada$/, '')
+  } else if (theme === 'system') {
     baseTheme = systemPrefersDark ? 'dark' : 'light'
   }
   const resolvedTheme = baseTheme
@@ -146,80 +145,120 @@ export function AccessibilityProvider({ children }) {
     }
   }, [dyslexicFont])
 
-  // Fetch saved user preferences on login
+  // Fresh ref tracking settings to avoid stale closures in callbacks
+  const settingsRef = useRef({
+    theme,
+    highContrast,
+    dyslexicFont,
+    fontSize,
+    reducedMotion,
+    enhancedTargets,
+  })
   useEffect(() => {
+    settingsRef.current = {
+      theme,
+      highContrast,
+      dyslexicFont,
+      fontSize,
+      reducedMotion,
+      enhancedTargets,
+    }
+  }, [theme, highContrast, dyslexicFont, fontSize, reducedMotion, enhancedTargets])
+
+  // Synchronize and apply incoming preferences
+  const applySettings = useCallback((cfg) => {
+    if (!cfg || typeof cfg !== 'object') return
+    let nextTheme = cfg.theme
+    let nextHighContrast = cfg.high_contrast
+
+    // Reconcile theme and high contrast so they can never contradict
+    if (typeof nextHighContrast === 'boolean') {
+      if (nextHighContrast) {
+        if (nextTheme === 'light' || nextTheme === 'light-ada') nextTheme = 'light-ada'
+        else if (nextTheme === 'space' || nextTheme === 'space-ada') nextTheme = 'space-ada'
+        else nextTheme = 'dark-ada'
+      } else {
+        if (typeof nextTheme === 'string' && nextTheme.endsWith('-ada')) {
+          nextTheme = nextTheme.replace(/-ada$/, '')
+        }
+      }
+    } else if (typeof nextTheme === 'string') {
+      nextHighContrast = nextTheme.endsWith('-ada')
+    }
+
+    if (nextTheme && ['light', 'light-ada', 'gray', 'dark', 'dark-ada', 'system', 'space', 'space-ada'].includes(nextTheme)) {
+      setThemeState(nextTheme)
+      localStorage.setItem('app_theme', nextTheme)
+    }
+    if (typeof nextHighContrast === 'boolean') {
+      setHighContrastState(nextHighContrast)
+      localStorage.setItem('a11y_high_contrast', String(nextHighContrast))
+    }
+    if (typeof cfg.dyslexic_font === 'boolean') {
+      setDyslexicFontState(cfg.dyslexic_font)
+      localStorage.setItem('a11y_dyslexic_font', String(cfg.dyslexic_font))
+    }
+    if (typeof cfg.font_size === 'number') {
+      const num = Math.min(150, Math.max(100, Math.round(cfg.font_size / 5) * 5))
+      setFontSizeState(num)
+      localStorage.setItem('a11y_font_size', String(num))
+    }
+    if (typeof cfg.reduced_motion === 'boolean') {
+      setReducedMotionState(cfg.reduced_motion)
+      localStorage.setItem('a11y_reduced_motion', String(cfg.reduced_motion))
+    }
+    if (typeof cfg.enhanced_targets === 'boolean') {
+      setEnhancedTargetsState(cfg.enhanced_targets)
+      localStorage.setItem('a11y_enhanced_targets', String(cfg.enhanced_targets))
+    }
+  }, [])
+
+  // Fetch saved user preferences on mount and auth changes
+  const fetchUserPreferences = useCallback(() => {
     api.get('/i18n/user/preference')
       .then(res => {
         if (res.data?.accessibility_settings) {
-          const cfg = res.data.accessibility_settings
-          if (cfg.theme) {
-            const normalized = cfg.theme
-            if (['light', 'light-ada', 'gray', 'dark', 'dark-ada', 'system', 'space', 'space-ada'].includes(normalized)) {
-              setThemeState(normalized)
-              localStorage.setItem('app_theme', normalized)
-            }
-          }
-          if (typeof cfg.high_contrast === 'boolean') {
-            setHighContrastState(cfg.high_contrast)
-            localStorage.setItem('a11y_high_contrast', String(cfg.high_contrast))
-          }
-          if (typeof cfg.dyslexic_font === 'boolean') {
-            setDyslexicFontState(cfg.dyslexic_font)
-            localStorage.setItem('a11y_dyslexic_font', String(cfg.dyslexic_font))
-          }
-          if (typeof cfg.font_size === 'number') {
-            const num = Math.min(150, Math.max(100, Math.round(cfg.font_size / 5) * 5))
-            setFontSizeState(num)
-            localStorage.setItem('a11y_font_size', String(num))
-          }
-          if (typeof cfg.reduced_motion === 'boolean') {
-            setReducedMotionState(cfg.reduced_motion)
-            localStorage.setItem('a11y_reduced_motion', String(cfg.reduced_motion))
-          }
-          if (typeof cfg.enhanced_targets === 'boolean') {
-            setEnhancedTargetsState(cfg.enhanced_targets)
-            localStorage.setItem('a11y_enhanced_targets', String(cfg.enhanced_targets))
-          }
+          applySettings(res.data.accessibility_settings)
         }
       })
       .catch(() => {})
-  }, [])
+  }, [applySettings])
 
-  const persistSettings = useCallback(async (updates) => {
+  useEffect(() => {
+    fetchUserPreferences()
+    window.addEventListener('auth-changed', fetchUserPreferences)
+    return () => window.removeEventListener('auth-changed', fetchUserPreferences)
+  }, [fetchUserPreferences])
+
+  const persistSettings = useCallback(async (updates = {}) => {
+    const current = settingsRef.current
     const full = {
-      theme: updates.theme ?? theme,
-      high_contrast: updates.high_contrast ?? highContrast,
-      dyslexic_font: updates.dyslexic_font ?? dyslexicFont,
-      font_size: updates.font_size ?? fontSize,
-      reduced_motion: updates.reduced_motion ?? reducedMotion,
-      enhanced_targets: updates.enhanced_targets ?? enhancedTargets,
+      theme: updates.theme ?? current.theme,
+      high_contrast: updates.high_contrast ?? current.highContrast,
+      dyslexic_font: updates.dyslexic_font ?? current.dyslexicFont,
+      font_size: updates.font_size ?? current.fontSize,
+      reduced_motion: updates.reduced_motion ?? current.reducedMotion,
+      enhanced_targets: updates.enhanced_targets ?? current.enhancedTargets,
     }
     try {
       await api.post('/i18n/user/preference', { accessibility_settings: full })
     } catch (e) {
       // Non-fatal if offline
     }
-  }, [theme, highContrast, dyslexicFont, fontSize, reducedMotion, enhancedTargets])
+  }, [])
 
   const setTheme = (nextTheme) => {
     const target = nextTheme
     const valid = ['light', 'light-ada', 'gray', 'dark', 'dark-ada', 'system', 'space', 'space-ada']
     if (!valid.includes(target)) return
-    setThemeState(target)
-    localStorage.setItem('app_theme', target)
 
     const isTargetAda = target.endsWith('-ada')
-    if (isTargetAda) {
-      setHighContrastState(true)
-      localStorage.setItem('a11y_high_contrast', 'true')
-      persistSettings({ theme: target, high_contrast: true })
-    } else if (target === 'dark' || target === 'light' || target === 'space' || target === 'gray') {
-      setHighContrastState(false)
-      localStorage.setItem('a11y_high_contrast', 'false')
-      persistSettings({ theme: target, high_contrast: false })
-    } else {
-      persistSettings({ theme: target })
-    }
+    setThemeState(target)
+    localStorage.setItem('app_theme', target)
+    setHighContrastState(isTargetAda)
+    localStorage.setItem('a11y_high_contrast', String(isTargetAda))
+
+    persistSettings({ theme: target, high_contrast: isTargetAda })
 
     const themeNames = {
       'space': tx("Space Explorer"),
@@ -247,24 +286,23 @@ export function AccessibilityProvider({ children }) {
     setHighContrastState(next)
     localStorage.setItem('a11y_high_contrast', String(next))
 
-    let nextTheme = theme
+    const currentTheme = settingsRef.current.theme || theme
+    let nextTheme = currentTheme
     if (next) {
-      if (theme === 'dark') nextTheme = 'dark-ada'
-      else if (theme === 'light') nextTheme = 'light-ada'
-      else if (theme === 'space') nextTheme = 'space-ada'
+      if (currentTheme === 'light' || currentTheme === 'light-ada') nextTheme = 'light-ada'
+      else if (currentTheme === 'space' || currentTheme === 'space-ada') nextTheme = 'space-ada'
+      else nextTheme = 'dark-ada'
     } else {
-      if (theme === 'dark-ada') nextTheme = 'dark'
-      else if (theme === 'light-ada') nextTheme = 'light'
-      else if (theme === 'space-ada') nextTheme = 'space'
+      if (typeof currentTheme === 'string' && currentTheme.endsWith('-ada')) {
+        nextTheme = currentTheme.replace(/-ada$/, '')
+      } else if (!['light', 'dark', 'space', 'gray', 'system'].includes(currentTheme)) {
+        nextTheme = 'dark'
+      }
     }
 
-    if (nextTheme !== theme) {
-      setThemeState(nextTheme)
-      localStorage.setItem('app_theme', nextTheme)
-      persistSettings({ theme: nextTheme, high_contrast: next })
-    } else {
-      persistSettings({ high_contrast: next })
-    }
+    setThemeState(nextTheme)
+    localStorage.setItem('app_theme', nextTheme)
+    persistSettings({ theme: nextTheme, high_contrast: next })
 
     announce(next ? tx("High Contrast Mode enabled") : tx("High Contrast Mode disabled"))
   }

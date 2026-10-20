@@ -229,12 +229,12 @@ def main():
                        any(w in body_sample for w in ("Before you start: what OpenOptOut", "terms-title", "guarantee removal", "How OpenOptOut works for you", "Terms for this server"))
             if is_terms:
                 try:
-                    cb = page.locator("section[aria-labelledby='terms-title'] input[type='checkbox'], input[type='checkbox']")
+                    cb = page.locator("section[aria-labelledby='terms-title'] input[type='checkbox']")
                     if cb.count() > 0 and cb.first.is_visible() and not cb.first.is_checked():
                         cb.first.check(force=True)
                         time.sleep(0.3)
                     if cb.count() > 0 and cb.first.is_visible() and not cb.first.is_checked():
-                        cb_lbl = page.locator("section[aria-labelledby='terms-title'] label, label:has(input[type='checkbox'])")
+                        cb_lbl = page.locator("section[aria-labelledby='terms-title'] label")
                         if cb_lbl.count() > 0:
                             cb_lbl.first.click(force=True)
                             time.sleep(0.3)
@@ -338,9 +338,9 @@ def main():
             settle(page)
             time.sleep(0.5)
 
-            # Defensive: clear any unexpected terms modal or tutorial popup
+            # Defensive: clear any unexpected terms modal popup
             try:
-                tb = page.locator("input[type='checkbox']")
+                tb = page.locator("section[aria-labelledby='terms-title'] input[type='checkbox']")
                 if tb.count() > 0 and tb.first.is_visible() and not tb.first.is_checked():
                     tb.first.check()
                     time.sleep(0.2)
