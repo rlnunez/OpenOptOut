@@ -8,7 +8,7 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ---
 
-## [0.11.0-rc12] — 2026-10-19
+## [0.11.0] — 2026-10-19
 
 ### Added
 - **Antigravity (Google) AI Helper Integration:** Added Google Antigravity alongside Claude, OpenAI, and Local AI servers in the setup wizard and administrative AI settings, unifying helper purpose descriptions across all providers.
