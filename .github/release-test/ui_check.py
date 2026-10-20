@@ -208,6 +208,7 @@ def main():
         # ── 3. setup wizard: skip every step until the dashboard ─────────────
         rec.screen = "setup wizard"
         reached = False
+        secret_key_handled = False
         for i in range(25):
             # 3a. MFA setup screen in first-run (optional/skippable for super admin)
             mfa_btn = (visible(page, "button", re.compile(r"Skip\s+for\s+now", re.I), timeout=1000)
@@ -251,13 +252,11 @@ def main():
                     time.sleep(0.5)
                     continue
 
-            # 3c. Secret key generation banner / modal (if prompted during setup wizard)
-            key_banner_btn = (visible(page, "button", re.compile(r"^\s*Generate & Save Master Key\s*$", re.I), timeout=500)
-                              or visible(page, "button", re.compile(r"^\s*Save Master Key to File\s*$", re.I), timeout=500)
-                              or visible(page, "button", re.compile(r"^\s*Use This Key\s*$", re.I), timeout=500))
-            if key_banner_btn or any(w in body_sample for w in ("Critical Security Action",)):
+            # 3c. Secret key generation banner / modal (if prompted during setup wizard or top banner)
+            key_banner_btn = visible(page, "button", re.compile(r"^\s*Generate & Save Master Key\s*$", re.I), timeout=500)
+            if not secret_key_handled and (key_banner_btn or any(w in body_sample for w in ("Critical Security Action",))):
                 snap(page, f"secret-key-{i + 1}")
-                if key_banner_btn and re.search(r"Generate & Save Master Key", key_banner_btn.inner_text(), re.I):
+                if key_banner_btn:
                     key_banner_btn.click()
                     settle(page, 2000)
                     time.sleep(0.3)
@@ -280,8 +279,7 @@ def main():
                 if v_btn and v_btn.is_enabled():
                     v_btn.click()
                     settle(page, 2000)
-                if key_banner_btn:
-                    continue
+                secret_key_handled = True
 
             # 3d. Setup wizard summary: "Go to dashboard"
             dash_btn = visible(page, "button", re.compile(r"^\s*Go to dashboard\s*$", re.I), timeout=1500)
@@ -358,20 +356,26 @@ def main():
                 tour.click()
                 settle(page, 3000)
 
-            # Defensive: clear any unexpected secret key prompt
-            sk_btn = visible(page, "button", re.compile(r"^\s*Save Master Key to File\s*$", re.I), timeout=200)
-            if sk_btn and sk_btn.is_enabled():
-                try:
-                    txt = page.locator("#master-secret-key-input, textarea[id*='secret-key']")
-                    if txt.count() > 0 and txt.first.is_visible():
-                        val = txt.first.input_value()
-                        if len(val.strip()) < 128:
-                            txt.first.fill(secrets.token_hex(64))
-                            time.sleep(0.2)
-                        sk_btn.click()
-                        settle(page, 2000)
-                except Exception:
-                    pass
+            # Defensive: clear any unexpected secret key prompt only if critical banner is active
+            body_prefix = ""
+            try:
+                body_prefix = page.inner_text("body")[:500]
+            except Exception:
+                pass
+            if any(w in body_prefix for w in ("Critical Security Action",)):
+                sk_btn = visible(page, "button", re.compile(r"^\s*Save Master Key to File\s*$", re.I), timeout=200)
+                if sk_btn and sk_btn.is_enabled():
+                    try:
+                        txt = page.locator("#master-secret-key-input, textarea[id*='secret-key']")
+                        if txt.count() > 0 and txt.first.is_visible():
+                            val = txt.first.input_value()
+                            if len(val.strip()) < 128:
+                                txt.first.fill(secrets.token_hex(64))
+                                time.sleep(0.2)
+                            sk_btn.click()
+                            settle(page, 2000)
+                    except Exception:
+                        pass
             text = ""
             try:
                 text = page.inner_text("body")

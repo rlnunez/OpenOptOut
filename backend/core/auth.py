@@ -134,18 +134,55 @@ def validate_password_length(password: Optional[str]) -> Optional[str]:
             )
     return password
 
+_CACHED_PEPPER: Optional[bytes] = None
+
+
 def get_password_pepper() -> bytes:
     """
     Return the HMAC pepper key used to harden password hashes against offline brute-force attacks.
     Priority:
     1. PASSWORD_PEPPER environment variable
-    2. Derived from SECRET_KEY (via HMAC-SHA256 key separation)
+    2. Cached pepper in memory
+    3. Persistent pepper.key file alongside secret.key (keeps passwords valid across SECRET_KEY rotation)
+    4. Derived from SECRET_KEY (via HMAC-SHA256 key separation)
     """
+    global _CACHED_PEPPER
     pepper = os.getenv("PASSWORD_PEPPER")
     if pepper and is_valid_secret_key(pepper):
         return pepper.encode("utf-8")
+    if _CACHED_PEPPER is not None:
+        return _CACHED_PEPPER
+
+    try:
+        from .settings_store import get_secret_key_file_path
+        sk_path = get_secret_key_file_path()
+        pepper_path = os.path.join(os.path.dirname(os.path.abspath(sk_path)), "pepper.key")
+        if os.path.exists(pepper_path):
+            with open(pepper_path, "rb") as f:
+                content = f.read().strip()
+                if len(content) >= 32:
+                    _CACHED_PEPPER = content
+                    return _CACHED_PEPPER
+    except Exception:
+        pepper_path = None
+
     sec = get_secret_key()
-    return hmac.new(b"openoptout-password-pepper-derivation", sec.encode("utf-8"), hashlib.sha256).digest()
+    derived = hmac.new(b"openoptout-password-pepper-derivation", sec.encode("utf-8"), hashlib.sha256).digest()
+    _CACHED_PEPPER = derived
+
+    if pepper_path:
+        try:
+            os.makedirs(os.path.dirname(os.path.abspath(pepper_path)), exist_ok=True)
+            if not os.path.exists(pepper_path):
+                fd = os.open(pepper_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                try:
+                    os.write(fd, derived)
+                finally:
+                    os.close(fd)
+        except Exception:
+            pass
+
+    return _CACHED_PEPPER
 
 
 
