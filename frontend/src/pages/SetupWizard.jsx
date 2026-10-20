@@ -146,7 +146,6 @@ export default function SetupWizard({ onDone }) {
               {step === 0 && (
                 <SecurityStep
                   onNext={next}
-                  onSkip={() => skip('security')}
                   busy={busy}
                   setError={setError}
                 />
@@ -172,7 +171,6 @@ export default function SetupWizard({ onDone }) {
               {step === 3 && (
                 <ExpressEmailStep
                   onNext={next}
-                  onSkip={() => skip('email')}
                   onBack={back}
                   busy={busy}
                   setError={setError}
@@ -181,7 +179,6 @@ export default function SetupWizard({ onDone }) {
               {step === 4 && (
                 <AIStep
                   onNext={finish}
-                  onSkip={async () => { await skip('ai'); finish() }}
                   onBack={back}
                   busy={busy}
                   setError={setError}
@@ -195,7 +192,6 @@ export default function SetupWizard({ onDone }) {
               {step === 0 && (
                 <SecurityStep
                   onNext={next}
-                  onSkip={() => skip('security')}
                   busy={busy}
                   setError={setError}
                 />
@@ -219,7 +215,6 @@ export default function SetupWizard({ onDone }) {
               {step === 3 && (
                 <EmailStep
                   onNext={next}
-                  onSkip={() => skip('email')}
                   onBack={back}
                   busy={busy}
                   setError={setError}
@@ -228,7 +223,6 @@ export default function SetupWizard({ onDone }) {
               {step === 4 && (
                 <AIStep
                   onNext={next}
-                  onSkip={() => skip('ai')}
                   onBack={back}
                   busy={busy}
                   setError={setError}
@@ -284,7 +278,7 @@ function Buttons({ onBack, onSkip, onNext, nextLabel, busy }) {
 }
 
 // ── Step 0: Security & Master Encryption Key ─────────────────────────────────
-function SecurityStep({ onNext, onSkip, onBack, busy, setError }) {
+function SecurityStep({ onNext, onBack, busy, setError }) {
   const [keyData, setKeyData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [revealed, setRevealed] = useState(false)
@@ -462,7 +456,7 @@ function SecurityStep({ onNext, onSkip, onBack, busy, setError }) {
         </div>
       </div>
 
-      <Buttons onBack={onBack} onSkip={onSkip} onNext={onNext} nextLabel={tx("Continue")} busy={busy} />
+      <Buttons onBack={onBack} onNext={onNext} nextLabel={tx("Continue")} busy={busy} />
     </div>
   )
 }
@@ -610,7 +604,7 @@ function ExpressDeploymentStep({ onNext, onBack, busy, setError, deployment, set
 }
 
 // ── Express Step 3: Email ─────────────────────────────────────────────────────
-function ExpressEmailStep({ onNext, onBack, onSkip, busy, setError }) {
+function ExpressEmailStep({ onNext, onBack, busy, setError }) {
   const [saving, setSaving] = useState(false)
   const [option, setOption] = useState('later') // 'later' | 'connect'
   const [provider, setProvider] = useState('')
@@ -697,7 +691,7 @@ function ExpressEmailStep({ onNext, onBack, onSkip, busy, setError }) {
         </label>
       </div>
 
-      <Buttons onBack={onBack} onSkip={onSkip} onNext={save} nextLabel={tx("Continue")} busy={saving || busy} />
+      <Buttons onBack={onBack} onNext={save} nextLabel={tx("Continue")} busy={saving || busy} />
     </div>
   )
 }
@@ -757,7 +751,7 @@ function DatabaseStep({ onNext, onBack, busy, setError }) {
 }
 
 // ── Step 2: Email ─────────────────────────────────────────────────────────────
-function EmailStep({ onNext, onSkip, onBack, busy, setError }) {
+function EmailStep({ onNext, onBack, busy, setError }) {
   const [provider, setProvider] = useState('')
   const [smtp, setSmtp] = useState({ smtp_host: '', smtp_port: 587, imap_host: '', imap_port: 993, username: '', password: '', tls: 'starttls', from_address: '' })
   const [advanced, setAdvanced] = useState(false)
@@ -796,6 +790,11 @@ function EmailStep({ onNext, onSkip, onBack, busy, setError }) {
   const save = async () => {
     setSaving(true); setError('')
     try {
+      if (!provider || provider === 'none') {
+        await api.post('/wizard/skip', { step: 'email' })
+        onNext()
+        return
+      }
       // Proton (via Bridge) is the generic-SMTP transport pointed at the local
       // Bridge endpoint — save it as 'smtp' with the Bridge fields.
       const effectiveProvider = provider === 'proton' ? 'smtp' : provider
@@ -834,6 +833,7 @@ function EmailStep({ onNext, onSkip, onBack, busy, setError }) {
         if (e.target.value === 'proton') { chooseProton() } else { setProvider(e.target.value) }
       }}>
         <option value="">{tx("Choose a provider…")}</option>
+        <option value="none">{tx("Configure Later in Settings (Fastest)")}</option>
         <option value="gmail">{tx("Gmail / Google Workspace (sign in with Google)")}</option>
         <option value="outlook">{tx("Outlook / Microsoft 365 (sign in with Microsoft)")}</option>
         <option value="yahoo">{tx("Yahoo Mail (sign in with Yahoo)")}</option>
@@ -893,7 +893,7 @@ function EmailStep({ onNext, onSkip, onBack, busy, setError }) {
         {tx("Advanced: use a separate account for the tool's own admin/notification email")}
       </label>
 
-      <Buttons onBack={onBack} onSkip={onSkip} onNext={save} busy={saving || busy} />
+      <Buttons onBack={onBack} onNext={save} busy={saving || busy} />
     </div>
   )
 }
@@ -1190,7 +1190,7 @@ function DeploymentStep({ onNext, onBack, busy, setError }) {
 }
 
 // ── Step: AI Helpers Connection ──────────────────────────────────────────────
-function AIStep({ onNext, onSkip, onBack, busy, setError, isLastStep }) {
+function AIStep({ onNext, onBack, busy, setError, isLastStep }) {
   const [provider, setProvider] = useState('none') // 'none' | 'claude' | 'openai' | 'antigravity' | 'local'
   const [apiKey, setApiKey] = useState('')
   const [model, setModel] = useState('')
@@ -1522,7 +1522,6 @@ function AIStep({ onNext, onSkip, onBack, busy, setError, isLastStep }) {
 
       <Buttons
         onBack={onBack}
-        onSkip={onSkip}
         onNext={save}
         nextLabel={isLastStep ? tx("Complete Setup") : tx("Continue")}
         busy={saving || busy}
