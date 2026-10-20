@@ -8,6 +8,21 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ---
 
+## [0.11.1] — 2026-10-20
+
+### Security & Dependencies
+- **Security Dependency Hardening:** Upgraded `follow-redirects` from `1.16.0` to `1.16.1` in the frontend application layer to remediate upstream HTTP redirect security advisories.
+- **Dependency Maintenance & Pinning Updates:**
+  - Merged PR #144: Updated official GitHub Actions workflow action SHAs (`upload-sarif`, `upload-artifact`, `download-artifact`, `scorecard-action`).
+  - Merged PR #140: Refreshed `python:3.12-slim-bookworm` container base image digest pin with latest upstream Debian security patches.
+  - Merged PR #141: Bumped `lucide-react` (1.52.0 → 1.55.0) and `vite` (8.3.3 → 8.3.4).
+  - Merged PR #145: Routine maintenance upgrades for Python dependencies (`fastapi` 0.143.0, `sqlalchemy` 2.1.4, `pydantic` 2.14.1, `msgpack` 1.2.3, `google-auth` 2.61.0, `boto3` 1.43.111).
+
+### Changed & Improved
+- **CI / Release Testing Workflow Flexibility:** Enhanced `.github/workflows/release-test.yml` and `.github/release-test/setup_check.py` to allow manual workflow dispatch testing on `main` or arbitrary branches/refs without requiring a version bump or new release tag creation.
+
+---
+
 ## [0.11.0] — 2026-10-19
 
 ### Added
@@ -19,14 +34,6 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 ### Changed
 - **Setup Wizard Navigation & Button Streamlining:** Removed redundant bottom "Skip" action buttons when an inline "Skip for now" / "Configure later" option is already provided within step choices.
 - **AI Helper Setup Header:** Stated the unified purpose of AI helpers once in the step header ("inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors") rather than repeating redundant descriptions inside every option.
-
-### Security & Dependencies
-- **Security Dependency Hardening:** Upgraded `follow-redirects` from `1.16.0` to `1.16.1` in the frontend application layer to remediate upstream HTTP redirect security advisories.
-- **Dependency Maintenance & Pinning Updates:**
-  - Merged PR #144: Updated official GitHub Actions workflow action SHAs (`upload-sarif`, `upload-artifact`, `download-artifact`, `scorecard-action`).
-  - Merged PR #140: Refreshed `python:3.12-slim-bookworm` container base image digest pin with latest upstream Debian security patches.
-  - Merged PR #141: Bumps `lucide-react` (1.52.0 → 1.55.0) and `vite` (8.3.3 → 8.3.4).
-  - Merged PR #145: Routine maintenance upgrades for Python dependencies (`fastapi` 0.143.0, `sqlalchemy` 2.1.4, `pydantic` 2.14.1, `msgpack` 1.2.3, `google-auth` 2.61.0, `boto3` 1.43.111).
 
 ### Fixed
 - **Setup Wizard Release-Test Infinite Loop:** Resolved testing script freeze in `.github/release-test/ui_check.py` where step `3c` matched embedded key generator controls and repeated `continue` across 25 iterations without advancing the wizard.
