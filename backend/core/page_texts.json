@@ -3824,7 +3824,7 @@
    ]
   },
   {
-   "text": "Connect an AI helper to automatically draft and repair broker opt-out flows when websites change.",
+   "text": "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.",
    "where": [
     "pages/SetupWizard.jsx"
    ]
@@ -18842,30 +18842,6 @@
    "text": "Users ({length})",
    "where": [
     "pages/AdminPanel.jsx"
-   ]
-  },
-  {
-   "text": "Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.",
-   "where": [
-    "pages/SetupWizard.jsx"
-   ]
-  },
-  {
-   "text": "Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.",
-   "where": [
-    "pages/SetupWizard.jsx"
-   ]
-  },
-  {
-   "text": "Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.",
-   "where": [
-    "pages/SetupWizard.jsx"
-   ]
-  },
-  {
-   "text": "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.",
-   "where": [
-    "pages/SetupWizard.jsx"
    ]
   },
   {

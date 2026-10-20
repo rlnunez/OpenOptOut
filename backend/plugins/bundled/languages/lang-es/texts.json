@@ -3430,5 +3430,6 @@
   "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Utiliza su LLM local para inspeccionar las páginas de los brókers, redactar nuevos pasos de exclusión y reparar selectores de formularios rotos completamente sin conexión.",
   "Live Preview": "Vista previa en vivo",
   "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "Este texto muestra una vista previa del tamaño de fuente seleccionado en tiempo real. Todas las tablas, formularios y menús se ajustan proporcionalmente en OpenOptOut.",
-  "Use arrow keys to adjust in 5% increments.": "Usa las teclas de flecha para ajustar en incrementos del 5 %."
+  "Use arrow keys to adjust in 5% increments.": "Usa las teclas de flecha para ajustar en incrementos del 5 %.",
+  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Conecte un asistente de IA para inspeccionar las páginas de los brókers, redactar nuevos pasos de exclusión y reparar selectores de formularios rotos."
 }

@@ -1249,7 +1249,7 @@ function AIStep({ onNext, onBack, busy, setError, isLastStep }) {
       <StepHeader
         icon={Sparkles}
         title={tx("AI Helper Connection (Optional)")}
-        subtitle={tx("Connect an AI helper to automatically draft and repair broker opt-out flows when websites change.")}
+        subtitle={tx("Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.")}
       />
 
       <div className="space-y-3">
@@ -1290,9 +1290,6 @@ function AIStep({ onNext, onBack, busy, setError, isLastStep }) {
               <span>{tx("Claude (Anthropic)")}</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">Messages API</span>
             </div>
-            <p className="text-slate-400 text-xs">
-              {tx("Uses Claude to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.")}
-            </p>
             {provider === 'claude' && (
               <div className="pt-2 space-y-2.5">
                 <div>
@@ -1343,9 +1340,6 @@ function AIStep({ onNext, onBack, busy, setError, isLastStep }) {
               <span>{tx("OpenAI (ChatGPT / Codex)")}</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">Responses API</span>
             </div>
-            <p className="text-slate-400 text-xs">
-              {tx("Uses OpenAI to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.")}
-            </p>
             {provider === 'openai' && (
               <div className="pt-2 space-y-2.5">
                 <div>
@@ -1396,9 +1390,6 @@ function AIStep({ onNext, onBack, busy, setError, isLastStep }) {
               <span>{tx("Antigravity (Google)")}</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">Gemini Interactions API</span>
             </div>
-            <p className="text-slate-400 text-xs">
-              {tx("Uses Antigravity to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.")}
-            </p>
             {provider === 'antigravity' && (
               <div className="pt-2 space-y-2.5">
                 <div>
@@ -1449,9 +1440,6 @@ function AIStep({ onNext, onBack, busy, setError, isLastStep }) {
               <span>{tx("Local AI Server (Offline / Self-Hosted)")}</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">Ollama / LM Studio</span>
             </div>
-            <p className="text-slate-400 text-xs">
-              {tx("Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.")}
-            </p>
             {provider === 'local' && (
               <div className="pt-2 space-y-2.5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

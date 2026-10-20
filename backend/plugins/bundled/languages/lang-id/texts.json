@@ -3431,5 +3431,6 @@
   "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Menggunakan LLM lokal Anda untuk memeriksa halaman broker, menyusun langkah-langkah opt-out baru, dan memperbaiki pemilih pengisian formulir yang rusak sepenuhnya secara offline.",
   "Live Preview": "Pratinjau Langsung",
   "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "Teks ini menampilkan pratinjau ukuran font yang Anda pilih secara waktu nyata. Semua tabel, formulir, dan menu menyesuaikan secara proporsional di seluruh OpenOptOut.",
-  "Use arrow keys to adjust in 5% increments.": "Gunakan tombol panah untuk menyesuaikan dalam kelipatan 5%."
+  "Use arrow keys to adjust in 5% increments.": "Gunakan tombol panah untuk menyesuaikan dalam kelipatan 5%.",
+  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Hubungkan asisten AI untuk memeriksa halaman broker, menyusun langkah-langkah opt-out baru, dan memperbaiki pemilih pengisian formulir yang rusak."
 }

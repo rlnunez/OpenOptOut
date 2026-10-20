@@ -3432,5 +3432,6 @@
   "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "Использует локальную языковую модель для анализа страниц брокеров, создания новых шагов отказа и исправления селекторов форм полностью в автономном режиме.",
   "Live Preview": "Предварительный просмотр",
   "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "Этот текст показывает выбранный размер шрифта в реальном времени. Все таблицы, формы и меню пропорционально масштабируются в OpenOptOut.",
-  "Use arrow keys to adjust in 5% increments.": "Используйте клавиши со стрелками для настройки с шагом 5%."
+  "Use arrow keys to adjust in 5% increments.": "Используйте клавиши со стрелками для настройки с шагом 5%.",
+  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Подключите ИИ-помощника для анализа страниц брокеров, создания новых шагов отказа и исправления поврежденных селекторов форм."
 }

@@ -3432,5 +3432,6 @@
   "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "완전한 오프라인 상태에서 로컬 LLM을 사용하여 브로커 페이지를 검사하고, 새로운 옵트아웃 단계를 작성하며, 손상된 양식 작성 선택기를 복구합니다.",
   "Live Preview": "실시간 미리보기",
   "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "이 텍스트는 선택한 글꼴 크기를 실시간으로 미리 보여줍니다. OpenOptOut의 모든 표, 양식 및 메뉴가 비례하여 조정됩니다.",
-  "Use arrow keys to adjust in 5% increments.": "5% 단위로 조절하려면 화살표 키를 사용하세요."
+  "Use arrow keys to adjust in 5% increments.": "5% 단위로 조절하려면 화살표 키를 사용하세요.",
+  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "브로커 페이지를 검사하고, 새로운 옵트아웃 단계를 작성하며, 손상된 양식 작성 선택기를 복구할 AI 도우미를 연결합니다."
 }

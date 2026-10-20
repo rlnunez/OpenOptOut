@@ -3432,5 +3432,6 @@
   "Uses your local LLM to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors completely offline.": "يستخدم نموذجك اللغوي المحلي لفحص صفحات الوسطاء وصياغة خطوات إلغاء الاشتراك الجديدة وإصلاح محددات ملء النماذج المعطلة دون اتصال بالإنترنت تمامًا.",
   "Live Preview": "معاينة مباشرة",
   "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "يُعاين هذا النص حجم الخط المحدد في الوقت الفعلي. يتم ضبط جميع الجداول والنماذج والقوائم بشكل متناسب عبر OpenOptOut.",
-  "Use arrow keys to adjust in 5% increments.": "استخدم مفاتيح الأسهم للضبط بزيادات قدرها 5%."
+  "Use arrow keys to adjust in 5% increments.": "استخدم مفاتيح الأسهم للضبط بزيادات قدرها 5%.",
+  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "قم بتوصيل مساعد الذكاء الاصطناعي لفحص صفحات الوسطاء وصياغة خطوات إلغاء الاشتراك الجديدة وإصلاح محددات ملء النماذج المعطلة."
 }
