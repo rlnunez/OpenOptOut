@@ -8,6 +8,27 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ---
 
+## [0.11.0-rc12] — 2026-10-19
+
+### Added
+- **Antigravity (Google) AI Helper Integration:** Added Google Antigravity alongside Claude, OpenAI, and Local AI servers in the setup wizard and administrative AI settings, unifying helper purpose descriptions across all providers.
+- **Interactive Entropy Generator UI Showcase:** Expanded the Interactive Chaos & Randomness generator by default during setup with real-time entropy stream visualization and canvas particle physics, collapsing the baseline CLI/bootstrap key panel.
+- **ADA-Compliant 5% Incremental Font Size Slider:** Replaced discrete font size buttons with an accessible range slider supporting 5% step increments (75% to 150%), keyboard navigation (Arrow keys, Home, End), and live screen-reader percentage announcements.
+- **Comprehensive WCAG 2.2 AAA Documentation (`docs/ACCESSIBILITY.md`):** Complete accessibility compliance matrix with color contrast ratios, screen reader compatibility, keyboard navigation shortcuts, and assistive technology testing guides.
+
+### Changed
+- **Setup Wizard Navigation & Button Streamlining:** Removed redundant bottom "Skip" action buttons when an inline "Skip for now" / "Configure later" option is already provided within step choices.
+- **AI Helper Setup Header:** Stated the unified purpose of AI helpers once in the step header ("inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors") rather than repeating redundant descriptions inside every option.
+
+### Fixed
+- **Setup Wizard Release-Test Infinite Loop:** Resolved testing script freeze in `.github/release-test/ui_check.py` where step `3c` matched embedded key generator controls and repeated `continue` across 25 iterations without advancing the wizard.
+- **Password Pepper Stability Across Master Key Rotations:** Added in-memory caching and persistent `pepper.key` storage in `backend/core/auth.py` so rotating or setting a master key never invalidates existing user passwords with 401 Unauthorized errors.
+- **Theme Persistence on Route Navigation:** Fixed state synchronization in `AccessibilityContext` that erroneously reset custom themes back to the high-contrast ADA mode upon navigating across pages.
+- **Release-Test Diagnostic & Upgrade Sweep Hardening:** Handled legacy wizard steps in before-upgrade checks, prevented false-positive error alerts on translation catalog pages, and updated admin password locators for ASVS L2 12-character minimums.
+- **Backup Module Typing Import:** Fixed a `NameError` on `Optional` import in `backend/core/backup.py`.
+
+---
+
 ## [0.11.0-rc8] — 2026-10-19
 
 ### Added
