@@ -4,6 +4,7 @@ without importing the full FastAPI router (avoids circular imports).
 """
 
 import json, os, base64, logging, glob
+from typing import Optional
 try:
     from cryptography.fernet import Fernet, MultiFernet
 except ImportError:
@@ -51,7 +52,7 @@ def save_settings(data: dict) -> None:
 _hsts_cache: dict = {"mtime": None, "path": None, "enabled": False}
 
 
-def is_hsts_enabled(s: dict | None = None) -> bool:
+def is_hsts_enabled(s: Optional[dict] = None) -> bool:
     """Return True if HTTP Strict Transport Security (HSTS) is enabled via settings or HSTS env var."""
     if s is not None:
         sec_hsts = s.get("security", {}).get("hsts")
@@ -118,7 +119,7 @@ def get_secret_key_file_path() -> str:
     return os.path.join(base_dir, "secret.key")
 
 
-def read_secret_key_file() -> str | None:
+def read_secret_key_file() -> Optional[str]:
     """Read the master secret key from secret.key if it exists and is non-empty."""
     path = get_secret_key_file_path()
     try:
@@ -143,7 +144,7 @@ def read_secret_key_file() -> str | None:
     return _secret_file_cache["key"]
 
 
-def is_valid_secret_key(key: str | None) -> bool:
+def is_valid_secret_key(key: Optional[str]) -> bool:
     """Return True only when key is non-empty and not one of the known example/placeholder values."""
     if not key or not isinstance(key, str):
         return False
@@ -153,7 +154,7 @@ def is_valid_secret_key(key: str | None) -> bool:
     return True
 
 
-def is_valid_user_secret_key(key: str | None) -> bool:
+def is_valid_user_secret_key(key: Optional[str]) -> bool:
     """Return True when a user-entered secret key is between MIN_SECRET_KEY_CHARS (128)
     and MAX_SECRET_KEY_CHARS (512) characters long, not a placeholder, and has sufficient character diversity."""
     if not is_valid_secret_key(key):

@@ -379,8 +379,9 @@ def _check_signup_steps(req: RegisterRequest, db: Session) -> Optional[dict]:
                                    data.get("code_hash", "")):
             code_attempts.wrong(req.email_token)
             raise HTTPException(400, "That code isn't right. Check the email and try again.")
-        code_attempts.used(req.email_token)
     if not cfg["address_check"]:
+        if cfg["signup_page"]:
+            code_attempts.used(req.email_token)
         return None
     home = _read_signup_token(req.address_token, "resident")
     if not home:
@@ -390,6 +391,8 @@ def _check_signup_steps(req: RegisterRequest, db: Session) -> Optional[dict]:
         raise HTTPException(400, "That address is no longer on the list. Enter it again.")
     if cfg["address_limit"] and R.accounts_at(db, home["key"]) >= cfg["address_limit"]:
         raise HTTPException(400, "This home already has as many accounts as this service allows.")
+    if cfg["signup_page"]:
+        code_attempts.used(req.email_token)
     return home
 
 
@@ -1037,23 +1040,22 @@ def verify_totp_login(data: VerifyTotpIn, db: Session = Depends(get_db), request
     tdata = mfa.verify_mfa_ticket(data.mfa_ticket)
     if not tdata:
         raise HTTPException(400, "MFA session expired or invalid. Please sign in again.")
-    if not code_attempts.allowed(data.mfa_ticket, tdata.get("exp", 0)):
-        raise HTTPException(400, "MFA ticket has already been used or expired. Please sign in again.")
     user = db.query(User).filter(User.id == tdata["uid"]).first()
-    if not user or not user.totp_enabled or not user.totp_secret_enc:
-        code_attempts.wrong(data.mfa_ticket)
-        raise HTTPException(400, "TOTP is not configured for this account.")
-    allowed = mfa.get_user_allowed_mfa_methods(user)
-    if not allowed.get("totp", True):
-        code_attempts.wrong(data.mfa_ticket)
-        raise HTTPException(403, "TOTP authentication is disabled for this account by security policy.")
+    if not user:
+        raise HTTPException(400, "MFA session expired or invalid. Please sign in again.")
     throttle_key = login_throttle.account_key("mfa", user.id)
     ip_key = login_throttle.ip_key(request)
     login_throttle.check(throttle_key, ip_key)
+    if not code_attempts.allowed(data.mfa_ticket, tdata.get("exp", 0)):
+        raise HTTPException(400, "MFA ticket has already been used or expired. Please sign in again.")
+    if not user.totp_enabled or not user.totp_secret_enc:
+        raise HTTPException(400, "TOTP is not configured for this account.")
+    allowed = mfa.get_user_allowed_mfa_methods(user)
+    if not allowed.get("totp", True):
+        raise HTTPException(403, "TOTP authentication is disabled for this account by security policy.")
     from ..core.settings_store import decrypt_password
     secret = decrypt_password(user.totp_secret_enc)
     if not mfa.verify_totp(data.code, secret):
-        code_attempts.wrong(data.mfa_ticket)
         login_throttle.failure(throttle_key, ip_key)
         raise HTTPException(401, "Invalid authentication code. Please check your authenticator app.")
     code_attempts.used(data.mfa_ticket)
@@ -1068,26 +1070,25 @@ def verify_backup_code_login(data: VerifyBackupIn, db: Session = Depends(get_db)
     tdata = mfa.verify_mfa_ticket(data.mfa_ticket)
     if not tdata:
         raise HTTPException(400, "MFA session expired or invalid. Please sign in again.")
-    if not code_attempts.allowed(data.mfa_ticket, tdata.get("exp", 0)):
-        raise HTTPException(400, "MFA ticket has already been used or expired. Please sign in again.")
     user = db.query(User).filter(User.id == tdata["uid"]).first()
-    if not user or not user.backup_codes:
-        code_attempts.wrong(data.mfa_ticket)
-        raise HTTPException(400, "No backup recovery codes configured for this account.")
-    allowed = mfa.get_user_allowed_mfa_methods(user)
-    if not allowed.get("backup_codes", True):
-        code_attempts.wrong(data.mfa_ticket)
-        raise HTTPException(403, "Backup recovery codes are disabled for this account by security policy.")
+    if not user:
+        raise HTTPException(400, "MFA session expired or invalid. Please sign in again.")
     throttle_key = login_throttle.account_key("mfa", user.id)
     ip_key = login_throttle.ip_key(request)
     login_throttle.check(throttle_key, ip_key)
+    if not code_attempts.allowed(data.mfa_ticket, tdata.get("exp", 0)):
+        raise HTTPException(400, "MFA ticket has already been used or expired. Please sign in again.")
+    if not user.backup_codes:
+        raise HTTPException(400, "No backup recovery codes configured for this account.")
+    allowed = mfa.get_user_allowed_mfa_methods(user)
+    if not allowed.get("backup_codes", True):
+        raise HTTPException(403, "Backup recovery codes are disabled for this account by security policy.")
     try:
         stored_hashes = json.loads(user.backup_codes)
     except Exception:
         stored_hashes = []
     valid, remaining = mfa.verify_backup_code(data.code, stored_hashes)
     if not valid:
-        code_attempts.wrong(data.mfa_ticket)
         login_throttle.failure(throttle_key, ip_key)
         raise HTTPException(401, "Invalid backup recovery code.")
     code_attempts.used(data.mfa_ticket)
@@ -1130,20 +1131,23 @@ def get_webauthn_challenge_options(request: Request, data: dict = Body(..., max_
 
 
 @router.post("/mfa/verify-webauthn", dependencies=[Depends(rate_limit.limit("mfa", 30))])
-def verify_webauthn_login(data: VerifyWebAuthnIn, db: Session = Depends(get_db)):
+def verify_webauthn_login(data: VerifyWebAuthnIn, db: Session = Depends(get_db), request: Request = None):
     from ..core import mfa, code_attempts
     tdata = mfa.verify_mfa_ticket(data.mfa_ticket)
     if not tdata:
         raise HTTPException(400, "MFA session expired or invalid. Please sign in again.")
+    user = db.query(User).filter(User.id == tdata["uid"]).first()
+    if not user:
+        raise HTTPException(400, "MFA session expired or invalid. Please sign in again.")
+    throttle_key = login_throttle.account_key("mfa", user.id)
+    ip_key = login_throttle.ip_key(request)
+    login_throttle.check(throttle_key, ip_key)
     if not code_attempts.allowed(data.mfa_ticket, tdata.get("exp", 0)):
         raise HTTPException(400, "MFA ticket has already been used or expired. Please sign in again.")
-    user = db.query(User).filter(User.id == tdata["uid"]).first()
-    if not user or not user.webauthn_credentials:
-        code_attempts.wrong(data.mfa_ticket)
+    if not user.webauthn_credentials:
         raise HTTPException(400, "No security keys registered.")
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("webauthn", True):
-        code_attempts.wrong(data.mfa_ticket)
         raise HTTPException(403, "FIDO2 / WebAuthn security key authentication is disabled for this account by security policy.")
     try:
         keys = json.loads(user.webauthn_credentials)
@@ -1152,15 +1156,15 @@ def verify_webauthn_login(data: VerifyWebAuthnIn, db: Session = Depends(get_db))
     cred_id = data.credential.get("id")
     matching_key = next((k for k in keys if k["id"] == cred_id), None)
     if not matching_key:
-        code_attempts.wrong(data.mfa_ticket)
         raise HTTPException(400, "Security key not registered on this account.")
     challenge = tdata.get("challenge", "")
     rp_id = tdata.get("rp_id")
     origin = tdata.get("origin")
     if not mfa.verify_webauthn_assertion(data.credential, challenge, matching_key, expected_rp_id=rp_id, expected_origin=origin):
-        code_attempts.wrong(data.mfa_ticket)
+        login_throttle.failure(throttle_key, ip_key)
         raise HTTPException(401, "Security key verification failed.")
     code_attempts.used(data.mfa_ticket)
+    login_throttle.success(throttle_key)
     user.webauthn_credentials = json.dumps(keys)
     db.commit()
     remember_me = bool(tdata.get("remember_me", False))

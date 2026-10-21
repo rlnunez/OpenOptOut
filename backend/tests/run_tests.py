@@ -93,6 +93,33 @@ def _imp(dotted):
     """Import a backend submodule by its resolved package name."""
     return importlib.import_module(_mod(dotted))
 
+
+# Provide a fallback for email_validator if missing so Pydantic EmailStr models can compile in minimal test envs
+if "email_validator" not in sys.modules:
+    try:
+        import email_validator
+    except ImportError:
+        import types, importlib.metadata
+        _ev = types.ModuleType("email_validator")
+        class EmailNotValidError(ValueError): pass
+        class ValidatedEmail:
+            def __init__(self, email):
+                self.normalized = email
+                self.local_part = email.split("@")[0] if "@" in email else email
+        def _ve(email, check_deliverability=False):
+            if not email or "@" not in email or not re.match(r"^[\w.+_-]+@[\w.-]+\.[a-zA-Z]{2,}$", email):
+                raise EmailNotValidError("Invalid email")
+            return ValidatedEmail(email)
+        _ev.EmailNotValidError = EmailNotValidError
+        _ev.ValidatedEmail = ValidatedEmail
+        _ev.validate_email = _ve
+        sys.modules["email_validator"] = _ev
+        _orig_version = importlib.metadata.version
+        def _fake_v(pkg):
+            if pkg == "email-validator": return "2.2.0"
+            return _orig_version(pkg)
+        importlib.metadata.version = _fake_v
+
 # ── tiny test framework (stdlib only) ─────────────────────────────────────────
 
 PASS, FAIL, SKIP = "PASS", "FAIL", "SKIP"
@@ -9118,7 +9145,9 @@ def t_auth_per_ip_limits():
         app = FastAPI(); app.include_router(auth_router.router)
         app.dependency_overrides[db_mod.get_db] = lambda: session
         client = TestClient(app)
-        rl._now = orig_now[0]; rl._buckets.clear(); throttle._state.clear()
+        http_clock = [10_000.0]
+        rl._now = lambda: http_clock[0]
+        rl._buckets.clear(); throttle._state.clear()
         orig_ipmax, throttle.IP_MAX_FAILURES = throttle.IP_MAX_FAILURES, 10_000   # isolate the limiter
         try:
             post = lambda i, ip: client.post("/api/auth/token", headers={"X-Forwarded-For": ip},
