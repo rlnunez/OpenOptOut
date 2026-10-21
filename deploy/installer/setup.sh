@@ -380,14 +380,26 @@ if command -v apt-get >/dev/null 2>&1; then
     nginx xmlsec1 libldap2-dev libsasl2-dev
   )
 
-  # Browser automation and sandbox packages (Only for standalone and worker)
+  # Browser automation packages (Only for standalone and worker — Playwright/
+  # Firefox's own needs; these are the bulk of the size this role skips)
   BROWSER_PKGS=(
-    bubblewrap libseccomp2 python3-seccomp fonts-liberation
+    fonts-liberation
     libasound2
     libatk-bridge2.0-0 libatk1.0-0 libcups2 libdbus-1-3
     libdrm2 libgbm1 libgtk-3-0 libnspr4 libnss3
     libx11-xcb1 libxcomposite1 libxdamage1 libxfixes3
     libxrandr2 libxss1 libxtst6 xdg-utils
+  )
+
+  # Plugin OS-sandbox packages (standalone and control-plane — wherever the
+  # API process runs, since that's the one that launches plugins; `worker`
+  # never calls init_plugin_system() so it doesn't need these). Separate from
+  # BROWSER_PKGS and tiny (a few hundred KB total) — control-plane excluding
+  # them was an oversight, not a meaningful part of its size savings, and it
+  # meant every plugin (including the bundled email providers) could never
+  # launch there once REQUIRE_HARD_SANDBOX defaults to on (see sandbox.py).
+  SANDBOX_PKGS=(
+    bubblewrap libseccomp2 python3-seccomp
   )
 
   PKGS_TO_INSTALL=("${BASE_PKGS[@]}")
@@ -400,8 +412,13 @@ if command -v apt-get >/dev/null 2>&1; then
     PKGS_TO_INSTALL+=("${BROWSER_PKGS[@]}")
   fi
 
+  if [[ "$ROLE" != "worker" ]]; then
+    PKGS_TO_INSTALL+=("${SANDBOX_PKGS[@]}")
+  fi
+
   if [[ "$ROLE" == "control-plane" ]]; then
-    info "Control Plane role: excluding Playwright Firefox, Bubblewrap, and X11 packages (>1.5GB savings)."
+    info "Control Plane role: excluding Playwright Firefox and X11 packages (>1.5GB savings)." \
+      "Bubblewrap/libseccomp2 are still installed (tiny) so the plugin system's OS sandbox works here too."
   fi
 
   if [[ "$ROLE" == "worker" ]]; then

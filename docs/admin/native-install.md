@@ -95,7 +95,21 @@ sudo systemctl reload nginx
 
 ### Plugin sandboxing
 
-The plugin system's OS-level sandboxing uses Linux namespaces via `bubblewrap` — this works the same on a native install as it does in the Docker image, since it's a kernel feature, not a container-runtime one. If you enable the plugin system and plugins fail to start, the first thing to try is loosening `deploy/native/openoptout-api.service`'s hardening (`ProtectSystem`/`ProtectHome`) — see the comments in that file — before troubleshooting further. See [docs/PLUGINS.md](PLUGINS.md).
+The plugin system's OS-level sandboxing uses Linux namespaces via `bubblewrap` — this works the same on a native install as it does in the Docker image, since it's a kernel feature, not a container-runtime one. `REQUIRE_HARD_SANDBOX` defaults to **on** on Linux, so a plugin (including the bundled Gmail/Outlook/Yahoo email providers) refuses to launch rather than silently falling back to resource-limits-only isolation if bubblewrap/`unshare` turn out not to actually work on this host. If plugins fail to start, check these in order:
+
+1. **Packages**: `bubblewrap`, `libseccomp2`, and `python3-seccomp` (the `deploy/installer/setup.sh` `standalone` and `control-plane` roles install these; if you provisioned the host another way, install them yourself).
+2. **AppArmor restricting unprivileged user namespaces**: Ubuntu 23.10+ (including 24.04) sets `kernel.apparmor_restrict_unprivileged_userns=1` by default, which blocks bubblewrap for any binary without its own AppArmor profile — this is a kernel/AppArmor policy, unrelated to packages or to this service's own hardening. Check with:
+   ```bash
+   cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns   # 1 = restricted
+   ```
+   Either add an AppArmor profile that allows `/opt/openoptout/venv/bin/python3` to create user namespaces, or (only if you understand the tradeoff) disable the restriction host-wide with `sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0`.
+3. **This service's own hardening**: loosen `deploy/native/openoptout-api.service`'s `ProtectSystem`/`ProtectHome` — see the comments in that file — before troubleshooting further.
+
+Run `python3 deploy/tests/test_no_new_privs.py` on the host to check all of this at once — it reports exactly which layer is blocking bubblewrap.
+
+If you'd rather run with the old degrade-gracefully behavior (resource limits + process isolation only, no namespace isolation) instead of fixing the above, set `REQUIRE_HARD_SANDBOX=false` in `.env` — but see [docs/PLUGINS.md](PLUGINS.md) first: that tier is meaningfully weaker and is only appropriate for plugins you already trust.
+
+On **Windows**, `REQUIRE_HARD_SANDBOX` defaults to **off** instead: bubblewrap/`unshare`/seccomp are Linux kernel features that cannot exist there at all, so plugins (including the bundled email providers `install-native.ps1` provisions) run under resource-limits-only isolation — in practice just the process boundary and the host's own permission checks on every plugin RPC, since even POSIX resource limits aren't available on Windows. That's an inherent platform limitation, not a configuration gap; it's a reason to be more conservative about which plugins you enable on a Windows install, not something to work around.
 
 ### Host-Level Security Hardening (Core Dumps & Encrypted Swap)
 
