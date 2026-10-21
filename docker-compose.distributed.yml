@@ -55,6 +55,18 @@ services:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
     container_name: openoptout-api
     restart: unless-stopped
+    # Plugin sandboxing: only this service runs the plugin manager (worker.py
+    # never calls init_plugin_system()), so only it needs these. Full detail
+    # in docker-compose.yml's "Plugin sandboxing" comment — short version:
+    # REQUIRE_HARD_SANDBOX defaults to on, which needs bubblewrap able to
+    # make user namespaces (cap_add: SYS_ADMIN) and the plugin's own seccomp
+    # filter able to install (security_opt: seccomp:unconfined). Remove both
+    # and set REQUIRE_HARD_SANDBOX=false to run with narrower privileges and
+    # resource-limits-only plugin isolation instead.
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - seccomp:unconfined
     ulimits:
       core: 0
     environment:

@@ -66,18 +66,32 @@ class SandboxCapabilities:
 
 def is_hard_sandbox_required() -> bool:
     """
-    True if the environment or settings require full OS sandboxing (bubblewrap/unshare).
-    When True, plugin launching fails fast with an error rather than degrading to
-    resource limits only.
+    True if the environment requires full OS sandboxing (bubblewrap/unshare)
+    before any plugin may launch. When True, plugin launching fails fast with
+    an error rather than degrading to resource limits only.
+
+    Defaults to True: docker-compose.yml grants the api container the
+    capabilities bubblewrap/unshare need (cap_add: SYS_ADMIN, security_opt:
+    seccomp:unconfined) by default, so a host following it gets full
+    namespace isolation out of the box and this never has to fall back.
+    Set REQUIRE_HARD_SANDBOX=false (env var) or plugins.require_hard_sandbox
+    (settings) to opt back into the old degrade-gracefully behavior — e.g. on
+    a host that can't grant those capabilities and only runs plugins it
+    already trusts.
     """
     v = os.getenv("REQUIRE_HARD_SANDBOX", os.getenv("OPENOPTOUT_REQUIRE_HARD_SANDBOX", "")).strip().lower()
     if v in ("1", "true", "yes", "on"):
         return True
+    if v in ("0", "false", "no", "off"):
+        return False
     try:
         from ..core.settings_store import load_settings
-        return bool(load_settings().get("plugins", {}).get("require_hard_sandbox", False))
+        stored = load_settings().get("plugins", {}).get("require_hard_sandbox")
+        if stored is not None:
+            return bool(stored)
     except Exception:
-        return False
+        pass
+    return True
 
 
 # Top-level system directories a dynamically linked program needs. On

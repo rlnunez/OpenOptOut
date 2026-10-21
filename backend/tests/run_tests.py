@@ -4425,8 +4425,9 @@ def t_plugin_sandbox_bwrap_runtime():
 
 
 @test(1, "plugins.sandbox_require_hard_flag",
-      "When REQUIRE_HARD_SANDBOX is set, build_sandboxed_command refuses to start plugins "
-      "unless full OS sandboxing (bubblewrap or unshare) is available.")
+      "REQUIRE_HARD_SANDBOX defaults to on (docker-compose.yml grants bubblewrap/unshare the "
+      "capabilities they need by default), can be explicitly opted out of, and when it's on, "
+      "build_sandboxed_command refuses to start plugins unless full OS sandboxing is available.")
 def t_plugin_sandbox_hard_flag():
     sandbox = _imp("plugins.sandbox")
     perms = _imp("plugins.permissions")
@@ -4436,13 +4437,17 @@ def t_plugin_sandbox_hard_flag():
 
     orig = os.environ.get("REQUIRE_HARD_SANDBOX")
     try:
+        # Nothing set: on by default now.
         os.environ.pop("REQUIRE_HARD_SANDBOX", None)
+        assert sandbox.is_hard_sandbox_required()
+
+        # Explicit opt-out: degraded fallback allowed.
+        os.environ["REQUIRE_HARD_SANDBOX"] = "false"
         assert not sandbox.is_hard_sandbox_required()
-        # Degraded fallback allowed by default
         cmd, _ = sandbox.build_sandboxed_command(["python"], "/data/plugins/p", caps_none, False, m)
         assert cmd == ["python"]
 
-        # When hard sandbox is required:
+        # Explicitly on (same as the new default):
         os.environ["REQUIRE_HARD_SANDBOX"] = "true"
         assert sandbox.is_hard_sandbox_required()
 

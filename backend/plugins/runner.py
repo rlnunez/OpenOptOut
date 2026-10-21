@@ -106,9 +106,23 @@ def main():
 
     if install_seccomp_filter is not None:
         # We keep loopback sockets working for the gRPC host channel, so we do
-        # NOT block the socket family here (the net namespace handles egress).
-        # Process/exec/escape syscalls are always blocked.
-        seccomp_status = install_seccomp_filter(allow_network=True)
+        # NOT block the whole socket family here (the net namespace handles
+        # egress). Process/exec/escape syscalls are always blocked.
+        #
+        # For a plugin that wasn't granted `network`, block AF_INET/AF_INET6
+        # socket creation specifically (block_external_sockets) — this is the
+        # defense-in-depth promised above, made precise: once the host IPC
+        # channel is a Unix domain socket (args.uds_path set), a plugin
+        # without `network` has no legitimate use for an IP socket at all, so
+        # this closes the gap on hosts where bubblewrap/unshare aren't
+        # available (the common case unless REQUIRE_HARD_SANDBOX is set — see
+        # sandbox.py). If the host channel itself had to fall back to TCP
+        # loopback (uds_path empty, i.e. the host-side UDS bind failed), an
+        # AF_INET block here would break that fallback channel for every
+        # plugin, so it's skipped in that narrower case.
+        block_external = (not args.allow_network) and bool(args.uds_path)
+        seccomp_status = install_seccomp_filter(allow_network=True,
+                                                 block_external_sockets=block_external)
 
     # Report the enforced posture to the host via stdout (the manager records it).
     print(f"PLUGIN_SECCOMP {int(seccomp_status.get('active', False))} "

@@ -121,17 +121,27 @@ services:
       # and send passwords to the API in plain HTTP. Set API_BIND=0.0.0.0 only if
       # you really need direct API access from other machines.
       - "${API_BIND:-127.0.0.1}:${API_PORT:-8010}:8000"
-    # ── Plugin sandboxing note ────────────────────────────────────────────────
+    # ── Plugin sandboxing ──────────────────────────────────────────────────────
     # Full OS-level plugin sandboxing (bubblewrap namespaces + seccomp) needs
-    # elevated privileges most container runtimes drop by default. If you run
-    # untrusted third-party plugins and want full isolation, you may need:
-    #   security_opt:
-    #     - seccomp:unconfined   # so the plugin's OWN seccomp filter can install
-    #   cap_add:
-    #     - SYS_ADMIN            # for user namespaces used by bubblewrap
-    # Leave these OFF unless you actually run untrusted plugins — they widen the
-    # container's own privileges. The app degrades gracefully and reports its
-    # real sandbox posture on the Plugins page. See docs/PLUGINS.md.
+    # elevated privileges most container runtimes drop by default, so this
+    # grants them to the api container by default: cap_add: SYS_ADMIN lets
+    # bubblewrap create the user namespaces it isolates plugins with, and
+    # security_opt: seccomp:unconfined lets a plugin's OWN seccomp filter
+    # install (Docker's default profile blocks the seccomp() syscall itself).
+    # REQUIRE_HARD_SANDBOX defaults to on (backend/plugins/sandbox.py) to
+    # match: a plugin refuses to launch at all rather than silently degrading
+    # to resource-limits-only isolation.
+    #
+    # If you don't run plugins and would rather keep this container's
+    # privileges narrower, remove the two settings below AND set
+    # REQUIRE_HARD_SANDBOX=false (env, or Settings → Plugin system) — plugins
+    # (including the bundled Gmail/Outlook/Yahoo email providers) then run
+    # with resource limits + process isolation only, which the app reports
+    # on the Plugins page. See docs/PLUGINS.md.
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - seccomp:unconfined
     ulimits:
       core: 0
     healthcheck:

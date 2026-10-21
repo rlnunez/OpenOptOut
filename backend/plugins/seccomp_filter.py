@@ -30,6 +30,7 @@ runtime the plugin needs.
 """
 
 import os
+import socket
 import sys
 import logging
 import importlib
@@ -117,23 +118,53 @@ DENY_SYSCALLS_PROCESS = [
 CLONE_THREAD = 0x00010000
 
 # Network-related syscalls, denied unless the plugin was granted `network`.
+# Kept for a caller that wants loopback blocked entirely (nothing currently
+# needs that — see block_external_sockets below for what the runner actually
+# uses, which blocks the outside world while leaving loopback IPC alone).
 DENY_SYSCALLS_NETWORK = [
     "socket", "socketpair", "connect", "accept", "accept4",
     "bind", "listen", "sendto", "recvfrom", "sendmsg", "recvmsg",
     "getpeername",
 ]
 
+# socket()'s first argument is the address family, a plain integer register
+# value (unlike connect()'s sockaddr pointer, which seccomp can't dereference
+# to see the destination address — the same limitation that keeps clone3()
+# unfilterable above). That means, unlike "is this connecting to the outside
+# world", "is this an IP socket at all" CAN be filtered precisely: deny
+# AF_INET/AF_INET6 while leaving AF_UNIX (the host's own IPC transport, and
+# the only other family a plugin should ever need) untouched.
+_AF_INET_FAMILIES = (socket.AF_INET, socket.AF_INET6)
 
-def install_seccomp_filter(allow_network: bool) -> dict:
+
+def install_seccomp_filter(allow_network: bool, block_external_sockets: bool = False) -> dict:
     """
     Install the seccomp filter in the current process. Returns a status dict.
     Call this once, early in the plugin runner, before executing plugin code.
+
+    allow_network: kept permissive (True) by the runner even for plugins
+    without the `network` permission, because the plugin's own gRPC server
+    needs ordinary socket syscalls to talk to the host — see runner.py's
+    comment on why DENY_SYSCALLS_NETWORK (a blanket block of the whole
+    socket family) can't be used for that case without breaking every
+    plugin's host channel.
+
+    block_external_sockets: the actual enforcement for a plugin that was NOT
+    granted `network`, when the host's IPC channel is a Unix domain socket
+    (AF_UNIX) rather than TCP loopback. Denies creating AF_INET/AF_INET6
+    sockets outright — the plugin cannot resolve a hostname, connect
+    anywhere, or accept a connection, since all of those start with a
+    socket() call this blocks. This is what actually gives teeth to the
+    `network` permission when the host's namespace isolation (bubblewrap/
+    unshare) is unavailable and the only isolation is this syscall filter —
+    see docs/dev/plugins.md and sandbox.py's SandboxCapabilities.
 
     On success the filter is active for the life of the process and inherited
     by any (already-blocked) children. Returns {"active": bool, "reason": str,
     "blocked": [...]}.
     """
-    result = {"active": False, "reason": "", "blocked": [], "network_blocked": not allow_network}
+    result = {"active": False, "reason": "", "blocked": [],
+              "network_blocked": (not allow_network) or block_external_sockets}
 
     # Set NO_NEW_PRIVS so a seccomp filter can be installed without privilege,
     # and so exec (if it somehow slipped through) can't gain privileges.
@@ -191,6 +222,19 @@ def install_seccomp_filter(allow_network: bool) -> dict:
             result["reason"] = (result["reason"] + "; " if result["reason"] else "") + \
                 f"clone thread-exception rule failed, leaving clone unrestricted: {e}"
 
+        # socket(AF_INET/AF_INET6, ...): deny for a plugin without `network`,
+        # once the host channel no longer needs that family at all (see the
+        # block_external_sockets docstring above). AF_UNIX, used for the host
+        # IPC socket, is a separate address family and is never matched here.
+        if block_external_sockets:
+            try:
+                for fam in _AF_INET_FAMILIES:
+                    f.add_rule(seccomp.ERRNO(ERRNO_EPERM), "socket", seccomp.Arg(0, seccomp.EQ, fam))
+                result["blocked"].append("socket(AF_INET/AF_INET6)")
+            except Exception as e:
+                result["reason"] = (result["reason"] + "; " if result["reason"] else "") + \
+                    f"external-socket rule failed, leaving IPv4/IPv6 sockets unrestricted: {e}"
+
         f.load()
         result["active"] = True
         # Don't clobber a partial-failure note (e.g. the clone rule above
@@ -198,7 +242,7 @@ def install_seccomp_filter(allow_network: bool) -> dict:
         result["reason"] = (result["reason"] + "; seccomp filter active"
                            if result["reason"] else "seccomp filter active")
         log.info("seccomp filter installed: %d syscalls blocked (network_blocked=%s)",
-                 len(result["blocked"]), not allow_network)
+                 len(result["blocked"]), result["network_blocked"])
     except Exception as e:
         result["reason"] = f"seccomp load failed: {e}"
         log.warning(result["reason"])
