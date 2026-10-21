@@ -57,7 +57,7 @@ httplib2==0.32.0
 # SFTP backup destination (core/backup.py)
 paramiko==5.0.0
 # PDF removal reports (core/removal_report.py)
-reportlab==4.4.4
+reportlab==5.0.1
 # CAPTCHA privacy masking & image processing (core/captcha_privacy.py)
 pillow==12.3.0
 # Syscall filter for the plugin sandbox (module name: pyseccomp). Pure Python over
