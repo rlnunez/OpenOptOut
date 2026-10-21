@@ -7212,6 +7212,17 @@ def t_health_flow():
     s.refresh(b); s.refresh(h)
     assert b.enabled and h.consecutive_failures == 0 and not h.auto_disabled, \
         "re_enable did not reset state"
+
+    # Playwright locator timeout triggers self-repair
+    queued_repairs = []
+    orig_qr = bh._queue_repair
+    bh._queue_repair = lambda db_, bid_, d_: queued_repairs.append((bid_, d_))
+    try:
+        bh.record_failure(s, bid, detail="Locator.click: Timeout 8000ms exceeded. waiting for locator('#btn')")
+        assert len(queued_repairs) == 1 and queued_repairs[0][0] == bid, "locator timeout must trigger _queue_repair"
+    finally:
+        bh._queue_repair = orig_qr
+
     s.close()
     # EXPECTED: enabled below threshold, auto-disabled AT threshold, re-enable resets.
     # IF THIS FAILS: the core resilience feature (item 1) is broken — a broken

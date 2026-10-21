@@ -109,7 +109,17 @@ def record_failure(db, broker_id: int, detail: str = "") -> bool:
         h.last_failure_detail = (detail or "")[:2000]
 
         just_disabled = False
-        if h.last_failure_reason == FAILURE_FORM_NOT_FOUND:
+        is_selector_failure = (
+            h.last_failure_reason == FAILURE_FORM_NOT_FOUND
+            or (
+                h.last_failure_reason == FAILURE_TIMEOUT
+                and any(
+                    sig in h.last_failure_detail.lower()
+                    for sig in ("waiting for locator", "waiting for selector", "locator.")
+                )
+            )
+        )
+        if is_selector_failure:
             _queue_repair(db, broker_id, h.last_failure_detail)
         if h.last_failure_reason == FAILURE_UNREACHABLE:
             just_disabled = _note_unreachable(db, h, broker_id, h.last_failure_detail) or just_disabled
