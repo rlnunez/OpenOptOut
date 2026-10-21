@@ -13,6 +13,7 @@ import '@fontsource/antonio/700.css'
 import './index.css'
 import { loadTable } from './i18n/tx'
 import { loadRegional } from './i18n/format'
+import ErrorBoundary from './components/ErrorBoundary'
 
 // The language's text is loaded first, so every screen (and every list a
 // module builds when it loads) comes up in that language.
@@ -22,6 +23,8 @@ try { lang = localStorage.getItem('preferred_language') || 'en' } catch { /* pri
 Promise.allSettled([loadTable(lang), loadRegional()]).finally(async () => {
   const { default: App } = await import('./App')
   ReactDOM.createRoot(document.getElementById('root')).render(
-    <React.StrictMode><App /></React.StrictMode>
+    <React.StrictMode>
+      <ErrorBoundary><App /></ErrorBoundary>
+    </React.StrictMode>
   )
 })

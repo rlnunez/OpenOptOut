@@ -3,6 +3,7 @@ import { ShieldAlert, Key, Lock, Sparkles, MousePointer, Image, Check, Copy, Ref
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import { tx } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 const KEY_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[]{}|;:,.<>?'
 
@@ -365,7 +366,7 @@ export function SecretKeyGeneratorPanel({ status, onStatusChange, compact = fals
       setSavedNotice(tx("Master secret key saved to file. Next, run the file permission command below so only the service owner can read it."))
       if (onStatusChange) onStatusChange(r.data)
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Could not save the master secret key."))
+      setError(detailText(e) || tx("Could not save the master secret key."))
     } finally {
       setSaving(false)
     }

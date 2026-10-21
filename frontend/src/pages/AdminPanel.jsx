@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import api from '../api'
 import { tx, txn, txr } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 const ROLE_STYLES = {
   super_admin: 'bg-purple-900/40 text-purple-300 border-purple-700',
@@ -54,7 +55,7 @@ function CreateUserModal({ onClose, onCreated, isSuper }) {
       const { data } = await api.post('/admin/users', payload)
       onCreated(data); onClose()
     } catch (err) {
-      setError(err.response?.data?.detail ?? tx("Couldn't create the account. Check the details and try again."))
+      setError(detailText(err) ?? tx("Couldn't create the account. Check the details and try again."))
     } finally { setSaving(false) }
   }
 
@@ -144,7 +145,7 @@ function GrantModal({ users, onClose, onGranted }) {
       })
       onGranted(data); onClose()
     } catch (err) {
-      setError(err.response?.data?.detail ?? tx("Couldn't give that access. Please try again."))
+      setError(detailText(err) ?? tx("Couldn't give that access. Please try again."))
     } finally { setSaving(false) }
   }
 
@@ -508,7 +509,7 @@ function PermissionsModal({ catalog, defaults, initial, title, subtitle, resetLa
   const save = async () => {
     setSaving(true); setError('')
     try { await onSave(catalog.map(p => p.key).filter(k => selected.has(k))) }
-    catch (e) { setError(e.response?.data?.detail ?? tx("Could not save permissions")); setSaving(false) }
+    catch (e) { setError(detailText(e) ?? tx("Could not save permissions")); setSaving(false) }
   }
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>

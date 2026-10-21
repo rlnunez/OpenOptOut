@@ -12,6 +12,7 @@ import { performWebAuthnRegister } from '../utils/webauthn'
 import { tx, txn, txr } from '../i18n/tx'
 import { fmtDate, fmtDateTime, fmtNumber, formatLocale, regional, setRegional } from '../i18n/format'
 import { SecretKeyGeneratorPanel } from '../components/SecretKeyBanner'
+import { detailText } from '../errorMessage'
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
@@ -212,7 +213,7 @@ function RegionalSection({ userRole }) {
       setRegional(data); setForm(data)
       setSaved(true); setTimeout(() => setSaved(false), 2000)
       setMsg(tx("Saved. Refresh the page to see it everywhere."))
-    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save that.")) }
+    } catch (e) { setMsg(detailText(e) || tx("Couldn't save that.")) }
     finally { setSaving(false) }
   }
   const sel = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-hidden focus:border-shield-500"
@@ -302,14 +303,14 @@ function ConnectedAccounts({ currentProvider, onChanged }) {
   const activate = async (ref) => {
     setBusy(true); setError('')
     try { await api.post(`/email-oauth/accounts/${ref}/activate`); load(); onChanged?.() }
-    catch (e) { setError(e.response?.data?.detail || tx("Could not switch accounts")) }
+    catch (e) { setError(detailText(e) || tx("Could not switch accounts")) }
     finally { setBusy(false) }
   }
 
   const disconnect = async (ref) => {
     setBusy(true); setError('')
     try { await api.delete(`/email-oauth/accounts/${ref}`); load(); onChanged?.() }
-    catch (e) { setError(e.response?.data?.detail || tx("Could not disconnect")) }
+    catch (e) { setError(detailText(e) || tx("Could not disconnect")) }
     finally { setBusy(false) }
   }
 
@@ -343,7 +344,7 @@ function ConnectedAccounts({ currentProvider, onChanged }) {
       }, 2500)
       setTimeout(() => clearInterval(iv), 300000)
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Could not start the connect flow"))
+      setError(detailText(e) || tx("Could not start the connect flow"))
     } finally { setBusy(false) }
   }
 
@@ -499,7 +500,7 @@ function EmailSection({ initial, userRole }) {
       const { data } = await api.post('/settings/email/test')
       setTestResult(data)
     } catch (err) {
-      setTestResult({ connected: false, errors: [err.response?.data?.detail ?? tx("Connection failed")] })
+      setTestResult({ connected: false, errors: [detailText(err) ?? tx("Connection failed")] })
     } finally { setTesting(false) }
   }
 
@@ -1075,7 +1076,7 @@ function DataLifecycleSection({ userRole, initial = {}, onSaved }) {
       if (onSaved) onSaved(res.data)
       setMsg(tx("Data lifecycle & retention policy saved successfully."))
     } catch (e) {
-      setMsg(e.response?.data?.detail || tx("Couldn't save retention settings."))
+      setMsg(detailText(e) || tx("Couldn't save retention settings."))
     } finally {
       setSavingPolicy(false)
     }
@@ -1090,7 +1091,7 @@ function DataLifecycleSection({ userRole, initial = {}, onSaved }) {
       setPurgeStats(res.data?.removed || {})
       setMsg(tx("Retention purge completed successfully."))
     } catch (e) {
-      setMsg(e.response?.data?.detail || tx("Failed to run retention purge."))
+      setMsg(detailText(e) || tx("Failed to run retention purge."))
     } finally {
       setPurging(false)
     }
@@ -1103,7 +1104,7 @@ function DataLifecycleSection({ userRole, initial = {}, onSaved }) {
       localStorage.removeItem('token')
       window.location.href = '/login'
     } catch (e) {
-      setMsg(e.response?.data?.detail || tx("Couldn't delete your account."))
+      setMsg(detailText(e) || tx("Couldn't delete your account."))
       setDeleting(false)
     }
   }
@@ -1409,7 +1410,7 @@ function VaultLimitsSection({ initial, userRole, onSaved }) {
       setSaved(true); setTimeout(() => setSaved(false), 2000)
       onSaved(form)
     } catch (err) {
-      alert(err.response?.data?.detail ?? tx("Save failed"))
+      alert(detailText(err) ?? tx("Save failed"))
     } finally { setSaving(false) }
   }
 
@@ -2098,7 +2099,7 @@ function MfaAccountSection({ user }) {
       setTotpData(data)
       setShowTotpSetup(true)
     } catch (err) {
-      setError(err.response?.data?.detail || tx("Failed to start authenticator setup"))
+      setError(detailText(err) || tx("Failed to start authenticator setup"))
     } finally {
       setTotpSubmitting(false)
     }
@@ -2123,7 +2124,7 @@ function MfaAccountSection({ user }) {
       }
       loadStatus()
     } catch (err) {
-      setError(err.response?.data?.detail || tx("That code didn't work. Codes change every 30 seconds, so use the newest one."))
+      setError(detailText(err) || tx("That code didn't work. Codes change every 30 seconds, so use the newest one."))
     } finally {
       setTotpSubmitting(false)
     }
@@ -2140,7 +2141,7 @@ function MfaAccountSection({ user }) {
       setSuccess(tx("Authenticator app removed."))
       loadStatus()
     } catch (err) {
-      setError(err.response?.data?.detail || tx("Failed to disable authenticator. Check your password."))
+      setError(detailText(err) || tx("Failed to disable authenticator. Check your password."))
     } finally {
       setDisableSubmitting(false)
     }
@@ -2167,7 +2168,7 @@ function MfaAccountSection({ user }) {
       if (err.name === 'NotAllowedError') {
         setError('Security key interaction was cancelled or timed out.')
       } else {
-        setError(err.response?.data?.detail || err.message || 'Failed to register security key.')
+        setError(detailText(err) || err.message || 'Failed to register security key.')
       }
     } finally {
       setKeySubmitting(false)
@@ -2184,7 +2185,7 @@ function MfaAccountSection({ user }) {
       setSuccess(tx("Removed security key \"{keyLabel}\".", { keyLabel }))
       loadStatus()
     } catch (err) {
-      setError(err.response?.data?.detail || tx("Failed to remove security key."))
+      setError(detailText(err) || tx("Failed to remove security key."))
     }
   }
 
@@ -2614,7 +2615,7 @@ function WebAuthnPolicySection({ userRole }) {
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
-      setPolicyError(err.response?.data?.detail || tx("Failed to save security policy."))
+      setPolicyError(detailText(err) || tx("Failed to save security policy."))
     } finally {
       setSaving(false)
     }
@@ -2933,7 +2934,7 @@ function PasswordlessPolicySection({ userRole }) {
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch (err) {
-      setError(err.response?.data?.detail || tx("Failed to save passwordless authentication settings."))
+      setError(detailText(err) || tx("Failed to save passwordless authentication settings."))
     } finally {
       setSaving(false)
     }
@@ -3077,7 +3078,7 @@ function SessionPolicySection({ userRole }) {
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch (err) {
-      setError(err.response?.data?.detail || tx("Failed to save session duration and remember-me policies."))
+      setError(detailText(err) || tx("Failed to save session duration and remember-me policies."))
     } finally {
       setSaving(false)
     }
@@ -3298,12 +3299,12 @@ function MatchingSection() {
   const saveDefault = async () => {
     setMsg('')
     try { await api.patch('/settings/matching', { unclear_listings: def, users_choose: usersChoose }); setMsg(tx("Saved.")); load() }
-    catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save that.")) }
+    catch (e) { setMsg(detailText(e) || tx("Couldn't save that.")) }
   }
   const saveMine = async v => {
     setMine(v); setMsg('')
     try { await api.patch('/settings/matching/mine', { unclear_listings: v || null }); setMsg(tx("Saved.")); load() }
-    catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save that.")) }
+    catch (e) { setMsg(detailText(e) || tx("Couldn't save that.")) }
   }
   const defaultLabel = (m.choices.find(c => c.value === m.unclear_listings) || {}).label
 
@@ -3432,7 +3433,7 @@ function ClientMtlsSection({ userRole }) {
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Failed to save mTLS settings"))
+      setError(detailText(e) || tx("Failed to save mTLS settings"))
     } finally {
       setSaving(false)
     }
@@ -3446,7 +3447,7 @@ function ClientMtlsSection({ userRole }) {
       setShowCaModal(false)
       setCaPemInput('')
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Failed to initialize CA"))
+      setError(detailText(e) || tx("Failed to initialize CA"))
     }
   }
 
@@ -3475,7 +3476,7 @@ function ClientMtlsSection({ userRole }) {
       setDevPass('')
       reload()
     } catch (err) {
-      setError(err.response?.data?.detail || tx("Failed to issue client certificate"))
+      setError(detailText(err) || tx("Failed to issue client certificate"))
     } finally {
       setIssuing(false)
     }
@@ -3488,7 +3489,7 @@ function ClientMtlsSection({ userRole }) {
       await api.post('/settings/security/mtls/revoke', { serial_or_name: target })
       reload()
     } catch (err) {
-      setError(err.response?.data?.detail || tx("Failed to revoke certificate"))
+      setError(detailText(err) || tx("Failed to revoke certificate"))
     }
   }
 

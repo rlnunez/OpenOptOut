@@ -7,6 +7,7 @@ import PrivacyPagesPanel from '../components/PrivacyPagesPanel'
 import BrokerTimelines from '../components/RemovalTimeline'
 import { tx, txn } from '../i18n/tx'
 import { fmtDate } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 const STATUS_OPTIONS   = ['', 'compliant', 'resistant', 'inconsistent', 'undetermined']
 const METHOD_OPTIONS   = ['', 'form', 'email', 'manual', 'phone']
@@ -39,7 +40,7 @@ export default function Brokers() {
       await api.post(`/brokers/${b.id}/enable`)
       setBrokers(prev => prev.map(x => x.id === b.id ? { ...x, enabled: true } : x))
       fetchCoverage()
-    } catch (e) { setImportMsg(e.response?.data?.detail || tx("Couldn't turn it on.")) }
+    } catch (e) { setImportMsg(detailText(e) || tx("Couldn't turn it on.")) }
   }
 
   const findPrivacyPage = async (b) => {
@@ -47,7 +48,7 @@ export default function Brokers() {
       const { data } = await api.post(`/privacy-pages/find/${b.id}`)
       setImportMsg(data.message ? `✓ ${data.message}` : tx("✓ Already looking at {name}'s website.", { name: b.name }))
       setPpKey(k => k + 1)
-    } catch (e) { setImportMsg(e.response?.data?.detail || tx("Couldn't start the search.")) }
+    } catch (e) { setImportMsg(detailText(e) || tx("Couldn't start the search.")) }
   }
 
   useEffect(() => {

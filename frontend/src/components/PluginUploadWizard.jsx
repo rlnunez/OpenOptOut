@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import api from '../api'
 import { tx, txr } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 /**
  * Plugin upload wizard: pick a .zip, see what kind of plugin it is and which
@@ -43,7 +44,7 @@ export default function PluginUploadWizard({ onClose, onInstalled, expectedType,
       const { data } = await api.post(`/plugins/upload/inspect${query}`, formData(f))
       setPlan(data); setStep('review')
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Could not read that file"))
+      setError(detailText(e) || tx("Could not read that file"))
     } finally { setBusy(false) }
   }
 
@@ -54,7 +55,7 @@ export default function PluginUploadWizard({ onClose, onInstalled, expectedType,
       setResult(data); setStep('done')
       onInstalled?.(data)
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Install failed"))
+      setError(detailText(e) || tx("Install failed"))
     } finally { setBusy(false) }
   }
 

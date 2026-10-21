@@ -3,6 +3,7 @@ import { FileLock2, Download, AlertTriangle, Trash2 } from 'lucide-react'
 import api from '../api'
 import { tx, txn, txr } from '../i18n/tx'
 import { fmtDateTime } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 // OpenOptOut's own record of the personal data it keeps (GDPR Article 30
 // style), its protection and retention, staff access, and tools for answering
@@ -19,7 +20,7 @@ export default function PrivacyRecord() {
   const [msg, setMsg] = useState('')
 
   const load = () => {
-    api.get('/privacy/record').then(r => setRec(r.data)).catch(e => setMsg(e.response?.data?.detail || tx("Couldn't load the record.")))
+    api.get('/privacy/record').then(r => setRec(r.data)).catch(e => setMsg(detailText(e) || tx("Couldn't load the record.")))
     api.get('/privacy/access-log', { params: { limit: 200 } }).then(r => setLog(r.data)).catch(() => {})
   }
   useEffect(() => {
@@ -35,7 +36,7 @@ export default function PrivacyRecord() {
       const a = document.createElement('a'); a.href = url; a.download = `openoptout-person-${who}.json`; a.click()
       setTimeout(() => URL.revokeObjectURL(url), 1000)
       load()
-    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't export that person's data.")) }
+    } catch (e) { setMsg(detailText(e) || tx("Couldn't export that person's data.")) }
   }
 
   const purge = async () => {
@@ -44,7 +45,7 @@ export default function PrivacyRecord() {
       const { data } = await api.post('/privacy/purge')
       const n = Object.values(data.removed).reduce((a, b) => a + b, 0)
       setMsg(txn(n, "Done. {n} old record removed.", "Done. {n} old records removed.")); load()
-    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't run it.")) }
+    } catch (e) { setMsg(detailText(e) || tx("Couldn't run it.")) }
   }
 
   const downloadRecord = () => {

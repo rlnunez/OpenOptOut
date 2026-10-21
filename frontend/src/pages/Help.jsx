@@ -9,6 +9,7 @@ import { useAuth, can } from '../hooks/useAuth'
 import { isSafeHref } from '../components/Markdown'
 import { tx } from '../i18n/tx'
 import { fmtDate } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 // ── Static documentation data ─────────────────────────────────────────────────
 
@@ -269,7 +270,7 @@ function NoteModal({ initial, onClose, onSaved }) {
         : await api.post('/help/notes', form)
       onSaved(data); onClose()
     } catch (e) {
-      setError(e.response?.data?.detail ?? tx("Save failed"))
+      setError(detailText(e) ?? tx("Save failed"))
     } finally { setSaving(false) }
   }
 

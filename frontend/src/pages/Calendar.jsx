@@ -4,6 +4,7 @@ import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import { tx } from '../i18n/tx'
 import { fmtDate, fmtClock, fmtDateTime, weekStart } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 // What happens when: the days opt-outs go out, when each site is checked
 // again, and when a site's legal deadline to answer runs out. Admins choose
@@ -45,7 +46,7 @@ export default function Calendar() {
   const load = useCallback(() => {
     const start = backToWeekStart(month)
     api.get('/calendar', { params: { start: iso(start), days: 42 } })
-      .then(r => setData(r.data)).catch(e => setMsg(e.response?.data?.detail || tx("Couldn't load the calendar.")))
+      .then(r => setData(r.data)).catch(e => setMsg(detailText(e) || tx("Couldn't load the calendar.")))
   }, [month])
   useEffect(() => { load() }, [load])
 
@@ -70,7 +71,7 @@ export default function Calendar() {
   const saveSchedule = async (patch) => {
     setMsg('')
     try { await api.patch('/settings/scheduler', patch); setMsg(tx("Saved.")); load() }
-    catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save that.")) }
+    catch (e) { setMsg(detailText(e) || tx("Couldn't save that.")) }
   }
   const runDays = data?.run_days ?? [0, 1, 2, 3, 4, 5, 6]
   const toggleDay = i => {
@@ -91,7 +92,7 @@ export default function Calendar() {
       window.dispatchEvent(new Event('maintenance-settings-changed'))
       load()
     } catch (e) {
-      setMsg(e.response?.data?.detail || tx("Couldn't save notice window."))
+      setMsg(detailText(e) || tx("Couldn't save notice window."))
     } finally {
       setSavingNoticeHours(false)
     }
@@ -114,7 +115,7 @@ export default function Calendar() {
       window.dispatchEvent(new Event('maintenance-settings-changed'))
       load()
     } catch (e) {
-      setMsg(e.response?.data?.detail || tx("Couldn't schedule maintenance window."))
+      setMsg(detailText(e) || tx("Couldn't schedule maintenance window."))
     } finally {
       setSavingMaint(false)
     }
@@ -128,7 +129,7 @@ export default function Calendar() {
       window.dispatchEvent(new Event('maintenance-settings-changed'))
       load()
     } catch (e) {
-      setMsg(e.response?.data?.detail || tx("Couldn't remove maintenance window."))
+      setMsg(detailText(e) || tx("Couldn't remove maintenance window."))
     }
   }
 

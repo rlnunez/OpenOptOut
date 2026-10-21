@@ -10,6 +10,7 @@ import PrivacyScore from '../components/PrivacyScore'
 import { useAuth, can } from '../hooks/useAuth'
 import { tx, txn, txr } from '../i18n/tx'
 import { fmtDate } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 function StatCard({ label, value, icon: Icon, color }) {
   return (
@@ -100,7 +101,7 @@ export default function Dashboard() {
     try {
       await api.post('/scheduler/trigger/optout')
       setRunMsg(tx("Sending opt-outs now. This can take a few minutes; the numbers below update as replies come in."))
-    } catch (e) { setRunMsg(e.response?.data?.detail || tx("Couldn't start sending. Please try again.")) }
+    } catch (e) { setRunMsg(detailText(e) || tx("Couldn't start sending. Please try again.")) }
   }
 
   const progress = stats

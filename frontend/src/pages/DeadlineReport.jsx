@@ -3,6 +3,7 @@ import { Gavel, Download, Bell } from 'lucide-react'
 import api from '../api'
 import { tx } from '../i18n/tx'
 import { fmtDate } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 // Which sites missed the time the law gives them to answer, and which put
 // details back after removing them. Limited to the people you can see.
@@ -34,7 +35,7 @@ export default function DeadlineReport() {
   const [saved, setSaved] = useState('')
 
   useEffect(() => {
-    api.get('/compliance/report').then(r => setRep(r.data)).catch(e => setError(e.response?.data?.detail || tx("Couldn't load the report.")))
+    api.get('/compliance/report').then(r => setRep(r.data)).catch(e => setError(detailText(e) || tx("Couldn't load the report.")))
     api.get('/compliance/notices').then(r => setPrefs(r.data)).catch(() => {})
   }, [])
 

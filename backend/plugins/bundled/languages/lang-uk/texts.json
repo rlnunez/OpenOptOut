@@ -3431,5 +3431,8 @@
   "Live Preview": "Попередній перегляд",
   "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "Цей текст показує вибраний розмір шрифту в реальному часі. Усі таблиці, форми та меню пропорційно масштабуються в OpenOptOut.",
   "Use arrow keys to adjust in 5% increments.": "Використовуйте клавіші зі стрілками для налаштування з кроком 5%.",
-  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Підключіть ШІ-помічника для перевірки сторінок брокерів, складання нових кроків відмови та відновлення зламаних селекторів заповнення форм."
+  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Підключіть ШІ-помічника для перевірки сторінок брокерів, складання нових кроків відмови та відновлення зламаних селекторів заповнення форм.",
+  "Something went wrong": "Щось пішло не так",
+  "Reload the page": "Перезавантажити сторінку",
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "На цій сторінці виникла проблема, і вона не може продовжити роботу. Нічого не було втрачено — перезавантаження зазвичай вирішує проблему."
 }

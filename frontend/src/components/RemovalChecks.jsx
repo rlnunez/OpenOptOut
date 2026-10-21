@@ -4,6 +4,7 @@ import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import { tx } from '../i18n/tx'
 import { fmtDateTime } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 const VERDICT = {
   gone: { label: tx("Gone"), cls: 'text-emerald-300' },
@@ -24,7 +25,7 @@ export default function RemovalChecks() {
   const runNow = async () => {
     setMsg('')
     try { const { data: d } = await api.post('/verification/run'); setMsg(d.message); setTimeout(load, 60000) }
-    catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't start the checks.")) }
+    catch (e) { setMsg(detailText(e) || tx("Couldn't start the checks.")) }
   }
 
   if (!data) return null

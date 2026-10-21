@@ -10,6 +10,7 @@ import { useAuth, can } from '../hooks/useAuth'
 import PluginUploadWizard from '../components/PluginUploadWizard'
 import { tx, txn, txr } from '../i18n/tx'
 import { fmtDateTime } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
@@ -190,7 +191,7 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
       })
       onEnabled()
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Couldn't turn the plugin on. Please try again."))
+      setError(detailText(e) || tx("Couldn't turn the plugin on. Please try again."))
     } finally { setSaving(false) }
   }
 

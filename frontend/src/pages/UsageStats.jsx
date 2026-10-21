@@ -3,6 +3,7 @@ import { BarChart3, CheckCircle2, XCircle, Copy, Plus, Trash2, PlayCircle } from
 import api from '../api'
 import { tx, txn } from '../i18n/tx'
 import { fmtDateTime } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 // Usage statistics (super admins): a web service a library's own scripts call
 // to pull counts into a data mart like LibInsight, a data warehouse or a data lake
@@ -44,7 +45,7 @@ export default function UsageStats() {
   const [test, setTest] = useState(null)
 
   const load = useCallback(() => api.get('/stats-admin').then(r => setD(r.data))
-    .catch(e => setErr(e.response?.data?.detail || tx("Couldn't load usage statistics."))), [])
+    .catch(e => setErr(detailText(e) || tx("Couldn't load usage statistics."))), [])
   useEffect(() => { load() }, [load])
 
   const toggle = async () => {
@@ -52,7 +53,7 @@ export default function UsageStats() {
     try {
       const r = await api.put('/stats-admin', { enabled: !d.enabled }); setD(r.data)
       setMsg(r.data.enabled ? tx("Turned on.") : tx("Turned off. Scripts get \"turned off\" until you turn it back on."))
-    } catch (e) { setErr(e.response?.data?.detail || tx("Couldn't save.")) }
+    } catch (e) { setErr(detailText(e) || tx("Couldn't save.")) }
     finally { setBusy(false) }
   }
   const addKey = async () => {
@@ -60,7 +61,7 @@ export default function UsageStats() {
     try {
       const r = await api.post('/stats-admin/keys', { name: newKey.name, institutions: [newKey.institution] })
       setMade(r.data); setNewKey({ name: '', institution: '*' }); load()
-    } catch (e) { setErr(e.response?.data?.detail || tx("Couldn't make the key.")) }
+    } catch (e) { setErr(detailText(e) || tx("Couldn't make the key.")) }
   }
   const remove = async (c) => {
     if (!confirm(tx("Remove the key {name}? Scripts using it will stop working.", { name: c.name }))) return
@@ -69,7 +70,7 @@ export default function UsageStats() {
   const runTest = async () => {
     setTest({ running: true })
     try { const r = await api.post('/stats-admin/self-test'); setTest(r.data) }
-    catch (e) { setTest({ error: e.response?.data?.detail || tx("The self-test couldn't run.") }) }
+    catch (e) { setTest({ error: detailText(e) || tx("The self-test couldn't run.") }) }
   }
 
   if (!d) return <div className="p-6 text-slate-500 text-sm">{err || tx("Loading…")}</div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Bot, ShieldCheck } from 'lucide-react'
 import api from '../api'
 import { tx } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 // Admin: automatic CAPTCHA solving through a solving service you have an
 // account with. Only the site's CAPTCHA key and a cleaned page address, or a
@@ -26,7 +27,7 @@ export default function SolvingSettings() {
     try {
       await api.patch('/captcha/solving', { service, api_key: clear ? '' : (key || undefined) })
       setKey(''); setMsg(clear ? tx("Key removed.") : tx("Saved.")); load()
-    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save that.")) }
+    } catch (e) { setMsg(detailText(e) || tx("Couldn't save that.")) }
   }
 
   return (
@@ -44,7 +45,7 @@ export default function SolvingSettings() {
             : tx("Off: add your service account key.")}
         </span>
         {!d.plugin_installed && (
-          <button onClick={async () => { try { await api.post('/captcha/solving/install'); setMsg(tx("Added. Now turn it on on the Plugins page.")); load() } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't add it.")) } }}
+          <button onClick={async () => { try { await api.post('/captcha/solving/install'); setMsg(tx("Added. Now turn it on on the Plugins page.")); load() } catch (e) { setMsg(detailText(e) || tx("Couldn't add it.")) } }}
             className="ms-2 px-2.5 py-1 text-xs text-slate-200 border border-slate-600 rounded-lg hover:bg-slate-700">{tx("Add the solving plugin")}</button>
         )}
         {d.plugin_installed && !d.plugin_enabled && <a href="/plugins" className="ms-2 text-shield-300 text-xs hover:underline">{tx("Open Plugins")}</a>}

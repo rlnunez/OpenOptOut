@@ -6,6 +6,7 @@ import {
 import api from '../api'
 import { tx } from '../i18n/tx'
 import { fmtDateTime } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 export default function SystemUpdates() {
   const [data, setData] = useState(null)
@@ -37,7 +38,7 @@ export default function SystemUpdates() {
         setScheduleWindowHours(r.data.schedule_window_hours || 2)
       })
       .catch(e => {
-        setMessage({ type: 'error', text: e.response?.data?.detail || tx("Could not load update information.") })
+        setMessage({ type: 'error', text: detailText(e) || tx("Could not load update information.") })
       })
       .finally(() => setLoading(false))
   }, [])
@@ -75,7 +76,7 @@ export default function SystemUpdates() {
       if (res.data.schedule_window_hours) setScheduleWindowHours(res.data.schedule_window_hours)
       setMessage({ type: 'success', text: tx("Release check completed.") })
     } catch (e) {
-      setMessage({ type: 'error', text: e.response?.data?.detail || tx("Failed to check for updates.") })
+      setMessage({ type: 'error', text: detailText(e) || tx("Failed to check for updates.") })
     } finally {
       setChecking(false)
     }
@@ -106,7 +107,7 @@ export default function SystemUpdates() {
       setData(res.data)
       setMessage({ type: 'success', text: tx("Update policy and schedule saved.") })
     } catch (e) {
-      setMessage({ type: 'error', text: e.response?.data?.detail || tx("Failed to save update policy.") })
+      setMessage({ type: 'error', text: detailText(e) || tx("Failed to save update policy.") })
     } finally {
       setSavingPolicy(false)
     }
@@ -118,7 +119,7 @@ export default function SystemUpdates() {
       setData(res.data)
       setMessage({ type: 'success', text: tx("Release ignored.") })
     } catch (e) {
-      setMessage({ type: 'error', text: e.response?.data?.detail || tx("Failed to ignore release.") })
+      setMessage({ type: 'error', text: detailText(e) || tx("Failed to ignore release.") })
     }
   }
 
@@ -128,7 +129,7 @@ export default function SystemUpdates() {
       setData(res.data)
       setMessage({ type: 'success', text: tx("Release restored to update list.") })
     } catch (e) {
-      setMessage({ type: 'error', text: e.response?.data?.detail || tx("Failed to restore release.") })
+      setMessage({ type: 'error', text: detailText(e) || tx("Failed to restore release.") })
     }
   }
 
@@ -143,7 +144,7 @@ export default function SystemUpdates() {
       setData(prev => ({ ...prev, state: res.data.state }))
       setMessage({ type: 'info', text: tx("Update initiated. Workers are draining.") })
     } catch (e) {
-      setMessage({ type: 'error', text: e.response?.data?.detail || tx("Failed to initiate update.") })
+      setMessage({ type: 'error', text: detailText(e) || tx("Failed to initiate update.") })
     } finally {
       setApplying(false)
     }
@@ -161,7 +162,7 @@ export default function SystemUpdates() {
       setData(prevData => ({ ...prevData, state: res.data.state }))
       setMessage({ type: 'info', text: tx("Rollback initiated. Restoring previous containers.") })
     } catch (e) {
-      setMessage({ type: 'error', text: e.response?.data?.detail || tx("Failed to initiate rollback.") })
+      setMessage({ type: 'error', text: detailText(e) || tx("Failed to initiate rollback.") })
     } finally {
       setRollingBack(false)
     }

@@ -5,6 +5,7 @@ import Markdown from '../components/Markdown'
 import { LimitsText, NoticeText } from '../components/TermsGate'
 import { tx, txn } from '../i18n/tx'
 import { fmtDate } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 // Admin → Terms (super admins). The terms the people running this server
 // offer to everyone who signs in (backend/core/terms.py). Saving changes asks
@@ -21,7 +22,7 @@ export default function Terms() {
     setCfg(r.data)
     setForm({ operator: r.data.operator || r.data.defaults.operator, contact: r.data.contact || r.data.defaults.contact,
               text: r.data.text, enabled: r.data.enabled })
-  }).catch(e => setErr(e.response?.data?.detail || tx("Couldn't load the terms.")))
+  }).catch(e => setErr(detailText(e) || tx("Couldn't load the terms.")))
   useEffect(() => { load() }, [])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -39,7 +40,7 @@ export default function Terms() {
       setMsg(!r.data.enabled ? tx("Saved. The terms are turned off, so nobody is asked to accept them.")
         : r.data.version !== before ? tx("Saved. Everyone will be asked to accept the new terms the next time they sign in.")
         : tx("Saved. Nothing people see changed, so nobody is asked again."))
-    } catch (e) { setErr(e.response?.data?.detail || tx("Couldn't save the terms.")) }
+    } catch (e) { setErr(detailText(e) || tx("Couldn't save the terms.")) }
     finally { setBusy(false) }
   }
 

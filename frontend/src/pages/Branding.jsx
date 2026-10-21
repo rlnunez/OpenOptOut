@@ -11,6 +11,7 @@ import { useLanguage } from '../i18n/LanguageContext'
 import { tx, txr } from '../i18n/tx'
 import { fmtDate, fmtDateTime } from '../i18n/format'
 import ResidentAddresses from '../components/ResidentAddresses'
+import { detailText } from '../errorMessage'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
@@ -903,7 +904,7 @@ function AuthProvidersSection() {
       })
       setLdapMsg({ ok: true, warnings: r.data.warnings || [] })
     } catch (e) {
-      setLdapMsg({ ok: false, error: e.response?.data?.detail || tx("Save failed") })
+      setLdapMsg({ ok: false, error: detailText(e) || tx("Save failed") })
     } finally { setSaving(s => ({...s, ldap: false})) }
   }
 
@@ -928,7 +929,7 @@ function AuthProvidersSection() {
       })
       setSip2Msg({ ok: true, warnings: r.data.warnings || [] })
     } catch (e) {
-      setSip2Msg({ ok: false, error: e.response?.data?.detail || tx("Save failed") })
+      setSip2Msg({ ok: false, error: detailText(e) || tx("Save failed") })
     } finally { setSaving(s => ({...s, sip2: false})) }
   }
 
@@ -1458,7 +1459,7 @@ function SamlPanel() {
       if (!body.idp_metadata_xml) delete body.idp_metadata_xml
       const r = await api.put('/auth/saml/config', body)
       setCfg(r.data); setForm(f => ({ ...f, idp_metadata_xml: '' })); setMsg(tx("Saved."))
-    } catch (e) { setErr(e.response?.data?.detail || tx("Save failed")) }
+    } catch (e) { setErr(detailText(e) || tx("Save failed")) }
     finally { setSaving(false) }
   }
 

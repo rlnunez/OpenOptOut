@@ -3433,5 +3433,8 @@
   "Live Preview": "Live na Preview",
   "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "Ipinapakita ng tekstong ito ang napiling laki ng font nang real time. Ang lahat ng talahanayan, form, at menu ay proporsyonal na nag-aayos sa buong OpenOptOut.",
   "Use arrow keys to adjust in 5% increments.": "Gamitin ang mga arrow key upang i-adjust sa 5% na pagtaas.",
-  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Ikonekta ang isang katulong na AI upang suriin ang mga pahina ng broker, mag-draft ng mga bagong hakbang sa pag-opt-out, at ayusin ang mga sirang selector ng pagpuno ng form."
+  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Ikonekta ang isang katulong na AI upang suriin ang mga pahina ng broker, mag-draft ng mga bagong hakbang sa pag-opt-out, at ayusin ang mga sirang selector ng pagpuno ng form.",
+  "Something went wrong": "May nangyaring mali",
+  "Reload the page": "I-reload ang pahina",
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Nagkaproblema ang pahinang ito at hindi na ito maaaring magpatuloy. Walang nawala — karaniwang naaayos ito ng pag-reload."
 }

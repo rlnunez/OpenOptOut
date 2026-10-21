@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import Markdown from './Markdown'
 import { tx } from '../i18n/tx'
 import { fmtDate } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 // What people are asked to read and accept before using OpenOptOut
 // (backend/core/terms.py). Changing the wording of LimitsText or NoticeText
@@ -69,7 +70,7 @@ function Step({ need, data, onAccepted, onSignOut }) {
       const r = await api.post('/terms/accept', { kind: need.kind, version: need.version })
       onAccepted(r.data.needs)
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Couldn't save that. Please try again."))
+      setError(detailText(e) || tx("Couldn't save that. Please try again."))
     } finally { setBusy(false) }
   }
 

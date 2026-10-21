@@ -13791,6 +13791,12 @@
    ]
   },
   {
+   "text": "Reload the page",
+   "where": [
+    "components/ErrorBoundary.jsx"
+   ]
+  },
+  {
    "text": "Remember Me Allowed for Role",
    "where": [
     "pages/Settings.jsx"
@@ -16232,6 +16238,12 @@
    ]
   },
   {
+   "text": "Something went wrong",
+   "where": [
+    "components/ErrorBoundary.jsx"
+   ]
+  },
+  {
    "text": "Something went wrong on the server. An administrator can check the System logs.",
    "where": [
     "server: live_captcha.py"
@@ -17670,6 +17682,12 @@
    "text": "This is the system inbox",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.",
+   "where": [
+    "components/ErrorBoundary.jsx"
    ]
   },
   {

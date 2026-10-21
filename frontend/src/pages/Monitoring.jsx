@@ -4,6 +4,7 @@ import api from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { tx, txn } from '../i18n/tx'
 import { fmtDateTime, fmtNumber } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 // Monitoring and alerts (super admins): health checks and the addresses a
 // monitoring tool polls, webhook notifications, and log forwarding. Nothing
@@ -109,7 +110,7 @@ function WebhookForm({ hook, settings, onDone, onCancel }) {
     if (f.url) body.url = f.url
     if (f.secret !== undefined) body.secret = f.secret
     try { await api.put(hook ? `/observability/webhooks/${hook.id}` : '/observability/webhooks', body); onDone() }
-    catch (e) { setErr(e.response?.data?.detail || tx("Couldn't save that.")) }
+    catch (e) { setErr(detailText(e) || tx("Couldn't save that.")) }
   }
   const labels = EVENT_LABELS()
   return (
@@ -159,7 +160,7 @@ function LogForm({ dest, settings, onDone, onCancel }) {
     else body.endpoint = f.endpoint
     if (f.token !== undefined) body.token = f.token
     try { await api.put(dest ? `/observability/log-forwarding/${dest.id}` : '/observability/log-forwarding', body); onDone() }
-    catch (e) { setErr(e.response?.data?.detail || tx("Couldn't save that.")) }
+    catch (e) { setErr(detailText(e) || tx("Couldn't save that.")) }
   }
   const tokenLabel = { otlp: tx("Bearer token (optional)"), loki: tx("Bearer token (optional)"), splunk_hec: tx("HEC token") }[f.kind]
   return (
@@ -222,7 +223,7 @@ export default function Monitoring() {
   const [editHook, setEditHook] = useState(null)     // null | 'new' | hook
   const [editLog, setEditLog] = useState(null)
   const load = useCallback(() => {
-    api.get('/observability').then(r => setS(r.data)).catch(e => setMsg(e.response?.data?.detail || tx("Couldn't load the settings.")))
+    api.get('/observability').then(r => setS(r.data)).catch(e => setMsg(detailText(e) || tx("Couldn't load the settings.")))
   }, [])
   useEffect(() => { load() }, [load])
   if (user?.role !== 'super_admin') return <div className="p-6 text-slate-400 text-sm">{tx("Only super admins can see this page.")}</div>
@@ -231,7 +232,7 @@ export default function Monitoring() {
   const test = async path => {
     setMsg('')
     try { const { data } = await api.post(path); setMsg(data.message); load() }
-    catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't send it.")) }
+    catch (e) { setMsg(detailText(e) || tx("Couldn't send it.")) }
   }
   const remove = async (path, name) => {
     if (!window.confirm(tx("Remove {name}?", { name }))) return

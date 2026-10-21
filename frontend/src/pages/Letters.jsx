@@ -3,6 +3,7 @@ import { FileText, Eye, X, AlertTriangle, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '../api'
 import { tx, txn, txr, activeLanguage } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 // Opt-out letters: the wording sent to brokers by email. Each letter is a
 // plugin (Plugins page: add, replace or turn one off). Here an admin reads
@@ -42,7 +43,7 @@ function Preview({ letter, onClose }) {
   useEffect(() => {
     setErr('')
     api.get(`/letters/${letter.id}/preview`, { params: { language: lang } })
-      .then(r => setData(r.data)).catch(e => setErr(e.response?.data?.detail || tx("Couldn't show the letter.")))
+      .then(r => setData(r.data)).catch(e => setErr(detailText(e) || tx("Couldn't show the letter.")))
   }, [letter.id, lang])
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 md:p-6" role="dialog" aria-modal="true" aria-labelledby="lp-h">
@@ -85,7 +86,7 @@ export default function Letters() {
   const languages = useMemo(() => displayNames('language'), [])
 
   const load = useCallback(() => {
-    api.get('/letters').then(r => setData(r.data)).catch(e => setMsg(e.response?.data?.detail || tx("Couldn't load the letters.")))
+    api.get('/letters').then(r => setData(r.data)).catch(e => setMsg(detailText(e) || tx("Couldn't load the letters.")))
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -98,7 +99,7 @@ export default function Letters() {
       const { data: updated } = await api.put('/letters/assign', { kind: row.kind, id: row.id, letter_id: letterId })
       setData(d => ({ ...d, [row.kind === 'broker' ? 'brokers' : 'parents']: d[row.kind === 'broker' ? 'brokers' : 'parents'].map(r => r.id === row.id ? updated : r) }))
       setMsg(tx("Saved. {name} now gets: {letter}.", { name: row.name, letter: title(updated.uses) || tx("its add-on's own wording") }))
-    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save that.")) }
+    } catch (e) { setMsg(detailText(e) || tx("Couldn't save that.")) }
   }
 
   if (!data) return <div className="p-6 text-slate-400 text-sm">{msg || tx("Loading…")}</div>

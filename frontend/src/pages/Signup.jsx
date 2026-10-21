@@ -5,6 +5,7 @@ import api from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
 import { tx } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 const btn = "w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
@@ -97,7 +98,7 @@ export default function Signup() {
       else { setError(addressMessage(data)); setHelp(data.help || '') }
     } catch (err) {
       setError(err.response?.status === 429 ? tx("Too many tries. Wait a minute and try again.")
-        : (err.response?.data?.detail || tx("Couldn't check the address. Try again in a minute.")))
+        : (detailText(err) || tx("Couldn't check the address. Try again in a minute.")))
     } finally { setBusy(false) }
   }
 
@@ -108,7 +109,7 @@ export default function Signup() {
       setEmailToken(data.token); setSentMsg(tx("We sent a 6-digit code to that email. It expires in 15 minutes.")); setStep('details')
     } catch (err) {
       setError(err.response?.status === 429 ? tx("Too many tries. Wait a minute and try again.")
-        : (err.response?.data?.detail || tx("Couldn't send the code. Check the email address and try again.")))
+        : (detailText(err) || tx("Couldn't send the code. Check the email address and try again.")))
     } finally { setBusy(false) }
   }
 
@@ -127,7 +128,7 @@ export default function Signup() {
       await login(email.trim(), form.password)
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.detail || tx("Couldn't create the account. Check the details and try again."))
+      setError(detailText(err) || tx("Couldn't create the account. Check the details and try again."))
     } finally { setBusy(false) }
   }
 

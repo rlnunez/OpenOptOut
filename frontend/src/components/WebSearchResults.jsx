@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { Globe2, RefreshCw, Check, X, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react'
 import api from '../api'
 import { tx, txn } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 const WHY = {
   phone: tx("shows one of the saved phone numbers"),
@@ -47,14 +48,14 @@ export default function WebSearchResults({ memberId, memberName, onAdded }) {
   const start = async () => {
     setMsg('')
     try { await api.post(`/web-search/run/${memberId}`); setRun({ running: true }); timer.current = setTimeout(load, 3000) }
-    catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't start the search.")) }
+    catch (e) { setMsg(detailText(e) || tx("Couldn't start the search.")) }
   }
   const act = async (h, kind) => {
     try {
       if (kind === 'add') { const { data } = await api.post(`/web-search/hits/${h.id}/add`); setMsg(data.message); onAdded && onAdded() }
       else { await api.post(`/web-search/hits/${h.id}/dismiss`, { reason: 'not_me' }); setMsg(tx("Got it — that page won't be shown again.")) }
       load()
-    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save that.")) }
+    } catch (e) { setMsg(detailText(e) || tx("Couldn't save that.")) }
   }
 
   const review = hits.filter(h => h.status === 'new')

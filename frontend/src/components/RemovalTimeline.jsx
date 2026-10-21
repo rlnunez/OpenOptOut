@@ -4,6 +4,7 @@ import api from '../api'
 import Badge from './Badge'
 import { tx } from '../i18n/tx'
 import { fmtDate } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 // Progress of one opt-out, round after round: sent → reply → removed →
 // staying gone. If a later check finds the listing again, a new round starts.
@@ -111,7 +112,7 @@ export default function BrokerTimelines({ brokerId }) {
   useEffect(() => {
     api.get(`/timeline/broker/${brokerId}`)
       .then(r => setData(r.data))
-      .catch(e => setError(e.response?.data?.detail || tx("Couldn't load the history.")))
+      .catch(e => setError(detailText(e) || tx("Couldn't load the history.")))
   }, [brokerId])
   if (error) return <p role="alert" className="text-red-400 text-sm">{error}</p>
   if (!data) return <p className="text-slate-400 text-sm">{tx("Loading…")}</p>

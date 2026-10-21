@@ -7,6 +7,7 @@ import {
 import api from '../api'
 import { tx } from '../i18n/tx'
 import LiveCaptcha from '../components/LiveCaptcha'
+import { detailText } from '../errorMessage'
 
 const btn = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm'
 
@@ -173,7 +174,7 @@ export default function Checklist() {
       else if (kind === 'removed') { const { data: d } = await api.post(`/checklist/${item.request_id}/removed`); setMsg(d.message) }
       else if (kind === 'requeue') { await api.post(`/requests/${item.request_id}/requeue`); setMsg(tx("{broker_name} will be sent again in the next run.", { broker_name: item.broker_name })) }
       load()
-    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save that. Please try again.")) }
+    } catch (e) { setMsg(detailText(e) || tx("Couldn't save that. Please try again.")) }
   }
 
   const g = data?.groups || {}

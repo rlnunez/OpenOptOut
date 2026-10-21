@@ -3433,5 +3433,8 @@
   "Live Preview": "Pré-visualização ao vivo",
   "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "Este texto pré-visualiza o tamanho de fonte selecionado em tempo real. Todas as tabelas, formulários e menus ajustam-se proporcionalmente em todo o OpenOptOut.",
   "Use arrow keys to adjust in 5% increments.": "Use as teclas de seta para ajustar em incrementos de 5%.",
-  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Conecte um assistente de IA para inspecionar páginas de corretores, criar novas etapas de exclusão e reparar seletores de formulários corrompidos."
+  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Conecte um assistente de IA para inspecionar páginas de corretores, criar novas etapas de exclusão e reparar seletores de formulários corrompidos.",
+  "Something went wrong": "Algo deu errado",
+  "Reload the page": "Recarregar a página",
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Esta página encontrou um problema e não pode continuar. Nada foi perdido — recarregar geralmente resolve."
 }

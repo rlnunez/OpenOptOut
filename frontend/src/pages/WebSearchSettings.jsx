@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Globe2, AlertTriangle, Save } from 'lucide-react'
 import api from '../api'
 import { tx, txr } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 const inp = 'w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-shield-500'
 
@@ -22,7 +23,7 @@ export default function WebSearchSettings() {
       await api.put('/web-search/settings', body)
       setMsg(tx("Saved."))
       const r = await api.get('/web-search/settings'); setS(r.data)
-    } catch (err) { setMsg(err.response?.data?.detail || tx("Couldn't save.")) }
+    } catch (err) { setMsg(detailText(err) || tx("Couldn't save.")) }
     finally { setBusy(false) }
   }
 

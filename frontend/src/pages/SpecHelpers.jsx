@@ -7,6 +7,7 @@ import api from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { tx } from '../i18n/tx'
 import { fmtDateTime } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 const STATUS = {
   queued:           { label: () => tx("Waiting"),             cls: 'text-slate-300 border-slate-600' },
@@ -69,7 +70,7 @@ export default function SpecHelpers() {
       const r = await api.post(`/spec-helpers/drafts/${d.id}/${what}`)
       if (r.data?.message) setMsg(r.data.message)
       load()
-    } catch (e) { setMsg(e.response?.data?.detail || tx("That didn't work.")) }
+    } catch (e) { setMsg(detailText(e) || tx("That didn't work.")) }
   }
   const exportZip = async (d) => {
     try {
@@ -278,7 +279,7 @@ function StartBox({ onStarted, settings }) {
     try {
       const r = await api.post(`/spec-helpers/brokers/${broker.id}/${what}`, provider ? { provider } : {})
       onStarted(r.data.message)
-    } catch (e) { setErr(e.response?.data?.detail || tx("That didn't work.")) }
+    } catch (e) { setErr(detailText(e) || tx("That didn't work.")) }
     finally { setBusy(false) }
   }
 
@@ -330,7 +331,7 @@ function StartBox({ onStarted, settings }) {
 function HelperSettings({ settings, onSaved, setMsg }) {
   const saveOpts = async (patch) => {
     try { onSaved((await api.put('/spec-helpers/settings', patch)).data) }
-    catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save.")) }
+    catch (e) { setMsg(detailText(e) || tx("Couldn't save.")) }
   }
   const move = (pid, dir) => {
     const o = [...settings.order]; const i = o.indexOf(pid); const j = i + dir
@@ -406,13 +407,13 @@ function ProviderCard({ pid, p, onSaved, setMsg }) {
   const save = async (patch) => {
     setBusy(true)
     try { onSaved((await api.put(`/spec-helpers/providers/${pid}`, patch)).data); setKey('') }
-    catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save.")) }
+    catch (e) { setMsg(detailText(e) || tx("Couldn't save.")) }
     finally { setBusy(false) }
   }
   const test = async () => {
     setBusy(true); setResult(null)
     try { setResult((await api.post(`/spec-helpers/providers/${pid}/test`)).data) }
-    catch (e) { setResult({ ok: false, message: e.response?.data?.detail || tx("That didn't work.") }) }
+    catch (e) { setResult({ ok: false, message: detailText(e) || tx("That didn't work.") }) }
     finally { setBusy(false) }
   }
   return (
@@ -456,7 +457,7 @@ function LocalModels({ settings, onSaved, setMsg }) {
       if (!body.api_key) delete body.api_key
       const r = form.id ? await api.put(`/spec-helpers/local/${form.id}`, body) : await api.post('/spec-helpers/local', body)
       onSaved(r.data); setForm(null)
-    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save.")) }
+    } catch (e) { setMsg(detailText(e) || tx("Couldn't save.")) }
   }
   const remove = async (l) => {
     if (!window.confirm(tx("Remove the connection to {name}?", { name: l.name }))) return
@@ -465,7 +466,7 @@ function LocalModels({ settings, onSaved, setMsg }) {
   const toggle = async (l, enabled) => {
     try {
       onSaved((await api.put(`/spec-helpers/local/${l.id}`, { name: l.name, base_url: l.base_url, model: l.model, enabled })).data)
-    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save.")) }
+    } catch (e) { setMsg(detailText(e) || tx("Couldn't save.")) }
   }
   const test = async (l) => {
     setResults({ ...results, [l.id]: { message: tx("Asking your model… this can take a while.") } })

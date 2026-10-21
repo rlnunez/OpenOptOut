@@ -3431,5 +3431,8 @@
   "Live Preview": "Hakiki Papo Hapo",
   "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "Maandishi haya yanakagua ukubwa wa fonti uliyoichagua kwa wakati halisi. Jedwali zote, fomu, na menyu hubadilika kulingana katika OpenOptOut.",
   "Use arrow keys to adjust in 5% increments.": "Tumia vitufe vya mishale kurekebisha kwa ongezeko la 5%.",
-  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Unganisha msaidizi wa AI ili kukagua kurasa za madalali, kuandaa hatua mpya za kujiondoa, na kurekebisha viteuzi vilivyovunjika vya kujaza fomu."
+  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Unganisha msaidizi wa AI ili kukagua kurasa za madalali, kuandaa hatua mpya za kujiondoa, na kurekebisha viteuzi vilivyovunjika vya kujaza fomu.",
+  "Something went wrong": "Hitilafu imetokea",
+  "Reload the page": "Pakia upya ukurasa",
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Ukurasa huu umekumbana na tatizo na hauwezi kuendelea. Hakuna kilichopotea — kupakia upya kawaida hutatua tatizo hili."
 }

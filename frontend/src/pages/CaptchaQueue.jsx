@@ -11,6 +11,7 @@ import SolvingSettings from '../components/SolvingSettings'
 import { useAuth } from '../hooks/useAuth'
 import { tx } from '../i18n/tx'
 import { fmtDateTime } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 export default function CaptchaQueue() {
   const [challenges, setChallenges] = useState([])
@@ -56,7 +57,7 @@ export default function CaptchaQueue() {
       })
       loadData()
     } catch (err) {
-      alert(tx("Couldn't save that:") + (err.response?.data?.detail || err.message))
+      alert(tx("Couldn't save that:") + (detailText(err) || err.message))
     } finally {
       setActionInProgress(false)
     }
@@ -77,7 +78,7 @@ export default function CaptchaQueue() {
       setNotesInput('')
       loadData()
     } catch (err) {
-      alert(tx("Couldn't use that code:") + (err.response?.data?.detail || err.message))
+      alert(tx("Couldn't use that code:") + (detailText(err) || err.message))
     } finally {
       setActionInProgress(false)
     }
@@ -91,7 +92,7 @@ export default function CaptchaQueue() {
       await api.post(`/captcha/challenges/${challengeId}/dismiss`, { notes: reason })
       loadData()
     } catch (err) {
-      alert(tx("Couldn't skip it:") + (err.response?.data?.detail || err.message))
+      alert(tx("Couldn't skip it:") + (detailText(err) || err.message))
     } finally {
       setActionInProgress(false)
     }
@@ -103,7 +104,7 @@ export default function CaptchaQueue() {
       await api.post(`/captcha/challenges/${challengeId}/retry`)
       loadData()
     } catch (err) {
-      alert(tx("Couldn't try again:") + (err.response?.data?.detail || err.message))
+      alert(tx("Couldn't try again:") + (detailText(err) || err.message))
     } finally {
       setActionInProgress(false)
     }

@@ -3433,5 +3433,8 @@
   "Live Preview": "Xem trước trực tiếp",
   "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "Văn bản này xem trước kích thước phông chữ bạn đã chọn theo thời gian thực. Tất cả các bảng, biểu mẫu và menu đều điều chỉnh theo tỷ lệ trên OpenOptOut.",
   "Use arrow keys to adjust in 5% increments.": "Sử dụng các phím mũi tên để điều chỉnh theo từng mức 5%.",
-  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Kết nối trợ lý AI để kiểm tra các trang của nhà môi giới, phác thảo các bước chọn không tham gia mới và sửa các bộ chọn điền biểu mẫu bị hỏng."
+  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Kết nối trợ lý AI để kiểm tra các trang của nhà môi giới, phác thảo các bước chọn không tham gia mới và sửa các bộ chọn điền biểu mẫu bị hỏng.",
+  "Something went wrong": "Đã xảy ra lỗi",
+  "Reload the page": "Tải lại trang",
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Trang này gặp sự cố và không thể tiếp tục. Không có gì bị mất — tải lại thường khắc phục được sự cố."
 }

@@ -7,6 +7,7 @@ import {
 import api from '../api'
 import { tx, txr } from '../i18n/tx'
 import { SecretKeyGeneratorPanel } from '../components/SecretKeyBanner'
+import { detailText } from '../errorMessage'
 
 const EXPRESS_STEPS = ['security', 'database', 'deployment', 'email', 'ai', 'summary']
 const ADVANCED_STEPS = ['security', 'database', 'deployment', 'email', 'ai', 'branding', 'summary']
@@ -50,7 +51,7 @@ export default function SetupWizard({ onDone }) {
       await api.post('/wizard/skip', { step: name })
       next()
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Failed to skip"))
+      setError(detailText(e) || tx("Failed to skip"))
     } finally {
       setBusy(false)
     }
@@ -63,7 +64,7 @@ export default function SetupWizard({ onDone }) {
       setSummary(r.data)
       setStep(currentSteps.length - 1)
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Failed to finish"))
+      setError(detailText(e) || tx("Failed to finish"))
     } finally {
       setBusy(false)
     }
@@ -291,7 +292,7 @@ function SecurityStep({ onNext, onBack, busy, setError }) {
       const res = await api.get('/wizard/master-key')
       setKeyData(res.data)
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Failed to load master encryption key"))
+      setError(detailText(e) || tx("Failed to load master encryption key"))
     } finally {
       setLoading(false)
     }
@@ -471,7 +472,7 @@ function ExpressDatabaseStep({ onNext, onBack, busy, setError }) {
       await api.post('/wizard/database', { kind: 'sqlite' })
       onNext()
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Failed to save database settings"))
+      setError(detailText(e) || tx("Failed to save database settings"))
     } finally {
       setSaving(false)
     }
@@ -527,7 +528,7 @@ function ExpressDeploymentStep({ onNext, onBack, busy, setError, deployment, set
       await api.post('/wizard/deployment', body)
       onNext()
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Failed to save deployment settings"))
+      setError(detailText(e) || tx("Failed to save deployment settings"))
     } finally {
       setSaving(false)
     }
@@ -619,7 +620,7 @@ function ExpressEmailStep({ onNext, onBack, busy, setError }) {
       }
       onNext()
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Failed to save email settings"))
+      setError(detailText(e) || tx("Failed to save email settings"))
     } finally {
       setSaving(false)
     }
@@ -707,7 +708,7 @@ function DatabaseStep({ onNext, onBack, busy, setError }) {
     try {
       await api.post('/wizard/database', kind === 'postgres' ? { kind, ...pg } : { kind })
       onNext()
-    } catch (e) { setError(e.response?.data?.detail || tx("Failed to save database settings")) }
+    } catch (e) { setError(detailText(e) || tx("Failed to save database settings")) }
     finally { setSaving(false) }
   }
 
@@ -783,7 +784,7 @@ function EmailStep({ onNext, onBack, busy, setError }) {
       setProvider(r.data.plugin_id)
       setUploadMsg(tx("Installed \"{plugin_id}\" into plugins/{destination} and selected it.", { plugin_id: r.data.plugin_id, destination: r.data.destination }))
     } catch (err) {
-      setError(err.response?.data?.detail || tx("Upload failed (the inspector may have rejected it)."))
+      setError(detailText(err) || tx("Upload failed (the inspector may have rejected it)."))
     } finally { setUploading(false); e.target.value = '' }
   }
 
@@ -802,7 +803,7 @@ function EmailStep({ onNext, onBack, busy, setError }) {
       if (effectiveProvider === 'smtp') Object.assign(body, smtp)
       await api.post('/wizard/email', body)
       onNext()
-    } catch (e) { setError(e.response?.data?.detail || tx("Failed to save email settings")) }
+    } catch (e) { setError(detailText(e) || tx("Failed to save email settings")) }
     finally { setSaving(false) }
   }
 
@@ -944,7 +945,7 @@ function ConnectOAuth({ provider, setError }) {
       }, 2500)
       setTimeout(() => clearInterval(iv), 300000)  // stop after 5 min
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Could not start the connect flow"))
+      setError(detailText(e) || tx("Could not start the connect flow"))
     } finally { setBusy(false) }
   }
 
@@ -1044,7 +1045,7 @@ function DeploymentStep({ onNext, onBack, busy, setError }) {
       }
       await api.post('/wizard/deployment', body)
       onNext()
-    } catch (e) { setError(e.response?.data?.detail || tx("Failed to save deployment settings")) }
+    } catch (e) { setError(detailText(e) || tx("Failed to save deployment settings")) }
     finally { setSaving(false) }
   }
 
@@ -1214,7 +1215,7 @@ function AIStep({ onNext, onBack, busy, setError, isLastStep }) {
       })
       setTestResult(res.data)
     } catch (e) {
-      setTestResult({ ok: false, message: e.response?.data?.detail || tx("Connection test failed.") })
+      setTestResult({ ok: false, message: detailText(e) || tx("Connection test failed.") })
     } finally {
       setTesting(false)
     }
@@ -1238,7 +1239,7 @@ function AIStep({ onNext, onBack, busy, setError, isLastStep }) {
       }
       onNext()
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Failed to save AI helper configuration"))
+      setError(detailText(e) || tx("Failed to save AI helper configuration"))
     } finally {
       setSaving(false)
     }
@@ -1568,7 +1569,7 @@ function LogoDropzone({ logoUrl, onUploaded, onRemoved, setError }) {
       const r = await api.post('/branding/logo', fd)
       onUploaded(r.data.logo_url)
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Logo upload failed"))
+      setError(detailText(e) || tx("Logo upload failed"))
     } finally { setUploading(false) }
   }
 
@@ -1617,7 +1618,7 @@ function BrandingStep({ onNext, onSkip, onBack, busy, setError }) {
   const save = async () => {
     setSaving(true); setError('')
     try { await api.post('/wizard/branding', b); onNext() }
-    catch (e) { setError(e.response?.data?.detail || tx("Failed to save branding")) }
+    catch (e) { setError(detailText(e) || tx("Failed to save branding")) }
     finally { setSaving(false) }
   }
 

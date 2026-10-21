@@ -3,6 +3,7 @@ import { Landmark, Upload, ExternalLink, AlertTriangle, RefreshCw, Power, PowerO
 import api from '../api'
 import { tx, txn, txr } from '../i18n/tx'
 import { fmtDate } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 const inp = 'w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-shield-500'
 const btn = 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm disabled:opacity-50'
@@ -55,12 +56,12 @@ function SourceCard({ src, onDone, setMsg }) {
       const { data } = await api.post(`/registry/${src.state}/${kind}`, fd)
       if (kind === 'preview') setPreview(data)
       else { setMsg(data.message); setPreview(null); setFile(null); onDone() }
-    } catch (e) { setMsg(e.response?.data?.detail || tx("Something went wrong reading the registry.")) }
+    } catch (e) { setMsg(detailText(e) || tx("Something went wrong reading the registry.")) }
     finally { setBusy('') }
   }
   const saveUrl = async () => {
     try { await api.put(`/registry/sources/${src.state}`, { url }); setMsg(tx("Saved the {label} download address.", { label: src.label })); onDone() }
-    catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save that address.")) }
+    catch (e) { setMsg(detailText(e) || tx("Couldn't save that address.")) }
   }
 
   return (
@@ -155,7 +156,7 @@ export default function StateRegistries() {
   const enable = async () => {
     const body = dialog === 'all' ? { all_registry: true, acknowledge: true } : { broker_ids: [...selected], acknowledge: true }
     try { const { data } = await api.post('/registry/enable', body); setMsg(tx("Turned on {enabled} broker(s).", { enabled: data.enabled })) }
-    catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't turn them on.")) }
+    catch (e) { setMsg(detailText(e) || tx("Couldn't turn them on.")) }
     setDialog(null); load()
   }
   const disable = async () => {

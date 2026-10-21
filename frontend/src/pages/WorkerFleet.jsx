@@ -7,6 +7,7 @@ import {
 import api from '../api'
 import { tx } from '../i18n/tx'
 import CapacityPlanner from '../components/CapacityPlanner'
+import { detailText } from '../errorMessage'
 
 function fmtUptime(seconds) {
   if (!seconds || seconds <= 0) return tx("< 1m")
@@ -75,7 +76,7 @@ export default function WorkerFleet() {
     } catch (err) {
       setBanner({
         type: 'error',
-        msg: `Couldn't change ${workerId}: ${err?.response?.data?.detail || tx("please try again.")}`,
+        msg: `Couldn't change ${workerId}: ${detailText(err) || tx("please try again.")}`,
       })
     } finally {
       setActionBusy(null)
@@ -95,7 +96,7 @@ export default function WorkerFleet() {
     } catch (err) {
       setBanner({
         type: 'error',
-        msg: `Couldn't remove the worker: ${err?.response?.data?.detail || tx("please try again.")}`,
+        msg: `Couldn't remove the worker: ${detailText(err) || tx("please try again.")}`,
       })
     } finally {
       setActionBusy(null)
@@ -115,7 +116,7 @@ export default function WorkerFleet() {
     } catch (err) {
       setBanner({
         type: 'error',
-        msg: `Couldn't take back its jobs: ${err?.response?.data?.detail || tx("please try again.")}`,
+        msg: `Couldn't take back its jobs: ${detailText(err) || tx("please try again.")}`,
       })
     } finally {
       setActionBusy(null)

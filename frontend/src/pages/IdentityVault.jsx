@@ -9,6 +9,7 @@ import api from '../api'
 import { useLanguage } from '../i18n/LanguageContext'
 import { tx, txr } from '../i18n/tx'
 import { fmtNumber } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -185,7 +186,7 @@ function BirthdayEditor({ member, onUpdated, masked }) {
       const { data } = await api.patch(`/family/${member.id}`, { dob: next })
       onUpdated(data)
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Couldn't save the birthday."))
+      setError(detailText(e) || tx("Couldn't save the birthday."))
     } finally { setSaving(false) }
   }
 

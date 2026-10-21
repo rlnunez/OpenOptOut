@@ -3,6 +3,7 @@ import { Globe, Plus, Check, Save, RotateCcw, Search, Filter, AlertCircle, Check
 import api from '../api'
 import { useLanguage } from '../i18n/LanguageContext'
 import { tx, txr } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 export default function Translations() {
   const { language: currentAppLang, setLanguage: setAppLanguage, allLanguages, refreshLanguages, t } = useLanguage()
@@ -91,7 +92,7 @@ export default function Translations() {
       }
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (e) {
-      alert(tx("Couldn't save the translations:") + (e.response?.data?.detail || tx("please try again.")))
+      alert(tx("Couldn't save the translations:") + (detailText(e) || tx("please try again.")))
     } finally {
       setSaving(false)
     }
@@ -103,7 +104,7 @@ export default function Translations() {
       await api.put(`/i18n/languages/${code}/toggle`, { enabled: !currentEnabled })
       await refreshLanguages()
     } catch (e) {
-      alert(e.response?.data?.detail || tx("Couldn't turn that language on or off. Please try again."))
+      alert(detailText(e) || tx("Couldn't turn that language on or off. Please try again."))
     }
   }
 
@@ -130,7 +131,7 @@ export default function Translations() {
       setNewNativeName('')
       setNewIsRTL(false)
     } catch (err) {
-      setAddError(err.response?.data?.detail || tx("Couldn't add the language. Please try again."))
+      setAddError(detailText(err) || tx("Couldn't add the language. Please try again."))
     }
   }
 

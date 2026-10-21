@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Snowflake, Printer, Copy, Check, ExternalLink } from 'lucide-react'
 import api from '../api'
 import { tx } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 // Credit freeze letters. Built fresh from the person's saved details each time;
 // Social Security numbers are never asked for or saved — the letter leaves a
@@ -84,7 +85,7 @@ export default function CreditFreeze() {
     setError('')
     api.get(`/credit-freeze/${who}`, { params })
       .then(r => setData(r.data))
-      .catch(e => setError(e.response?.data?.detail || tx("Couldn't build the letters.")))
+      .catch(e => setError(detailText(e) || tx("Couldn't build the letters.")))
   }, [who, parent, kind])
 
   const minor = data?.kind === 'minor'

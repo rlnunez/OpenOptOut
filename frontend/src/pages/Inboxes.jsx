@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Inbox, Plus, Trash2, RefreshCw, CheckCircle2, AlertTriangle, Clock, HelpCircle, Link2, X } from 'lucide-react'
 import api from '../api'
 import { tx, txr } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 // Plain-language status for the "+address" capability of an inbox.
 const PLUS = {
@@ -42,7 +43,7 @@ function AddInbox({ providers, members, onDone, onCancel }) {
         onDone(tx("Inbox connected."))
       }
     } catch (err) {
-      setError(err.response?.data?.detail || tx("Something went wrong. Please check the details and try again."))
+      setError(detailText(err) || tx("Something went wrong. Please check the details and try again."))
     } finally { setBusy(false) }
   }
 
@@ -154,15 +155,15 @@ export default function Inboxes() {
     try {
       await api.post('/mailboxes/assign', { member_id, mailbox_id: mailbox_id ? Number(mailbox_id) : null })
       setMsg(tx("Saved.")); load()
-    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save that change.")) }
+    } catch (e) { setMsg(detailText(e) || tx("Couldn't save that change.")) }
   }
   const checkPlus = async (mb) => {
     try { await api.post(`/mailboxes/${mb.id}/check-plus`); setMsg(tx("Test email sent. This usually finishes within a few minutes.")); load() }
-    catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't send the test email.")) }
+    catch (e) { setMsg(detailText(e) || tx("Couldn't send the test email.")) }
   }
   const reconnect = async (mb) => {
     try { const { data } = await api.post(`/mailboxes/${mb.id}/reconnect`); window.open(data.authorize_url, '_blank', 'noopener') }
-    catch (e) { setMsg(e.response?.data?.detail || "Couldn't start sign-in.") }
+    catch (e) { setMsg(detailText(e) || "Couldn't start sign-in.") }
   }
   const remove = async (mb) => {
     if (!window.confirm(`Disconnect ${mb.address}? Family members using it will need another inbox before more opt-outs are sent.`)) return

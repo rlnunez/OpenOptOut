@@ -9,6 +9,7 @@ import api from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { tx, txr } from '../i18n/tx'
 import { fmtMB, fmtNumber } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 function Field({ label, hint, children }) {
   return (
@@ -118,7 +119,7 @@ function MigrationTool() {
       await api.post(`/database/migrate-to-postgres?target_url=${encodeURIComponent(targetUrl)}`)
       fetchStatus()
     } catch (err) {
-      alert(err.response?.data?.detail ?? tx("Migration failed to start"))
+      alert(detailText(err) ?? tx("Migration failed to start"))
       setRunning(false)
     }
   }

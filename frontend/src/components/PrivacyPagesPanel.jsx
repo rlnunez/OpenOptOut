@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { ShieldQuestion, ExternalLink, X, Check, RefreshCw } from 'lucide-react'
 import api from '../api'
 import { tx } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 const KIND = {
   hosted_onetrust: 'OneTrust request form',
@@ -36,7 +37,7 @@ export default function PrivacyPagesPanel({ refreshKey }) {
       const { data: d } = await api.post(`/privacy-pages/${p.id}/${what}`)
       if (d.message) setMsg(d.message)
       load()
-    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save that. Please try again.")) }
+    } catch (e) { setMsg(detailText(e) || tx("Couldn't save that. Please try again.")) }
   }
 
   if (!data) return null

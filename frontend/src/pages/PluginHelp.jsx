@@ -4,6 +4,7 @@ import { BookOpen, Code2, RefreshCw, ShieldAlert } from 'lucide-react'
 import api from '../api'
 import Markdown from '../components/Markdown'
 import { tx } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 const TABS = [
   { key: 'using',   label: tx("Using plugins"),   icon: BookOpen, blurb: tx("Security model, permissions, safety controls, and how to install and operate plugins.") },
@@ -23,7 +24,7 @@ export default function PluginHelp() {
     setLoading(true); setError('')
     api.get(`/plugins/docs/${tab}`)
       .then(r => { if (!cancelled) setContent(r.data.markdown || '') })
-      .catch(e => { if (!cancelled) setError(e.response?.data?.detail || tx("Could not load documentation")) })
+      .catch(e => { if (!cancelled) setError(detailText(e) || tx("Could not load documentation")) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [tab])

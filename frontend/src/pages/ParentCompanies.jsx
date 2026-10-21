@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import api from '../api'
 import { tx, txn, txr } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 const HONOR = {
   honors:  { label: tx("Honors requests"), icon: CheckCircle2, cls: 'text-emerald-400' },
@@ -48,7 +49,7 @@ export default function ParentCompanies() {
       }
       load()
     } catch (e) {
-      setMsg(e.response?.data?.detail || tx("Dispatch failed"))
+      setMsg(detailText(e) || tx("Dispatch failed"))
     } finally {
       setDispatching(null)
     }
@@ -66,7 +67,7 @@ export default function ParentCompanies() {
       }
       load()
     } catch (e) {
-      setMsg(e.response?.data?.detail || tx("Dispatch all failed"))
+      setMsg(detailText(e) || tx("Dispatch all failed"))
     } finally {
       setDispatchingAll(false)
     }
@@ -211,7 +212,7 @@ function EditModal({ parent, onClose, onSaved }) {
       if (isNew) await api.post('/parent-companies', form)
       else await api.patch(`/parent-companies/${parent.id}`, form)
       onSaved(isNew ? `Created ${form.name}` : `Updated ${form.name}`)
-    } catch (e) { setError(e.response?.data?.detail || tx("Save failed")) }
+    } catch (e) { setError(detailText(e) || tx("Save failed")) }
     finally { setSaving(false) }
   }
 
@@ -378,7 +379,7 @@ function TestBrokerPanel({ onChanged }) {
     try {
       const r = await api.post('/test-broker/setup', { optout_email: addr })
       setTb(r.data); onChanged && onChanged()
-    } catch (e) { setError(e.response?.data?.detail || tx("Could not save the test broker")) }
+    } catch (e) { setError(detailText(e) || tx("Could not save the test broker")) }
     finally { setBusy(false) }
   }
 
@@ -387,7 +388,7 @@ function TestBrokerPanel({ onChanged }) {
     try {
       const r = await api.post('/test-broker/send', memberId ? { member_id: +memberId } : {})
       setResult(r.data); load(); onChanged && onChanged()
-    } catch (e) { setError(e.response?.data?.detail || tx("Test send failed")) }
+    } catch (e) { setError(detailText(e) || tx("Test send failed")) }
     finally { setBusy(false) }
   }
 

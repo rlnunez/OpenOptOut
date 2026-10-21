@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { X, MousePointerClick, CheckCircle2, Loader2, CornerDownLeft } from 'lucide-react'
 import api from '../api'
 import { tx } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 // Finish something in the real page: solve a CAPTCHA, or do a step only a
 // person can do (pick your listing, enter a code, answer a question).
@@ -31,12 +32,12 @@ export default function LiveCaptcha({ challenge, onClose, onFinished, base, titl
       const { data } = await api.get(path)
       setSt(data)
       if (data.state === 'done' || data.state === 'needs_you') onFinished?.()
-    } catch (e) { setErr(e.response?.data?.detail || tx("Couldn't reach the live page.")) }
+    } catch (e) { setErr(detailText(e) || tx("Couldn't reach the live page.")) }
   }, [path, onFinished])
 
   useEffect(() => {
     api.post(path).then(r => setSt(r.data))
-      .catch(e => setErr(e.response?.data?.detail || tx("Couldn't start the live page.")))
+      .catch(e => setErr(detailText(e) || tx("Couldn't start the live page.")))
   }, [path])
 
   useEffect(() => {
@@ -65,7 +66,7 @@ export default function LiveCaptcha({ challenge, onClose, onFinished, base, titl
   const send = async ev => {
     setErr('')
     try { await api.post(`${path}/input`, ev) }
-    catch (e) { setErr(e.response?.data?.detail || tx("That didn't reach the page.")) }
+    catch (e) { setErr(detailText(e) || tx("That didn't reach the page.")) }
   }
   const click = e => {
     const r = imgRef.current.getBoundingClientRect()
@@ -73,7 +74,7 @@ export default function LiveCaptcha({ challenge, onClose, onFinished, base, titl
   }
   const solved = async () => {
     try { await api.post(`${path}/${donePath}`); poll() }
-    catch (e) { setErr(e.response?.data?.detail || tx("Couldn't continue.")) }
+    catch (e) { setErr(detailText(e) || tx("Couldn't continue.")) }
   }
   const stop = async () => { try { await api.delete(path) } catch { /* closing anyway */ } onClose() }
 
@@ -133,7 +134,7 @@ export default function LiveCaptcha({ challenge, onClose, onFinished, base, titl
         {!st?.active && st && (
           <div className="flex gap-2 mt-2">
             {(st.state === 'failed' || st.state === 'timed_out') &&
-              <button onClick={() => { setSt(null); api.post(path).then(r => setSt(r.data)).catch(e => setErr(e.response?.data?.detail || tx("Couldn't start again."))) }}
+              <button onClick={() => { setSt(null); api.post(path).then(r => setSt(r.data)).catch(e => setErr(detailText(e) || tx("Couldn't start again."))) }}
                 className="px-3 py-1.5 text-sm bg-shield-600 text-white rounded-lg hover:bg-shield-700">{tx("Try again")}</button>}
             <button onClick={onClose} className="px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">{tx("Close")}</button>
           </div>

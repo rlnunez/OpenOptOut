@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import api from '../api'
 import { tx, txr } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 const PRIORITY_LABELS = { 1: tx("Lowest"), 2: tx("Low"), 3: tx("Medium"), 4: tx("High"), 5: tx("Highest") }
 const PRIORITY_COLORS = {
@@ -95,7 +96,7 @@ export default function BrokerPriority() {
         (r.data.rules_found?.length ? tx(", {length} rule(s) found — open Rules to review/run them", { length: r.data.rules_found.length }) : ''))
       load()
     } catch (err) {
-      setMsg(tx("Couldn't import that file:") + (err.response?.data?.detail || tx("check it is the right format.")))
+      setMsg(tx("Couldn't import that file:") + (detailText(err) || tx("check it is the right format.")))
     } finally { e.target.value = '' }
   }
 
@@ -248,7 +249,7 @@ function RulesModal({ onClose, onApplied }) {
       const r = await api.post('/brokers/priority/rule/preview', buildRule())
       setPreview(r.data)
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Preview failed — a rule must match at least one attribute"))
+      setError(detailText(e) || tx("Preview failed — a rule must match at least one attribute"))
     } finally { setBusy(false) }
   }
 
@@ -259,7 +260,7 @@ function RulesModal({ onClose, onApplied }) {
       onApplied(tx("Rule applied — {changed} broker(s) changed", { changed: r.data.changed }))
       onClose()
     } catch (e) {
-      setError(e.response?.data?.detail || tx("Apply failed"))
+      setError(detailText(e) || tx("Apply failed"))
     } finally { setBusy(false) }
   }
 

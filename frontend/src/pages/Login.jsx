@@ -13,6 +13,7 @@ import api from '../api'
 import { performWebAuthnAuthenticate, performWebAuthnRegister } from '../utils/webauthn'
 import { tx } from '../i18n/tx'
 import FontSizeSlider from '../components/FontSizeSlider'
+import { detailText } from '../errorMessage'
 
 const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
@@ -192,7 +193,7 @@ export default function Login() {
       navigate('/')
     } catch (err) {
       // 429 = too many failed attempts; the server says how long to wait
-      setError(err.response?.status === 429 ? err.response.data.detail : tx("That email and password don't match. Check them and try again."))
+      setError(err.response?.status === 429 ? detailText(err) : tx("That email and password don't match. Check them and try again."))
     } finally {
       setLoading(false)
     }
@@ -219,7 +220,7 @@ export default function Login() {
       await completeMfaLogin(loginRes.access_token)
       navigate('/')
     } catch (err) {
-      const msg = err.response?.data?.detail || err.message || tx("Couldn't sign in with your passkey. Try again, or use your password.")
+      const msg = detailText(err) || err.message || tx("Couldn't sign in with your passkey. Try again, or use your password.")
       setError(msg)
     } finally {
       setLoading(false)
@@ -242,7 +243,7 @@ export default function Login() {
       setMagicLinkMessage(data.message || tx("We sent a 6-digit sign-in code to your email."))
       setStaffAuthMode('magic_link_verify')
     } catch (err) {
-      setError(err.response?.data?.detail || tx("Couldn't send the sign-in code. Please try again in a minute."))
+      setError(detailText(err) || tx("Couldn't send the sign-in code. Please try again in a minute."))
     } finally {
       setLoading(false)
     }
@@ -269,7 +270,7 @@ export default function Login() {
       await completeMfaLogin(data.access_token)
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.detail || tx("That code didn't work. It may be mistyped or too old. Ask for a new one."))
+      setError(detailText(err) || tx("That code didn't work. It may be mistyped or too old. Ask for a new one."))
     } finally {
       setLoading(false)
     }
@@ -283,7 +284,7 @@ export default function Login() {
       localStorage.setItem('token', data.access_token)
       window.location.href = '/'
     } catch (err) {
-      setError(err.response?.data?.detail ?? tx("Couldn't sign in with that library card. Check the number and PIN."))
+      setError(detailText(err) ?? tx("Couldn't sign in with that library card. Check the number and PIN."))
     } finally { setLoading(false) }
   }
 
@@ -345,7 +346,7 @@ export default function Login() {
       setSetupStep('mfa')
       setSetupMfaMode('choose')
     } catch (err) {
-      setError(err.response?.data?.detail || tx("Couldn't create the admin account. Please try again."))
+      setError(detailText(err) || tx("Couldn't create the admin account. Please try again."))
     } finally { setLoading(false) }
   }
 
@@ -357,7 +358,7 @@ export default function Login() {
       setSetupTotpData(data)
       setSetupMfaMode('totp')
     } catch (err) {
-      setError(err.response?.data?.detail || tx("Couldn't start setting up the code app. Please try again."))
+      setError(detailText(err) || tx("Couldn't start setting up the code app. Please try again."))
     } finally {
       setLoading(false)
     }
@@ -376,7 +377,7 @@ export default function Login() {
       setSetupBackupCodes(data.backup_codes || setupTotpData?.backup_codes || [])
       setSetupMfaMode('codes')
     } catch (err) {
-      setError(err.response?.data?.detail || tx("That code didn't work. Codes change every 30 seconds, so use the newest one."))
+      setError(detailText(err) || tx("That code didn't work. Codes change every 30 seconds, so use the newest one."))
     } finally {
       setLoading(false)
     }
@@ -397,7 +398,7 @@ export default function Login() {
       if (err.name === 'NotAllowedError') {
         setError(tx("The security key step was cancelled or took too long. Try again."))
       } else {
-        setError(err.response?.data?.detail || err.message || tx("Couldn't add the security key. Please try again."))
+        setError(detailText(err) || err.message || tx("Couldn't add the security key. Please try again."))
       }
     } finally {
       setWebauthnLoading(false)
@@ -437,7 +438,7 @@ export default function Login() {
       await completeMfaLogin(data.access_token)
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.detail || tx("That code didn't work. Codes change every 30 seconds, so use the newest one."))
+      setError(detailText(err) || tx("That code didn't work. Codes change every 30 seconds, so use the newest one."))
     } finally {
       setLoading(false)
     }
@@ -455,7 +456,7 @@ export default function Login() {
       await completeMfaLogin(data.access_token)
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.detail || tx("That backup code didn't work. Each one works only once."))
+      setError(detailText(err) || tx("That backup code didn't work. Each one works only once."))
     } finally {
       setLoading(false)
     }
@@ -478,7 +479,7 @@ export default function Login() {
       if (err.name === 'NotAllowedError') {
         setError(tx("The security key step was cancelled or took too long. Try again."))
       } else {
-        setError(err.response?.data?.detail || err.message || tx("Couldn't sign in with the security key. Try again, or use another way."))
+        setError(detailText(err) || err.message || tx("Couldn't sign in with the security key. Try again, or use another way."))
       }
     } finally {
       setWebauthnLoading(false)
@@ -495,7 +496,7 @@ export default function Login() {
       setMandateTotpData(data)
       setMandateStep('setup_totp')
     } catch (err) {
-      setError(err.response?.data?.detail || tx("Couldn't start setting up the code app. Please try again."))
+      setError(detailText(err) || tx("Couldn't start setting up the code app. Please try again."))
     } finally {
       setLoading(false)
     }
@@ -515,7 +516,7 @@ export default function Login() {
       setPendingToken(data.access_token)
       setMandateStep('show_codes')
     } catch (err) {
-      setError(err.response?.data?.detail || tx("That code didn't work. Codes change every 30 seconds, so use the newest one."))
+      setError(detailText(err) || tx("That code didn't work. Codes change every 30 seconds, so use the newest one."))
     } finally {
       setLoading(false)
     }
@@ -541,7 +542,7 @@ export default function Login() {
       if (err.name === 'NotAllowedError') {
         setError(tx("The security key step was cancelled or took too long. Try again."))
       } else {
-        setError(err.response?.data?.detail || err.message || tx("Couldn't add the security key. Please try again."))
+        setError(detailText(err) || err.message || tx("Couldn't add the security key. Please try again."))
       }
     } finally {
       setWebauthnLoading(false)

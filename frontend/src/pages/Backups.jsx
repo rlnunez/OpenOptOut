@@ -3,6 +3,7 @@ import { DatabaseBackup, KeyRound, Plus, Trash2, CheckCircle2, AlertTriangle, Do
 import api from '../api'
 import { tx, txr } from '../i18n/tx'
 import { fmtDateTime, fmtMB } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 const inp = 'w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-shield-500'
 const btn = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm'
@@ -41,7 +42,7 @@ export default function Backups() {
   useEffect(() => { if (!d?.running) return; const t = setTimeout(load, 5000); return () => clearTimeout(t) }, [d, load])
 
   const say = (text, ok = true) => setMsg({ text, ok })
-  const err = (e) => say(e.response?.data?.detail || tx("Something went wrong. Please try again."), false)
+  const err = (e) => say(detailText(e) || tx("Something went wrong. Please try again."), false)
 
   const savePass = async (generate) => {
     try {

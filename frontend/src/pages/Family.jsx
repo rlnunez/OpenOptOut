@@ -7,6 +7,7 @@ import {
 import api from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { tx, txn, txr } from '../i18n/tx'
+import { detailText } from '../errorMessage'
 
 const KIND_LABELS = { name: tx("Names"), email: tx("Emails"), phone: tx("Phones"), address: tx("Addresses") }
 const KIND_COLORS = {
@@ -55,7 +56,7 @@ function AddMemberModal({ onClose, onCreated }) {
       onCreated(data)
       onClose()
     } catch (err) {
-      setError(err.response?.data?.detail || tx("Couldn't add them. Please try again."))
+      setError(detailText(err) || tx("Couldn't add them. Please try again."))
     } finally {
       setSaving(false)
     }
@@ -157,7 +158,7 @@ function MemberCard({ member, onUpdated, onDeleted, onSelect, selected }) {
       await api.delete(`/family/${member.id}`)
       onDeleted(member.id)
     } catch (err) {
-      alert(err.response?.data?.detail || tx("Couldn't remove them. Please try again."))
+      alert(detailText(err) || tx("Couldn't remove them. Please try again."))
     }
   }
 

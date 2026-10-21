@@ -3431,5 +3431,8 @@
   "Live Preview": "لائیو پیش نظارہ",
   "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "یہ متن حقیقی وقت میں آپ کے منتخب کردہ فونٹ سائز کا پیش نظارہ کرتا ہے۔ OpenOptOut میں تمام جداول، فارم اور مینو متناسب طور پر ایڈجسٹ ہوتے ہیں۔",
   "Use arrow keys to adjust in 5% increments.": "5٪ کے اضافے سے ایڈجسٹ کرنے کے لیے تیر والے بٹن استعمال کریں۔",
-  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "بروکر کے صفحات کا معائنہ کرنے، نئے آپٹ آؤٹ اقدامات کا مسودہ تیار کرنے، اور ٹوٹے ہوئے فارم بھرنے والے سلیکٹرز کی مرمت کے لیے ایک اے آئی مددگار کو جوڑیں۔"
+  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "بروکر کے صفحات کا معائنہ کرنے، نئے آپٹ آؤٹ اقدامات کا مسودہ تیار کرنے، اور ٹوٹے ہوئے فارم بھرنے والے سلیکٹرز کی مرمت کے لیے ایک اے آئی مددگار کو جوڑیں۔",
+  "Something went wrong": "کچھ غلط ہو گیا",
+  "Reload the page": "صفحہ دوبارہ لوڈ کریں",
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "اس صفحے میں مسئلہ پیش آیا اور یہ جاری نہیں رہ سکتا۔ کچھ ضائع نہیں ہوا — دوبارہ لوڈ کرنے سے عام طور پر یہ مسئلہ حل ہو جاتا ہے۔"
 }

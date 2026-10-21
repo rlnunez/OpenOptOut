@@ -5,6 +5,7 @@ import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import { tx, txn, txr } from '../i18n/tx'
 import { fmtDateTime } from '../i18n/format'
+import { detailText } from '../errorMessage'
 
 const LEVEL = {
   urgent: { icon: AlertTriangle, cls: 'text-amber-300', label: tx("Needs attention") },
@@ -48,7 +49,7 @@ export default function BrokerUpdates() {
       await api.post(`/brokers/${u.broker_id}/enable`)
       setMsg(tx("{name} is turned on. Its waiting opt-outs go out in the next run.", { name: u.broker_name || '' }))
       load()
-    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't turn it on.")) }
+    } catch (e) { setMsg(detailText(e) || tx("Couldn't turn it on.")) }
   }
 
   const markRead = async (ids) => {
@@ -59,7 +60,7 @@ export default function BrokerUpdates() {
   const saveDigest = async (v) => {
     setDigest(v); setMsg('')
     try { await api.put('/broker-updates/settings', { email_digest: v }); setMsg(tx("Saved.")) }
-    catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save.")) }
+    catch (e) { setMsg(detailText(e) || tx("Couldn't save.")) }
   }
 
   return (
@@ -158,13 +159,13 @@ function FoundRule({ onChanged }) {
         ? txn(x.data.turned_on.length, "Saved. {n} broker was turned on: {names}.", "Saved. {n} brokers were turned on: {names}.", { names: x.data.turned_on.join(', ') })
         : tx("Saved."))
       onChanged && onChanged()
-    } catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't save.")) }
+    } catch (e) { setMsg(detailText(e) || tx("Couldn't save.")) }
     finally { setBusy(false) }
   }
   const turnOn = async (w) => {
     setMsg('')
     try { await api.post(`/brokers/${w.broker_id}/enable`); load(); onChanged && onChanged() }
-    catch (e) { setMsg(e.response?.data?.detail || tx("Couldn't turn it on.")) }
+    catch (e) { setMsg(detailText(e) || tx("Couldn't turn it on.")) }
   }
   const why = {
     no_plugin: tx("No plugin, so only an admin can turn it on."),

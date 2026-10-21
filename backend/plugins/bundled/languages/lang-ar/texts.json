@@ -3433,5 +3433,8 @@
   "Live Preview": "معاينة مباشرة",
   "This text previews your selected font size in real time. All tables, forms, and menus adjust proportionally across OpenOptOut.": "يُعاين هذا النص حجم الخط المحدد في الوقت الفعلي. يتم ضبط جميع الجداول والنماذج والقوائم بشكل متناسب عبر OpenOptOut.",
   "Use arrow keys to adjust in 5% increments.": "استخدم مفاتيح الأسهم للضبط بزيادات قدرها 5%.",
-  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "قم بتوصيل مساعد الذكاء الاصطناعي لفحص صفحات الوسطاء وصياغة خطوات إلغاء الاشتراك الجديدة وإصلاح محددات ملء النماذج المعطلة."
+  "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "قم بتوصيل مساعد الذكاء الاصطناعي لفحص صفحات الوسطاء وصياغة خطوات إلغاء الاشتراك الجديدة وإصلاح محددات ملء النماذج المعطلة.",
+  "Something went wrong": "حدث خطأ ما",
+  "Reload the page": "إعادة تحميل الصفحة",
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "واجهت هذه الصفحة مشكلة ولا يمكنها المتابعة. لم يُفقد شيء — عادةً ما تحل إعادة التحميل المشكلة."
 }
