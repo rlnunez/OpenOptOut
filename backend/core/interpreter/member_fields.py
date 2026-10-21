@@ -32,23 +32,29 @@ def state_code(state: str) -> str:
     return _BY_NAME.get(s.lower(), s)
 
 
+_ARABIC_INDIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
+
+
 def state_name(state: str) -> str:
     return US_STATES.get(state_code(state), state or "")
 
 
 def phone_digits(phone: str) -> str:
-    d = "".join(c for c in (phone or "") if c.isdigit())
+    phone = (phone or "").translate(_ARABIC_INDIC_DIGITS)
+    d = "".join(c for c in phone if c.isdigit())
     return d[1:] if len(d) == 11 and d.startswith("1") else d
 
 
 def phone_e164(phone: str) -> str:
     """+1XXXXXXXXXX for a US/Canada number; a number already written with + keeps its digits."""
-    raw = (phone or "").strip()
+    raw = (phone or "").strip().translate(_ARABIC_INDIC_DIGITS)
     d = "".join(c for c in raw if c.isdigit())
     if not d:
         return ""
     if raw.startswith("+"):
         return "+" + d
+    if raw.startswith("00") and len(d) > 10:
+        return "+" + d[2:]
     if len(d) == 10:
         return "+1" + d
     if len(d) == 11 and d.startswith("1"):
@@ -87,6 +93,8 @@ def resolve(member, combo=None, today=None) -> dict:
         email, phone = first("email"), first("phone")
 
     first_name, last_name = _split_name(name)
+    # For mononyms (single names), fall back last_name to first_name so forms requiring both don't fail compilation
+    effective_last_name = last_name or first_name
     from ..age import current_age, member_dob, age_range
     age = current_age(member, today)
     dob = member_dob(member)
@@ -95,7 +103,7 @@ def resolve(member, combo=None, today=None) -> dict:
         "full_name": name,
         "formal_name": formal or name,
         "first_name": first_name,
-        "last_name": last_name,
+        "last_name": effective_last_name,
         "email": email,
         "phone": phone,
         "phone_digits": phone_digits(phone),

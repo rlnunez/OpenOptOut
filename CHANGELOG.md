@@ -34,6 +34,14 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 - **Fix:** `routers/auth.py` used `MAX_PASSWORD_BYTES` without importing it, which stopped the auth router from loading.
 - **Test Credential Normalization for Secret Scanners:** Replaced base62 test strings in `backend/tests/run_tests.py` with delimited test credentials to resolve generic API key code scanning alerts.
 
+### Internationalization & Locale Usability
+- **Multilingual Address Parsing:** Enhanced `combinations._parse_address` to split on Arabic comma (`،` U+060C), semicolon, and full-width comma (`，`), preserve building numbers in European-style addresses (`Carrer de Mallorca, 401, 08013 Barcelona`), and parse international alphanumeric postal codes (UK, Canada, Europe) without misclassifying postal prefixes as US states.
+- **Flexible Date of Birth Formats:** Extended `parse_dob` to parse European dot format (`DD.MM.YYYY`), resolve unambiguous international dates where day > 12 (`DD/MM/YYYY`), and follow configured non-US regional formats.
+- **Mononym & Single Legal Name Support:** Updated `member_fields.resolve` to fall back `last_name` to `first_name` when a profile has a mononym (single name), preventing broker form job compilation failures on forms requiring surname fields.
+- **Phone Number Locale Handling:** Added automatic normalization for Eastern Arabic (`٠-٩`) and Persian (`۰-۹`) numerals into standard ASCII digits and handled international `00` dial-out prefixes in `member_fields.phone_digits` and `phone_e164`.
+- **RTL BiDi Form Input Isolation:** Added `unicode-bidi: plaintext` for text inputs and textareas under RTL mode in `index.css`, preventing mixed-direction addresses with numbers and slashes from visually flipping.
+- **Flexible Community Address Verification:** Updated `resident_addresses.clean` to support addresses where the street number is placed after the street name (standard in Europe, Latin America, and the Middle East) and accept international postal codes.
+
 ### Dependencies
 - Upgraded `pillow` from 12.3.0 to 13.0.0 in `backend/requirements.txt` to remediate CVE-2026-112403, CVE-2026-112397, CVE-2026-112400, CVE-2026-112404, CVE-2026-112895, CVE-2026-112896, CVE-2026-112897, CVE-2026-112395, and CVE-2026-112899.
 - Explicitly pinned `certifi==2026.10.19` in `backend/requirements.txt`, `backend/requirements-cloud.txt`, and `docs/requirements.txt` to remediate GHSA-6q48-6c7w-9gw2 / PYSEC-2026-4320 (compromised intermediate emSign CA keys).

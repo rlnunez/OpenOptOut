@@ -86,23 +86,57 @@ class IdentityCombo:
 
 def _parse_address(raw: str) -> dict:
     import re
-    parts  = [p.strip() for p in raw.split(",")]
-    result = {"address": raw, "city": "", "state": "", "zip": ""}
+    # Split on Latin comma, Arabic comma (، \u060C), semicolon, or full-width comma (\uFF0C)
+    parts = [p.strip() for p in re.split(r"[,;،\uFF0C]", raw or "") if p.strip()]
+    result = {"address": raw or "", "city": "", "state": "", "zip": ""}
+    if not parts:
+        return result
+
+    # If parts[1] is just a building/unit number (e.g. 'Carrer de Mallorca, 401, 08013 Barcelona'),
+    # merge it back to the street address part.
+    if len(parts) >= 3 and (parts[1].isdigit() or re.match(r"^(?:#|apt|unit|suite|ste|no\.?|nº)\s*\w+$", parts[1], re.I)):
+        parts[0] = f"{parts[0]}, {parts[1]}"
+        parts.pop(1)
+
     if len(parts) >= 3:
         result["address"] = parts[0]
-        result["city"]    = parts[1]
+        result["city"] = parts[1]
         last = parts[-1].strip()
-        m = re.match(r'([A-Za-z]{2,})\s*(\d{5}(?:-\d{4})?)?', last)
-        if m:
-            result["state"] = m.group(1).strip()
-            result["zip"]   = (m.group(2) or "").strip()
+        # 1. Check UK / Canadian / alphanumeric international postal code first
+        m_uk = re.search(r'\b([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b', last, re.I)
+        if m_uk:
+            result["zip"] = m_uk.group(1)
+            rem = last.replace(m_uk.group(0), "").strip()
+            if rem:
+                result["state"] = rem
+        elif re.match(r'^\d{4,6}\s+(.+)$', last):
+            # European format: "08013 Barcelona" or "75001 Paris"
+            m_eu = re.match(r'^(\d{4,6})\s+(.+)$', last)
+            result["zip"] = m_eu.group(1)
+            result["state"] = m_eu.group(2).strip()
+        elif re.match(r'^(?:\d{3,8}|[A-Z0-9]{3,8}(?:-[A-Z0-9]{3,8})?)$', last, re.I):
+            # Pure postal code
+            result["zip"] = last
+        else:
+            # US state and zip: "TX 78701" or "Texas 78701" or "TX"
+            m = re.match(r'([A-Za-z]{2,})\s*(\d{5}(?:-\d{4})?)?', last)
+            if m:
+                result["state"] = m.group(1).strip()
+                result["zip"] = (m.group(2) or "").strip()
+            else:
+                result["state"] = last
     elif len(parts) == 2:
+        result["address"] = parts[0]
         result["city"] = parts[1]
         m = re.search(r',\s*([A-Z]{2})\b', raw)
         if m: result["state"] = m.group(1)
+        z = re.search(r'\b\d{5}(?:-\d{4})?\b', raw)
+        if z: result["zip"] = z.group(0)
     else:
-        m = __import__("re").search(r'\b([A-Z]{2})\s+\d{5}', raw)
-        if m: result["state"] = m.group(1)
+        m = re.search(r'\b([A-Z]{2})\s+(\d{5})', raw)
+        if m:
+            result["state"] = m.group(1)
+            result["zip"] = m.group(2)
     return result
 
 

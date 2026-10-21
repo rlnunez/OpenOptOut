@@ -102,15 +102,20 @@ def split_street(line: str, unit: str = "") -> tuple:
 
 
 def clean_zip(z: str) -> str:
-    m = re.search(r"\d{5}", z or "")
-    return m.group(0) if m else ""
+    m = re.search(r"\b\d{5}\b", z or "")
+    if m:
+        return m.group(0)
+    # Support alphanumeric international postal codes (e.g. UK SW1A 2AA, Canada K1A 0B1, or 3-8 digits)
+    m2 = re.search(r"\b[A-Za-z0-9]{2,4}\s*[A-Za-z0-9]{2,4}\b|\b\d{3,8}\b", z or "")
+    return re.sub(r"\s+", "", m2.group(0).upper()) if m2 else ""
 
 
 def clean(street: str, unit: str = "", city: str = "", state: str = "", zip_code: str = "") -> dict:
     """The cleaned-up parts of an address. Raises AddressError."""
     s, u = split_street(street, unit)
     z = clean_zip(zip_code)
-    if not s or not re.match(r"^\d", s):
+    has_number = bool(re.search(r"\d", s))
+    if not s or (not re.match(r"^\d", s) and not has_number):
         raise AddressError("Start the street address with the house or building number.")
     if len(s.split()) < 2:
         raise AddressError("Add the street name after the number.")

@@ -89,6 +89,13 @@ html[dir="rtl"] select {
   text-align: start;
 }
 
+/* Preserve natural bidirectional text order when typing RTL text with numbers,
+   apartment slashes, or Latin script fragments */
+html[dir="rtl"] input:not([type="email"]):not([type="password"]):not([type="url"]):not([type="tel"]),
+html[dir="rtl"] textarea {
+  unicode-bidi: plaintext;
+}
+
 /* Mirror icons that point a way, in right-to-left languages. Arrows, chevrons,
    "back/next", send, open-in-new, undo and switches point the reading way, so
    they flip. Icons that don't carry direction (search, clock, checkmarks,

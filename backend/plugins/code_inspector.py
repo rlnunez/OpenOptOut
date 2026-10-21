@@ -14,12 +14,20 @@ runs in:
             shutil.*, pathlib write_text, ...): persistent data goes through
             the storage API, and the plugin's own folder is read-only
           - network libraries in a plugin that wasn't granted "network"
+          - direct network libraries in any plugin that ISN'T an email
+            provider: outbound_domains is only enforced on the host-mediated
+            http.fetch path, so every other plugin must go through it —
+            socket/requests/httpx/ftplib/paramiko/... used directly would
+            reach any host the OS sandbox's network namespace allows, not
+            just the domains it declared
           - files that can't be inspected: compiled or native binaries,
             shell scripts, executables, Python that doesn't parse, and any code
             at all in a data-only (themes, languages) plugin
   medium  shown to the admin in the upload wizard
-          - direct network libraries in a plugin that has "network" (allowed,
-            but they bypass the host-mediated http.fetch)
+          - direct network libraries in an EMAIL-PROVIDER plugin that aren't
+            its mail protocol (smtplib/imaplib/poplib/ssl/email, or an HTTPS
+            mail API): still bypasses http.fetch, but email providers are a
+            trusted class scrutinized separately for hidden recipients
           - file modes that aren't literal strings, temp files, long encoded
             string blobs, unexpected file types
 
@@ -131,10 +139,26 @@ class _Visitor(ast.NodeVisitor):
             if not self.has_network:
                 self.add("high", line, f"network:{root}",
                          f"imports {name} but the plugin doesn't request the 'network' permission")
-            elif not email_ok:
+            elif email_ok:
+                pass   # email providers' own mail protocol: expected, not flagged
+            elif self.ptype == "email":
                 self.add("medium", line, f"network:{root}",
                          f"imports {name}: direct network access (allowed with 'network', but "
                          "it bypasses the host-mediated http.fetch)")
+            else:
+                # Only email-provider plugins are a trusted-and-scrutinized class
+                # for direct network access. Every other plugin's outbound_domains
+                # is enforced ONLY on the host-mediated http.fetch path (broker.py /
+                # manager._http_fetcher) — the OS sandbox's network namespace is
+                # all-or-nothing, with no notion of "this domain wasn't declared".
+                # A direct socket/requests/ftplib/paramiko/... call here would
+                # reach any host the sandbox allows, regardless of what
+                # outbound_domains says, so it's blocked rather than just noted.
+                self.add("high", line, f"network:{root}",
+                         f"imports {name} directly: only email-provider plugins may reach the "
+                         "network without going through plugin.http (host-mediated http.fetch). "
+                         "Use plugin.http.get()/post() instead — that's the path outbound_domains "
+                         "actually restricts.")
         elif root == "tempfile":
             self.add("medium", line, "tempfile", "uses temporary files (only its private /tmp is writable)")
 

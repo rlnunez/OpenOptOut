@@ -18,12 +18,14 @@ from typing import Optional
 _FORMATS = (
     re.compile(r"^(\d{4})-(\d{1,2})-(\d{1,2})$"),          # 1983-04-09
     re.compile(r"^(\d{4})(\d{2})(\d{2})$"),                # 19830409 (SIP2)
-    re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})$"),          # 04/09/1983 (US order)
+    re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})$"),          # 04/09/1983 (US) or 25/04/1983 (intl)
+    re.compile(r"^(\d{1,2})\.(\d{1,2})\.(\d{4})$"),        # 09.04.1983 (European dot order)
+    re.compile(r"^(\d{1,2})-(\d{1,2})-(\d{4})$"),          # 09-04-1983
 )
 
 
 def parse_dob(value) -> Optional[date]:
-    """A date from YYYY-MM-DD, YYYYMMDD or MM/DD/YYYY; None if it isn't a real past date."""
+    """A date from YYYY-MM-DD, YYYYMMDD, MM/DD/YYYY, DD/MM/YYYY or DD.MM.YYYY; None if invalid."""
     if isinstance(value, date):
         d = value
     else:
@@ -34,10 +36,27 @@ def parse_dob(value) -> Optional[date]:
             if not m:
                 continue
             try:
-                if i == 2:
-                    d = date(int(m.group(3)), int(m.group(1)), int(m.group(2)))
-                else:
+                if i in (0, 1):
                     d = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+                else:
+                    n1, n2, yr = int(m.group(1)), int(m.group(2)), int(m.group(3))
+                    if i == 3:  # dot notation is always DD.MM.YYYY
+                        d = date(yr, n2, n1)
+                    elif n1 > 12 and n2 <= 12:  # unambiguously DD/MM/YYYY (e.g. 25/04/1983)
+                        d = date(yr, n2, n1)
+                    elif n2 > 12 and n1 <= 12:  # unambiguously MM/DD/YYYY (e.g. 04/25/1983)
+                        d = date(yr, n1, n2)
+                    else:
+                        # Ambiguous (both <= 12): check regional setting if available
+                        use_dmy = False
+                        try:
+                            from . import settings_store
+                            reg = settings_store.load_settings().get("regional", {}).get("region")
+                            if reg and reg.upper() != "US":
+                                use_dmy = True
+                        except Exception:
+                            pass
+                        d = date(yr, n2, n1) if use_dmy else date(yr, n1, n2)
             except ValueError:
                 return None
             break
