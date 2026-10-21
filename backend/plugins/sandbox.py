@@ -64,6 +64,22 @@ class SandboxCapabilities:
         return (self.bubblewrap or self.unshare) and self.rlimits
 
 
+def is_hard_sandbox_required() -> bool:
+    """
+    True if the environment or settings require full OS sandboxing (bubblewrap/unshare).
+    When True, plugin launching fails fast with an error rather than degrading to
+    resource limits only.
+    """
+    v = os.getenv("REQUIRE_HARD_SANDBOX", os.getenv("OPENOPTOUT_REQUIRE_HARD_SANDBOX", "")).strip().lower()
+    if v in ("1", "true", "yes", "on"):
+        return True
+    try:
+        from ..core.settings_store import load_settings
+        return bool(load_settings().get("plugins", {}).get("require_hard_sandbox", False))
+    except Exception:
+        return False
+
+
 # Top-level system directories a dynamically linked program needs. On
 # merged-/usr systems (Debian 12+, Ubuntu 20.04+, and the python:*-slim image
 # this project ships on) these are symlinks into /usr — and the dynamic loader
@@ -372,6 +388,11 @@ def build_sandboxed_command(
         return unshare + base_cmd, preexec
 
     # ---- Fallback: resource limits + process boundary only ----
+    if is_hard_sandbox_required():
+        raise RuntimeError(
+            f"Refusing to launch plugin: REQUIRE_HARD_SANDBOX is enabled, but full OS "
+            f"sandboxing (bubblewrap/unshare) is not available on this host ({caps.platform})."
+        )
     log.warning(
         "Full OS sandboxing unavailable on this host (%s). Running plugins with "
         "resource limits + process isolation only. For untrusted plugins, deploy "
@@ -383,10 +404,15 @@ def build_sandboxed_command(
 
 def log_sandbox_posture(caps: SandboxCapabilities):
     """Emit a clear one-time statement of the effective security posture."""
+    hard_required = is_hard_sandbox_required()
     if caps.is_fully_sandboxed:
-        log.info("Plugin sandbox: FULL — %s", caps.summary())
+        log.info("Plugin sandbox: FULL — %s (REQUIRE_HARD_SANDBOX=%s)", caps.summary(), hard_required)
     else:
-        log.warning(
-            "Plugin sandbox: PARTIAL — %s. Untrusted third-party plugins are NOT "
-            "fully contained. See docs/dev/plugins.md for hardening.", caps.summary()
+        msg = (
+            f"Plugin sandbox: PARTIAL — {caps.summary()}. Untrusted third-party plugins are NOT "
+            "fully contained. See docs/dev/plugins.md for hardening."
         )
+        if hard_required:
+            log.error("%s [REQUIRE_HARD_SANDBOX active: plugin launch will fail closed]", msg)
+        else:
+            log.warning(msg)

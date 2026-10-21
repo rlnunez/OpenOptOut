@@ -3,7 +3,7 @@ Thin helpers used by scheduler.py to read settings and decrypt passwords
 without importing the full FastAPI router (avoids circular imports).
 """
 
-import json, os, base64, logging
+import json, os, base64, logging, glob
 try:
     from cryptography.fernet import Fernet, MultiFernet
 except ImportError:
@@ -262,6 +262,18 @@ def get_security_key_files() -> list[str]:
         if f and os.path.isfile(f) and f not in files:
             files.append(f)
 
+    # The log directory (0700) and the log file and its rotated copies (0600):
+    # log lines can still carry details the scrubber can't recognise.
+    try:
+        from .logging_config import LOGS_DIR, LOG_FILE_PATH
+        if os.path.isdir(LOGS_DIR) and LOGS_DIR not in files:
+            files.append(LOGS_DIR)
+        for lf in [LOG_FILE_PATH] + sorted(glob.glob(LOG_FILE_PATH + ".*")):
+            if os.path.isfile(lf) and lf not in files:
+                files.append(lf)
+    except Exception:
+        pass
+
     # Look for .env file associated with the installation
     env_override = (os.getenv("ENV_FILE") or "").strip()
     if env_override and os.path.isfile(env_override) and env_override not in files:
@@ -278,6 +290,12 @@ def get_security_key_files() -> list[str]:
                 files.append(c)
                 break
     return files
+
+
+def _secure_mode(path: str) -> str:
+    """The mode a protected path should have: 700 for a directory (the log
+    directory), 600 for a file."""
+    return "700" if os.path.isdir(path) else "600"
 
 
 def get_secret_key_status() -> dict:
@@ -344,9 +362,9 @@ def get_secret_key_status() -> dict:
         "insecure_files": [f["path"] for f in insecure_files],
         "key_files": key_files_status,
         "commands": {
-            "linux": " && ".join(f"chmod 600 {shlex.quote(p)}" for p in target_paths),
-            "docker": " && ".join(f"docker compose exec api chmod 600 {shlex.quote(p)}" for p in target_paths),
-            "windows": " ; ".join(f'icacls "{p}" /inheritance:r /grant:r "$($env:USERNAME):(R,W)"' for p in target_paths),
+            "linux": " && ".join(f"chmod {_secure_mode(p)} {shlex.quote(p)}" for p in target_paths),
+            "docker": " && ".join(f"docker compose exec api chmod {_secure_mode(p)} {shlex.quote(p)}" for p in target_paths),
+            "windows": " ; ".join(f'icacls "{p}" /inheritance:r /grant:r "$($env:USERNAME):{"(OI)(CI)" if os.path.isdir(p) else ""}(R,W)"' for p in target_paths),
         },
     }
 

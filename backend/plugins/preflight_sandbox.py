@@ -59,8 +59,9 @@ def main():
 
     # Use the real detection the manager uses, so this report matches runtime.
     try:
-        from .sandbox import detect_capabilities
+        from .sandbox import detect_capabilities, is_hard_sandbox_required
         caps = detect_capabilities()
+        hard_req = is_hard_sandbox_required()
     except Exception as e:
         print(f"\nCould not import sandbox module: {e}")
         print("Plugin system will be INACTIVE.")
@@ -68,6 +69,7 @@ def main():
 
     print(f"\nPlatform: {platform.system()} ({platform.machine()})")
     print(f"Running as uid: {os.geteuid() if hasattr(os, 'geteuid') else 'n/a'}")
+    print(f"Strict sandbox enforcement (REQUIRE_HARD_SANDBOX): {'ENABLED' if hard_req else 'disabled'}")
     print("\nIsolation mechanisms:")
 
     def row(name, ok, note=""):
@@ -106,6 +108,9 @@ def main():
     else:
         print("  POSTURE: NONE — no OS isolation available.")
         print("  Run only trusted first-party plugins here.")
+    if hard_req and not (caps.bubblewrap or caps.unshare):
+        print("\n  [STRICT ENFORCEMENT ACTIVE] REQUIRE_HARD_SANDBOX is enabled.")
+        print("  Plugins will NOT start on this host until bubblewrap/unshare is available.")
     print("-" * 60)
 
     # Show what the actual sandbox command would look like, if we can build one.

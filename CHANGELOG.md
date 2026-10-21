@@ -10,6 +10,12 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 ## [0.11.2] — 2026-10-20
 
 ### Security & Hardening
+- **Plugin Sandbox AST Obfuscation & Reflection Guard:** Banned reflection attributes (`__subclasses__`, `__globals__`, `__code__`, `__reduce__`, `__bases__`, `__mro__`), dynamic attribute lookups on sensitive modules via `getattr()`, and direct or dynamic access to `sys.modules` in the plugin code inspector to prevent sandbox evasion.
+- **Proactive Core PII Log Sanitization:** Extended `sanitize_log_message` in core logging to scrub personal email addresses (`[email]`), phone numbers (`[number]`), and Social Security Numbers (`[ssn]`) across local log files and memory ring buffers.
+- **Fail-Closed Strict Sandbox Flag (`REQUIRE_HARD_SANDBOX`):** Added configuration flag that refuses to launch plugins on hosts lacking OS-level namespace sandboxing (bubblewrap/unshare), preventing silent fallback to uncontained execution.
+- **Login Timing Oracle & User Enumeration Mitigation:** Added constant-time dummy password verification (`dummy_verify_password`) in `POST /api/auth/token` for non-existent accounts, equalizing PBKDF2/Bcrypt processing latency to prevent username harvesting.
+- **Single-Use Enforcement on Ephemeral MFA Tickets:** Integrated `code_attempts` consumption into TOTP, backup recovery code, and WebAuthn verification to prevent intermediate MFA ticket replay.
+- **Immediate Session Invalidation on User Role & Permission Modifications:** Automatically incremented `token_version` whenever an administrator modifies a user's role, manager permissions, or MFA overrides to instantly terminate active sessions.
 - **SAML IdP Metadata SSRF & DNS Rebinding Protection:** Enforced `https://` scheme verification, `public_host` destination validation, and `safe_dns_context` socket pinning with disabled HTTP redirect following (`follow_redirects=False`) when fetching remote SAML IdP metadata documents.
 - **OIDC HTTPS Endpoint Enforcement & Credential Guard:** Added strict endpoint URL validation in `OIDCProviderConfig` rejecting non-HTTPS discovery, authorization, token, and userinfo endpoints to prevent cleartext credential transmission.
 - **SAML Assertion Concurrency Lock & Replay Defense:** Synchronized single-use `in_response_to` request ID consumption under thread-safe locking (`_OUTSTANDING_LOCK`) to eliminate race conditions during concurrent SAML response processing.

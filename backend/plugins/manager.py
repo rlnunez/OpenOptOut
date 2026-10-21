@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Union, List, Dict, Any, Tuple
 
 from .permissions import PluginManifest, Permission
-from .sandbox import detect_capabilities, build_sandboxed_command, log_sandbox_posture
+from .sandbox import detect_capabilities, build_sandboxed_command, log_sandbox_posture, is_hard_sandbox_required
 from .broker import SessionRegistry, CapabilityBroker
 
 log = logging.getLogger(__name__)
@@ -448,6 +448,13 @@ class PluginManager:
             return
         if manifest.id in self.running:
             log.info("Plugin %s already running", manifest.id)
+            return
+        if is_hard_sandbox_required() and not (self.caps.bubblewrap or self.caps.unshare):
+            log.error(
+                "Plugin %s launch blocked: REQUIRE_HARD_SANDBOX is enabled but full OS sandboxing "
+                "(bubblewrap/unshare) is unavailable on this host", manifest.id
+            )
+            self._set_status(manifest.id, "error", "Strict OS sandbox required but unavailable")
             return
         self._verify_integrity(manifest.id, install_path)
 

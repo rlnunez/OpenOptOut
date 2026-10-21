@@ -81,6 +81,17 @@ PATH_WRITE_METHODS = {"write_text", "write_bytes", "touch", "mkdir", "unlink", "
                       "chmod", "symlink_to", "hardlink_to", "link_to"}
 PICKLE_LOADS = {"load", "loads", "Unpickler"}
 
+# Attributes commonly abused for reflection, sandbox escape, or AST inspection evasion
+OBFUSCATION_ATTRIBUTES = {
+    "__subclasses__": "inspects class hierarchy to find dangerous classes",
+    "__globals__": "accesses function global scope to reach dangerous modules or builtins",
+    "__code__": "accesses or manipulates function bytecode",
+    "__reduce__": "implements arbitrary code execution via object reduction",
+    "__reduce_ex__": "implements arbitrary code execution via object reduction",
+    "__bases__": "walks class inheritance hierarchy",
+    "__mro__": "walks class method resolution order",
+}
+
 _BLOB_RE = re.compile(r"^[A-Za-z0-9+/=_\-]{1500,}$")
 _MODE_RE = re.compile(r"^[rwxabtU+]{1,4}$")
 
@@ -146,6 +157,24 @@ class _Visitor(ast.NodeVisitor):
             self.add("high", node.lineno, "builtins", "reaches into __builtins__, a way to hide dynamic code")
         self.generic_visit(node)
 
+    def visit_Attribute(self, node):
+        if node.attr in OBFUSCATION_ATTRIBUTES:
+            self.add("high", node.lineno, "obfuscation",
+                     f"accesses {node.attr}, a reflection technique used to escape sandboxes ({OBFUSCATION_ATTRIBUTES[node.attr]})")
+        elif node.attr == "modules" and _dotted(node.value) in ("sys", "self.sys"):
+            self.add("high", node.lineno, "sys-modules",
+                     "accesses sys.modules, a reflection technique used to bypass import checks")
+        self.generic_visit(node)
+
+    def visit_Subscript(self, node):
+        value_name = _dotted(node.value)
+        if value_name in ("sys.modules", "modules") or (
+            isinstance(node.value, ast.Attribute) and node.value.attr == "modules"
+        ):
+            self.add("high", node.lineno, "sys-modules",
+                     "accesses sys.modules directly, a reflection technique used to bypass import checks")
+        self.generic_visit(node)
+
     def visit_Call(self, node):
         func = node.func
         name = _dotted(func)
@@ -168,9 +197,31 @@ class _Visitor(ast.NodeVisitor):
         elif isinstance(func, ast.Attribute) and func.attr in PATH_WRITE_METHODS \
                 and not resolved.startswith(("plugin.", "self.", "storage.")):
             self.add("high", line, "path-write", f"calls .{func.attr}(), which changes files")
-        elif isinstance(func, ast.Name) and func.id == "getattr" and node.args and \
-                isinstance(node.args[0], ast.Name) and node.args[0].id in ("__builtins__", "builtins"):
-            self.add("high", line, "builtins", "looks up builtins by name, a way to hide dynamic code")
+        elif isinstance(func, ast.Name) and func.id in ("getattr", "hasattr") and len(node.args) >= 2:
+            target_obj = node.args[0]
+            target_attr = node.args[1]
+            attr_literal = target_attr.value if isinstance(target_attr, ast.Constant) and isinstance(target_attr.value, str) else None
+
+            if attr_literal and (
+                attr_literal in DANGEROUS_BUILTINS
+                or attr_literal in OS_PROCESS_CALLS
+                or attr_literal in OS_FILE_CALLS
+                or attr_literal in OBFUSCATION_ATTRIBUTES
+            ):
+                self.add("high", line, "reflection:attr",
+                         f"looks up dangerous '{attr_literal}' via {func.id}(), a way to hide disallowed calls")
+            target_name = _dotted(target_obj)
+            if target_name in ("__builtins__", "builtins"):
+                self.add("high", line, "builtins", f"looks up builtins by name via {func.id}(), a way to hide dynamic code")
+            target_root = target_name.split(".")[0]
+            if (target_root in DANGEROUS_MODULES or target_root in ("os", "sys")) and attr_literal is None:
+                self.add("high", line, "dynamic-attr",
+                         f"looks up dynamic attribute on '{target_name}' via {func.id}(), hiding runtime behavior")
+        elif isinstance(func, ast.Name) and func.id in ("setattr", "delattr") and len(node.args) >= 2:
+            target_name = _dotted(node.args[0])
+            if target_name in ("__builtins__", "builtins") or target_name.split(".")[0] in ("os", "sys"):
+                self.add("high", line, "reflection:modify",
+                         f"calls {func.id}() on '{target_name}', which can tamper with runtime builtins or system state")
 
         # open(...), io/codecs.open(...), io.FileIO(...), os.fdopen(...), and
         # method-style .open(...) (pathlib.Path.open, zipfile, ...): any of them

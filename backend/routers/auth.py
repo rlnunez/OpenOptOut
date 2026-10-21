@@ -19,7 +19,8 @@ from ..core.limits import LimitedModel, NAME_MAX
 from ..models.database import get_db, User, FamilyMember, UserRole, InviteCode, UsageEvent
 from ..core.auth import (
     hash_password, verify_password, is_legacy_unpeppered_hash, create_access_token,
-    get_current_user, get_current_user_optional, require_super_admin, validate_password_length
+    get_current_user, get_current_user_optional, require_super_admin, validate_password_length,
+    dummy_verify_password
 )
 from ..core.text_input import clean_name, clean_name_lenient, clean_text_lenient
 from ..core.session_policy import create_user_token
@@ -344,6 +345,9 @@ def signup_email_code(req: SignupEmailIn, db: Session = Depends(get_db)):
         raise HTTPException(503, "This server can't send email yet, so it can't make new accounts. "
                                  "Please ask the people who run it.")
     email = req.email.strip().lower()
+    # The route's per-IP limit does nothing to stop one address being flooded
+    # from many IPs; cap per address too (same as the sign-in code).
+    rate_limit.limit_value("signup-code", email, capacity=5, per_seconds=300)
     code = f"{secrets.randbelow(900000) + 100000}"
     token = _signup_token({"type": "signup_code", "email": email,
                            "code_hash": hashlib.sha256(code.encode()).hexdigest()}, 15)
@@ -520,7 +524,15 @@ def login(
     ip_key = login_throttle.ip_key(request)
     login_throttle.check(throttle_key, ip_key)
     user = db.query(User).filter(func.lower(User.email) == username).first()
-    if not user or not user.hashed_password or not verify_password(password, user.hashed_password):
+    if not user or not user.hashed_password:
+        dummy_verify_password(password)
+        login_throttle.failure(throttle_key, ip_key)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if not verify_password(password, user.hashed_password):
         login_throttle.failure(throttle_key, ip_key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -1021,15 +1033,19 @@ def _resolve_user_for_mfa(
 
 @router.post("/mfa/verify-totp", dependencies=[Depends(rate_limit.limit("mfa", 30))])
 def verify_totp_login(data: VerifyTotpIn, db: Session = Depends(get_db), request: Request = None):
-    from ..core import mfa
+    from ..core import mfa, code_attempts
     tdata = mfa.verify_mfa_ticket(data.mfa_ticket)
     if not tdata:
         raise HTTPException(400, "MFA session expired or invalid. Please sign in again.")
+    if not code_attempts.allowed(data.mfa_ticket, tdata.get("exp", 0)):
+        raise HTTPException(400, "MFA ticket has already been used or expired. Please sign in again.")
     user = db.query(User).filter(User.id == tdata["uid"]).first()
     if not user or not user.totp_enabled or not user.totp_secret_enc:
+        code_attempts.wrong(data.mfa_ticket)
         raise HTTPException(400, "TOTP is not configured for this account.")
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("totp", True):
+        code_attempts.wrong(data.mfa_ticket)
         raise HTTPException(403, "TOTP authentication is disabled for this account by security policy.")
     throttle_key = login_throttle.account_key("mfa", user.id)
     ip_key = login_throttle.ip_key(request)
@@ -1037,8 +1053,10 @@ def verify_totp_login(data: VerifyTotpIn, db: Session = Depends(get_db), request
     from ..core.settings_store import decrypt_password
     secret = decrypt_password(user.totp_secret_enc)
     if not mfa.verify_totp(data.code, secret):
+        code_attempts.wrong(data.mfa_ticket)
         login_throttle.failure(throttle_key, ip_key)
         raise HTTPException(401, "Invalid authentication code. Please check your authenticator app.")
+    code_attempts.used(data.mfa_ticket)
     login_throttle.success(throttle_key)
     remember_me = bool(tdata.get("remember_me", False))
     return {"access_token": create_user_token(user, remember_me=remember_me), "token_type": "bearer"}
@@ -1046,15 +1064,19 @@ def verify_totp_login(data: VerifyTotpIn, db: Session = Depends(get_db), request
 
 @router.post("/mfa/verify-backup", dependencies=[Depends(rate_limit.limit("mfa", 30))])
 def verify_backup_code_login(data: VerifyBackupIn, db: Session = Depends(get_db), request: Request = None):
-    from ..core import mfa
+    from ..core import mfa, code_attempts
     tdata = mfa.verify_mfa_ticket(data.mfa_ticket)
     if not tdata:
         raise HTTPException(400, "MFA session expired or invalid. Please sign in again.")
+    if not code_attempts.allowed(data.mfa_ticket, tdata.get("exp", 0)):
+        raise HTTPException(400, "MFA ticket has already been used or expired. Please sign in again.")
     user = db.query(User).filter(User.id == tdata["uid"]).first()
     if not user or not user.backup_codes:
+        code_attempts.wrong(data.mfa_ticket)
         raise HTTPException(400, "No backup recovery codes configured for this account.")
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("backup_codes", True):
+        code_attempts.wrong(data.mfa_ticket)
         raise HTTPException(403, "Backup recovery codes are disabled for this account by security policy.")
     throttle_key = login_throttle.account_key("mfa", user.id)
     ip_key = login_throttle.ip_key(request)
@@ -1065,8 +1087,10 @@ def verify_backup_code_login(data: VerifyBackupIn, db: Session = Depends(get_db)
         stored_hashes = []
     valid, remaining = mfa.verify_backup_code(data.code, stored_hashes)
     if not valid:
+        code_attempts.wrong(data.mfa_ticket)
         login_throttle.failure(throttle_key, ip_key)
         raise HTTPException(401, "Invalid backup recovery code.")
+    code_attempts.used(data.mfa_ticket)
     login_throttle.success(throttle_key)
     user.backup_codes = json.dumps(remaining)
     db.commit()
@@ -1107,15 +1131,19 @@ def get_webauthn_challenge_options(request: Request, data: dict = Body(..., max_
 
 @router.post("/mfa/verify-webauthn", dependencies=[Depends(rate_limit.limit("mfa", 30))])
 def verify_webauthn_login(data: VerifyWebAuthnIn, db: Session = Depends(get_db)):
-    from ..core import mfa
+    from ..core import mfa, code_attempts
     tdata = mfa.verify_mfa_ticket(data.mfa_ticket)
     if not tdata:
         raise HTTPException(400, "MFA session expired or invalid. Please sign in again.")
+    if not code_attempts.allowed(data.mfa_ticket, tdata.get("exp", 0)):
+        raise HTTPException(400, "MFA ticket has already been used or expired. Please sign in again.")
     user = db.query(User).filter(User.id == tdata["uid"]).first()
     if not user or not user.webauthn_credentials:
+        code_attempts.wrong(data.mfa_ticket)
         raise HTTPException(400, "No security keys registered.")
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("webauthn", True):
+        code_attempts.wrong(data.mfa_ticket)
         raise HTTPException(403, "FIDO2 / WebAuthn security key authentication is disabled for this account by security policy.")
     try:
         keys = json.loads(user.webauthn_credentials)
@@ -1124,12 +1152,15 @@ def verify_webauthn_login(data: VerifyWebAuthnIn, db: Session = Depends(get_db))
     cred_id = data.credential.get("id")
     matching_key = next((k for k in keys if k["id"] == cred_id), None)
     if not matching_key:
+        code_attempts.wrong(data.mfa_ticket)
         raise HTTPException(400, "Security key not registered on this account.")
     challenge = tdata.get("challenge", "")
     rp_id = tdata.get("rp_id")
     origin = tdata.get("origin")
     if not mfa.verify_webauthn_assertion(data.credential, challenge, matching_key, expected_rp_id=rp_id, expected_origin=origin):
+        code_attempts.wrong(data.mfa_ticket)
         raise HTTPException(401, "Security key verification failed.")
+    code_attempts.used(data.mfa_ticket)
     user.webauthn_credentials = json.dumps(keys)
     db.commit()
     remember_me = bool(tdata.get("remember_me", False))

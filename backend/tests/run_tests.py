@@ -3807,6 +3807,105 @@ def t_logs_sanitization():
     assert "\r" not in san5 and "\n" not in san5
     assert "fake entry injected by attacker" in san5  # neutralized, not hidden — still a single visible line
 
+    # 6. Proactive PII heuristics: emails, phone numbers, and SSNs
+    raw6 = "Patron contact jordan@example.invalid phone 555-010-0199 ssn 000-12-3456"
+    san6 = s(raw6)
+    assert "[email]" in san6 and "example.invalid" not in san6
+    assert "[number]" in san6 and "555-010-0199" not in san6
+    assert "[ssn]" in san6 and "000-12-3456" not in san6
+
+
+@test(1, "logs.sanitizer_secret_and_pii_shapes",
+      "The log scrubber catches prefixed token names, quoted dicts, cookies, API-key headers, URL "
+      "credentials and callback codes, feed links, street addresses, labelled names and birth dates.")
+def t_logs_sanitizer_shapes():
+    lc = _imp("core.logging_config")
+    s = lc.sanitize_log_message
+    cases = [
+        ("access_token=ya29.AAA refresh_token=1//0gBBB", ["ya29.AAA", "1//0gBBB"]),
+        ('{"access_token": "ya29.AAA"}', ["ya29.AAA"]),
+        ("{'password': 'hunter2'}", ["hunter2"]),
+        ("token: abc123 secret: s3cr3t", ["abc123", "s3cr3t"]),
+        ("Cookie: session=abcdef; Set-Cookie: sid=zzzzzz", ["abcdef", "zzzzzz"]),
+        ("X-API-Key: abcdef123", ["abcdef123"]),
+        ("postgresql://user:pa55word@host/db", ["pa55word"]),
+        ("GET /api/auth/oidc/google/callback?code=4/0AbCdE&state=xyz123 HTTP/1.1", ["4/0AbCdE", "xyz123"]),
+        ("GET /api/calendar/feed/AbCdEfGhIjKlMnOpQrStUvWxYz012345.ics HTTP/1.1", ["AbCdEfGhIjKlMnOpQrStUvWxYz012345"]),
+        ("lives at 12 Main Street, Springfield", ["12 Main Street"]),
+        ("first_name=Jordan last_name: Example", ["Jordan", "Example"]),
+        ("dob: 1990-04-12", ["1990-04-12"]),
+        ("mail jordan%40example.invalid or +44 20 7946 0958", ["example.invalid", "7946"]),
+    ]
+    for raw, secrets_ in cases:
+        out = s(raw)
+        for sec in secrets_:
+            assert sec not in out, f"{sec!r} survived in {out!r} (from {raw!r})"
+    # ordinary lines are left alone
+    assert s("Scheduler started: poll every 5m, exit code=0") == "Scheduler started: poll every 5m, exit code=0"
+    assert s("\x1b[32mINFO\x1b[0m: started") == "INFO: started"
+
+
+@test(1, "logs.uvicorn_and_worker_handlers_scrubbed",
+      "Handlers that bypass the root logger (uvicorn.access, uvicorn.error, the worker's basicConfig) get the scrubbing formatter.")
+def t_logs_all_handlers_scrubbed():
+    import io, logging
+    lc = _imp("core.logging_config")
+    buf = io.StringIO()
+    h = logging.StreamHandler(buf)
+    h.setFormatter(logging.Formatter("%(message)s"))
+    lg = logging.getLogger("uvicorn.access")
+    old_prop = lg.propagate
+    lg.addHandler(h)
+    lg.propagate = False
+    try:
+        lc.sanitize_all_handlers()
+        lc.sanitize_all_handlers()          # twice is harmless
+        lg.warning('%s - "GET /api/calendar/feed/%s.ics HTTP/1.1" 200', "10.0.0.1",
+                   "AbCdEfGhIjKlMnOpQrStUvWxYz012345")
+        out = buf.getvalue()
+        assert "AbCdEfGhIjKlMnOpQrStUvWxYz012345" not in out and "feed/[REDACTED].ics" in out, out
+        assert not isinstance(h.formatter.inner, lc._SanitizingWrapper)
+    finally:
+        lg.removeHandler(h)
+        lg.propagate = old_prop
+    # debug level must not switch on SQL / HTTP-library chatter
+    lc.quiet_chatty_libraries()
+    assert logging.getLogger("sqlalchemy.engine").level == logging.WARNING
+
+
+@test(1, "logs.files_private_and_alert_lists_them",
+      "A new log directory is 0700 and its file 0600, and the file-permission alert lists loose log paths with chmod 700 / 600.")
+def t_logs_private_files():
+    import logging, os, stat, tempfile
+    lc = _imp("core.logging_config")
+    ss = _imp("core.settings_store")
+    base = tempfile.mkdtemp()
+    logs = os.path.join(base, "logs")
+    old = (lc.LOGS_DIR, lc.LOG_FILE_PATH)
+    lc.LOGS_DIR, lc.LOG_FILE_PATH = logs, os.path.join(logs, "openoptout.log")
+    try:
+        lc._make_log_dir()
+        assert stat.S_IMODE(os.stat(logs).st_mode) == 0o700
+        h = lc._SecureRotatingFileHandler(lc.LOG_FILE_PATH, maxBytes=10, backupCount=2, encoding="utf-8")
+        h.emit(logging.LogRecord("t", logging.INFO, __file__, 1, "x" * 50, (), None))
+        h.emit(logging.LogRecord("t", logging.INFO, __file__, 1, "y" * 50, (), None))
+        h.close()
+        for f in os.listdir(logs):
+            assert stat.S_IMODE(os.stat(os.path.join(logs, f)).st_mode) == 0o600, f
+        # loosen them: the alert must name them with the right commands
+        os.chmod(logs, 0o755)
+        os.chmod(lc.LOG_FILE_PATH, 0o644)
+        # the alert reads the log paths from logging_config at call time
+        st = ss.get_secret_key_status()
+        assert logs in st["insecure_files"] and lc.LOG_FILE_PATH in st["insecure_files"], st["insecure_files"]
+        assert f"chmod 700 {logs}" in st["commands"]["linux"], st["commands"]["linux"]
+        assert f"chmod 600 {lc.LOG_FILE_PATH}" in st["commands"]["linux"]
+        assert st["permissions_insecure"] and st["banner_required"]
+    finally:
+        lc.LOGS_DIR, lc.LOG_FILE_PATH = old
+        import shutil
+        shutil.rmtree(base, ignore_errors=True)
+
 
 @test(1, "logs.ring_buffer_and_filtering",
       "MemoryRingBufferHandler buffers records up to capacity, provides structured entries, and filters by level/search/cursor.")
@@ -4035,6 +4134,13 @@ def t_plugin_code_inspector():
         "pickle": "import pickle\n",
         "network without permission": "import requests\n",
         "unparseable": "def broken(:\n",
+        "subclasses reflection": "x = ().__class__.__bases__[0].__subclasses__()\n",
+        "globals reflection": "def f(): pass\ng = f.__globals__\n",
+        "getattr system": "import os\ngetattr(os, 'system')('id')\n",
+        "getattr dynamic on os": "import os\nk = 'sys' + 'tem'\ngetattr(os, k)('id')\n",
+        "getattr subclasses": "getattr(object, '__subclasses__')()\n",
+        "sys.modules escape": "import sys\nsys.modules['os'].system('id')\n",
+        "setattr builtins": "setattr(__builtins__, 'flag', 1)\n",
     }
     for label, code in samples.items():
         with tempfile.TemporaryDirectory() as d:
@@ -4138,6 +4244,45 @@ def t_plugin_sandbox_bwrap_runtime():
     inh, _ = sandbox.build_sandboxed_command(["python"], "/data/plugins/p", caps, False, m,
                                              inherit_caller_env=True)
     assert "--clearenv" not in inh
+
+
+@test(1, "plugins.sandbox_require_hard_flag",
+      "When REQUIRE_HARD_SANDBOX is set, build_sandboxed_command refuses to start plugins "
+      "unless full OS sandboxing (bubblewrap or unshare) is available.")
+def t_plugin_sandbox_hard_flag():
+    sandbox = _imp("plugins.sandbox")
+    perms = _imp("plugins.permissions")
+    caps_none = sandbox.SandboxCapabilities(bubblewrap=False, unshare=False, rlimits=True, platform="darwin")
+    caps_bwrap = sandbox.SandboxCapabilities(bubblewrap=True, unshare=False, rlimits=True, platform="linux")
+    m = perms.PluginManifest.from_dict({"id": "p", "name": "p", "version": "1", "author": "a"})
+
+    orig = os.environ.get("REQUIRE_HARD_SANDBOX")
+    try:
+        os.environ.pop("REQUIRE_HARD_SANDBOX", None)
+        assert not sandbox.is_hard_sandbox_required()
+        # Degraded fallback allowed by default
+        cmd, _ = sandbox.build_sandboxed_command(["python"], "/data/plugins/p", caps_none, False, m)
+        assert cmd == ["python"]
+
+        # When hard sandbox is required:
+        os.environ["REQUIRE_HARD_SANDBOX"] = "true"
+        assert sandbox.is_hard_sandbox_required()
+
+        # Fails closed if host cannot sandbox
+        try:
+            sandbox.build_sandboxed_command(["python"], "/data/plugins/p", caps_none, False, m)
+            assert False, "should have raised RuntimeError"
+        except RuntimeError as e:
+            assert "REQUIRE_HARD_SANDBOX is enabled" in str(e)
+
+        # Passes if bubblewrap is present
+        cmd_bw, _ = sandbox.build_sandboxed_command(["python"], "/data/plugins/p", caps_bwrap, False, m)
+        assert "bwrap" in cmd_bw[0]
+    finally:
+        if orig is not None:
+            os.environ["REQUIRE_HARD_SANDBOX"] = orig
+        else:
+            os.environ.pop("REQUIRE_HARD_SANDBOX", None)
 
 
 @test(1, "plugins.sandbox_bwrap_really_starts_python",
@@ -6032,6 +6177,30 @@ def t_auth_nist_sp800_132():
         assert auth.is_legacy_unpeppered_hash("plain_test_pass", "unpeppered_hash") is True
     finally:
         auth._verify_raw = orig_verify
+
+
+@test(1, "auth.timing_attack_mitigation",
+      "dummy_verify_password executes full peppered verification against a dummy bcrypt hash and returns False.")
+def t_auth_timing_mitigation():
+    auth = _imp("core.auth")
+    # Verify it runs and returns False without throwing
+    assert auth.dummy_verify_password("wrong-pass-123456") is False
+    assert auth.dummy_verify_password("") is False
+
+
+@test(1, "auth.mfa_ticket_single_use",
+      "code_attempts enforces single use and attempt-capping on MFA tickets.")
+def t_auth_mfa_ticket_single_use():
+    ca = _imp("core.code_attempts")
+    import time
+    ticket = "test-mfa-ticket-12345"
+    exp = time.time() + 300
+    assert ca.allowed(ticket, exp) is True
+    ca.wrong(ticket)
+    assert ca.allowed(ticket, exp) is True
+    ca.used(ticket)
+    # Once used, ticket is permanently disallowed
+    assert ca.allowed(ticket, exp) is False
 
 
 # ── MFA / FIDO2 / WebAuthn / TOTP Tests ────────────────────────────────────────

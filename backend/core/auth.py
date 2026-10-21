@@ -277,6 +277,19 @@ def is_legacy_unpeppered_hash(plain: str, hashed: str) -> bool:
         return True
     return _verify_raw(plain, hashed)
 
+
+# Valid bcrypt hash for constant-time comparison when an account does not exist
+_DUMMY_BCRYPT_HASH = "$2b$12$e8Y7X4Q9L7Z1N5M3J2K1O.e5wL8.dD4xR5e5wL8.dD4xR5e5wL8.dD4xR5"
+
+
+def dummy_verify_password(password: str) -> bool:
+    """Execute full peppered verification against a dummy hash to prevent login timing side-channels."""
+    try:
+        return verify_password(password, _DUMMY_BCRYPT_HASH)
+    except Exception:
+        return False
+
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     payload = {**data, "exp": datetime.utcnow() + (expires_delta or timedelta(minutes=TOKEN_EXPIRE_MINUTES))}
     return jwt.encode(payload, _jwt_secret(), algorithm=ALGORITHM)

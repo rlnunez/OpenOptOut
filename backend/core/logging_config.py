@@ -10,6 +10,7 @@ Provides:
 
 import collections
 import datetime
+import glob
 import logging
 from logging.handlers import RotatingFileHandler
 import os
@@ -43,14 +44,59 @@ VALID_LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 # ── Sanitization Patterns ────────────────────────────────────────────────────
 
 _RE_BEARER = re.compile(r"Bearer\s+[A-Za-z0-9\-_=.]+", re.IGNORECASE)
-_RE_PARAM_SECRETS = re.compile(
-    r"(?i)\b(password|passwd|pin|secret|client_secret|token|api_key)=([^&\s]+)"
+
+# key=value, key: value, "key": "value" and 'key': 'value' for any key that has
+# a secret-ish word as one of its dash/underscore-separated parts, so
+# access_token, refresh_token, X-API-Key, session_id, Set-Cookie and
+# client_secret are all caught, not only a bare "token". The value keeps its
+# quote marks so JSON-looking lines stay readable.
+_SECRET_WORDS = (
+    r"password|passwd|passphrase|pin|secret|token|api[-_]?key|apikey|credentials?|"
+    r"cookie|session(?:[-_]?id)?|signature|private[-_]?key"
 )
-_RE_JSON_SECRETS = re.compile(
-    r'(?i)("(?:password|passwd|pin|secret|client_secret|token|api_key)"\s*:\s*)"([^"]+)"'
+_RE_KV_SECRETS = re.compile(
+    r"(?i)(\b(?:[a-z0-9]+[_-])*(?:" + _SECRET_WORDS + r")(?:[_-][a-z0-9]+)*[\"']?\s*[=:]\s*)"
+    r"(?!\[REDACTED)(\"[^\"]*\"|'[^']*'|[^&\s,;}\]]+)"
 )
+
+# Personal details that come with a label: first_name=..., dob: 1990-01-01
+_RE_KV_PERSONAL = re.compile(
+    r"(?i)(\b(?:first|last|middle|full|maiden|given|family)[_ -]?name|surname|"
+    r"dob|date[_ -]?of[_ -]?birth|birth[_ -]?date|birthday)([\"']?\s*[=:]\s*)"
+    r"(?!\[)(\"[^\"]*\"|'[^']*'|[^&\s,;}\]]+)"
+)
+
+# Secrets that sit in a URL: the query string and the password part of
+# scheme://user:password@host. OIDC/OAuth callbacks put a one-time code and a
+# state in the query; both are credentials while they're live.
+_RE_URL_QUERY_SECRETS = re.compile(
+    r"(?i)([?&](?:code|state|id_token|access_token|refresh_token|samlresponse|relaystate|"
+    r"sig|signature|key|sid)=)[^&\s\"']+"
+)
+_RE_URL_CREDENTIALS = re.compile(r"(?i)(\b[a-z][a-z0-9+.-]*://[^/\s:@]*:)[^@\s/]+@")
+# The calendar feed address is itself the password to a family's schedule.
+_RE_FEED_TOKEN = re.compile(r"(?i)(/feed/)[A-Za-z0-9_\-]{16,}(\.ics)")
+
 _RE_SIP2_AUTH = re.compile(r"\|(AD|CO)([^|\r\n]+)")
-_RE_AUTH_HEADER = re.compile(r"(?i)\b(Authorization:\s*)([^\r\n]+)")
+_RE_AUTH_HEADER = re.compile(r"(?i)\b(Authorization(?::\s*|=))([^\r\n]+)")
+
+# Proactive PII heuristic patterns. Names and addresses can't be found by
+# shape alone, so this is a net under the rule "don't log them" (AGENTS.md),
+# not a replacement for it.
+_RE_EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+(?:@|%40)[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+_RE_PHONE = re.compile(r"(?<!\d)(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}(?!\d)")
+_RE_PHONE_INTL = re.compile(r"(?<![\w+])\+\d{1,3}[ .-]?\(?\d{1,4}\)?(?:[ .-]?\d{2,4}){2,4}(?!\d)")
+_RE_SSN = re.compile(r"(?<!\d)\d{3}[- ]\d{2}[- ]\d{4}(?!\d)")
+_RE_STREET = re.compile(
+    r"\b\d{1,6}\s+(?:[A-Za-z0-9.'-]+\s+){1,4}"
+    r"(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Dr|Drive|Ln|Lane|Ct|Court|Way|Pl|Place|"
+    r"Ter|Terrace|Cir|Circle|Hwy|Highway|Pkwy|Parkway)\b\.?",
+    re.IGNORECASE,
+)
+
+# Colour codes uvicorn adds on a terminal; removed so the next rule doesn't
+# turn the escape character into a stray space.
+_RE_ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 # Every C0 control character, including \r and \n. Run LAST, on the whole
 # formatted line: anything upstream (a route handler, a plugin, a future
@@ -63,6 +109,17 @@ _RE_AUTH_HEADER = re.compile(r"(?i)\b(Authorization:\s*)([^\r\n]+)")
 _RE_CONTROL_CHARS = re.compile(r"[\x00-\x1f]")
 
 
+def _quote_like(value: str) -> str:
+    """[REDACTED] inside the same quote marks the value had."""
+    if len(value) >= 2 and value[0] in "\"'" and value[-1] == value[0]:
+        return value[0] + "[REDACTED]" + value[0]
+    return "[REDACTED]"
+
+
+def _redact_value(m: "re.Match") -> str:
+    return m.group(1) + _quote_like(m.group(2))
+
+
 def sanitize_log_message(msg: str) -> str:
     """
     Scrub credentials, tokens, and sensitive parameters from log strings
@@ -70,11 +127,20 @@ def sanitize_log_message(msg: str) -> str:
     """
     if not isinstance(msg, str):
         msg = str(msg)
+    msg = _RE_ANSI.sub("", msg)
     msg = _RE_BEARER.sub("Bearer [REDACTED]", msg)
-    msg = _RE_PARAM_SECRETS.sub(r"\1=[REDACTED]", msg)
-    msg = _RE_JSON_SECRETS.sub(r'\1"[REDACTED]"', msg)
-    msg = _RE_SIP2_AUTH.sub(r"|\1[REDACTED]", msg)
     msg = _RE_AUTH_HEADER.sub(r"\1[REDACTED]", msg)
+    msg = _RE_URL_CREDENTIALS.sub(r"\1[REDACTED]@", msg)
+    msg = _RE_URL_QUERY_SECRETS.sub(r"\1[REDACTED]", msg)
+    msg = _RE_FEED_TOKEN.sub(r"\1[REDACTED]\2", msg)
+    msg = _RE_KV_SECRETS.sub(_redact_value, msg)
+    msg = _RE_KV_PERSONAL.sub(lambda m: m.group(1) + m.group(2) + _quote_like(m.group(3)), msg)
+    msg = _RE_SIP2_AUTH.sub(r"|\1[REDACTED]", msg)
+    msg = _RE_SSN.sub("[ssn]", msg)
+    msg = _RE_EMAIL.sub("[email]", msg)
+    msg = _RE_PHONE.sub("[number]", msg)
+    msg = _RE_PHONE_INTL.sub("[number]", msg)
+    msg = _RE_STREET.sub("[address]", msg)
     msg = _RE_CONTROL_CHARS.sub(" ", msg)
     return msg
 
@@ -85,6 +151,94 @@ class SanitizingFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         formatted = super().format(record)
         return sanitize_log_message(formatted)
+
+
+class _SanitizingWrapper(logging.Formatter):
+    """Wraps a handler's existing formatter (uvicorn's access formatter, a
+    basicConfig one) so its output is scrubbed the same way ours is."""
+
+    def __init__(self, inner: Optional[logging.Formatter]):
+        super().__init__()
+        self.inner = inner or logging.Formatter(LOG_FORMAT, datefmt=LOG_DATEFMT)
+
+    def format(self, record: logging.LogRecord) -> str:
+        return sanitize_log_message(self.inner.format(record))
+
+
+def sanitize_handler(handler: logging.Handler) -> None:
+    """Make one handler scrub what it writes. Safe to call twice."""
+    fmt = handler.formatter
+    if isinstance(fmt, (SanitizingFormatter, _SanitizingWrapper)):
+        return
+    handler.setFormatter(_SanitizingWrapper(fmt))
+
+
+def sanitize_all_handlers() -> None:
+    """Every handler on the root logger and on every named logger, which takes
+    in uvicorn.access and uvicorn.error. uvicorn gives those their own stdout
+    handlers and doesn't pass their records to the root logger, so without this
+    request lines (with their query strings) reach `docker compose logs`
+    unscrubbed. Call it again after anything that adds handlers."""
+    seen = set()
+    loggers = [logging.getLogger()] + [
+        l for l in list(logging.root.manager.loggerDict.values()) if isinstance(l, logging.Logger)
+    ]
+    for lg in loggers:
+        for h in list(lg.handlers):
+            if id(h) not in seen:
+                seen.add(id(h))
+                sanitize_handler(h)
+
+
+# Libraries that print URLs, headers, request bodies or SQL parameters when the
+# root level is DEBUG. Pinned to WARNING so turning on debug for OpenOptOut's
+# own messages doesn't also print a family's details from underneath it.
+_CHATTY_LIBRARIES = (
+    "sqlalchemy.engine", "sqlalchemy.pool", "httpx", "httpcore", "urllib3", "hpack",
+    "asyncio", "multipart", "python_multipart", "PIL", "playwright", "websockets",
+)
+
+
+def quiet_chatty_libraries() -> None:
+    for name in _CHATTY_LIBRARIES:
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+
+class _SecureRotatingFileHandler(RotatingFileHandler):
+    """A log file only its owner can read (0600), including every rotated copy."""
+
+    def _open(self):
+        old = os.umask(0o077)
+        try:
+            stream = super()._open()
+        finally:
+            os.umask(old)
+        try:
+            os.chmod(self.baseFilename, 0o600)
+        except OSError:
+            pass
+        return stream
+
+    def doRollover(self):
+        super().doRollover()
+        for path in glob.glob(self.baseFilename + ".*"):
+            try:
+                os.chmod(path, 0o600)
+            except OSError:
+                pass
+
+
+def _make_log_dir() -> None:
+    """Create the log directory as 0700. A directory that already exists is
+    left alone: the admin's file-permission alert shows the command to tighten
+    it, so nothing changes under an operator's feet."""
+    if os.path.isdir(LOGS_DIR):
+        return
+    old = os.umask(0o077)
+    try:
+        os.makedirs(LOGS_DIR, mode=0o700, exist_ok=True)
+    finally:
+        os.umask(old)
 
 
 # ── In-Memory Ring Buffer Handler ─────────────────────────────────────────────
@@ -212,8 +366,8 @@ def init_logging():
         # File handler
         if _file_handler is None:
             try:
-                os.makedirs(LOGS_DIR, exist_ok=True)
-                _file_handler = RotatingFileHandler(
+                _make_log_dir()
+                _file_handler = _SecureRotatingFileHandler(
                     LOG_FILE_PATH,
                     maxBytes=10 * 1024 * 1024,  # 10 MB
                     backupCount=5,
@@ -227,6 +381,9 @@ def init_logging():
             except Exception as e:
                 # If disk is read-only or dir cannot be created, keep running with buffer
                 root.warning("Could not initialize file log handler at %s: %s", LOG_FILE_PATH, e)
+
+        quiet_chatty_libraries()
+        sanitize_all_handlers()
 
 
 def get_log_level() -> str:
@@ -250,6 +407,7 @@ def set_log_level(level_name: str) -> str:
     for handler in logging.getLogger().handlers:
         handler.setLevel(level_no)
 
+    quiet_chatty_libraries()
     return level_name
 
 

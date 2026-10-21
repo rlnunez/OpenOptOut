@@ -39,6 +39,11 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] (%(name)s) %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+# Same scrubbing the API's logs get: a worker handles the jobs that carry
+# members' details, so its output must not hold them either.
+from core.logging_config import sanitize_all_handlers, quiet_chatty_libraries
+sanitize_all_handlers()
+quiet_chatty_libraries()
 log = logging.getLogger("openoptout.worker")
 
 

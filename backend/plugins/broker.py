@@ -221,6 +221,16 @@ class CapabilityBroker:
         pid = s["plugin_id"]
         lvl = {"debug": logging.DEBUG, "info": logging.INFO,
                "warning": logging.WARNING, "error": logging.ERROR}.get(level.lower(), logging.INFO)
+        # A plugin that can read members' details must not be able to write
+        # them into the log: the log is readable by managers and can be
+        # forwarded off the server, which would walk around the rule that
+        # read_pii and network never go together. Its text is withheld and
+        # only the size is recorded; its other messages are scrubbed by the
+        # log formatter like everyone's.
+        if self.sessions.has_permission(auth.session_token, pid, Permission.READ_PII.value):
+            log.log(lvl, "[plugin:%s] (message withheld: this plugin can read personal details; %d characters)",
+                    pid, len(message))
+            return
         # Truncate to avoid log flooding
         log.log(lvl, "[plugin:%s] %s", pid, message[:2000])
 

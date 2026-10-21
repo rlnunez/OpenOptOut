@@ -265,6 +265,7 @@ def update_user(
             # made a manager again starts from the defaults.
             user.permissions_granted = None
             user.permissions_revoked = None
+        user.token_version = (getattr(user, "token_version", 0) or 0) + 1
 
     if req.password is not None:
         user.hashed_password = hash_password(req.password)
@@ -286,6 +287,7 @@ def update_user(
                 if not totp_on and not webauthn_on:
                     raise HTTPException(400, f"Cannot disable all MFA methods for administrative role '{user_role_str}'.")
             user.mfa_options_override = json.dumps(req.mfa_options_override)
+        user.token_version = (getattr(user, "token_version", 0) or 0) + 1
 
     db.commit()
     db.refresh(user)
@@ -460,6 +462,7 @@ def set_manager_permissions(user_id: int, req: ManagerPermissionsRequest,
     wanted, defaults = set(req.permissions), set(access.manager_defaults())
     user.permissions_granted = json.dumps(access.clean(wanted - defaults))
     user.permissions_revoked = json.dumps(access.clean(defaults - wanted))
+    user.token_version = (getattr(user, "token_version", 0) or 0) + 1
     db.commit()
     db.refresh(user)
     return _user_out(user)
