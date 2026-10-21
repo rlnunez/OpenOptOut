@@ -27,10 +27,10 @@ from .compiler import Job, JobStep
 
 # A form saying the email address it was given isn't acceptable.
 EMAIL_REJECTED = re.compile(
-    r"(not a valid|invalid|enter a valid|incorrect|unsupported|not supported|not allowed|isn't valid|is not valid)"
+    r"(not a valid|invalid|enter a valid|provide a valid|incorrect|unsupported|not supported|not allowed|not accepted|isn't valid|is not valid|disposable|temporary)"
     r"[^.\n]{0,30}\be-?mail\b|"
-    r"\be-?mail\b[^.\n]{0,40}(is invalid|is not valid|isn't valid|not allowed|not supported|"
-    r"can(no|')t contain|must not contain|special characters)",
+    r"\be-?mail\b[^.\n]{0,40}(is invalid|is not valid|isn't valid|not allowed|not supported|not accepted|"
+    r"can(no|')t contain|must not contain|special characters|must be a permanent|must be valid)",
     re.I)
 
 # Visible CAPTCHA widgets. Invisible reCAPTCHA (v3 / size=invisible) is left
@@ -537,8 +537,12 @@ class PlaywrightExecutor(JobExecutor):
 
         if s.kind == "navigate":
             self._current_frame = None  # Navigation resets frame context
-            await self.page.goto(s.url, timeout=s.timeout_ms or 20000)
+            resp = await self.page.goto(s.url, timeout=s.timeout_ms or 20000)
             await self.page.wait_for_timeout(1500)   # let the page settle
+            if resp and getattr(resp, "status", None) == 429:
+                raise RuntimeError("HTTP 429 Too Many Requests: broker rate limit reached")
+            if resp and getattr(resp, "status", None) in (502, 503, 504):
+                raise RuntimeError(f"HTTP {resp.status} Server Error: broker site temporarily unavailable")
 
         elif s.kind == "fill":
             await self._loc(s.selector).fill(s.value, timeout=s.timeout_ms or 8000)

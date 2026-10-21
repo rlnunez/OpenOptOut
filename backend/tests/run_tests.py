@@ -10252,6 +10252,22 @@ def t_forms_executor():
     r2 = asyncio.run(ci.PlaywrightExecutor(page=page2).run(ci.compile_job(spec, fields, "1")))
     assert r2.ok and r2.verified and not r2.email_rejected, r2
 
+    # Vector 4 tests: disposable/permanent email refusal phrases & HTTP 429 rate limit
+    page_disp = _FormPage(options={"li": ["Kansas"]})
+    page_disp.body = lambda: "Please provide a valid permanent personal email address. Disposable email addresses are not accepted."
+    page_disp.clicked = ["#go"]
+    r_disp = asyncio.run(ci.PlaywrightExecutor(page=page_disp).run(ci.compile_job(spec, fields, "1")))
+    assert not r_disp.ok and r_disp.email_rejected, r_disp
+
+    class _Page429(_FormPage):
+        async def goto(self, url, timeout=None):
+            class _Resp:
+                status = 429
+            return _Resp()
+    page_429 = _Page429()
+    r_429 = asyncio.run(ci.PlaywrightExecutor(page=page_429).run(ci.compile_job(spec, fields, "1")))
+    assert not r_429.ok and "HTTP 429" in r_429.detail, r_429.detail
+
 
 @test(1, "i18n.international_profile_resolution",
       "Address parser, date parser, and member fields handle international formats: Arabic comma, "
