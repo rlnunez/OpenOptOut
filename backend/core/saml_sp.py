@@ -222,7 +222,11 @@ def consume_response(cfg: dict, base: str, saml_response_b64: str):
 
     # Single use: consume the request ID so the same response can't be replayed.
     in_resp_to = getattr(resp, "in_response_to", None)
-    if not in_resp_to or _OUTSTANDING.pop(in_resp_to, None) is None:
+    was_outstanding = False
+    if in_resp_to:
+        with _OUTSTANDING_LOCK:
+            was_outstanding = _OUTSTANDING.pop(in_resp_to, None) is not None
+    if not in_resp_to or not was_outstanding:
         raise SamlError("This sign-in response was already used or has expired.")
 
     identity = resp.get_identity() or {}

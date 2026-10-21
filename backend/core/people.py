@@ -40,9 +40,17 @@ def delete_person(db, user) -> None:
                     addr.combo_label = "SHREDDED"
                 if member.formal_name:
                     member.formal_name = os.urandom(16).hex()
+                if member.dob:
+                    member.dob = "1970-01-01"
                 member.full_name = "SHREDDED-" + os.urandom(8).hex()
-                if user and user.email:
-                    user.email = "shredded-" + os.urandom(8).hex() + "@shredded.invalid"
+                if user:
+                    if user.email:
+                        user.email = "shredded-" + os.urandom(8).hex() + "@shredded.invalid"
+                    if user.full_name:
+                        user.full_name = "SHREDDED-" + os.urandom(8).hex()
+                    user.totp_secret_enc = None
+                    user.backup_codes = None
+                    user.webauthn_credentials = None
                 db.flush()
             log.info("Crypto-shredded member %s before deletion (%d passes)", member.id, shred_passes)
         except Exception as e:

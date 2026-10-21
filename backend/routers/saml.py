@@ -158,10 +158,18 @@ def save_config(body: SamlConfigIn, request: Request,
         if v is not None:
             cfg[k] = v.strip() if isinstance(v, str) else v
     if url:
+        import urllib.parse
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme.lower() != "https" or not parsed.hostname:
+            raise HTTPException(400, "IdP metadata address must start with https://")
+        from ..core.dns_guard import public_host, safe_dns_context
+        if not public_host(parsed.hostname):
+            raise HTTPException(400, "That address does not point to a public server.")
         cfg["idp_metadata_url"] = url
         try:
             import httpx
-            r = httpx.get(url, timeout=15, follow_redirects=True)
+            with safe_dns_context():
+                r = httpx.get(url, timeout=15, follow_redirects=False)
             r.raise_for_status()
             if len(r.content) > MAX_METADATA_BYTES:
                 raise HTTPException(400, "Metadata document is too large.")

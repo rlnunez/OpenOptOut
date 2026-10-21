@@ -10,11 +10,19 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 ## [0.11.2] — 2026-10-20
 
 ### Security & Hardening
+- **SAML IdP Metadata SSRF & DNS Rebinding Protection:** Enforced `https://` scheme verification, `public_host` destination validation, and `safe_dns_context` socket pinning with disabled HTTP redirect following (`follow_redirects=False`) when fetching remote SAML IdP metadata documents.
+- **OIDC HTTPS Endpoint Enforcement & Credential Guard:** Added strict endpoint URL validation in `OIDCProviderConfig` rejecting non-HTTPS discovery, authorization, token, and userinfo endpoints to prevent cleartext credential transmission.
+- **SAML Assertion Concurrency Lock & Replay Defense:** Synchronized single-use `in_response_to` request ID consumption under thread-safe locking (`_OUTSTANDING_LOCK`) to eliminate race conditions during concurrent SAML response processing.
+- **Comprehensive Crypto-Shredding of Member PII & Residual MFA Secrets:** Extended multi-pass cryptographic shredding in `delete_person` to overwrite member date of birth (`dob`), user full name, and immediately wipe residual MFA credentials (`totp_secret_enc`, `backup_codes`, `webauthn_credentials`) before database purge.
+- **Browser Hardware Feature Isolation (`Permissions-Policy`):** Added defense-in-depth HTTP security header `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()` restricting browser hardware capability access.
 - **Webhook SSRF & DNS Rebinding Hardening:** Enforced `public_host` validation and `safe_dns_context` socket pinning on outbound webhook dispatches to prevent SSRF against internal subnets and DNS rebinding attacks.
 - **Single-Use Verification Code Invalidation:** Automatically consumed and invalidated email verification tokens via `code_attempts.used` upon successful registration to prevent code replay attacks.
 - **MFA Session Token Revocation Parity:** Enforced `token_version` validation in `_resolve_user_for_mfa` to ensure revoked or invalidated JWT sessions cannot access MFA status or enrollment flows.
 - **WebAuthn Step-Up Re-Authentication:** Enforced password confirmation and dispatched account alert emails upon deleting registered WebAuthn / Passkey hardware keys.
 - **PostgreSQL Process List Credential Protection:** Stripped cleartext database passwords from `pg_dump` CLI subprocess arguments in backup jobs, securely supplying credentials through environment variable separation (`PGPASSWORD`).
+
+### Dependencies
+- Merged PR #146: Upgraded `reportlab` from 4.4.4 to 5.0.1 in `backend/requirements.txt`.
 
 ---
 

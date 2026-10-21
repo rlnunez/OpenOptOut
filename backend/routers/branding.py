@@ -9,7 +9,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Body
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Any
 
 from ..core.limits import LimitedModel, LONG_TEXT_MAX, LOGO_MAX_BYTES, read_upload
@@ -176,6 +176,16 @@ class OIDCProviderConfig(LimitedModel):
     required_groups: Optional[str] = Field(None, max_length=LONG_TEXT_MAX)   # comma-separated; any-of
     auto_provision:     Optional[bool] = None  # allow new users when registration is closed
     client_secret_set:  bool = False
+
+    @field_validator("discovery_url", "authorization_endpoint", "token_endpoint", "userinfo_endpoint")
+    @classmethod
+    def validate_https_endpoints(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            s = str(v).strip()
+            if s and not s.lower().startswith("https://"):
+                raise ValueError("OIDC provider addresses must start with https:// to protect credentials.")
+            return s
+        return v
 
 
 # ── Branding endpoints ────────────────────────────────────────────────────────
