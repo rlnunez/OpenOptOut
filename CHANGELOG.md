@@ -1,8 +1,7 @@
 # Changelog
 
 All notable changes to OpenOptOut are documented in this file.
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Each completed roadmap item is cross-referenced with its architectural milestone number (e.g., `Roadmap Item #`). For active, planned, and upcoming initiatives, see the live [Roadmap (`docs/ROADMAP.md`)](docs/ROADMAP.md). For detailed specifications, design rationale, and test verification notes for historical milestones up through v0.11.0, see the [Completed Milestones Archive (`docs/archive/COMPLETED_ROADMAP.md`)](docs/archive/COMPLETED_ROADMAP.md) (frozen after v0.11.0 release). All subsequent completed roadmap work, architectural improvements, and release notes are documented directly in this changelog.
 
@@ -12,6 +11,11 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ### Security & Dependencies
 - **Security Dependency Hardening:** Upgraded `follow-redirects` from `1.16.0` to `1.16.1` in the frontend application layer to remediate upstream HTTP redirect security advisories.
+- **Webhook SSRF & DNS Rebinding Hardening:** Enforced `public_host` validation and `safe_dns_context` socket pinning on outbound webhook dispatches to prevent SSRF against internal subnets and DNS rebinding attacks.
+- **Single-Use Verification Code Invalidation:** Automatically consumed and invalidated email verification tokens via `code_attempts.used` upon successful registration to prevent code replay attacks.
+- **MFA Session Token Revocation Parity:** Enforced `token_version` validation in `_resolve_user_for_mfa` to ensure revoked or invalidated JWT sessions cannot access MFA status or enrollment flows.
+- **WebAuthn Step-Up Re-Authentication:** Enforced password confirmation and dispatched account alert emails upon deleting registered WebAuthn / Passkey hardware keys.
+- **PostgreSQL Process List Credential Protection:** Stripped cleartext database passwords from `pg_dump` CLI subprocess arguments in backup jobs, securely supplying credentials through environment variable separation (`PGPASSWORD`).
 - **Dependency Maintenance & Pinning Updates:**
   - Merged PR #144: Updated official GitHub Actions workflow action SHAs (`upload-sarif`, `upload-artifact`, `download-artifact`, `scorecard-action`).
   - Merged PR #140: Refreshed `python:3.12-slim-bookworm` container base image digest pin with latest upstream Debian security patches.

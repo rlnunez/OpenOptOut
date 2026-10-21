@@ -2176,9 +2176,11 @@ function MfaAccountSection({ user }) {
 
   const deleteKey = async (keyId, keyLabel) => {
     if (!confirm(tx("Remove security key \"{keyLabel}\"?", { keyLabel }))) return
+    const password = window.prompt(tx("Your password"))
+    if (!password) return
     setError(''); setSuccess('')
     try {
-      await api.delete(`/auth/mfa/webauthn/${keyId}`)
+      await api.delete(`/auth/mfa/webauthn/${keyId}`, { data: { password } })
       setSuccess(tx("Removed security key \"{keyLabel}\".", { keyLabel }))
       loadStatus()
     } catch (err) {

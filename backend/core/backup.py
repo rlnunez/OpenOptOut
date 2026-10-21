@@ -173,11 +173,39 @@ def _sqlite_snapshot(dest: str) -> str:
 
 def _pg_dump(dest: str) -> None:
     import subprocess
+    import urllib.parse
     from ..models.database import DATABASE_URL
     if not shutil.which("pg_dump"):
         raise RuntimeError("pg_dump isn't installed in this container")
-    subprocess.run(["pg_dump", "--format=custom", "--file", dest, DATABASE_URL], check=True, timeout=3600,
-                   stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+
+    env = dict(os.environ)
+    clean_url = DATABASE_URL
+    try:
+        raw_url = DATABASE_URL
+        if "+" in raw_url.split("://", 1)[0]:
+            scheme, rest = raw_url.split("://", 1)
+            raw_url = scheme.split("+")[0] + "://" + rest
+        parsed = urllib.parse.urlparse(raw_url)
+        if parsed.password:
+            env["PGPASSWORD"] = urllib.parse.unquote(parsed.password)
+            netloc = parsed.hostname or ""
+            if parsed.username:
+                netloc = f"{urllib.parse.quote(parsed.username)}@{netloc}"
+            if parsed.port:
+                netloc = f"{netloc}:{parsed.port}"
+            clean_url = urllib.parse.urlunparse((
+                parsed.scheme,
+                netloc,
+                parsed.path,
+                parsed.params,
+                parsed.query,
+                parsed.fragment,
+            ))
+    except Exception:
+        clean_url = DATABASE_URL
+
+    subprocess.run(["pg_dump", "--format=custom", "--file", dest, clean_url], check=True, timeout=3600,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, env=env)
 
 
 def build_bundle(work: str, cfg: dict, include_db: bool = True) -> str:

@@ -375,6 +375,7 @@ def _check_signup_steps(req: RegisterRequest, db: Session) -> Optional[dict]:
                                    data.get("code_hash", "")):
             code_attempts.wrong(req.email_token)
             raise HTTPException(400, "That code isn't right. Check the email and try again.")
+        code_attempts.used(req.email_token)
     if not cfg["address_check"]:
         return None
     home = _read_signup_token(req.address_token, "resident")
@@ -965,6 +966,9 @@ class WebAuthnRegisterIn(LimitedModel):
     name: str = Field("Security Key", max_length=NAME_MAX)
     credential: dict = Field(..., max_length=50)
 
+class DeleteWebAuthnIn(LimitedModel):
+    password: Optional[str] = Field(None, max_length=MAX_PASSWORD_BYTES)
+
 
 def _resolve_user_for_mfa(
     db: Session,
@@ -981,14 +985,20 @@ def _resolve_user_for_mfa(
         if auth_hdr.startswith("Bearer "):
             token = auth_hdr[7:].strip()
             try:
-                from jose import jwt
                 from ..core.auth import _jwt_secret, ALGORITHM
+                try:
+                    import jwt
+                except ImportError:
+                    from jose import jwt
                 payload = jwt.decode(token, _jwt_secret(), algorithms=[ALGORITHM])
                 email = payload.get("sub")
                 if email:
                     user = db.query(User).filter(User.email == email).first()
                     if user and user.can_login:
-                        return user
+                        token_ver = payload.get("token_version")
+                        user_ver = getattr(user, "token_version", 0) or 0
+                        if (token_ver or 0) == user_ver:
+                            return user
             except Exception:
                 pass
     ticket = mfa_ticket
@@ -1348,20 +1358,37 @@ def register_webauthn_key(
 @router.delete("/mfa/webauthn/{key_id}")
 def delete_webauthn_key(
     key_id: str,
+    data: Optional[DeleteWebAuthnIn] = Body(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from ..core import mfa
+    from ..core import mfa, system_mail
+    if current_user.hashed_password and _is_local_user(current_user):
+        if not data or not data.password or not verify_password(data.password, current_user.hashed_password):
+            raise HTTPException(400, "Password verification failed.")
     keys = []
     if current_user.webauthn_credentials:
-        try: keys = json.loads(current_user.webauthn_credentials)
-        except Exception: pass
+        try:
+            keys = json.loads(current_user.webauthn_credentials)
+        except Exception:
+            pass
+    removed_label = "Security Key"
+    for k in keys:
+        if k.get("id") == key_id:
+            removed_label = k.get("name") or "Security Key"
+            break
     filtered = [k for k in keys if k["id"] != key_id]
     mandated, _ = mfa.is_mfa_mandated(current_user, db)
     if mandated and not current_user.totp_enabled and len(filtered) == 0:
         raise HTTPException(400, "MFA is mandated for this account; you must keep at least one method enabled.")
     current_user.webauthn_credentials = json.dumps(filtered)
     db.commit()
+    system_mail.send(
+        current_user.email,
+        "A security key was removed from your OpenOptOut account",
+        f"The security key '{removed_label}' was just removed from your account. "
+        "If you didn't do this, sign in and review your security settings right away.",
+    )
     return {"deleted": True, "remaining": len(filtered)}
 
 
