@@ -953,8 +953,29 @@ def t_captcha_detection():
     # Never the whole page: only a cropped, blacked-out picture of the CAPTCHA,
     # and here (no element boxes from the fake page) nothing at all.
     assert res.challenge.get("screenshot") == b""
-    # EXPECTED: challenge metadata captured and returned in ExecResult on human pause.
-    # IF THIS FAILS: the Human-in-the-Loop queue won't receive challenge details from execution.
+    # Turnstile detection & token injection check
+    injected_js = []
+    class TurnstilePage:
+        url = "https://optout.example/verify"
+        async def content(self):
+            return "<html><iframe src='https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/turnstile/if/ov2/av0/rcv0/0/0/0/sub/0/sitekey=0x4AAAAAAABcdEF123456'></iframe></html>"
+        async def query_selector(self, sel):
+            class IframeEl:
+                async def get_attribute(self, a):
+                    return "https://challenges.cloudflare.com/cdn-cgi/turnstile?sitekey=0x4AAAAAAABcdEF123456" if a == "src" else None
+            return IframeEl() if "challenges.cloudflare.com" in sel else None
+        async def screenshot(self): return b""
+        async def evaluate(self, js, *args):
+            injected_js.append((js, args))
+
+    t_page = TurnstilePage()
+    t_ex = PlaywrightExecutor(page=t_page, captcha_solver=lambda c: {"solved": True, "token": "TOKEN-CF-123"})
+    t_job = Job(broker_id="1", broker_name="TestBroker", member_id="2", method="form",
+                steps=[JobStep(kind="solve_captcha", selector="iframe[src*='challenges.cloudflare.com']")])
+    res_t = loop.run_until_complete(t_ex.run(t_job))
+    assert res_t.ok is True, f"Turnstile solver injection failed: {res_t.detail}"
+    assert any("cf-turnstile-response" in str(j) for j, _ in injected_js), "cf-turnstile-response must be injected"
+    assert any("TOKEN-CF-123" in str(a) for _, a in injected_js), "token must be passed to evaluate"
 
 
 @test(1, "captcha.human_resolution_workflow",

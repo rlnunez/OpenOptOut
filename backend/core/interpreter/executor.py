@@ -796,11 +796,18 @@ class PlaywrightExecutor(JobExecutor):
                 ctype = "turnstile"
             elif re.search(r"<img[^>]+captcha", low):
                 ctype = "image"
-            # Try to read a site-key attribute from a common widget.
+            # Try to read a site-key attribute from a common widget or iframe URL.
             try:
                 el = await self.page.query_selector("[data-sitekey]")
                 if el:
                     site_key = await el.get_attribute("data-sitekey") or ""
+                if not site_key and ctype == "turnstile":
+                    iframe_el = await self.page.query_selector("iframe[src*='challenges.cloudflare.com']")
+                    if iframe_el:
+                        src = await iframe_el.get_attribute("src") or ""
+                        m = re.search(r"[?&]sitekey=([a-zA-Z0-9_\.-]+)", src)
+                        if m:
+                            site_key = m.group(1)
             except Exception:
                 pass
         except Exception:
@@ -864,19 +871,28 @@ class PlaywrightExecutor(JobExecutor):
         if not token:
             trace.append(f"[{i}] CAPTCHA solver returned no token — pausing for human")
             return True
-        # Inject the token into the standard reCAPTCHA/hCaptcha response field so
+        # Inject the token into standard reCAPTCHA/hCaptcha/Turnstile response fields so
         # the page's form picks it up on submit.
         try:
             await self.page.evaluate(
                 """(tok) => {
-                    for (const name of ['g-recaptcha-response','h-captcha-response']) {
-                        let el = document.getElementsByName(name)[0];
-                        if (!el) {
-                            el = document.createElement('textarea');
-                            el.name = name; el.style.display='none';
+                    for (const name of ['g-recaptcha-response', 'h-captcha-response', 'cf-turnstile-response']) {
+                        let els = document.getElementsByName(name);
+                        if (!els || els.length === 0) {
+                            const el = document.createElement('textarea');
+                            el.name = name;
+                            el.style.display = 'none';
                             document.body.appendChild(el);
+                            els = [el];
                         }
-                        el.value = tok;
+                        for (const el of els) {
+                            el.value = tok;
+                        }
+                    }
+                    const cf = document.querySelector('input[name="cf-turnstile-response"], textarea[name="cf-turnstile-response"]');
+                    if (cf) {
+                        cf.dispatchEvent(new Event('input', { bubbles: true }));
+                        cf.dispatchEvent(new Event('change', { bubbles: true }));
                     }
                 }""", token)
             trace.append(f"[{i}] CAPTCHA solved by plugin — token injected, continuing")
