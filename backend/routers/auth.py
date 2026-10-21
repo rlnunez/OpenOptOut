@@ -20,7 +20,7 @@ from ..models.database import get_db, User, FamilyMember, UserRole, InviteCode, 
 from ..core.auth import (
     hash_password, verify_password, is_legacy_unpeppered_hash, create_access_token,
     get_current_user, get_current_user_optional, require_super_admin, validate_password_length,
-    dummy_verify_password
+    dummy_verify_password, MAX_PASSWORD_BYTES
 )
 from ..core.text_input import clean_name, clean_name_lenient, clean_text_lenient
 from ..core.session_policy import create_user_token

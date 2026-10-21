@@ -10,6 +10,7 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 ## [0.11.2] — 2026-10-20
 
 ### Security & Hardening
+- **Language Pack Translation Safety Validation:** Added pre-install and load-time inspection (`is_safe_translation_string`, `inspect_language_pack`) rejecting language packs that introduce unprompted external URLs (phishing protection), prohibited URI schemes (`javascript:`, `file:`, `data:`), or executable HTML tags (`<script>`, `<iframe>`, etc.), protecting users from phishing links or UI instruction tampering in uploaded language packs.
 - **Plugin Sandbox AST Obfuscation & Reflection Guard:** Banned reflection attributes (`__subclasses__`, `__globals__`, `__code__`, `__reduce__`, `__bases__`, `__mro__`), dynamic attribute lookups on sensitive modules via `getattr()`, and direct or dynamic access to `sys.modules` in the plugin code inspector to prevent sandbox evasion.
 - **Proactive Core PII Log Sanitization:** Extended `sanitize_log_message` in core logging to scrub personal email addresses (`[email]`), phone numbers (`[number]`), and Social Security Numbers (`[ssn]`) across local log files and memory ring buffers.
 - **Fail-Closed Strict Sandbox Flag (`REQUIRE_HARD_SANDBOX`):** Added configuration flag that refuses to launch plugins on hosts lacking OS-level namespace sandboxing (bubblewrap/unshare), preventing silent fallback to uncontained execution.
@@ -26,6 +27,11 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 - **MFA Session Token Revocation Parity:** Enforced `token_version` validation in `_resolve_user_for_mfa` to ensure revoked or invalidated JWT sessions cannot access MFA status or enrollment flows.
 - **WebAuthn Step-Up Re-Authentication:** Enforced password confirmation and dispatched account alert emails upon deleting registered WebAuthn / Passkey hardware keys.
 - **PostgreSQL Process List Credential Protection:** Stripped cleartext database passwords from `pg_dump` CLI subprocess arguments in backup jobs, securely supplying credentials through environment variable separation (`PGPASSWORD`).
+- **Log Scrubbing Everywhere:** The scrubbing formatter now also wraps uvicorn's access and error handlers and the worker's logging, so request lines (calendar feed links, OIDC `code`/`state`) no longer reach `docker compose logs` unscrubbed. Scrubbing now covers prefixed secret names (`access_token`, `X-API-Key`, `Set-Cookie`), quoted dicts, URL credentials, labelled names and birth dates, street addresses, `%40` emails and international phone numbers. Debug level no longer turns on SQL and HTTP-library logging.
+- **Private Log Files:** New log directories are created 0700 and log files (including rotated copies) 0600. The admin file-permission alert now lists the log directory and files when they are looser, with `chmod 700` / `chmod 600` (Docker, Linux/macOS) and `icacls` (Windows) commands to fix them.
+- **Plugin Log Channel:** Plugins that hold `read_pii` can no longer write message text to the host log (only its length is recorded).
+- **Sign-Up Code Flooding:** `/api/auth/signup/email-code` now also limits requests per email address (5 per 5 minutes), not only per IP.
+- **Fix:** `routers/auth.py` used `MAX_PASSWORD_BYTES` without importing it, which stopped the auth router from loading.
 
 ### Dependencies
 - Merged PR #146: Upgraded `reportlab` from 4.4.4 to 5.0.1 in `backend/requirements.txt`.

@@ -4168,6 +4168,53 @@ def t_plugin_code_inspector():
         assert s["blocked"] and "data only" in s["high"][0], s
 
 
+@test(1, "plugins.language_pack_inspection",
+      "Language pack safety inspection rejects translations injecting unprompted URLs, "
+      "dangerous URI schemes (javascript:, file:, data:), or executable HTML tags.")
+def t_plugin_language_pack_inspection():
+    import json, tempfile
+    lang_packs = _imp("plugins.language_packs")
+
+    # Safe translation helper
+    ok, err = lang_packs.is_safe_translation_string("Save settings", "Guardar configuración")
+    assert ok and not err
+
+    # Unprompted URL injection
+    ok, err = lang_packs.is_safe_translation_string("Enter your password", "Click http://evil.com to verify")
+    assert not ok and "unprompted external URL" in err
+
+    # Allowed URL when original English has URL
+    ok, err = lang_packs.is_safe_translation_string("Visit https://example.com for help", "Visite https://example.com para ayuda")
+    assert ok and not err
+
+    # Dangerous schemes
+    for bad in ["javascript:alert(1)", "vbscript:msgbox(1)", "file:///etc/passwd", "data:text/html;base64,PHNjcmlwdD4="]:
+        ok, err = lang_packs.is_safe_translation_string("Click here", f"Click {bad}")
+        assert not ok and "prohibited URI scheme" in err, f"Expected reject for {bad}"
+
+    # Dangerous HTML tags
+    for tag in ["<script>alert(1)</script>", "<iframe src='//bad.invalid'>", "<object data='x'>", "<embed src='y'>"]:
+        ok, err = lang_packs.is_safe_translation_string("Warning message", f"Notice {tag}")
+        assert not ok and "prohibited HTML" in err, f"Expected reject for {tag}"
+
+    # inspect_language_pack on directory
+    with tempfile.TemporaryDirectory() as d:
+        with open(os.path.join(d, "manifest.json"), "w") as f:
+            json.dump({"id": "lang-bad", "name": "Bad", "type": "languages", "version": "1.0"}, f)
+        with open(os.path.join(d, "texts.json"), "w") as f:
+            json.dump({"Save": "javascript:void(0)"}, f)
+        res = lang_packs.inspect_language_pack(d)
+        assert not res["valid"] and any("prohibited URI scheme" in i for i in res["errors"])
+
+    with tempfile.TemporaryDirectory() as d:
+        with open(os.path.join(d, "manifest.json"), "w") as f:
+            json.dump({"id": "lang-clean", "name": "Clean", "type": "languages", "version": "1.0"}, f)
+        with open(os.path.join(d, "texts.json"), "w") as f:
+            json.dump({"Save": "Guardar"}, f)
+        res = lang_packs.inspect_language_pack(d)
+        assert res["valid"] and res["errors"] == []
+
+
 @test(1, "plugins.sandbox_code_dir_read_only",
       "Under bubblewrap the plugin's own folder is mounted read-only (it can't rewrite its "
       "code or add program files) and its only writable space is a private /tmp.")

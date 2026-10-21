@@ -428,6 +428,11 @@ def inspect_upload(file: UploadFile = File(...), expected_type: Optional[str] = 
             broker_info = inspect_broker_addon(plugin_dir, m)
             if not broker_info["valid"]:
                 problems.extend(broker_info["errors"])
+        if m.effective_type == "languages":
+            from ..plugins.language_packs import inspect_language_pack
+            lang_info = inspect_language_pack(plugin_dir)
+            if not lang_info["valid"]:
+                problems.extend(lang_info["errors"])
         code = _code_inspection(m, plugin_dir)
         problems.extend(code["high"])
         return {
@@ -484,6 +489,12 @@ def upload_plugin(file: UploadFile = File(...), expected_type: Optional[str] = N
             broker_info = inspect_broker_addon(plugin_dir, m)
             if not broker_info["valid"]:
                 raise HTTPException(400, "Broker specification invalid: " + "; ".join(broker_info["errors"]))
+
+        if m.effective_type == "languages":
+            from ..plugins.language_packs import inspect_language_pack
+            lang_info = inspect_language_pack(plugin_dir)
+            if not lang_info["valid"]:
+                raise HTTPException(400, "Language pack rejected: " + "; ".join(lang_info["errors"]))
 
         if db.query(InstalledPlugin).filter(InstalledPlugin.plugin_id == m.id).first():
             raise HTTPException(400, f"Plugin '{m.id}' is already installed")

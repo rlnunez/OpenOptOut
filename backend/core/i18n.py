@@ -22,6 +22,15 @@ try:
 except (ImportError, ValueError):
     from core import settings_store
 
+try:
+    from ..plugins.language_packs import is_safe_translation_string
+except (ImportError, ValueError):
+    try:
+        from plugins.language_packs import is_safe_translation_string
+    except (ImportError, ValueError):
+        def is_safe_translation_string(k: str, v: str):  # type: ignore
+            return True, None
+
 log = logging.getLogger(__name__)
 
 # Standard RTL language codes (ISO 639-1)
@@ -269,9 +278,11 @@ def placeholders(text: str) -> set:
 
 
 def clean_texts(texts: Dict[str, Any]) -> Dict[str, str]:
-    """Only known phrases, and only translations that keep every {placeholder}."""
+    """Only known phrases, translations that keep every {placeholder}, and contain no dangerous tags/URIs."""
     return {k: v for k, v in (texts or {}).items()
-            if k in PAGE_TEXT_SET and isinstance(v, str) and v.strip() and placeholders(v) == placeholders(k)}
+            if k in PAGE_TEXT_SET and isinstance(v, str) and v.strip()
+            and placeholders(v) == placeholders(k)
+            and is_safe_translation_string(k, v)[0]}
 
 
 def _bundled_languages_dir() -> str:
@@ -313,7 +324,7 @@ def _read_pack(pkg_path: str) -> Optional[Dict[str, Any]]:
         "author": manifest.get("author", ""),
         "version": manifest.get("version", "1.0"),
         "is_rtl": bool(manifest.get("is_rtl", code in RTL_LANGUAGES)),
-        "messages": {k: v for k, v in messages.items() if k in known and isinstance(v, str) and v},
+        "messages": {k: v for k, v in messages.items() if k in known and isinstance(v, str) and v and is_safe_translation_string(k, v)[0]},
         "texts": clean_texts(texts),
     }
 

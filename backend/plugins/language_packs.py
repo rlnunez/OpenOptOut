@@ -76,3 +76,69 @@ def sync_builtin_data(db, ptype: str) -> dict:
     if stats["installed"] or stats["updated"]:
         log.info("Built-in %s plugins: %s", ptype, stats)
     return stats
+
+
+import re
+
+_URL_RE = re.compile(r"(?:https?|ftp)://[^\s<>\"\x27]+", re.IGNORECASE)
+_DANGEROUS_URI_RE = re.compile(r"\b(?:javascript:[^\s]|vbscript:[^\s]|file://|data:[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+|data:;base64)", re.IGNORECASE)
+_DANGEROUS_TAG_RE = re.compile(r"<\s*(?:script|iframe|object|embed|svg|form|input|button)\b", re.IGNORECASE)
+
+
+def is_safe_translation_string(k: str, v: str) -> tuple[bool, str]:
+    """Ensure a translation does not introduce dangerous URI schemes, raw HTML elements, or unprompted URLs."""
+    if _DANGEROUS_URI_RE.search(v) and not _DANGEROUS_URI_RE.search(k):
+        return False, f"prohibited URI scheme in translation: {v[:60]!r}"
+    if _DANGEROUS_TAG_RE.search(v) and not _DANGEROUS_TAG_RE.search(k):
+        return False, f"prohibited HTML element tag in translation: {v[:60]!r}"
+    if _URL_RE.search(v) and not _URL_RE.search(k):
+        return False, f"unprompted external URL in translation: {v[:60]!r}"
+    return True, ""
+
+
+def inspect_language_pack(plugin_dir: str) -> dict:
+    """
+    Validate language pack JSON files for well-formedness and safety.
+    Rejects packs containing unprompted URLs, executable scripts, dangerous HTML tags, or URI schemes.
+    """
+    errors = []
+    # Check texts.json
+    texts_path = os.path.join(plugin_dir, "texts.json")
+    if os.path.isfile(texts_path):
+        try:
+            with open(texts_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if not isinstance(data, dict):
+                errors.append("texts.json must be a JSON object mapping English phrases to translations")
+            else:
+                for k, v in data.items():
+                    if isinstance(v, str):
+                        safe, err = is_safe_translation_string(k, v)
+                        if not safe:
+                            errors.append(f"texts.json: {err}")
+                            if len(errors) >= 5:
+                                break
+        except Exception as e:
+            errors.append(f"texts.json could not be parsed: {e}")
+
+    # Check messages.json / translations.json
+    for name in ("messages.json", "translations.json"):
+        msg_path = os.path.join(plugin_dir, name)
+        if os.path.isfile(msg_path):
+            try:
+                with open(msg_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if not isinstance(data, dict):
+                    errors.append(f"{name} must be a JSON object")
+                else:
+                    for k, v in data.items():
+                        if isinstance(v, str):
+                            safe, err = is_safe_translation_string(k, v)
+                            if not safe:
+                                errors.append(f"{name}: {err}")
+                                if len(errors) >= 5:
+                                    break
+            except Exception as e:
+                errors.append(f"{name} could not be parsed: {e}")
+
+    return {"valid": len(errors) == 0, "errors": errors}
