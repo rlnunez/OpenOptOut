@@ -963,7 +963,7 @@ def t_captcha_detection():
             class IframeEl:
                 async def get_attribute(self, a):
                     return "https://challenges.cloudflare.com/cdn-cgi/turnstile?sitekey=0x4AAAAAAABcdEF123456" if a == "src" else None
-            return IframeEl() if "challenges.cloudflare.com" in sel else None
+            return IframeEl() if sel.startswith("iframe") or "cf-turnstile" in sel else None
         async def screenshot(self): return b""
         async def evaluate(self, js, *args):
             injected_js.append((js, args))
