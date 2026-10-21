@@ -32,8 +32,11 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 - **Plugin Log Channel:** Plugins that hold `read_pii` can no longer write message text to the host log (only its length is recorded).
 - **Sign-Up Code Flooding:** `/api/auth/signup/email-code` now also limits requests per email address (5 per 5 minutes), not only per IP.
 - **Fix:** `routers/auth.py` used `MAX_PASSWORD_BYTES` without importing it, which stopped the auth router from loading.
+- **Test Credential Normalization for Secret Scanners:** Replaced base62 test strings in `backend/tests/run_tests.py` with delimited test credentials to resolve generic API key code scanning alerts.
 
 ### Dependencies
+- Upgraded `pillow` from 12.3.0 to 13.0.0 in `backend/requirements.txt` to remediate CVE-2026-112403, CVE-2026-112397, CVE-2026-112400, CVE-2026-112404, CVE-2026-112895, CVE-2026-112896, CVE-2026-112897, CVE-2026-112395, and CVE-2026-112899.
+- Explicitly pinned `certifi==2026.10.19` in `backend/requirements.txt`, `backend/requirements-cloud.txt`, and `docs/requirements.txt` to remediate GHSA-6q48-6c7w-9gw2 / PYSEC-2026-4320 (compromised intermediate emSign CA keys).
 - Merged PR #146: Upgraded `reportlab` from 4.4.4 to 5.0.1 in `backend/requirements.txt`.
 
 ---

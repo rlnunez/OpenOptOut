@@ -29,6 +29,7 @@ pyasn1-modules==0.4.2
 httpx==0.28.1
 urllib3==2.8.0
 requests==2.34.2
+certifi==2026.10.19
 idna==3.20
 anyio==4.15.1
 authlib==1.8.0
@@ -59,7 +60,7 @@ paramiko==5.0.0
 # PDF removal reports (core/removal_report.py)
 reportlab==5.0.1
 # CAPTCHA privacy masking & image processing (core/captcha_privacy.py)
-pillow==12.3.0
+pillow==13.0.0
 # Syscall filter for the plugin sandbox (module name: pyseccomp). Pure Python over
 # libseccomp2; Linux only. The "seccomp" module from Debian's python3-seccomp is
 # not visible to this interpreter, and there is no PyPI package called "seccomp".

@@ -7546,14 +7546,14 @@ def t_access_escalation():
             Create, Update = admin_router.CreateUserRequest, admin_router.UpdateUserRequest
 
             out = admin_router.create_user(Create(full_name="New", email="new@example.org",
-                                                  role="parent", password="Xk9mQ2vLpR7z"), session, mgr)
+                                                  role="parent", password="test-password-valid-123"), session, mgr)
             assert out.role == "parent"
             for role in ("super_admin", "manager"):
                 expect_http(403, admin_router.create_user, Create(full_name="X", email=f"{role}@example.org",
-                            role=role, password="Xk9mQ2vLpR7z"), session, mgr)
+                            role=role, password="test-password-valid-123"), session, mgr)
             expect_http(403, admin_router.update_user, parent.id, Update(role="super_admin"), session, mgr)
             expect_http(403, admin_router.update_user, sa.id, Update(full_name="Hacked"), session, mgr)
-            expect_http(403, admin_router.update_user, other_mgr.id, Update(password="Xk9mQ2vLpR7z"), session, mgr)
+            expect_http(403, admin_router.update_user, other_mgr.id, Update(password="test-password-valid-123"), session, mgr)
             expect_http(403, admin_router.delete_user, sa.id, session, mgr)
             admin_router.update_user(parent.id, Update(full_name="Renamed"), session, mgr)   # allowed
 
@@ -7671,11 +7671,11 @@ def t_access_scope_writes():
         # Creating: new accounts land in the manager's branch, never outside it.
         def create(email, actor, **kw):
             return admin_router.create_user(admin_router.CreateUserRequest(
-                full_name="N", email=email, role="parent", password="Xk9mQ2vLpR7z", **kw), session, actor)
+                full_name="N", email=email, role="parent", password="test-password-valid-123", **kw), session, actor)
         branch_of = lambda email: session.query(db.User).filter(db.User.email == email).one().branch_id
         n1 = create("n1@example.org", branch_mgr)
         assert branch_of("n1@example.org") == a1.id
-        admin_router.update_user(n1.id, Update(password="Xk9mQ2vLpR7z"), session, branch_mgr)
+        admin_router.update_user(n1.id, Update(password="test-password-valid-123"), session, branch_mgr)
         expect_http(403, create, "x1@example.org", branch_mgr, branch_id=b1.id)
         expect_http(400, create, "x2@example.org", system_mgr)   # two branches, none of its own
         create("n2@example.org", system_mgr, branch_id=a2.id)
@@ -7687,7 +7687,7 @@ def t_access_scope_writes():
         # Accounts: branch-scoped manager stays in A1.
         admin_router.update_user(p_a1.id, Update(full_name="Ok"), session, branch_mgr)
         for target in (p_a2, p_b1, p_none):
-            expect_http(403, admin_router.update_user, target.id, Update(password="Xk9mQ2vLpR7z"), session, branch_mgr)
+            expect_http(403, admin_router.update_user, target.id, Update(password="test-password-valid-123"), session, branch_mgr)
             expect_http(403, admin_router.delete_user, target.id, session, branch_mgr)
         expect_http(403, admin_router.create_grant, Grant(manager_id=p_a1.id, managed_id=p_b1.id), session, branch_mgr)
         g = admin_router.create_grant(Grant(manager_id=p_a1.id, managed_id=p_a1b.id), session, branch_mgr)
@@ -7700,7 +7700,7 @@ def t_access_scope_writes():
         admin_router.update_user(p_a2.id, Update(full_name="Ok"), session, system_mgr)
         expect_http(403, admin_router.delete_user, p_b1.id, session, system_mgr)
         admin_router.update_user(p_b1.id, Update(full_name="Ok"), session, cross_mgr)
-        admin_router.update_user(p_b1.id, Update(password="Xk9mQ2vLpR7z"), session, cross_mgr)
+        admin_router.update_user(p_b1.id, Update(password="test-password-valid-123"), session, cross_mgr)
 
         # Branch overrides: super admins, or managers granted the permission (any branch).
         gate = inspect.signature(consortium.override_patron_branch).parameters["current_user"].default.dependency
@@ -8637,7 +8637,7 @@ def t_auth_change_own_password():
         raise Skip(f"needs full backend deps / package layout: {e}")
 
     local_user = db.User(email="jordan@example.invalid", full_name="Jordan Example",
-                         hashed_password=auth_router.hash_password("CurrentPassw0rd!"), auth_source=None)
+                         hashed_password=auth_router.hash_password("test-current-password-123!"), auth_source=None)
     ext_user = db.User(email="ldap@library.org", full_name="LDAP User",
                        hashed_password="hashed_pw", auth_source="ldap")
     s.add_all([local_user, ext_user]); s.commit()
@@ -8650,7 +8650,7 @@ def t_auth_change_own_password():
         # Wrong current password is refused.
         try:
             auth_router.change_own_password(
-                auth_router.ChangePasswordIn(current_password="wrong", new_password="NewPassw0rd1234"),
+                auth_router.ChangePasswordIn(current_password="wrong", new_password="test-new-password-1234"),
                 db=s, current_user=local_user)
             assert False, "wrong current password should be refused"
         except HTTPException as e:
@@ -8659,7 +8659,7 @@ def t_auth_change_own_password():
         # An SSO/LDAP account has no local password to change.
         try:
             auth_router.change_own_password(
-                auth_router.ChangePasswordIn(current_password="whatever", new_password="NewPassw0rd1234"),
+                auth_router.ChangePasswordIn(current_password="whatever", new_password="test-new-password-1234"),
                 db=s, current_user=ext_user)
             assert False, "an SSO/LDAP account should be refused"
         except HTTPException as e:
@@ -8671,12 +8671,12 @@ def t_auth_change_own_password():
         # working), issues a fresh token, and notifies the account owner.
         old_token_version = local_user.token_version or 0
         out = auth_router.change_own_password(
-            auth_router.ChangePasswordIn(current_password="CurrentPassw0rd!", new_password="NewPassw0rd1234"),
+            auth_router.ChangePasswordIn(current_password="test-current-password-123!", new_password="test-new-password-1234"),
             db=s, current_user=local_user)
         assert out.get("access_token")
         assert (local_user.token_version or 0) == old_token_version + 1
-        assert auth_router.verify_password("NewPassw0rd1234", local_user.hashed_password)
-        assert not auth_router.verify_password("CurrentPassw0rd!", local_user.hashed_password)
+        assert auth_router.verify_password("test-new-password-1234", local_user.hashed_password)
+        assert not auth_router.verify_password("test-current-password-123!", local_user.hashed_password)
         assert len(sent) == 1 and sent[0][0] == local_user.email
     finally:
         system_mail.send = orig_send
@@ -14401,7 +14401,7 @@ def t_security_tier2_regressions():
             assert False, f"expected {short_pw!r} to be rejected"
         except ValueError as e:
             assert "12 characters" in str(e)
-    auth_core.validate_password_length("Xk7mQ2vLpR9z")
+    auth_core.validate_password_length("test-password-valid-123")
 
     # 1b. A password that's long enough but is itself one of the most common/
     # breached passwords (or that word with digits appended) is still refused.
