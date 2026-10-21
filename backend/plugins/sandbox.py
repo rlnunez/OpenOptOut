@@ -70,14 +70,26 @@ def is_hard_sandbox_required() -> bool:
     before any plugin may launch. When True, plugin launching fails fast with
     an error rather than degrading to resource limits only.
 
-    Defaults to True: docker-compose.yml grants the api container the
-    capabilities bubblewrap/unshare need (cap_add: SYS_ADMIN, security_opt:
-    seccomp:unconfined) by default, so a host following it gets full
-    namespace isolation out of the box and this never has to fall back.
-    Set REQUIRE_HARD_SANDBOX=false (env var) or plugins.require_hard_sandbox
-    (settings) to opt back into the old degrade-gracefully behavior — e.g. on
-    a host that can't grant those capabilities and only runs plugins it
-    already trusts.
+    Defaults to True on Linux: docker-compose.yml grants the api container
+    the capabilities bubblewrap/unshare need (cap_add: SYS_ADMIN,
+    security_opt: seccomp:unconfined) by default, so a host following it
+    gets full namespace isolation out of the box and this never has to fall
+    back. Set REQUIRE_HARD_SANDBOX=false (env var) or
+    plugins.require_hard_sandbox (settings) to opt back into the old
+    degrade-gracefully behavior — e.g. on a host that can't grant those
+    capabilities and only runs plugins it already trusts.
+
+    Defaults to False everywhere else (Windows, macOS): bubblewrap, unshare
+    and seccomp-bpf are Linux kernel features that cannot exist on those
+    platforms at all, regardless of what's installed or configured — unlike
+    the Linux case, there is no capability to grant or package to add that
+    would ever satisfy a True default there. Defaulting to True on a
+    platform where the requirement is permanently unsatisfiable wouldn't add
+    any protection (those platforms never had namespace isolation to lose);
+    it would just make every plugin — including the bundled email-provider
+    ones install-native.ps1 provisions for — permanently refuse to launch.
+    An explicit REQUIRE_HARD_SANDBOX=true still overrides this on any
+    platform, understanding that plugins will then never start there.
     """
     v = os.getenv("REQUIRE_HARD_SANDBOX", os.getenv("OPENOPTOUT_REQUIRE_HARD_SANDBOX", "")).strip().lower()
     if v in ("1", "true", "yes", "on"):
@@ -91,7 +103,7 @@ def is_hard_sandbox_required() -> bool:
             return bool(stored)
     except Exception:
         pass
-    return True
+    return platform.system() == "Linux"
 
 
 # Top-level system directories a dynamically linked program needs. On

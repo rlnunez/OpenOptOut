@@ -4425,10 +4425,13 @@ def t_plugin_sandbox_bwrap_runtime():
 
 
 @test(1, "plugins.sandbox_require_hard_flag",
-      "REQUIRE_HARD_SANDBOX defaults to on (docker-compose.yml grants bubblewrap/unshare the "
-      "capabilities they need by default), can be explicitly opted out of, and when it's on, "
-      "build_sandboxed_command refuses to start plugins unless full OS sandboxing is available.")
+      "REQUIRE_HARD_SANDBOX defaults to on on Linux (docker-compose.yml grants bubblewrap/unshare "
+      "the capabilities they need by default there) but to off on Windows/macOS, where bubblewrap/"
+      "unshare/seccomp can never exist no matter what's installed; can be explicitly opted into or "
+      "out of on any platform; and when it's on, build_sandboxed_command refuses to start plugins "
+      "unless full OS sandboxing is available.")
 def t_plugin_sandbox_hard_flag():
+    import platform as _platform
     sandbox = _imp("plugins.sandbox")
     perms = _imp("plugins.permissions")
     caps_none = sandbox.SandboxCapabilities(bubblewrap=False, unshare=False, rlimits=True, platform="darwin")
@@ -4436,19 +4439,31 @@ def t_plugin_sandbox_hard_flag():
     m = perms.PluginManifest.from_dict({"id": "p", "name": "p", "version": "1", "author": "a"})
 
     orig = os.environ.get("REQUIRE_HARD_SANDBOX")
+    real_system = _platform.system
     try:
-        # Nothing set: on by default now.
+        # Nothing set, platform-dependent default: on for Linux, off elsewhere
+        # — Windows/macOS have no bubblewrap/unshare/seccomp to ever satisfy it.
         os.environ.pop("REQUIRE_HARD_SANDBOX", None)
+        _platform.system = lambda: "Linux"
         assert sandbox.is_hard_sandbox_required()
+        _platform.system = lambda: "Windows"
+        assert not sandbox.is_hard_sandbox_required()
+        _platform.system = lambda: "Darwin"
+        assert not sandbox.is_hard_sandbox_required()
+        _platform.system = real_system
 
-        # Explicit opt-out: degraded fallback allowed.
+        # Explicit opt-out: degraded fallback allowed (works on any platform).
         os.environ["REQUIRE_HARD_SANDBOX"] = "false"
         assert not sandbox.is_hard_sandbox_required()
         cmd, _ = sandbox.build_sandboxed_command(["python"], "/data/plugins/p", caps_none, False, m)
         assert cmd == ["python"]
 
-        # Explicitly on (same as the new default):
+        # Explicit opt-in works on any platform too, including ones where it
+        # can never actually be satisfied (the admin's explicit choice then).
         os.environ["REQUIRE_HARD_SANDBOX"] = "true"
+        _platform.system = lambda: "Windows"
+        assert sandbox.is_hard_sandbox_required()
+        _platform.system = real_system
         assert sandbox.is_hard_sandbox_required()
 
         # Fails closed if host cannot sandbox
@@ -4462,6 +4477,7 @@ def t_plugin_sandbox_hard_flag():
         cmd_bw, _ = sandbox.build_sandboxed_command(["python"], "/data/plugins/p", caps_bwrap, False, m)
         assert "bwrap" in cmd_bw[0]
     finally:
+        _platform.system = real_system
         if orig is not None:
             os.environ["REQUIRE_HARD_SANDBOX"] = orig
         else:
