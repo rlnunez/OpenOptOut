@@ -17,7 +17,7 @@
     "recharts": "^3.10.1"
   },
   "devDependencies": {
-    "@babel/parser": "7.26.3",
+    "@babel/parser": "8.0.7",
     "@babel/traverse": "7.26.4",
     "@tailwindcss/postcss": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.2",
