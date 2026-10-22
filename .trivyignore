@@ -5,3 +5,10 @@
 # to be an accepted risk or false positive, with a comment explaining why.
 # See docs/SECURITY_SCANNING.md for suppression guidelines.
 # ==============================================================================
+
+# GHSA-6q48-6c7w-9gw2 / PYSEC-2026-4320: Compromised intermediate emSign CA keys.
+# The application explicitly pins certifi==2026.10.19 and pip==26.2.2 across requirements.
+# Residual container image scanner alerts against pip's internal build-time vendored
+# bundle (pip._vendor.certifi) are false positives since pip is not a runtime dependency.
+GHSA-6q48-6c7w-9gw2
+PYSEC-2026-4320
