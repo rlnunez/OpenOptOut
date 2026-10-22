@@ -53,7 +53,7 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ### Dependencies
 - Upgraded `pillow` from 12.3.0 to 13.0.0 in `backend/requirements.txt` to remediate CVE-2026-112403, CVE-2026-112397, CVE-2026-112400, CVE-2026-112404, CVE-2026-112895, CVE-2026-112896, CVE-2026-112897, CVE-2026-112395, and CVE-2026-112899.
-- Explicitly pinned `certifi==2026.10.19` across `backend/requirements.txt`, `backend/requirements-cloud.txt`, and `docs/requirements.txt`, upgraded `pip` to 26.2.2 (which vendors patched certifi), and added build-time CA synchronization (`sync_pip_certifi` in `install_deps.py`) and `.trivyignore` suppression to eliminate persistent GHSA-6q48-6c7w-9gw2 / PYSEC-2026-4320 alerts on pip's vendored bundle.
+- Explicitly pinned `certifi==2026.10.19` across `backend/requirements.txt`, `backend/requirements-cloud.txt`, and `docs/requirements.txt`, upgraded `pip` to 26.2.2 (which vendors patched certifi), and added build-time CA synchronization (`sync_pip_certifi` in `install_deps.py`) to eliminate persistent GHSA-6q48-6c7w-9gw2 / PYSEC-2026-4320 alerts on pip's vendored bundle.
 - Merged PR #146: Upgraded `reportlab` from 4.4.4 to 5.0.1 in `backend/requirements.txt`.
 - Multi-stage Go build for rclone in `backend/Dockerfile` using Go 1.27.3 to remediate CVE-2026-111943 (Go stdlib `crypto/x509` intermediate CA mitigation for compromised eMudhra/emSign certificates).
 
