@@ -1,7 +1,7 @@
 ARG RCLONE_VERSION=v1.75.2
 
 # Stage 0: Build rclone with patched Go runtime (remediating CVE-2026-111943)
-FROM golang:1.27.3-bookworm AS rclone-builder
+FROM golang:1.27.3-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS rclone-builder
 ARG RCLONE_VERSION
 RUN CGO_ENABLED=0 go install -ldflags="-s -w" github.com/rclone/rclone@${RCLONE_VERSION}
 
