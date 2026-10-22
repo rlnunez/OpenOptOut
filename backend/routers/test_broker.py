@@ -14,7 +14,8 @@ Fencing — the test pair can never leak into real work:
   - discovery and both batch runners also skip is_test brokers explicitly.
 So the test broker only ever fires through POST /api/test-broker/send.
 
-Endpoints (super admin only):
+Endpoints (need the 'Automation scripts' permission — brokers.automation,
+held by super admins and any manager granted it — enforced by _admin() below):
   GET    /api/test-broker        — current test broker, if any
   POST   /api/test-broker/setup  — create/update it with your chosen address
   POST   /api/test-broker/send   — send a test opt-out (real member or fake identity)

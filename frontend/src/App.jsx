@@ -10,6 +10,7 @@ import Breadcrumbs from './components/Breadcrumbs'
 import AnnouncementBanner from './components/AnnouncementBanner'
 import MaintenanceNoticeBanner from './components/MaintenanceNoticeBanner'
 import SecretKeyBanner from './components/SecretKeyBanner'
+import HttpsBanner from './components/HttpsBanner'
 import UserWelcomeModal from './components/UserWelcomeModal'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
@@ -113,6 +114,7 @@ function Layout() {
           <span className="text-white font-semibold text-sm truncate">{systemName}</span>
         </header>
         <SecretKeyBanner />
+        <HttpsBanner />
         <AnnouncementBanner />
         <MaintenanceNoticeBanner />
         <InboxPrompt />

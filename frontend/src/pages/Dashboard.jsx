@@ -8,7 +8,7 @@ import VariantCoverage from '../components/VariantCoverage'
 import RemovalChecks from '../components/RemovalChecks'
 import PrivacyScore from '../components/PrivacyScore'
 import { useAuth, can } from '../hooks/useAuth'
-import { tx, txn, txr } from '../i18n/tx'
+import { tx, txn } from '../i18n/tx'
 import { fmtDate } from '../i18n/format'
 import { detailText } from '../errorMessage'
 
@@ -31,14 +31,10 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [unhealthy, setUnhealthy] = useState([])
   const [certAlerts, setCertAlerts] = useState([])
-  const [hideHttpWarning, setHideHttpWarning] = useState(false)
   const [reverseProxy, setReverseProxy] = useState(null)   // 'managed' | 'external' | 'none' | 'unset' | null (loading)
   const [httpsStatus, setHttpsStatus] = useState(null)      // result of /cert-monitor/https-status
   const [httpsChecking, setHttpsChecking] = useState(false)
   const [pendingCaptchas, setPendingCaptchas] = useState(0)
-  const onPlainHttp = typeof window !== 'undefined' && window.location.protocol === 'http:' &&
-    !['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) &&
-    reverseProxy !== 'external'   // an admin told us this server sits behind its own reverse proxy — take their word for it
 
   useEffect(() => {
     Promise.all([
@@ -127,23 +123,6 @@ export default function Dashboard() {
         </div>
       </div>
       {runMsg && <p role="status" className="mb-4 text-sm text-shield-300">{runMsg}</p>}
-
-      {/* Plain-HTTP warning — super admins, when reached from another machine */}
-      {user?.role === 'super_admin' && onPlainHttp && !hideHttpWarning && (
-        <div className="flex items-start gap-3 mb-4 px-4 py-3 rounded-xl border border-amber-800 bg-amber-900/20">
-          <AlertCircle size={16} className="text-amber-400 shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="text-amber-200 text-sm font-medium">{tx("This site isn't using HTTPS")}</p>
-            <p className="text-slate-400 text-xs mt-0.5">
-              {tx("Passwords cross the network unencrypted, and Google/Microsoft sign-in requires HTTPS.")}
-              {reverseProxy === 'native'
-                ? <>{" "}{txr("On the server, run <0>scripts/enable-https-native.sh</0> (Linux) or see the Windows steps in <1>docs/admin/native-install.md</1>.", [<code className="text-slate-300" />, <code className="text-slate-300" />])}</>
-                : <>{" "}{txr("On the server, run <0>./scripts/enable-https.sh</0> (Linux/macOS) or <1>scripts\\enable-https.ps1</1> (Windows) — see docs/admin/https.md.", [<code className="text-slate-300" />, <code className="text-slate-300" />])}</>}
-            </p>
-          </div>
-          <button onClick={() => setHideHttpWarning(true)} className="text-slate-500 hover:text-slate-300 text-xs shrink-0">{tx("Hide")}</button>
-        </div>
-      )}
 
       {/* HTTPS setup status — for the "managed" (built-in Caddy/Traefik) or "native" (certbot/
           win-acme) path chosen in the wizard. A live check, not a guess: OpenOptOut

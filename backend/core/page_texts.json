@@ -4883,6 +4883,7 @@
   {
    "text": "Critical Security Action Required:",
    "where": [
+    "components/HttpsBanner.jsx",
     "components/SecretKeyBanner.jsx"
    ]
   },
@@ -8026,7 +8027,6 @@
    "text": "Hide",
    "where": [
     "pages/BrokerSubmit.jsx",
-    "pages/Dashboard.jsx",
     "pages/IdentityVault.jsx",
     "pages/SetupWizard.jsx"
    ]
@@ -11759,13 +11759,13 @@
   {
    "text": "On the server, run <0>./scripts/enable-https.sh</0> (Linux/macOS) or <1>scripts\\enable-https.ps1</1> (Windows) — see docs/admin/https.md.",
    "where": [
-    "pages/Dashboard.jsx"
+    "components/HttpsBanner.jsx"
    ]
   },
   {
    "text": "On the server, run <0>scripts/enable-https-native.sh</0> (Linux) or see the Windows steps in <1>docs/admin/native-install.md</1>.",
    "where": [
-    "pages/Dashboard.jsx"
+    "components/HttpsBanner.jsx"
    ]
   },
   {
@@ -12521,7 +12521,7 @@
   {
    "text": "Passwords cross the network unencrypted, and Google/Microsoft sign-in requires HTTPS.",
    "where": [
-    "pages/Dashboard.jsx"
+    "components/HttpsBanner.jsx"
    ]
   },
   {
@@ -17771,7 +17771,7 @@
   {
    "text": "This site isn't using HTTPS",
    "where": [
-    "pages/Dashboard.jsx"
+    "components/HttpsBanner.jsx"
    ]
   },
   {
