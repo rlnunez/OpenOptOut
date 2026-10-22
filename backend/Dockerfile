@@ -55,7 +55,8 @@ COPY requirements.txt requirements-encryption.txt install_deps.py ./
 # compiled or skipped rather than failing the whole image.
 ARG WITH_ENCRYPTION=true
 ENV WITH_ENCRYPTION=${WITH_ENCRYPTION}
-RUN python3 install_deps.py
+RUN python3 install_deps.py && \
+    rm -rf /usr/local/lib/python*/ensurepip/_bundled /root/.cache
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN playwright install firefox && \
