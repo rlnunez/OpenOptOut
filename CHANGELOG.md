@@ -7,6 +7,22 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ---
 
+## [0.11.3] — 2026-10-21
+
+### Security & Hardening
+- **Plugin Network Sandboxing & Namespace Enforcement:** Closed network-permission bypass by enforcing host-mediated routing on non-email plugins declaring `network` or `outbound_domains`. Enabled OS-level namespace sandboxing (bubblewrap/seccomp) by default with fallback on unsupported platforms (`REQUIRE_HARD_SANDBOX=false`).
+- **Installer Control-Plane Sandbox Parity:** Extended bubblewrap and seccomp syscall filters to control-plane instances and multi-host deployment configurations.
+- **Rclone Container Multi-Stage Build (CVE-2026-111943):** Refactored `/usr/local/bin/rclone` compilation in `backend/Dockerfile` to compile from source via a multi-stage builder using Go 1.27.3 (`golang:1.27.3-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5`) to remediate Go stdlib `crypto/x509` intermediate CA certificate verification vulnerabilities.
+- **Supply-Chain Digest Pinning (Scorecard):** Pinned the `rclone-builder` container stage image with its multi-platform SHA-256 digest to satisfy OpenSSF Scorecard supply-chain integrity requirements.
+- **Stale Wheel & Cache Removal:** Purged `ensurepip` pre-bundled bootstrap wheels (`/usr/local/lib/python*/ensurepip/_bundled`) and build caches from the backend container image to eliminate inactive vulnerability scanner findings.
+- **Persistent HTTP Warning Banner:** Added persistent admin warning banner on unencrypted HTTP connections advising administrators to run `enable-https.sh` to protect credentials and member PII in transit.
+- **Cross-Platform Test Compatibility:** Updated test `backup.rclone_destination` in `backend/tests/run_tests.py` to use portable permission checking supporting both GNU and BSD/macOS `stat` syntax.
+
+### Dependencies
+- **`pip` Security Upgrade & CA Synchronization:** Upgraded `pip` to `26.2.2` in `backend/requirements.txt` (which natively vendors patched `certifi 2026.10.19`) and integrated automated build-time CA bundle synchronization (`sync_pip_certifi` in `install_deps.py`) to eliminate persistent GHSA-6q48-6c7w-9gw2 / PYSEC-2026-4320 alerts without suppressing scanner findings in ignore files.
+
+---
+
 ## [0.11.2] — 2026-10-20
 
 ### Security & Hardening
@@ -53,9 +69,8 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ### Dependencies
 - Upgraded `pillow` from 12.3.0 to 13.0.0 in `backend/requirements.txt` to remediate CVE-2026-112403, CVE-2026-112397, CVE-2026-112400, CVE-2026-112404, CVE-2026-112895, CVE-2026-112896, CVE-2026-112897, CVE-2026-112395, and CVE-2026-112899.
-- Explicitly pinned `certifi==2026.10.19` across `backend/requirements.txt`, `backend/requirements-cloud.txt`, and `docs/requirements.txt`, upgraded `pip` to 26.2.2 (which vendors patched certifi), and added build-time CA synchronization (`sync_pip_certifi` in `install_deps.py`) to eliminate persistent GHSA-6q48-6c7w-9gw2 / PYSEC-2026-4320 alerts on pip's vendored bundle.
+- Explicitly pinned `certifi==2026.10.19` in `backend/requirements.txt`, `backend/requirements-cloud.txt`, and `docs/requirements.txt` to remediate GHSA-6q48-6c7w-9gw2 / PYSEC-2026-4320 (compromised intermediate emSign CA keys).
 - Merged PR #146: Upgraded `reportlab` from 4.4.4 to 5.0.1 in `backend/requirements.txt`.
-- Multi-stage Go build for rclone in `backend/Dockerfile` using Go 1.27.3 to remediate CVE-2026-111943 (Go stdlib `crypto/x509` intermediate CA mitigation for compromised eMudhra/emSign certificates).
 
 ---
 
