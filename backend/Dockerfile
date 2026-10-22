@@ -1,3 +1,10 @@
+ARG RCLONE_VERSION=v1.75.2
+
+# Stage 0: Build rclone with patched Go runtime (remediating CVE-2026-111943)
+FROM golang:1.27.3-bookworm AS rclone-builder
+ARG RCLONE_VERSION
+RUN CGO_ENABLED=0 go install -ldflags="-s -w" github.com/rclone/rclone@${RCLONE_VERSION}
+
 # Pinned to bookworm (Debian 12). The unpinned python:3.12-slim now resolves to
 # trixie (Debian 13), where several packages Playwright 1.44's `install-deps`
 # expects were renamed/removed (libgdk-pixbuf2.0-0, ttf-unifont,
@@ -34,18 +41,11 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # rclone, for the "Other cloud storage" backup option (Proton Drive, Box,
-# pCloud, MEGA, Nextcloud...). Debian's package is too old for some of these,
-# so a pinned release is fetched and checked against its published SHA-256.
+# pCloud, MEGA, Nextcloud...). Built from source via rclone-builder using
+# Go 1.27.3 to remediate CVE-2026-111943 (crypto/x509 intermediate CA vulnerability).
 # Best-effort: without it, only that one backup option is unavailable.
-ARG RCLONE_VERSION=v1.75.2
-RUN set -e; arch="$(dpkg --print-architecture)"; \
-    case "$arch" in amd64|arm64|arm) ;; armhf) arch=arm-v7 ;; *) echo "WARN: no rclone for $arch"; exit 0 ;; esac; \
-    base="https://downloads.rclone.org/${RCLONE_VERSION}"; f="rclone-${RCLONE_VERSION}-linux-${arch}.zip"; \
-    ( curl -fsSL -o "/tmp/$f" "$base/$f" && curl -fsSL -o /tmp/SHA256SUMS "$base/SHA256SUMS" && \
-      python3 -c "import hashlib, zipfile, sys; f=sys.argv[1]; sums=dict(line.strip().split()[:2][::-1] for line in open('/tmp/SHA256SUMS') if len(line.strip().split())>=2); exp=sums.get(f); sys.exit('Checksum missing') if not exp else None; act=hashlib.sha256(open('/tmp/'+f,'rb').read()).hexdigest(); sys.exit('Checksum mismatch') if act!=exp else None; z=zipfile.ZipFile('/tmp/'+f); n=[x for x in z.namelist() if x.endswith('/rclone')][0]; open('/usr/local/bin/rclone','wb').write(z.read(n))" "$f" && \
-      chmod 755 /usr/local/bin/rclone && rclone --version ) \
-    || echo "WARN: rclone not installed; the rclone backup option will be unavailable"; \
-    rm -f /tmp/rclone-*.zip /tmp/SHA256SUMS
+COPY --from=rclone-builder /go/bin/rclone /usr/local/bin/rclone
+RUN chmod 755 /usr/local/bin/rclone && /usr/local/bin/rclone --version
 
 WORKDIR /app
 COPY requirements.txt requirements-encryption.txt install_deps.py ./

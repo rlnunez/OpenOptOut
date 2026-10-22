@@ -12451,7 +12451,7 @@ def t_backup_rclone():
         f.write(f"""#!/bin/sh
 # fake rclone: --config FILE ... CMD ARGS ; remote "r:dir/name" maps to {store}/dir/name
 conf="$2"; [ -f "$conf" ] || exit 9
-perm=$(stat -c %a "$conf"); echo "$perm $*" >> {log}
+perm=$(stat -c %a "$conf" 2>/dev/null || stat -f %Lp "$conf" 2>/dev/null); echo "$perm $*" >> {log}
 shift 2; while [ "${{1#--}}" != "$1" ]; do shift 2; done
 cmd="$1"; shift
 loc() {{ p="${{1#*:}}"; echo "{store}/$p"; }}
