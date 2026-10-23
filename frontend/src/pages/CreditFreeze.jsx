@@ -3,6 +3,7 @@ import { Snowflake, Printer, Copy, Check, ExternalLink } from 'lucide-react'
 import api from '../api'
 import { tx } from '../i18n/tx'
 import { detailText } from '../errorMessage'
+import { isSafeHref } from '../components/Markdown'
 
 // Credit freeze letters. Built fresh from the person's saved details each time;
 // Social Security numbers are never asked for or saved — the letter leaves a
@@ -50,8 +51,8 @@ function LetterCard({ l, person }) {
         </div>
       </div>
       <div className="flex flex-wrap gap-3 text-sm">
-        {l.online && <a href={l.online} target="_blank" rel="noopener noreferrer" className="text-shield-300 hover:underline inline-flex items-center gap-1">{tx("Do it online")}{" "}<ExternalLink size={12} aria-hidden="true" /></a>}
-        {l.form && <a href={l.form} target="_blank" rel="noopener noreferrer" className="text-shield-300 hover:underline inline-flex items-center gap-1">{tx("Their form to include")}{" "}<ExternalLink size={12} aria-hidden="true" /></a>}
+        {l.online && isSafeHref(l.online) && <a href={l.online} target="_blank" rel="noopener noreferrer" className="text-shield-300 hover:underline inline-flex items-center gap-1">{tx("Do it online")}{" "}<ExternalLink size={12} aria-hidden="true" /></a>}
+        {l.form && isSafeHref(l.form) && <a href={l.form} target="_blank" rel="noopener noreferrer" className="text-shield-300 hover:underline inline-flex items-center gap-1">{tx("Their form to include")}{" "}<ExternalLink size={12} aria-hidden="true" /></a>}
         <span className="text-slate-400">{tx("Phone:")}{" "}{l.phone}</span>
       </div>
       <details className="mt-3">

@@ -3,6 +3,7 @@ import { Globe2, RefreshCw, Check, X, ExternalLink, ChevronDown, ChevronRight } 
 import api from '../api'
 import { tx, txn } from '../i18n/tx'
 import { detailText } from '../errorMessage'
+import { isSafeHref } from './Markdown'
 
 const WHY = {
   phone: tx("shows one of the saved phone numbers"),
@@ -83,9 +84,13 @@ export default function WebSearchResults({ memberId, memberName, onAdded }) {
             {review.map(h => (
               <li key={h.id} className="py-2.5 flex items-start justify-between gap-3 flex-wrap">
                 <div className="min-w-0 flex-1">
-                  <a href={h.url} target="_blank" rel="noopener noreferrer" className="text-sm text-shield-300 hover:text-shield-200 flex items-center gap-1 break-all">
-                    <ExternalLink size={12} className="shrink-0" aria-hidden="true" />{h.title || h.url}
-                  </a>
+                  {isSafeHref(h.url) ? (
+                    <a href={h.url} target="_blank" rel="noopener noreferrer" className="text-sm text-shield-300 hover:text-shield-200 flex items-center gap-1 break-all">
+                      <ExternalLink size={12} className="shrink-0" aria-hidden="true" />{h.title || h.url}
+                    </a>
+                  ) : (
+                    <span className="text-sm text-slate-400 break-all">{h.title || h.url}</span>
+                  )}
                   <div className="text-xs text-slate-500">
                     {h.broker_name ? `${h.broker_name} · ` : `${h.domain} · `}
                     {h.strength === 'strong' ? tx("Strong match:") : h.strength === 'medium' ? tx("Likely:") : tx("Possible:")}

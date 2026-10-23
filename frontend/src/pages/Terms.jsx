@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ScrollText, AlertTriangle, ExternalLink } from 'lucide-react'
 import api from '../api'
-import Markdown from '../components/Markdown'
+import Markdown, { isSafeHref } from '../components/Markdown'
 import { LimitsText, NoticeText } from '../components/TermsGate'
 import { tx, txn } from '../i18n/tx'
 import { fmtDate } from '../i18n/format'
@@ -133,7 +133,7 @@ export function PublicTerms() {
             {t.updated_at && <p className="text-xs text-slate-500">{tx("Last changed {date}", { date: fmtDate(t.updated_at) })}</p>}
             <div className="text-sm text-slate-300"><Markdown source={t.text} /></div>
           </>
-        ) : t.terms_url ? (
+        ) : t.terms_url && isSafeHref(t.terms_url) ? (
           <p className="text-sm text-slate-300"><a href={t.terms_url} className="text-shield-400 hover:underline" rel="noopener noreferrer">{t.operator ? tx("Read the terms on {operator}'s site", { operator: t.operator }) : tx("Read the terms")}</a></p>
         ) : (
           <p className="text-sm text-slate-400">{tx("The people who run this server haven't published their own terms. Here's how OpenOptOut works:")}</p>

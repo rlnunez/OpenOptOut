@@ -3,6 +3,7 @@ import { ShieldQuestion, ExternalLink, X, Check, RefreshCw } from 'lucide-react'
 import api from '../api'
 import { tx } from '../i18n/tx'
 import { detailText } from '../errorMessage'
+import { isSafeHref } from './Markdown'
 
 const KIND = {
   hosted_onetrust: 'OneTrust request form',
@@ -69,7 +70,7 @@ export default function PrivacyPagesPanel({ refreshKey }) {
                 <div className="text-xs text-slate-500 break-all">{p.kind === 'email' ? p.url.replace('mailto:', '') : p.url}</div>
               </div>
               <div className="flex gap-2 shrink-0">
-                {p.kind !== 'email' && (
+                {p.kind !== 'email' && isSafeHref(p.url) && (
                   <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-shield-400 hover:text-shield-300 text-xs flex items-center gap-1"
                     aria-label={tx("Open {broker_name}'s {v} in a new tab", { broker_name: p.broker_name, v: KIND[p.kind] || 'page' })}>
                     <ExternalLink size={12} aria-hidden="true" />{" "}{tx("Open")}

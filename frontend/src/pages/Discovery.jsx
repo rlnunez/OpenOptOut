@@ -8,6 +8,7 @@ import Badge from '../components/Badge'
 import FindListings from '../components/FindListings'
 import { tx, txn } from '../i18n/tx'
 import { fmtDate } from '../i18n/format'
+import { isSafeHref } from '../components/Markdown'
 
 function MemberSelect({ members, value, onChange }) {
   return (
@@ -44,12 +45,14 @@ function DiscoveryRow({ result }) {
         )}
       </td>
       <td className="px-4 py-3 max-w-64">
-        {result.listing_url ? (
+        {result.listing_url && isSafeHref(result.listing_url) ? (
           <a href={result.listing_url} target="_blank" rel="noopener noreferrer"
             className="text-shield-400 hover:text-shield-300 text-xs flex items-center gap-1 truncate">
             <ExternalLink size={10} className="shrink-0" />
             <span className="truncate">{result.listing_url}</span>
           </a>
+        ) : result.listing_url ? (
+          <span className="text-slate-600 text-xs truncate block">{result.listing_url}</span>
         ) : <span className="text-slate-700 text-xs">—</span>}
       </td>
       <td className="px-4 py-3 text-slate-500 text-xs">

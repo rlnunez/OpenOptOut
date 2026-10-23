@@ -6617,6 +6617,76 @@ def t_unhandled_exception_handler():
     #   its ordering changed so the body is read before the check.
 
 
+@test(4, "main.browser_security_headers_present",
+      "Every response carries Cross-Origin-Opener-Policy/Cross-Origin-Resource-Policy, and an "
+      "HTML response's CSP uses base-uri 'none' and names a violation-report location (ASVS "
+      "3.4.3/3.4.7/3.4.8).")
+def t_browser_security_headers():
+    try:
+        from fastapi.testclient import TestClient
+        main = importlib.import_module(_mod("main"))
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    client = TestClient(main.app, raise_server_exceptions=False)
+    r = client.get("/api/health")
+    assert r.headers.get("cross-origin-opener-policy") == "same-origin", dict(r.headers)
+    assert r.headers.get("cross-origin-resource-policy") == "same-origin", dict(r.headers)
+
+    # SAML's /login (disabled by default, no config) returns an HTML error
+    # page through the real app, exercising the actual middleware/route path
+    # — not a hand-built response, so this also proves core/csp.py's shared
+    # constant is what every HTML-returning route actually sends.
+    r2 = client.get("/api/auth/saml/login")
+    assert "text/html" in r2.headers.get("content-type", "")
+    csp = r2.headers.get("content-security-policy", "")
+    assert "base-uri 'none'" in csp, csp
+    assert "object-src 'none'" in csp, csp
+    assert "report-uri /api/csp-report" in csp, csp
+    assert r2.headers.get("reporting-endpoints", "").startswith("csp-endpoint="), r2.headers.get("reporting-endpoints")
+    # EXPECTED: tabnabbing/cross-window and <base>-tag hijack vectors are closed,
+    #   and CSP violations land somewhere instead of going silently unreported.
+    # IF THIS FAILS: a header got dropped or reworded in core/csp.py or
+    #   add_security_headers().
+
+
+@test(2, "main.csp_report_endpoint_logs_and_is_rate_limited",
+      "POST /api/csp-report accepts a browser's violation report, logs a truncated copy, "
+      "returns 204, and carries the same per-IP rate limiter every other public route uses "
+      "(ASVS 3.4.7).")
+def t_csp_report_endpoint():
+    import logging, io
+    try:
+        from fastapi.testclient import TestClient
+        main = importlib.import_module(_mod("main"))
+        csp_report = importlib.import_module(_mod("routers.csp_report"))
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    client = TestClient(main.app, raise_server_exceptions=False)
+    buf = io.StringIO()
+    h = logging.StreamHandler(buf)
+    h.setFormatter(logging.Formatter("%(message)s"))
+    lg = logging.getLogger(csp_report.__name__)
+    lg.addHandler(h); lg.propagate = False
+    try:
+        r = client.post("/api/csp-report", content=b'{"csp-report": {"violated-directive": "script-src"}}',
+                        headers={"Content-Type": "application/csp-report"})
+        assert r.status_code == 204, r.status_code
+        assert "csp_violation" in buf.getvalue() and "script-src" in buf.getvalue(), buf.getvalue()
+
+        rl = _imp("core.rate_limit")
+        p = csp_report.router.prefix
+        for rt in csp_report.router.routes:
+            if getattr(rt, "path", None) == p + "/csp-report":
+                names = {getattr(d.call, "rate_limit", (None,))[0] for d in rt.dependant.dependencies} - {None}
+                assert "csp_report" in names, names
+    finally:
+        lg.removeHandler(h); lg.propagate = True
+    # EXPECTED: violation reports are visible in the app's own log store, and
+    #   this unauthenticated public endpoint can't be hammered without limit.
+    # IF THIS FAILS: the report endpoint was removed/renamed, or lost its limiter.
+
+
 @test(1, "auth.password_peppering_pbkdf2_hmac_sha256",
       "PBKDF2-HMAC-SHA256 password peppering produces deterministic 44-character Base64 digests and preserves key separation.")
 def t_password_peppering():

@@ -4,6 +4,7 @@ import api from '../api'
 import WebSearchResults from './WebSearchResults'
 import { tx, txr } from '../i18n/tx'
 import { detailText } from '../errorMessage'
+import { isSafeHref } from './Markdown'
 
 const inp = 'w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-shield-500'
 
@@ -126,11 +127,11 @@ export default function FindListings({ memberId, memberName, onAdded }) {
                 {plan.brokers.map(b => (
                   <li key={b.broker_id} className="py-1.5 flex items-center justify-between gap-2 border-b border-slate-700/30">
                     <span className="text-sm text-slate-200 truncate">{b.broker_name}</span>
-                    <a href={b.search_url} target="_blank" rel="noopener noreferrer"
+                    {isSafeHref(b.search_url) && <a href={b.search_url} target="_blank" rel="noopener noreferrer"
                       className="text-shield-400 hover:text-shield-300 text-sm flex items-center gap-1 shrink-0"
                       aria-label={tx("Search {broker_name} (opens a new tab)", { broker_name: b.broker_name })}>
                       <ExternalLink size={12} aria-hidden="true" />{b.kind === 'broker_search' ? tx("Search site") : tx("Search web")}
-                    </a>
+                    </a>}
                   </li>
                 ))}
               </ul>

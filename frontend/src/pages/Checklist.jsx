@@ -8,6 +8,7 @@ import api from '../api'
 import { tx } from '../i18n/tx'
 import LiveCaptcha from '../components/LiveCaptcha'
 import { detailText } from '../errorMessage'
+import { isSafeHref } from '../components/Markdown'
 
 const btn = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm'
 
@@ -64,10 +65,12 @@ function Picker({ item, act }) {
               <label htmlFor={`pick-${item.request_id}-${i}`} className="text-sm text-slate-200 cursor-pointer break-words">
                 {c.text || tx("No details shown")}
               </label>
-              <a href={c.url} target="_blank" rel="noopener noreferrer nofollow" referrerPolicy="no-referrer"
-                className="ms-2 inline-flex items-center gap-1 text-xs text-shield-300 underline">
-                <ExternalLink size={11} aria-hidden="true" />{" "}{tx("Open")}<span className="sr-only">{" "}{tx("listing {v} in a new tab", { v: i + 1 })}</span>
-              </a>
+              {isSafeHref(c.url) && (
+                <a href={c.url} target="_blank" rel="noopener noreferrer nofollow" referrerPolicy="no-referrer"
+                  className="ms-2 inline-flex items-center gap-1 text-xs text-shield-300 underline">
+                  <ExternalLink size={11} aria-hidden="true" />{" "}{tx("Open")}<span className="sr-only">{" "}{tx("listing {v} in a new tab", { v: i + 1 })}</span>
+                </a>
+              )}
             </div>
           </li>
         ))}
@@ -104,7 +107,7 @@ function Item({ group, item, act, reload }) {
             {group === 'inbox' ? tx("Connect inbox") : group === 'captcha' ? tx("Open CAPTCHAs") : tx("Review")}
           </Link>
         )}
-        {group === 'confirm' && item.confirm_url && (
+        {group === 'confirm' && item.confirm_url && isSafeHref(item.confirm_url) && (
           <a href={item.confirm_url} target="_blank" rel="noopener noreferrer nofollow" referrerPolicy="no-referrer"
             className={`${btn} bg-shield-600 hover:bg-shield-500 text-white`}
             aria-label={tx("Open {broker_name}'s confirmation link in a new tab", { broker_name: item.broker_name })}>
@@ -116,7 +119,7 @@ function Item({ group, item, act, reload }) {
             <Check size={13} aria-hidden="true" />{" "}{tx("I've confirmed it")}
           </button>
         )}
-        {!item.link && open && group !== 'confirm' && (
+        {!item.link && open && isSafeHref(open) && group !== 'confirm' && (
           <a href={open} target="_blank" rel="noopener noreferrer" className={`${btn} border border-slate-600 text-slate-200`}
             aria-label={tx("Open {broker_name} in a new tab", { broker_name: item.broker_name })}>
             <ExternalLink size={13} aria-hidden="true" />{" "}{tx("Open site")}

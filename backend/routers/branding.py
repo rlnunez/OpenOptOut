@@ -304,8 +304,10 @@ def upload_logo(file: UploadFile = File(...), _: User = Depends(require_permissi
     return {"logo_url": f"/api/branding/logo?v={int(datetime.utcnow().timestamp())}"}
 
 
+from ..core.csp import SVG_CSP
+
 _SVG_CSP_HEADERS = {
-    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    "Content-Security-Policy": SVG_CSP,
     "X-Content-Type-Options": "nosniff",
 }
 

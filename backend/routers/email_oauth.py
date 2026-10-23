@@ -177,11 +177,13 @@ def begin(body: BeginIn, db: Session = Depends(get_db),
 # ── Callback: exchange code, store tokens ─────────────────────────────────────
 
 def _html_resp(content: str, status_code: int = 200) -> HTMLResponse:
+    from ..core.csp import MINIMAL_HTML_CSP, REPORTING_ENDPOINTS_HEADER
     return HTMLResponse(
         content=content,
         status_code=status_code,
         headers={
-            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none';",
+            "Content-Security-Policy": MINIMAL_HTML_CSP,
+            "Reporting-Endpoints": REPORTING_ENDPOINTS_HEADER,
             "X-Content-Type-Options": "nosniff",
         },
     )

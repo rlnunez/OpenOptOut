@@ -29,6 +29,7 @@ from ..core.auth import require_super_admin
 from ..core.access import require_permission
 from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
 from ..core import saml_sp, rate_limit
+from ..core.csp import MINIMAL_HTML_CSP, REPORTING_ENDPOINTS_HEADER
 from .auth import _resolve_external_user, _sso_redirect
 
 router = APIRouter(prefix="/api/auth/saml", tags=["saml"])
@@ -55,7 +56,8 @@ def _error_page(message: str, status: int = 400) -> HTMLResponse:
             "Back to sign in</a></p></body></html>"
         ),
         headers={
-            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none';",
+            "Content-Security-Policy": MINIMAL_HTML_CSP,
+            "Reporting-Endpoints": REPORTING_ENDPOINTS_HEADER,
             "X-Content-Type-Options": "nosniff",
         },
     )

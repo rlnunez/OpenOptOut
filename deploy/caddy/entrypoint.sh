@@ -253,7 +253,7 @@ fi
 # HSTS tells browsers to always use HTTPS. Off by default for 'internal' (a private CA the browser may not trust yet) and whenever HSTS=off.
 HSTS_LINE=""
 if [ "${HSTS:-on}" != "off" ] && [ "$MODE" != "internal" ] && [ "$MODE" != "none" ]; then
-  HSTS_LINE='		Strict-Transport-Security "max-age=31536000"'
+  HSTS_LINE='		Strict-Transport-Security "max-age=31536000; includeSubDomains"'
 fi
 
 # ── global options ────────────────────────────────────────────────────────────
@@ -355,7 +355,10 @@ $HSTS_LINE
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		X-Frame-Options "DENY"
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'; report-uri /api/csp-report; report-to csp-endpoint;"
+		Reporting-Endpoints \`csp-endpoint="/api/csp-report"\`
 		-Server
 	}
 $MATCHERS

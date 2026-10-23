@@ -7,6 +7,7 @@ import api from '../api'
 import Badge from '../components/Badge'
 import { tx, txn } from '../i18n/tx'
 import { fmtDate } from '../i18n/format'
+import { isSafeHref } from '../components/Markdown'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -46,10 +47,14 @@ function RecheckRow({ req, onRequeue, onSnooze }) {
       <td className="px-4 py-3">
         <p className="text-slate-200 text-sm font-medium">{req.broker_name}</p>
         {req.listing_url && (
-          <a href={req.listing_url} target="_blank" rel="noopener noreferrer"
-            className="text-slate-600 text-xs hover:text-shield-400 transition-colors truncate block max-w-48">
-            {req.listing_url}
-          </a>
+          isSafeHref(req.listing_url) ? (
+            <a href={req.listing_url} target="_blank" rel="noopener noreferrer"
+              className="text-slate-600 text-xs hover:text-shield-400 transition-colors truncate block max-w-48">
+              {req.listing_url}
+            </a>
+          ) : (
+            <span className="text-slate-600 text-xs truncate block max-w-48">{req.listing_url}</span>
+          )
         )}
       </td>
       <td className="px-4 py-3">

@@ -54,6 +54,7 @@ from .routers.terms import router as terms_router
 from .routers.usage_stats import router as stats_admin_router, api_router as stats_api_router
 from .routers.resident_addresses import router as resident_addresses_router
 from .routers.updates import router as updates_router
+from .routers.csp_report import router as csp_report_router
 from .core.scheduler import start_scheduler, stop_scheduler
 from .core.version import get_version, get_commit, version_string
 from .core.logging_config import init_logging
@@ -119,6 +120,10 @@ async def add_security_headers(request, call_next):
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()")
+    # ASVS 3.4.8: blocks tabnabbing/cross-window attacks via window.opener;
+    # 3.5.8: same-origin default for any resource this API itself serves.
+    response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
     from .core.settings_store import is_hsts_enabled
     if is_hsts_enabled():
         response.headers.setdefault(
@@ -126,16 +131,12 @@ async def add_security_headers(request, call_next):
             "max-age=31536000; includeSubDomains",
         )
     content_type = response.headers.get("content-type", "").lower()
+    from .core.csp import MINIMAL_HTML_CSP, SVG_CSP, REPORTING_ENDPOINTS_HEADER
     if "text/html" in content_type:
-        response.headers.setdefault(
-            "Content-Security-Policy",
-            "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none';",
-        )
+        response.headers.setdefault("Content-Security-Policy", MINIMAL_HTML_CSP)
+        response.headers.setdefault("Reporting-Endpoints", REPORTING_ENDPOINTS_HEADER)
     elif "svg" in content_type:
-        response.headers.setdefault(
-            "Content-Security-Policy",
-            "default-src 'none'; style-src 'unsafe-inline'; sandbox",
-        )
+        response.headers.setdefault("Content-Security-Policy", SVG_CSP)
     return response
 
 
@@ -223,7 +224,7 @@ for r in [
     email_oauth_router, test_broker_router, saml_router, cert_monitor_router,
     consortium_router, logs_router, captcha_router, i18n_router,
     workers_router, mailboxes_router, listings_router, registry_router,
-    web_search_router, checklist_router, variants_router, privacy_pages_router, confirm_links_router, broker_updates_router, verification_router, broker_network_router, credit_freeze_router, timeline_router, compliance_router, privacy_router, reports_router, calendar_router, spec_helpers_router, live_steps_router, letters_router, observability_router, ops_router, terms_router, stats_admin_router, stats_api_router, resident_addresses_router, updates_router,
+    web_search_router, checklist_router, variants_router, privacy_pages_router, confirm_links_router, broker_updates_router, verification_router, broker_network_router, credit_freeze_router, timeline_router, compliance_router, privacy_router, reports_router, calendar_router, spec_helpers_router, live_steps_router, letters_router, observability_router, ops_router, terms_router, stats_admin_router, stats_api_router, resident_addresses_router, updates_router, csp_report_router,
 ]:
     app.include_router(r)
 
