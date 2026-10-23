@@ -19,8 +19,8 @@ from ..core.limits import LimitedModel, NAME_MAX
 from ..models.database import get_db, User, FamilyMember, UserRole, InviteCode, UsageEvent
 from ..core.auth import (
     hash_password, verify_password, is_legacy_unpeppered_hash, create_access_token,
-    get_current_user, get_current_user_optional, require_super_admin, validate_password_length,
-    dummy_verify_password, MAX_PASSWORD_BYTES
+    get_current_user, get_current_user_optional, get_current_jti, require_super_admin,
+    validate_password_length, dummy_verify_password, MAX_PASSWORD_BYTES
 )
 from ..core.text_input import clean_name, clean_name_lenient, clean_text_lenient
 from ..core.session_policy import create_user_token
@@ -511,7 +511,7 @@ def _finish_sign_in(user: User, db: Session, request: Optional[Request], remembe
             "detail": f"Multi-Factor Authentication (MFA) is mandated for {role_title} accounts {timer_val} {timer_unit} after account creation. Please configure an authenticator app (TOTP) or security key (YubiKey / Touch ID) to continue.",
         }
 
-    return {"access_token": create_user_token(user, remember_me=remember_me), "token_type": "bearer"}
+    return {"access_token": create_user_token(user, db, request, remember_me=remember_me), "token_type": "bearer"}
 
 
 @router.post("/token", dependencies=[Depends(rate_limit.limit("signin", 60))])
@@ -602,7 +602,7 @@ def toggle_unified_view(unified: bool, db: Session = Depends(get_db),
 
 
 @router.post("/me/password")
-def change_own_password(data: ChangePasswordIn, db: Session = Depends(get_db),
+def change_own_password(data: ChangePasswordIn, request: Request, db: Session = Depends(get_db),
                          current_user: User = Depends(get_current_user)):
     """A signed-in local account rotates its own password, without an admin's
     involvement. Requires the current password; an SSO/LDAP/SIP2 account has
@@ -614,6 +614,8 @@ def change_own_password(data: ChangePasswordIn, db: Session = Depends(get_db),
     current_user.hashed_password = hash_password(data.new_password)
     current_user.token_version = (getattr(current_user, "token_version", 0) or 0) + 1
     db.commit()
+    from ..core.session_policy import revoke_all_sessions
+    revoke_all_sessions(db, current_user.id)
     from ..core import system_mail
     system_mail.send(
         current_user.email,
@@ -624,20 +626,81 @@ def change_own_password(data: ChangePasswordIn, db: Session = Depends(get_db),
     # Every other session (including this request's own now-stale token) was
     # just invalidated by the token_version bump above — issue a fresh one so
     # the caller isn't immediately signed out by the change they just made.
-    token = create_user_token(current_user)
+    token = create_user_token(current_user, db, request)
     return {"ok": True, "access_token": token, "token_type": "bearer"}
 
 
 @router.post("/signout")
+def signout(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    current_jti: Optional[str] = Depends(get_current_jti),
+):
+    """Revoke only THIS session, server-side — so a "logged out" token can't
+    still be used until it naturally expires. (Previously aliased to
+    signout_everywhere, which bumped token_version and silently signed out
+    every other device too on an ordinary logout — that behavior now lives
+    only at /signout-everywhere, where it's an explicit, separate action.)"""
+    if current_jti:
+        from ..models.database import UserSession
+        from datetime import datetime
+        db.query(UserSession).filter(
+            UserSession.jti == current_jti, UserSession.user_id == current_user.id,
+        ).update({"revoked_at": datetime.utcnow()})
+        db.commit()
+    return {"ok": True, "message": "Signed out."}
+
+
 @router.post("/signout-everywhere")
 def signout_everywhere(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Revoke all issued access tokens for this user by incrementing token_version."""
+    """Revoke all issued access tokens for this user by incrementing token_version,
+    and mark every tracked session revoked so /sessions reflects it immediately."""
     current_user.token_version = (getattr(current_user, "token_version", 0) or 0) + 1
     db.commit()
+    from ..core.session_policy import revoke_all_sessions
+    revoke_all_sessions(db, current_user.id)
     return {"ok": True, "message": "All sessions revoked."}
+
+
+@router.get("/sessions")
+def list_my_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    current_jti: Optional[str] = Depends(get_current_jti),
+):
+    """Your own active sessions — device/IP/time, which one is this one, and
+    whether it's a remembered ("stay signed in") session. (ASVS 7.5.2)"""
+    from ..models.database import UserSession
+    rows = (db.query(UserSession)
+            .filter(UserSession.user_id == current_user.id, UserSession.revoked_at.is_(None))
+            .order_by(UserSession.created_at.desc()).all())
+    return [{
+        "id": r.id, "created_at": r.created_at, "expires_at": r.expires_at,
+        "ip": r.ip, "user_agent": r.user_agent, "remember_me": r.remember_me,
+        "is_current": bool(current_jti) and r.jti == current_jti,
+    } for r in rows]
+
+
+@router.delete("/sessions/{session_id}")
+def revoke_my_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Sign out one of your own sessions (e.g. a lost/old device). (ASVS 7.5.2)"""
+    from ..models.database import UserSession
+    from datetime import datetime
+    row = db.query(UserSession).filter(
+        UserSession.id == session_id, UserSession.user_id == current_user.id,
+    ).first()
+    if not row:
+        raise HTTPException(404, "Session not found.")
+    row.revoked_at = datetime.utcnow()
+    db.commit()
+    return {"ok": True}
 
 
 # ── LDAP login ────────────────────────────────────────────────────────────────
@@ -657,7 +720,7 @@ def ldap_login(req: LDAPLoginRequest, db: Session = Depends(get_db), request: Re
         raise HTTPException(401, result.error or "LDAP authentication failed")
     login_throttle.success(throttle_key)
 
-    return _resolve_external_user(result, db, remember_me=bool(req.remember_me))
+    return _resolve_external_user(result, db, remember_me=bool(req.remember_me), request=request)
 
 
 # ── SIP2 login ────────────────────────────────────────────────────────────────
@@ -679,7 +742,7 @@ def sip2_login(req: SIP2LoginRequest, db: Session = Depends(get_db), request: Re
         raise HTTPException(401, result.error or "Library card authentication failed")
     login_throttle.success(throttle_key)
 
-    return _resolve_external_user(result, db, remember_me=bool(req.remember_me))
+    return _resolve_external_user(result, db, remember_me=bool(req.remember_me), request=request)
 
 
 # ── OIDC (Google, Microsoft, Generic) ────────────────────────────────────────
@@ -708,6 +771,7 @@ def oidc_login(provider: str, request: Request):
 @router.get("/oidc/{provider}/callback", dependencies=[Depends(rate_limit.limit("sso", 30))])
 def oidc_callback(
     provider: str,
+    request: Request,
     code: str = Query(...),
     state: str = Query(...),
     db: Session = Depends(get_db),
@@ -720,7 +784,7 @@ def oidc_callback(
     if not result.success:
         raise HTTPException(401, result.error or "OIDC authentication failed")
 
-    token_data = _resolve_external_user(result, db)
+    token_data = _resolve_external_user(result, db, request=request)
     return _sso_redirect(token_data["access_token"])
 
 
@@ -735,7 +799,8 @@ def _auth_source_for(provider: str) -> str:
     return provider if provider in ("ldap", "sip2", "saml") else f"oidc:{provider}"
 
 
-def _resolve_external_user(result, db: Session, remember_me: bool = False) -> dict:
+def _resolve_external_user(result, db: Session, remember_me: bool = False,
+                           request: Optional[Request] = None) -> dict:
     """
     Find or create a local user for an externally-authenticated identity
     (OIDC, LDAP, SIP2, SAML). Every external login is checked against the ONE
@@ -804,7 +869,7 @@ def _resolve_external_user(result, db: Session, remember_me: bool = False) -> di
             _log.info("SIP2 reissued-card link: user_id=%s old_card=%s new_card=%s",
                       existing.id, old_barcode, ext_id)
         db.commit()
-        token = create_user_token(existing, remember_me=remember_me)
+        token = create_user_token(existing, db, request, remember_me=remember_me)
         return {"access_token": token, "token_type": "bearer"}
 
     if decision.downgraded:
@@ -909,7 +974,7 @@ def _resolve_external_user(result, db: Session, remember_me: bool = False) -> di
             _log.warning("Could not process patron demographics for user: %s", e)
 
     db.commit()
-    token = create_user_token(user, remember_me=remember_me)
+    token = create_user_token(user, db, request, remember_me=remember_me)
     return {"access_token": token, "token_type": "bearer"}
 
 
@@ -1012,6 +1077,7 @@ class TotpActivateIn(LimitedModel):
     secret: Optional[str] = None
     code: str
     backup_codes: Optional[List[str]] = Field(None, max_length=50)
+    current_password: Optional[str] = Field(None, max_length=MAX_PASSWORD_BYTES)
 
 class TotpDisableIn(LimitedModel):
     password: str
@@ -1020,6 +1086,20 @@ class WebAuthnRegisterIn(LimitedModel):
     mfa_ticket: Optional[str] = None
     name: str = Field("Security Key", max_length=NAME_MAX)
     credential: dict = Field(..., max_length=50)
+    current_password: Optional[str] = Field(None, max_length=MAX_PASSWORD_BYTES)
+
+
+def _require_current_password_for_mfa_change(current_user: Optional[User], current_password: Optional[str]):
+    """Re-authentication before adding a new MFA factor to an already-signed-in
+    session (ASVS 7.5.1) — a stolen/reused session token alone shouldn't be
+    enough to add an attacker-controlled second factor. Only applies to the
+    already-fully-authenticated-session path: the ticket-only mandated-setup
+    path (right after a fresh password login, no `current_user` yet) already
+    implies a just-proven password, and a passwordless/SSO account has no
+    local password to re-check."""
+    if current_user and current_user.hashed_password:
+        if not current_password or not verify_password(current_password, current_user.hashed_password):
+            raise HTTPException(400, "Current password is required to add a new sign-in method.")
 
 class DeleteWebAuthnIn(LimitedModel):
     password: Optional[str] = Field(None, max_length=MAX_PASSWORD_BYTES)
@@ -1102,7 +1182,7 @@ def verify_totp_login(data: VerifyTotpIn, db: Session = Depends(get_db), request
     code_attempts.used(data.mfa_ticket)
     login_throttle.success(throttle_key)
     remember_me = bool(tdata.get("remember_me", False))
-    return {"access_token": create_user_token(user, remember_me=remember_me), "token_type": "bearer"}
+    return {"access_token": create_user_token(user, db, request, remember_me=remember_me), "token_type": "bearer"}
 
 
 @router.post("/mfa/verify-backup", dependencies=[Depends(rate_limit.limit("mfa", 30))])
@@ -1138,7 +1218,7 @@ def verify_backup_code_login(data: VerifyBackupIn, db: Session = Depends(get_db)
     db.commit()
     remember_me = bool(tdata.get("remember_me", False))
     return {
-        "access_token": create_user_token(user, remember_me=remember_me),
+        "access_token": create_user_token(user, db, request, remember_me=remember_me),
         "token_type": "bearer",
         "remaining_backup_codes": len(remaining),
     }
@@ -1209,7 +1289,7 @@ def verify_webauthn_login(data: VerifyWebAuthnIn, db: Session = Depends(get_db),
     user.webauthn_credentials = json.dumps(keys)
     db.commit()
     remember_me = bool(tdata.get("remember_me", False))
-    return {"access_token": create_user_token(user, remember_me=remember_me), "token_type": "bearer"}
+    return {"access_token": create_user_token(user, db, request, remember_me=remember_me), "token_type": "bearer"}
 
 
 @router.get("/mfa/status")
@@ -1275,10 +1355,11 @@ def activate_totp(
 ):
     from ..core import mfa
     user = _resolve_user_for_mfa(db, current_user, data.mfa_ticket, request, for_enrollment=True)
+    _require_current_password_for_mfa_change(current_user, data.current_password)
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("totp", True):
         raise HTTPException(403, "TOTP authenticator app method is disabled for your role or account by security policy.")
-    
+
     secret = data.secret
     if not secret and user.totp_secret_enc:
         from ..core.settings_store import decrypt_password
@@ -1301,7 +1382,7 @@ def activate_totp(
     return {
         "activated": True,
         "backup_codes": plain_codes,
-        "access_token": create_user_token(user),
+        "access_token": create_user_token(user, db, request),
         "token_type": "bearer",
     }
 
@@ -1373,6 +1454,7 @@ def register_webauthn_key(
 ):
     from ..core import mfa
     user = _resolve_user_for_mfa(db, current_user, data.mfa_ticket, request, for_enrollment=True)
+    _require_current_password_for_mfa_change(current_user, data.current_password)
     allowed = mfa.get_user_allowed_mfa_methods(user)
     if not allowed.get("webauthn", True):
         raise HTTPException(403, "FIDO2 / WebAuthn security key method is disabled for your role or account by security policy.")
@@ -1426,7 +1508,7 @@ def register_webauthn_key(
         "registered": True,
         "key": parsed,
         "backup_codes": plain_backup_codes,
-        "access_token": create_user_token(user),
+        "access_token": create_user_token(user, db, request),
         "token_type": "bearer",
     }
 
@@ -1586,7 +1668,7 @@ def verify_passwordless_passkey(data: PasswordlessVerifyIn, request: Request = N
     except Exception:
         pass
 
-    token = create_user_token(user, remember_me=bool(data.remember_me))
+    token = create_user_token(user, db, request, remember_me=bool(data.remember_me))
     return {"access_token": token, "token_type": "bearer"}
 
 

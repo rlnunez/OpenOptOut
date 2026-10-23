@@ -6530,6 +6530,72 @@ def t_auth_mfa_ticket_single_use():
     assert ca.allowed(ticket, exp) is False
 
 
+@test(1, "auth.common_passwords_blocklist_size_and_context_words",
+      "The bundled common-password list exceeds ASVS's 'top 3000' floor, and this deployment's "
+      "own context-specific words (ASVS 6.1.2/6.2.11) are blocked too, including as 12+ char variants.")
+def t_auth_common_passwords_blocklist():
+    cp = _imp("core.common_passwords")
+    assert len(cp.COMMON_PASSWORDS_WORDLIST) >= 3000, \
+        f"bundled wordlist has only {len(cp.COMMON_PASSWORDS_WORDLIST)} entries, short of the ASVS 6.2.4 floor"
+    assert "dragon" in cp.COMMON_PASSWORDS_WORDLIST
+    assert cp.is_common_password("dragon123456"), "common word + digit suffix (12 chars) not caught"
+    for word in ("openoptout", "privacyshield", "superadmin"):
+        assert word in cp.CONTEXT_SPECIFIC_WORDS, word
+        assert cp.is_common_password(word + "123456"), f"context word {word!r} + digits (12 chars) not caught"
+    assert not cp.is_common_password("Xq7#mK2!vL9wZ"), "a genuinely random password was flagged as common"
+    # EXPECTED: a 12+ character password built from a common word or this
+    #   product's own name/terms is still rejected, not just short bare words.
+    # IF THIS FAILS: the "top 3000" floor isn't met, or lengthening a weak
+    #   base word with digits is enough to slip past the check.
+
+
+@test(2, "auth.mfa_enable_requires_current_password",
+      "Adding a new MFA factor (TOTP activation, a new WebAuthn key) to an already-signed-in "
+      "session requires the current password, the same way disabling one already did.")
+def t_auth_mfa_enable_requires_password():
+    try:
+        from fastapi import HTTPException
+        auth_router = _imp("routers.auth")
+        mfa = _imp("core.mfa")
+        auth_mod = _imp("core.auth")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    db, s = _memory_db()
+    user = db.User(email="mfauser@x.org", full_name="MFA User",
+                   hashed_password=auth_mod.hash_password("CorrectHorseBattery9!"),
+                   role=db.UserRole.member)
+    s.add(user); s.commit()
+
+    secret = mfa.generate_totp_secret()
+    code = mfa.get_totp(secret)
+
+    for bad_pw in ("wrong-password", None):
+        data = auth_router.TotpActivateIn(secret=secret, code=code, current_password=bad_pw)
+        try:
+            auth_router.activate_totp(data=data, request=None, db=s, current_user=user)
+            assert False, f"activated TOTP with current_password={bad_pw!r}"
+        except HTTPException as e:
+            assert e.status_code == 400, e.status_code
+    assert not user.totp_enabled, "TOTP got enabled despite the password check failing"
+
+    data_ok = auth_router.TotpActivateIn(secret=secret, code=code, current_password="CorrectHorseBattery9!")
+    result = auth_router.activate_totp(data=data_ok, request=None, db=s, current_user=user)
+    assert result["activated"] is True and user.totp_enabled is True
+
+    # WebAuthn registration: the same password gate fires before any credential
+    # parsing (an empty/garbage credential would otherwise fail differently).
+    wa_in = auth_router.WebAuthnRegisterIn(credential={}, current_password="wrong-password")
+    try:
+        auth_router.register_webauthn_key(data=wa_in, request=None, db=s, current_user=user)
+        assert False, "reached WebAuthn credential parsing with the wrong password"
+    except HTTPException as e:
+        assert e.status_code == 400, e.status_code
+    s.close()
+    # EXPECTED: a stolen/reused session token alone can't add a new MFA factor.
+    # IF THIS FAILS: an attacker with a live session could add their own TOTP/
+    #   security key as a persistent backdoor without ever proving the password.
+
+
 @test(1, "auth.totp_replay_rejected_across_concurrent_tickets",
       "A captured TOTP code can't be replayed against a second, concurrently-issued MFA ticket "
       "for the same user — the code's RFC 6238 time-step is tracked, not just the ticket.")
@@ -8969,7 +9035,7 @@ def t_auth_change_own_password():
         try:
             auth_router.change_own_password(
                 auth_router.ChangePasswordIn(current_password="wrong", new_password="test-new-password-1234"),
-                db=s, current_user=local_user)
+                request=None, db=s, current_user=local_user)
             assert False, "wrong current password should be refused"
         except HTTPException as e:
             assert e.status_code == 400
@@ -8978,7 +9044,7 @@ def t_auth_change_own_password():
         try:
             auth_router.change_own_password(
                 auth_router.ChangePasswordIn(current_password="whatever", new_password="test-new-password-1234"),
-                db=s, current_user=ext_user)
+                request=None, db=s, current_user=ext_user)
             assert False, "an SSO/LDAP account should be refused"
         except HTTPException as e:
             assert e.status_code == 400
@@ -8990,7 +9056,7 @@ def t_auth_change_own_password():
         old_token_version = local_user.token_version or 0
         out = auth_router.change_own_password(
             auth_router.ChangePasswordIn(current_password="test-current-password-123!", new_password="test-new-password-1234"),
-            db=s, current_user=local_user)
+            request=None, db=s, current_user=local_user)
         assert out.get("access_token")
         assert (local_user.token_version or 0) == old_token_version + 1
         assert auth_router.verify_password("test-new-password-1234", local_user.hashed_password)
@@ -8999,6 +9065,95 @@ def t_auth_change_own_password():
     finally:
         system_mail.send = orig_send
         s.close()
+
+
+@test(2, "auth.sessions_listed_and_revoked",
+      "Logging in creates a trackable session; a user can list and revoke their own sessions, "
+      "a revoked session's token stops working immediately, and you can't revoke someone else's.")
+def t_auth_sessions_listed_and_revoked():
+    try:
+        from fastapi import HTTPException
+        auth_router = _imp("routers.auth")
+        auth_mod = _imp("core.auth")
+        sess_pol = _imp("core.session_policy")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    db, s = _memory_db()
+    user = db.User(email="sess@x.org", full_name="Sess User",
+                   hashed_password=auth_mod.hash_password("Correct-Horse-9!"), role=db.UserRole.member)
+    other = db.User(email="other@x.org", full_name="Other User",
+                    hashed_password=auth_mod.hash_password("Correct-Horse-9!"), role=db.UserRole.member)
+    s.add_all([user, other]); s.commit()
+
+    token = sess_pol.create_user_token(user, s)
+    row = s.query(db.UserSession).filter(db.UserSession.user_id == user.id).first()
+    assert row is not None, "login did not create a trackable session"
+
+    # Shows up in the owner's own list, marked as the current one.
+    sessions = auth_router.list_my_sessions(db=s, current_user=user, current_jti=row.jti)
+    assert len(sessions) == 1 and sessions[0]["is_current"] is True
+
+    # A different user can't revoke it.
+    try:
+        auth_router.revoke_my_session(session_id=row.id, db=s, current_user=other)
+        assert False, "revoked another user's session"
+    except HTTPException as e:
+        assert e.status_code == 404
+
+    # The token still works until the session is actually revoked.
+    assert auth_mod.get_current_user(token=token, db=s).id == user.id
+
+    # The owner revokes it; the list empties and the token immediately stops working.
+    auth_router.revoke_my_session(session_id=row.id, db=s, current_user=user)
+    assert auth_router.list_my_sessions(db=s, current_user=user, current_jti=row.jti) == []
+    try:
+        auth_mod.get_current_user(token=token, db=s)
+        assert False, "a revoked session's token was still accepted"
+    except HTTPException as e:
+        assert e.status_code == 401
+    s.close()
+    # EXPECTED: a session can be individually listed and revoked, and revocation
+    #   takes effect on the very next request, not just at the account level.
+    # IF THIS FAILS: a lost/stolen device's session can't be killed without
+    #   nuking every other session too (the old token_version-only behavior).
+
+
+@test(2, "admin.revoke_all_sessions_for_user",
+      "An admin can sign a specific user out everywhere (all tracked sessions + token_version "
+      "bump) without disabling their account, gated by the users.manage permission.")
+def t_admin_revoke_all_sessions_for_user():
+    try:
+        from fastapi import HTTPException
+        admin_router = _imp("routers.admin")
+        auth_mod = _imp("core.auth")
+        sess_pol = _imp("core.session_policy")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    db, s = _memory_db()
+    target = db.User(email="target@x.org", full_name="Target", role=db.UserRole.member,
+                     hashed_password=auth_mod.hash_password("Correct-Horse-9!"))
+    admin = db.User(email="admin@x.org", full_name="Admin", role=db.UserRole.super_admin,
+                    hashed_password=auth_mod.hash_password("Correct-Horse-9!"))
+    s.add_all([target, admin]); s.commit()
+
+    token = sess_pol.create_user_token(target, s)
+    assert auth_mod.get_current_user(token=token, db=s).id == target.id
+
+    admin_router.revoke_user_sessions(user_id=target.id, db=s, current_user=admin)
+
+    assert target.can_login, "the account was disabled, not just signed out"
+    try:
+        auth_mod.get_current_user(token=token, db=s)
+        assert False, "token still valid after admin revoked all sessions"
+    except HTTPException as e:
+        assert e.status_code == 401
+    rows = s.query(db.UserSession).filter(db.UserSession.user_id == target.id).all()
+    assert rows and all(r.revoked_at is not None for r in rows)
+    s.close()
+    # EXPECTED: every outstanding session for that user is invalidated at once,
+    #   and the account otherwise remains intact (can still sign in again).
+    # IF THIS FAILS: an admin has no way to respond to "this account looks
+    #   compromised" short of the much more drastic step of disabling it.
 
 
 @test(2, "registration.residents_only_signup",

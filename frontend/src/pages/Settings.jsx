@@ -2108,12 +2108,15 @@ function MfaAccountSection({ user }) {
   const activateTotp = async e => {
     e?.preventDefault()
     if (!totpCode.trim()) return
+    const currentPassword = window.prompt(tx("Your current password, to confirm it's really you"))
+    if (!currentPassword) return
     setError(''); setSuccess(''); setTotpSubmitting(true)
     try {
       const { data } = await api.post('/auth/mfa/totp/activate', {
         secret: totpData?.secret,
         code: totpCode.trim(),
         backup_codes: totpData?.backup_codes || [],
+        current_password: currentPassword,
       })
       setShowTotpSetup(false)
       setTotpCode('')
@@ -2148,6 +2151,8 @@ function MfaAccountSection({ user }) {
   }
 
   const registerSecurityKey = async () => {
+    const currentPassword = window.prompt(tx("Your current password, to confirm it's really you"))
+    if (!currentPassword) return
     setError(''); setSuccess(''); setKeySubmitting(true)
     try {
       const { data: optData } = await api.post('/auth/mfa/webauthn/register-options')
@@ -2155,6 +2160,7 @@ function MfaAccountSection({ user }) {
       const { data: regData } = await api.post('/auth/mfa/webauthn/register', {
         credential,
         key_name: keyName.trim() || 'My security key',
+        current_password: currentPassword,
       })
       setShowAddKey(false)
       setKeyName('My security key')
@@ -2552,6 +2558,125 @@ function MfaAccountSection({ user }) {
 
 
 // ── Institutional WebAuthn & MFA Policy Section (Super Admin) ─────────────
+
+function ActiveSessionsSection({ user }) {
+  const [sessions, setSessions] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [revokingId, setRevokingId] = useState(null)
+  const [signingOutEverywhere, setSigningOutEverywhere] = useState(false)
+
+  const load = async () => {
+    try {
+      const { data } = await api.get('/auth/sessions')
+      setSessions(data)
+    } catch {
+      // Unauthenticated or non-local; nothing to show
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  const revoke = async (id) => {
+    setError(''); setSuccess(''); setRevokingId(id)
+    try {
+      await api.delete(`/auth/sessions/${id}`)
+      setSuccess(tx("Signed out of that device."))
+      load()
+    } catch (err) {
+      setError(detailText(err) || tx("Failed to sign out that session."))
+    } finally {
+      setRevokingId(null)
+    }
+  }
+
+  const signOutEverywhere = async () => {
+    if (!confirm(tx("Sign out of every device, including this one?"))) return
+    setError(''); setSuccess(''); setSigningOutEverywhere(true)
+    try {
+      await api.post('/auth/signout-everywhere')
+      setSuccess(tx("Signed out everywhere."))
+      localStorage.removeItem('token')
+      window.location.reload()
+    } catch (err) {
+      setError(detailText(err) || tx("Failed to sign out everywhere."))
+      setSigningOutEverywhere(false)
+    }
+  }
+
+  if (loading) return null
+
+  return (
+    <Section
+      icon={Smartphone}
+      title={tx("Active Sessions")}
+      description={tx("Devices and browsers currently signed in to your account")}
+      userRole={user?.role}
+    >
+      {error && (
+        <div className="px-3 py-2 bg-red-900/30 border border-red-800 rounded-lg text-red-400 text-xs">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="px-3 py-2 bg-emerald-900/30 border border-emerald-800 rounded-lg text-emerald-400 text-xs flex items-center gap-1.5">
+          <Check size={13} /> {success}
+        </div>
+      )}
+
+      {sessions.length === 0 && (
+        <p className="text-slate-500 text-xs">{tx("No active sessions found.")}</p>
+      )}
+
+      {sessions.map(s => (
+        <div key={s.id} className="p-3.5 bg-slate-900/70 border border-slate-700/60 rounded-xl flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-slate-200 text-sm font-medium flex items-center gap-1.5 flex-wrap">
+              {s.user_agent || tx("Unknown device")}
+              {s.is_current && (
+                <span className="px-1.5 py-0.5 text-[10px] rounded bg-shield-900/60 text-shield-300 border border-shield-800">
+                  {tx("This device")}
+                </span>
+              )}
+              {s.remember_me && (
+                <span className="px-1.5 py-0.5 text-[10px] rounded bg-slate-800 text-slate-400 border border-slate-700">
+                  {tx("Stays signed in")}
+                </span>
+              )}
+            </p>
+            <p className="text-slate-500 text-xs mt-0.5">
+              {tx("Signed in {time}", { time: fmtDateTime(s.created_at) })}
+              {s.ip ? ` · ${s.ip}` : ''}
+            </p>
+          </div>
+          {!s.is_current && (
+            <button
+              onClick={() => revoke(s.id)}
+              disabled={revokingId === s.id}
+              className="shrink-0 px-2.5 py-1.5 text-xs text-red-300 border border-red-800/60 rounded-lg hover:bg-red-950/40 transition-colors disabled:opacity-40"
+            >
+              {revokingId === s.id ? tx("Signing out…") : tx("Sign out")}
+            </button>
+          )}
+        </div>
+      ))}
+
+      {sessions.length > 1 && (
+        <button
+          onClick={signOutEverywhere}
+          disabled={signingOutEverywhere}
+          className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-300 border border-red-800/60 rounded-lg hover:bg-red-950/40 transition-colors disabled:opacity-40"
+        >
+          {signingOutEverywhere ? <RefreshCw size={12} className="animate-spin" /> : null}
+          {tx("Sign out of every device")}
+        </button>
+      )}
+    </Section>
+  )
+}
 
 function WebAuthnPolicySection({ userRole }) {
   const isAdmin = userRole === 'super_admin'
@@ -3874,6 +3999,7 @@ export default function Settings() {
       {activeTab === 'security' && (
         <div role="tabpanel" id="panel-security" aria-labelledby="tab-security" className="space-y-4">
           <MfaAccountSection user={user} />
+          <ActiveSessionsSection user={user} />
           <WebAuthnPolicySection userRole={user?.role} />
           <PasswordlessPolicySection userRole={user?.role} />
           <SessionPolicySection userRole={user?.role} />

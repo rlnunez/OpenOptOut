@@ -3436,5 +3436,22 @@
   "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Подключите ИИ-помощника для анализа страниц брокеров, создания новых шагов отказа и исправления поврежденных селекторов форм.",
   "Something went wrong": "Что-то пошло не так",
   "Reload the page": "Перезагрузить страницу",
-  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "На этой странице произошла ошибка, и она не может продолжить работу. Ничего не потеряно — перезагрузка обычно решает проблему."
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "На этой странице произошла ошибка, и она не может продолжить работу. Ничего не потеряно — перезагрузка обычно решает проблему.",
+  "Your current password, to confirm it's really you": "Ваш текущий пароль, чтобы подтвердить, что это действительно вы",
+  "Active Sessions": "Активные сеансы",
+  "Devices and browsers currently signed in to your account": "Устройства и браузеры, которые сейчас подключены к вашей учётной записи",
+  "Failed to sign out everywhere.": "Не удалось выйти со всех устройств.",
+  "Failed to sign out that session.": "Не удалось завершить этот сеанс.",
+  "No active sessions found.": "Активные сеансы не найдены.",
+  "Sign out everywhere": "Выйти везде",
+  "Sign out of every device": "Выйти со всех устройств",
+  "Sign out of every device, including this one?": "Выйти со всех устройств, включая это?",
+  "Sign {full_name} out of every device?": "Выйти из учётной записи {full_name} на всех устройствах?",
+  "Signed in {time}": "Вход выполнен {time}",
+  "Signed out everywhere.": "Выход выполнен везде.",
+  "Signed out of that device.": "Выход выполнен с этого устройства.",
+  "Signing out…": "Выход из системы…",
+  "Stays signed in": "Сеанс остаётся активным",
+  "This device": "Это устройство",
+  "Unknown device": "Неизвестное устройство"
 }

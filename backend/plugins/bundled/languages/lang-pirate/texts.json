@@ -3436,5 +3436,22 @@
   "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Hook a mechanical mate to scout broker docks, draft fresh escape maneuvers, and patch broken form riggin'.",
   "Something went wrong": "Somethin' went awry",
   "Reload the page": "Reload the page, arr",
-  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "This page ran into a spot o' trouble an' can't continue. Nothin' was lost — reloadin' usually fixes it."
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "This page ran into a spot o' trouble an' can't continue. Nothin' was lost — reloadin' usually fixes it.",
+  "Your current password, to confirm it's really you": "Yer current password, to prove it be really ye",
+  "Active Sessions": "Active Voyages",
+  "Devices and browsers currently signed in to your account": "Ships 'n' spyglasses currently signed into yer account",
+  "Failed to sign out everywhere.": "Failed to sign out from every port.",
+  "Failed to sign out that session.": "Failed to sign out o' that voyage.",
+  "No active sessions found.": "No active voyages found.",
+  "Sign out everywhere": "Sign out from every port",
+  "Sign out of every device": "Sign out of every vessel",
+  "Sign out of every device, including this one?": "Sign out of every vessel, including this one?",
+  "Sign {full_name} out of every device?": "Sign {full_name} out of every vessel?",
+  "Signed in {time}": "Signed aboard {time}",
+  "Signed out everywhere.": "Signed out from every port.",
+  "Signed out of that device.": "Signed out of that vessel.",
+  "Signing out…": "Signin' out…",
+  "Stays signed in": "Stays signed aboard",
+  "This device": "This vessel",
+  "Unknown device": "Unknown vessel"
 }

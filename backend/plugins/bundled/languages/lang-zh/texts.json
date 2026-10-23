@@ -3436,5 +3436,22 @@
   "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "连接 AI 助手以检查数据经纪商页面、起草新的退出步骤并修复损坏的表单填充选择器。",
   "Something went wrong": "出了点问题",
   "Reload the page": "重新加载页面",
-  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "此页面遇到问题，无法继续。没有任何内容丢失——重新加载通常可以解决问题。"
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "此页面遇到问题，无法继续。没有任何内容丢失——重新加载通常可以解决问题。",
+  "Your current password, to confirm it's really you": "请输入您当前的密码，以确认是您本人",
+  "Active Sessions": "活动会话",
+  "Devices and browsers currently signed in to your account": "当前已登录您账户的设备和浏览器",
+  "Failed to sign out everywhere.": "无法在所有设备上退出登录。",
+  "Failed to sign out that session.": "无法退出该会话。",
+  "No active sessions found.": "未找到活动会话。",
+  "Sign out everywhere": "在所有设备上退出登录",
+  "Sign out of every device": "退出所有设备的登录",
+  "Sign out of every device, including this one?": "退出所有设备（包括此设备）的登录吗？",
+  "Sign {full_name} out of every device?": "将 {full_name} 从所有设备退出登录吗？",
+  "Signed in {time}": "登录于 {time}",
+  "Signed out everywhere.": "已在所有设备上退出登录。",
+  "Signed out of that device.": "已退出该设备的登录。",
+  "Signing out…": "正在退出登录…",
+  "Stays signed in": "保持登录状态",
+  "This device": "此设备",
+  "Unknown device": "未知设备"
 }

@@ -3434,5 +3434,22 @@
   "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Підключіть ШІ-помічника для перевірки сторінок брокерів, складання нових кроків відмови та відновлення зламаних селекторів заповнення форм.",
   "Something went wrong": "Щось пішло не так",
   "Reload the page": "Перезавантажити сторінку",
-  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "На цій сторінці виникла проблема, і вона не може продовжити роботу. Нічого не було втрачено — перезавантаження зазвичай вирішує проблему."
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "На цій сторінці виникла проблема, і вона не може продовжити роботу. Нічого не було втрачено — перезавантаження зазвичай вирішує проблему.",
+  "Your current password, to confirm it's really you": "Ваш поточний пароль, щоб підтвердити, що це справді ви",
+  "Active Sessions": "Активні сеанси",
+  "Devices and browsers currently signed in to your account": "Пристрої та браузери, які зараз увійшли у ваш облік",
+  "Failed to sign out everywhere.": "Не вдалося вийти з усіх пристроїв.",
+  "Failed to sign out that session.": "Не вдалося завершити цей сеанс.",
+  "No active sessions found.": "Активних сеансів не знайдено.",
+  "Sign out everywhere": "Вийти всюди",
+  "Sign out of every device": "Вийти з усіх пристроїв",
+  "Sign out of every device, including this one?": "Вийти з усіх пристроїв, включно з цим?",
+  "Sign {full_name} out of every device?": "Вийти з облікового запису {full_name} на всіх пристроях?",
+  "Signed in {time}": "Вхід виконано {time}",
+  "Signed out everywhere.": "Вихід виконано всюди.",
+  "Signed out of that device.": "Вихід виконано з цього пристрою.",
+  "Signing out…": "Виконується вихід…",
+  "Stays signed in": "Залишається активним",
+  "This device": "Цей пристрій",
+  "Unknown device": "Невідомий пристрій"
 }

@@ -3436,5 +3436,22 @@
   "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Conecte um assistente de IA para inspecionar páginas de corretores, criar novas etapas de exclusão e reparar seletores de formulários corrompidos.",
   "Something went wrong": "Algo deu errado",
   "Reload the page": "Recarregar a página",
-  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Esta página encontrou um problema e não pode continuar. Nada foi perdido — recarregar geralmente resolve."
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Esta página encontrou um problema e não pode continuar. Nada foi perdido — recarregar geralmente resolve.",
+  "Your current password, to confirm it's really you": "Sua senha atual, para confirmar que é realmente você",
+  "Active Sessions": "Sessões ativas",
+  "Devices and browsers currently signed in to your account": "Dispositivos e navegadores atualmente conectados à sua conta",
+  "Failed to sign out everywhere.": "Falha ao encerrar sessão em todos os dispositivos.",
+  "Failed to sign out that session.": "Falha ao encerrar essa sessão.",
+  "No active sessions found.": "Nenhuma sessão ativa encontrada.",
+  "Sign out everywhere": "Sair em todos os lugares",
+  "Sign out of every device": "Sair de todos os dispositivos",
+  "Sign out of every device, including this one?": "Sair de todos os dispositivos, incluindo este?",
+  "Sign {full_name} out of every device?": "Encerrar a sessão de {full_name} em todos os dispositivos?",
+  "Signed in {time}": "Conectado {time}",
+  "Signed out everywhere.": "Sessão encerrada em todos os lugares.",
+  "Signed out of that device.": "Sessão encerrada nesse dispositivo.",
+  "Signing out…": "Saindo…",
+  "Stays signed in": "Permanece conectado",
+  "This device": "Este dispositivo",
+  "Unknown device": "Dispositivo desconhecido"
 }

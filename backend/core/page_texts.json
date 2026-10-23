@@ -945,6 +945,12 @@
    ]
   },
   {
+   "text": "Active Sessions",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Active Slots",
    "where": [
     "pages/WorkerFleet.jsx"
@@ -5468,6 +5474,12 @@
    ]
   },
   {
+   "text": "Devices and browsers currently signed in to your account",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Did",
    "where": [
     "pages/PrivacyRecord.jsx"
@@ -7196,6 +7208,18 @@
    "text": "Failed to save update policy.",
    "where": [
     "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Failed to sign out everywhere.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Failed to sign out that session.",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -10899,6 +10923,12 @@
    "text": "No accounts exist yet. Create the administrator account below. This first account has full super-admin access; you can add more users afterward.",
    "where": [
     "pages/Login.jsx"
+   ]
+  },
+  {
+   "text": "No active sessions found.",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -15896,7 +15926,32 @@
   {
    "text": "Sign out",
    "where": [
-    "components/TermsGate.jsx"
+    "components/TermsGate.jsx",
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Sign out everywhere",
+   "where": [
+    "pages/AdminPanel.jsx"
+   ]
+  },
+  {
+   "text": "Sign out of every device",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Sign out of every device, including this one?",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Sign {full_name} out of every device?",
+   "where": [
+    "pages/AdminPanel.jsx"
    ]
   },
   {
@@ -15924,9 +15979,34 @@
    ]
   },
   {
+   "text": "Signed in {time}",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Signed out everywhere.",
+   "where": [
+    "pages/AdminPanel.jsx",
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Signed out of that device.",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Signing in…",
    "where": [
     "pages/Login.jsx"
+   ]
+  },
+  {
+   "text": "Signing out…",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -16539,6 +16619,12 @@
     "pages/Settings.jsx",
     "pages/StateRegistries.jsx",
     "pages/WorkerFleet.jsx"
+   ]
+  },
+  {
+   "text": "Stays signed in",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -17655,6 +17741,12 @@
    ]
   },
   {
+   "text": "This device",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "This home already has as many accounts as this service allows.",
    "where": [
     "pages/Signup.jsx"
@@ -18420,6 +18512,12 @@
    "text": "Unknown",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "Unknown device",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -19840,6 +19938,12 @@
    "text": "Your Azure AD directory/tenant ID",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Your current password, to confirm it's really you",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {

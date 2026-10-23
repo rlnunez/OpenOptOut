@@ -3436,5 +3436,22 @@
   "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Verbinden Sie einen KI-Helfer, um Broker-Seiten zu prüfen, neue Opt-out-Schritte zu entwerfen und defekte Formularausfüll-Selektoren zu reparieren.",
   "Something went wrong": "Etwas ist schiefgelaufen",
   "Reload the page": "Seite neu laden",
-  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Bei dieser Seite ist ein Problem aufgetreten, sie kann nicht fortfahren. Es ging nichts verloren — ein Neuladen behebt das meist."
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Bei dieser Seite ist ein Problem aufgetreten, sie kann nicht fortfahren. Es ging nichts verloren — ein Neuladen behebt das meist.",
+  "Your current password, to confirm it's really you": "Ihr aktuelles Passwort, um zu bestätigen, dass es wirklich Sie sind",
+  "Active Sessions": "Aktive Sitzungen",
+  "Devices and browsers currently signed in to your account": "Geräte und Browser, die derzeit bei Ihrem Konto angemeldet sind",
+  "Failed to sign out everywhere.": "Abmelden auf allen Geräten fehlgeschlagen.",
+  "Failed to sign out that session.": "Abmelden dieser Sitzung fehlgeschlagen.",
+  "No active sessions found.": "Keine aktiven Sitzungen gefunden.",
+  "Sign out everywhere": "Überall abmelden",
+  "Sign out of every device": "Von allen Geräten abmelden",
+  "Sign out of every device, including this one?": "Von allen Geräten abmelden, einschließlich diesem?",
+  "Sign {full_name} out of every device?": "{full_name} von allen Geräten abmelden?",
+  "Signed in {time}": "Angemeldet {time}",
+  "Signed out everywhere.": "Überall abgemeldet.",
+  "Signed out of that device.": "Von diesem Gerät abgemeldet.",
+  "Signing out…": "Wird abgemeldet…",
+  "Stays signed in": "Bleibt angemeldet",
+  "This device": "Dieses Gerät",
+  "Unknown device": "Unbekanntes Gerät"
 }

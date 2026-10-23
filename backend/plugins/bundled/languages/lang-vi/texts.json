@@ -3436,5 +3436,22 @@
   "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Kết nối trợ lý AI để kiểm tra các trang của nhà môi giới, phác thảo các bước chọn không tham gia mới và sửa các bộ chọn điền biểu mẫu bị hỏng.",
   "Something went wrong": "Đã xảy ra lỗi",
   "Reload the page": "Tải lại trang",
-  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Trang này gặp sự cố và không thể tiếp tục. Không có gì bị mất — tải lại thường khắc phục được sự cố."
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Trang này gặp sự cố và không thể tiếp tục. Không có gì bị mất — tải lại thường khắc phục được sự cố.",
+  "Your current password, to confirm it's really you": "Mật khẩu hiện tại của bạn, để xác nhận đúng là bạn",
+  "Active Sessions": "Các phiên đang hoạt động",
+  "Devices and browsers currently signed in to your account": "Thiết bị và trình duyệt hiện đang đăng nhập vào tài khoản của bạn",
+  "Failed to sign out everywhere.": "Không thể đăng xuất khỏi mọi nơi.",
+  "Failed to sign out that session.": "Không thể đăng xuất phiên đó.",
+  "No active sessions found.": "Không tìm thấy phiên hoạt động nào.",
+  "Sign out everywhere": "Đăng xuất khỏi mọi nơi",
+  "Sign out of every device": "Đăng xuất khỏi mọi thiết bị",
+  "Sign out of every device, including this one?": "Đăng xuất khỏi mọi thiết bị, kể cả thiết bị này?",
+  "Sign {full_name} out of every device?": "Đăng xuất {full_name} khỏi mọi thiết bị?",
+  "Signed in {time}": "Đã đăng nhập {time}",
+  "Signed out everywhere.": "Đã đăng xuất khỏi mọi nơi.",
+  "Signed out of that device.": "Đã đăng xuất khỏi thiết bị đó.",
+  "Signing out…": "Đang đăng xuất…",
+  "Stays signed in": "Vẫn duy trì đăng nhập",
+  "This device": "Thiết bị này",
+  "Unknown device": "Thiết bị không xác định"
 }

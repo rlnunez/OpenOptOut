@@ -295,6 +295,18 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(payload, _jwt_secret(), algorithm=ALGORITHM)
 
 
+def _session_revoked(db: Session, jti: Optional[str]) -> bool:
+    """True only if this token names a session (jti claim) that was explicitly
+    revoked. A token with no jti predates session tracking and is grandfathered
+    as valid — this check is additive to the existing token_version mechanism,
+    not a replacement for it."""
+    if not jti:
+        return False
+    from ..models.database import UserSession
+    sess = db.query(UserSession).filter(UserSession.jti == jti).first()
+    return sess is None or sess.revoked_at is not None
+
+
 # ── FastAPI dependencies ──────────────────────────────────────────────────────
 
 def get_current_user(
@@ -320,6 +332,8 @@ def get_current_user(
     token_ver = payload.get("token_version")
     user_ver = getattr(user, "token_version", 0) or 0
     if (token_ver or 0) != user_ver:
+        raise exc
+    if _session_revoked(db, payload.get("jti")):
         raise exc
     return user
 
@@ -351,7 +365,22 @@ def get_current_user_optional(
     user_ver = getattr(user, "token_version", 0) or 0
     if (token_ver or 0) != user_ver:
         return None
+    if _session_revoked(db, payload.get("jti")):
+        return None
     return user
+
+
+def get_current_jti(token: str = Depends(oauth2_scheme)) -> Optional[str]:
+    """The current request's session identifier (JWT `jti` claim), for
+    endpoints that need to know which of a user's sessions is "this one"
+    (e.g. marking it in a session list, or revoking only it on sign-out).
+    Token validity itself is already enforced by get_current_user, a sibling
+    dependency on the same route — this just re-reads the already-decoded claim."""
+    try:
+        payload = jwt.decode(token, _jwt_secret(), algorithms=[ALGORITHM])
+        return payload.get("jti")
+    except JWTError:
+        return None
 
 
 def require_super_admin(current_user: User = Depends(get_current_user)) -> User:

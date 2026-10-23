@@ -3434,5 +3434,22 @@
   "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Unganisha msaidizi wa AI ili kukagua kurasa za madalali, kuandaa hatua mpya za kujiondoa, na kurekebisha viteuzi vilivyovunjika vya kujaza fomu.",
   "Something went wrong": "Hitilafu imetokea",
   "Reload the page": "Pakia upya ukurasa",
-  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Ukurasa huu umekumbana na tatizo na hauwezi kuendelea. Hakuna kilichopotea — kupakia upya kawaida hutatua tatizo hili."
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Ukurasa huu umekumbana na tatizo na hauwezi kuendelea. Hakuna kilichopotea — kupakia upya kawaida hutatua tatizo hili.",
+  "Your current password, to confirm it's really you": "Nenosiri lako la sasa, kuthibitisha kuwa ni wewe hasa",
+  "Active Sessions": "Vipindi Vinavyotumika",
+  "Devices and browsers currently signed in to your account": "Vifaa na vivinjari vinavyotumika sasa katika akaunti yako",
+  "Failed to sign out everywhere.": "Imeshindwa kutoka kila mahali.",
+  "Failed to sign out that session.": "Imeshindwa kutoka kipindi hicho.",
+  "No active sessions found.": "Hakuna vipindi vinavyotumika vilivyopatikana.",
+  "Sign out everywhere": "Toka kila mahali",
+  "Sign out of every device": "Toka kwenye vifaa vyote",
+  "Sign out of every device, including this one?": "Toka kwenye vifaa vyote, kikiwemo hiki?",
+  "Sign {full_name} out of every device?": "Mtoe {full_name} kwenye vifaa vyote?",
+  "Signed in {time}": "Umeingia {time}",
+  "Signed out everywhere.": "Umetoka kila mahali.",
+  "Signed out of that device.": "Umetoka kwenye kifaa hicho.",
+  "Signing out…": "Inatoka…",
+  "Stays signed in": "Inabaki imeingia",
+  "This device": "Kifaa hiki",
+  "Unknown device": "Kifaa kisichojulikana"
 }

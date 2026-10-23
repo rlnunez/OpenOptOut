@@ -76,10 +76,55 @@ def compute_session_delta(role: str, remember_me: bool = False) -> timedelta:
     return timedelta(hours=hours)
 
 
-def create_user_token(user: Any, remember_me: bool = False) -> str:
-    """Issue a signed JWT access token for a user with role-specific expiration policy."""
+def create_user_token(user: Any, db: Any = None, request: Any = None, remember_me: bool = False) -> str:
+    """
+    Issue a signed JWT access token for a user with role-specific expiration
+    policy. When `db` is given, also records a UserSession row (keyed by a
+    fresh `jti` claim embedded in the token) so the session can be listed and
+    individually revoked later (core/auth.py's session check,
+    routers/auth.py's /sessions endpoints) — on top of the existing
+    account-wide token_version mechanism, not instead of it.
+    """
+    import secrets
     from .auth import create_access_token
     role = getattr(getattr(user, "role", None), "value", str(getattr(user, "role", "") or "parent"))
     delta = compute_session_delta(role, remember_me=remember_me)
     token_ver = getattr(user, "token_version", 0) or 0
-    return create_access_token({"sub": user.email, "token_version": token_ver}, expires_delta=delta)
+    claims = {"sub": user.email, "token_version": token_ver}
+
+    if db is not None:
+        from datetime import datetime
+        from ..models.database import UserSession
+        jti = secrets.token_urlsafe(32)
+        claims["jti"] = jti
+        ip = None
+        user_agent = None
+        if request is not None:
+            try:
+                ip = request.client.host if request.client else None
+                user_agent = (request.headers.get("user-agent") or "")[:255] or None
+            except Exception:
+                pass
+        db.add(UserSession(
+            user_id=user.id, jti=jti, expires_at=datetime.utcnow() + delta,
+            ip=ip, user_agent=user_agent, remember_me=bool(remember_me),
+        ))
+        db.commit()
+
+    return create_access_token(claims, expires_delta=delta)
+
+
+def revoke_all_sessions(db: Any, user_id: int, except_jti: Optional[str] = None) -> None:
+    """Mark every one of a user's tracked sessions revoked (ASVS 7.4.2/7.4.3/
+    7.4.5) — called alongside a token_version bump so the UserSession table
+    stays an accurate picture of what's actually still valid, not just an
+    implicit side effect of the version check. `except_jti` keeps one session
+    alive (e.g. the request's own, right after a self-service password change
+    that reissues a fresh token for the caller)."""
+    from datetime import datetime
+    from ..models.database import UserSession
+    q = db.query(UserSession).filter(UserSession.user_id == user_id, UserSession.revoked_at.is_(None))
+    if except_jti:
+        q = q.filter(UserSession.jti != except_jti)
+    q.update({"revoked_at": datetime.utcnow()}, synchronize_session=False)
+    db.commit()

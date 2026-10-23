@@ -3436,5 +3436,22 @@
   "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Connectez un assistant IA pour inspecter les pages des courtiers, rédiger de nouvelles étapes de désinscription et réparer les sélecteurs de formulaires défaillants.",
   "Something went wrong": "Une erreur s'est produite",
   "Reload the page": "Recharger la page",
-  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Cette page a rencontré un problème et ne peut pas continuer. Rien n'a été perdu — la recharger résout généralement le problème."
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Cette page a rencontré un problème et ne peut pas continuer. Rien n'a été perdu — la recharger résout généralement le problème.",
+  "Your current password, to confirm it's really you": "Votre mot de passe actuel, pour confirmer que c'est bien vous",
+  "Active Sessions": "Sessions actives",
+  "Devices and browsers currently signed in to your account": "Appareils et navigateurs actuellement connectés à votre compte",
+  "Failed to sign out everywhere.": "Échec de la déconnexion de tous les appareils.",
+  "Failed to sign out that session.": "Échec de la déconnexion de cette session.",
+  "No active sessions found.": "Aucune session active trouvée.",
+  "Sign out everywhere": "Se déconnecter partout",
+  "Sign out of every device": "Se déconnecter de tous les appareils",
+  "Sign out of every device, including this one?": "Se déconnecter de tous les appareils, y compris celui-ci ?",
+  "Sign {full_name} out of every device?": "Déconnecter {full_name} de tous les appareils ?",
+  "Signed in {time}": "Connecté(e) {time}",
+  "Signed out everywhere.": "Déconnecté(e) de partout.",
+  "Signed out of that device.": "Déconnecté(e) de cet appareil.",
+  "Signing out…": "Déconnexion en cours…",
+  "Stays signed in": "Reste connecté",
+  "This device": "Cet appareil",
+  "Unknown device": "Appareil inconnu"
 }

@@ -3436,5 +3436,22 @@
   "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Ikonekta ang isang katulong na AI upang suriin ang mga pahina ng broker, mag-draft ng mga bagong hakbang sa pag-opt-out, at ayusin ang mga sirang selector ng pagpuno ng form.",
   "Something went wrong": "May nangyaring mali",
   "Reload the page": "I-reload ang pahina",
-  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Nagkaproblema ang pahinang ito at hindi na ito maaaring magpatuloy. Walang nawala — karaniwang naaayos ito ng pag-reload."
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Nagkaproblema ang pahinang ito at hindi na ito maaaring magpatuloy. Walang nawala — karaniwang naaayos ito ng pag-reload.",
+  "Your current password, to confirm it's really you": "Ang kasalukuyang password mo, para kumpirmahin na ikaw talaga",
+  "Active Sessions": "Mga Aktibong Session",
+  "Devices and browsers currently signed in to your account": "Mga device at browser na kasalukuyang naka-sign in sa account mo",
+  "Failed to sign out everywhere.": "Hindi na-sign out sa lahat ng device.",
+  "Failed to sign out that session.": "Hindi na-sign out ang session na iyon.",
+  "No active sessions found.": "Walang nahanap na aktibong session.",
+  "Sign out everywhere": "Mag-sign out sa lahat ng dako",
+  "Sign out of every device": "Mag-sign out sa lahat ng device",
+  "Sign out of every device, including this one?": "Mag-sign out sa lahat ng device, kasama ang isang ito?",
+  "Sign {full_name} out of every device?": "I-sign out si {full_name} sa lahat ng device?",
+  "Signed in {time}": "Nag-sign in {time}",
+  "Signed out everywhere.": "Na-sign out sa lahat ng dako.",
+  "Signed out of that device.": "Na-sign out sa device na iyon.",
+  "Signing out…": "Nag-sign out…",
+  "Stays signed in": "Manatiling naka-sign in",
+  "This device": "Ang device na ito",
+  "Unknown device": "Hindi kilalang device"
 }

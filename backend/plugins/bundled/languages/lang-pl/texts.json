@@ -3434,5 +3434,22 @@
   "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Połącz pomocnika AI, aby sprawdzać strony brokerów, tworzyć nowe kroki rezygnacji i naprawiać uszkodzone selektory formularzy.",
   "Something went wrong": "Coś poszło nie tak",
   "Reload the page": "Odśwież stronę",
-  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Ta strona napotkała problem i nie może kontynuować. Nic nie zostało utracone — odświeżenie zwykle to naprawia."
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Ta strona napotkała problem i nie może kontynuować. Nic nie zostało utracone — odświeżenie zwykle to naprawia.",
+  "Your current password, to confirm it's really you": "Twoje obecne hasło, aby potwierdzić, że to naprawdę Ty",
+  "Active Sessions": "Aktywne sesje",
+  "Devices and browsers currently signed in to your account": "Urządzenia i przeglądarki aktualnie zalogowane na Twoim koncie",
+  "Failed to sign out everywhere.": "Nie udało się wylogować ze wszystkich urządzeń.",
+  "Failed to sign out that session.": "Nie udało się wylogować z tej sesji.",
+  "No active sessions found.": "Nie znaleziono aktywnych sesji.",
+  "Sign out everywhere": "Wyloguj się wszędzie",
+  "Sign out of every device": "Wyloguj się ze wszystkich urządzeń",
+  "Sign out of every device, including this one?": "Wylogować się ze wszystkich urządzeń, w tym z tego?",
+  "Sign {full_name} out of every device?": "Wylogować {full_name} ze wszystkich urządzeń?",
+  "Signed in {time}": "Zalogowano {time}",
+  "Signed out everywhere.": "Wylogowano wszędzie.",
+  "Signed out of that device.": "Wylogowano z tego urządzenia.",
+  "Signing out…": "Wylogowywanie…",
+  "Stays signed in": "Pozostaje zalogowany",
+  "This device": "To urządzenie",
+  "Unknown device": "Nieznane urządzenie"
 }

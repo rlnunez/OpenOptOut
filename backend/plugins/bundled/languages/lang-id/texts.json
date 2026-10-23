@@ -3435,5 +3435,22 @@
   "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "Hubungkan asisten AI untuk memeriksa halaman broker, menyusun langkah-langkah opt-out baru, dan memperbaiki pemilih pengisian formulir yang rusak.",
   "Something went wrong": "Terjadi kesalahan",
   "Reload the page": "Muat ulang halaman",
-  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Halaman ini mengalami masalah dan tidak dapat melanjutkan. Tidak ada yang hilang — memuat ulang biasanya memperbaikinya."
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "Halaman ini mengalami masalah dan tidak dapat melanjutkan. Tidak ada yang hilang — memuat ulang biasanya memperbaikinya.",
+  "Your current password, to confirm it's really you": "Kata sandi Anda saat ini, untuk memastikan ini benar-benar Anda",
+  "Active Sessions": "Sesi Aktif",
+  "Devices and browsers currently signed in to your account": "Perangkat dan browser yang saat ini masuk ke akun Anda",
+  "Failed to sign out everywhere.": "Gagal keluar dari semua perangkat.",
+  "Failed to sign out that session.": "Gagal keluar dari sesi tersebut.",
+  "No active sessions found.": "Tidak ada sesi aktif yang ditemukan.",
+  "Sign out everywhere": "Keluar dari semua tempat",
+  "Sign out of every device": "Keluar dari semua perangkat",
+  "Sign out of every device, including this one?": "Keluar dari semua perangkat, termasuk perangkat ini?",
+  "Sign {full_name} out of every device?": "Keluarkan {full_name} dari semua perangkat?",
+  "Signed in {time}": "Masuk {time}",
+  "Signed out everywhere.": "Berhasil keluar dari semua tempat.",
+  "Signed out of that device.": "Berhasil keluar dari perangkat tersebut.",
+  "Signing out…": "Sedang keluar…",
+  "Stays signed in": "Tetap masuk",
+  "This device": "Perangkat ini",
+  "Unknown device": "Perangkat tidak dikenal"
 }

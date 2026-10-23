@@ -3436,5 +3436,22 @@
   "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "قم بتوصيل مساعد الذكاء الاصطناعي لفحص صفحات الوسطاء وصياغة خطوات إلغاء الاشتراك الجديدة وإصلاح محددات ملء النماذج المعطلة.",
   "Something went wrong": "حدث خطأ ما",
   "Reload the page": "إعادة تحميل الصفحة",
-  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "واجهت هذه الصفحة مشكلة ولا يمكنها المتابعة. لم يُفقد شيء — عادةً ما تحل إعادة التحميل المشكلة."
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "واجهت هذه الصفحة مشكلة ولا يمكنها المتابعة. لم يُفقد شيء — عادةً ما تحل إعادة التحميل المشكلة.",
+  "Your current password, to confirm it's really you": "كلمة مرورك الحالية، للتأكد من أنك أنت بالفعل",
+  "Active Sessions": "الجلسات النشطة",
+  "Devices and browsers currently signed in to your account": "الأجهزة والمتصفحات المسجّلة دخولًا حاليًا إلى حسابك",
+  "Failed to sign out everywhere.": "تعذّر تسجيل الخروج من كل مكان.",
+  "Failed to sign out that session.": "تعذّر تسجيل الخروج من تلك الجلسة.",
+  "No active sessions found.": "لم يتم العثور على جلسات نشطة.",
+  "Sign out everywhere": "تسجيل الخروج من كل مكان",
+  "Sign out of every device": "تسجيل الخروج من جميع الأجهزة",
+  "Sign out of every device, including this one?": "تسجيل الخروج من جميع الأجهزة، بما في ذلك هذا الجهاز؟",
+  "Sign {full_name} out of every device?": "تسجيل خروج {full_name} من جميع الأجهزة؟",
+  "Signed in {time}": "تم تسجيل الدخول {time}",
+  "Signed out everywhere.": "تم تسجيل الخروج من كل مكان.",
+  "Signed out of that device.": "تم تسجيل الخروج من ذلك الجهاز.",
+  "Signing out…": "جارٍ تسجيل الخروج…",
+  "Stays signed in": "يبقى مسجَّلاً الدخول",
+  "This device": "هذا الجهاز",
+  "Unknown device": "جهاز غير معروف"
 }

@@ -285,6 +285,29 @@ class User(Base):
         return self.hashed_password is not None or bool(self.auth_source)
 
 
+class UserSession(Base):
+    """
+    One row per issued JWT (session_policy.create_user_token), identified by
+    the token's `jti` claim. Lets a user see/revoke their own active sessions
+    (ASVS 7.5.2) and an admin revoke all of a user's sessions (ASVS 7.4.5),
+    on top of the account-wide token_version bump that already exists.
+    Tokens issued before this table existed have no jti claim and are
+    grandfathered as valid (see core/auth.py's session check) rather than
+    retroactively invalidated.
+    """
+    __tablename__ = "user_sessions"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    jti        = Column(String, unique=True, index=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    ip         = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+    remember_me = Column(Boolean, default=False, nullable=False)
+    revoked_at = Column(DateTime, nullable=True)
+
+
 class ProfileAccess(Base):
     """
     Explicit grant: manager_id can view/edit the FamilyMember profile

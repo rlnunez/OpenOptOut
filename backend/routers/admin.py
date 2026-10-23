@@ -324,6 +324,26 @@ def delete_user(
     db.commit()
 
 
+@router.post("/users/{user_id}/sessions/revoke-all")
+def revoke_user_sessions(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(access.require_permission("users.manage")),
+):
+    """Sign a user out everywhere — every outstanding session invalidated at
+    once (ASVS 7.4.5), without disabling the account (can_login is untouched,
+    unlike removing their password/auth_source)."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "That account is gone. Refresh the page.")
+    assert_user_in_scope(db, current_user, user)
+    user.token_version = (getattr(user, "token_version", 0) or 0) + 1
+    db.commit()
+    from ..core.session_policy import revoke_all_sessions
+    revoke_all_sessions(db, user.id)
+    return {"ok": True, "message": "All sessions revoked for that user."}
+
+
 # ── Access grants ─────────────────────────────────────────────────────────────
 
 @router.get("/access", response_model=List[AccessGrantOut])

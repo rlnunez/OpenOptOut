@@ -92,7 +92,7 @@ def acs(request: Request, SAMLResponse: str = Form("", max_length=LONG_TEXT_MAX)
         return _error_page("SAML sign-in is not enabled.")
     try:
         result = saml_sp.consume_response(cfg, _base(cfg, request), SAMLResponse)
-        token = _resolve_external_user(result, db)["access_token"]
+        token = _resolve_external_user(result, db, request=request)["access_token"]
     except saml_sp.SamlError:
         return _error_page("SAML sign-in failed. Please contact your administrator.", status=400)
     except HTTPException as e:              # denied by the shared sign-in policy

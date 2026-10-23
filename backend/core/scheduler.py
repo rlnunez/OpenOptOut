@@ -168,6 +168,11 @@ def start_scheduler():
               replace_existing=True, misfire_grace_time=3600,
               next_run_time=datetime.utcnow() + timedelta(minutes=70))
 
+    # Drop long-expired/revoked UserSession rows (the "active sessions" feature).
+    s.add_job(session_prune_job, IntervalTrigger(hours=24), id="session_prune",
+              replace_existing=True, misfire_grace_time=3600,
+              next_run_time=datetime.utcnow() + timedelta(minutes=75))
+
     # Application updates: periodic release check + auto-install within schedule window.
     s.add_job(system_updater_job, IntervalTrigger(minutes=15), id="system_updater",
               replace_existing=True, misfire_grace_time=600,
@@ -1122,6 +1127,25 @@ def retention_job():
             log.info("Retention: %s", stats)
     except Exception as e:
         log.error("Retention job error: %s", e)
+    finally:
+        db.close()
+
+
+def session_prune_job():
+    """Daily: drop UserSession rows that are long expired/revoked, so the
+    table backing the "active sessions" feature doesn't grow unbounded."""
+    db = SessionLocal()
+    try:
+        from ..models.database import UserSession
+        cutoff = datetime.utcnow() - timedelta(days=30)
+        n = db.query(UserSession).filter(
+            (UserSession.expires_at < cutoff) | (UserSession.revoked_at < cutoff)
+        ).delete(synchronize_session=False)
+        db.commit()
+        if n:
+            log.info("Session prune: removed %d old session rows", n)
+    except Exception as e:
+        log.error("Session prune job error: %s", e)
     finally:
         db.close()
 

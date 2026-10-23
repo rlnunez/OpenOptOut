@@ -3434,5 +3434,22 @@
   "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "بروکر کے صفحات کا معائنہ کرنے، نئے آپٹ آؤٹ اقدامات کا مسودہ تیار کرنے، اور ٹوٹے ہوئے فارم بھرنے والے سلیکٹرز کی مرمت کے لیے ایک اے آئی مددگار کو جوڑیں۔",
   "Something went wrong": "کچھ غلط ہو گیا",
   "Reload the page": "صفحہ دوبارہ لوڈ کریں",
-  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "اس صفحے میں مسئلہ پیش آیا اور یہ جاری نہیں رہ سکتا۔ کچھ ضائع نہیں ہوا — دوبارہ لوڈ کرنے سے عام طور پر یہ مسئلہ حل ہو جاتا ہے۔"
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "اس صفحے میں مسئلہ پیش آیا اور یہ جاری نہیں رہ سکتا۔ کچھ ضائع نہیں ہوا — دوبارہ لوڈ کرنے سے عام طور پر یہ مسئلہ حل ہو جاتا ہے۔",
+  "Your current password, to confirm it's really you": "آپ کا موجودہ پاس ورڈ، یہ تصدیق کرنے کے لیے کہ یہ واقعی آپ ہیں",
+  "Active Sessions": "فعال سیشنز",
+  "Devices and browsers currently signed in to your account": "وہ ڈیوائسز اور براؤزرز جو فی الحال آپ کے اکاؤنٹ میں سائن ان ہیں",
+  "Failed to sign out everywhere.": "ہر جگہ سے سائن آؤٹ کرنے میں ناکامی۔",
+  "Failed to sign out that session.": "اس سیشن سے سائن آؤٹ کرنے میں ناکامی۔",
+  "No active sessions found.": "کوئی فعال سیشن نہیں ملا۔",
+  "Sign out everywhere": "ہر جگہ سے سائن آؤٹ کریں",
+  "Sign out of every device": "تمام ڈیوائسز سے سائن آؤٹ کریں",
+  "Sign out of every device, including this one?": "کیا اس ڈیوائس سمیت تمام ڈیوائسز سے سائن آؤٹ کریں؟",
+  "Sign {full_name} out of every device?": "کیا {full_name} کو تمام ڈیوائسز سے سائن آؤٹ کریں؟",
+  "Signed in {time}": "{time} سائن ان ہوا",
+  "Signed out everywhere.": "ہر جگہ سے سائن آؤٹ ہو گیا۔",
+  "Signed out of that device.": "اس ڈیوائس سے سائن آؤٹ ہو گیا۔",
+  "Signing out…": "سائن آؤٹ ہو رہا ہے…",
+  "Stays signed in": "سائن ان برقرار رہتا ہے",
+  "This device": "یہ ڈیوائس",
+  "Unknown device": "نامعلوم ڈیوائس"
 }

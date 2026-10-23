@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   UserPlus, Shield, ShieldCheck, User, Trash2,
   Link2, Link2Off, ChevronDown, X, Check, KeyRound, Eye, Edit3,
-  Briefcase, SlidersHorizontal, AlertTriangle, RotateCcw
+  Briefcase, SlidersHorizontal, AlertTriangle, RotateCcw, LogOut
 } from 'lucide-react'
 import api from '../api'
 import { tx, txn, txr } from '../i18n/tx'
@@ -244,6 +244,12 @@ function EditUserRow({ user, onUpdated, onDeleted, currentUserId, isSuper, onEdi
     alert(tx("Password updated."))
   }
 
+  const signOutEverywhere = async () => {
+    if (!confirm(tx("Sign {full_name} out of every device?", { full_name: user.full_name }))) return
+    await api.post(`/admin/users/${user.id}/sessions/revoke-all`)
+    alert(tx("Signed out everywhere."))
+  }
+
   return (
     <tr className="border-t border-slate-700/30 hover:bg-slate-700/20 transition-colors group">
       <td className="px-4 py-3">
@@ -289,6 +295,7 @@ function EditUserRow({ user, onUpdated, onDeleted, currentUserId, isSuper, onEdi
               )}
               {isSuper && <button onClick={() => setEditing(true)} className="p-1 text-slate-500 hover:text-shield-400" title={tx("Edit role")}><Edit3 size={13} /></button>}
               <button onClick={setPassword} className="p-1 text-slate-500 hover:text-amber-400" title={tx("Set password")}><KeyRound size={13} /></button>
+              {!isSelf && <button onClick={signOutEverywhere} className="p-1 text-slate-500 hover:text-orange-400" title={tx("Sign out everywhere")}><LogOut size={13} /></button>}
               {!isSelf && <button onClick={del} className="p-1 text-slate-500 hover:text-red-400" title={tx("Delete")}><Trash2 size={13} /></button>}
             </>
           )}

@@ -3436,5 +3436,22 @@
   "Connect an AI helper to inspect broker pages, draft new opt-out steps, and repair broken form-filling selectors.": "ब्रोकर पेजों का निरीक्षण करने, नए ऑप्ट-आउट चरणों का मसौदा तैयार करने और टूटे हुए फ़ॉर्म-फ़िलिंग चयनकर्ताओं की मरम्मत के लिए एक एआई सहायक को कनेक्ट करें।",
   "Something went wrong": "कुछ गड़बड़ हो गई",
   "Reload the page": "पेज फिर से लोड करें",
-  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "इस पेज में समस्या आ गई और यह जारी नहीं रह सकता। कुछ भी खोया नहीं है — फिर से लोड करने पर आमतौर पर यह ठीक हो जाता है।"
+  "This page ran into a problem and can't continue. Nothing was lost — reloading usually fixes it.": "इस पेज में समस्या आ गई और यह जारी नहीं रह सकता। कुछ भी खोया नहीं है — फिर से लोड करने पर आमतौर पर यह ठीक हो जाता है।",
+  "Your current password, to confirm it's really you": "आपका मौजूदा पासवर्ड, यह पुष्टि करने के लिए कि यह वाकई आप हैं",
+  "Active Sessions": "सक्रिय सत्र",
+  "Devices and browsers currently signed in to your account": "वे डिवाइस और ब्राउज़र जो फ़िलहाल आपके खाते में साइन इन हैं",
+  "Failed to sign out everywhere.": "हर जगह से साइन आउट करने में विफल।",
+  "Failed to sign out that session.": "उस सत्र से साइन आउट करने में विफल।",
+  "No active sessions found.": "कोई सक्रिय सत्र नहीं मिला।",
+  "Sign out everywhere": "हर जगह से साइन आउट करें",
+  "Sign out of every device": "सभी डिवाइस से साइन आउट करें",
+  "Sign out of every device, including this one?": "क्या इस डिवाइस समेत सभी डिवाइस से साइन आउट करें?",
+  "Sign {full_name} out of every device?": "क्या {full_name} को सभी डिवाइस से साइन आउट करें?",
+  "Signed in {time}": "{time} साइन इन हुआ",
+  "Signed out everywhere.": "हर जगह से साइन आउट हो गया।",
+  "Signed out of that device.": "उस डिवाइस से साइन आउट हो गया।",
+  "Signing out…": "साइन आउट हो रहा है…",
+  "Stays signed in": "साइन इन बना रहता है",
+  "This device": "यह डिवाइस",
+  "Unknown device": "अज्ञात डिवाइस"
 }
