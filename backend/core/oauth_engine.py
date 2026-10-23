@@ -201,7 +201,17 @@ def _normalize_tokens(resp: dict, flow, client) -> dict:
 
 def _default_post(url: str, data: dict) -> dict:
     import httpx
-    r = httpx.post(url, data=data, headers={"Accept": "application/json"}, timeout=25)
+    from .dns_guard import assert_safe_url, safe_dns_context
+    # url is flow.token_url -- the bundled OAuth providers' own fixed
+    # endpoints, or a plugin-manifest-declared oauth_token_url (set up by an
+    # admin uploading/configuring a custom email-provider plugin). Same SSRF/
+    # DNS-rebinding guard every other admin-configured-URL call site uses.
+    try:
+        assert_safe_url(url)
+    except ValueError as e:
+        return {"error": "ssrf_blocked", "error_description": str(e)}
+    with safe_dns_context():
+        r = httpx.post(url, data=data, headers={"Accept": "application/json"}, timeout=25)
     try:
         return r.json()
     except Exception:

@@ -59,6 +59,16 @@ class UpdateRequest(LimitedModel):
     recheck_days: Optional[int] = Field(None, ge=1, le=3650)
 
 
+# ASVS 2.3.1: a status like "confirmed"/"sent"/"submitted" is only ever
+# trustworthy when it was reached by the automated send/verify pipeline
+# (optout_engine.py, confirm_links.py, scheduler.py) actually doing that
+# step. This generic PATCH must not let a caller skip straight to it.
+# "skipped" (a deliberate hold, by design per the model's own comment) and
+# "pending" (the same reset requeue_request() below already performs) are
+# the only states a person sets directly, so they're the only ones allowed here.
+_MANUALLY_SETTABLE_STATUSES = {RequestStatus.pending.value, RequestStatus.skipped.value}
+
+
 class SnoozeRequest(LimitedModel):
     days: int = Field(30, ge=1, le=3650)   # push recheck N days into the future
 
@@ -207,9 +217,13 @@ def update_request(
     assert_can_edit(db, current_user, req.member_id)
 
     if data.status:
+        if data.status not in _MANUALLY_SETTABLE_STATUSES:
+            raise HTTPException(
+                400,
+                "That status is set automatically as the request is sent and verified. "
+                "Use Requeue to reset it, or Skip to hold it.",
+            )
         req.status = data.status
-        if data.status == RequestStatus.confirmed and not req.confirmed_at:
-            req.confirmed_at = datetime.utcnow()
     if data.confirmed_at: req.confirmed_at = data.confirmed_at
     if data.listing_url:  req.listing_url  = data.listing_url
     if data.notes:        req.notes        = data.notes

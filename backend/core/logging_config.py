@@ -54,8 +54,16 @@ _SECRET_WORDS = (
     r"password|passwd|passphrase|pin|secret|token|api[-_]?key|apikey|credentials?|"
     r"cookie|session(?:[-_]?id)?|signature|private[-_]?key"
 )
+# The dash/underscore-separated-word prefix/suffix (e.g. "my_app_client_secret")
+# used to be (?:[a-z0-9]+[_-])*/(?:[_-][a-z0-9]+)* — an unbounded quantifier
+# nested inside another unbounded quantifier. Scanned unanchored across a log
+# line with no matching secret word, that backtracks catastrophically: ~1s for
+# a 4,000-character input, growing quadratically (ASVS 1.3.12 ReDoS). Bounding
+# both the inner word length and the repetition count removes the blowup
+# (worst case becomes a small constant per scan position) while still matching
+# every realistic key name.
 _RE_KV_SECRETS = re.compile(
-    r"(?i)(\b(?:[a-z0-9]+[_-])*(?:" + _SECRET_WORDS + r")(?:[_-][a-z0-9]+)*[\"']?\s*[=:]\s*)"
+    r"(?i)(\b(?:[a-z0-9]{1,20}[_-]){0,4}(?:" + _SECRET_WORDS + r")(?:[_-][a-z0-9]{1,20}){0,4}[\"']?\s*[=:]\s*)"
     r"(?!\[REDACTED)(\"[^\"]*\"|'[^']*'|[^&\s,;}\]]+)"
 )
 

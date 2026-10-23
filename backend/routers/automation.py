@@ -19,6 +19,7 @@ from ..core.auth import (
     get_accessible_member_ids, assert_can_view
 )
 from ..core.access import require_permission
+from ..core import rate_limit
 
 router = APIRouter(prefix="/api/automation", tags=["automation"])
 
@@ -118,7 +119,7 @@ class AutomationLogOut(BaseModel):
 
 # ── Discovery endpoints ───────────────────────────────────────────────────────
 
-@router.post("/discover/{member_id}")
+@router.post("/discover/{member_id}", dependencies=[Depends(rate_limit.limit("automation", 10))])
 def trigger_discovery(
     member_id: int,
     db: Session = Depends(get_db),
@@ -161,7 +162,7 @@ def get_discovery_results(
 
 # ── Opt-out trigger ───────────────────────────────────────────────────────────
 
-@router.post("/optout/batch")
+@router.post("/optout/batch", dependencies=[Depends(rate_limit.limit("automation", 10))])
 def trigger_optout_batch(
     payload: OptOutBatchRequest,
     db: Session = Depends(get_db),
@@ -184,7 +185,7 @@ def trigger_optout_batch(
     return {"triggered": len(request_ids), "request_ids": request_ids}
 
 
-@router.post("/optout/{request_id}")
+@router.post("/optout/{request_id}", dependencies=[Depends(rate_limit.limit("automation", 10))])
 def trigger_single_optout(
     request_id: int,
     db: Session = Depends(get_db),

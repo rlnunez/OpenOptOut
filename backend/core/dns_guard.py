@@ -8,12 +8,25 @@ Provides:
   - safe_dns_context(): Context manager that hooks socket.getaddrinfo to block
     DNS-rebinding attacks where a hostname resolves to a public IP during pre-checks
     but rebinds to an internal/private address at socket connection time.
+  - assert_safe_url(url): The one check every admin/plugin-configured-URL call site
+    in this app needs before making a request — used to be copy-pasted (with small,
+    drifting variations) into webhooks.py, auth_providers.py, registry_sync.py,
+    routers/saml.py, and others. Centralized so a fix here fixes all of them.
 """
 
 import contextlib
 import ipaddress
 import socket
 from typing import Optional, Union
+
+# Known cloud-metadata endpoints — is_public_ip's is_link_local check already
+# catches the 169.254.0.0/16 ones once resolved, but checking the raw host
+# first means a response never even triggers a DNS lookup, and catches the
+# cloud-specific DNS names (which may not always resolve the same way).
+CLOUD_METADATA_HOSTS = frozenset({
+    "169.254.169.254", "169.254.170.2", "metadata.google.internal",
+    "metadata", "instance-data", "100.100.100.200",
+})
 
 
 def is_public_ip(addr: Union[str, ipaddress.IPv4Address, ipaddress.IPv6Address]) -> bool:
@@ -65,6 +78,32 @@ def public_host(host: str) -> bool:
         except Exception:
             return False
     return True
+
+
+def assert_safe_url(url: str, schemes=("http", "https")) -> str:
+    """Parse an admin/plugin-configured URL and assert it's safe to fetch right
+    now: an allowed scheme, a non-empty host, not a known cloud-metadata
+    address, and resolves only to public IPs (public_host). Raises ValueError
+    with a plain-language reason on any failure; returns the lowercased
+    hostname on success.
+
+    This only covers the pre-flight check — callers must still wrap the
+    actual request in safe_dns_context() to catch DNS-rebinding between this
+    check and the connection itself, and apply any app-specific restriction
+    (e.g. "must also be on this broker's own domain") on top."""
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    scheme = (parsed.scheme or "").lower().strip()
+    if scheme not in schemes:
+        raise ValueError("unsupported URL scheme")
+    host = (parsed.hostname or "").lower().strip()
+    if not host:
+        raise ValueError("missing host in address")
+    if host in CLOUD_METADATA_HOSTS or host.startswith("169.254."):
+        raise ValueError("prohibited address (cloud metadata)")
+    if not public_host(host):
+        raise ValueError("prohibited address (private or non-public host)")
+    return host
 
 
 @contextlib.contextmanager

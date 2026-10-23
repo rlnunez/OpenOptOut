@@ -4132,6 +4132,41 @@ def t_logs_sanitization():
     assert "[ssn]" in san6 and "000-12-3456" not in san6
 
 
+@test(1, "logs.secret_scrubber_not_redos_vulnerable",
+      "Sanitizing a long line with no secret-shaped key=value in it is fast and roughly "
+      "linear in length, not quadratic (ASVS 1.3.12) -- the scrubber runs on every log "
+      "line this app emits, so a slow regex here is a real availability hit.")
+def t_logs_secret_scrubber_not_redos():
+    import time
+    lc = _imp("core.logging_config")
+    s = lc.sanitize_log_message
+
+    def timed(n):
+        # No underscore/dash at all: the worst case for the old unbounded
+        # (?:[a-z0-9]+[_-])*-style prefix, which had nothing to anchor on and
+        # backtracked across the whole run looking for a secret word that
+        # never arrives.
+        line = "a" * n
+        t0 = time.perf_counter()
+        s(line)
+        return time.perf_counter() - t0
+
+    timed(500)   # warm up (regex module caching, etc.)
+    t_small = timed(4000)
+    t_large = timed(32000)   # 8x longer
+    assert t_large < 0.5, f"32,000-char line took {t_large:.3f}s -- still vulnerable"
+    # Quadratic growth would be ~64x; allow generous slack for a noisy sandbox
+    # while still catching the old behavior (which was consistently ~55-60x
+    # over the same 8x length ratio).
+    assert t_large < t_small * 20 + 0.05, \
+        f"scaling looks quadratic: {t_small:.4f}s -> {t_large:.4f}s for an 8x longer input"
+    # EXPECTED: near-linear scaling, sub-second even for a very long line.
+    # IF THIS FAILS: a sufficiently long attacker-influenceable value reaching
+    #   any log call (a long URL, header, or username attempt) can pin a CPU
+    #   core for seconds to minutes per line, since every log line goes
+    #   through this scrubber synchronously.
+
+
 @test(1, "logs.sanitizer_secret_and_pii_shapes",
       "The log scrubber catches prefixed token names, quoted dicts, cookies, API-key headers, URL "
       "credentials and callback codes, feed links, street addresses, labelled names and birth dates.")
@@ -9710,8 +9745,8 @@ def t_auth_failed_signin_throttling():
 
 @test(2, "auth.per_ip_limits",
       "Client IP comes from X-Forwarded-For counted TRUSTED_PROXY_HOPS from the right (forged "
-      "entries ignored, IPv6 grouped by /64); sign-in, MFA, registration and SSO routes are "
-      "rate limited per IP; many failed sign-ins from one IP lock that IP across accounts.")
+      "entries ignored, IPv6 grouped by /64); sign-in, MFA, registration, SSO and costly automation-trigger "
+      "routes are rate limited per IP; many failed sign-ins from one IP lock that IP across accounts.")
 def t_auth_per_ip_limits():
     import os
     from types import SimpleNamespace as NS
@@ -9721,6 +9756,7 @@ def t_auth_per_ip_limits():
         throttle = _imp("core.login_throttle")
         auth_router = _imp("routers.auth")
         saml_router = _imp("routers.saml")
+        auto_router = _imp("routers.automation")
     except ImportError as e:
         raise Skip(f"needs full backend deps / package layout: {e}")
 
@@ -9810,6 +9846,10 @@ def t_auth_per_ip_limits():
             assert "sso" in limits(saml_router.router, sp + path, method), (path, method)
         cal_router = _imp("routers.calendar")
         assert "calendar_feed" in limits(cal_router.router, cal_router.router.prefix + "/feed/{token}.ics", "GET")
+        ap = auto_router.router.prefix
+        for path, method in [("/discover/{member_id}", "POST"), ("/optout/batch", "POST"),
+                             ("/optout/{request_id}", "POST")]:
+            assert "automation" in limits(auto_router.router, ap + path, method), (path, method)
 
         # Over real HTTP: the 61st sign-in a minute from one client IP gets 429.
         from fastapi import FastAPI
@@ -13286,6 +13326,66 @@ def t_family_add_remove():
     s.close()
     # EXPECTED: "Add a person" and "Remove" on the Family page work.
     # IF THIS FAILS: families can't add children or remove people they added.
+
+
+@test(2, "family.age_not_desynced_once_dob_known",
+      "Once a birthday is on file, a bare age edit can't desync it from the dob-derived age (ASVS 2.2.3).")
+def t_family_age_dob_sync():
+    db, s = _memory_db()
+    fam = _imp("routers.family")
+    parent = db.User(email="p2@x.example", full_name="Pat Parent", role=db.UserRole.parent, hashed_password="x")
+    s.add(parent); s.flush()
+    s.add(db.FamilyMember(user_id=parent.id, full_name="Pat Parent")); s.commit()
+    kid = fam.add_member(fam.MemberCreate(full_name="Kim Kid", dob="2015-03-02", authorized=True), db=s, current_user=parent)
+    true_age = kid.age
+    # A bare age edit (no dob in the same call) must not overwrite the dob-derived age.
+    out = fam.update_member(kid.id, fam.MemberUpdate(age=99), db=s, current_user=parent)
+    assert out.age == true_age, f"bare age edit desynced from dob: {out.age} != {true_age}"
+    member = s.query(db.FamilyMember).get(kid.id)
+    assert member.age != 99, "member.age column was overwritten despite an existing dob"
+    # Editing dob itself still re-derives age correctly.
+    out2 = fam.update_member(kid.id, fam.MemberUpdate(dob="2010-01-01"), db=s, current_user=parent)
+    assert out2.age != true_age and out2.dob == "2010-01-01"
+    s.close()
+    # EXPECTED: age always matches the saved birthday once one exists.
+    # IF THIS FAILS: a stale/mismatched age could make the COPPA minors'
+    #   purge job (core/privacy_record.py) misjudge whether someone is a child.
+
+
+@test(2, "requests.status_cannot_skip_the_send_verify_pipeline",
+      "PATCH /api/requests/{id} can only set the two manual statuses (pending, skipped); "
+      "jumping straight to sent/confirmed/submitted is rejected (ASVS 2.3.1).")
+def t_requests_status_guard():
+    db, s = _memory_db()
+    req_router = _imp("routers.requests")
+    from fastapi import HTTPException
+    parent = db.User(email="p3@x.example", full_name="Pat Parent", role=db.UserRole.parent, hashed_password="x")
+    s.add(parent); s.flush()
+    s.add(db.FamilyMember(user_id=parent.id, full_name="Pat Parent")); s.commit()
+    fam = _imp("routers.family")
+    kid = fam.add_member(fam.MemberCreate(full_name="Kim Kid", authorized=True), db=s, current_user=parent)
+    b = db.Broker(name="B", opt_out_url="https://b.example"); s.add(b); s.flush()
+    rq = db.RemovalRequest(member_id=kid.id, broker_id=b.id, status=db.RequestStatus.pending)
+    s.add(rq); s.commit()
+
+    for bad in ("sent", "confirmed", "submitted", "needs_manual", "failed"):
+        try:
+            req_router.update_request(rq.id, req_router.UpdateRequest(status=bad), db=s, current_user=parent)
+            raise AssertionError(f"status={bad} should have been rejected")
+        except HTTPException as e:
+            assert e.status_code == 400
+
+    out = req_router.update_request(rq.id, req_router.UpdateRequest(status="skipped"), db=s, current_user=parent)
+    assert out.status == "skipped"
+    out2 = req_router.update_request(rq.id, req_router.UpdateRequest(status="pending"), db=s, current_user=parent)
+    assert out2.status == "pending"
+    s.close()
+    # EXPECTED: only the automated send/verify pipeline (optout_engine.py,
+    #   confirm_links.py, scheduler.py) can move a request forward.
+    # IF THIS FAILS: a direct API call could mark an opt-out "confirmed"
+    #   without it ever actually being sent.
+
+
 @test(2, "compliance.deadlines_scope_and_notices",
       "The deadline report flags late and relisting sites for the viewer's people only, and opted-in notices go out once.")
 def t_compliance_report():
@@ -13407,6 +13507,43 @@ def t_privacy_record():
     s.close()
     # EXPECTED: a complete, honest privacy record and working access/deletion rights.
     # IF THIS FAILS: an install can't show what it keeps, answer a request, or forget someone.
+
+
+@test(2, "privacy_record.coppa_purge_uses_dob_not_stale_age",
+      "The COPPA minors' purge finds a child by their saved birthday, not a stale/desynced age column (ASVS 2.2.3).")
+def t_coppa_purge_dob():
+    import datetime as _dt
+    db, s = _memory_db()
+    pr = _imp("core.privacy_record")
+    fam = _imp("routers.family")
+    parent = db.User(email="p4@x.example", full_name="Pat Parent", role=db.UserRole.parent, hashed_password="x")
+    s.add(parent); s.flush()
+    s.add(db.FamilyMember(user_id=parent.id, full_name="Pat Parent")); s.commit()
+    # dob says this member is currently a child; the raw age column is stale
+    # and (wrongly) says an adult — the exact desync the age/dob fix above
+    # now prevents going forward through the API, but a row written by some
+    # other path (an import, a direct DB edit) could still carry it, so the
+    # purge job itself must not trust the raw column.
+    ten_years_ago = (_dt.date.today().replace(year=_dt.date.today().year - 10)).isoformat()
+    kid_out = fam.add_member(fam.MemberCreate(full_name="Kim Kid", dob=ten_years_ago, authorized=True), db=s, current_user=parent)
+    kid = s.query(db.FamilyMember).get(kid_out.id)
+    kid.age = 40
+    s.commit()
+    b = db.Broker(name="B", opt_out_url="https://b.example"); s.add(b); s.flush()
+    old_confirm = _dt.datetime.utcnow() - _dt.timedelta(days=400)
+    rq = db.RemovalRequest(member_id=kid.id, broker_id=b.id, status=db.RequestStatus.confirmed, confirmed_at=old_confirm)
+    s.add(rq); s.flush()
+    s.add(db.ConfirmationLink(request_id=rq.id, host="b.example", status="done"))
+    s.commit()
+
+    st = pr.purge(s, {"privacy": {"coppa_strict_shredding": True, "coppa_children_retention_days": 30}})
+    assert st["coppa_records"] >= 1, "a child identified only via dob (stale age says adult) wasn't purged"
+    assert s.query(db.ConfirmationLink).count() == 0
+    s.close()
+    # EXPECTED: the minors' retention purge (AGENTS.md) still fires correctly
+    #   even if some other path ever left the age column stale.
+    # IF THIS FAILS: a real minor's aux data (confirmation links, email
+    #   excerpts) could silently outlive the COPPA retention window.
 
 
 @test(1, "privacy.no_details_in_logs",
@@ -14201,6 +14338,33 @@ def t_log_forwarding():
     finally:
         lf.SENDER = None
     # IF THIS FAILS: logs could leave with secrets or contact details, or a log server could stall the app.
+
+
+@test(1, "observability.log_forwarding_ssrf_guarded",
+      "An HTTP log-forwarding destination (OTLP/Loki/Splunk) pointed at a private/internal "
+      "host is rejected before any request is made, the same SSRF/DNS-rebinding guard every "
+      "other admin-configured-URL call site in this app already uses.")
+def t_log_forwarding_ssrf_guarded():
+    if _try_import("cryptography") is None:
+        raise Skip("cryptography not installed")
+    lf = _imp("core.log_forwarding")
+    import httpx
+    called = []
+    orig_post = httpx.post
+    httpx.post = lambda *a, **kw: called.append(1) or (_ for _ in ()).throw(AssertionError("should never reach httpx.post"))
+    try:
+        d = lf.make_destination({"kind": "otlp", "endpoint": "http://169.254.169.254/"})
+        try:
+            lf._send_http(d, [{"time": 0, "level": "INFO", "logger": "x", "message": "hi"}])
+            assert False, "a private-host log-forwarding endpoint was not rejected"
+        except RuntimeError as e:
+            assert "prohibited" in str(e)
+        assert not called, "httpx.post was reached despite the SSRF guard"
+    finally:
+        httpx.post = orig_post
+    # EXPECTED: the guard fires before any network call.
+    # IF THIS FAILS: an admin-configured log destination could be pointed at
+    #   an internal service or cloud metadata endpoint.
 
 
 @test(1, "observability.health_and_metrics",

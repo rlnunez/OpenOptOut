@@ -244,8 +244,15 @@ def _send_http(d: dict, records: List[dict]) -> None:
     else:
         url = base if "/services/collector" in base else base + "/services/collector/event"
         body, h["Content-Type"] = splunk_lines(records), "application/json"
-    r = httpx.post(url, content=body.encode("utf-8"), headers=h, timeout=10.0,
-                   verify=d.get("verify_tls", True), follow_redirects=False)
+
+    from .dns_guard import assert_safe_url, safe_dns_context
+    try:
+        assert_safe_url(url)
+    except ValueError as e:
+        raise RuntimeError(str(e))
+    with safe_dns_context():
+        r = httpx.post(url, content=body.encode("utf-8"), headers=h, timeout=10.0,
+                       verify=d.get("verify_tls", True), follow_redirects=False)
     if not 200 <= r.status_code < 300:
         raise RuntimeError(f"the server answered {r.status_code}")
 

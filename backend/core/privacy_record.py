@@ -252,7 +252,10 @@ def purge(db, cfg: dict, now: Optional[datetime] = None, screenshots_dir: Option
     # COPPA Child Data Protection: purge auxiliary confirmation links & email logs for confirmed minor requests
     coppa_purged = 0
     if priv.get("coppa_strict_shredding", True):
-        child_members = [mem.id for mem in db.query(m.FamilyMember).all() if (mem.age and mem.age < 18) or getattr(mem, "is_child", False)]
+        from .age import current_age
+        child_members = [mem.id for mem in db.query(m.FamilyMember).all()
+                          if (current_age(mem) is not None and current_age(mem) < 18)
+                          or getattr(mem, "is_child", False)]
         if child_members:
             old_child_reqs = [r.id for r in db.query(m.RemovalRequest.id).filter(
                 m.RemovalRequest.member_id.in_(child_members),

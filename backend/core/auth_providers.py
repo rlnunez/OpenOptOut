@@ -1001,13 +1001,11 @@ def _guard_oidc_url(url: str) -> None:
     """Reject an OIDC endpoint URL that isn't https or doesn't resolve to a
     public address, so a malicious/compromised admin-configured host can't be
     used to reach internal services (SSRF / DNS-rebinding guard)."""
-    import urllib.parse
-    from .dns_guard import public_host
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme.lower() != "https" or not parsed.hostname:
-        raise ValueError(f"OIDC endpoint must be https://: {url}")
-    if not public_host(parsed.hostname):
-        raise ValueError(f"OIDC endpoint does not point to a public server: {url}")
+    from .dns_guard import assert_safe_url
+    try:
+        assert_safe_url(url, schemes=("https",))
+    except ValueError as e:
+        raise ValueError(f"OIDC endpoint rejected ({e}): {url}")
 
 
 def _discover_endpoint(cfg: dict, field: str) -> str:

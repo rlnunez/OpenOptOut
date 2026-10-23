@@ -238,7 +238,14 @@ def update_member(
         # Empty string clears the formal name
         member.formal_name = data.formal_name if data.formal_name.strip() else None
     if data.age is not None:
-        member.age = data.age
+        # ASVS 2.2.3: once a birthday is on file it's the authoritative age
+        # source everywhere else (core/age.py's current_age()/member_dob()),
+        # so a bare age update must not desync from it — least of all for a
+        # minor, where core/privacy_record.py's COPPA purge job depends on
+        # age being right. The frontend only ever sends age at creation,
+        # before any dob exists, never as a later edit.
+        if not member.dob:
+            member.age = data.age
     if data.dob is not None:
         from ..core.age import parse_dob, age_on
         if not data.dob.strip():

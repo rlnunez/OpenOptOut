@@ -230,20 +230,12 @@ def _deliver(t: dict, event: str, title: str, message: str, details: dict) -> tu
     url = _decrypt(t.get("url_enc", ""))
     if not url:
         return False, "no address"
-    from urllib.parse import urlparse
-    parsed = urlparse(url)
-    scheme = (parsed.scheme or "").lower().strip()
-    if scheme not in ("http", "https"):
-        return False, "unsupported URL scheme"
-    host = (parsed.hostname or "").lower().strip()
-    if not host:
-        return False, "missing host in address"
-    if host in {"169.254.169.254", "169.254.170.2", "metadata.google.internal", "metadata", "instance-data", "100.100.100.200"} or host.startswith("169.254."):
-        return False, "prohibited address (cloud metadata)"
     if TRANSPORT is None:
-        from .dns_guard import public_host, safe_dns_context
-        if not public_host(host):
-            return False, "prohibited address (private or non-public host)"
+        from .dns_guard import assert_safe_url, safe_dns_context
+        try:
+            assert_safe_url(url)
+        except ValueError as e:
+            return False, str(e)
     else:
         from contextlib import nullcontext
         safe_dns_context = nullcontext

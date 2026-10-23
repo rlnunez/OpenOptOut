@@ -10,6 +10,7 @@ import { useLanguage } from '../i18n/LanguageContext'
 import { tx, txr } from '../i18n/tx'
 import { fmtNumber } from '../i18n/format'
 import { detailText } from '../errorMessage'
+import ChildPrivacyNotice from '../components/ChildPrivacyNotice'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -219,6 +220,7 @@ function BirthdayEditor({ member, onUpdated, masked }) {
         )}
       </div>
       {error && <p role="alert" className="text-red-400 text-xs mt-2">{error}</p>}
+      <div className="mt-3"><ChildPrivacyNotice age={member.age} /></div>
     </div>
   )
 }

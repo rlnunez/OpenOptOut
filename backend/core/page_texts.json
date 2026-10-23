@@ -747,6 +747,12 @@
    ]
   },
   {
+   "text": "A US law called COPPA expects real, verified parental consent before a service collects a child's details online — more than the checkbox above. We can't confirm that for you, and this isn't legal advice.",
+   "where": [
+    "components/ChildPrivacyNotice.jsx"
+   ]
+  },
+  {
    "text": "A web service your own scripts call to pull OpenOptOut's numbers into a data mart like LibInsight, a data warehouse or a data lake: daily, weekly or monthly counts, or totals, for any dates, per library system and branch. Counts only, never anyone's name or details.",
    "where": [
     "pages/UsageStats.jsx"
@@ -1289,6 +1295,12 @@
    "text": "Added. Test it to make sure it works.",
    "where": [
     "pages/Backups.jsx"
+   ]
+  },
+  {
+   "text": "Adding someone under 13",
+   "where": [
+    "components/ChildPrivacyNotice.jsx"
    ]
   },
   {
@@ -19622,6 +19634,12 @@
    ]
   },
   {
+   "text": "While you're here: a credit freeze stops anyone opening credit in a child's name, for free. See <0>Freeze credit</0> in the menu for ready-to-mail letters to each bureau.",
+   "where": [
+    "components/ChildPrivacyNotice.jsx"
+   ]
+  },
+  {
    "text": "White-label appearance for your organization",
    "where": [
     "pages/Branding.jsx"
@@ -19872,6 +19890,12 @@
    "text": "You can set or change these anytime.",
    "where": [
     "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "You can still go ahead. You don't need to know why their details ended up on these sites to have them removed.",
+   "where": [
+    "components/ChildPrivacyNotice.jsx"
    ]
   },
   {

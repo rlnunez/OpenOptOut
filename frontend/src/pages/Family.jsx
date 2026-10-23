@@ -8,6 +8,7 @@ import api from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { tx, txn, txr } from '../i18n/tx'
 import { detailText } from '../errorMessage'
+import ChildPrivacyNotice from '../components/ChildPrivacyNotice'
 
 const KIND_LABELS = { name: tx("Names"), email: tx("Emails"), phone: tx("Phones"), address: tx("Addresses") }
 const KIND_COLORS = {
@@ -89,6 +90,7 @@ function AddMemberModal({ onClose, onCreated }) {
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
             />
           </div>
+          <ChildPrivacyNotice age={age ? parseInt(age) : null} />
           <label className="flex items-start gap-2 text-sm text-slate-300 pt-1">
             <input type="checkbox" checked={authorized} onChange={e => setAuthorized(e.target.checked)} required
               className="mt-0.5 h-4 w-4 accent-shield-500 shrink-0" />

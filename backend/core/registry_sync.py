@@ -28,7 +28,6 @@ import re
 import socket
 from datetime import datetime
 from typing import Optional
-from urllib.parse import urlparse
 
 log = logging.getLogger(__name__)
 
@@ -176,15 +175,14 @@ def parse_registry(data: bytes, filename: str = "registry.csv") -> dict:
 
 # ── Fetching (only URLs an admin saved) ───────────────────────────────────────
 
-from .dns_guard import public_host as _public_host, safe_dns_context
+from .dns_guard import assert_safe_url, public_host as _public_host, safe_dns_context
 
 
 def fetch_registry(url: str, timeout: int = 60) -> tuple:
     """Download a registry export. https only, public hosts only, 20 MB cap."""
-    u = urlparse(url or "")
-    if u.scheme != "https" or not u.hostname:
-        raise ValueError("Registry addresses must start with https://")
-    if not _public_host(u.hostname):
+    try:
+        assert_safe_url(url or "", schemes=("https",))
+    except ValueError:
         raise ValueError("That address doesn't point to a public website.")
     import requests
     try:
