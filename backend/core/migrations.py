@@ -159,6 +159,22 @@ MIGRATIONS = [
         "Add token_version to users",
         "ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0"
     ),
+    (
+        "Add external_id to users",
+        "ALTER TABLE users ADD COLUMN external_id VARCHAR"
+    ),
+    (
+        "Add previous_card_field_code to sip2_connections",
+        "ALTER TABLE sip2_connections ADD COLUMN previous_card_field_code VARCHAR(2)"
+    ),
+    (
+        "Add previous_card_format to sip2_connections",
+        "ALTER TABLE sip2_connections ADD COLUMN previous_card_format VARCHAR(20) DEFAULT 'delimited'"
+    ),
+    (
+        "Add previous_card_delimiter to sip2_connections",
+        "ALTER TABLE sip2_connections ADD COLUMN previous_card_delimiter VARCHAR(1) DEFAULT ','"
+    ),
 ]
 
 # Known property brokers — flagged on first startup

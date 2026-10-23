@@ -3,7 +3,7 @@ Auth router — local login, OIDC redirect/callback, SIP2/LDAP login,
 registration with domain/invite controls, token refresh, me endpoint.
 """
 
-import secrets, json, hashlib, hmac, logging, threading, time
+import os, secrets, json, hashlib, hmac, logging, threading, time
 from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
@@ -689,8 +689,14 @@ def oidc_login(provider: str, request: Request):
     if not provider_enabled(provider):
         raise HTTPException(400, f"Provider '{provider}' is not enabled")
 
-    state        = secrets.token_urlsafe(32)
-    redirect_uri = str(request.base_url).rstrip("/") + f"/api/auth/oidc/{provider}/callback"
+    state = secrets.token_urlsafe(32)
+    # Prefer the admin-configured public URL over the request's Host header,
+    # the same preference order saml_sp.public_base_url() uses — an IdP/OAuth
+    # app is usually registered with one fixed callback URL, and trusting
+    # whatever Host a request arrives with is a weaker, inconsistent default.
+    base = (os.getenv("PUBLIC_BASE_URL") or os.getenv("FRONTEND_URL")
+            or str(request.base_url)).rstrip("/")
+    redirect_uri = base + f"/api/auth/oidc/{provider}/callback"
     _remember_oidc_state(state, provider, redirect_uri)
 
     url = get_oidc_login_url(provider, redirect_uri, state)
@@ -746,7 +752,23 @@ def _resolve_external_user(result, db: Session, remember_me: bool = False) -> di
     registration_cfg = s.get("registration", {}) or {}
     email = (result.email or "").strip().lower()
 
-    existing = db.query(User).filter(User.email == email).first() if email else None
+    # A reissued library card changes the SIP2-synthesized email, so email alone
+    # would miss the existing account. If the ILS reports the patron's old
+    # barcode(s) (core/auth_providers.py: parse_previous_cards), look those up
+    # first, scoped to sip2 so a coincidental ID collision with another
+    # provider can't cross-link accounts.
+    previous_cards = getattr(result, "previous_barcodes", None) or []
+    existing = None
+    linked_via_previous_card = False
+    if result.provider == "sip2" and previous_cards:
+        existing = db.query(User).filter(
+            User.external_id.in_(previous_cards),
+            User.auth_source == "sip2",
+        ).first()
+        linked_via_previous_card = existing is not None
+    if existing is None:
+        existing = db.query(User).filter(User.email == email).first() if email else None
+
     decision = evaluate_sso_login(result, provider_cfg, registration_cfg,
                                   user_exists=existing is not None,
                                   user_count=db.query(User).count())
@@ -765,6 +787,19 @@ def _resolve_external_user(result, db: Session, remember_me: bool = False) -> di
         if getattr(result, "branch_id", None) is not None and existing.branch_source != "staff_override":
             existing.branch_id = result.branch_id
             existing.branch_source = "sip2"
+        ext_id = getattr(result, "external_id", None)
+        if ext_id:
+            existing.external_id = ext_id
+        if linked_via_previous_card:
+            old_barcode = (existing.email or "").split("@", 1)[0]
+            # Only move the email if it was the barcode-synthesized form for the
+            # OLD card — never touch a library-supplied real email mapping. Emails
+            # are stored lowercased, so compare case-insensitively against the
+            # ILS-reported (possibly mixed-case) barcodes.
+            if email and old_barcode in (b.lower() for b in previous_cards):
+                existing.email = email
+            _log.info("SIP2 reissued-card link: user_id=%s old_card=%s new_card=%s",
+                      existing.id, old_barcode, ext_id)
         db.commit()
         token = create_user_token(existing, remember_me=remember_me)
         return {"access_token": token, "token_type": "bearer"}
@@ -776,6 +811,8 @@ def _resolve_external_user(result, db: Session, remember_me: bool = False) -> di
     user = _create_user_and_member(db, email, result.full_name or email,
                                    UserRole(decision.role))
     user.auth_source = source
+    if getattr(result, "external_id", None):
+        user.external_id = result.external_id
     if getattr(result, "branch_id", None) is not None:
         user.branch_id = result.branch_id
         user.branch_source = "sip2"

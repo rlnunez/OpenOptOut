@@ -156,5 +156,18 @@
   "nav.deadlines": "Ripoti ya tarehe za mwisho",
   "nav.privacy_record": "Kumbukumbu ya faragha",
   "nav.calendar": "Kalenda",
-  "nav.system_updates": "Masasisho ya mfumo"
+  "nav.system_updates": "Masasisho ya mfumo",
+  "sip2.previous_card_title": "Kuunganisha Kadi Zilizotolewa Upya",
+  "sip2.previous_card_desc": "Ikiwa mfumo wako wa maktaba (ILS) unaripoti nambari ya kadi ya zamani ya msomaji wakati kadi mpya inatolewa, elekeza kwenye nyanja hiyo hapa ili kadi iliyotolewa upya iunganishwe na akaunti iliyopo ya msomaji badala ya kuunda akaunti nakala. Acha msimbo wa nyanja bila kujazwa ili kuzima kipengele hiki.",
+  "sip2.previous_card_field_label": "Msimbo wa Nyanja ya Kadi ya Awali (mfano XC)",
+  "sip2.previous_card_format_label": "Muundo",
+  "sip2.previous_card_format_delimited": "Zenye mkato — nyanja moja, thamani nyingi zikigawanywa na herufi moja",
+  "sip2.previous_card_format_json": "Mfuatano wa JSON — mfano [\"OLD123\",\"OLD456\"]",
+  "sip2.previous_card_delimiter_label": "Herufi ya mkato",
+  "sip2.delim_comma": "Mkato (,)",
+  "sip2.delim_semicolon": "Nusu koloni (;)",
+  "sip2.delim_tab": "Tab",
+  "sip2.delim_custom": "Nyingine…",
+  "sip2.delim_custom_placeholder": "Herufi moja",
+  "sip2.delim_pipe_note": "Kumbuka: \"|\" haiwezi kutumika — SIP2 yenyewe hutumia herufi hiyo kugawanya nyanja, kwa hivyo nyanja ya muuzaji haiwezi kuwa nayo kamwe."
 }

@@ -156,5 +156,18 @@
   "nav.deadlines": "ڈیڈ لائن رپورٹ",
   "nav.privacy_record": "پرائیویسی ریکارڈ",
   "nav.calendar": "کیلنڈر",
-  "nav.system_updates": "سسٹم اپ ڈیٹس"
+  "nav.system_updates": "سسٹم اپ ڈیٹس",
+  "sip2.previous_card_title": "دوبارہ جاری شدہ کارڈ کا ربط",
+  "sip2.previous_card_desc": "اگر آپ کا ILS نیا کارڈ جاری کرتے وقت قاری کا پرانا کارڈ نمبر بتاتا ہے، تو یہاں وہ فیلڈ بتائیں تاکہ دوبارہ جاری شدہ کارڈ ڈپلیکیٹ اکاؤنٹ بنانے کے بجائے قاری کے موجودہ اکاؤنٹ سے منسلک ہو جائے۔ اس سہولت کو بند کرنے کے لیے فیلڈ کوڈ خالی چھوڑ دیں۔",
+  "sip2.previous_card_field_label": "پرانے کارڈ کی فیلڈ کوڈ (مثلاً XC)",
+  "sip2.previous_card_format_label": "فارمیٹ",
+  "sip2.previous_card_format_delimited": "حد بند — ایک فیلڈ، متعدد قدریں ایک حرف سے الگ",
+  "sip2.previous_card_format_json": "JSON ارے — مثلاً [\"OLD123\",\"OLD456\"]",
+  "sip2.previous_card_delimiter_label": "حد بندی کرنے والا حرف",
+  "sip2.delim_comma": "کوما (,)",
+  "sip2.delim_semicolon": "سیمی کالن (;)",
+  "sip2.delim_tab": "ٹیب",
+  "sip2.delim_custom": "دیگر…",
+  "sip2.delim_custom_placeholder": "ایک حرف",
+  "sip2.delim_pipe_note": "نوٹ: \"|\" استعمال نہیں ہو سکتا — SIP2 خود اسے فیلڈز الگ کرنے کے لیے استعمال کرتا ہے، اس لیے فراہم کنندہ کی فیلڈ میں یہ کبھی نہیں آ سکتا۔"
 }

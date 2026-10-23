@@ -3609,6 +3609,98 @@ def t_sip2_parse():
     #   fields/messages into the ILS conversation.
 
 
+@test(1, "sip2.previous_cards_parsing",
+      "Reissued-card linking: parse_previous_cards reads old barcodes from an admin-configured "
+      "SIP2 field, delimited or JSON array, bounded and filtered for safety.")
+def t_sip2_previous_cards():
+    ap = _imp("core.auth_providers")
+    pc = ap.parse_previous_cards
+
+    assert pc({}, "", "delimited", ",") == [], "no field code configured -> off"
+    assert pc({"XC": ""}, "XC", "delimited", ",") == [], "empty field value"
+    assert pc({"XC": "OLD1,OLD2"}, "XC", "delimited", ",") == ["OLD1", "OLD2"]
+    assert pc({"XC": "OLD1;OLD2;OLD3"}, "XC", "delimited", ";") == ["OLD1", "OLD2", "OLD3"]
+    assert pc({"XC": "OLD1\tOLD2"}, "XC", "delimited", "\t") == ["OLD1", "OLD2"]
+    assert pc({"XC": '["OLD1", "OLD2"]'}, "XC", "json", ",") == ["OLD1", "OLD2"]
+    assert pc({"XC": '"OLD1"'}, "XC", "json", ",") == ["OLD1"], "a single JSON scalar still works"
+    assert pc({"XC": "not json"}, "XC", "json", ",") == [], "malformed JSON degrades to empty, not a crash"
+    # unsafe/non-ASCII values filtered, blank entries dropped
+    assert pc({"XC": "OLD1,,café,OLD2"}, "XC", "delimited", ",") == ["OLD1", "OLD2"]
+    # a flood of entries is capped so a malformed/huge field can't cause unbounded DB lookups
+    huge = ",".join(f"C{i}" for i in range(ap.MAX_PREVIOUS_CARDS + 50))
+    out = pc({"XC": huge}, "XC", "delimited", ",")
+    assert len(out) == ap.MAX_PREVIOUS_CARDS, len(out)
+    # EXPECTED: previous-card values are parsed the same way an admin configured them,
+    #   with unsafe/oversized input neutralized rather than crashing or injecting.
+    # IF THIS FAILS: a malformed ILS field could either break SIP2 login entirely or
+    #   let a crafted response trigger an unbounded number of account lookups.
+
+
+@test(2, "auth.sip2_reissued_card_links_existing_account",
+      "A patron reissued a new library card is linked to their existing account (found via the "
+      "ILS's previous-card field) instead of getting a duplicate, and the SSO policy still runs.")
+def t_auth_sip2_reissue_links():
+    from types import SimpleNamespace as NS
+    try:
+        auth_router = _imp("routers.auth")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    db, s = _memory_db()
+    old = db.User(email="oldcard1@library.local", full_name="Patron", auth_source="sip2",
+                  external_id="OLDCARD1", role=db.UserRole.member)
+    s.add(old); s.commit()
+    old_id = old.id
+
+    orig = auth_router.load_settings
+    auth_router.load_settings = lambda: {"auth_providers": {"sip2": {}}, "registration": {"mode": "open"}}
+    try:
+        result = NS(provider="sip2", email="newcard2@library.local", full_name="Patron",
+                    email_verified=None, hd=None, groups=[], external_id="NEWCARD2",
+                    previous_barcodes=["OLDCARD1"])
+        tok = auth_router._resolve_external_user(result, s)
+    finally:
+        auth_router.load_settings = orig
+
+    assert tok.get("access_token"), "no token issued"
+    assert s.query(db.User).count() == 1, "a duplicate account was created instead of linking"
+    linked = s.query(db.User).filter(db.User.id == old_id).first()
+    assert linked.external_id == "NEWCARD2", linked.external_id
+    assert linked.email == "newcard2@library.local", linked.email
+    s.close()
+    # EXPECTED: the same account is reused — new barcode/email recorded on it.
+    # IF THIS FAILS: every reissued card creates a duplicate account and silently
+    #   orphans the patron's existing family data.
+
+
+@test(2, "auth.sip2_no_previous_card_config_unchanged",
+      "Without a configured previous-card field, SIP2 account resolution is unchanged: email-only lookup.")
+def t_auth_sip2_no_previous_card_config():
+    from types import SimpleNamespace as NS
+    try:
+        auth_router = _imp("routers.auth")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    db, s = _memory_db()
+    old = db.User(email="oldcard1@library.local", full_name="Patron", auth_source="sip2",
+                  external_id="OLDCARD1", role=db.UserRole.member)
+    s.add(old); s.commit()
+
+    orig = auth_router.load_settings
+    auth_router.load_settings = lambda: {"auth_providers": {"sip2": {}}, "registration": {"mode": "open"}}
+    try:
+        # A different barcode/email, no previous_barcodes reported -> a new account,
+        # exactly like before this feature existed.
+        result = NS(provider="sip2", email="newcard2@library.local", full_name="Patron",
+                    email_verified=None, hd=None, groups=[], external_id="NEWCARD2",
+                    previous_barcodes=[])
+        auth_router._resolve_external_user(result, s)
+    finally:
+        auth_router.load_settings = orig
+
+    assert s.query(db.User).count() == 2, "unconfigured previous-card linking changed default behavior"
+    s.close()
+
+
 @test(1, "sip2.eligibility_birthdate_and_age_calculation",
       "SIP2 birthdate formats (YYYYMMDD, YYYY-MM-DD, MM/DD/YYYY, etc.) parse correctly and compute exact age.")
 def t_sip2_dob_and_age():
@@ -9251,6 +9343,82 @@ def t_auth_oidc_states():
     finally:
         auth_router.time.time = orig_time
         auth_router._oidc_states.clear(); auth_router._oidc_states.update(saved)
+
+
+@test(1, "auth.oidc_endpoints_guarded_against_ssrf",
+      "OIDC discovery/token/userinfo endpoints must be https and resolve to a public "
+      "address, the same SSRF/DNS-rebinding guard the SAML metadata fetch uses.")
+def t_auth_oidc_ssrf_guard():
+    try:
+        ap = _imp("core.auth_providers")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    # http:// rejected outright
+    try:
+        ap._guard_oidc_url("http://accounts.google.com/.well-known/openid-configuration")
+        assert False, "non-https OIDC endpoint accepted"
+    except ValueError:
+        pass
+    # https to a private/loopback address rejected
+    for host in ("https://127.0.0.1/.well-known/openid-configuration",
+                 "https://169.254.169.254/latest/meta-data",
+                 "https://10.0.0.5/token"):
+        try:
+            ap._guard_oidc_url(host)
+            assert False, f"internal address accepted: {host}"
+        except ValueError:
+            pass
+    # a normal public https endpoint is accepted
+    ap._guard_oidc_url("https://accounts.google.com/.well-known/openid-configuration")
+
+
+@test(2, "auth.oidc_redirect_uri_prefers_configured_base_url",
+      "oidc_login() builds redirect_uri from PUBLIC_BASE_URL/FRONTEND_URL when set, "
+      "the same preference order saml_sp.public_base_url() uses, instead of trusting "
+      "whatever Host header the request arrived with.")
+def t_auth_oidc_redirect_uri_base_url():
+    import os as _os
+    try:
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        auth_router = _imp("routers.auth")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    app = FastAPI(); app.include_router(auth_router.router)
+    client = TestClient(app, base_url="http://attacker-controlled-host.example")
+
+    saved_enabled, saved_build = auth_router.provider_enabled, auth_router.get_oidc_login_url
+    captured = {}
+    auth_router.provider_enabled = lambda provider: True
+    def fake_build(provider_key, redirect_uri, state):
+        captured["redirect_uri"] = redirect_uri
+        return "https://idp.example/authorize"
+    auth_router.get_oidc_login_url = fake_build
+
+    saved_env, saved_pub = _os.environ.get("FRONTEND_URL"), _os.environ.get("PUBLIC_BASE_URL")
+    try:
+        _os.environ.pop("PUBLIC_BASE_URL", None)
+        _os.environ["FRONTEND_URL"] = "https://privacy.example.org"
+        r = client.get("/api/auth/oidc/google/login", follow_redirects=False)
+        assert r.status_code in (302, 307), (r.status_code, r.text)
+        assert captured["redirect_uri"] == "https://privacy.example.org/api/auth/oidc/google/callback", captured
+
+        # With no admin-configured base URL, it falls back to the request's Host header.
+        _os.environ.pop("FRONTEND_URL", None)
+        r = client.get("/api/auth/oidc/google/login", follow_redirects=False)
+        assert r.status_code in (302, 307), (r.status_code, r.text)
+        assert "attacker-controlled-host.example" in captured["redirect_uri"], captured
+    finally:
+        auth_router.provider_enabled, auth_router.get_oidc_login_url = saved_enabled, saved_build
+        if saved_env is None:
+            _os.environ.pop("FRONTEND_URL", None)
+        else:
+            _os.environ["FRONTEND_URL"] = saved_env
+        if saved_pub is None:
+            _os.environ.pop("PUBLIC_BASE_URL", None)
+        else:
+            _os.environ["PUBLIC_BASE_URL"] = saved_pub
 
 
 @test(1, "saml.outstanding_requests_bounded",

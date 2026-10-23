@@ -156,5 +156,18 @@
   "nav.monitoring": "Lookout an' alarms",
   "nav.terms": "Articles o' Agreement",
   "nav.usage_stats": "Ship's log o' plunder",
-  "nav.system_updates": "Ship upgrades"
+  "nav.system_updates": "Ship upgrades",
+  "sip2.previous_card_title": "Linkin' Up a Re-Issued Cutlass Card",
+  "sip2.previous_card_desc": "If yer library's log book tells the old card number when a new one be issued, point to that scroll here, so a re-issued card joins the crew's old account 'stead o' makin' a double. Leave the field code blank to batten this down.",
+  "sip2.previous_card_field_label": "Old Card Scroll Code (e.g. XC)",
+  "sip2.previous_card_format_label": "Format",
+  "sip2.previous_card_format_delimited": "Split by a Mark — one scroll, many values split by a single mark",
+  "sip2.previous_card_format_json": "JSON Array — e.g. [\"OLD123\",\"OLD456\"]",
+  "sip2.previous_card_delimiter_label": "Splittin' Mark",
+  "sip2.delim_comma": "Comma (,)",
+  "sip2.delim_semicolon": "Semicolon (;)",
+  "sip2.delim_tab": "Tab",
+  "sip2.delim_custom": "Other…",
+  "sip2.delim_custom_placeholder": "One mark",
+  "sip2.delim_pipe_note": "Mark ye: \"|\" can't be used — SIP2 itself uses it to split scrolls apart, so a merchant's scroll can never carry one."
 }

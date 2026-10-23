@@ -147,6 +147,9 @@ class AuthProviderConfig(BaseModel):
     sip2_field_mappings: Optional[Any] = None
     sip2_forced_fields: Optional[Any] = ["library"]
     sip2_patron_choice: bool = True
+    sip2_previous_card_field_code: Optional[str] = None
+    sip2_previous_card_format:     str = "delimited"
+    sip2_previous_card_delimiter:  str = ","
 
     # Passwordless policy for local accounts
     passwordless:       Optional[dict] = None
@@ -471,6 +474,9 @@ def get_auth_providers(user: Optional[User] = Depends(get_current_user_optional)
         sip2_field_mappings=sip2.get("field_mappings"),
         sip2_forced_fields=sip2.get("forced_fields", ["library"]),
         sip2_patron_choice=bool(sip2.get("patron_choice", True)),
+        sip2_previous_card_field_code=sip2.get("previous_card_field_code"),
+        sip2_previous_card_format=sip2.get("previous_card_format", "delimited"),
+        sip2_previous_card_delimiter=sip2.get("previous_card_delimiter", ","),
         passwordless=p_cfg,
         session_policy=sess_cfg,
         oidc_providers=oidc_providers,
@@ -530,6 +536,17 @@ def save_sip2(data: dict = Body(..., max_length=200), _: User = Depends(require_
             valid, err = validate_sip2_rules(elig)
             if not valid:
                 raise HTTPException(400, f"Invalid eligibility rules: {err}")
+    if "previous_card_field_code" in data:
+        code = (data.get("previous_card_field_code") or "").strip()
+        if code and (len(code) != 2 or not code.isalnum()):
+            raise HTTPException(400, "Previous-card field code must be the 2-letter SIP2 field code (e.g. XC).")
+        data["previous_card_field_code"] = code
+    if "previous_card_format" in data and data["previous_card_format"] not in ("delimited", "json"):
+        raise HTTPException(400, "Previous-card format must be 'delimited' or 'json'.")
+    if "previous_card_delimiter" in data:
+        delim = data.get("previous_card_delimiter") or ","
+        if len(delim) != 1:
+            raise HTTPException(400, "Previous-card delimiter must be a single character.")
     if "ca_cert_pem" in data:
         pem = (data.get("ca_cert_pem") or "").strip()
         if pem:

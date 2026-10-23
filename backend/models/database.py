@@ -172,6 +172,9 @@ class SIP2Connection(Base):
     forced_fields     = Column(Text, default='["library"]', nullable=False)  # JSON list of fields to force import (e.g. ["library"])
     patron_choice     = Column(Boolean, default=True, nullable=False)  # Require patron confirmation to import non-forced fields
     populate_vault    = Column(Boolean, default=False, nullable=False)
+    previous_card_field_code = Column(String(2), nullable=True)   # SIP2 field carrying old barcode(s), e.g. "XC"; empty = off
+    previous_card_format     = Column(String(20), default="delimited", nullable=True)  # 'delimited' | 'json'
+    previous_card_delimiter  = Column(String(1), default=",", nullable=True)
     created_at        = Column(DateTime, default=datetime.utcnow)
 
     system = relationship("LibrarySystem", back_populates="sip2_connections")
@@ -208,6 +211,7 @@ class User(Base):
     email            = Column(String, unique=True, index=True, nullable=False)
     hashed_password  = Column(String, nullable=True)   # null = member with no login
     auth_source      = Column(String, nullable=True)   # external provider, e.g. "saml", "oidc:google"
+    external_id      = Column(String, nullable=True, index=True)  # provider's identifier (SIP2 barcode, OIDC sub, ...)
     full_name        = Column(String, nullable=False)
     role             = Column(SAEnum(UserRole), default=UserRole.member, nullable=False)
     unified_view     = Column(Boolean, default=True)   # parent pref: see all managed profiles at once

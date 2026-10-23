@@ -156,5 +156,18 @@
   "nav.monitoring": "Überwachung und Warnungen",
   "nav.terms": "Bedingungen",
   "nav.usage_stats": "Nutzungsstatistik",
-  "nav.system_updates": "Systemaktualisierungen"
+  "nav.system_updates": "Systemaktualisierungen",
+  "sip2.previous_card_title": "Verknüpfung bei neu ausgestellten Ausweisen",
+  "sip2.previous_card_desc": "Wenn Ihr Bibliothekssystem die alte(n) Ausweisnummer(n) eines Nutzers meldet, sobald ein neuer Ausweis ausgestellt wird, geben Sie hier dieses Feld an, damit ein neu ausgestellter Ausweis mit dem bestehenden Konto verknüpft wird, statt ein doppeltes Konto zu erzeugen. Lassen Sie den Feldcode leer, um diese Funktion zu deaktivieren.",
+  "sip2.previous_card_field_label": "Feldcode der vorherigen Ausweisnummer (z. B. XC)",
+  "sip2.previous_card_format_label": "Format",
+  "sip2.previous_card_format_delimited": "Getrennt — ein Feld, mehrere Werte durch ein Zeichen getrennt",
+  "sip2.previous_card_format_json": "JSON-Array — z. B. [\"OLD123\",\"OLD456\"]",
+  "sip2.previous_card_delimiter_label": "Trennzeichen",
+  "sip2.delim_comma": "Komma (,)",
+  "sip2.delim_semicolon": "Semikolon (;)",
+  "sip2.delim_tab": "Tabulator",
+  "sip2.delim_custom": "Andere…",
+  "sip2.delim_custom_placeholder": "Ein Zeichen",
+  "sip2.delim_pipe_note": "Hinweis: „|“ kann nicht verwendet werden — SIP2 verwendet dieses Zeichen selbst zur Trennung von Feldern, daher kann ein Anbieterfeld es niemals enthalten."
 }

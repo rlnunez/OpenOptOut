@@ -156,5 +156,18 @@
   "nav.monitoring": "Giám sát và cảnh báo",
   "nav.terms": "Điều khoản",
   "nav.usage_stats": "Thống kê sử dụng",
-  "nav.system_updates": "Cập nhật hệ thống"
+  "nav.system_updates": "Cập nhật hệ thống",
+  "sip2.previous_card_title": "Liên kết Thẻ Cấp lại",
+  "sip2.previous_card_desc": "Nếu hệ thống thư viện (ILS) của bạn báo số thẻ cũ của bạn đọc khi cấp thẻ mới, hãy chỉ định trường đó ở đây để thẻ được cấp lại liên kết với tài khoản hiện có của bạn đọc thay vì tạo tài khoản trùng lặp. Để trống mã trường để tắt tính năng này.",
+  "sip2.previous_card_field_label": "Mã Trường Thẻ Trước (ví dụ XC)",
+  "sip2.previous_card_format_label": "Định dạng",
+  "sip2.previous_card_format_delimited": "Có dấu phân tách — một trường, nhiều giá trị được tách bằng một ký tự",
+  "sip2.previous_card_format_json": "Mảng JSON — ví dụ [\"OLD123\",\"OLD456\"]",
+  "sip2.previous_card_delimiter_label": "Ký tự phân tách",
+  "sip2.delim_comma": "Dấu phẩy (,)",
+  "sip2.delim_semicolon": "Dấu chấm phẩy (;)",
+  "sip2.delim_tab": "Tab",
+  "sip2.delim_custom": "Khác…",
+  "sip2.delim_custom_placeholder": "Một ký tự",
+  "sip2.delim_pipe_note": "Lưu ý: không thể dùng \"|\" — SIP2 tự dùng ký tự này để phân tách các trường, nên trường của nhà cung cấp không thể chứa nó."
 }

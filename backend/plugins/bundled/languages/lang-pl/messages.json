@@ -156,5 +156,18 @@
   "nav.deadlines": "Terminy",
   "nav.privacy_record": "Rejestr prywatności",
   "nav.calendar": "Kalendarz",
-  "nav.system_updates": "Aktualizacje systemu"
+  "nav.system_updates": "Aktualizacje systemu",
+  "sip2.previous_card_title": "Łączenie Kont przy Wznowieniu Karty",
+  "sip2.previous_card_desc": "Jeśli system biblioteczny (ILS) zgłasza poprzedni numer karty czytelnika przy wydawaniu nowej karty, wskaż tutaj to pole, aby wznowiona karta łączyła się z istniejącym kontem czytelnika, a nie tworzyła duplikat. Pozostaw kod pola puste, aby wyłączyć tę funkcję.",
+  "sip2.previous_card_field_label": "Kod pola poprzedniej karty (np. XC)",
+  "sip2.previous_card_format_label": "Format",
+  "sip2.previous_card_format_delimited": "Rozdzielany — jedno pole, wiele wartości rozdzielonych znakiem",
+  "sip2.previous_card_format_json": "Tablica JSON — np. [\"OLD123\",\"OLD456\"]",
+  "sip2.previous_card_delimiter_label": "Znak rozdzielający",
+  "sip2.delim_comma": "Przecinek (,)",
+  "sip2.delim_semicolon": "Średnik (;)",
+  "sip2.delim_tab": "Tabulator",
+  "sip2.delim_custom": "Inny…",
+  "sip2.delim_custom_placeholder": "Jeden znak",
+  "sip2.delim_pipe_note": "Uwaga: znaku „|” nie można użyć — SIP2 używa go do rozdzielania pól, więc pole dostawcy nigdy nie będzie go zawierać."
 }

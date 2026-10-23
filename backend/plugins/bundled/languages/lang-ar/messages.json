@@ -156,5 +156,18 @@
   "nav.monitoring": "المراقبة والتنبيهات",
   "nav.terms": "الشروط",
   "nav.usage_stats": "إحصاءات الاستخدام",
-  "nav.system_updates": "تحديثات النظام"
+  "nav.system_updates": "تحديثات النظام",
+  "sip2.previous_card_title": "ربط البطاقات المُعاد إصدارها",
+  "sip2.previous_card_desc": "إذا كان نظام المكتبة (ILS) يُعلن عن رقم البطاقة القديم للمشترك عند إصدار بطاقة جديدة، فحدد هذا الحقل هنا ليتم ربط البطاقة المُعاد إصدارها بحساب المشترك الحالي بدلاً من إنشاء حساب مكرر. اترك رمز الحقل فارغًا لإيقاف هذه الميزة.",
+  "sip2.previous_card_field_label": "رمز حقل البطاقة السابقة (مثل XC)",
+  "sip2.previous_card_format_label": "التنسيق",
+  "sip2.previous_card_format_delimited": "مفصول — حقل واحد، وقيم متعددة مفصولة بحرف واحد",
+  "sip2.previous_card_format_json": "مصفوفة JSON — مثل [\"OLD123\",\"OLD456\"]",
+  "sip2.previous_card_delimiter_label": "حرف الفصل",
+  "sip2.delim_comma": "فاصلة (,)",
+  "sip2.delim_semicolon": "فاصلة منقوطة (;)",
+  "sip2.delim_tab": "علامة تبويب",
+  "sip2.delim_custom": "أخرى…",
+  "sip2.delim_custom_placeholder": "حرف واحد",
+  "sip2.delim_pipe_note": "ملاحظة: لا يمكن استخدام \"|\" — فـ SIP2 نفسه يستخدمه لفصل الحقول، لذلك لا يمكن أن يحتوي حقل المزوّد عليه مطلقًا."
 }

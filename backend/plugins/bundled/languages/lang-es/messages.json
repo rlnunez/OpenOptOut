@@ -156,5 +156,18 @@
   "nav.monitoring": "Supervisión y alertas",
   "nav.terms": "Términos",
   "nav.usage_stats": "Estadísticas de uso",
-  "nav.system_updates": "Actualizaciones del sistema"
+  "nav.system_updates": "Actualizaciones del sistema",
+  "sip2.previous_card_title": "Vinculación de Tarjetas Reemitidas",
+  "sip2.previous_card_desc": "Si su SIGB indica el número de tarjeta anterior de un usuario al emitir una nueva, indique aquí ese campo para que una tarjeta reemitida se vincule a la cuenta existente del usuario en lugar de crear una duplicada. Deje el código de campo vacío para desactivar esta función.",
+  "sip2.previous_card_field_label": "Código del Campo de Tarjeta Anterior (ej. XC)",
+  "sip2.previous_card_format_label": "Formato",
+  "sip2.previous_card_format_delimited": "Delimitado — un solo campo, varios valores separados por un carácter",
+  "sip2.previous_card_format_json": "Matriz JSON — ej. [\"OLD123\",\"OLD456\"]",
+  "sip2.previous_card_delimiter_label": "Carácter delimitador",
+  "sip2.delim_comma": "Coma (,)",
+  "sip2.delim_semicolon": "Punto y coma (;)",
+  "sip2.delim_tab": "Tabulación",
+  "sip2.delim_custom": "Otro…",
+  "sip2.delim_custom_placeholder": "Un carácter",
+  "sip2.delim_pipe_note": "Nota: no se puede usar «|» — SIP2 lo usa para separar campos, por lo que un campo del proveedor nunca puede contenerlo."
 }

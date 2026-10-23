@@ -156,5 +156,18 @@
   "nav.monitoring": "监控与提醒",
   "nav.terms": "条款",
   "nav.usage_stats": "使用统计",
-  "nav.system_updates": "系统更新"
+  "nav.system_updates": "系统更新",
+  "sip2.previous_card_title": "补办卡片的账号关联",
+  "sip2.previous_card_desc": "如果您的图书馆系统（ILS）在发放新卡时会报告读者的旧卡号，请在此指定该字段，这样补办的卡就会关联到读者现有的账号，而不是新建一个重复账号。将字段代码留空即可关闭此功能。",
+  "sip2.previous_card_field_label": "旧卡字段代码（例如 XC）",
+  "sip2.previous_card_format_label": "格式",
+  "sip2.previous_card_format_delimited": "分隔符 —— 一个字段中用某个字符分隔多个值",
+  "sip2.previous_card_format_json": "JSON 数组 —— 例如 [\"OLD123\",\"OLD456\"]",
+  "sip2.previous_card_delimiter_label": "分隔符字符",
+  "sip2.delim_comma": "逗号 (,)",
+  "sip2.delim_semicolon": "分号 (;)",
+  "sip2.delim_tab": "Tab 制表符",
+  "sip2.delim_custom": "其他…",
+  "sip2.delim_custom_placeholder": "一个字符",
+  "sip2.delim_pipe_note": "注意：不能使用“|” —— SIP2 本身用它来分隔字段，因此供应商字段永远不会包含这个字符。"
 }

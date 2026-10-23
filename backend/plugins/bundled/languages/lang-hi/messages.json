@@ -156,5 +156,18 @@
   "nav.monitoring": "निगरानी और अलर्ट",
   "nav.terms": "शर्तें",
   "nav.usage_stats": "उपयोग के आँकड़े",
-  "nav.system_updates": "सिस्टम अपडेट"
+  "nav.system_updates": "सिस्टम अपडेट",
+  "sip2.previous_card_title": "नई जारी की गई कार्ड की लिंकिंग",
+  "sip2.previous_card_desc": "अगर आपका ILS नया कार्ड जारी करते समय पाठक का पुराना कार्ड नंबर बताता है, तो यहाँ वह फ़ील्ड बताएं ताकि नया कार्ड डुप्लिकेट खाता बनाने के बजाय पाठक के मौजूदा खाते से जुड़ जाए। इसे बंद करने के लिए फ़ील्ड कोड खाली छोड़ दें।",
+  "sip2.previous_card_field_label": "पुराने कार्ड की फ़ील्ड कोड (जैसे XC)",
+  "sip2.previous_card_format_label": "प्रारूप",
+  "sip2.previous_card_format_delimited": "सीमांकित — एक फ़ील्ड में कई मान, एक वर्ण से अलग किए गए",
+  "sip2.previous_card_format_json": "JSON सरणी — जैसे [\"OLD123\",\"OLD456\"]",
+  "sip2.previous_card_delimiter_label": "विभाजक वर्ण",
+  "sip2.delim_comma": "कॉमा (,)",
+  "sip2.delim_semicolon": "सेमीकोलन (;)",
+  "sip2.delim_tab": "टैब",
+  "sip2.delim_custom": "अन्य…",
+  "sip2.delim_custom_placeholder": "एक वर्ण",
+  "sip2.delim_pipe_note": "ध्यान दें: \"|\" का उपयोग नहीं किया जा सकता — SIP2 स्वयं इसे फ़ील्ड अलग करने के लिए उपयोग करता है, इसलिए विक्रेता की फ़ील्ड में यह कभी नहीं हो सकता।"
 }

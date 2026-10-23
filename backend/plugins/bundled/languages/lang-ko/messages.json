@@ -156,5 +156,18 @@
   "nav.monitoring": "모니터링 및 알림",
   "nav.terms": "이용 약관",
   "nav.usage_stats": "사용 통계",
-  "nav.system_updates": "시스템 업데이트"
+  "nav.system_updates": "시스템 업데이트",
+  "sip2.previous_card_title": "재발급 카드 연결",
+  "sip2.previous_card_desc": "도서관 시스템(ILS)이 새 카드를 발급할 때 이용자의 이전 카드 번호를 알려준다면, 여기에 그 항목을 지정하세요. 그러면 재발급된 카드가 중복 계정을 만드는 대신 기존 계정에 연결됩니다. 이 기능을 끄려면 항목 코드를 비워 두세요.",
+  "sip2.previous_card_field_label": "이전 카드 항목 코드(예: XC)",
+  "sip2.previous_card_format_label": "형식",
+  "sip2.previous_card_format_delimited": "구분 기호 — 한 항목에 여러 값을 하나의 문자로 구분",
+  "sip2.previous_card_format_json": "JSON 배열 — 예: [\"OLD123\",\"OLD456\"]",
+  "sip2.previous_card_delimiter_label": "구분 문자",
+  "sip2.delim_comma": "쉼표 (,)",
+  "sip2.delim_semicolon": "세미콜론 (;)",
+  "sip2.delim_tab": "탭",
+  "sip2.delim_custom": "기타…",
+  "sip2.delim_custom_placeholder": "한 글자",
+  "sip2.delim_pipe_note": "참고: \"|\"는 사용할 수 없습니다 — SIP2 자체가 항목을 구분하는 데 이 문자를 사용하므로, 공급업체 항목에는 이 문자가 들어갈 수 없습니다."
 }

@@ -156,5 +156,18 @@
   "nav.deadlines": "Laporan tenggat waktu",
   "nav.privacy_record": "Catatan privasi",
   "nav.calendar": "Kalender",
-  "nav.system_updates": "Pembaruan sistem"
+  "nav.system_updates": "Pembaruan sistem",
+  "sip2.previous_card_title": "Penautan Kartu yang Diterbitkan Ulang",
+  "sip2.previous_card_desc": "Jika ILS Anda melaporkan nomor kartu lama pembaca saat menerbitkan kartu baru, arahkan ke bidang tersebut di sini agar kartu yang diterbitkan ulang ditautkan ke akun pembaca yang sudah ada, bukan membuat akun duplikat. Biarkan kode bidang kosong untuk menonaktifkan fitur ini.",
+  "sip2.previous_card_field_label": "Kode Bidang Kartu Sebelumnya (mis. XC)",
+  "sip2.previous_card_format_label": "Format",
+  "sip2.previous_card_format_delimited": "Dipisahkan — satu bidang, beberapa nilai dipisahkan oleh satu karakter",
+  "sip2.previous_card_format_json": "Array JSON — mis. [\"OLD123\",\"OLD456\"]",
+  "sip2.previous_card_delimiter_label": "Karakter pemisah",
+  "sip2.delim_comma": "Koma (,)",
+  "sip2.delim_semicolon": "Titik koma (;)",
+  "sip2.delim_tab": "Tab",
+  "sip2.delim_custom": "Lainnya…",
+  "sip2.delim_custom_placeholder": "Satu karakter",
+  "sip2.delim_pipe_note": "Catatan: \"|\" tidak dapat digunakan — SIP2 sendiri menggunakannya untuk memisahkan bidang, sehingga bidang vendor tidak akan pernah berisi karakter itu."
 }

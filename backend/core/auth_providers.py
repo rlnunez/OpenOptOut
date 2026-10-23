@@ -37,6 +37,7 @@ class AuthResult:
     patron_choice: bool = True
     populate_vault: bool = False
     unavailable: bool = False   # provider unreachable/misconfigured, not a bad credential
+    previous_barcodes: list = field(default_factory=list)  # SIP2: old card numbers from a reissue, for account linking
 
 
 # ── Settings helpers ──────────────────────────────────────────────────────────
@@ -598,6 +599,40 @@ def sip2_parse_patron_response(resp: str) -> dict:
     return fields
 
 
+MAX_PREVIOUS_CARDS = 20  # bound a malformed/oversized field to a fixed number of lookups
+
+
+def parse_previous_cards(fields: dict, field_code: str, fmt: str, delimiter: str) -> list:
+    """
+    Extract old barcodes from a configured SIP2 variable field, so a patron
+    reissued a new card can be linked to their existing account instead of
+    getting a duplicate one. Admin-configurable field code + format, mirroring
+    the delimited-or-JSON-array dual format already used for
+    Branch.ils_location_codes (see the branch-code-mapping block below).
+    """
+    if not field_code:
+        return []
+    raw = (fields.get(field_code) or "").strip()
+    if not raw:
+        return []
+    if fmt == "json":
+        try:
+            items = json.loads(raw)
+            items = items if isinstance(items, list) else [items]
+        except Exception:
+            return []
+    else:
+        items = raw.split(delimiter or ",")
+    out = []
+    for v in items:
+        v = str(v).strip()
+        if v and sip2_value_safe(v):
+            out.append(v)
+        if len(out) >= MAX_PREVIOUS_CARDS:
+            break
+    return out
+
+
 def _sip2_connect(host: str, port: int, timeout: int, use_tls: bool,
                   ca_pem: str = "", ca_path: str = ""):
     """Open a socket to the ILS; for SIP2 over TLS, verify chain + hostname."""
@@ -667,6 +702,9 @@ def try_sip2_auth(barcode: str, pin: str, db=None) -> AuthResult:
                 forced_fields_raw = getattr(conn_obj, "forced_fields", '["library"]')
                 patron_choice = bool(getattr(conn_obj, "patron_choice", True))
                 populate_vault = bool(getattr(conn_obj, "populate_vault", False))
+                previous_card_field_code = getattr(conn_obj, "previous_card_field_code", None)
+                previous_card_format = getattr(conn_obj, "previous_card_format", "delimited") or "delimited"
+                previous_card_delimiter = getattr(conn_obj, "previous_card_delimiter", ",") or ","
         except Exception as e:
             log.warning("Could not query SIP2Connection table: %s; falling back to settings", e)
 
@@ -689,6 +727,9 @@ def try_sip2_auth(barcode: str, pin: str, db=None) -> AuthResult:
         forced_fields_raw = cfg.get("forced_fields", '["library"]')
         patron_choice = bool(cfg.get("patron_choice", True))
         populate_vault = bool(cfg.get("populate_vault", False))
+        previous_card_field_code = cfg.get("previous_card_field_code")
+        previous_card_format = cfg.get("previous_card_format", "delimited") or "delimited"
+        previous_card_delimiter = cfg.get("previous_card_delimiter", ",") or ","
 
     try:
         from datetime import datetime
@@ -734,6 +775,9 @@ def try_sip2_auth(barcode: str, pin: str, db=None) -> AuthResult:
                     error=f"Library card not eligible: {reason}",
                     raw_profile=fields,
                 )
+
+        previous_barcodes = parse_previous_cards(
+            fields, previous_card_field_code, previous_card_format, previous_card_delimiter)
 
         name = fields.get("AE", "").strip()
         email = f"{barcode}@{email_domain}"
@@ -820,7 +864,7 @@ def try_sip2_auth(barcode: str, pin: str, db=None) -> AuthResult:
             branch_id=branch_id, system_id=system_id, branch_code=loc_code,
             raw_profile=fields, mapped_demographics=mapped_demographics,
             forced_fields=forced_fields, patron_choice=patron_choice,
-            populate_vault=populate_vault,
+            populate_vault=populate_vault, previous_barcodes=previous_barcodes,
         )
 
     except (ssl.SSLError, ssl.SSLCertVerificationError) as e:
@@ -887,20 +931,24 @@ def exchange_oidc_code(provider_key: str, code: str, redirect_uri: str) -> AuthR
 
     try:
         import httpx
+        from .dns_guard import safe_dns_context
 
         client_id     = cfg["client_id"]
         client_secret = decrypt_password(cfg.get("client_secret_enc", ""))
         token_endpoint = cfg.get("token_endpoint") or _discover_endpoint(cfg, "token_endpoint")
         userinfo_endpoint = cfg.get("userinfo_endpoint") or _discover_endpoint(cfg, "userinfo_endpoint")
+        _guard_oidc_url(token_endpoint)
+        _guard_oidc_url(userinfo_endpoint)
 
         # Exchange code for tokens
-        resp = httpx.post(token_endpoint, data={
-            "grant_type":    "authorization_code",
-            "code":          code,
-            "redirect_uri":  redirect_uri,
-            "client_id":     client_id,
-            "client_secret": client_secret,
-        }, timeout=10)
+        with safe_dns_context():
+            resp = httpx.post(token_endpoint, data={
+                "grant_type":    "authorization_code",
+                "code":          code,
+                "redirect_uri":  redirect_uri,
+                "client_id":     client_id,
+                "client_secret": client_secret,
+            }, timeout=10, follow_redirects=False)
         resp.raise_for_status()
         tokens = resp.json()
 
@@ -909,8 +957,9 @@ def exchange_oidc_code(provider_key: str, code: str, redirect_uri: str) -> AuthR
             return AuthResult(success=False, provider=provider_key, error="No access token returned")
 
         # Fetch user info
-        user_resp = httpx.get(userinfo_endpoint,
-            headers={"Authorization": f"Bearer {access_token}"}, timeout=10)
+        with safe_dns_context():
+            user_resp = httpx.get(userinfo_endpoint,
+                headers={"Authorization": f"Bearer {access_token}"}, timeout=10, follow_redirects=False)
         user_resp.raise_for_status()
         user_info = user_resp.json()
 
@@ -948,6 +997,19 @@ def exchange_oidc_code(provider_key: str, code: str, redirect_uri: str) -> AuthR
         return AuthResult(success=False, provider=provider_key, error=str(e))
 
 
+def _guard_oidc_url(url: str) -> None:
+    """Reject an OIDC endpoint URL that isn't https or doesn't resolve to a
+    public address, so a malicious/compromised admin-configured host can't be
+    used to reach internal services (SSRF / DNS-rebinding guard)."""
+    import urllib.parse
+    from .dns_guard import public_host
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme.lower() != "https" or not parsed.hostname:
+        raise ValueError(f"OIDC endpoint must be https://: {url}")
+    if not public_host(parsed.hostname):
+        raise ValueError(f"OIDC endpoint does not point to a public server: {url}")
+
+
 def _discover_endpoint(cfg: dict, field: str) -> str:
     """Fetch OIDC discovery document and cache endpoints."""
     discovery_url = cfg.get("discovery_url")
@@ -955,8 +1017,14 @@ def _discover_endpoint(cfg: dict, field: str) -> str:
         raise ValueError(f"No {field} or discovery_url configured")
     try:
         import httpx
-        doc = httpx.get(f"{discovery_url.rstrip('/')}/.well-known/openid-configuration", timeout=10).json()
+        from .dns_guard import safe_dns_context
+        well_known = f"{discovery_url.rstrip('/')}/.well-known/openid-configuration"
+        _guard_oidc_url(well_known)
+        with safe_dns_context():
+            doc = httpx.get(well_known, timeout=10, follow_redirects=False).json()
         return doc[field]
+    except ValueError:
+        raise
     except Exception as e:
         raise ValueError(f"OIDC discovery failed: {e}")
 

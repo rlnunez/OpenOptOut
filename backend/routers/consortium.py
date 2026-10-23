@@ -106,6 +106,9 @@ class SIP2ConnectionCreate(LimitedModel):
     forced_fields: Optional[Any] = ["library"]
     patron_choice: bool = True
     populate_vault: bool = False
+    previous_card_field_code: Optional[str] = None
+    previous_card_format: str = "delimited"
+    previous_card_delimiter: str = ","
 
 
 class SIP2ConnectionUpdate(LimitedModel):
@@ -133,6 +136,9 @@ class SIP2ConnectionUpdate(LimitedModel):
     forced_fields: Optional[Any] = None
     patron_choice: Optional[bool] = None
     populate_vault: Optional[bool] = None
+    previous_card_field_code: Optional[str] = None
+    previous_card_format: Optional[str] = None
+    previous_card_delimiter: Optional[str] = None
 
 
 class SIP2ConnectionOut(BaseModel):
@@ -162,6 +168,9 @@ class SIP2ConnectionOut(BaseModel):
     forced_fields: Optional[Any] = ["library"]
     patron_choice: bool = True
     populate_vault: bool = False
+    previous_card_field_code: Optional[str] = None
+    previous_card_format: str = "delimited"
+    previous_card_delimiter: str = ","
     created_at: datetime
 
     class Config:
@@ -500,6 +509,15 @@ def _parse_forced_fields(raw: Optional[str]) -> List[str]:
         return ["library"]
 
 
+def _validate_previous_card(field_code: Optional[str], fmt: Optional[str], delimiter: Optional[str]):
+    if field_code is not None and field_code and (len(field_code) != 2 or not field_code.isalnum()):
+        raise HTTPException(400, "Previous-card field code must be the 2-letter SIP2 field code (e.g. XC).")
+    if fmt is not None and fmt not in ("delimited", "json"):
+        raise HTTPException(400, "Previous-card format must be 'delimited' or 'json'.")
+    if delimiter is not None and len(delimiter) != 1:
+        raise HTTPException(400, "Previous-card delimiter must be a single character.")
+
+
 @router.get("/sip2-connections", response_model=List[SIP2ConnectionOut])
 def list_sip2_connections(
     db: Session = Depends(get_db),
@@ -525,6 +543,9 @@ def list_sip2_connections(
             forced_fields=_parse_forced_fields(getattr(c, "forced_fields", None)),
             patron_choice=bool(getattr(c, "patron_choice", True)),
             populate_vault=bool(getattr(c, "populate_vault", False)),
+            previous_card_field_code=getattr(c, "previous_card_field_code", None),
+            previous_card_format=getattr(c, "previous_card_format", "delimited") or "delimited",
+            previous_card_delimiter=getattr(c, "previous_card_delimiter", ",") or ",",
             created_at=c.created_at,
         )
         for c in conns
@@ -557,6 +578,8 @@ def create_sip2_connection(
 
     forced_str = json.dumps(data.forced_fields) if isinstance(data.forced_fields, list) else str(data.forced_fields or '["library"]')
 
+    _validate_previous_card(data.previous_card_field_code, data.previous_card_format, data.previous_card_delimiter)
+
     c = SIP2Connection(
         system_id=data.system_id,
         name=data.name.strip(),
@@ -582,6 +605,9 @@ def create_sip2_connection(
         forced_fields=forced_str,
         patron_choice=bool(data.patron_choice),
         populate_vault=bool(data.populate_vault),
+        previous_card_field_code=(data.previous_card_field_code or "").strip() or None,
+        previous_card_format=data.previous_card_format or "delimited",
+        previous_card_delimiter=data.previous_card_delimiter or ",",
     )
     db.add(c)
     db.commit()
@@ -604,6 +630,9 @@ def create_sip2_connection(
         forced_fields=_parse_forced_fields(c.forced_fields),
         patron_choice=bool(c.patron_choice),
         populate_vault=bool(c.populate_vault),
+        previous_card_field_code=c.previous_card_field_code,
+        previous_card_format=c.previous_card_format or "delimited",
+        previous_card_delimiter=c.previous_card_delimiter or ",",
         created_at=c.created_at,
     )
 
@@ -669,6 +698,14 @@ def update_sip2_connection(
         c.patron_choice = bool(data.patron_choice)
     if data.populate_vault is not None:
         c.populate_vault = bool(data.populate_vault)
+    if data.previous_card_field_code is not None or data.previous_card_format is not None or data.previous_card_delimiter is not None:
+        _validate_previous_card(data.previous_card_field_code, data.previous_card_format, data.previous_card_delimiter)
+    if data.previous_card_field_code is not None:
+        c.previous_card_field_code = data.previous_card_field_code.strip() or None
+    if data.previous_card_format is not None:
+        c.previous_card_format = data.previous_card_format
+    if data.previous_card_delimiter is not None:
+        c.previous_card_delimiter = data.previous_card_delimiter
 
     db.commit()
     db.refresh(c)
@@ -690,6 +727,9 @@ def update_sip2_connection(
         forced_fields=_parse_forced_fields(getattr(c, "forced_fields", None)),
         patron_choice=bool(getattr(c, "patron_choice", True)),
         populate_vault=bool(getattr(c, "populate_vault", False)),
+        previous_card_field_code=getattr(c, "previous_card_field_code", None),
+        previous_card_format=getattr(c, "previous_card_format", "delimited") or "delimited",
+        previous_card_delimiter=getattr(c, "previous_card_delimiter", ",") or ",",
         created_at=c.created_at,
     )
 

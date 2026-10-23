@@ -925,6 +925,9 @@ function AuthProvidersSection() {
         field_mappings: config.sip2_field_mappings || null,
         forced_fields: config.sip2_forced_fields || ['library'],
         patron_choice: config.sip2_patron_choice !== false,
+        previous_card_field_code: (config.sip2_previous_card_field_code || '').trim() || null,
+        previous_card_format: config.sip2_previous_card_format || 'delimited',
+        previous_card_delimiter: config.sip2_previous_card_delimiter || ',',
         ...(config._sip2_pw ? { ils_password: config._sip2_pw } : {}),
       })
       setSip2Msg({ ok: true, warnings: r.data.warnings || [] })
@@ -1236,6 +1239,77 @@ function AuthProvidersSection() {
                   </Field>
                 </div>
               )}
+
+              <div className="space-y-3 pt-3 border-t border-slate-800">
+                <div>
+                  <span className="text-xs text-slate-300 font-medium block">
+                    {t('sip2.previous_card_title', 'Reissued Card Linking')}
+                  </span>
+                  <p className="text-[11px] text-slate-500">
+                    {t('sip2.previous_card_desc', "If your ILS reports a patron's old card number(s) when it issues a new one, point this at that field so a reissued card links to the patron's existing account instead of creating a duplicate. Leave the field code blank to turn this off.")}
+                  </p>
+                </div>
+
+                <Field label={t('sip2.previous_card_field_label', 'Previous Card Field Code (e.g. XC)')}>
+                  <input
+                    value={config.sip2_previous_card_field_code || ''}
+                    onChange={e => setConfig(c => ({...c, sip2_previous_card_field_code: e.target.value.trim().toUpperCase().slice(0, 2)}))}
+                    placeholder="XC"
+                    maxLength={2}
+                    className={inp}
+                  />
+                </Field>
+
+                {config.sip2_previous_card_field_code && (
+                  <>
+                    <Field label={t('sip2.previous_card_format_label', 'Format')}>
+                      <select
+                        value={config.sip2_previous_card_format || 'delimited'}
+                        onChange={e => setConfig(c => ({...c, sip2_previous_card_format: e.target.value}))}
+                        className={inp}
+                      >
+                        <option value="delimited">{t('sip2.previous_card_format_delimited', 'Delimited — one field, multiple values separated by a character')}</option>
+                        <option value="json">{t('sip2.previous_card_format_json', 'JSON array — e.g. ["OLD123","OLD456"]')}</option>
+                      </select>
+                    </Field>
+
+                    {config.sip2_previous_card_format !== 'json' && (() => {
+                      const presetDelims = [',', ';', '\t']
+                      const delim = config.sip2_previous_card_delimiter || ','
+                      const isCustom = !presetDelims.includes(delim)
+                      return (
+                        <Field label={t('sip2.previous_card_delimiter_label', 'Delimiter character')}>
+                          <select
+                            value={isCustom ? 'custom' : delim}
+                            onChange={e => {
+                              const v = e.target.value
+                              setConfig(c => ({...c, sip2_previous_card_delimiter: v === 'custom' ? '' : v}))
+                            }}
+                            className={inp}
+                          >
+                            <option value=",">{t('sip2.delim_comma', 'Comma (,)')}</option>
+                            <option value=";">{t('sip2.delim_semicolon', 'Semicolon (;)')}</option>
+                            <option value="\t">{t('sip2.delim_tab', 'Tab')}</option>
+                            <option value="custom">{t('sip2.delim_custom', 'Other…')}</option>
+                          </select>
+                          <p className="text-slate-500 text-[11px] mt-1">
+                            {t('sip2.delim_pipe_note', "Note: \"|\" can't be used — SIP2 itself uses it to separate fields, so a vendor field can never contain one.")}
+                          </p>
+                          {isCustom && (
+                            <input
+                              value={delim}
+                              onChange={e => setConfig(c => ({...c, sip2_previous_card_delimiter: e.target.value.slice(0, 1)}))}
+                              placeholder={t('sip2.delim_custom_placeholder', 'One character')}
+                              maxLength={1}
+                              className={`${inp} mt-1`}
+                            />
+                          )}
+                        </Field>
+                      )
+                    })()}
+                  </>
+                )}
+              </div>
             </div>
 
             {testResults.sip2 && (

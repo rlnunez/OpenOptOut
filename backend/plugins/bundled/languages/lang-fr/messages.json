@@ -156,5 +156,18 @@
   "nav.monitoring": "Surveillance et alertes",
   "nav.terms": "Conditions",
   "nav.usage_stats": "Statistiques d'utilisation",
-  "nav.system_updates": "Mises à jour du système"
+  "nav.system_updates": "Mises à jour du système",
+  "sip2.previous_card_title": "Liaison des Cartes Réémises",
+  "sip2.previous_card_desc": "Si votre SIGB indique l'ancien numéro de carte d'un usager lors de l'émission d'une nouvelle, indiquez ce champ ici afin qu'une carte réémise soit liée au compte existant de l'usager au lieu de créer un doublon. Laissez le code de champ vide pour désactiver cette fonction.",
+  "sip2.previous_card_field_label": "Code du Champ de l'Ancienne Carte (ex. XC)",
+  "sip2.previous_card_format_label": "Format",
+  "sip2.previous_card_format_delimited": "Délimité — un seul champ, plusieurs valeurs séparées par un caractère",
+  "sip2.previous_card_format_json": "Tableau JSON — ex. [\"OLD123\",\"OLD456\"]",
+  "sip2.previous_card_delimiter_label": "Caractère délimiteur",
+  "sip2.delim_comma": "Virgule (,)",
+  "sip2.delim_semicolon": "Point-virgule (;)",
+  "sip2.delim_tab": "Tabulation",
+  "sip2.delim_custom": "Autre…",
+  "sip2.delim_custom_placeholder": "Un caractère",
+  "sip2.delim_pipe_note": "Remarque : le caractère « | » ne peut pas être utilisé — SIP2 l'utilise lui-même pour séparer les champs, donc un champ fournisseur ne peut jamais en contenir."
 }

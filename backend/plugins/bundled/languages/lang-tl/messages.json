@@ -156,5 +156,18 @@
   "nav.monitoring": "Pagsubaybay at mga alerto",
   "nav.terms": "Mga tuntunin",
   "nav.usage_stats": "Estadistika ng paggamit",
-  "nav.system_updates": "Mga update sa system"
+  "nav.system_updates": "Mga update sa system",
+  "sip2.previous_card_title": "Pag-uugnay ng Muling Ipinalabas na Kard",
+  "sip2.previous_card_desc": "Kung iniuulat ng iyong ILS ang dating numero ng kard ng isang patron kapag naglabas ito ng bago, ituro dito ang field na iyon para ang muling ipinalabas na kard ay maiugnay sa umiiral na account ng patron sa halip na gumawa ng duplicate. Iwanang blangko ang field code para patayin ang feature na ito.",
+  "sip2.previous_card_field_label": "Field Code ng Nakaraang Kard (hal. XC)",
+  "sip2.previous_card_format_label": "Format",
+  "sip2.previous_card_format_delimited": "May Panghati — isang field, maraming value na pinaghihiwalay ng isang karakter",
+  "sip2.previous_card_format_json": "JSON array — hal. [\"OLD123\",\"OLD456\"]",
+  "sip2.previous_card_delimiter_label": "Karakter na panghati",
+  "sip2.delim_comma": "Kuwit (,)",
+  "sip2.delim_semicolon": "Tuldok-kuwit (;)",
+  "sip2.delim_tab": "Tab",
+  "sip2.delim_custom": "Iba pa…",
+  "sip2.delim_custom_placeholder": "Isang karakter",
+  "sip2.delim_pipe_note": "Tandaan: hindi magagamit ang \"|\" — ginagamit mismo ng SIP2 ito para paghiwalayin ang mga field, kaya hinding-hindi ito maaaring lumabas sa field ng vendor."
 }
