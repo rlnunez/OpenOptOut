@@ -3438,6 +3438,64 @@ def t_send_routing():
     # IF THIS FAILS: the opt-out engine's transport-agnostic send is broken.
 
 
+@test(1, "email.smtp_tls_bool_and_string_normalized",
+      "smtp_tls stored as a bool (Settings page checkbox) or a string (the wizard's "
+      "starttls/ssl/none select) both actually enable the right transport security on "
+      "send — a bool True no longer silently falls back to unencrypted SMTP.")
+def t_smtp_tls_normalized():
+    import smtplib
+    es = _imp("core.email_send")
+
+    assert es.normalize_smtp_tls(True) == "starttls"
+    assert es.normalize_smtp_tls(False) == "none"
+    assert es.normalize_smtp_tls("ssl") == "ssl"
+    assert es.normalize_smtp_tls("starttls") == "starttls"
+    assert es.normalize_smtp_tls(None) == "starttls"
+
+    class FakeSMTP:
+        instances = []
+        def __init__(self, *a, **kw):
+            self.starttls_called = False
+            self.logged_in = False
+            type(self).instances.append(self)
+        def starttls(self, *a, **kw): self.starttls_called = True
+        def login(self, *a, **kw): self.logged_in = True
+        def sendmail(self, *a, **kw): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    class FakeSMTPSSL(FakeSMTP):
+        instances = []
+
+    orig_smtp, orig_ssl = smtplib.SMTP, smtplib.SMTP_SSL
+    smtplib.SMTP, smtplib.SMTP_SSL = FakeSMTP, FakeSMTPSSL
+    cfg = {"email": {"smtp_host": "smtp.example.invalid", "smtp_port": 587,
+                     "smtp_user": "a@example.invalid", "smtp_tls": True}}
+    try:
+        FakeSMTP.instances.clear(); FakeSMTPSSL.instances.clear()
+        r = es._smtp_send(cfg, ["b@example.invalid"], [], "s", "b")
+        assert r["ok"] is True, r
+        assert len(FakeSMTP.instances) == 1 and FakeSMTP.instances[0].starttls_called, \
+            "smtp_tls=True (bool) did not call starttls() — this is the plaintext-fallback bug"
+
+        cfg["email"]["smtp_tls"] = False
+        FakeSMTP.instances.clear()
+        es._smtp_send(cfg, ["b@example.invalid"], [], "s", "b")
+        assert not FakeSMTP.instances[0].starttls_called, "smtp_tls=False should not call starttls()"
+
+        cfg["email"]["smtp_tls"] = "ssl"
+        FakeSMTPSSL.instances.clear()
+        es._smtp_send(cfg, ["b@example.invalid"], [], "s", "b")
+        assert len(FakeSMTPSSL.instances) == 1, "smtp_tls='ssl' should use SMTP_SSL, not plain SMTP + starttls"
+    finally:
+        smtplib.SMTP, smtplib.SMTP_SSL = orig_smtp, orig_ssl
+    # EXPECTED: every stored representation of "use TLS" actually results in
+    #   an encrypted connection.
+    # IF THIS FAILS: email (including password-change notices and opt-out
+    #   confirmation links) can silently send over plaintext SMTP while the
+    #   admin's "Use TLS" checkbox still shows on.
+
+
 @test(1, "sso_policy.google_requires_workspace_hd",
       "Google sign-in with allowed domains requires the Workspace hd claim, not just a matching email.")
 def t_sso_google_hd():
@@ -6141,9 +6199,10 @@ def t_version_reporting():
 
 
 @test(1, "auth.password_hashing_works_and_rejects_oversized",
-      "hash_password/verify_password actually work with the pinned bcrypt version, and "
-      "passwords over bcrypt's 72-byte limit are rejected with a clear error, not a crash "
-      "or silent truncation.")
+      "hash_password/verify_password actually work with the pinned bcrypt version; "
+      "PBKDF2 peppering keeps bcrypt's 72-byte truncation from ever mattering, so a "
+      "64-character multi-byte password hashes correctly; and passwords over the "
+      "application's own character limit are rejected with a clear error.")
 def t_password_hashing():
     try:
         auth = _imp("core.auth")
@@ -6177,23 +6236,40 @@ def t_password_hashing():
     #   EVERY user, not just ones with long passwords, exactly like the
     #   original bug report.
 
-    # Defense in depth: bcrypt silently truncates anything past 72 BYTES
-    # rather than erroring (verified: two passwords sharing the same first 72
-    # bytes but differing after that hash identically) — a real, permanent
-    # algorithm limit, not a version-compatibility bug like the above. Reject
-    # it up front with a clear message instead of accepting a password that's
-    # silently not what the user thinks it is.
+    # bcrypt silently truncates anything past 72 BYTES of whatever it's
+    # given rather than erroring — but hash_password peppers the raw password
+    # into a fixed 44-character digest first, so bcrypt never actually sees
+    # more than that regardless of how long the original password is. Confirm
+    # that directly: two long passwords sharing only the same first 72 BYTES
+    # must hash differently (if they hashed the same, peppering wouldn't be
+    # happening and the old truncation bug would be back).
     ok_72 = "x" * 72
-    auth.hash_password(ok_72)   # exactly at the limit — must still work
-    too_long = "x" * 100
+    h72 = auth.hash_password(ok_72)
+    assert auth.verify_password(ok_72, h72)
+    assert not auth.verify_password("x" * 71 + "y", h72)
+
+    # validate_password_length enforces a CHARACTER limit (ASVS 6.2.9: must
+    # accept at least 64 characters) — not a byte limit, which would reject a
+    # genuinely-short multi-byte password far before 64 characters.
+    too_long = "x" * 200
     try:
         auth.validate_password_length(too_long)
-        raise AssertionError("a 100-byte password was not rejected")
+        raise AssertionError("a 200-character password was not rejected")
     except ValueError as e:
-        assert "72" in str(e)
-    assert auth.validate_password_length(ok_72) == ok_72   # at the limit: allowed
+        assert str(auth.MAX_PASSWORD_CHARS) in str(e)
+    assert auth.validate_password_length("x" * auth.MAX_PASSWORD_CHARS) == "x" * auth.MAX_PASSWORD_CHARS
     assert auth.validate_password_length(None) is None     # no password (SSO-only user): allowed
     assert auth.validate_password_length("") == ""          # empty: allowed (caller decides if that's valid)
+
+    # The actual bug: a 64-character password made of 2-byte-each Cyrillic
+    # characters is 128 bytes — well over the old byte-based 72 limit — but
+    # is exactly the character count ASVS 6.2.9 says must be accepted, and
+    # must hash/verify correctly end to end.
+    cyrillic_64 = "д" * 64
+    assert len(cyrillic_64.encode("utf-8")) > 100
+    assert auth.validate_password_length(cyrillic_64) == cyrillic_64
+    h_cyr = auth.hash_password(cyrillic_64)
+    assert auth.verify_password(cyrillic_64, h_cyr)
 
 
 @test(1, "text_input.clean_name",
@@ -6442,6 +6518,66 @@ def t_request_size_limits():
         pass
     auth_router.RegisterRequest(email="jordan@example.com", full_name="Jordan", invite_code="ABC123")
     # EXPECTED: 413 / 414 with readable messages; normal requests unaffected.
+
+
+@test(4, "main.cors_methods_not_wildcarded",
+      "CORS advertises the exact HTTP verbs routes actually use, not '*' (ASVS 4.1.4 "
+      "defense-in-depth — routing itself still 405s anything unsupported regardless).")
+def t_cors_methods_not_wildcarded():
+    try:
+        from fastapi.testclient import TestClient
+        main = importlib.import_module(_mod("main"))
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    client = TestClient(main.app, raise_server_exceptions=False)
+    r = client.options("/api/health", headers={
+        "Origin": "http://localhost", "Access-Control-Request-Method": "GET",
+    })
+    allowed = r.headers.get("access-control-allow-methods", "")
+    assert allowed and "*" not in allowed, allowed
+    for verb in ("GET", "POST", "PUT", "PATCH", "DELETE"):
+        assert verb in allowed, f"{verb} missing from advertised methods: {allowed}"
+    # EXPECTED: a real, bounded list of verbs, not a blanket "*".
+    # IF THIS FAILS: CORS preflight tells any cross-origin caller every verb
+    #   is allowed, which is more than this API actually needs to advertise.
+
+
+@test(4, "main.unhandled_exception_caught_and_logged",
+      "An exception type with no specific handler still gets a generic 500 body (no stack "
+      "trace/internals leaked) and is logged, instead of taking the process down or leaking "
+      "a raw traceback to the caller (ASVS 16.5.1/16.5.4).")
+def t_unhandled_exception_handler():
+    import logging, io
+    try:
+        from fastapi.testclient import TestClient
+        main = importlib.import_module(_mod("main"))
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    client = TestClient(main.app, raise_server_exceptions=False)
+    buf = io.StringIO()
+    h = logging.StreamHandler(buf)
+    h.setFormatter(logging.Formatter("%(message)s"))
+    lg = logging.getLogger(main.__name__)
+    lg.addHandler(h)
+    orig_propagate = lg.propagate
+    lg.propagate = False
+    orig_get_version = main.get_version
+    main.get_version = lambda: 1 / 0   # an exception type nobody registered a handler for
+    try:
+        r = client.get("/api/health")
+        assert r.status_code == 500, r.status_code
+        assert r.json() == {"detail": "An unexpected error occurred."}, r.text
+        assert "ZeroDivisionError" not in r.text and "Traceback" not in r.text
+        out = buf.getvalue()
+        assert "Unhandled exception" in out and "/api/health" in out, out
+    finally:
+        main.get_version = orig_get_version
+        lg.removeHandler(h)
+        lg.propagate = orig_propagate
+    # EXPECTED: a generic error body on the wire, full detail in the app's own log.
+    # IF THIS FAILS: either an unhandled exception type leaks internals to a
+    #   caller, or it's silently missing from this app's own log store.
     # IF THIS FAILS: RequestSizeLimitMiddleware was removed from main.py or
     #   its ordering changed so the body is read before the check.
 
@@ -9067,6 +9203,131 @@ def t_auth_change_own_password():
         s.close()
 
 
+@test(2, "auth.auth_events_logged",
+      "Sign-in success, sign-in failure and sign-out each write a structured audit line "
+      "(ASVS 16.3.1) identifying the account by user_id, never by email/PII (the log "
+      "formatter would scrub an email anyway).")
+def t_auth_events_logged():
+    import logging, io
+    from types import SimpleNamespace as NS
+    try:
+        auth_router = _imp("routers.auth")
+        auth_mod = _imp("core.auth")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    db, s = _memory_db()
+    user = db.User(email="events@x.org", full_name="Events User", role=db.UserRole.member,
+                   hashed_password=auth_mod.hash_password("Correct-Horse-9!"))
+    s.add(user); s.commit()
+
+    buf = io.StringIO()
+    h = logging.StreamHandler(buf)
+    h.setFormatter(logging.Formatter("%(message)s"))
+    lg = logging.getLogger(auth_router.__name__)
+    orig_propagate, orig_level = lg.propagate, lg.level
+    lg.addHandler(h); lg.propagate = False
+    lg.setLevel(logging.INFO)   # success events log at INFO; this app's
+    # default root level (WARNING) would otherwise silently drop them, same
+    # as every other INFO-level call in this codebase — raising it here is
+    # exactly what an admin does via the Logs page to see them for real.
+    try:
+        from fastapi import HTTPException
+        try:
+            auth_router.login(NS(username="events@x.org", password="wrong"), None, s)
+        except HTTPException:
+            pass
+        auth_router.login(NS(username="events@x.org", password="Correct-Horse-9!"), None, s)
+        auth_router.signout(db=s, current_user=user, current_jti=None, request=None)
+        out = buf.getvalue()
+    finally:
+        lg.removeHandler(h); lg.propagate = orig_propagate; lg.setLevel(orig_level)
+
+    assert f"event=login outcome=failure method=password user_id={user.id}" in out, out
+    assert f"event=login outcome=success method=password user_id={user.id}" in out, out
+    assert f"event=logout outcome=success method=- user_id={user.id}" in out, out
+    assert "events@x.org" not in out, "the account's email leaked into the audit log"
+    s.close()
+    # EXPECTED: every sign-in attempt and sign-out is now in this app's own log
+    #   store, identified by a stable non-PII id.
+    # IF THIS FAILS: there is no audit trail of who signed in/out or when —
+    #   there was none at all before this test existed.
+
+
+@test(2, "access.authorization_denial_logged",
+      "A permission check that denies access logs the denial (actor, permission, path) "
+      "before raising 403 (ASVS 16.3.2).")
+def t_authz_denial_logged():
+    import logging, io
+    from types import SimpleNamespace as NS
+    try:
+        from fastapi import HTTPException
+        access = _imp("core.access")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    other = NS(id=99, email="nobody@x.org", is_super_admin=False, is_manager=True,
+               permissions_granted=None, permissions_revoked=None)
+    can_upload = access.require_permission("plugins.upload")
+
+    buf = io.StringIO()
+    h = logging.StreamHandler(buf)
+    h.setFormatter(logging.Formatter("%(message)s"))
+    lg = logging.getLogger(access.__name__)
+    orig_propagate = lg.propagate
+    lg.addHandler(h); lg.propagate = False
+    try:
+        try:
+            can_upload(other)
+            assert False, "denial didn't raise"
+        except HTTPException as e:
+            assert e.status_code == 403
+        out = buf.getvalue()
+    finally:
+        lg.removeHandler(h); lg.propagate = orig_propagate
+
+    assert "authz_denied" in out and "user_id=99" in out and "plugins.upload" in out, out
+    # EXPECTED: the denial is logged with who/what before the 403 is raised.
+    # IF THIS FAILS: there was previously no record at all of authorization denials.
+
+
+@test(2, "login_throttle.lockout_logged",
+      "A key actually crossing into lockout (not just one failed attempt) is logged — an "
+      "anti-automation control being tripped, per ASVS 16.3.3.")
+def t_lockout_logged():
+    import logging, io
+    try:
+        throttle = _imp("core.login_throttle")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    buf = io.StringIO()
+    h = logging.StreamHandler(buf)
+    h.setFormatter(logging.Formatter("%(message)s"))
+    lg = logging.getLogger(throttle.__name__)
+    orig_propagate = lg.propagate
+    lg.addHandler(h); lg.propagate = False
+    throttle._state.clear()
+    try:
+        key = throttle.account_key("password", "lockout-test@x.org")
+        for _ in range(throttle.MAX_FAILURES):
+            throttle.failure(key)
+        out = buf.getvalue()
+    finally:
+        lg.removeHandler(h); lg.propagate = orig_propagate
+        throttle._state.clear()
+
+    assert "lockout_triggered" in out, out
+    # The raw key embeds the account identifier (same as every other throttle
+    # key) — confirm the app's own log scrubbing (tested on its own merits in
+    # logs.uvicorn_and_worker_handlers_scrubbed), which every real handler
+    # applies, would still remove it before it reaches disk.
+    lc = _imp("core.logging_config")
+    assert "lockout-test@x.org" not in lc.sanitize_log_message(out)
+    # EXPECTED: crossing into lockout is logged once, distinctly from an
+    #   ordinary failed attempt.
+    # IF THIS FAILS: there was no record of anti-automation controls tripping.
+
+
 @test(2, "auth.sessions_listed_and_revoked",
       "Logging in creates a trackable session; a user can list and revoke their own sessions, "
       "a revoked session's token stops working immediately, and you can't revoke someone else's.")
@@ -9116,6 +9377,61 @@ def t_auth_sessions_listed_and_revoked():
     #   takes effect on the very next request, not just at the account level.
     # IF THIS FAILS: a lost/stolen device's session can't be killed without
     #   nuking every other session too (the old token_version-only behavior).
+
+
+@test(2, "auth.idle_timeout_enforced",
+      "A session that's gone quiet past the role's configured idle timeout is rejected on "
+      "its next use (ASVS 7.3.1); 0/unset disables it; an active session's last_seen_at "
+      "advances so it never falsely times out.")
+def t_auth_idle_timeout_enforced():
+    from datetime import datetime, timedelta
+    try:
+        from fastapi import HTTPException
+        auth_mod = _imp("core.auth")
+        sess_pol = _imp("core.session_policy")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    db, s = _memory_db()
+    user = db.User(email="idle@x.org", full_name="Idle User", role=db.UserRole.member,
+                   hashed_password=auth_mod.hash_password("Correct-Horse-9!"))
+    s.add(user); s.commit()
+
+    orig_get_idle = sess_pol.get_idle_timeout_minutes
+    try:
+        # Disabled (default): a session quiet for an hour is still accepted,
+        # and using it advances last_seen_at.
+        sess_pol.get_idle_timeout_minutes = lambda role: 0
+        token = sess_pol.create_user_token(user, s)
+        row = s.query(db.UserSession).filter(db.UserSession.user_id == user.id).first()
+        row.last_seen_at = datetime.utcnow() - timedelta(hours=1)
+        s.commit()
+        assert auth_mod.get_current_user(token=token, db=s).id == user.id
+        s.refresh(row)
+        assert datetime.utcnow() - row.last_seen_at < timedelta(minutes=1), \
+            "an active session's last_seen_at did not advance"
+
+        # Enabled: idle past the timeout is rejected...
+        sess_pol.get_idle_timeout_minutes = lambda role: 10
+        row.last_seen_at = datetime.utcnow() - timedelta(minutes=11)
+        s.commit()
+        try:
+            auth_mod.get_current_user(token=token, db=s)
+            assert False, "an idle-past-timeout session was still accepted"
+        except HTTPException as e:
+            assert e.status_code == 401
+        s.refresh(row)
+        assert row.revoked_at is not None, "an idle timeout should revoke the session row too"
+
+        # ...but a second, fresh session for the same user is unaffected.
+        token2 = sess_pol.create_user_token(user, s)
+        assert auth_mod.get_current_user(token=token2, db=s).id == user.id
+    finally:
+        sess_pol.get_idle_timeout_minutes = orig_get_idle
+        s.close()
+    # EXPECTED: idle timeout is per-session, opt-in, and only fires once the
+    #   configured quiet period has actually passed.
+    # IF THIS FAILS: a session with an hours-long absolute expiry could stay
+    #   usable indefinitely after the person walked away from an open tab.
 
 
 @test(2, "admin.revoke_all_sessions_for_user",

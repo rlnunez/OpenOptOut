@@ -3451,5 +3451,8 @@
   "Signing out…": "Wylogowywanie…",
   "Stays signed in": "Pozostaje zalogowany",
   "This device": "To urządzenie",
-  "Unknown device": "Nieznane urządzenie"
+  "Unknown device": "Nieznane urządzenie",
+  "Idle Timeout (Minutes)": "Limit czasu bezczynności (minuty)",
+  "minutes": "minuty",
+  "Sign out automatically after this long with no activity, even within the session lifetime above. 0 disables it.": "Wyloguj automatycznie po tym czasie bezczynności, nawet w ramach podanego wyżej czasu trwania sesji. 0 wyłącza tę opcję."
 }

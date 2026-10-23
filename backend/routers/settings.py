@@ -16,6 +16,7 @@ from ..models.database import get_db, User
 from ..core.auth import get_current_user, require_super_admin
 from ..core.access import require_permission
 from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE, get_secret_key, is_valid_secret_key
+from ..core.email_send import normalize_smtp_tls
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -254,7 +255,13 @@ def get_settings(_: User = Depends(get_current_user)):
             poll_interval_minutes=e.get("poll_interval_minutes", 15),
             smtp_host=e.get("smtp_host"),             smtp_port=e.get("smtp_port", 587),
             smtp_user=smtp_user,                      smtp_password_set=smtp_pw_set,
-            smtp_tls=e.get("smtp_tls", True),
+            # smtp_tls may be stored as a bool (Settings page checkbox) or a
+            # string (the wizard's starttls/ssl/none select) — this response
+            # field is a plain bool for the checkbox, so collapse either form
+            # into "is some form of TLS in use" rather than letting a stored
+            # string reach Pydantic's bool validator directly (it would
+            # reject "starttls"/"ssl" and break this whole endpoint).
+            smtp_tls=normalize_smtp_tls(e.get("smtp_tls", True)) != "none",
             from_name=e.get("from_name", "OpenOptOut Removals"),
             from_email=from_email,
             connected=provider_connected or smtp_ready,
@@ -415,10 +422,16 @@ def test_connection(_: User = Depends(require_permission("email.manage"))):
         if not e.get("smtp_password_enc"): raise ValueError("No SMTP password saved")
         ctx = ssl_module.create_default_context()
         ctx.minimum_version = ssl_module.TLSVersion.TLSv1_2
-        with smtplib.SMTP(e["smtp_host"], e.get("smtp_port", 587)) as sc:
-            if e.get("smtp_tls", True): sc.starttls(context=ctx)
-            with ephemeral_secret(e.get("smtp_password_enc")) as pw:
-                sc.login(e["smtp_user"], pw)
+        tls_mode = normalize_smtp_tls(e.get("smtp_tls", True))
+        if tls_mode == "ssl":
+            with smtplib.SMTP_SSL(e["smtp_host"], e.get("smtp_port", 587), context=ctx) as sc:
+                with ephemeral_secret(e.get("smtp_password_enc")) as pw:
+                    sc.login(e["smtp_user"], pw)
+        else:
+            with smtplib.SMTP(e["smtp_host"], e.get("smtp_port", 587)) as sc:
+                if tls_mode == "starttls": sc.starttls(context=ctx)
+                with ephemeral_secret(e.get("smtp_password_enc")) as pw:
+                    sc.login(e["smtp_user"], pw)
         res["smtp"] = True
     except Exception:
         logger.exception("SMTP connection test failed")
@@ -733,6 +746,7 @@ class RoleSessionConfig(LimitedModel):
     remember_me_allowed: bool = True
     remember_me_mode: str = "username_only"  # "username_only" | "extend_session"
     remember_me_duration_days: int = 1
+    idle_timeout_minutes: int = 0   # 0 = disabled (ASVS 7.3.1, opt-in)
 
 class SessionPolicySettings(LimitedModel):
     remember_me_enabled: bool = True
@@ -758,6 +772,7 @@ def get_session_policy_settings(_: User = Depends(require_super_admin)):
                 "username_only": "Saves username/email on device for quick prefill; session duration remains short (recommended for staff/admins).",
                 "extend_session": "Maintains an active long-lived signed session on the device for the configured number of days.",
             },
+            "idle_timeout_minutes": "Sign out this role automatically after this many minutes of inactivity, even within the session duration above. 0 disables it.",
         },
     }
 

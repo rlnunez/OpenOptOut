@@ -93,16 +93,16 @@ def _jwt_secret() -> str:
 # validator), matching what the sign-up page asks for.
 MIN_PASSWORD_CHARS = 12   # ASVS 4.0.3 V2.1.1
 
-# bcrypt only uses the first 72 BYTES of a password — anything past that is
-# silently ignored (not an error, not a truncation warning), which means two
-# different long passwords sharing the same first 72 bytes would be treated
-# as identical, and a user who thinks they set a 100-character password only
-# really has the first 72 bytes' worth of it. Reject anything over the limit
-# up front (see validate_password_length below) rather than let that happen
-# quietly. This is a byte count, not a character count — accented or non-Latin
-# characters take more than one byte each in UTF-8, so the same limit allows
-# noticeably fewer characters for those passwords.
-MAX_PASSWORD_BYTES = 72
+# bcrypt only uses the first 72 BYTES of whatever it's given — but
+# hash_password/_pepper_password below never hand bcrypt the raw password:
+# they PBKDF2-pepper it first into a fixed 44-character Base64 digest, which
+# always fits well inside that limit regardless of the original password's
+# length. So bcrypt's byte ceiling isn't actually a constraint here; this is
+# just a sane upper bound on the password itself (ASVS 6.2.9 asks for at
+# least 64 CHARACTERS to be accepted, so the limit is counted in characters,
+# not UTF-8 bytes — a byte-based count would reject far short of 64 accented
+# or non-Latin characters, which take more than one byte each).
+MAX_PASSWORD_CHARS = 128
 
 
 # ── Password / token helpers ──────────────────────────────────────────────────
@@ -119,12 +119,10 @@ def validate_password_length(password: Optional[str]) -> Optional[str]:
                 f"Password must be at least {MIN_PASSWORD_CHARS} characters "
                 f"(got {len(password)})."
             )
-        if len(password.encode("utf-8")) > MAX_PASSWORD_BYTES:
+        if len(password) > MAX_PASSWORD_CHARS:
             raise ValueError(
-                f"Password is too long ({len(password.encode('utf-8'))} bytes; "
-                f"the limit is {MAX_PASSWORD_BYTES} bytes — fewer characters if it "
-                "contains accented or non-Latin characters, which take more than "
-                "one byte each)."
+                f"Password is too long ({len(password)} characters; "
+                f"the limit is {MAX_PASSWORD_CHARS})."
             )
         from .common_passwords import is_common_password
         if is_common_password(password):
@@ -295,16 +293,42 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(payload, _jwt_secret(), algorithm=ALGORITHM)
 
 
-def _session_revoked(db: Session, jti: Optional[str]) -> bool:
-    """True only if this token names a session (jti claim) that was explicitly
-    revoked. A token with no jti predates session tracking and is grandfathered
-    as valid — this check is additive to the existing token_version mechanism,
-    not a replacement for it."""
+_LAST_SEEN_RESOLUTION = timedelta(minutes=1)
+
+
+def _session_revoked(db: Session, jti: Optional[str], user: Optional[User] = None) -> bool:
+    """True if this token's session should be rejected: explicitly revoked,
+    has no matching row (and isn't grandfathered — see below), or idle past
+    the account's role's configured timeout (ASVS 7.3.1; 0/unset disables it).
+    A token with no jti predates session tracking and is grandfathered as
+    valid — this check is additive to the existing token_version mechanism,
+    not a replacement for it.
+
+    Also bumps the session's last_seen_at, throttled to roughly once a
+    minute per session, so a busy session doesn't turn into a write on every
+    single authenticated request."""
     if not jti:
         return False
     from ..models.database import UserSession
     sess = db.query(UserSession).filter(UserSession.jti == jti).first()
-    return sess is None or sess.revoked_at is not None
+    if sess is None or sess.revoked_at is not None:
+        return True
+
+    now = datetime.utcnow()
+    if user is not None:
+        from .session_policy import get_idle_timeout_minutes
+        role = getattr(getattr(user, "role", None), "value", str(getattr(user, "role", "") or "parent"))
+        idle_minutes = get_idle_timeout_minutes(role)
+        last_seen = sess.last_seen_at or sess.created_at or now
+        if idle_minutes and now - last_seen > timedelta(minutes=idle_minutes):
+            sess.revoked_at = now
+            db.commit()
+            return True
+
+    if not sess.last_seen_at or now - sess.last_seen_at > _LAST_SEEN_RESOLUTION:
+        sess.last_seen_at = now
+        db.commit()
+    return False
 
 
 # ── FastAPI dependencies ──────────────────────────────────────────────────────
@@ -333,7 +357,7 @@ def get_current_user(
     user_ver = getattr(user, "token_version", 0) or 0
     if (token_ver or 0) != user_ver:
         raise exc
-    if _session_revoked(db, payload.get("jti")):
+    if _session_revoked(db, payload.get("jti"), user):
         raise exc
     return user
 
@@ -365,7 +389,7 @@ def get_current_user_optional(
     user_ver = getattr(user, "token_version", 0) or 0
     if (token_ver or 0) != user_ver:
         return None
-    if _session_revoked(db, payload.get("jti")):
+    if _session_revoked(db, payload.get("jti"), user):
         return None
     return user
 

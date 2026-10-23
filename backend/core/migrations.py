@@ -428,6 +428,8 @@ INSTITUTIONAL_MIGRATIONS = [
         needs_review BOOLEAN DEFAULT 0,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
      )"""),
+    ("Add last_seen_at to user_sessions (ASVS 7.3.1 idle timeout)",
+     "ALTER TABLE user_sessions ADD COLUMN last_seen_at DATETIME"),
 ]
 
 

@@ -3302,6 +3302,26 @@ function SessionPolicySection({ userRole }) {
               <p className="text-[11px] text-slate-500 mt-1">{tx("How long people stay signed in if they don't tick \"Remember me\".")}</p>
             </div>
 
+            {/* Idle Timeout */}
+            <div>
+              <label className={labelCls}>{tx("Idle Timeout (Minutes)")}</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="1440"
+                  value={curRoleCfg.idle_timeout_minutes ?? 0}
+                  onChange={e => {
+                    const v = Math.max(0, parseInt(e.target.value, 10) || 0)
+                    updateCurrentRole({ idle_timeout_minutes: v })
+                  }}
+                  className={inp}
+                />
+                <span className="text-xs text-slate-400 shrink-0">{tx("minutes")}</span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">{tx("Sign out automatically after this long with no activity, even within the session lifetime above. 0 disables it.")}</p>
+            </div>
+
             {/* Remember Me Allowed */}
             <div>
               <label className={labelCls}>{tx("Remember Me Allowed for Role")}</label>

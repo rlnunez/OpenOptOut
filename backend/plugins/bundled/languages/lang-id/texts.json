@@ -3452,5 +3452,8 @@
   "Signing out…": "Sedang keluar…",
   "Stays signed in": "Tetap masuk",
   "This device": "Perangkat ini",
-  "Unknown device": "Perangkat tidak dikenal"
+  "Unknown device": "Perangkat tidak dikenal",
+  "Idle Timeout (Minutes)": "Waktu Tunggu Tidak Aktif (Menit)",
+  "minutes": "menit",
+  "Sign out automatically after this long with no activity, even within the session lifetime above. 0 disables it.": "Keluar otomatis setelah periode tidak aktif ini, meskipun masih dalam masa sesi di atas. 0 menonaktifkan fitur ini."
 }

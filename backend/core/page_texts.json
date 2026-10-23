@@ -8461,6 +8461,12 @@
    ]
   },
   {
+   "text": "Idle Timeout (Minutes)",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "IdP signing certificate: {message}",
    "where": [
     "pages/Branding.jsx"
@@ -10394,6 +10400,12 @@
   },
   {
    "text": "Mint & Download .p12",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "minutes",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -15927,6 +15939,12 @@
    "text": "Sign out",
    "where": [
     "components/TermsGate.jsx",
+    "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Sign out automatically after this long with no activity, even within the session lifetime above. 0 disables it.",
+   "where": [
     "pages/Settings.jsx"
    ]
   },

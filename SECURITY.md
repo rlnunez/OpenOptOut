@@ -44,6 +44,38 @@ OpenOptOut enforces rigorous defense-in-depth protections across all layers:
 - **Bot-Evasion Realism**: User-agent rotation and residential proxies defend against basic IP rate limits, but do not claim to defeat advanced behavioral browser fingerprinting.
 - **Mandatory Production HTTPS**: Deployments must run behind TLS (Caddy, Traefik, or reverse proxies) to prevent plaintext transmission of session tokens, passwords, and patron data. See [`docs/admin/https.md`](docs/admin/https.md).
 
+## Authentication & Session Controls
+
+- **Progressive Sign-In Lockout**: Repeated failed sign-ins (password, LDAP, SIP2, TOTP, backup codes) lock that account name and the client IP separately (`core/login_throttle.py`), with exponential backoff per failure and no account enumeration — an unknown account locks the same way a real one does.
+- **Multi-Factor Authentication**: TOTP (RFC 6238) and FIDO2/WebAuthn security keys, with replay protection per time-step (not just per MFA ticket) and current-password re-verification required before a new factor can be added to an account.
+- **Session Tracking & Revocation**: Each sign-in is tracked by a per-session identifier (`UserSession`, keyed by the JWT's `jti` claim), independent of the account-wide session-version mechanism. Users can view and revoke their own active sessions or sign out everywhere; admins can force-revoke all of a specific user's sessions without disabling the account. An idle session can also be configured to time out automatically, separate from its absolute expiry.
+- **Audit Logging**: Sign-in success/failure, sign-out, authorization denials, and anti-automation lockouts are written to this app's own log store (see "Security event logging" below) — not just rate-limited in memory.
+
+## Security event logging
+
+- **What's logged**: authentication outcomes (success/failure, method, account id, source IP), authorization denials, sign-out, admin-forced session revocation, and lockouts triggered by the sign-in throttle — each as a structured `auth_event`/`authz_denied`/`lockout_triggered` line.
+- **What's never logged**: credentials, tokens, and patron/family PII (names, emails, phone numbers, addresses, SSNs) are scrubbed from every log line before it's written, by a formatter every handler goes through (`core/logging_config.py`), regardless of what a given log call passes in. Audit events identify an account by its numeric id, never its email.
+- **Format & timestamps**: plain structured key=value text, UTC timestamps throughout.
+- **Where it's stored**: a local rotating file plus an in-memory ring buffer the admin's Logs page reads from; file permissions are owner-only (`0600`). An operator can additionally opt in to forwarding (syslog, OTLP, Loki, or Splunk) to a separate system for longer retention/alerting — off by default, consistent with this app making no outbound calls with user data unless explicitly configured to.
+- **Last-resort handling**: an exception type with no specific handler still gets its full detail logged (`backend/main.py`) and returns a generic error to the caller, rather than leaking internals or taking the process down.
+
+## Cryptographic Inventory & Key Management
+
+| Key / material | Purpose | Algorithm | Where |
+|---|---|---|---|
+| `SECRET_KEY` | JWT signing, root of HKDF-derived subsystem keys | HMAC-SHA256 (JWT: HS256) | env var / `secret.key` file |
+| `FIELD_ENCRYPTION_KEY` (or HKDF-derived) | PII field encryption (names, addresses, phones, emails) | AES-256-GCM (NIST SP 800-38D) | env var, or derived from `SECRET_KEY` |
+| `DB_ENCRYPTION_KEY` | SQLCipher database file encryption | AES-256 | env var |
+| Password pepper (`PASSWORD_PEPPER` or `pepper.key`) | Pre-hash passwords before bcrypt | PBKDF2-HMAC-SHA256, 210,000 iterations (NIST SP 800-132) | env var / `pepper.key` file |
+| `SEARXNG_SECRET` | Bundled search instance session signing | HMAC-SHA256 | env var |
+| Job envelope signing key (HKDF-derived) | Distributed worker queue message integrity | HMAC-SHA256 | derived, `core/distributed/` |
+| Backup encryption key | Backup file confidentiality | AES-GCM, scrypt-derived from passphrase | `core/backups.py` |
+| S3/cloud storage signing | Backup upload authentication | AWS Signature V4 | `core/backups.py` |
+
+**Lifecycle policy:** every key above is either operator-supplied (env var or mounted file, never generated with a hardcoded fallback — `hardcoded-fallback-secret` Semgrep rule enforces this) or derived via RFC 5869 HKDF with purpose-specific domain separation, so a subsystem key can be rotated independently without needing a brand-new root secret. Rotating `SECRET_KEY` itself invalidates all outstanding JWTs (by design — see Session Management above) but not `pepper.key`, which persists separately so password hashes stay valid across a `SECRET_KEY` rotation. There is no automatic expiry on any of these keys; an operator rotates them manually (e.g. on suspected compromise) by regenerating the env var/file and restarting.
+
+**Migration path:** every primitive in use today (AES-256-GCM, HMAC-SHA256, PBKDF2-HMAC-SHA256, bcrypt) is a NIST-approved, currently-unbroken construction with at least 128 bits of security. None of them are asymmetric/public-key algorithms that a quantum adversary's Shor's-algorithm attack would target, so there's no near-term post-quantum migration pressure on this inventory; the practical migration path if any primitive here were ever deprecated is to add the new algorithm alongside the old (the same way legacy unpeppered password hashes are already transparently upgraded on next login), not a hard cutover.
+
 ## Compliance & Security Standards
 
 OpenOptOut is engineered to follow recognized industry standards for security, cryptography, application verification, and privacy:
@@ -51,7 +83,7 @@ OpenOptOut is engineered to follow recognized industry standards for security, c
 - **NIST SP 800-38D**: Authenticated Encryption with Galois/Counter Mode (AES-256-GCM).
 - **NIST SP 800-132**: Password-Based Key Derivation (PBKDF2).
 - **ISO/IEC 27701 & COPPA**: Privacy Information Management, configurable data retention schedules, and automated crypto-shredding on member deletion.
-- **OWASP ASVS 4.0.3 Level 2**: Application Security Verification Standard baseline for web applications and APIs.
+- **OWASP ASVS 5.0.0 Level 2**: Application Security Verification Standard baseline for web applications and APIs.
 - **OWASP Top 10 for LLMs**: Large Language Model application security, prompt injection defenses, and bounded consumption limits.
 - **WCAG 2.2 Level AAA**: Universal web accessibility and contrast (see [`ACCESSIBILITY.md`](ACCESSIBILITY.md)).
 

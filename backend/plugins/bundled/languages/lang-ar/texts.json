@@ -3453,5 +3453,8 @@
   "Signing out…": "جارٍ تسجيل الخروج…",
   "Stays signed in": "يبقى مسجَّلاً الدخول",
   "This device": "هذا الجهاز",
-  "Unknown device": "جهاز غير معروف"
+  "Unknown device": "جهاز غير معروف",
+  "Idle Timeout (Minutes)": "مهلة الخمول (بالدقائق)",
+  "minutes": "دقائق",
+  "Sign out automatically after this long with no activity, even within the session lifetime above. 0 disables it.": "تسجيل الخروج تلقائيًا بعد هذه المدة من عدم النشاط، حتى ضمن مدة الجلسة أعلاه. 0 لتعطيل الميزة."
 }

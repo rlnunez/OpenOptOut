@@ -16,24 +16,28 @@ DEFAULT_SESSION_POLICY: Dict[str, Any] = {
             "remember_me_allowed": True,
             "remember_me_mode": "username_only",  # "username_only" | "extend_session"
             "remember_me_duration_days": 1,
+            "idle_timeout_minutes": 0,   # 0 = disabled (ASVS 7.3.1, opt-in)
         },
         "manager": {
             "session_duration_hours": 8,
             "remember_me_allowed": True,
             "remember_me_mode": "username_only",
             "remember_me_duration_days": 3,
+            "idle_timeout_minutes": 0,
         },
         "parent": {
             "session_duration_hours": 24,
             "remember_me_allowed": True,
             "remember_me_mode": "extend_session",
             "remember_me_duration_days": 30,
+            "idle_timeout_minutes": 0,
         },
         "member": {
             "session_duration_hours": 24,
             "remember_me_allowed": True,
             "remember_me_mode": "extend_session",
             "remember_me_duration_days": 30,
+            "idle_timeout_minutes": 0,
         },
     },
 }
@@ -55,8 +59,17 @@ def get_session_policy() -> Dict[str, Any]:
             "remember_me_allowed": bool(r_cfg.get("remember_me_allowed", def_cfg["remember_me_allowed"])),
             "remember_me_mode": str(r_cfg.get("remember_me_mode", def_cfg["remember_me_mode"])),
             "remember_me_duration_days": int(r_cfg.get("remember_me_duration_days", def_cfg["remember_me_duration_days"])),
+            "idle_timeout_minutes": max(0, int(r_cfg.get("idle_timeout_minutes", def_cfg["idle_timeout_minutes"]))),
         }
     return policy
+
+
+def get_idle_timeout_minutes(role: str) -> int:
+    """0 means disabled (ASVS 7.3.1 is opt-in here, not a surprise default)."""
+    policy = get_session_policy()
+    role_key = str(role or "parent").lower()
+    r_cfg = policy["roles"].get(role_key, DEFAULT_SESSION_POLICY["roles"]["parent"])
+    return int(r_cfg.get("idle_timeout_minutes", 0))
 
 
 def compute_session_delta(role: str, remember_me: bool = False) -> timedelta:

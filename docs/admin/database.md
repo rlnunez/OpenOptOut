@@ -30,7 +30,7 @@ DATABASE_URL=postgresql://user:password@db.example.org:5432/openoptout
 
 For hardened institutional environments, OpenOptOut provides a structured connection manager (**Admin → Database → Connection**) that supports enterprise authentication methods without storing credentials in the database:
 
-- **SSL/TLS Modes:** Configurable SSL validation (`disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full`).
+- **SSL/TLS Modes:** Configurable SSL validation (`disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full`). The default, `prefer`, matches libpq's own convention and opportunistically upgrades to TLS but **silently falls back to a plaintext connection** if the server doesn't offer it. Production deployments — anywhere the database isn't on the same trusted host/network as the app — should set `DB_SSLMODE=verify-full` (validates the server certificate's hostname too) or at minimum `require` (ASVS 12.3.1/12.3.4).
 - **Mutual TLS (mTLS):** Client certificate and private key authentication alongside root CA validation.
 - **Cloud IAM Tokens:** Dynamic authentication using cloud identity tokens:
   - **AWS RDS IAM** token generation

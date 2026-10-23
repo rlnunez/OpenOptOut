@@ -3453,5 +3453,8 @@
   "Signing out…": "Đang đăng xuất…",
   "Stays signed in": "Vẫn duy trì đăng nhập",
   "This device": "Thiết bị này",
-  "Unknown device": "Thiết bị không xác định"
+  "Unknown device": "Thiết bị không xác định",
+  "Idle Timeout (Minutes)": "Thời Gian Chờ Không Hoạt Động (Phút)",
+  "minutes": "phút",
+  "Sign out automatically after this long with no activity, even within the session lifetime above. 0 disables it.": "Tự động đăng xuất sau khoảng thời gian không hoạt động này, ngay cả khi vẫn trong thời gian phiên đăng nhập ở trên. 0 sẽ tắt tính năng này."
 }

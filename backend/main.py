@@ -103,7 +103,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    # The exact verbs every route actually uses (plus OPTIONS for preflight),
+    # not "*" (ASVS 4.1.4 defense-in-depth — routing itself already 405s any
+    # method with no matching route, so this narrows what a cross-origin
+    # preflight is told is allowed, not what the server will actually do).
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -192,6 +196,22 @@ async def statement_error_handler(request, exc):
 @app.exception_handler(IntegrityError)
 async def integrity_error_handler(request, exc):
     return JSONResponse(status_code=400, content={"detail": "Database integrity constraint violated"})
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request, exc):
+    """ASVS 16.5.4: a last-resort handler so an exception type nobody added a
+    specific handler for still gets its traceback into this app's own log
+    store (not just raw stdout) and still returns the app's generic error
+    body (ASVS 16.5.1) instead of taking the whole process down or leaking
+    internals. More specific handlers above (and FastAPI's own HTTPException/
+    RequestValidationError handlers) still take precedence for their types —
+    Starlette only falls back to this one when nothing else matched."""
+    import logging
+    logging.getLogger(__name__).error(
+        "Unhandled exception on %s %s", request.method, request.url.path, exc_info=exc,
+    )
+    return JSONResponse(status_code=500, content={"detail": "An unexpected error occurred."})
 
 for r in [
     auth.router, brokers.router, requests_router.router,

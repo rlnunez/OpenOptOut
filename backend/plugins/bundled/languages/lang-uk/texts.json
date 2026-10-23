@@ -3451,5 +3451,8 @@
   "Signing out…": "Виконується вихід…",
   "Stays signed in": "Залишається активним",
   "This device": "Цей пристрій",
-  "Unknown device": "Невідомий пристрій"
+  "Unknown device": "Невідомий пристрій",
+  "Idle Timeout (Minutes)": "Тайм-аут неактивності (хвилини)",
+  "minutes": "хвилин",
+  "Sign out automatically after this long with no activity, even within the session lifetime above. 0 disables it.": "Автоматично виходити з системи після такого періоду бездіяльності, навіть у межах тривалості сеансу, вказаної вище. 0 вимикає цю функцію."
 }

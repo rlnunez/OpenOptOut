@@ -3453,5 +3453,8 @@
   "Signing out…": "Signin' out…",
   "Stays signed in": "Stays signed aboard",
   "This device": "This vessel",
-  "Unknown device": "Unknown vessel"
+  "Unknown device": "Unknown vessel",
+  "Idle Timeout (Minutes)": "Idle Timeout (Minutes)",
+  "minutes": "minutes",
+  "Sign out automatically after this long with no activity, even within the session lifetime above. 0 disables it.": "Signs ye out automatically after this long without any doin's, even within the session length above. 0 turns it off."
 }

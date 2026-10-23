@@ -24,6 +24,7 @@ number of workers. Memory is bounded by MAX_KEYS (least recently failed keys
 are dropped first).
 """
 
+import logging
 import math
 import os
 import threading
@@ -32,6 +33,8 @@ import time
 from fastapi import HTTPException
 
 from .rate_limit import client_ip
+
+logger = logging.getLogger(__name__)
 
 MAX_FAILURES = 5                 # failures allowed before a key is locked
 IP_MAX_FAILURES = int(os.getenv("LOGIN_IP_MAX_FAILURES", "50"))   # same, per client IP
@@ -107,11 +110,17 @@ def failure(*keys: str):
             if entry is None or _stale(entry, now):
                 entry = [0, 0.0, now]
             failures = entry[0] + 1
+            was_locked = entry[1] > now
             locked_until = entry[1]
             if failures >= _limit(k):
                 over = min(failures - _limit(k), 10)
                 locked_until = now + min(BASE_LOCKOUT * 2 ** over, MAX_LOCKOUT)
             _state[k] = [failures, locked_until, now]
+            if locked_until > now and not was_locked:
+                # ASVS 16.3.3: a key crossing into lockout is an attempt to
+                # bypass an anti-automation control, not just a failed login.
+                logger.warning("lockout_triggered key=%s failures=%s locked_seconds=%s",
+                                k, failures, round(locked_until - now, 1))
 
 
 def success(*keys: str):

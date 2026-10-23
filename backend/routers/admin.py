@@ -13,8 +13,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, field_validator, Field
 import json
+import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 from ..core.limits import LimitedModel
 from ..models.database import get_db, User, FamilyMember, ProfileAccess, UserRole, Branch
@@ -341,6 +344,8 @@ def revoke_user_sessions(
     db.commit()
     from ..core.session_policy import revoke_all_sessions
     revoke_all_sessions(db, user.id)
+    logger.info("auth_event event=admin_revoke_sessions outcome=success actor_id=%s target_user_id=%s",
+                current_user.id, user.id)
     return {"ok": True, "message": "All sessions revoked for that user."}
 
 

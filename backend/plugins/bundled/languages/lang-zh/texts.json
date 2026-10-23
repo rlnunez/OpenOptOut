@@ -3453,5 +3453,8 @@
   "Signing out…": "正在退出登录…",
   "Stays signed in": "保持登录状态",
   "This device": "此设备",
-  "Unknown device": "未知设备"
+  "Unknown device": "未知设备",
+  "Idle Timeout (Minutes)": "闲置超时（分钟）",
+  "minutes": "分钟",
+  "Sign out automatically after this long with no activity, even within the session lifetime above. 0 disables it.": "在此时长内无任何操作后自动登出，即使仍在上方设定的会话有效期内。设为 0 可禁用此功能。"
 }

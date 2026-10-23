@@ -3453,5 +3453,8 @@
   "Signing out…": "Nag-sign out…",
   "Stays signed in": "Manatiling naka-sign in",
   "This device": "Ang device na ito",
-  "Unknown device": "Hindi kilalang device"
+  "Unknown device": "Hindi kilalang device",
+  "Idle Timeout (Minutes)": "Idle Timeout (Minuto)",
+  "minutes": "minuto",
+  "Sign out automatically after this long with no activity, even within the session lifetime above. 0 disables it.": "Awtomatikong mag-sign out pagkatapos ng ganitong tagal na walang aktibidad, kahit na nasa loob ng tagal ng session sa itaas. 0 ang magbubukod nito."
 }

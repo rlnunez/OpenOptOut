@@ -111,3 +111,9 @@ python fuzz_broker_spec.py -max_total_time=120
 
 - **Pinned dependencies**: Pinned GitHub Actions use full commit SHAs. Do not downgrade pinned SHAs without verifying integrity.
 - **Excluded packages**: Deliberately pinned packages (bcrypt, cryptography, pysaml2, playwright) are configured in `.github/dependabot.yml`.
+
+## Dependency inventory & remediation time frame
+
+`backend/requirements.txt` and `frontend/package-lock.json` are the authoritative inventory of third-party libraries in use (ASVS 15.1.2) — every dependency comes from its project's standard public registry (PyPI, npm), not an internal mirror, so there's no dependency-confusion risk from an unexpected source. OSV-Scanner checks both against known CVEs on every push/PR and weekly; Dependabot opens a PR immediately on a new advisory.
+
+Risk-based remediation target (ASVS 15.1.1): a Critical or High severity CVE with a published fix is merged within **7 days** of the Dependabot/OSV-Scanner alert; Medium within **30 days**; Low/Moderate at the next routine dependency bump. A library with no fix available yet is tracked in the repository's Security advisories rather than left silently outstanding.

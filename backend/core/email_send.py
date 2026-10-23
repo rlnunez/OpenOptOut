@@ -145,6 +145,21 @@ def send_email(cfg: dict, to: list, cc: list, subject: str, body: str,
     return _smtp_send(cfg, to, cc, subject, body, from_address, provider_note, reply_to)
 
 
+def normalize_smtp_tls(value) -> str:
+    """smtp_tls is stored two different ways depending on which UI wrote it:
+    the setup wizard's 3-way select writes the string "starttls"/"ssl"/"none",
+    while the Settings page's simple on/off checkbox writes a Python bool.
+    Without this, a bool True matched neither the "ssl" nor the "starttls"
+    string comparison below, so starttls() was silently never called and the
+    connection fell back to unencrypted SMTP — admin password and email body
+    sent in cleartext — while the checkbox still showed "on" and nothing
+    errored. Normalize both representations to the one the send/test paths
+    actually compare against."""
+    if isinstance(value, bool):
+        return "starttls" if value else "none"
+    return value or "starttls"
+
+
 def _smtp_send(cfg: dict, to: list, cc: list, subject: str, body: str,
                from_address: str = "", provider_note: str = "", reply_to: str = "") -> dict:
     email_cfg = cfg.get("email", {})
@@ -155,7 +170,7 @@ def _smtp_send(cfg: dict, to: list, cc: list, subject: str, body: str,
     # read both so SMTP set up from either UI actually works, not just
     # whichever one happens to match this exact key.
     user = email_cfg.get("smtp_username") or email_cfg.get("smtp_user")
-    tls = (email_cfg.get("smtp_tls", "starttls") or "starttls")
+    tls = normalize_smtp_tls(email_cfg.get("smtp_tls", "starttls"))
     frm = from_address or email_cfg.get("from_address") or email_cfg.get("from_email") or user
     if not host or not user:
         msg = "SMTP not configured"

@@ -3451,5 +3451,8 @@
   "Signing out…": "سائن آؤٹ ہو رہا ہے…",
   "Stays signed in": "سائن ان برقرار رہتا ہے",
   "This device": "یہ ڈیوائس",
-  "Unknown device": "نامعلوم ڈیوائس"
+  "Unknown device": "نامعلوم ڈیوائس",
+  "Idle Timeout (Minutes)": "غیر فعالیت کا وقفہ (منٹ)",
+  "minutes": "منٹ",
+  "Sign out automatically after this long with no activity, even within the session lifetime above. 0 disables it.": "اتنی دیر تک کوئی سرگرمی نہ ہونے پر خود بخود سائن آؤٹ کریں، یہاں تک کہ اوپر دیے گئے سیشن کے دورانیے کے دوران بھی۔ 0 اسے غیر فعال کر دیتا ہے۔"
 }

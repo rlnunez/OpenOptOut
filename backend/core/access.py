@@ -28,14 +28,19 @@ import json
 from typing import Iterable
 
 try:
-    from fastapi import Depends, HTTPException
+    from fastapi import Depends, HTTPException, Request
 except ImportError:
     Depends = None
+    Request = None
     class HTTPException(Exception):
         def __init__(self, status_code: int = 400, detail: str = ""):
             super().__init__(detail)
             self.status_code = status_code
             self.detail = detail
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 # key -> label, group, description, sensitive (shown with a warning when granting)
 PERMISSIONS = {
@@ -236,9 +241,18 @@ def require_permission(*keys: str):
 
     from .auth import get_current_user
 
-    def dependency(current_user=Depends(get_current_user)):
+    def dependency(current_user=Depends(get_current_user), request: Request = None):
         held = effective_permissions(current_user)
         if not any(k in held for k in keys):
+            path = None
+            try:
+                path = request.url.path if request is not None else None
+            except Exception:
+                pass
+            # ASVS 16.3.2: every authorization denial, not just the 403 the
+            # caller sees.
+            logger.warning("authz_denied user_id=%s required=%s path=%s",
+                            getattr(current_user, "id", "-"), "|".join(keys), path or "-")
             labels = " or ".join(f"'{PERMISSIONS[k]['label']}'" for k in keys)
             raise HTTPException(403, f"This needs the {labels} permission")
         return current_user

@@ -306,6 +306,12 @@ class UserSession(Base):
     user_agent = Column(String, nullable=True)
     remember_me = Column(Boolean, default=False, nullable=False)
     revoked_at = Column(DateTime, nullable=True)
+    # Bumped (throttled — see core/auth.py's _session_revoked) on each
+    # authenticated request; compared against the role's idle_timeout_minutes
+    # (core/session_policy.py) to enforce ASVS 7.3.1. Defaults to created_at
+    # for rows from before this column existed, so they don't look instantly
+    # idle.
+    last_seen_at = Column(DateTime, default=datetime.utcnow)
 
 
 class ProfileAccess(Base):

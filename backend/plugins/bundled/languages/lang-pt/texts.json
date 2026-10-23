@@ -3453,5 +3453,8 @@
   "Signing out…": "Saindo…",
   "Stays signed in": "Permanece conectado",
   "This device": "Este dispositivo",
-  "Unknown device": "Dispositivo desconhecido"
+  "Unknown device": "Dispositivo desconhecido",
+  "Idle Timeout (Minutes)": "Tempo limite de inatividade (minutos)",
+  "minutes": "minutos",
+  "Sign out automatically after this long with no activity, even within the session lifetime above. 0 disables it.": "Encerrar a sessão automaticamente após esse tempo de inatividade, mesmo dentro da duração de sessão definida acima. 0 desativa isso."
 }

@@ -20,7 +20,7 @@ from ..models.database import get_db, User, FamilyMember, UserRole, InviteCode, 
 from ..core.auth import (
     hash_password, verify_password, is_legacy_unpeppered_hash, create_access_token,
     get_current_user, get_current_user_optional, get_current_jti, require_super_admin,
-    validate_password_length, dummy_verify_password, MAX_PASSWORD_BYTES
+    validate_password_length, dummy_verify_password, MAX_PASSWORD_CHARS
 )
 from ..core.text_input import clean_name, clean_name_lenient, clean_text_lenient
 from ..core.session_policy import create_user_token
@@ -450,7 +450,29 @@ def _link_home(db: Session, user: User, home: dict):
     db.commit()
 
 
-def _finish_sign_in(user: User, db: Session, request: Optional[Request], remember_me: bool) -> dict:
+def _log_auth_event(event: str, outcome: str, request: Optional[Request] = None,
+                     user_id: Optional[int] = None, method: Optional[str] = None) -> None:
+    """Structured audit line for ASVS 16.3.1/16.3.2/16.2.1: who (user_id —
+    never email, which core/logging_config.py's formatter redacts from every
+    log line regardless), what (event/outcome/method) and where (source IP).
+    Goes through the app's existing sanitizing logger/log store — there was
+    previously no record at all of sign-ins, sign-outs or MFA attempts."""
+    ip = None
+    try:
+        if request is not None:
+            ip = rate_limit.client_ip(request)
+    except Exception:
+        pass
+    # A failure is visible at this app's default log level (WARNING) without
+    # an admin having to raise verbosity first — a success is routine and
+    # logged at INFO, same as other ordinary-operation logging in this app.
+    log_fn = logger.warning if outcome == "failure" else logger.info
+    log_fn("auth_event event=%s outcome=%s method=%s user_id=%s ip=%s",
+           event, outcome, method or "-", user_id if user_id is not None else "-", ip or "-")
+
+
+def _finish_sign_in(user: User, db: Session, request: Optional[Request], remember_me: bool,
+                     method: str = "password") -> dict:
     """After the first factor (password or email code): ask for the second
     factor if the account has one, or for MFA set-up if it's required, else
     issue the session token."""
@@ -511,6 +533,7 @@ def _finish_sign_in(user: User, db: Session, request: Optional[Request], remembe
             "detail": f"Multi-Factor Authentication (MFA) is mandated for {role_title} accounts {timer_val} {timer_unit} after account creation. Please configure an authenticator app (TOTP) or security key (YubiKey / Touch ID) to continue.",
         }
 
+    _log_auth_event("login", "success", request, user_id=user.id, method="password")
     return {"access_token": create_user_token(user, db, request, remember_me=remember_me), "token_type": "bearer"}
 
 
@@ -530,6 +553,7 @@ def login(
     if not user or not user.hashed_password:
         dummy_verify_password(password)
         login_throttle.failure(throttle_key, ip_key)
+        _log_auth_event("login", "failure", request, method="password")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -537,6 +561,7 @@ def login(
         )
     if not verify_password(password, user.hashed_password):
         login_throttle.failure(throttle_key, ip_key)
+        _log_auth_event("login", "failure", request, user_id=user.id, method="password")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -627,6 +652,7 @@ def change_own_password(data: ChangePasswordIn, request: Request, db: Session = 
     # just invalidated by the token_version bump above — issue a fresh one so
     # the caller isn't immediately signed out by the change they just made.
     token = create_user_token(current_user, db, request)
+    _log_auth_event("password_change", "success", request, user_id=current_user.id)
     return {"ok": True, "access_token": token, "token_type": "bearer"}
 
 
@@ -635,6 +661,7 @@ def signout(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     current_jti: Optional[str] = Depends(get_current_jti),
+    request: Request = None,
 ):
     """Revoke only THIS session, server-side — so a "logged out" token can't
     still be used until it naturally expires. (Previously aliased to
@@ -648,6 +675,7 @@ def signout(
             UserSession.jti == current_jti, UserSession.user_id == current_user.id,
         ).update({"revoked_at": datetime.utcnow()})
         db.commit()
+    _log_auth_event("logout", "success", request, user_id=current_user.id)
     return {"ok": True, "message": "Signed out."}
 
 
@@ -655,6 +683,7 @@ def signout(
 def signout_everywhere(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    request: Request = None,
 ):
     """Revoke all issued access tokens for this user by incrementing token_version,
     and mark every tracked session revoked so /sessions reflects it immediately."""
@@ -662,6 +691,7 @@ def signout_everywhere(
     db.commit()
     from ..core.session_policy import revoke_all_sessions
     revoke_all_sessions(db, current_user.id)
+    _log_auth_event("logout_everywhere", "success", request, user_id=current_user.id)
     return {"ok": True, "message": "All sessions revoked."}
 
 
@@ -717,6 +747,7 @@ def ldap_login(req: LDAPLoginRequest, db: Session = Depends(get_db), request: Re
     if not result.success:
         if not result.unavailable:
             login_throttle.failure(throttle_key, ip_key)
+        _log_auth_event("login", "failure", request, method="ldap")
         raise HTTPException(401, result.error or "LDAP authentication failed")
     login_throttle.success(throttle_key)
 
@@ -739,6 +770,7 @@ def sip2_login(req: SIP2LoginRequest, db: Session = Depends(get_db), request: Re
     if not result.success:
         if not result.unavailable:
             login_throttle.failure(throttle_key, ip_key)
+        _log_auth_event("login", "failure", request, method="sip2")
         raise HTTPException(401, result.error or "Library card authentication failed")
     login_throttle.success(throttle_key)
 
@@ -782,6 +814,7 @@ def oidc_callback(
 
     result = exchange_oidc_code(provider, code, state_data["redirect_uri"])
     if not result.success:
+        _log_auth_event("login", "failure", request, method=f"oidc:{provider}")
         raise HTTPException(401, result.error or "OIDC authentication failed")
 
     token_data = _resolve_external_user(result, db, request=request)
@@ -840,6 +873,8 @@ def _resolve_external_user(result, db: Session, remember_me: bool = False,
     if not decision.allowed:
         account_id = f"user_id={existing.id}" if existing else "unregistered_account"
         _log.warning("SSO sign-in denied (%s, %s): %s", result.provider, account_id, decision.reason)
+        _log_auth_event("login", "failure", request, user_id=(existing.id if existing else None),
+                         method=f"sso:{result.provider}")
         raise HTTPException(403, decision.reason)
 
     source = _auth_source_for(result.provider)
@@ -870,6 +905,7 @@ def _resolve_external_user(result, db: Session, remember_me: bool = False,
                       existing.id, old_barcode, ext_id)
         db.commit()
         token = create_user_token(existing, db, request, remember_me=remember_me)
+        _log_auth_event("login", "success", request, user_id=existing.id, method=f"sso:{result.provider}")
         return {"access_token": token, "token_type": "bearer"}
 
     if decision.downgraded:
@@ -975,6 +1011,7 @@ def _resolve_external_user(result, db: Session, remember_me: bool = False,
 
     db.commit()
     token = create_user_token(user, db, request, remember_me=remember_me)
+    _log_auth_event("login", "success", request, user_id=user.id, method=f"sso:{result.provider}")
     return {"access_token": token, "token_type": "bearer"}
 
 
@@ -1077,7 +1114,7 @@ class TotpActivateIn(LimitedModel):
     secret: Optional[str] = None
     code: str
     backup_codes: Optional[List[str]] = Field(None, max_length=50)
-    current_password: Optional[str] = Field(None, max_length=MAX_PASSWORD_BYTES)
+    current_password: Optional[str] = Field(None, max_length=MAX_PASSWORD_CHARS)
 
 class TotpDisableIn(LimitedModel):
     password: str
@@ -1086,7 +1123,7 @@ class WebAuthnRegisterIn(LimitedModel):
     mfa_ticket: Optional[str] = None
     name: str = Field("Security Key", max_length=NAME_MAX)
     credential: dict = Field(..., max_length=50)
-    current_password: Optional[str] = Field(None, max_length=MAX_PASSWORD_BYTES)
+    current_password: Optional[str] = Field(None, max_length=MAX_PASSWORD_CHARS)
 
 
 def _require_current_password_for_mfa_change(current_user: Optional[User], current_password: Optional[str]):
@@ -1102,7 +1139,7 @@ def _require_current_password_for_mfa_change(current_user: Optional[User], curre
             raise HTTPException(400, "Current password is required to add a new sign-in method.")
 
 class DeleteWebAuthnIn(LimitedModel):
-    password: Optional[str] = Field(None, max_length=MAX_PASSWORD_BYTES)
+    password: Optional[str] = Field(None, max_length=MAX_PASSWORD_CHARS)
 
 
 def _resolve_user_for_mfa(
@@ -1178,10 +1215,12 @@ def verify_totp_login(data: VerifyTotpIn, db: Session = Depends(get_db), request
     counter = mfa.totp_matched_counter(data.code, secret)
     if counter is None or code_attempts.totp_replay_check(user.id, counter):
         login_throttle.failure(throttle_key, ip_key)
+        _log_auth_event("login", "failure", request, user_id=user.id, method="totp")
         raise HTTPException(401, "Invalid authentication code. Please check your authenticator app.")
     code_attempts.used(data.mfa_ticket)
     login_throttle.success(throttle_key)
     remember_me = bool(tdata.get("remember_me", False))
+    _log_auth_event("login", "success", request, user_id=user.id, method="totp")
     return {"access_token": create_user_token(user, db, request, remember_me=remember_me), "token_type": "bearer"}
 
 
@@ -1211,12 +1250,14 @@ def verify_backup_code_login(data: VerifyBackupIn, db: Session = Depends(get_db)
     valid, remaining = mfa.verify_backup_code(data.code, stored_hashes)
     if not valid:
         login_throttle.failure(throttle_key, ip_key)
+        _log_auth_event("login", "failure", request, user_id=user.id, method="backup_code")
         raise HTTPException(401, "Invalid backup recovery code.")
     code_attempts.used(data.mfa_ticket)
     login_throttle.success(throttle_key)
     user.backup_codes = json.dumps(remaining)
     db.commit()
     remember_me = bool(tdata.get("remember_me", False))
+    _log_auth_event("login", "success", request, user_id=user.id, method="backup_code")
     return {
         "access_token": create_user_token(user, db, request, remember_me=remember_me),
         "token_type": "bearer",
@@ -1283,12 +1324,14 @@ def verify_webauthn_login(data: VerifyWebAuthnIn, db: Session = Depends(get_db),
     origin = tdata.get("origin")
     if not mfa.verify_webauthn_assertion(data.credential, challenge, matching_key, expected_rp_id=rp_id, expected_origin=origin):
         login_throttle.failure(throttle_key, ip_key)
+        _log_auth_event("login", "failure", request, user_id=user.id, method="webauthn")
         raise HTTPException(401, "Security key verification failed.")
     code_attempts.used(data.mfa_ticket)
     login_throttle.success(throttle_key)
     user.webauthn_credentials = json.dumps(keys)
     db.commit()
     remember_me = bool(tdata.get("remember_me", False))
+    _log_auth_event("login", "success", request, user_id=user.id, method="webauthn")
     return {"access_token": create_user_token(user, db, request, remember_me=remember_me), "token_type": "bearer"}
 
 
@@ -1645,6 +1688,7 @@ def verify_passwordless_passkey(data: PasswordlessVerifyIn, request: Request = N
                 continue
 
     if not user or not matching_key:
+        _log_auth_event("login", "failure", request, method="passkey")
         raise HTTPException(401, "Passkey or security key is not registered on any active account.")
 
     if not _is_local_user(user):
@@ -1654,6 +1698,7 @@ def verify_passwordless_passkey(data: PasswordlessVerifyIn, request: Request = N
     rp_id = tdata.get("rp_id")
     origin = tdata.get("origin")
     if not mfa.verify_webauthn_assertion(cred, challenge, matching_key, expected_rp_id=rp_id, expected_origin=origin):
+        _log_auth_event("login", "failure", request, user_id=user.id, method="passkey")
         raise HTTPException(401, "Passkey authentication verification failed.")
 
     # Persist updated signature counter to protect against replay
@@ -1669,6 +1714,7 @@ def verify_passwordless_passkey(data: PasswordlessVerifyIn, request: Request = N
         pass
 
     token = create_user_token(user, db, request, remember_me=bool(data.remember_me))
+    _log_auth_event("login", "success", request, user_id=user.id, method="passkey")
     return {"access_token": token, "token_type": "bearer"}
 
 
@@ -1753,6 +1799,7 @@ def verify_magic_link(data: MagicLinkVerifyIn, request: Request = None, db: Sess
     actual_hash = hashlib.sha256(data.code.strip().encode()).hexdigest()
     if not hmac.compare_digest(actual_hash, expected_hash):
         code_attempts.wrong(data.token)
+        _log_auth_event("login", "failure", request, method="email_code")
         raise HTTPException(401, "Invalid sign-in code. Please check your email and try again.")
     code_attempts.used(data.token)
 
@@ -1769,4 +1816,4 @@ def verify_magic_link(data: MagicLinkVerifyIn, request: Request = None, db: Sess
         raise HTTPException(400, "Email code sign-in is only available for local accounts.")
 
     # An email code replaces the password, not the second factor.
-    return _finish_sign_in(user, db, request, bool(data.remember_me))
+    return _finish_sign_in(user, db, request, bool(data.remember_me), method="email_code")
