@@ -6438,6 +6438,41 @@ def t_clean_name():
     #   or (if a "real name" case failed) the cleaner is now too aggressive.
 
 
+@test(1, "limits.safe_filename_fragment_blocks_path_traversal",
+      "A broker (or other admin/import-sourced) name used to build a file path is reduced to "
+      "[A-Za-z0-9_-] first, so '../', '/', and similar can't escape the intended directory "
+      "(ASVS 5.3.2) — and both real call sites (optout_engine, discovery) actually use it.")
+def t_safe_filename_fragment():
+    lim = _imp("core.limits")
+    cases = {
+        "../../../../etc/cron.d/evil": "etc_cron_d_evil",
+        "/etc/passwd": "etc_passwd",
+        "Acme Corp": "Acme_Corp",
+        "People's Search (USA)": "People_s_Search_USA",
+        "": "file",
+        "....": "file",
+        "a" * 100: "a" * 40,   # truncated, never unbounded
+    }
+    for raw, want in cases.items():
+        got = lim.safe_filename_fragment(raw, fallback="file")
+        assert got == want, f"safe_filename_fragment({raw!r}) = {got!r}, expected {want!r}"
+        assert "/" not in got and ".." not in got
+
+    # Both real screenshot-path call sites must actually call the helper,
+    # not reconstruct their own ad-hoc sanitization (the exact bug this fixes
+    # — the old code only stripped '.' and ' ', never '/').
+    for mod_name, needle in (("core.optout_engine", "screenshot_path = f"), ("core.discovery", 'f"{SCREENSHOTS_DIR}')):
+        mod = _imp(mod_name)
+        with open(mod.__file__, encoding="utf-8") as f:
+            src = f.read()
+        idx = src.index(needle)
+        window = src[max(0, idx - 400):idx + 200]
+        assert "safe_filename_fragment(" in window, f"{mod_name} no longer sanitizes the screenshot filename"
+    # IF THIS FAILS: a broker named (via CSV/JSON import or a plugin manifest)
+    #   something like '../../../../etc/cron.d/x' could write its CAPTCHA
+    #   screenshot outside the screenshots directory.
+
+
 @test(4, "auth.signup_names_validated",
       "Sign-up, admin and family forms reject over-long or empty names with a readable error, "
       "and a SQL-looking name is stored literally without touching the database schema.")
@@ -12750,6 +12785,58 @@ def t_registry_parse():
             pass
 
 
+@test(2, "registry.xlsx_decompression_bomb_rejected",
+      "An uploaded .xlsx is capped on both entry count and uncompressed size before openpyxl "
+      "ever reads it — XLSX is a zip container, so the file-size cap alone only bounds the "
+      "compressed bytes (ASVS 5.2.3).")
+def t_registry_xlsx_bomb():
+    import zipfile, io as _io
+    try:
+        import openpyxl
+    except ImportError:
+        raise Skip("openpyxl not installed")
+    rs = _imp("core.registry_sync")
+
+    def _real_xlsx():
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.append(["Business Name", "Website", "Contact Email"])
+        ws.append(["Acme Corp", "acme.example", "privacy@acme.example"])
+        buf = _io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    # A normal, small .xlsx still parses fine.
+    good = _real_xlsx()
+    rows = rs._cells_from_upload(good, "registry.xlsx")
+    assert rows[0][0] == "Business Name" and rows[1][0] == "Acme Corp", rows
+
+    # Too many internal zip entries.
+    buf = _io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        for i in range(rs.MAX_XLSX_ENTRIES + 1):
+            z.writestr(f"x{i}.txt", "x")
+    try:
+        rs._cells_from_upload(buf.getvalue(), "registry.xlsx")
+        raise AssertionError("an xlsx with too many entries was accepted")
+    except ValueError as e:
+        assert "unusual number" in str(e)
+
+    # Too large once uncompressed (one entry, far over the cap, cheap to
+    # produce since zlib compresses repeated bytes to almost nothing).
+    buf2 = _io.BytesIO()
+    with zipfile.ZipFile(buf2, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("big.bin", b"\0" * (rs.MAX_XLSX_UNCOMPRESSED_BYTES + 1024))
+    try:
+        rs._cells_from_upload(buf2.getvalue(), "registry.xlsx")
+        raise AssertionError("an xlsx that expands past the cap was accepted")
+    except ValueError as e:
+        assert "too large" in str(e)
+    # IF THIS FAILS: a crafted .xlsx (well under the 20MB upload cap, since
+    #   that only bounds compressed bytes) could make openpyxl allocate far
+    #   more memory than the file's own size would suggest.
+
+
 @test(2, "registry.import_starts_off_and_never_overrides",
       "Imported brokers start turned off; existing brokers only gain registry details; repeat imports from other states merge.")
 def t_registry_import():
@@ -13726,6 +13813,24 @@ def t_privacy_record():
     s.close()
     # EXPECTED: a complete, honest privacy record and working access/deletion rights.
     # IF THIS FAILS: an install can't show what it keeps, answer a request, or forget someone.
+
+
+@test(1, "privacy.download_filename_cannot_inject_headers",
+      "_download()'s Content-Disposition filename strips CR/LF and escapes a quote/backslash, "
+      "so a future caller that ever passes freer text can't break out of the header or the "
+      "quoted-string (ASVS 5.4.1/5.4.2) — current callers all pass a fixed or int-derived name.")
+def t_download_filename_safety():
+    priv = _imp("routers.privacy")
+    r = priv._download({"x": 1}, 'evil"\r\nX-Injected: yes\\.json')
+    cd = r.headers["content-disposition"]
+    assert "\r" not in cd and "\n" not in cd, cd
+    assert cd == 'attachment; filename="evil\\"X-Injected: yes\\\\.json"', cd
+    # A normal name is untouched.
+    r2 = priv._download({}, "openoptout-my-data.json")
+    assert r2.headers["content-disposition"] == 'attachment; filename="openoptout-my-data.json"'
+    # IF THIS FAILS: a future _download() caller passing less-trusted text
+    #   could inject a response header or break out of the filename's
+    #   quoted-string in the Content-Disposition response header.
 
 
 @test(2, "privacy_record.coppa_purge_uses_dob_not_stale_age",

@@ -10,6 +10,7 @@ OpenOptOut's own privacy record and people's rights over their data.
   DELETE /api/privacy/me               delete my account, my details and people only I manage
 """
 import json
+import re
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -28,7 +29,13 @@ router = APIRouter(prefix="/api/privacy", tags=["privacy"])
 
 
 def _download(data: dict, name: str):
-    return JSONResponse(content=data, headers={"Content-Disposition": f'attachment; filename="{name}"'})
+    # Every current caller passes a fixed string or an int-derived name, so
+    # there's no live injection path today — but this helper has no way to
+    # know that about a future caller, so it sanitizes regardless (RFC 6266 /
+    # ASVS 5.4.1-5.4.2): strip CR/LF (header/line injection) and escape the
+    # backslash/quote that would otherwise break out of the quoted-string.
+    safe_name = re.sub(r"[\r\n]", "", name).replace("\\", "\\\\").replace('"', '\\"')
+    return JSONResponse(content=data, headers={"Content-Disposition": f'attachment; filename="{safe_name}"'})
 
 
 @router.get("/record")

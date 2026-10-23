@@ -128,6 +128,22 @@ Sensitive data this app creates or processes, classified by protection level, wi
 
 **Connection limits & behavior at the limit** (ASVS 13.1.2/13.1.3/13.2.6): PostgreSQL uses SQLAlchemy's pool with `pool_pre_ping=True` (dead connections are detected and replaced, not surfaced as a request failure) and a 30-minute recycle on the structured/IAM-auth path; the default pool/overflow sizing (5 + 10) applies otherwise — a deployment expecting more concurrent DB load should raise it via `DATABASE_URL` pool kwargs. Every outbound HTTP call this app makes to an external service (OAuth token/userinfo exchange, OIDC/SAML metadata fetch, registry sync, webhook delivery, log forwarding) uses an explicit short timeout (10–25 seconds) and does not automatically retry — a failure is surfaced to the caller or logged, not silently retried into a cascading delay, matching 13.1.3's guidance for synchronous request–response calls. SMTP/IMAP and the broker-automation browser sessions have their own timeout handling in `core/email_send.py`/`core/confirm_links.py`/`core/network_health.py`, including backoff on repeated network loss (the worker requeues rather than hammering).
 
+## File Upload & Download Handling
+
+**Permitted types, extensions and size per upload feature** (ASVS 5.1.1), all admin/super-admin-gated — none are an unauthenticated or ordinary-user upload surface:
+
+| Upload | Accepted types | Max size | Content validated by |
+|---|---|---|---|
+| Branding logo | PNG, SVG, JPEG, WebP | 2 MB | Real magic-byte sniffing (`_sniff_image_kind`), then re-encoded from raw pixels (raster) or stripped of comments/`<metadata>` (SVG) before saving — `routers/branding.py` |
+| Broker plugin bundle | `.zip` | 50 MB (200 MB uncompressed, 5,000 entries) | `manifest.json` required, static code inspection (`code_inspector.py`), symlink entries rejected, extracted paths validated — `routers/plugins.py` |
+| Broker CSV/JSON import | CSV, JSON (UTF-8 text) | 10 MB | Must decode as UTF-8; row/field shape validated against the broker schema — `routers/brokers.py` |
+| State registry import | CSV, XLSX/XLSM | 20 MB (100 MB uncompressed, 2,000 zip entries for XLSX) | Column-alias header matching; XLSX's zip container is entry/size-capped before `openpyxl` reads it — `core/registry_sync.py` |
+| Resident address list import | CSV | 30 MB | Row shape validated against expected columns — `core/resident_addresses.py` |
+
+**Malicious-file behavior**: a file that fails a check above is refused with a 400/413 before being written to disk or processed further — never partially saved, never silently coerced into a "best guess" type. Uploaded raster images are never processed as the original bytes at all (re-encoded from decoded pixels), so a crafted PNG/JPEG exploiting a decoder bug in some *other* tool that might later open the file has nothing of the original file surviving to exploit. There is no antivirus/signature scanning of uploaded content (no ClamAV-style integration) — a deliberate scope call for this self-hosted, single-operator profile; the one upload type where that would matter most (plugin `.zip` bundles, which can contain arbitrary Python from a third-party author) is instead covered by static code inspection plus the bubblewrap/seccomp sandbox at runtime, which is a more precise control for custom code than signature-based AV scanning would be.
+
+**Downloads**: every `Content-Disposition` filename this app sets is either a fixed string or built from internally-generated/integer-derived data (request/member IDs, timestamps), never unsanitized user text — confirmed across every such site in the codebase (backups, exports, logs, reports, calendar feeds).
+
 ## Compliance & Security Standards
 
 OpenOptOut is engineered to follow recognized industry standards for security, cryptography, application verification, and privacy:

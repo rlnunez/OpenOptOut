@@ -171,6 +171,17 @@ def decode_text_upload(data: bytes, what: str = "file") -> str:
                                  "Save it as UTF-8 (\"CSV UTF-8\" in Excel) and try again.")
 
 
+def safe_filename_fragment(s: str, max_len: int = 40, fallback: str = "file") -> str:
+    """A string like a broker name turned into something safe to put in a
+    file path: only [A-Za-z0-9_-], truncated, never empty (ASVS 5.3.2). Not
+    for display — just for building a path component out of untrusted or
+    admin-entered text (a broker's name, imported from CSV/JSON or a
+    third-party plugin manifest, is not itself path-safe)."""
+    import re
+    cleaned = re.sub(r"[^A-Za-z0-9_-]+", "_", s or "").strip("_")
+    return cleaned[:max_len] or fallback
+
+
 def strip_null_bytes(val):
     """Recursively strip invisible NUL (\\x00) characters and lone UTF-16
     surrogates from strings, lists, tuples, sets, and dicts so they can never

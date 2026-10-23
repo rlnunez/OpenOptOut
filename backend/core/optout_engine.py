@@ -1062,7 +1062,8 @@ async def execute_optout(
                             try:
                                 os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
                                 ts = int(time.time())
-                                bname = broker.name.replace(".", "_").replace(" ", "_")
+                                from .limits import safe_filename_fragment
+                                bname = safe_filename_fragment(broker.name, fallback="broker")
                                 screenshot_path = f"{SCREENSHOTS_DIR}/captcha_{bname}_{ts}.png"
                                 with open(screenshot_path, "wb") as sf:
                                     sf.write(ch["screenshot"])

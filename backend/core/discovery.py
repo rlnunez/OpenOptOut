@@ -68,8 +68,9 @@ async def _launch_browser(playwright):
 
 async def _screenshot(page: Page, name: str) -> Optional[str]:
     import os; os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
+    from .limits import safe_filename_fragment
     ts   = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    path = f"{SCREENSHOTS_DIR}/{name}_{ts}.png"
+    path = f"{SCREENSHOTS_DIR}/{safe_filename_fragment(name)}_{ts}.png"
     try:
         await page.screenshot(path=path, full_page=True)
         return path

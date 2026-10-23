@@ -59,6 +59,10 @@ REGISTRY_ENABLE_WARNING = (
 )
 
 MAX_BYTES = 20 * 1024 * 1024
+# XLSX is a zip container; MAX_BYTES only caps the compressed upload. Cap the
+# uncompressed content too, before handing it to openpyxl (ASVS 5.2.3).
+MAX_XLSX_ENTRIES = 2_000
+MAX_XLSX_UNCOMPRESSED_BYTES = 100 * 1024 * 1024
 
 _HEADERS = {
     "name": ["data broker name", "business name", "legal name", "company name", "name",
@@ -105,6 +109,16 @@ def _cells_from_upload(data: bytes, filename: str) -> list:
             import openpyxl
         except ImportError:
             raise ValueError("This server can't read Excel files. Open the file and save it as CSV, then upload that.")
+        import zipfile
+        try:
+            with zipfile.ZipFile(io.BytesIO(data)) as z:
+                infos = z.infolist()
+                if len(infos) > MAX_XLSX_ENTRIES:
+                    raise ValueError("That Excel file has an unusual number of internal parts and was not opened.")
+                if sum(i.file_size for i in infos) > MAX_XLSX_UNCOMPRESSED_BYTES:
+                    raise ValueError("That Excel file is too large once unpacked.")
+        except zipfile.BadZipFile:
+            raise ValueError("That doesn't look like a valid Excel file.")
         wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
         ws = wb.worksheets[0]
         return [["" if c is None else str(c) for c in row] for row in ws.iter_rows(values_only=True)]
