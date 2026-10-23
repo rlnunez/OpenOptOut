@@ -1,16 +1,16 @@
 # Optional cloud IAM authentication dependencies.
-# Install only what your deployment needs:
+# Install only what your deployment needs, on top of requirements.txt
+# (already installed in the image — this is never installed standalone):
 #   pip install -r requirements-cloud.txt
+#
+# google-auth, pyasn1, PyJWT, idna and certifi are NOT listed here even
+# though GCP/Azure IAM auth use them — they're already unconditional
+# dependencies in requirements.txt (Gmail plugin, JWT handling, httpx/
+# requests), so re-pinning them here would just be a second place to keep
+# in sync on every upgrade.
 
 # AWS RDS IAM authentication
 boto3==1.43.111
 
-# GCP Cloud SQL IAM authentication
-google-auth==2.61.0
-pyasn1==0.6.4
-
 # Azure AD authentication
 azure-identity==1.26.0
-PyJWT==2.15.1
-idna==3.20
-certifi==2026.10.19
