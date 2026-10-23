@@ -276,6 +276,34 @@ def _sniff_image_kind(data: bytes) -> Optional[str]:
     return None
 
 
+def _strip_raster_metadata(data: bytes, ext: str) -> bytes:
+    """ASVS 14.2.8: re-encode a logo from raw pixels into a brand-new image,
+    same technique as core/captcha_privacy.py's redact_image() — nothing
+    from the original file (EXIF, GPS, ICC profiles, editor text chunks)
+    carries over, since nothing but pixel data is ever copied."""
+    from PIL import Image
+    import io
+    img = Image.open(io.BytesIO(data))
+    img.load()
+    mode = "RGBA" if ext in ("png", "webp") else "RGB"
+    img = img.convert(mode)
+    clean = Image.new(mode, img.size)
+    clean.putdata(list(img.getdata()))
+    out = io.BytesIO()
+    clean.save(out, format={"png": "PNG", "jpeg": "JPEG", "webp": "WEBP"}[ext], optimize=True)
+    return out.getvalue()
+
+
+def _strip_svg_metadata(data: bytes) -> bytes:
+    """Strip XML comments and <metadata> blocks — where design tools like
+    Inkscape/Illustrator embed author/editor info (ASVS 14.2.8)."""
+    import re
+    text = data.decode("utf-8", "replace")
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
+    text = re.sub(r"<metadata[^>]*>.*?</metadata>", "", text, flags=re.DOTALL | re.IGNORECASE)
+    return text.encode("utf-8")
+
+
 @router.post("/logo")
 def upload_logo(file: UploadFile = File(...), _: User = Depends(require_permission("branding.manage"))):
     # Was: ext always came out "png" for jpeg/webp uploads too (only svg was
@@ -290,6 +318,10 @@ def upload_logo(file: UploadFile = File(...), _: User = Depends(require_permissi
     data = read_upload(file, LOGO_MAX_BYTES, "logo")
     if _sniff_image_kind(data) != ext:
         raise HTTPException(400, "That file's content doesn't match a PNG, SVG, JPEG, or WebP image.")
+    try:
+        data = _strip_svg_metadata(data) if ext == "svg" else _strip_raster_metadata(data, ext)
+    except Exception:
+        raise HTTPException(400, "Couldn't read that image. Try a different file.")
     # Clear any previously uploaded logo in a DIFFERENT format first — now that
     # jpeg/webp get their own real extension, an old file in another format
     # would otherwise linger on disk and get served ahead of the one just

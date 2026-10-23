@@ -8969,15 +8969,21 @@ def t_logo_extension_mapping():
         orig_path = branding.LOGO_PATH
         branding.LOGO_PATH = tmp
         try:
-            # Real magic bytes per format — upload_logo now sniffs the body
-            # itself rather than trusting Content-Type alone (see
-            # branding.test_rejects_content_mismatching_bytes below), so a
-            # bare placeholder payload would be refused before any of this
-            # test's actual behavior (extension mapping) runs.
+            # Real, fully decodable tiny images per format — upload_logo now
+            # sniffs the body itself rather than trusting Content-Type alone
+            # (see branding.test_rejects_content_mismatching_bytes below) AND
+            # re-encodes it from raw pixels to strip metadata (ASVS 14.2.8),
+            # so a bare magic-bytes placeholder isn't enough; PIL has to be
+            # able to actually open it.
+            from PIL import Image as _PILImage
+            def _real_img(fmt):
+                buf = io.BytesIO()
+                _PILImage.new("RGB", (2, 2), (10, 20, 30)).save(buf, format=fmt)
+                return buf.getvalue()
             _MAGIC = {
-                "image/jpeg": b"\xff\xd8\xff" + b"\x00" * 16,
-                "image/webp": b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 8,
-                "image/png": b"\x89PNG\r\n\x1a\n" + b"\x00" * 16,
+                "image/jpeg": _real_img("JPEG"),
+                "image/webp": _real_img("WEBP"),
+                "image/png": _real_img("PNG"),
                 "image/svg+xml": b"<?xml version='1.0'?><svg xmlns='http://www.w3.org/2000/svg'></svg>",
             }
 
@@ -9030,6 +9036,61 @@ def t_logo_extension_mapping():
     # IF THIS FAILS: an uploaded jpeg/webp logo could be corrupted on disk,
     #   invisible to /config, or a replaced logo could silently keep showing
     #   the old image.
+
+
+@test(2, "branding.logo_upload_strips_metadata",
+      "A logo upload is re-encoded from raw pixels (JPEG/PNG/WebP) or has comments/<metadata> "
+      "stripped (SVG) before being saved, so EXIF/GPS/editor metadata never reaches the publicly "
+      "served file (ASVS 14.2.8).")
+def t_logo_strips_metadata():
+    from types import SimpleNamespace as NS
+    import tempfile, io, os
+    try:
+        branding = _imp("routers.branding")
+        from PIL import Image
+        from PIL.ExifTags import Base as ExifTag
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    admin = NS(is_super_admin=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        orig_path = branding.LOGO_PATH
+        branding.LOGO_PATH = tmp
+        try:
+            # A real JPEG carrying GPS/author EXIF data, exactly the kind of
+            # thing a careless admin's phone photo would still have on it.
+            exif = Image.Exif()
+            exif[ExifTag.Artist.value] = "Jordan Example"
+            exif[ExifTag.GPSInfo.value] = {1: "N", 2: (40, 0, 0), 3: "W", 4: (74, 0, 0)}
+            buf = io.BytesIO()
+            Image.new("RGB", (4, 4), (200, 100, 50)).save(buf, format="JPEG", exif=exif)
+            jpeg_with_exif = buf.getvalue()
+            assert b"Jordan Example" in jpeg_with_exif, "fixture itself doesn't carry the EXIF tag"
+
+            f = NS(content_type="image/jpeg", file=io.BytesIO(jpeg_with_exif))
+            branding.upload_logo(file=f, _=admin)
+            saved = open(os.path.join(tmp, "logo.jpeg"), "rb").read()
+            assert b"Jordan Example" not in saved, "EXIF Artist tag survived the upload"
+            saved_exif = Image.open(io.BytesIO(saved)).getexif()
+            assert not saved_exif, f"re-encoded logo still carries EXIF data: {dict(saved_exif)}"
+
+            # An SVG with an editor comment and a <metadata> block (the shape
+            # Inkscape/Illustrator actually export).
+            svg = (b"<?xml version='1.0'?><!-- made by Jordan Example on their laptop -->"
+                   b"<svg xmlns='http://www.w3.org/2000/svg'>"
+                   b"<metadata><rdf:RDF><dc:creator>Jordan Example</dc:creator></rdf:RDF></metadata>"
+                   b"<rect width='1' height='1'/></svg>")
+            f2 = NS(content_type="image/svg+xml", file=io.BytesIO(svg))
+            branding.upload_logo(file=f2, _=admin)
+            saved_svg = open(os.path.join(tmp, "logo.svg"), "rb").read()
+            assert b"Jordan Example" not in saved_svg, "SVG comment/<metadata> author info survived the upload"
+            assert b"<rect" in saved_svg, "stripping metadata also ate the actual SVG content"
+        finally:
+            branding.LOGO_PATH = orig_path
+    # EXPECTED: an uploaded logo's original author/location metadata never
+    #   reaches disk or the publicly served /api/branding/logo response.
+    # IF THIS FAILS: _strip_raster_metadata/_strip_svg_metadata was removed
+    #   or no longer actually re-encodes/sanitizes the upload.
 
 
 @test(2, "test_broker.fenced_and_sends_end_to_end",

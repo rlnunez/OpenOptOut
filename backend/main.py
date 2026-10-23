@@ -116,6 +116,11 @@ app.add_middleware(
 @app.middleware("http")
 async def add_security_headers(request, call_next):
     response = await call_next(request)
+    # ASVS 14.2.2/14.3.2: nothing here is cached by default — browsers, shared
+    # proxies, or a load balancer in front of this API. A handful of routes
+    # (calendar feed, CAPTCHA/step screenshots, usage stats) set their own
+    # deliberate value above and this setdefault leaves theirs alone.
+    response.headers.setdefault("Cache-Control", "no-store")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")

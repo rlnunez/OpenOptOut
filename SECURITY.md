@@ -44,6 +44,22 @@ OpenOptOut enforces rigorous defense-in-depth protections across all layers:
 - **Bot-Evasion Realism**: User-agent rotation and residential proxies defend against basic IP rate limits, but do not claim to defeat advanced behavioral browser fingerprinting.
 - **Mandatory Production HTTPS**: Deployments must run behind TLS (Caddy, Traefik, or reverse proxies) to prevent plaintext transmission of session tokens, passwords, and patron data. See [`docs/admin/https.md`](docs/admin/https.md).
 
+## Data Protection & Classification
+
+Sensitive data this app creates or processes, classified by protection level, with the controls each level requires (ASVS 14.1.1/14.1.2/14.2.4):
+
+| Data | Classification | Encryption | Logging | Retention | Access |
+|---|---|---|---|---|---|
+| Family member PII (name, address, phone, email, dob) | Restricted — children's data, COPPA-relevant | AES-256-GCM at rest (`EncryptedText` columns) | Never logged (scrubbed by `core/logging_config.py` regardless of what a log call passes); access by staff logged (`core/privacy_record.py:log_access`) | Deleted on request (`DELETE /api/family/{id}`); minors' aux data (confirmation links, email excerpts) auto-purged after `coppa_children_retention_days` (default 30) | Owning parent/guardian, or staff via `ProfileAccess`/admin permission, each access-logged for staff |
+| SSNs, government ID numbers, passwords (third-party) | **Never stored** | N/A | N/A | N/A | Never collected, filled, or retained — a hard rule (AGENTS.md), not a configurable one |
+| Credentials & secrets (SMTP/IMAP passwords, OAuth client secrets, API keys, backup passphrases) | Restricted | AES-256-GCM / Fernet, HKDF-derived keys | Never logged; never returned in plaintext to the frontend once saved (masked/boolean `*_set` flags only, `routers/settings.py` and others) | Kept until replaced or the integration is removed by an admin | `settings.manage`/equivalent admin permission only |
+| Session tokens (JWT) | Restricted | Signed (HMAC-SHA256), not encrypted — not meant to be opaque, just unforgeable | Never logged in full; audit lines use the numeric session/user id | Expires per session policy; revocable per-session or account-wide (`UserSession`) | Held client-side in `localStorage` (the one ASVS-acknowledged exception to "nothing sensitive in browser storage") |
+| Security event / audit logs (`auth_event`, `authz_denied`, etc.) | Internal | Not encrypted (local file, owner-only `0600`) | This *is* the log | Configurable, default 30+ days (`core/privacy_record.py`) | Admin (Logs page) and optional configured forwarding destination |
+| Broker interaction artifacts (automation logs, email excerpts, CAPTCHA screenshots) | Restricted while linked to a family member | PII fields encrypted; CAPTCHA images have personal details blacked out before leaving the app (`core/captcha_privacy.py`) | Scrubbed, as above | Purged per `logs_retention_days`/`artifacts_retention_days`/`coppa_children_retention_days` | Owning account, or staff with access logged |
+| Uploaded files (branding logo) | Low sensitivity, but still re-encoded/sanitized (ASVS 14.2.8) — not trusted as opaque bytes from an admin's machine | N/A (not PII) | N/A | Replaced on next upload | Public (served unauthenticated, by design — it's the login-page branding) |
+
+**What's never sent to a third party**: this app makes zero outbound calls containing user-derived (family member) data for anything but a feature the admin explicitly configured and that specific integration's own purpose (e.g. an admin-configured webhook, which is itself PII-filtered before send — see `core/webhooks.py`). There are no analytics SDKs, tracking pixels, or telemetry calls anywhere in this codebase.
+
 ## Web Frontend & Browser Security
 
 - **Expected browser features**: the frontend is a modern React/Vite single-page app and assumes an evergreen, currently-supported browser (recent Chrome/Firefox/Safari/Edge). There's no explicit "your browser doesn't support X" detection or fallback UI today (ASVS 3.1.1/3.7.5) — on an unsupported browser a feature that depends on a missing API (e.g. WebAuthn) fails at the point of use rather than being pre-flighted.

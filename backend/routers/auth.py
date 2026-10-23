@@ -1338,12 +1338,14 @@ def verify_webauthn_login(data: VerifyWebAuthnIn, db: Session = Depends(get_db),
 @router.get("/mfa/status")
 def get_mfa_status(
     request: Request,
-    mfa_ticket: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
+    # ASVS 14.2.1: a sign-in ticket is sensitive and must not travel in a URL/
+    # query string. _resolve_user_for_mfa already falls back to the
+    # X-MFA-Ticket request header when no query value is given.
     from ..core import mfa
-    user = _resolve_user_for_mfa(db, current_user, mfa_ticket, request)
+    user = _resolve_user_for_mfa(db, current_user, None, request)
     mandated, days_left = mfa.is_mfa_mandated(user, db)
     allowed_methods = mfa.get_user_allowed_mfa_methods(user)
     keys = []
