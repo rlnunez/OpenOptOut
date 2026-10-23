@@ -1,10 +1,12 @@
 import os
 import re
-from fastapi import FastAPI
+from typing import Optional
+from fastapi import FastAPI, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import StatementError, IntegrityError
-from .models.database import init_db
+from .models.database import init_db, User
+from .core.auth import get_current_user_optional
 from .routers import auth, brokers, requests as requests_router
 from .routers.family import family_router, identity_router
 from .routers.admin import router as admin_router
@@ -301,5 +303,16 @@ def shutdown():
 
 
 @app.get("/api/health")
-def health():
-    return {"status": "ok", "version": get_version(), "commit": get_commit()}
+def health(current_user: Optional[User] = Depends(get_current_user_optional)):
+    # Public liveness probe (docker healthchecks, the updater, release
+    # testing all poll this unauthenticated) — version alone is already
+    # public knowledge (GitHub releases/Docker tags). The exact commit is
+    # sharper fingerprinting (an anonymous caller could diff the public repo
+    # at that commit to see exactly what's patched), so it's only included
+    # once someone is actually signed in, matching how the app's own
+    # Sidebar/Help "copy diagnostics" feature already calls this endpoint
+    # while logged in (ASVS 13.4.6).
+    out = {"status": "ok", "version": get_version()}
+    if current_user is not None:
+        out["commit"] = get_commit()
+    return out

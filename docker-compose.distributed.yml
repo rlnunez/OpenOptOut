@@ -19,13 +19,18 @@ services:
     restart: unless-stopped
     ulimits:
       core: 0
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy noeviction
+    # requirepass: every container on this network can otherwise reach the
+    # queue unauthenticated — including the worker fleet, which renders
+    # untrusted external broker pages and is the highest-risk process here
+    # (ASVS 13.2.1/13.2.2). No default: a deployment without REDIS_PASSWORD
+    # set in .env refuses to start rather than running open.
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy noeviction --requirepass ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
     ports:
       - "${REDIS_BIND:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}", "--no-auth-warning", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -38,7 +43,7 @@ services:
       core: 0
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-openoptout}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-openoptout-secret-pw}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       - POSTGRES_DB=${POSTGRES_DB:-openoptout}
     volumes:
       - pg_data:/var/lib/postgresql/data
@@ -73,8 +78,8 @@ services:
       - SECRET_KEY=${SECRET_KEY:-}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
       - SETTINGS_FILE=/data/openoptout_settings.json
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-openoptout}:${POSTGRES_PASSWORD:-openoptout-secret-pw}@db:5432/${POSTGRES_DB:-openoptout}
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-openoptout}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-openoptout}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}@redis:6379/0
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
       - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY:-}
     volumes:
@@ -105,7 +110,7 @@ services:
     command: python -m worker
     environment:
       - SECRET_KEY=${SECRET_KEY:-}
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}@redis:6379/0
       - WORKER_CONCURRENCY=${WORKER_CONCURRENCY:-2}
       - WORKER_DRY_RUN=${WORKER_DRY_RUN:-0}
     volumes:

@@ -100,6 +100,34 @@ Sensitive data this app creates or processes, classified by protection level, wi
 
 **Migration path:** every primitive in use today (AES-256-GCM, HMAC-SHA256, PBKDF2-HMAC-SHA256, bcrypt) is a NIST-approved, currently-unbroken construction with at least 128 bits of security. None of them are asymmetric/public-key algorithms that a quantum adversary's Shor's-algorithm attack would target, so there's no near-term post-quantum migration pressure on this inventory; the practical migration path if any primitive here were ever deprecated is to add the new algorithm alongside the old (the same way legacy unpeppered password hashes are already transparently upgraded on next login), not a hard cutover.
 
+**Rotation schedule** (ASVS 13.1.4/13.3.4 — there is no automated enforcement of any of this; an operator rotates by regenerating the env var/file and restarting):
+
+| Secret | Recommended cadence | Immediately on suspected compromise |
+|---|---|---|
+| `SECRET_KEY` | Annually, or per organizational policy | Yes — also invalidates every outstanding session |
+| `FIELD_ENCRYPTION_KEY` / `DB_ENCRYPTION_KEY` | Not routinely (re-encrypting data at rest is a migration, not a restart) | Yes, with a planned re-encryption pass |
+| `pepper.key` | Not routinely (persists across `SECRET_KEY` rotation by design) | Yes |
+| `POSTGRES_PASSWORD` / `REDIS_PASSWORD` (distributed deployment) | Annually | Yes |
+| OAuth/OIDC client secrets, SMTP/IMAP passwords, CAPTCHA-solver/webhook API keys | Per the third party's own policy, or annually | Yes — revoke at the provider too, not just here |
+| Metrics token (`/api/metrics`) | On staff turnover, or annually | Yes |
+
+## External Service Connections & Configuration
+
+**Services this app connects to** (ASVS 13.1.1), all admin-configured — never a value an end user supplies and this app then connects to on their behalf:
+
+| Service | Purpose | Required? |
+|---|---|---|
+| SMTP / IMAP | Sending opt-out requests, reading broker replies | One or the other, for email-based opt-outs |
+| OAuth/OIDC providers, SAML IdP, LDAP, SIP2 | Single sign-on / library-card sign-in | Optional |
+| Bundled SearXNG | Web search for finding a person's listings | Optional (on by default when bundled) |
+| CAPTCHA-solving services | Unblocking an automated opt-out | Optional |
+| Webhook destinations, log forwarding (syslog/OTLP/Loki/Splunk) | Operator-configured notifications/observability | Optional, off by default |
+| PostgreSQL | Alternative to the default SQLite | Optional |
+| Redis | Distributed worker-queue topology only (`docker-compose.distributed.yml`) | Only in that topology |
+| Data broker sites | The core opt-out function | Required, but sandboxed (`broker-plugins/README.md`) |
+
+**Connection limits & behavior at the limit** (ASVS 13.1.2/13.1.3/13.2.6): PostgreSQL uses SQLAlchemy's pool with `pool_pre_ping=True` (dead connections are detected and replaced, not surfaced as a request failure) and a 30-minute recycle on the structured/IAM-auth path; the default pool/overflow sizing (5 + 10) applies otherwise — a deployment expecting more concurrent DB load should raise it via `DATABASE_URL` pool kwargs. Every outbound HTTP call this app makes to an external service (OAuth token/userinfo exchange, OIDC/SAML metadata fetch, registry sync, webhook delivery, log forwarding) uses an explicit short timeout (10–25 seconds) and does not automatically retry — a failure is surfaced to the caller or logged, not silently retried into a cascading delay, matching 13.1.3's guidance for synchronous request–response calls. SMTP/IMAP and the broker-automation browser sessions have their own timeout handling in `core/email_send.py`/`core/confirm_links.py`/`core/network_health.py`, including backoff on repeated network loss (the worker requeues rather than hammering).
+
 ## Compliance & Security Standards
 
 OpenOptOut is engineered to follow recognized industry standards for security, cryptography, application verification, and privacy:

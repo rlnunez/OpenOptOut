@@ -5417,6 +5417,41 @@ def t_compose_sanity():
     #   own reverse proxy could end up fighting our Caddy container for ports.
 
 
+@test(1, "https.distributed_compose_no_default_credentials",
+      "docker-compose.distributed.yml: Postgres and Redis have no hardcoded default "
+      "password — both refuse to start without one set in .env (ASVS 13.2.1/13.2.3).")
+def t_distributed_compose_no_default_credentials():
+    if _try_import("yaml") is None:
+        raise Skip("pyyaml not installed")
+    repo_root = os.path.dirname(_BACKEND_DIR)
+    path = os.path.join(repo_root, "docker-compose.distributed.yml")
+    if not os.path.isfile(path):
+        raise Skip("docker-compose.distributed.yml not present (running from a bare backend checkout)")
+    raw = open(path).read()
+    import yaml
+    compose = yaml.safe_load(raw)
+    services = compose.get("services", {})
+    assert {"redis", "db", "api", "worker"} <= set(services), "expected redis/db/api/worker services"
+
+    # Was: POSTGRES_PASSWORD:-openoptout-secret-pw and an unauthenticated
+    # Redis — both silently usable defaults an operator could miss entirely.
+    assert "openoptout-secret-pw" not in raw, "a hardcoded default Postgres password is back"
+    assert "POSTGRES_PASSWORD:?" in raw, "POSTGRES_PASSWORD must be a required (:?) variable, not defaulted"
+    assert "REDIS_PASSWORD:?" in raw, "REDIS_PASSWORD must be a required (:?) variable, not defaulted"
+
+    redis_cmd_raw = services["redis"].get("command", [])
+    redis_cmd = redis_cmd_raw if isinstance(redis_cmd_raw, str) else " ".join(str(c) for c in redis_cmd_raw)
+    assert "--requirepass" in redis_cmd, "redis must be started with --requirepass"
+    for name in ("api", "worker"):
+        redis_url = " ".join(str(e) for e in services[name].get("environment", []) if "REDIS_URL" in str(e))
+        assert "REDIS_PASSWORD" in redis_url, f"{name}'s REDIS_URL must carry the password"
+    # EXPECTED: `docker compose -f docker-compose.distributed.yml up` refuses to
+    #   start at all without REDIS_PASSWORD/POSTGRES_PASSWORD set in .env.
+    # IF THIS FAILS: the worker fleet (which renders untrusted external broker
+    #   pages) or anything else on the Docker network could reach an
+    #   unauthenticated queue, or the database could use a guessable password.
+
+
 @test(1, "system_updates.core_and_routes",
       "Automated updater semver parsing, Docker engine version audit, update policy, and workload draining.")
 def t_system_updates():
@@ -6583,6 +6618,29 @@ def t_request_size_limits():
         pass
     auth_router.RegisterRequest(email="jordan@example.com", full_name="Jordan", invite_code="ABC123")
     # EXPECTED: 413 / 414 with readable messages; normal requests unaffected.
+
+
+@test(4, "main.health_endpoint_hides_commit_from_anonymous_callers",
+      "GET /api/health always reports version (needed by docker healthchecks, the updater, "
+      "release testing), but only includes the exact git commit once the caller is signed in "
+      "— an anonymous caller can't use it to diff the public repo at that commit (ASVS 13.4.6).")
+def t_health_commit_gating():
+    from types import SimpleNamespace
+    try:
+        main = importlib.import_module(_mod("main"))
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    anon = main.health(current_user=None)
+    assert anon["status"] == "ok" and anon.get("version"), anon
+    assert "commit" not in anon, "commit leaked to an anonymous caller"
+
+    signed_in = main.health(current_user=SimpleNamespace(id=1))
+    assert signed_in["version"] == anon["version"]
+    assert "commit" in signed_in, "commit should be available once signed in (Sidebar/Help use this)"
+    # EXPECTED: an anonymous request to /api/health can't be used to fingerprint
+    #   the exact commit and diff it against the public repo for unpatched issues.
+    # IF THIS FAILS: health() stopped gating commit on current_user.
 
 
 @test(4, "main.cors_methods_not_wildcarded",
