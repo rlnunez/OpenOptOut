@@ -372,7 +372,18 @@ class JobEnvelope:
             # Queue contents are untrusted (anyone who can write to Redis):
             # report malformed fields as an invalid envelope, never a crash.
             raise EnvelopeInvalidError(f"Malformed envelope field: {e}") from None
-        if verify_signature and secret_key:
+        if verify_signature:
+            # A caller that wants verification but didn't supply a key gets
+            # an error, not a silent pass — pass verify_signature=False
+            # explicitly when a layer genuinely means to skip verification
+            # here (e.g. because it happens later, closer to where the
+            # envelope is actually acted on).
+            if not secret_key:
+                raise EnvelopeInvalidError(
+                    "verify_signature=True requires a secret_key; pass "
+                    "verify_signature=False if this call deliberately "
+                    "doesn't verify here."
+                )
             env.verify(secret_key, allow_expired=allow_expired)
         return env
 
@@ -532,7 +543,13 @@ class JobResultEnvelope:
             raise
         except (TypeError, ValueError, AttributeError, OverflowError) as e:
             raise EnvelopeInvalidError(f"Malformed result envelope field: {e}") from None
-        if verify_signature and secret_key:
+        if verify_signature:
+            if not secret_key:
+                raise EnvelopeInvalidError(
+                    "verify_signature=True requires a secret_key; pass "
+                    "verify_signature=False if this call deliberately "
+                    "doesn't verify here."
+                )
             res.verify(secret_key)
         return res
 

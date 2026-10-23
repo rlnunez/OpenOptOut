@@ -412,30 +412,47 @@ class WorkerDaemon:
         screenshots: Dict[str, str] = {}
         error_msg: Optional[str] = None
 
-        # 1. Signature Verification
-        if self.config.secret_key:
-            try:
-                envelope.verify(self.config.secret_key)
-            except EnvelopeTamperedError as e:
-                log.error("Rejecting tampered envelope %s: %s", envelope.envelope_id, e)
-                return create_result_envelope(
-                    request_envelope=envelope,
-                    ok=False,
-                    status="tampered",
-                    error=str(e),
-                    worker_id=self.config.worker_id,
-                    secret_key=self.config.secret_key,
-                )
-            except EnvelopeExpiredError as e:
-                log.warning("Rejecting expired envelope %s: %s", envelope.envelope_id, e)
-                return create_result_envelope(
-                    request_envelope=envelope,
-                    ok=False,
-                    status="expired",
-                    error=str(e),
-                    worker_id=self.config.worker_id,
-                    secret_key=self.config.secret_key,
-                )
+        # 1. Signature Verification. Fail closed: a worker with no secret_key
+        # configured must refuse every envelope rather than silently treat
+        # unverified ones as trusted — the queue transport (Redis, or any
+        # other process able to write to it) is not itself trusted, so an
+        # envelope's HMAC is the only thing standing between "job data" and
+        # "arbitrary attacker-controlled input this worker will act on."
+        if not self.config.secret_key:
+            log.error(
+                "Rejecting envelope %s: this worker has no secret_key configured, "
+                "so its signature can't be checked.", envelope.envelope_id,
+            )
+            return create_result_envelope(
+                request_envelope=envelope,
+                ok=False,
+                status="tampered",
+                error="Worker has no secret_key configured; cannot verify envelope integrity.",
+                worker_id=self.config.worker_id,
+                secret_key=self.config.secret_key,
+            )
+        try:
+            envelope.verify(self.config.secret_key)
+        except EnvelopeTamperedError as e:
+            log.error("Rejecting tampered envelope %s: %s", envelope.envelope_id, e)
+            return create_result_envelope(
+                request_envelope=envelope,
+                ok=False,
+                status="tampered",
+                error=str(e),
+                worker_id=self.config.worker_id,
+                secret_key=self.config.secret_key,
+            )
+        except EnvelopeExpiredError as e:
+            log.warning("Rejecting expired envelope %s: %s", envelope.envelope_id, e)
+            return create_result_envelope(
+                request_envelope=envelope,
+                ok=False,
+                status="expired",
+                error=str(e),
+                worker_id=self.config.worker_id,
+                secret_key=self.config.secret_key,
+            )
 
         # 2. Authenticated Payload Decryption
         if envelope.is_encrypted:

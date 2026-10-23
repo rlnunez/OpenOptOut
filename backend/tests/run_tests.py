@@ -1905,6 +1905,24 @@ def t_job_envelope_serialization():
     assert test_env2.is_zeroized is True
     assert test_env2.payload == {}
 
+    # 9. verify_signature=True (the default) with no secret_key must fail
+    # closed — not silently skip verification (was: "if verify_signature
+    # and secret_key" let a caller that forgot the key through unverified).
+    try:
+        env_mod.JobEnvelope.from_json(json_str)
+        assert False, "verify_signature defaulting True with no key should have raised"
+    except env_mod.EnvelopeInvalidError:
+        pass
+    # Explicitly opting out is still allowed (the queue's dequeue() does this
+    # — verification happens later, at the worker).
+    unverified = env_mod.JobEnvelope.from_json(json_str, verify_signature=False)
+    assert unverified.envelope_id == env.envelope_id
+    try:
+        env_mod.JobResultEnvelope.from_json(res_json)
+        assert False, "JobResultEnvelope should fail closed the same way"
+    except env_mod.EnvelopeInvalidError:
+        pass
+
 
 @test(1, "distributed.unified_job_queue",
       "Unified queue abstraction provides priority dispatch, in-flight tracking, ack, requeue, and DLQ routing (Phase 7.2).")
@@ -2238,6 +2256,18 @@ def t_worker_daemon_execution():
         assert conc_daemon.stats["processed"] == 4
 
     asyncio.run(run_concurrency_test())
+
+    # ── 4. A worker with no secret_key configured fails closed ──────────────
+    # Was: "if self.config.secret_key: envelope.verify(...)" silently SKIPPED
+    # verification (and ran the job) when no key was configured, instead of
+    # refusing an envelope it has no way to actually trust.
+    no_key_config = worker_mod.WorkerConfig(worker_id="worker-no-key", secret_key=None, dry_run=True)
+    no_key_daemon = worker_mod.WorkerDaemon(config=no_key_config, queue=queue_mod.InProcessJobQueue())
+    unsigned_env = env_mod.create_removal_envelope(job=make_test_job("Unsigned"))
+    result = asyncio.run(no_key_daemon.execute_envelope(unsigned_env))
+    assert result.ok is False and result.status == "tampered", (result.ok, result.status)
+    # IF THIS FAILS: a worker missing SECRET_KEY would silently execute
+    #   whatever any process able to write to the queue (e.g. Redis) sends it.
 
 
 @test(1, "distributed.control_plane_ingestion_and_reclamation",
