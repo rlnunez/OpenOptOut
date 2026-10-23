@@ -788,7 +788,10 @@ def _resolve_external_user(result, db: Session, remember_me: bool = False) -> di
             existing.branch_id = result.branch_id
             existing.branch_source = "sip2"
         ext_id = getattr(result, "external_id", None)
-        if ext_id:
+        # Only this account's OWN provider may write external_id — a different
+        # provider asserting the same (now-linked) email must never silently
+        # overwrite another provider's identifier in this shared column.
+        if ext_id and existing.auth_source == source:
             existing.external_id = ext_id
         if linked_via_previous_card:
             old_barcode = (existing.email or "").split("@", 1)[0]
@@ -1092,7 +1095,8 @@ def verify_totp_login(data: VerifyTotpIn, db: Session = Depends(get_db), request
         raise HTTPException(403, "TOTP authentication is disabled for this account by security policy.")
     from ..core.settings_store import decrypt_password
     secret = decrypt_password(user.totp_secret_enc)
-    if not mfa.verify_totp(data.code, secret):
+    counter = mfa.totp_matched_counter(data.code, secret)
+    if counter is None or code_attempts.totp_replay_check(user.id, counter):
         login_throttle.failure(throttle_key, ip_key)
         raise HTTPException(401, "Invalid authentication code. Please check your authenticator app.")
     code_attempts.used(data.mfa_ticket)

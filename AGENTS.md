@@ -2,7 +2,7 @@
 
 These instructions are for AI coding agents working in this repository: Claude Code (which loads this file through `CLAUDE.md`), OpenAI Codex, Google Antigravity, and others that read `AGENTS.md`. People are welcome to read them too.
 
-OpenOptOut is a self-hosted tool that removes families' personal details from data-broker websites. It is licensed AGPL-3.0 and handles sensitive personal data, sometimes for children. Treat every change as security-relevant.
+OpenOptOut is a self-hosted tool that removes families' personal details from data-broker websites. It is licensed AGPL-3.0 and handles sensitive personal data, including children's — COPPA is directly relevant, not just the OWASP Top 10. Treat every change as security-relevant.
 
 ## Layout
 
@@ -45,6 +45,18 @@ python3 scripts/extract_page_texts.py         # after changing any on-screen phr
 - **Every new on-screen phrase is translated.** Run the extractor, then add the phrase to `texts.json` in all 12 packs. The test `i18n.page_texts_current` enforces this.
 - **Database changes are additive.** Add a model (created automatically) or an `ALTER TABLE ... ADD COLUMN` migration. Never drop or rename.
 - **Be honest about limits.** If something is untested against a live site or needs a lawyer, say so. Don't claim it works.
+
+## Children's data (COPPA)
+
+A `FamilyMember` is almost always a dependent profile a parent/guardian manages under their own `User` account (`routers/family.py`) — not a child signing up on their own. Keep it that way, and treat the exception deliberately:
+
+- **No public, unauthenticated path may collect a minor's personal info directly.** Family members are created only by an already-authenticated account holder. Don't build or approve a signup form, widget, or API endpoint that lets a visitor submit a child's name, DOB, or address without going through that authenticated-parent flow.
+- **A family member who signs in independently (their own SIP2 card, OIDC, LDAP, SAML login) is a different risk profile** than a parent-managed dependent — the service is then dealing more directly with the minor. Don't relax any consent or data-minimization rule for that path; if anything, admin-only deletion already applies to it (`routers/admin.py`), so don't add a self-service path that bypasses that check.
+- **Minimize what a broker plugin asks for.** A plugin's `fill`/`type`/`select` steps should reference only the fields that specific broker's form actually has — never add a field "just in case." This is already how `KNOWN_FIELDS` and `spec.json` work structurally; don't undo it by passing a fixed full member-data blob to a step that doesn't need it.
+- **Never add outbound analytics, telemetry, or marketing integrations that touch family-member data.** There are none in this codebase today (`core/usage_stats.py` is first-party, counts-only, inbound). Keep it that way — no analytics SDK, tracking pixel, or third-party call should ever see a name, email, address, or DOB, a child's least of all.
+- **Respect the minors' retention job.** `core/privacy_record.py`'s crypto-shredding purge (`coppa_children_retention_days` setting, default 30) already removes aux data — confirmation links, email logs — for members under 18 after that window. If you add a new table that stores a minor's data, add it to that purge job rather than leaving it as a silent exception.
+- **Don't weaken deletion.** `core/people.delete_person()` is a real hard delete (with optional crypto-shredding first) that cascades into `RemovalRequest`/broker-submission history, not a soft delete or orphan. The parent-facing export (`GET /api/privacy/export`) and delete (`DELETE /api/family/{member_id}`) endpoints must keep working for self-service — don't move either behind admin-only without being asked.
+- **Be honest that this isn't a compliance determination.** The current "I confirm I'm authorized to act for this person" checkbox (`MemberCreate.authorized`, `core/terms.record_acting_for`) is basic consent capture, not the "verifiable parental consent" COPPA generally expects (e.g. a signed form, ID check, or similar). Say so plainly if asked whether the app "is COPPA compliant" — that determination needs a lawyer, the same way the opt-out letters do.
 
 ## Writing or fixing a broker plugin
 

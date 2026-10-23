@@ -57,22 +57,33 @@ def get_totp(secret: str, timestamp: Optional[float] = None, interval: int = 30,
     return str(code_int % (10 ** digits)).zfill(digits)
 
 
+def totp_matched_counter(code: str, secret: str, window: int = 1, interval: int = 30,
+                          timestamp: Optional[float] = None) -> Optional[int]:
+    """
+    Same matching logic as verify_totp, but returns the matched RFC 6238 time-step
+    counter instead of a bool, so a caller can track replay of this exact code
+    across concurrent authentication attempts (core/code_attempts.totp_replay_check).
+    """
+    if not code or not secret:
+        return None
+    code = code.strip().replace(" ", "")
+    if len(code) != 6 or not code.isdigit():
+        return None
+    now = time.time() if timestamp is None else timestamp
+    for w in range(-window, window + 1):
+        t = now + w * interval
+        candidate = get_totp(secret, timestamp=t, interval=interval, digits=len(code))
+        if hmac.compare_digest(candidate, code):
+            return int(t // interval)
+    return None
+
+
 def verify_totp(code: str, secret: str, window: int = 1, interval: int = 30, timestamp: Optional[float] = None) -> bool:
     """
     Verify a code within a clock-drift window (window=1 permits -30s to +30s drift).
     Uses constant-time comparison via hmac.compare_digest.
     """
-    if not code or not secret:
-        return False
-    code = code.strip().replace(" ", "")
-    if len(code) != 6 or not code.isdigit():
-        return False
-    now = time.time() if timestamp is None else timestamp
-    for w in range(-window, window + 1):
-        candidate = get_totp(secret, timestamp=now + w * interval, interval=interval, digits=len(code))
-        if hmac.compare_digest(candidate, code):
-            return True
-    return False
+    return totp_matched_counter(code, secret, window, interval, timestamp) is not None
 
 
 def build_totp_uri(secret: str, email: str, issuer: str = "OpenOptOut") -> str:

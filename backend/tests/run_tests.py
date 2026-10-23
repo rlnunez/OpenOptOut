@@ -3701,6 +3701,42 @@ def t_auth_sip2_no_previous_card_config():
     s.close()
 
 
+@test(2, "auth.external_id_not_overwritten_by_different_provider",
+      "An account linked via one IdP keeps its external_id when a DIFFERENT IdP, asserting "
+      "the same (verified) email, links into the same account.")
+def t_auth_external_id_not_overwritten():
+    from types import SimpleNamespace as NS
+    try:
+        auth_router = _imp("routers.auth")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    db, s = _memory_db()
+    existing = db.User(email="jordan@x.org", full_name="Jordan", auth_source="oidc:google",
+                       external_id="GOOGLE_SUB_123", role=db.UserRole.member)
+    s.add(existing); s.commit()
+
+    orig = auth_router.load_settings
+    auth_router.load_settings = lambda: {"auth_providers": {"microsoft": {}}, "registration": {"mode": "open"}}
+    try:
+        # A different provider, same verified email -> policy allows linking,
+        # but the ORIGINAL provider's external_id must survive untouched.
+        result = NS(provider="microsoft", email="jordan@x.org", full_name="Jordan",
+                    email_verified=True, hd=None, groups=[], external_id="MS_OID_456")
+        auth_router._resolve_external_user(result, s)
+    finally:
+        auth_router.load_settings = orig
+
+    s.expire_all()
+    linked = s.query(db.User).filter(db.User.id == existing.id).first()
+    assert s.query(db.User).count() == 1, "a duplicate account was created instead of linking"
+    assert linked.auth_source == "oidc:google", linked.auth_source
+    assert linked.external_id == "GOOGLE_SUB_123", linked.external_id
+    s.close()
+    # EXPECTED: external_id is only ever written by the provider that owns it.
+    # IF THIS FAILS: a second IdP asserting the same email silently stomps the
+    #   first provider's identifier in the shared external_id column.
+
+
 @test(1, "sip2.eligibility_birthdate_and_age_calculation",
       "SIP2 birthdate formats (YYYYMMDD, YYYY-MM-DD, MM/DD/YYYY, etc.) parse correctly and compute exact age.")
 def t_sip2_dob_and_age():
@@ -6492,6 +6528,33 @@ def t_auth_mfa_ticket_single_use():
     ca.used(ticket)
     # Once used, ticket is permanently disallowed
     assert ca.allowed(ticket, exp) is False
+
+
+@test(1, "auth.totp_replay_rejected_across_concurrent_tickets",
+      "A captured TOTP code can't be replayed against a second, concurrently-issued MFA ticket "
+      "for the same user — the code's RFC 6238 time-step is tracked, not just the ticket.")
+def t_auth_totp_replay():
+    mfa = _imp("core.mfa")
+    ca = _imp("core.code_attempts")
+    secret = mfa.generate_totp_secret()
+    fixed_ts = 1700000000.0
+    code = mfa.get_totp(secret, timestamp=fixed_ts)
+
+    counter = mfa.totp_matched_counter(code, secret, timestamp=fixed_ts)
+    assert counter is not None, "valid code did not match any counter"
+    assert mfa.totp_matched_counter("000000" if code != "000000" else "111111", secret,
+                                    timestamp=fixed_ts) is None, "invalid code matched a counter"
+
+    # First ticket: the code is accepted and the counter gets marked used.
+    assert ca.totp_replay_check(42, counter) is False, "first use of the code was rejected"
+    # Second, concurrently-issued ticket (different ticket, same user, same code/counter): replay rejected.
+    assert ca.totp_replay_check(42, counter) is True, "the same code was accepted a second time"
+    # A different user is unaffected by another user's counter being marked used.
+    assert ca.totp_replay_check(43, counter) is False, "one user's replay guard blocked a different user"
+    # EXPECTED: the same TOTP code can authenticate at most once per user, even
+    #   across two different, both-still-valid MFA tickets.
+    # IF THIS FAILS: a captured/shoulder-surfed TOTP code could be replayed to
+    #   open a second concurrent session before it naturally expires.
 
 
 # ── MFA / FIDO2 / WebAuthn / TOTP Tests ────────────────────────────────────────
@@ -9370,6 +9433,50 @@ def t_auth_oidc_ssrf_guard():
             pass
     # a normal public https endpoint is accepted
     ap._guard_oidc_url("https://accounts.google.com/.well-known/openid-configuration")
+
+
+@test(1, "auth.oidc_discovery_issuer_mismatch_rejected",
+      "The OIDC discovery document's own 'issuer' must match the admin-configured discovery "
+      "URL, so a compromised/misconfigured discovery endpoint can't silently redirect trust.")
+def t_auth_oidc_issuer_check():
+    try:
+        ap = _imp("core.auth_providers")
+        import httpx
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    orig_get = httpx.get
+
+    def served(doc):
+        def fake_get(url, **kwargs):
+            class R:
+                def json(self):
+                    return doc
+            return R()
+        return fake_get
+
+    try:
+        httpx.get = served({"issuer": "https://evil.example.com",
+                            "token_endpoint": "https://evil.example.com/token"})
+        try:
+            ap._discover_endpoint({"discovery_url": "https://accounts.google.com"}, "token_endpoint")
+            assert False, "mismatched issuer accepted"
+        except ValueError as e:
+            assert "issuer" in str(e).lower(), e
+
+        httpx.get = served({"issuer": "https://accounts.google.com",
+                            "token_endpoint": "https://accounts.google.com/token"})
+        assert ap._discover_endpoint({"discovery_url": "https://accounts.google.com"},
+                                     "token_endpoint") == "https://accounts.google.com/token"
+        # trailing-slash normalization on the admin-entered discovery_url
+        assert ap._discover_endpoint({"discovery_url": "https://accounts.google.com/"},
+                                     "token_endpoint") == "https://accounts.google.com/token"
+    finally:
+        httpx.get = orig_get
+    # EXPECTED: discovery only succeeds when the document's issuer matches what
+    #   the admin configured.
+    # IF THIS FAILS: a mix-up attack via a compromised/rebound discovery endpoint
+    #   could redirect the token/userinfo trust chain elsewhere unnoticed.
 
 
 @test(2, "auth.oidc_redirect_uri_prefers_configured_base_url",

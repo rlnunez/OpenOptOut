@@ -1022,6 +1022,13 @@ def _discover_endpoint(cfg: dict, field: str) -> str:
         _guard_oidc_url(well_known)
         with safe_dns_context():
             doc = httpx.get(well_known, timeout=10, follow_redirects=False).json()
+        issuer = (doc.get("issuer") or "").rstrip("/")
+        if issuer != discovery_url.rstrip("/"):
+            # Mix-up protection: a compromised/misconfigured discovery endpoint
+            # could otherwise redirect trust (token/userinfo endpoints) elsewhere
+            # without the admin noticing.
+            raise ValueError(f"OIDC discovery document issuer ({issuer!r}) does not "
+                              f"match the configured discovery URL ({discovery_url!r})")
         return doc[field]
     except ValueError:
         raise
