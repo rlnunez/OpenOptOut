@@ -163,8 +163,8 @@ def save_config(body: SamlConfigIn, request: Request,
         from ..core.dns_guard import assert_safe_url, safe_dns_context
         try:
             assert_safe_url(url, schemes=("https",))
-        except ValueError as e:
-            raise HTTPException(400, f"IdP metadata address rejected: {e}")
+        except ValueError:
+            raise HTTPException(400, "IdP metadata address rejected: enter an HTTPS URL pointing to a public host.")
         cfg["idp_metadata_url"] = url
         try:
             import httpx

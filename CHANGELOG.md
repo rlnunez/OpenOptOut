@@ -68,7 +68,10 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ### Dependencies & Maintenance
 - **`pip` Security Upgrade & CA Synchronization:** Upgraded `pip` to `26.2.2` in `backend/requirements.txt` (which natively vendors patched `certifi 2026.10.19`) and integrated automated build-time CA bundle synchronization (`sync_pip_certifi` in `install_deps.py`) to eliminate persistent GHSA-6q48-6c7w-9gw2 / PYSEC-2026-4320 alerts without suppressing scanner findings in ignore files.
-- **Cloud Requirements Deduplication:** Removed redundant package pins from `backend/requirements-cloud.txt`, inheriting canonical versions from `backend/requirements.txt`.
+- **Setuptools Security Upgrade (GHSA-xmj3-9gf7-h52w):** Upgraded `setuptools` from `84.0.0` to `84.1.0` in `backend/requirements.txt` to remediate path traversal / arbitrary file placement vulnerability during legacy wheel processing.
+- **Cloud Requirements Manifest Pinned Parity:** Re-pinned canonical secure dependencies (`PyJWT==2.15.1`, `idna==3.20`, `certifi==2026.10.19`, `google-auth==2.61.0`, `pyasn1==0.6.4`) in `backend/requirements-cloud.txt` to eliminate scanner alerts generated when tools evaluate standalone requirement manifests.
+- **Exception Message Leak Guard in SAML IdP Config:** Replaced raw exception string embedding in `save_config` with a fixed error response, resolving Semgrep `exception-text-returned-to-client` finding.
+- **Distributed Worker Queue Signature Verification Annotations:** Annotated intentional delayed-verification points in `queue.py` with `# nosemgrep: queue-message-signature-not-verified` where HMAC verification is safely deferred to `WorkerDaemon.execute_envelope()` for DLQ routing.
 - **Centralized SSRF / DNS Protection (`dns_guard.py`):** Consolidated URL validation and DNS pinning logic across log forwarding, OAuth engines, webhooks, authentication providers, registry synchronization, and SAML metadata resolvers.
 - **ReDoS Elimination in Log Scrubbing:** Replaced unbounded regex patterns in `logging_config.py` with bounded, non-backtracking matchers.
 - **Security Policy Documentation (`SECURITY.md`):** Thoroughly documented sensitive data classifications, crypto key inventories, upload file handling policies, AV scanning rationale, external service timeout/retry policies, and secrets rotation schedules.
