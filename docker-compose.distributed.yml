@@ -17,6 +17,15 @@ services:
     image: redis:7-alpine
     container_name: openoptout-redis
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "${REDIS_CPU_LIMIT:-1.0}"
+          memory: ${REDIS_MEM_LIMIT:-768m}
+          pids: ${REDIS_PIDS_LIMIT:-256}
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
     ulimits:
       core: 0
     # requirepass: every container on this network can otherwise reach the
@@ -39,6 +48,18 @@ services:
     image: postgres:16
     container_name: openoptout-db
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "${DB_CPU_LIMIT:-2.0}"
+          memory: ${DB_MEM_LIMIT:-1g}
+          pids: ${DB_PIDS_LIMIT:-512}
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+      - /var/run/postgresql:mode=0755,uid=999,gid=999
     ulimits:
       core: 0
     environment:
@@ -72,6 +93,12 @@ services:
       - SYS_ADMIN
     security_opt:
       - seccomp:unconfined
+    deploy:
+      resources:
+        limits:
+          cpus: "${API_CPU_LIMIT:-2.0}"
+          memory: ${API_MEM_LIMIT:-2g}
+          pids: ${API_PIDS_LIMIT:-2048}
     ulimits:
       core: 0
     environment:
@@ -84,6 +111,9 @@ services:
       - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY:-}
     volumes:
       - app_data:/data
+    # Read-only rootfs (CIS Docker Benchmark 5.13) — see docker-compose.yml's
+    # api service for the full writable-path audit; same image, same answer.
+    read_only: true
     tmpfs:
       - /tmp:size=512m,mode=1777
     ports:
@@ -105,6 +135,19 @@ services:
       args:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
     restart: unless-stopped
+    # Unlike api, worker.py never calls init_plugin_system() — no bubblewrap
+    # sandboxing here, so it doesn't need api's cap_add/seccomp:unconfined
+    # exception and can run with the same no-new-privileges every other
+    # service gets.
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "${WORKER_CPU_LIMIT:-2.0}"
+          memory: ${WORKER_MEM_LIMIT:-2g}
+          pids: ${WORKER_PIDS_LIMIT:-2048}
+    read_only: true
     ulimits:
       core: 0
     command: python -m worker
@@ -129,6 +172,17 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "${WEB_CPU_LIMIT:-0.5}"
+          memory: ${WEB_MEM_LIMIT:-128m}
+          pids: ${WEB_PIDS_LIMIT:-128}
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+      - /var/cache/nginx:mode=0755,uid=101,gid=101
+      - /run:mode=0755,uid=101,gid=101
     ulimits:
       core: 0
     ports:

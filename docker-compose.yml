@@ -24,6 +24,16 @@ services:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
     container_name: openoptout-api
     restart: unless-stopped
+    # Resource ceiling (CIS Docker Benchmark 5.11/5.12/5.28): a runaway
+    # Playwright/Firefox process or a misbehaving plugin can't exhaust the
+    # host. Generous by default since this runs real browser automation —
+    # override in .env if your host is tighter or you need more headroom.
+    deploy:
+      resources:
+        limits:
+          cpus: "${API_CPU_LIMIT:-2.0}"
+          memory: ${API_MEM_LIMIT:-2g}
+          pids: ${API_PIDS_LIMIT:-2048}
     environment:
       # ── Core (required) ─────────────────────────────────────────────────────
       # Master key: set SECRET_KEY in .env (the installer does this). If left
@@ -106,6 +116,14 @@ services:
       # its half of that list under /data instead (always writable, no
       # cross-container permissions to get right) — see core/mtls.py.
       - ./deploy/certs:/certs:ro
+    # Read-only rootfs (CIS Docker Benchmark 5.13): everything the app writes
+    # at runtime goes through /data (the volume above) or /tmp (below) —
+    # browser profiles (Playwright's default temp dir), the plugin sandbox's
+    # Unix-socket runtime dir (/tmp/ps-plugins, plugins/manager.py), and each
+    # plugin's own private in-memory /tmp that bubblewrap mounts for it
+    # (plugins/sandbox.py) are all under /tmp already. Nothing else writes to
+    # the rootfs.
+    read_only: true
     # Ephemeral RAM storage: guarantees temporary browser artifacts, downloads,
     # and profile caches vanish on reboot and never touch persistent disk.
     tmpfs:
@@ -158,6 +176,12 @@ services:
     image: searxng/searxng:2026.10.4-ce913b893
     container_name: openoptout-searxng
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "${SEARXNG_CPU_LIMIT:-1.0}"
+          memory: ${SEARXNG_MEM_LIMIT:-512m}
+          pids: ${SEARXNG_PIDS_LIMIT:-512}
     environment:
       - "SEARXNG_SECRET=${SEARXNG_SECRET:-openoptout-searxng-internal-key}"
       - SEARXNG_BASE_URL=http://searxng:8080/
@@ -172,8 +196,22 @@ services:
     build: ./frontend
     container_name: openoptout-web
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "${WEB_CPU_LIMIT:-0.5}"
+          memory: ${WEB_MEM_LIMIT:-128m}
+          pids: ${WEB_PIDS_LIMIT:-128}
     security_opt:
       - no-new-privileges:true
+    # Read-only rootfs (CIS Docker Benchmark 5.13): nginx's access/error logs
+    # are already symlinked to stdout/stderr in the base image (no file write
+    # needed), so only its own runtime scratch dirs need to be writable.
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+      - /var/cache/nginx:mode=0755,uid=101,gid=101
+      - /run:mode=0755,uid=101,gid=101
     ulimits:
       core: 0
     ports:
@@ -193,6 +231,12 @@ services:
     container_name: openoptout-caddy
     profiles: ["https"]
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "${CADDY_CPU_LIMIT:-0.5}"
+          memory: ${CADDY_MEM_LIMIT:-256m}
+          pids: ${CADDY_PIDS_LIMIT:-256}
     security_opt:
       - no-new-privileges:true
     ulimits:
@@ -284,6 +328,12 @@ services:
     container_name: openoptout-traefik
     profiles: ["https-traefik"]
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "${TRAEFIK_CPU_LIMIT:-0.5}"
+          memory: ${TRAEFIK_MEM_LIMIT:-256m}
+          pids: ${TRAEFIK_PIDS_LIMIT:-256}
     security_opt:
       - no-new-privileges:true
     ulimits:
@@ -342,6 +392,12 @@ services:
     container_name: openoptout-cloudflared
     profiles: ["cloudflare-tunnel"]
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "${CLOUDFLARED_CPU_LIMIT:-0.5}"
+          memory: ${CLOUDFLARED_MEM_LIMIT:-256m}
+          pids: ${CLOUDFLARED_PIDS_LIMIT:-256}
     security_opt:
       - no-new-privileges:true
     ulimits:
@@ -352,15 +408,64 @@ services:
     depends_on:
       - web
 
+  # ── Docker socket proxy (only runs with the updater profile) ────────────────
+  # The updater needs to inspect/tag/pull/recreate the api+web containers, but
+  # full access to /var/run/docker.sock is root-equivalent on the host (CIS
+  # Docker Benchmark 5.32) — this filtering proxy is the only thing that ever
+  # touches the real socket, and only forwards the handful of API sections the
+  # updater actually calls (verified against the exact commands in
+  # deploy/updater/updater.py: inspect, tag, compose images/pull/up). EXEC,
+  # AUTH, SECRETS, SWARM, BUILD etc. all stay blocked — e.g. `docker exec`
+  # through this proxy gets a 403, confirmed when this was set up.
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459  # v0.5.0
+    container_name: openoptout-docker-socket-proxy
+    profiles: ["updater"]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "${DOCKER_SOCKET_PROXY_CPU_LIMIT:-0.25}"
+          memory: ${DOCKER_SOCKET_PROXY_MEM_LIMIT:-64m}
+          pids: ${DOCKER_SOCKET_PROXY_PIDS_LIMIT:-64}
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777   # the proxy's entrypoint writes its haproxy.cfg here
+    ulimits:
+      core: 0
+    environment:
+      - CONTAINERS=1
+      - ALLOW_START=1
+      - ALLOW_STOP=1
+      - ALLOW_RESTARTS=1
+      - IMAGES=1
+      - NETWORKS=1
+      - VOLUMES=1
+      - INFO=1
+      - POST=1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    # Not published to the host — only reachable by other containers on this
+    # compose network (the updater), the same as any other internal service.
+
   # ── Automated Updater & Release Monitor (optional companion) ────────────────
   # Monitors GitHub releases, audits host Docker engine, and runs zero-downtime
-  # upgrades while isolating /var/run/docker.sock from the API container.
+  # upgrades through the docker-socket-proxy above — never mounts the real
+  # socket itself.
   # Enable with: docker compose --profile updater up -d
   updater:
     build: ./deploy/updater
     container_name: openoptout-updater
     profiles: ["updater"]
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "${UPDATER_CPU_LIMIT:-0.5}"
+          memory: ${UPDATER_MEM_LIMIT:-256m}
+          pids: ${UPDATER_PIDS_LIMIT:-256}
     security_opt:
       - no-new-privileges:true
     ulimits:
@@ -370,12 +475,13 @@ services:
       - UPDATE_REQUEST_FILE=/data/update_request.json
       - UPDATE_STATUS_FILE=/data/update_status.json
       - POLL_INTERVAL_SECONDS=30
+      - DOCKER_HOST=tcp://docker-socket-proxy:2375
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - app_data:/data
       - ./docker-compose.yml:/app/docker-compose.yml:ro
     depends_on:
       - api
+      - docker-socket-proxy
 
   # ── PostgreSQL (optional — uncomment for patron-scale deployments) ──────────
   # Also set DATABASE_URL on the api service to point here.

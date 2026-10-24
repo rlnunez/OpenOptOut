@@ -5407,8 +5407,11 @@ def t_compose_sanity():
     upd = services["updater"]
     assert upd.get("profiles") == ["updater"], "updater must be gated behind 'updater' compose profile"
     upd_vols = " ".join(str(v) for v in upd.get("volumes", []))
-    assert "docker.sock" in upd_vols and "app_data:/data" in upd_vols, \
-        "updater container must mount docker.sock and app_data volume"
+    # The updater never mounts the real socket itself (CIS Docker Benchmark
+    # 5.32) — it reaches Docker through docker-socket-proxy instead; see
+    # https.updater_never_mounts_docker_socket_directly for that contract.
+    assert "docker.sock" not in upd_vols and "app_data:/data" in upd_vols, \
+        "updater container must mount app_data, and never the raw docker socket"
     # EXPECTED: the API stays off the LAN by default, SSO redirects use the real
     #   FRONTEND_URL, and Caddy never starts (or fights for ports 80/443) unless
     #   an admin explicitly opts in.
@@ -5450,6 +5453,75 @@ def t_distributed_compose_no_default_credentials():
     # IF THIS FAILS: the worker fleet (which renders untrusted external broker
     #   pages) or anything else on the Docker network could reach an
     #   unauthenticated queue, or the database could use a guessable password.
+
+
+@test(1, "https.updater_never_mounts_docker_socket_directly",
+      "docker-compose.yml: the updater service talks to Docker only through docker-socket-proxy "
+      "(CIS Docker Benchmark 5.32) — it never mounts /var/run/docker.sock itself, and the proxy "
+      "exposes only the handful of API sections the updater actually calls.")
+def t_updater_socket_proxy():
+    if _try_import("yaml") is None:
+        raise Skip("pyyaml not installed")
+    repo_root = os.path.dirname(_BACKEND_DIR)
+    path = os.path.join(repo_root, "docker-compose.yml")
+    if not os.path.isfile(path):
+        raise Skip("docker-compose.yml not present (running from a bare backend checkout)")
+    import yaml
+    compose = yaml.safe_load(open(path).read())
+    services = compose.get("services", {})
+    assert {"updater", "docker-socket-proxy"} <= set(services), "expected updater + docker-socket-proxy services"
+
+    updater = services["updater"]
+    updater_vols = " ".join(str(v) for v in updater.get("volumes", []))
+    assert "docker.sock" not in updater_vols, "updater must never mount the real docker socket directly"
+    updater_env = " ".join(str(e) for e in updater.get("environment", []))
+    assert "DOCKER_HOST=tcp://docker-socket-proxy:2375" in updater_env, \
+        "updater must reach Docker through the socket proxy via DOCKER_HOST"
+
+    proxy = services["docker-socket-proxy"]
+    proxy_vols = " ".join(str(v) for v in proxy.get("volumes", []))
+    assert "/var/run/docker.sock:/var/run/docker.sock:ro" in proxy_vols, \
+        "the proxy is the only service that should mount the real socket, and read-only"
+    proxy_env = " ".join(str(e) for e in proxy.get("environment", []))
+    # Only the sections updater.py actually calls (inspect/tag/compose
+    # images+pull+up) are turned on; anything security-critical that was
+    # never explicitly enabled here stays off by the proxy's own defaults.
+    for must_be_off in ("EXEC=1", "AUTH=1", "SECRETS=1", "SWARM=1", "BUILD=1"):
+        assert must_be_off not in proxy_env, f"the socket proxy must not enable {must_be_off}"
+    for must_be_on in ("CONTAINERS=1", "IMAGES=1", "POST=1"):
+        assert must_be_on in proxy_env, f"the socket proxy needs {must_be_on} for updater's own commands to work"
+    assert proxy.get("read_only") is True, "the socket proxy itself should run with a read-only rootfs"
+    # EXPECTED: compromising the updater container never hands over full
+    #   Docker-socket (root-equivalent) access — only the proxy ever touches
+    #   the real socket, and it was verified (by hand, against a throwaway
+    #   stack) to reject `docker exec` with a 403 while still letting
+    #   updater's real inspect/tag/pull/up commands through.
+    # IF THIS FAILS: the updater is back to mounting the raw socket, which is
+    #   root-equivalent host access from inside that one container.
+
+
+@test(1, "https.compose_services_have_resource_ceilings",
+      "docker-compose.yml and docker-compose.distributed.yml: every service has a CPU/memory/process-count "
+      "ceiling (CIS Docker Benchmark 5.11/5.12/5.28) so a runaway process can't take down the host.")
+def t_compose_resource_limits():
+    if _try_import("yaml") is None:
+        raise Skip("pyyaml not installed")
+    repo_root = os.path.dirname(_BACKEND_DIR)
+    for fname in ("docker-compose.yml", "docker-compose.distributed.yml"):
+        path = os.path.join(repo_root, fname)
+        if not os.path.isfile(path):
+            raise Skip(f"{fname} not present (running from a bare backend checkout)")
+        import yaml
+        compose = yaml.safe_load(open(path).read())
+        for name, svc in compose.get("services", {}).items():
+            limits = (svc.get("deploy") or {}).get("resources", {}).get("limits", {})
+            assert limits.get("cpus"), f"{fname}:{name} is missing a CPU limit"
+            assert limits.get("memory"), f"{fname}:{name} is missing a memory limit"
+            assert limits.get("pids"), f"{fname}:{name} is missing a pids limit"
+    # EXPECTED: no service in either compose file can exhaust host CPU,
+    #   memory, or the host's process table.
+    # IF THIS FAILS: a new service was added without copying the resource
+    #   ceiling every existing one has.
 
 
 @test(1, "system_updates.core_and_routes",

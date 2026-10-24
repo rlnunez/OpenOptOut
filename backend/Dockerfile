@@ -1,16 +1,39 @@
 ARG RCLONE_VERSION=v1.75.2
+# Pinned to bookworm (Debian 12). The unpinned python:3.12-slim now resolves to
+# trixie (Debian 13), where several packages Playwright 1.44's `install-deps`
+# expects were renamed/removed (libgdk-pixbuf2.0-0, ttf-unifont,
+# ttf-ubuntu-font-family), breaking the browser dependency install. Bookworm
+# matches Playwright 1.44's dependency list and has arm64 images for Mac Silicon.
+# Declared before any FROM so it's usable as a global build arg in every
+# FROM below (Docker requires that placement, not just an earlier line).
+ARG PYTHON_BASE=python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258
 
 # Stage 0: Build rclone with patched Go runtime (remediating CVE-2026-111943)
 FROM golang:1.27.3-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS rclone-builder
 ARG RCLONE_VERSION
 RUN CGO_ENABLED=0 go install -ldflags="-s -w" github.com/rclone/rclone@${RCLONE_VERSION}
 
-# Pinned to bookworm (Debian 12). The unpinned python:3.12-slim now resolves to
-# trixie (Debian 13), where several packages Playwright 1.44's `install-deps`
-# expects were renamed/removed (libgdk-pixbuf2.0-0, ttf-unifont,
-# ttf-ubuntu-font-family), breaking the browser dependency install. Bookworm
-# matches Playwright 1.44's dependency list and has arm64 images for Mac Silicon.
-FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258
+# Stage 1: compile the Python deps that ship no prebuilt wheels (python-ldap
+# needs libldap2-dev/libsasl2-dev headers; sqlcipher3-binary may need to build
+# from source on platforms with no prebuilt wheel). gcc/build-essential/the
+# -dev packages never leave this stage (CIS Docker Benchmark 4.3) — the final
+# image below only gets the compiled result plus the runtime shared libraries
+# those compiled extensions actually load (verified via `ldd` against the
+# compiled _ldap.so).
+FROM ${PYTHON_BASE} AS pydeps-builder
+WORKDIR /app
+COPY requirements.txt requirements-encryption.txt install_deps.py ./
+# hadolint ignore=DL3008
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    gcc build-essential libldap2-dev libsasl2-dev libsqlcipher-dev \
+    && rm -rf /var/lib/apt/lists/*
+ARG WITH_ENCRYPTION=true
+ENV WITH_ENCRYPTION=${WITH_ENCRYPTION}
+RUN python3 install_deps.py && \
+    rm -rf /usr/local/lib/python*/ensurepip/_bundled /root/.cache
+
+FROM ${PYTHON_BASE}
 
 # Which git commit this image was built from, if known (docker-compose.yml
 # passes it as a build arg; scripts/install.sh and deploy/native/install.sh
@@ -22,9 +45,10 @@ FROM python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3
 ARG GIT_COMMIT=unknown
 ENV GIT_COMMIT=${GIT_COMMIT}
 
-# Install system deps for Playwright Firefox + plugin sandboxing (bubblewrap)
-# and the build toolchain + headers required to compile python-ldap
-# (libldap2-dev, libsasl2-dev) which ships no prebuilt wheels.
+# Runtime-only system deps for Playwright Firefox + plugin sandboxing
+# (bubblewrap) + the shared libraries python-ldap's compiled extension and
+# (on platforms where it built) sqlcipher3's extension load at import time —
+# no compiler or header package among them.
 # hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get upgrade -y --no-install-recommends && \
@@ -37,8 +61,15 @@ RUN apt-get update && \
     libxrandr2 libxss1 libxtst6 xdg-utils \
     bubblewrap libseccomp2 python3-seccomp \
     xmlsec1 \
-    gcc build-essential libldap2-dev libsasl2-dev libsqlcipher-dev libseccomp-dev \
+    libldap-2.5-0 libsasl2-2 libsqlcipher0 \
     && rm -rf /var/lib/apt/lists/*
+
+# The compiled Python packages from the builder stage above (site-packages)
+# plus their console-script entry points (uvicorn, playwright, ...) — same
+# base image/Python build as this stage, so this is a same-lineage copy, not
+# a cross-image one.
+COPY --from=pydeps-builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=pydeps-builder /usr/local/bin /usr/local/bin
 
 # rclone, for the "Other cloud storage" backup option (Proton Drive, Box,
 # pCloud, MEGA, Nextcloud...). Built from source via rclone-builder using
@@ -48,15 +79,6 @@ COPY --from=rclone-builder /go/bin/rclone /usr/local/bin/rclone
 RUN chmod 755 /usr/local/bin/rclone && /usr/local/bin/rclone --version
 
 WORKDIR /app
-COPY requirements.txt requirements-encryption.txt install_deps.py ./
-
-# Whole-database SQLCipher encryption enabled by default.
-# The install is best-effort: if no wheel exists for the build platform it is
-# compiled or skipped rather than failing the whole image.
-ARG WITH_ENCRYPTION=true
-ENV WITH_ENCRYPTION=${WITH_ENCRYPTION}
-RUN python3 install_deps.py && \
-    rm -rf /usr/local/lib/python*/ensurepip/_bundled /root/.cache
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN playwright install firefox && \
@@ -88,6 +110,15 @@ RUN groupadd -g 1000 appuser && \
     for d in models routers core; do \
       [ -d "/app/$d" ] && touch "/app/$d/__init__.py"; \
     done
+
+# Strip setuid/setgid from every multi-user-system binary this single-user,
+# non-interactive container never calls (su, passwd, mount, chage, the dbus
+# launch helper, etc. — CIS Docker Benchmark 4.8). bubblewrap (bwrap) is
+# deliberately NOT setuid in this image to begin with — plugin sandboxing
+# gets its privilege from this container's own cap_add: SYS_ADMIN grant
+# (docker-compose.yml), never from a setuid-root bwrap — so there is nothing
+# here that sandboxing depends on.
+RUN find / -xdev -type f \( -perm -4000 -o -perm -2000 \) -exec chmod a-s {} \; 2>/dev/null || true
 
 # NOTE ON SECCOMP: the plugin syscall filter needs libseccomp (libseccomp2, installed
 # above) plus Python bindings that THIS interpreter can import. Debian's

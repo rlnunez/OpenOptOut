@@ -13,11 +13,13 @@ WORKDIR /app
 COPY updater.py /app/updater.py
 COPY entrypoint.sh /app/entrypoint.sh
 
+# No "docker" group / socket-GID alignment needed: this container never
+# mounts /var/run/docker.sock itself. docker-compose.yml routes it through
+# docker-socket-proxy instead (CIS Docker Benchmark 5.32), which owns the
+# real socket and runs as root on its own side of that boundary.
 RUN chmod +x /app/entrypoint.sh /app/updater.py && \
-    addgroup -S -g 999 docker && \
     addgroup -S -g 1000 updater && \
-    adduser -S -u 1000 -G updater -D -s /bin/sh updater && \
-    addgroup updater docker
+    adduser -S -u 1000 -G updater -D -s /bin/sh updater
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD python3 /app/updater.py --check || exit 1
