@@ -50,6 +50,11 @@ Each completed roadmap item is cross-referenced with its architectural milestone
   - **Global Exception Sanitization (16.5.4):** Added top-level unhandled exception fallback handler returning generic error bodies to prevent internal diagnostic leaks.
 
 ### Authentication & Identity Providers (OIDC, SIP2, MFA)
+- **NIST SP 800-63B Authentication & Lifecycle Hardening:**
+  - **Magic-Link Mandatory MFA (§3.1.3):** Enforced that magic-link email sign-in always requires MFA (or initiates mandated MFA setup) and never completes authentication on its own, complying with NIST SP 800-63B rev. 4 §3.1.3 prohibiting email as an out-of-band authentication factor.
+  - **Password Length Floor (§3.1.1):** Raised minimum local password length from 12 to 15 characters (single-factor password floor), updating validation and internationalized copy across all 17 language packs.
+  - **Default Role Idle Timeout (§2.2.3):** Defaulted idle session timeout to 60 minutes across all roles, with administrator configurability down to 0 (disabled).
+  - **Remember-Me Duration Cap (§2.2.3 AAL1):** Enforced a hard 30-day ceiling on "Remember Me" extended sessions, rejecting higher values in the settings API and clamping legacy settings defensively on read.
 - **OIDC SSRF & DNS Rebinding Protection:** Wrapped OIDC discovery, token, and userinfo network requests with `dns_guard.assert_safe_url()`.
 - **OIDC Issuer Mix-Up Guard:** Rejected OIDC discovery documents whose asserted `issuer` does not match the configured discovery URL authority.
 - **SSO Redirect Base URL Resolution:** Enforced precedence of configured `PUBLIC_BASE_URL` and `FRONTEND_URL` over untrusted client `Host` request headers when computing OIDC `redirect_uri` targets, and resolved a runtime `NameError` in `_sso_redirect()`.
@@ -58,6 +63,13 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 - **SIP2 Reissued Library Card Account Linking:** Added support for resolving patrons with reissued library cards via configurable barcode fields (`previous_card_*`), preserving user removal history and settings across card renewals.
 
 ### Container & Infrastructure Hardening
+- **CIS Docker Benchmark Container Hardening:**
+  - **Docker Socket Proxy Mediation (CIS 5.32):** Deprecated direct `/var/run/docker.sock` volume mounting in the updater service in favor of a digest-pinned `docker-socket-proxy` sidecar (Tecnativa) exposing only minimal API endpoints (`images`, `pull`, `up`), blocking `docker exec` and container escapes.
+  - **Resource Ceilings & PID Limits (CIS 5.11, 5.12, 5.28):** Enforced CPU, memory, and PIDs ceilings (`deploy.resources.limits`) across all services in `docker-compose.yml` and `docker-compose.distributed.yml`, overridable via `.env`.
+  - **Read-Only Root Filesystems (CIS 5.13):** Enforced `read_only: true` root filesystems across `api`, `web`, `worker`, `redis`, `db`, and proxy services with minimal scoped `tmpfs` mounts and persistent volumes.
+  - **Multi-Stage Build Trim & Build Tool Elimination (CIS 4.3):** Refactored `backend/Dockerfile` into a `pydeps-builder` compilation stage and runtime container stage, stripping compilers and build headers (`gcc`, `build-essential`, `-dev` packages) to reduce image size by ~230MB.
+  - **Stripped Setuid/Setgid Binaries (CIS 4.8):** Removed setuid/setgid permissions from unnecessary system utilities (`su`, `passwd`, `mount`, `chage`, etc.) inside the container image while preserving bubblewrap's `cap_add: SYS_ADMIN`.
+  - **Updater Build Dependency Collision Fix:** Dropped unnecessary `docker` group (gid 999) from `deploy/updater/Dockerfile`, preventing Alpine 3.20 build collision with the default `ping` group.
 - **Plugin Network Sandboxing & Namespace Enforcement:** Closed network-permission bypass by enforcing host-mediated routing on non-email plugins declaring `network` or `outbound_domains`. Enabled OS-level namespace sandboxing (bubblewrap/seccomp) by default with fallback on unsupported platforms (`REQUIRE_HARD_SANDBOX=false`).
 - **Installer Control-Plane Sandbox Parity:** Extended bubblewrap and seccomp syscall filters to control-plane instances and multi-host deployment configurations.
 - **Rclone Container Multi-Stage Build (CVE-2026-111943):** Refactored `/usr/local/bin/rclone` compilation in `backend/Dockerfile` to compile from source via a multi-stage builder using Go 1.27.3 (`golang:1.27.3-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5`) to remediate Go stdlib `crypto/x509` intermediate CA certificate verification vulnerabilities.
@@ -71,7 +83,7 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 - **Setuptools Security Upgrade (GHSA-xmj3-9gf7-h52w):** Upgraded `setuptools` from `84.0.0` to `84.1.0` in `backend/requirements.txt` to remediate path traversal / arbitrary file placement vulnerability during legacy wheel processing.
 - **Cloud Dependencies Consolidation & Manifest Deduplication:** Merged optional cloud IAM database authentication dependencies (`boto3==1.43.111`, `azure-identity==1.26.0`) directly into `backend/requirements.txt` and removed `backend/requirements-cloud.txt`, deduplicating requirement definitions, eliminating dual-manifest maintenance, and permanently resolving scanner findings caused by isolated manifest evaluations.
 - **Exception Message Leak Guard in SAML IdP Config:** Replaced raw exception string embedding in `save_config` with a fixed error response, resolving Semgrep `exception-text-returned-to-client` finding.
-- **Distributed Worker Queue Signature Verification Annotations:** Annotated intentional delayed-verification points in `queue.py` with `# nosemgrep: queue-message-signature-not-verified` where HMAC verification is safely deferred to `WorkerDaemon.execute_envelope()` for DLQ routing.
+- **Distributed Worker Queue Signature Verification Enforcement:** Hardened `InProcessJobQueue.dequeue()`, `RedisJobQueue.dequeue()`, and in-flight lease inspection to dynamically verify HMAC signatures (`verify_signature=bool(self.secret_key)`) whenever a secret key is configured, resolving Semgrep `queue-message-signature-not-verified` findings.
 - **Centralized SSRF / DNS Protection (`dns_guard.py`):** Consolidated URL validation and DNS pinning logic across log forwarding, OAuth engines, webhooks, authentication providers, registry synchronization, and SAML metadata resolvers.
 - **ReDoS Elimination in Log Scrubbing:** Replaced unbounded regex patterns in `logging_config.py` with bounded, non-backtracking matchers.
 - **Security Policy Documentation (`SECURITY.md`):** Thoroughly documented sensitive data classifications, crypto key inventories, upload file handling policies, AV scanning rationale, external service timeout/retry policies, and secrets rotation schedules.

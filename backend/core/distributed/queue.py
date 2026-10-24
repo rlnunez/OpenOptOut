@@ -216,10 +216,11 @@ class InProcessJobQueue(JobQueue):
                     q = self._channels.get(ch)
                     if q and len(q) > 0:
                         raw_json = q.popleft()
-                        # Not verified here — WorkerDaemon.execute_envelope()
-                        # checks the HMAC signature before acting on the
-                        # envelope, closer to where it actually matters.
-                        envelope = JobEnvelope.from_json(raw_json, verify_signature=False)  # nosemgrep: queue-message-signature-not-verified
+                        envelope = JobEnvelope.from_json(
+                            raw_json,
+                            secret_key=self.secret_key,
+                            verify_signature=bool(self.secret_key),
+                        )
                         self._in_flight[envelope.envelope_id] = {
                             "raw_json": raw_json,
                             "envelope": envelope,
@@ -406,8 +407,11 @@ class RedisJobQueue(JobQueue):
                 if item:
                     # In python redis, decode_responses may return str or bytes
                     raw_json = item.decode("utf-8") if isinstance(item, bytes) else str(item)
-                    # Not verified here — see the InProcessJobQueue.dequeue comment above.
-                    env = JobEnvelope.from_json(raw_json, verify_signature=False)  # nosemgrep: queue-message-signature-not-verified
+                    env = JobEnvelope.from_json(
+                        raw_json,
+                        secret_key=self.secret_key,
+                        verify_signature=bool(self.secret_key),
+                    )
                     lease_data = json.dumps({"leased_at": time.time(), "raw_json": raw_json})
                     self.client.hset(self.KEY_INFLIGHT, env.envelope_id, lease_data)
                     return env
@@ -422,7 +426,11 @@ class RedisJobQueue(JobQueue):
         # blpop returns (key, item) tuple
         _, item = res
         raw_json = item.decode("utf-8") if isinstance(item, bytes) else str(item)
-        env = JobEnvelope.from_json(raw_json, verify_signature=False)  # nosemgrep: queue-message-signature-not-verified
+        env = JobEnvelope.from_json(
+            raw_json,
+            secret_key=self.secret_key,
+            verify_signature=bool(self.secret_key),
+        )
         lease_data = json.dumps({"leased_at": time.time(), "raw_json": raw_json})
         self.client.hset(self.KEY_INFLIGHT, env.envelope_id, lease_data)
         return env
@@ -523,9 +531,11 @@ class RedisJobQueue(JobQueue):
                 except Exception:
                     pass
                 try:
-                    # This is a read-only in-flight-lease listing for
-                    # monitoring, not the execution path — not verified here.
-                    env = JobEnvelope.from_json(raw_json, verify_signature=False)  # nosemgrep: queue-message-signature-not-verified
+                    env = JobEnvelope.from_json(
+                        raw_json,
+                        secret_key=self.secret_key,
+                        verify_signature=bool(self.secret_key),
+                    )
                     leases.append({
                         "envelope_id": env_id,
                         "envelope": env,
