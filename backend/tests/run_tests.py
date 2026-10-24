@@ -7628,6 +7628,50 @@ def t_session_policy():
     assert tdata is not None
     assert tdata.get("remember_me") is True
 
+    # 6. Remember Me can never exceed 30 days (NIST SP 800-63B rev. 4 S2.2.3)
+    # even if a stored/legacy settings value is higher than the cap — the
+    # read path itself clamps it, not just the admin-facing API validator.
+    assert sess_mod.MAX_REMEMBER_ME_DURATION_DAYS == 30
+    orig_load2 = sess_mod.load_settings
+    try:
+        sess_mod.load_settings = lambda: {
+            "security": {
+                "session_policy": {
+                    "roles": {
+                        "parent": {"remember_me_mode": "extend_session", "remember_me_duration_days": 365}
+                    }
+                }
+            }
+        }
+        delta_overlong = sess_mod.compute_session_delta("parent", remember_me=True)
+        assert delta_overlong == timedelta(days=30), f"remember_me_duration_days must be clamped to 30, got {delta_overlong}"
+    finally:
+        sess_mod.load_settings = orig_load2
+
+
+@test(1, "settings.session_policy_remember_me_cap_rejected",
+      "The session-policy settings API refuses a Remember Me duration longer than 30 days "
+      "(NIST SP 800-63B rev. 4 S2.2.3) but accepts shortening it.")
+def t_settings_session_policy_remember_me_cap():
+    try:
+        settings_router = _imp("routers.settings")
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+    from pydantic import ValidationError
+
+    settings_router.RoleSessionConfig(remember_me_duration_days=30)
+    settings_router.RoleSessionConfig(remember_me_duration_days=1)
+    try:
+        settings_router.RoleSessionConfig(remember_me_duration_days=31)
+        assert False, "31 days should have been rejected"
+    except ValidationError as e:
+        assert "30 days" in str(e)
+    try:
+        settings_router.RoleSessionConfig(remember_me_duration_days=365)
+        assert False, "365 days should have been rejected"
+    except ValidationError:
+        pass
+
 
 @test(1, "mfa.role_permissions_and_user_overrides",
       "Role-based MFA permissions matrix and per-user overrides enforce factor gating and safety constraints.")
@@ -9404,19 +9448,23 @@ def t_auth_passwordless_local_account_restrictions():
             except HTTPException as exc:
                 assert exc.status_code == 400
 
-            # A fresh code signs in, once
+            # A fresh code: email sign-in never completes on its own (NIST SP
+            # 800-63B rev. 4 S3.1.3, "email SHALL NOT be used for out-of-band
+            # authentication") — an account with no MFA enrolled yet is told
+            # to set one up (mfa_mandated), never handed a token directly.
             res2 = auth_router.request_magic_link(magic_local, db=s)
             code2 = re.search(r"\b(\d{6})\b", sent[-1][1]).group(1)
             verify_req = auth_router.MagicLinkVerifyIn(token=res2["token"], code=code2)
             tok = auth_router.verify_magic_link(verify_req, db=s)
-            assert tok.get("access_token") is not None
+            assert tok.get("mfa_mandated") is True and tok.get("mfa_ticket") and "access_token" not in tok, tok
             try:
                 auth_router.verify_magic_link(verify_req, db=s)
                 assert False, "code worked twice"
             except HTTPException as exc:
                 assert exc.status_code == 400
 
-            # An email code replaces the password, not the second factor
+            # An email code replaces the password, not the second factor: once
+            # a factor IS enrolled, it's asked for (mfa_required), not mandated set-up
             local_user.totp_enabled = True
             s.commit()
             res3 = auth_router.request_magic_link(magic_local, db=s)
@@ -15846,7 +15894,7 @@ def t_security_scanner_regressions():
 
 
 @test(2, "security.mfa_stepup_password_length_hsts_and_svg_csp",
-      "MFA enrollment requires full sign-in once MFA is active; new passwords require 12+ chars and "
+      "MFA enrollment requires full sign-in once MFA is active; new passwords require 15+ chars and "
       "aren't one of a small set of common/breached passwords, while shorter existing passwords "
       "still sign in; SVG logos carry CSP sandbox; HSTS toggles work.")
 def t_security_tier2_regressions():
@@ -15861,18 +15909,18 @@ def t_security_tier2_regressions():
     branding_router = _imp("routers.branding")
     from fastapi import HTTPException
 
-    # 1. Minimum password length = 12 chars, null bytes stripped
-    for short_pw in ("1", "1234567", "abc\x00def", "eleven_chr1"):
+    # 1. Minimum password length = 15 chars (NIST SP 800-63B rev. 4 S3.1.1), null bytes stripped
+    for short_pw in ("1", "1234567", "abc\x00def", "fourteen_chars"):
         try:
             auth_core.validate_password_length(short_pw)
             assert False, f"expected {short_pw!r} to be rejected"
         except ValueError as e:
-            assert "12 characters" in str(e)
+            assert "15 characters" in str(e)
     auth_core.validate_password_length("test-password-valid-123")
 
     # 1b. A password that's long enough but is itself one of the most common/
     # breached passwords (or that word with digits appended) is still refused.
-    for common_pw in ("password1234", "Qwerty123456", "letmein1234567"):
+    for common_pw in ("password123456789", "Qwerty1234567890", "letmein123456789"):
         try:
             auth_core.validate_password_length(common_pw)
             assert False, f"expected common password {common_pw!r} to be rejected"

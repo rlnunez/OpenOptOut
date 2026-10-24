@@ -305,7 +305,7 @@ export default function Login() {
 
   const submitSetup = async e => {
     e.preventDefault(); setError('')
-    if (password.length < 12) { setError(tx("Use a password of at least 12 characters")); return }
+    if (password.length < 15) { setError(tx("Use a password of at least 15 characters")); return }
     if (password !== setupConfirm) { setError(tx("The two passwords don't match.")); return }
     setLoading(true)
     try {
@@ -818,7 +818,7 @@ export default function Login() {
                     onChange={e => setSetupName(e.target.value)} required />
                   <input className={inp} type="email" placeholder={tx("Admin email")} value={email}
                     onChange={e => setEmail(e.target.value)} required />
-                  <input className={inp} type="password" placeholder={tx("Password (min 12 characters)")}
+                  <input className={inp} type="password" placeholder={tx("Password (min 15 characters)")}
                     value={password} onChange={e => setPw(e.target.value)} required />
                   <input className={inp} type="password" placeholder={tx("Confirm password")}
                     value={setupConfirm} onChange={e => setSetupConfirm(e.target.value)} required />

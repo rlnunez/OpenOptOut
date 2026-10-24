@@ -115,7 +115,7 @@ export default function Signup() {
 
   const create = async e => {
     e.preventDefault(); setError('')
-    if (form.password.length < 12) { setError(tx("Use a password of at least 12 characters")); return }
+    if (form.password.length < 15) { setError(tx("Use a password of at least 15 characters")); return }
     if (form.password !== form.confirm) { setError(tx("The two passwords don't match.")); return }
     setBusy(true)
     try {
@@ -203,7 +203,7 @@ export default function Signup() {
           <Field id="su-name" label={tx("Your name")}>
             <input id="su-name" className={inp} autoComplete="name" required value={form.full_name} onChange={e => setF('full_name', e.target.value)} />
           </Field>
-          <Field id="su-pw" label={tx("Password (min 12 characters)")}>
+          <Field id="su-pw" label={tx("Password (min 15 characters)")}>
             <input id="su-pw" type="password" className={inp} autoComplete="new-password" required value={form.password} onChange={e => setF('password', e.target.value)} />
           </Field>
           <Field id="su-pw2" label={tx("Confirm password")}>

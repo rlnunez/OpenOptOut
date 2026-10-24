@@ -3370,10 +3370,10 @@ function SessionPolicySection({ userRole }) {
                   <input
                     type="number"
                     min="1"
-                    max="365"
+                    max="30"
                     value={curRoleCfg.remember_me_duration_days ?? 30}
                     onChange={e => {
-                      const v = Math.max(1, parseInt(e.target.value, 10) || 1)
+                      const v = Math.min(30, Math.max(1, parseInt(e.target.value, 10) || 1))
                       updateCurrentRole({ remember_me_duration_days: v })
                     }}
                     className={inp}
@@ -3382,8 +3382,8 @@ function SessionPolicySection({ userRole }) {
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
                   {curRoleCfg.remember_me_mode === 'extend_session'
-                    ? tx("How long you stay signed in on this device.")
-                    : tx("Institutional recommendation for device credential cache.")}
+                    ? tx("How long you stay signed in on this device. 30 days is the maximum.")
+                    : tx("Institutional recommendation for device credential cache. 30 days is the maximum.")}
                 </p>
               </div>
             </div>

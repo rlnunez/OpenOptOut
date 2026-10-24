@@ -472,10 +472,16 @@ def _log_auth_event(event: str, outcome: str, request: Optional[Request] = None,
 
 
 def _finish_sign_in(user: User, db: Session, request: Optional[Request], remember_me: bool,
-                     method: str = "password") -> dict:
+                     method: str = "password", require_mfa: bool = False) -> dict:
     """After the first factor (password or email code): ask for the second
     factor if the account has one, or for MFA set-up if it's required, else
-    issue the session token."""
+    issue the session token.
+
+    `require_mfa=True` forces a second factor regardless of the role's MFA
+    mandate/grace period — used for the magic-link path, where email alone
+    stands in for a password and so must never be the *only* factor (NIST SP
+    800-63B rev. 4 S3.1.3: email SHALL NOT be used as a sign-in factor on its
+    own)."""
     from ..core import mfa
     allowed_methods = mfa.get_user_allowed_mfa_methods(user)
     webauthn_keys = []
@@ -518,22 +524,26 @@ def _finish_sign_in(user: User, db: Session, request: Optional[Request], remembe
         }
 
     mandated, days_left = mfa.is_mfa_mandated(user, db)
-    if mandated:
+    if mandated or require_mfa:
         ticket = mfa.create_mfa_ticket(user.id, user.email, remember_me=remember_me)
-        role_val = getattr(getattr(user, "role", None), "value", str(getattr(user, "role", "")))
-        compliance_rules = mfa.get_mfa_role_compliance()
-        role_comp = compliance_rules.get(role_val, mfa.DEFAULT_MFA_COMPLIANCE.get(role_val, {}))
-        timer_val = role_comp.get("value", 3)
-        timer_unit = role_comp.get("unit", "days")
-        role_title = role_val.replace("_", " ").title() if role_val else "User"
+        if mandated:
+            role_val = getattr(getattr(user, "role", None), "value", str(getattr(user, "role", "")))
+            compliance_rules = mfa.get_mfa_role_compliance()
+            role_comp = compliance_rules.get(role_val, mfa.DEFAULT_MFA_COMPLIANCE.get(role_val, {}))
+            timer_val = role_comp.get("value", 3)
+            timer_unit = role_comp.get("unit", "days")
+            role_title = role_val.replace("_", " ").title() if role_val else "User"
+            detail = f"Multi-Factor Authentication (MFA) is mandated for {role_title} accounts {timer_val} {timer_unit} after account creation. Please configure an authenticator app (TOTP) or security key (YubiKey / Touch ID) to continue."
+        else:
+            detail = "Signing in with an emailed code needs a second step. Please configure an authenticator app (TOTP) or security key (YubiKey / Touch ID) to finish signing in this way."
         return {
             "mfa_mandated": True,
             "mfa_ticket": ticket,
             "allowed_methods": allowed_methods,
-            "detail": f"Multi-Factor Authentication (MFA) is mandated for {role_title} accounts {timer_val} {timer_unit} after account creation. Please configure an authenticator app (TOTP) or security key (YubiKey / Touch ID) to continue.",
+            "detail": detail,
         }
 
-    _log_auth_event("login", "success", request, user_id=user.id, method="password")
+    _log_auth_event("login", "success", request, user_id=user.id, method=method)
     return {"access_token": create_user_token(user, db, request, remember_me=remember_me), "token_type": "bearer"}
 
 
@@ -1817,5 +1827,9 @@ def verify_magic_link(data: MagicLinkVerifyIn, request: Request = None, db: Sess
     if not _is_local_user(user):
         raise HTTPException(400, "Email code sign-in is only available for local accounts.")
 
-    # An email code replaces the password, not the second factor.
-    return _finish_sign_in(user, db, request, bool(data.remember_me), method="email_code")
+    # An email code replaces the password, not the second factor: NIST SP
+    # 800-63B rev. 4 S3.1.3 ("email SHALL NOT be used for out-of-band
+    # authentication") means this path must never complete sign-in on its
+    # own — require_mfa=True forces a second factor (or first-time set-up)
+    # even for roles whose MFA mandate hasn't kicked in yet.
+    return _finish_sign_in(user, db, request, bool(data.remember_me), method="email_code", require_mfa=True)

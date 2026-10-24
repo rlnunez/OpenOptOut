@@ -8269,7 +8269,7 @@
    ]
   },
   {
-   "text": "How long you stay signed in on this device.",
+   "text": "How long you stay signed in on this device. 30 days is the maximum.",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -8868,7 +8868,7 @@
    ]
   },
   {
-   "text": "Institutional recommendation for device credential cache.",
+   "text": "Institutional recommendation for device credential cache. 30 days is the maximum.",
    "where": [
     "pages/Settings.jsx"
    ]
@@ -12500,7 +12500,7 @@
    ]
   },
   {
-   "text": "Password (min 12 characters)",
+   "text": "Password (min 15 characters)",
    "where": [
     "pages/Login.jsx",
     "pages/Signup.jsx"
@@ -18772,7 +18772,7 @@
    ]
   },
   {
-   "text": "Use a password of at least 12 characters",
+   "text": "Use a password of at least 15 characters",
    "where": [
     "pages/Login.jsx",
     "pages/Signup.jsx"

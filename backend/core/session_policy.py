@@ -8,6 +8,8 @@ from datetime import timedelta
 from typing import Dict, Any, Optional
 from .settings_store import load_settings, SETTINGS_FILE
 
+MAX_REMEMBER_ME_DURATION_DAYS = 30   # NIST SP 800-63B rev. 4 S2.2.3: AAL1 session ceiling
+
 DEFAULT_SESSION_POLICY: Dict[str, Any] = {
     "remember_me_enabled": True,
     "roles": {
@@ -16,28 +18,28 @@ DEFAULT_SESSION_POLICY: Dict[str, Any] = {
             "remember_me_allowed": True,
             "remember_me_mode": "username_only",  # "username_only" | "extend_session"
             "remember_me_duration_days": 1,
-            "idle_timeout_minutes": 0,   # 0 = disabled (ASVS 7.3.1, opt-in)
+            "idle_timeout_minutes": 60,   # NIST SP 800-63B rev. 4 S2.2.3 (default; admin may reduce or disable)
         },
         "manager": {
             "session_duration_hours": 8,
             "remember_me_allowed": True,
             "remember_me_mode": "username_only",
             "remember_me_duration_days": 3,
-            "idle_timeout_minutes": 0,
+            "idle_timeout_minutes": 60,
         },
         "parent": {
             "session_duration_hours": 24,
             "remember_me_allowed": True,
             "remember_me_mode": "extend_session",
             "remember_me_duration_days": 30,
-            "idle_timeout_minutes": 0,
+            "idle_timeout_minutes": 60,
         },
         "member": {
             "session_duration_hours": 24,
             "remember_me_allowed": True,
             "remember_me_mode": "extend_session",
             "remember_me_duration_days": 30,
-            "idle_timeout_minutes": 0,
+            "idle_timeout_minutes": 60,
         },
     },
 }
@@ -58,14 +60,15 @@ def get_session_policy() -> Dict[str, Any]:
             "session_duration_hours": int(r_cfg.get("session_duration_hours", def_cfg["session_duration_hours"])),
             "remember_me_allowed": bool(r_cfg.get("remember_me_allowed", def_cfg["remember_me_allowed"])),
             "remember_me_mode": str(r_cfg.get("remember_me_mode", def_cfg["remember_me_mode"])),
-            "remember_me_duration_days": int(r_cfg.get("remember_me_duration_days", def_cfg["remember_me_duration_days"])),
+            "remember_me_duration_days": min(MAX_REMEMBER_ME_DURATION_DAYS, max(1, int(r_cfg.get("remember_me_duration_days", def_cfg["remember_me_duration_days"])))),
             "idle_timeout_minutes": max(0, int(r_cfg.get("idle_timeout_minutes", def_cfg["idle_timeout_minutes"]))),
         }
     return policy
 
 
 def get_idle_timeout_minutes(role: str) -> int:
-    """0 means disabled (ASVS 7.3.1 is opt-in here, not a surprise default)."""
+    """Defaults to 60 minutes per role (NIST SP 800-63B rev. 4 S2.2.3); an
+    admin can lower it or set 0 to disable it entirely."""
     policy = get_session_policy()
     role_key = str(role or "parent").lower()
     r_cfg = policy["roles"].get(role_key, DEFAULT_SESSION_POLICY["roles"]["parent"])

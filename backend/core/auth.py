@@ -91,7 +91,7 @@ def _jwt_secret() -> str:
 # Minimum password length for new or updated local passwords. Existing shorter
 # passwords can still sign in via /api/auth/token (which does not call this
 # validator), matching what the sign-up page asks for.
-MIN_PASSWORD_CHARS = 12   # ASVS 4.0.3 V2.1.1
+MIN_PASSWORD_CHARS = 15   # NIST SP 800-63B rev. 4 S3.1.1: single-factor passwords SHALL be >=15 chars
 
 # bcrypt only uses the first 72 BYTES of whatever it's given — but
 # hash_password/_pepper_password below never hand bcrypt the raw password:

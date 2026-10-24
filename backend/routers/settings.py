@@ -6,7 +6,7 @@ Credentials encrypted at rest with Fernet derived from SECRET_KEY.
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Dict, Any, List
 import json, os, base64, logging
 from cryptography.fernet import Fernet
@@ -746,7 +746,18 @@ class RoleSessionConfig(LimitedModel):
     remember_me_allowed: bool = True
     remember_me_mode: str = "username_only"  # "username_only" | "extend_session"
     remember_me_duration_days: int = 1
-    idle_timeout_minutes: int = 0   # 0 = disabled (ASVS 7.3.1, opt-in)
+    idle_timeout_minutes: int = 60   # NIST SP 800-63B rev. 4 S2.2.3 default; 0 disables it
+
+    @field_validator("remember_me_duration_days")
+    @classmethod
+    def _cap_remember_me_days(cls, v):
+        from ..core.session_policy import MAX_REMEMBER_ME_DURATION_DAYS
+        if v > MAX_REMEMBER_ME_DURATION_DAYS:
+            raise ValueError(
+                f"Remember Me can be shortened but not lengthened past "
+                f"{MAX_REMEMBER_ME_DURATION_DAYS} days (NIST SP 800-63B rev. 4 S2.2.3)."
+            )
+        return v
 
 class SessionPolicySettings(LimitedModel):
     remember_me_enabled: bool = True
@@ -773,6 +784,7 @@ def get_session_policy_settings(_: User = Depends(require_super_admin)):
                 "extend_session": "Maintains an active long-lived signed session on the device for the configured number of days.",
             },
             "idle_timeout_minutes": "Sign out this role automatically after this many minutes of inactivity, even within the session duration above. 0 disables it.",
+            "remember_me_duration_days": "How many days an extended Remember Me session stays signed in. Can be shortened, but not lengthened past 30 days.",
         },
     }
 
