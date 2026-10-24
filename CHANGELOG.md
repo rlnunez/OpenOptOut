@@ -7,9 +7,57 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ---
 
-## [0.11.3] — 2026-10-21
+## [0.11.3] — 2026-10-23
 
-### Security & Hardening
+### OWASP ASVS 5.0.0 Security Hardening & Audit Completion
+- **ASVS V2 Business Logic & Pipeline Integrity:**
+  - **Strict Request State Transitions (2.3.1):** Enforced state validation on `PATCH /api/requests/{id}` rejecting direct transitions to automated or terminal states (`sent`, `confirmed`, `submitted`); only manual review states (`pending`, `skipped`) may be modified directly, closing an opt-out step-skipping gap.
+  - **Date of Birth & Age Synchronization (2.2.3):** Prevented age edits from desynchronizing from existing `dob` values, and updated COPPA child record crypto-shredding purge routines to compute minor status strictly from `dob`.
+  - **Anti-Automation & Resource Exhaustion Protection (2.4.1):** Rate-limited discovery search and broker opt-out submission triggers in `automation.py` to prevent resource exhaustion, CAPTCHA credit exhaustion, and browser runner starvation.
+  - **COPPA Parental Consent & Minor Credit Freeze Advisory:** Added plain-language disclaimer component (`ChildPrivacyNotice`) during dependent profile creation/editing under age 13, clarifying consent limits and linking directly to the credit freeze workflow across all 17 supported language packs.
+- **ASVS V3 Web Frontend & Security Headers:**
+  - **Cross-Origin Isolation (3.4.8, 3.5.8):** Added `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Resource-Policy: same-origin` headers across FastAPI response middleware, Nginx front-door configurations, Caddy, and bare-metal installer templates.
+  - **Restricted Base URI & Consolidated CSP (3.4.3):** Consolidated disparate Content Security Policy declarations into a unified generator (`backend/core/csp.py`) and restricted `base-uri` from `'self'` to `'none'` everywhere.
+  - **CSP Violation Reporting Endpoint (3.4.7):** Added rate-limited violation reporting endpoint (`POST /api/csp-report`) wired into CSP directives via `report-uri`, `report-to`, and `Reporting-Endpoints`.
+  - **HSTS Enforcement (3.4.1):** Enforced conditional HSTS header emission in Nginx when proxying over TLS (`X-Forwarded-Proto == https`) and added `includeSubDomains` to Caddy's HSTS configuration.
+  - **Client-Side Safe Link Navigation Guards:** Audited and wrapped all externally sourced or user-controlled anchor URLs (search results, broker terms, confirmation URLs, registries, credit bureaus) with `isSafeHref()` across 8 frontend views to eliminate `javascript:` pseudo-protocol injection risks.
+- **ASVS V5 File & Upload Security:**
+  - **CAPTCHA Screenshot Path Traversal Guard (5.3.2):** Introduced `limits.safe_filename_fragment()` restricting file path tokens to `[A-Za-z0-9_-]` across `optout_engine.py` and `discovery.py` to prevent directory traversal via crafted broker names or plugin manifests.
+  - **Decompression Bomb Protection for Registry XLSX Imports (5.2.3):** Added pre-parse zip inspection verifying uncompressed byte totals and entry counts before loading uploaded registry spreadsheets into `openpyxl`.
+  - **HTTP Header Injection Defense in Exports (5.4.1, 5.4.2):** Sanitized `Content-Disposition` header filenames in privacy export downloads by stripping CR/LF line breaks and escaping quotes and backslashes.
+  - **Documented File Upload Security Policy (5.1.1):** Added formal documentation in `SECURITY.md` detailing size bounds, allowed MIME types, and antimalware analysis boundaries for all upload endpoints.
+- **ASVS V6 & V7 Session Security & Password Controls:**
+  - **Granular Session Tracking & Revocation:** Added persistent `UserSession` table (indexed by JWT `jti`) supporting self-service active device session visibility, individual device session revocation, admin-initiated per-user session termination, and daily stale session pruning in scheduler.
+  - **Separation of Logout vs. Global Revocation:** Split `/api/auth/signout` (terminates current device session) from `/api/auth/signout-everywhere` (revokes all active user sessions).
+  - **Opt-In Role-Based Inactivity Timeout (7.3.1):** Added configurable per-role idle session timeouts alongside absolute session expiration.
+  - **10k+ Offline Common Password Blocklist (6.2.1):** Replaced legacy ~111-entry password list with a 10,000+ top compromised password dictionary (from SecLists) and application-specific terms, preserving offline privacy without third-party API exposure.
+  - **Character-Based Password Length Floor (6.2.9):** Evaluated minimum password length by Unicode code point count rather than UTF-8 byte length to avoid premature rejection of international character passwords.
+  - **Step-Up Authentication for MFA Enrollment:** Required current password verification prior to enrolling TOTP authenticators or WebAuthn hardware security keys.
+- **ASVS V9 Distributed Queue Cryptographic Envelope Integrity:**
+  - **Fail-Closed HMAC Envelope Verification:** Updated `WorkerDaemon.execute_envelope()`, `JobEnvelope.from_dict()`, and `JobResultEnvelope.from_json()` to reject unsigned or unverifiable task envelopes rather than silently bypassing verification when `SECRET_KEY` is missing.
+- **ASVS V13 Secure System & Service Configuration:**
+  - **Distributed Service Credential Hardening (13.2.1, 13.2.3):** Removed insecure default database passwords and required explicit `REDIS_PASSWORD` authentication (`--requirepass`) across worker fleets in `docker-compose.distributed.yml`.
+  - **Anonymous Version & Commit Fingerprinting Protection (13.4.6):** Redacted Git commit hashes from `GET /api/health` for unauthenticated callers while preserving authenticated diagnostics for administrators.
+  - **CORS Verb Restriction:** Restricted cross-origin access strictly to authorized HTTP methods.
+- **ASVS V14 Data Protection in Transit & at Rest:**
+  - **MFA Ticket Query Parameter Removal (14.2.1):** Removed ephemeral MFA ticket exposure from query strings in `GET /api/auth/mfa/status`, requiring HTTP header delivery (`X-MFA-Ticket`).
+  - **Universal API Cache Disabling (14.2.2, 14.3.2):** Defaulted all API response headers to `Cache-Control: no-store` unless explicitly overridden.
+  - **Uploaded Logo Metadata Stripping (14.2.8):** Stripped metadata and EXIF data from uploaded tenant logos by re-encoding raster images and stripping `<metadata>`/comments from SVGs.
+  - **Web Cache Deception Prevention (14.2.5):** Configured Nginx to return real HTTP 404 responses for missing static asset extensions rather than falling back to the SPA HTML shell.
+- **ASVS V15 & V16 Cryptographic & Security Event Logging:**
+  - **Enforced SMTP TLS Negotiation:** Fixed a critical boolean-type evaluation bug where `smtp_tls=True` silently fell back to unencrypted plaintext SMTP, guaranteeing strict TLS/STARTTLS enforcement for credential resets and opt-out notifications.
+  - **Security Audit Event Logging (16.3.1, 16.3.2, 16.3.3):** Added structured audit event logging for authentication outcomes, access authorization denials, and anti-automation rate-limit lockouts using account IDs and PII-sanitized formatters.
+  - **Global Exception Sanitization (16.5.4):** Added top-level unhandled exception fallback handler returning generic error bodies to prevent internal diagnostic leaks.
+
+### Authentication & Identity Providers (OIDC, SIP2, MFA)
+- **OIDC SSRF & DNS Rebinding Protection:** Wrapped OIDC discovery, token, and userinfo network requests with `dns_guard.assert_safe_url()`.
+- **OIDC Issuer Mix-Up Guard:** Rejected OIDC discovery documents whose asserted `issuer` does not match the configured discovery URL authority.
+- **SSO Redirect Base URL Resolution:** Enforced precedence of configured `PUBLIC_BASE_URL` and `FRONTEND_URL` over untrusted client `Host` request headers when computing OIDC `redirect_uri` targets, and resolved a runtime `NameError` in `_sso_redirect()`.
+- **Cross-Provider External Identifier Scoping:** Scoped `User.external_id` updates to the originating authentication provider, preventing secondary IdPs asserting verified matching emails from clobbering primary identity mappings.
+- **TOTP Counter-Replay Defense:** Tracked matched RFC 6238 time-step counters per account (`totp_matched_counter`, `totp_replay_check`), preventing reuse of intercepted TOTP tokens against concurrent MFA tickets within the drift window.
+- **SIP2 Reissued Library Card Account Linking:** Added support for resolving patrons with reissued library cards via configurable barcode fields (`previous_card_*`), preserving user removal history and settings across card renewals.
+
+### Container & Infrastructure Hardening
 - **Plugin Network Sandboxing & Namespace Enforcement:** Closed network-permission bypass by enforcing host-mediated routing on non-email plugins declaring `network` or `outbound_domains`. Enabled OS-level namespace sandboxing (bubblewrap/seccomp) by default with fallback on unsupported platforms (`REQUIRE_HARD_SANDBOX=false`).
 - **Installer Control-Plane Sandbox Parity:** Extended bubblewrap and seccomp syscall filters to control-plane instances and multi-host deployment configurations.
 - **Rclone Container Multi-Stage Build (CVE-2026-111943):** Refactored `/usr/local/bin/rclone` compilation in `backend/Dockerfile` to compile from source via a multi-stage builder using Go 1.27.3 (`golang:1.27.3-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5`) to remediate Go stdlib `crypto/x509` intermediate CA certificate verification vulnerabilities.
@@ -18,8 +66,12 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 - **Persistent HTTP Warning Banner:** Added persistent admin warning banner on unencrypted HTTP connections advising administrators to run `enable-https.sh` to protect credentials and member PII in transit.
 - **Cross-Platform Test Compatibility:** Updated test `backup.rclone_destination` in `backend/tests/run_tests.py` to use portable permission checking supporting both GNU and BSD/macOS `stat` syntax.
 
-### Dependencies
+### Dependencies & Maintenance
 - **`pip` Security Upgrade & CA Synchronization:** Upgraded `pip` to `26.2.2` in `backend/requirements.txt` (which natively vendors patched `certifi 2026.10.19`) and integrated automated build-time CA bundle synchronization (`sync_pip_certifi` in `install_deps.py`) to eliminate persistent GHSA-6q48-6c7w-9gw2 / PYSEC-2026-4320 alerts without suppressing scanner findings in ignore files.
+- **Cloud Requirements Deduplication:** Removed redundant package pins from `backend/requirements-cloud.txt`, inheriting canonical versions from `backend/requirements.txt`.
+- **Centralized SSRF / DNS Protection (`dns_guard.py`):** Consolidated URL validation and DNS pinning logic across log forwarding, OAuth engines, webhooks, authentication providers, registry synchronization, and SAML metadata resolvers.
+- **ReDoS Elimination in Log Scrubbing:** Replaced unbounded regex patterns in `logging_config.py` with bounded, non-backtracking matchers.
+- **Security Policy Documentation (`SECURITY.md`):** Thoroughly documented sensitive data classifications, crypto key inventories, upload file handling policies, AV scanning rationale, external service timeout/retry policies, and secrets rotation schedules.
 
 ---
 
