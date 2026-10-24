@@ -61,6 +61,9 @@ paramiko==5.0.0
 reportlab==5.0.1
 # CAPTCHA privacy masking & image processing (core/captcha_privacy.py)
 pillow==13.0.0
+# Cloud IAM database authentication (core/db_connection.py)
+boto3==1.43.111
+azure-identity==1.26.0
 # Syscall filter for the plugin sandbox (module name: pyseccomp). Pure Python over
 # libseccomp2; Linux only. The "seccomp" module from Debian's python3-seccomp is
 # not visible to this interpreter, and there is no PyPI package called "seccomp".
