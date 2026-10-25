@@ -50,3 +50,4 @@ if (modified) {
   fs.writeFileSync(indexPath, html, 'utf-8');
   console.log('Successfully injected W3C Subresource Integrity (SRI) hashes into dist/index.html');
 }
+
