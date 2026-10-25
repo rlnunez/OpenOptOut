@@ -1374,7 +1374,18 @@ def get_mfa_status(
     return {
         "mfa_enabled": mfa.user_has_mfa(user),
         "totp_enabled": bool(user.totp_enabled),
-        "webauthn_keys": [{"id": k["id"], "name": k.get("name", "Security Key"), "created_at": k.get("created_at"), "is_fips": k.get("is_fips", False), "fips_model": k.get("fips_model")} for k in keys],
+        "webauthn_keys": [
+            {
+                "id": k["id"],
+                "name": k.get("name", "Security Key"),
+                "created_at": k.get("created_at"),
+                "is_fips": k.get("is_fips", False),
+                "fips_model": k.get("fips_model"),
+                "backup_eligible": k.get("backup_eligible", False),
+                "device_bound": k.get("device_bound", True),
+            }
+            for k in keys
+        ],
         "backup_codes_count": backup_count,
         "is_mandated": mandated,
         "days_until_mandate": days_left,

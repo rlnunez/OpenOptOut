@@ -69,6 +69,11 @@ Each completed roadmap item is cross-referenced with its architectural milestone
   - **Disassociated Processing Safeguards (CT.DP-P):** Formally integrated disassociated processing declarations in the data inventory metadata, validating visual PII challenge masking, ephemeral in-memory execution, and minimal broker field payloads.
 
 ### Authentication & Identity Providers (OIDC, SIP2, MFA)
+- **FIDO Alliance FIDO2 & W3C WebAuthn Level 3 Implementation:**
+  - **User Verification (UV) Flag Enforcement:** Injected UV flag validation (`authData[32] & 0x04`) in `verify_webauthn_assertion()` to fail closed when user verification is required by policy or credential settings.
+  - **Hardware-Bound vs. Synced Passkey Classification:** Implemented WebAuthn L3 Backup Eligibility (`BE` flag, bit 3) and Backup State (`BS` flag, bit 4) parsing in `parse_and_validate_registration_response()`, accurately distinguishing physical hardware tokens (FIDO2 Level 2/3) from multi-device synced passkeys.
+  - **Ed25519 (EdDSA / alg: -8) Support:** Expanded cryptographic verification to support Ed25519 Edwards curve signatures alongside ES256 and RS256.
+  - **Discoverable Passkey Detection (`credProps`):** Added WebAuthn L3 `credProps` extension to registration options confirming client-side resident key generation.
 - **NIST SP 800-63B Authentication & Lifecycle Hardening:**
   - **Magic-Link Mandatory MFA (§3.1.3):** Enforced that magic-link email sign-in always requires MFA (or initiates mandated MFA setup) and never completes authentication on its own, complying with NIST SP 800-63B rev. 4 §3.1.3 prohibiting email as an out-of-band authentication factor.
   - **Password Length Floor (§3.1.1):** Raised minimum local password length from 12 to 15 characters (single-factor password floor), updating validation and internationalized copy across all 17 language packs.

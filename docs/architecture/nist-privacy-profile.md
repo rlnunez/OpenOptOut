@@ -119,3 +119,4 @@ The NIST Privacy Framework and CSF Privacy Profile alignment is continuously val
 - `privacy.no_details_in_logs`: Validates that no plaintext PII appears in application logs or tracebacks.
 - `crypto.field_encryption_roundtrip`: Asserts AES-256-GCM AEAD authenticated encryption integrity.
 - `ssrf.dns_rebinding_defense`: Asserts blocking of loopback and cloud metadata requests.
+

@@ -7249,10 +7249,30 @@ def t_mfa_webauthn_assertion_fails_closed():
     assert mfa.verify_webauthn_assertion(cred(rsa_good), challenge, rsa_key), "valid RS256 assertion refused"
     assert not mfa.verify_webauthn_assertion(cred(b"\x00" * 256), challenge, rsa_key), "forged RS256 signature accepted"
 
+    # Ed25519 (alg: -8) verification (WebAuthn Level 3 / FIDO2)
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+    ed_priv = ed25519.Ed25519PrivateKey.generate()
+    ed_key = {"id": "k1", "algorithm": -8, "public_key": ed_priv.public_key().public_bytes_raw().hex()}
+    ed_good = ed_priv.sign(signed)
+    assert mfa.verify_webauthn_assertion(cred(ed_good), challenge, ed_key), "valid Ed25519 assertion refused"
+    assert not mfa.verify_webauthn_assertion(cred(b"\x00" * 64), challenge, ed_key), "forged Ed25519 signature accepted"
+
     for bad_key in ({"id": "k1", "algorithm": -8, "public_key": "00"},
                     {"id": "k1", "algorithm": -7, "public_key": ""},
                     {"id": "k1", "algorithm": -7, "public_key": "zz"}):
         assert not mfa.verify_webauthn_assertion(cred(good), challenge, bad_key), f"accepted with key {bad_key}"
+
+    # User Verification (UV) flag enforcement (WebAuthn Level 3)
+    auth_data_uv = hashlib.sha256(b"example.invalid").digest() + b"\x05" + b"\x00\x00\x00\x03"  # UP (0x01) | UV (0x04)
+    signed_uv = auth_data_uv + hashlib.sha256(client_data).digest()
+    good_uv = ec_priv.sign(signed_uv, ec.ECDSA(hashes.SHA256()))
+    cred_uv = {"id": "k1", "response": {"clientDataJSON": b64(client_data),
+                                         "authenticatorData": b64(auth_data_uv), "signature": b64(good_uv)}}
+
+    # UP only (auth_data has 0x01, UV bit 0x04 not set) fails when UV required
+    assert not mfa.verify_webauthn_assertion(cred(good), challenge, dict(ec_key), require_user_verification=True), "UV required but assertion lacks UV flag"
+    # UP + UV (auth_data_uv has 0x05) succeeds when UV required
+    assert mfa.verify_webauthn_assertion(cred_uv, challenge, dict(ec_key), require_user_verification=True), "valid UV assertion rejected"
 
 
     # RP ID binding test
@@ -7290,6 +7310,89 @@ def t_mfa_webauthn_assertion_fails_closed():
                                   "signature": b64(b"\x00" * 70)}},
         challenge, poison_key), "forged high-counter assertion accepted"
     assert poison_key.get("counter") == 1, "forged assertion advanced the stored counter"
+
+
+@test(1, "mfa.webauthn_level3_registration_and_backup_flags",
+      "WebAuthn Level 3 extensions (credProps), backup flags (BE/BS), and device-bound token classification.")
+def t_mfa_webauthn_l3_registration():
+    import base64, json
+    mfa = _imp("core.mfa")
+    b64 = lambda b: base64.urlsafe_b64encode(b).decode().rstrip("=")
+
+    # 1. Registration options advertise credProps extension
+    opts = mfa.create_webauthn_registration_options(1, "user@example.invalid", "User")
+    assert opts.get("extensions", {}).get("credProps") is True
+
+    # 2. Parsing authData with WebAuthn Level 3 flags
+    challenge = "challenge-xyz"
+    client_data = json.dumps({"type": "webauthn.create", "challenge": challenge}).encode()
+
+    # Hardware token: UP (0x01) + AT (0x40) + UV (0x04) -> flags = 0x45 (BE=0, BS=0 -> device_bound=True)
+    rp_hash = b"\xaa" * 32
+    flags_hw = bytes([0x45])
+    sign_count = b"\x00\x00\x00\x00"
+    aaguid = b"\x01" * 16
+    cred_id = b"cred-id-123"
+    cred_id_len = len(cred_id).to_bytes(2, "big")
+
+    # CBOR for ES256 key: {1: 2, 3: -7, -1: 1, -2: x, -3: y}
+    cose_key = b"\xa5\x01\x02\x03\x26\x20\x01\x21X \x01" + b"\x00" * 31 + b"\x22X \x02" + b"\x00" * 31
+    auth_data_hw = rp_hash + flags_hw + sign_count + aaguid + cred_id_len + cred_id + cose_key
+
+    # CBOR map {"fmt": "none", "attStmt": {}, "authData": auth_data_hw}
+    att_obj_hw = (b"\xa3\x63fmt\x64none\x67attStmt\xa0\x68authData"
+                  + (b"\x58" + bytes([len(auth_data_hw)]) if len(auth_data_hw) < 256 else b"\x59" + len(auth_data_hw).to_bytes(2, "big"))
+                  + auth_data_hw)
+
+    cred_reg_hw = {
+        "id": "c1",
+        "response": {
+            "clientDataJSON": b64(client_data),
+            "attestationObject": b64(att_obj_hw),
+        }
+    }
+    parsed_hw = mfa.parse_and_validate_registration_response(cred_reg_hw, challenge)
+    assert parsed_hw["user_verified"] is True
+    assert parsed_hw["backup_eligible"] is False
+    assert parsed_hw["backup_state"] is False
+    assert parsed_hw["device_bound"] is True
+    assert parsed_hw["algorithm"] == -7
+
+    # Synced passkey: UP (0x01) + AT (0x40) + BE (0x08) + BS (0x10) -> flags = 0x59
+    flags_passkey = bytes([0x59])
+    auth_data_passkey = rp_hash + flags_passkey + sign_count + aaguid + cred_id_len + cred_id + cose_key
+    att_obj_passkey = (b"\xa3\x63fmt\x64none\x67attStmt\xa0\x68authData"
+                       + (b"\x58" + bytes([len(auth_data_passkey)]) if len(auth_data_passkey) < 256 else b"\x59" + len(auth_data_passkey).to_bytes(2, "big"))
+                       + auth_data_passkey)
+
+    cred_reg_passkey = {
+        "id": "c2",
+        "response": {
+            "clientDataJSON": b64(client_data),
+            "attestationObject": b64(att_obj_passkey),
+        }
+    }
+    parsed_pk = mfa.parse_and_validate_registration_response(cred_reg_passkey, challenge)
+    assert parsed_pk["backup_eligible"] is True
+    assert parsed_pk["backup_state"] is True
+    assert parsed_pk["device_bound"] is False
+
+    # Ed25519 (EdDSA / alg: -8) registration parsing
+    cose_ed = b"\xa4\x01\x01\x03\x27\x20\x06\x21X \xaa" + b"\xbb" * 31
+    auth_data_ed = rp_hash + flags_hw + sign_count + aaguid + cred_id_len + cred_id + cose_ed
+    att_obj_ed = (b"\xa3\x63fmt\x64none\x67attStmt\xa0\x68authData"
+                  + (b"\x58" + bytes([len(auth_data_ed)]) if len(auth_data_ed) < 256 else b"\x59" + len(auth_data_ed).to_bytes(2, "big"))
+                  + auth_data_ed)
+    cred_reg_ed = {
+        "id": "c3",
+        "response": {
+            "clientDataJSON": b64(client_data),
+            "attestationObject": b64(att_obj_ed),
+        }
+    }
+    parsed_ed = mfa.parse_and_validate_registration_response(cred_reg_ed, challenge)
+    assert parsed_ed["algorithm"] == -8
+    assert parsed_ed["public_key"] == ("aa" + "bb" * 31)
 
 
 @test(1, "security.hkdf_derivation_and_subsystem_keys",

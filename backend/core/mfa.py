@@ -282,6 +282,9 @@ def create_webauthn_registration_options(user_id: int, user_email: str, user_nam
         "authenticatorSelection": auth_selection,
         "timeout": 60000,
         "attestation": attestation,
+        "extensions": {
+            "credProps": True,
+        },
     }
 
 
@@ -337,6 +340,12 @@ def parse_and_validate_registration_response(
     if not (flags & 0x40):
         raise ValueError("Attested credential data missing from authData")
 
+    # W3C WebAuthn Level 3 / FIDO2 flags
+    user_verified = bool(flags & 0x04)        # Bit 2: UV (User Verified)
+    backup_eligible = bool(flags & 0x08)      # Bit 3: BE (Backup Eligibility - WebAuthn L3)
+    backup_state = bool(flags & 0x10)         # Bit 4: BS (Backup State - WebAuthn L3)
+    device_bound = not backup_eligible        # Hardware-bound token (FIDO2 L2/L3) vs synced passkey
+
     # Extract AAGUID (16 bytes)
     aaguid_bytes = auth_data[37:53]
     aaguid = aaguid_bytes.hex()
@@ -366,6 +375,10 @@ def parse_and_validate_registration_response(
         n = cose_key.get(-1, b"")
         e = cose_key.get(-2, b"")
         pub_key_hex = json.dumps({"n": n.hex(), "e": e.hex()})
+    elif alg == -8:  # EdDSA (Ed25519)
+        x = cose_key.get(-2, b"")
+        if len(x) == 32:
+            pub_key_hex = x.hex()
     else:
         pub_key_hex = base64.b64encode(cose_key_raw).decode("utf-8")
 
@@ -377,6 +390,10 @@ def parse_and_validate_registration_response(
         "public_key": pub_key_hex,
         "algorithm": alg,
         "transports": credential.get("response", {}).get("transports") or ["usb", "nfc", "internal", "hybrid"],
+        "user_verified": user_verified,
+        "backup_eligible": backup_eligible,
+        "backup_state": backup_state,
+        "device_bound": device_bound,
     }
 
 
@@ -386,12 +403,14 @@ def verify_webauthn_assertion(
     stored_key: dict,
     expected_rp_id: Optional[str] = None,
     expected_origin: Optional[str] = None,
+    require_user_verification: bool = False,
 ) -> bool:
     """
     Validate WebAuthn authentication response against stored public key.
     Fails closed: True only when challenge, RP ID, origin, counter, and
-    signature verify against the stored ES256 or RS256 key. Anything else
-    (bad signature, unknown algorithm, malformed key, no cryptography package) is False.
+    signature verify against the stored ES256, RS256, or EdDSA (Ed25519) key.
+    Enforces User Verification (UV flag) when require_user_verification=True
+    or when configured as required in institutional settings.
     """
     client_data_raw = base64.urlsafe_b64decode(_b64_pad(credential.get("response", {}).get("clientDataJSON", "")))
     client_data = json.loads(client_data_raw.decode("utf-8"))
@@ -414,8 +433,14 @@ def verify_webauthn_assertion(
 
     if len(auth_data) < 37:
         return False
+    flags = auth_data[32]
     # User presence flag check (bit 0)
-    if not (auth_data[32] & 0x01):
+    if not (flags & 0x01):
+        return False
+
+    # User verification flag check (bit 2) per W3C WebAuthn Level 3
+    uv_required = require_user_verification or (get_webauthn_config().get("user_verification") == "required")
+    if uv_required and not (flags & 0x04):
         return False
 
     # 2. RP ID hash verification (first 32 bytes of authData)
@@ -455,6 +480,13 @@ def verify_webauthn_assertion(
             nums = json.loads(pub)
             public_key = rsa.RSAPublicNumbers(int(nums["e"], 16), int(nums["n"], 16)).public_key()
             public_key.verify(signature, signed_data, padding.PKCS1v15(), hashes.SHA256())
+        elif alg == -8:  # EdDSA (Ed25519)
+            from cryptography.hazmat.primitives.asymmetric import ed25519
+            pub_bytes = bytes.fromhex(pub)
+            if len(pub_bytes) != 32:
+                return False
+            public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
+            public_key.verify(signature, signed_data)
         else:
             return False
     except Exception:
