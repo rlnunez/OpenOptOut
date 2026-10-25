@@ -319,6 +319,31 @@ def gpc_well_known():
     )
 
 
+@app.get("/.well-known/security.txt")
+@app.get("/api/.well-known/security.txt")
+def security_txt():
+    """
+    RFC 9116 security.txt vulnerability disclosure discovery resource.
+    Conforms to CISA Secure by Design guidelines.
+    """
+    from fastapi.responses import PlainTextResponse
+    content = (
+        "Contact: https://github.com/rlnunez/OpenOptOut/security/advisories/new\n"
+        "Expires: 2027-10-24T00:00:00.000Z\n"
+        "Preferred-Languages: en\n"
+        "Canonical: https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/.well-known/security.txt\n"
+        "Policy: https://github.com/rlnunez/OpenOptOut/blob/main/SECURITY.md\n"
+        "Acknowledgments: https://github.com/rlnunez/OpenOptOut/blob/main/CHANGELOG.md\n"
+    )
+    return PlainTextResponse(
+        content=content,
+        headers={
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "public, max-age=86400",
+        },
+    )
+
+
 @app.get("/api/health")
 def health(current_user: Optional[User] = Depends(get_current_user_optional)):
     # Public liveness probe (docker healthchecks, the updater, release

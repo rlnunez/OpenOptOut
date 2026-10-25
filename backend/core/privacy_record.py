@@ -106,6 +106,15 @@ STANDARDS_ALIGNMENT = {
             "Field-level minimization of broker submission payloads",
         ],
     },
+    "cisa_secure_by_design": {
+        "framework": "CISA / NSA / FBI Secure by Design",
+        "principles": [
+            "Take Ownership of Customer Security Outcomes (Universal free MFA, no default passwords, automated updates)",
+            "Embrace Radical Transparency and Accountability (Safe Harbor VDP, RFC 9116 security.txt, CycloneDX SBOM)",
+            "Build Organizational Structure to Eliminate Vulnerability Classes (Memory safety, parameterized SQL, SSRF guard)",
+        ],
+        "rfc9116": "/.well-known/security.txt",
+    },
 }
 
 

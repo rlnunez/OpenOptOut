@@ -7418,6 +7418,50 @@ def t_security_hkdf_derivation():
     assert hkdf.hkdf_derive(master_secret, info=b"openoptout:settings:v1") == k_settings
 
 
+@test(1, "security.cisa_secure_by_design_and_security_txt",
+      "CISA Secure by Design: RFC 9116 security.txt, CycloneDX SBOM generation, and researcher safe harbor.")
+def t_cisa_secure_by_design():
+    import os
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+    # 1. RFC 9116 security.txt static file validation
+    sec_txt_path = os.path.join(repo_root, ".well-known", "security.txt")
+    assert os.path.isfile(sec_txt_path), f".well-known/security.txt missing at {sec_txt_path}"
+    with open(sec_txt_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    assert "Contact:" in content
+    assert "Expires:" in content
+    assert "Preferred-Languages:" in content
+    assert "Policy:" in content
+
+    # 2. SECURITY.md contains researcher safe harbor
+    sec_md_path = os.path.join(repo_root, "SECURITY.md")
+    with open(sec_md_path, "r", encoding="utf-8") as f:
+        sec_md = f.read()
+    assert "Security Researcher Safe Harbor" in sec_md
+    assert "Computer Fraud and Abuse Act" in sec_md or "CFAA" in sec_md
+
+    # 3. CycloneDX 1.5 JSON SBOM generator
+    sbom_mod = _imp("core.sbom")
+    sbom = sbom_mod.generate_cyclonedx_sbom()
+    assert sbom.get("bomFormat") == "CycloneDX"
+    assert sbom.get("specVersion") == "1.5"
+    assert "metadata" in sbom
+    assert sbom["metadata"]["component"]["name"] == "openoptout"
+    components = sbom.get("components", [])
+    assert len(components) > 0, "SBOM should list dependencies"
+    first = components[0]
+    assert "name" in first and "version" in first and "purl" in first
+    assert first["purl"].startswith("pkg:")
+
+    # 4. Standards alignment includes CISA Secure by Design
+    pr = _imp("core.privacy_record")
+    inv = pr.public_inventory()
+    cisa = inv.get("standards", {}).get("cisa_secure_by_design", {})
+    assert "CISA" in cisa.get("framework", "")
+    assert len(cisa.get("principles", [])) >= 3
+
+
 @test(1, "security.backup_codes_hmac_and_totp_constant_time",
       "TOTP constant-time verification, HMAC backup codes generation, and legacy SHA-256 fallback consumption.")
 def t_security_backup_codes_and_totp():

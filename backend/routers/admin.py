@@ -554,3 +554,22 @@ def _check_children_limit(db, manager_id: int, admin_id: int):
             f"The limit is {effective_max}. "
             f"Increase the limit in Settings → Vault limits or set a per-parent override."
         )
+
+
+@router.get("/sbom")
+def get_sbom(_: User = Depends(access.require_permission("settings.system"))):
+    """
+    Download Software Bill of Materials (SBOM) in CycloneDX 1.5 JSON format.
+    Fulfills CISA 'Secure by Design' Goal 7 (Supply Chain Dependency Transparency).
+    """
+    from ..core.sbom import generate_cyclonedx_sbom
+    from fastapi.responses import JSONResponse
+    sbom = generate_cyclonedx_sbom()
+    return JSONResponse(
+        content=sbom,
+        headers={
+            "Content-Type": "application/vnd.cyclonedx+json",
+            "Content-Disposition": 'attachment; filename="openoptout-sbom.cyclonedx.json"',
+            "Cache-Control": "private, no-cache",
+        },
+    )

@@ -49,6 +49,19 @@ Each completed roadmap item is cross-referenced with its architectural milestone
   - **Security Audit Event Logging (16.3.1, 16.3.2, 16.3.3):** Added structured audit event logging for authentication outcomes, access authorization denials, and anti-automation rate-limit lockouts using account IDs and PII-sanitized formatters.
   - **Global Exception Sanitization (16.5.4):** Added top-level unhandled exception fallback handler returning generic error bodies to prevent internal diagnostic leaks.
 
+### CISA "Secure by Design" & Vulnerability Transparency
+- **CISA Secure by Design Principles Alignment:**
+  - **Comprehensive Architectural Specification:** Published `docs/architecture/cisa-secure-by-design.md` detailing alignment across the three core principles (Take Ownership of Customer Security Outcomes, Embrace Radical Transparency and Accountability, Build Organizational Structure to Eliminate Vulnerability Classes) and seven tactical goals.
+  - **Vulnerability Class Elimination Rationale:** Formally documented structural elimination of OWASP/CWE flaw classes across the codebase: SQL Injection (SQLAlchemy parametrized AST queries), Cross-Site Scripting (React auto-escaping and CSP `base-uri 'none'`), Server-Side Request Forgery (`dns_guard.assert_safe_url()`), Directory Traversal (`limits.safe_filename_fragment()`), and Sandbox Escapes (Bubblewrap and Seccomp BPF syscall isolation).
+  - **Default Security Posture:** Verified zero default passwords, mandatory initial admin password configuration upon first launch, free built-in MFA (TOTP and WebAuthn/FIDO2 hardware keys), and automatic database schema migrations without operator intervention.
+- **RFC 9116 Vulnerability Disclosure (`/.well-known/security.txt`):**
+  - **Standardized Machine-Readable Contact:** Deployed standard RFC 9116 `security.txt` discovery at `/.well-known/security.txt` and `/api/.well-known/security.txt` linking to the GitHub Private Vulnerability Reporting program (`https://github.com/rlnunez/OpenOptOut/security/advisories/new`), canonical policy, and changelog acknowledgments.
+  - **Security Researcher Safe Harbor Policy:** Added explicit safe harbor protections in `SECURITY.md` assuring good-faith security researchers of protection against civil or criminal legal action (including under CFAA and DMCA anti-circumvention provisions), safe harbor scope boundaries, and clear communication guidelines.
+- **Software Bill of Materials (SBOM):**
+  - **CycloneDX 1.5 JSON Generator (`backend/core/sbom.py`):** Added dynamic CycloneDX 1.5 JSON SBOM generation combining installed environment package metadata via `importlib.metadata` and pinned project manifest dependencies (`requirements.txt`).
+  - **Admin Diagnostic Endpoint (`GET /api/admin/sbom`):** Exposed authenticated administrative endpoint providing real-time, machine-readable inventory of software components, versions, licenses, and suppliers.
+  - **Standards Alignment Registry:** Updated `STANDARDS_ALIGNMENT` in `backend/core/privacy_record.py` to index `cisa_secure_by_design` alongside ISO/IEC 29100 and NIST Privacy Framework.
+
 ### Privacy Protocols & Data Rights Automation
 - **Data Rights Protocol (DRP v0.9/v1.0) Client & Execution Engine (Roadmap Item 73):**
   - **First-Class Opt-Out Method (`drp`):** Added native `drp` opt-out execution method alongside `form`, `email`, and `manual` across `BrokerSpec`, `JobCompiler`, `DryRunExecutor`, and `OptOutEngine`.

@@ -6,19 +6,29 @@ OpenOptOut handles sensitive patron and family data. Security reports are welcom
 
 **Please do not open a public issue for a security vulnerability.**
 
-Report privately via **[Report a vulnerability](https://github.com/rlnunez/OpenOptOut/security/advisories/new)** (Security tab → Report a vulnerability).
+Report privately via **[Report a vulnerability](https://github.com/rlnunez/OpenOptOut/security/advisories/new)** (Security tab → Report a vulnerability). This project implements RFC 9116 (`/.well-known/security.txt`).
 
 Include:
 - Vulnerability description and potential security impact
 - Reproduction steps (requests, scripts, or screenshots)
 - Affected version or commit hash (available via `/api/health`)
 
-You should receive an initial response within 7 days. Valid reports will be credited in published advisories unless anonymity is requested.
+You should receive an initial response within 7 days. Valid reports will be credited in published advisories and the [Changelog](CHANGELOG.md) unless anonymity is requested.
 
 ## Scope
 
 - **In scope:** Backend API, web UI, plugin sandbox (bubblewrap, seccomp, gRPC broker), data encryption at rest, authentication mechanisms (local, OIDC, SAML, LDAP, SIP2), distributed workers, installers, and official Docker images.
 - **Out of scope:** Third-party data broker sites, and issues requiring prior root or host compromise (unless enabling container escapes or cross-tenant privilege escalation).
+
+## Security Researcher Safe Harbor
+
+In accordance with the CISA "Secure by Design" Product Principles:
+- **Good-Faith Research:** We consider security research conducted under this policy to be authorized. If you make a good-faith effort to comply with this policy during your security research, we will not initiate or pursue legal action against you (including claims under the Computer Fraud and Abuse Act (CFAA) or DMCA anti-circumvention provisions).
+- **Guidelines for Researchers:**
+  - Test only against your own self-hosted instances or local test environments. Never attempt to access or modify another family's or patron's personal data.
+  - Do not execute denial-of-service (DoS) attacks, automated high-rate fuzzing against production infrastructure, or destructive exploits.
+  - Never test against third-party data broker sites using real personal details. Use synthetic details (e.g. `Jordan Example`, `@example.invalid`) and safe form rehearsal modes.
+  - Give the project reasonable time to remediate reported vulnerabilities before public disclosure.
 
 ## Core Data Protection & Privacy Controls
 
@@ -85,6 +95,7 @@ OpenOptOut is engineered to follow recognized industry standards for application
 - **NIST SP 800-38D**: Authenticated Encryption with Galois/Counter Mode (AES-256-GCM).
 - **NIST SP 800-132 & SP 800-63B**: Password-Based Key Derivation (PBKDF2), MFA standards, and session controls.
 - **FIDO Alliance FIDO2 / W3C WebAuthn Level 3**: Hardware security keys, User Verification (UV) enforcement, Backup Eligibility (BE) flag classification, and Ed25519 (EdDSA) curves.
+- **CISA / NSA / FBI Secure by Design**: Principles and Approaches for Secure by Design Software, vulnerability class elimination, researcher safe harbor, and RFC 9116 (see [`docs/architecture/cisa-secure-by-design.md`](docs/architecture/cisa-secure-by-design.md)).
 - **NIST Privacy Framework Version 1.0**: Enterprise Privacy Risk Management and Cybersecurity Framework (CSF) Privacy Profile (see [`docs/architecture/nist-privacy-profile.md`](docs/architecture/nist-privacy-profile.md)).
 - **ISO/IEC 29100**: Privacy Architecture Framework, role boundaries, and 11 privacy principles (see [`docs/architecture/privacy-framework-29100.md`](docs/architecture/privacy-framework-29100.md)).
 - **ISO/IEC 27701 & COPPA**: Privacy Information Management, parental consent boundaries, and automated crypto-shredding.
