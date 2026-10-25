@@ -14256,6 +14256,39 @@ def t_iso_29100_alignment():
             pass
         else:
             raise
+
+
+@test(1, "privacy.nist_privacy_framework_alignment",
+      "NIST Privacy Framework v1.0 and CSF Privacy Profile alignment in data inventory and privacy records.")
+def t_nist_privacy_framework_alignment():
+    pr = _imp("core.privacy_record")
+
+    # 1. Public inventory contains NIST Privacy Framework
+    inv = pr.public_inventory()
+    standards = inv.get("standards", {})
+    assert "nist_privacy_framework" in standards
+
+    npf = standards["nist_privacy_framework"]
+    assert npf["framework"] == "NIST Privacy Framework Version 1.0"
+    assert "CSF" in npf["profile"]
+
+    # 2. All 5 core functions mapped
+    funcs = npf.get("functions", [])
+    assert any("Identify-P" in f for f in funcs)
+    assert any("Govern-P" in f for f in funcs)
+    assert any("Control-P" in f for f in funcs)
+    assert any("Communicate-P" in f for f in funcs)
+    assert any("Protect-P" in f for f in funcs)
+
+    # 3. Disassociated processing safeguards declared
+    dp = npf.get("disassociated_processing", [])
+    assert any("masking" in d.lower() for d in dp)
+    assert any("zeroization" in d.lower() for d in dp)
+    assert any("minimization" in d.lower() for d in dp)
+
+    # 4. Zero PII or internal metrics in metadata
+    assert "counts" not in inv
+    assert "warnings" not in inv
     # IF THIS FAILS: a future _download() caller passing less-trusted text
     #   could inject a response header or break out of the filename's
     #   quoted-string in the Content-Disposition response header.

@@ -135,3 +135,4 @@ The ISO/IEC 29100 privacy architecture is validated on every build via automated
 - `backend.tests.run_tests --only gpc.`: Validates W3C Global Privacy Control header injection and DOM property definitions.
 - `backend.tests.run_tests --only drp.`: Validates Data Rights Protocol schema compliance and SSRF mitigation.
 - `backend.tests.run_tests --only security.`: Validates memory hygiene, secret zeroization, password floors, and envelope integrity.
+

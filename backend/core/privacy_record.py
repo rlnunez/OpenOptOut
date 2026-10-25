@@ -90,6 +90,22 @@ STANDARDS_ALIGNMENT = {
     "coppa": "Aligned (Parental representation boundaries & minor retention floor)",
     "drp": "Aligned (Data Rights Protocol v0.9/v1.0)",
     "gpc": "Aligned (W3C Global Privacy Control Universal Signal)",
+    "nist_privacy_framework": {
+        "framework": "NIST Privacy Framework Version 1.0",
+        "profile": "Cybersecurity Framework (CSF) Privacy Profile",
+        "functions": [
+            "Identify-P (ID-P): Data Inventory & Processing Mapping",
+            "Govern-P (GV-P): Privacy Governance & Retention Schedules",
+            "Control-P (CT-P): Disassociated Processing & Crypto-Shredding",
+            "Communicate-P (CM-P): Two-Way Transparency & Patron Access Logs",
+            "Protect-P (PR-P): Authenticated Encryption & Identity Safeguards",
+        ],
+        "disassociated_processing": [
+            "Visual PII masking on external challenge solver egress",
+            "Ephemeral in-memory job compilation with buffer zeroization",
+            "Field-level minimization of broker submission payloads",
+        ],
+    },
 }
 
 

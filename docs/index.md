@@ -45,6 +45,7 @@ Technical guides for self-hosters, library IT, and community operators:
 Resources for contributing to OpenOptOut and understanding system internals:
 - [System Architecture](dev/architecture.md) — Modular design, boundaries, and thread models.
 - [Privacy Architecture Framework](architecture/privacy-framework-29100.md) — ISO/IEC 29100 role definitions, trust boundaries, and 11 privacy principles.
+- [NIST Privacy Framework Profile](architecture/nist-privacy-profile.md) — NIST Privacy Framework Version 1.0 and CSF Privacy Profile.
 - [Development Workflow](dev/development.md) — Local environment setup and running test matrices.
 - [Interpreter Runtime](dev/interpreter.md) — Declarative broker specifications and Playwright execution.
 - [Writing Broker Plugins](dev/plugins.md) — Step-by-step authoring guide for data broker add-ons.
