@@ -15197,6 +15197,34 @@ def t_frontend_names():
     # IF THIS FAILS: add the missing import; the listed screen would crash for everyone who opens it.
 
 
+@test(1, "routers.no_undefined_fastapi_names",
+      "FastAPI dependency and parameter identifiers (Query, Depends, HTTPException, Body, Header, Path) are imported in every router module (catches container startup NameError).")
+def t_routers_fastapi_names():
+    import ast, glob
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    router_dir = os.path.join(root, "backend", "routers")
+    fastapi_names = {"Query", "Depends", "HTTPException", "Body", "Header", "Path", "Form", "File", "UploadFile", "APIRouter"}
+
+    missing = []
+    for f in sorted(glob.glob(os.path.join(router_dir, "*.py"))):
+        with open(f, "r", encoding="utf-8") as fp:
+            tree = ast.parse(fp.read(), filename=f)
+        imported = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for n in node.names:
+                    imported.add(n.asname or n.name)
+            elif isinstance(node, ast.ImportFrom):
+                for n in node.names:
+                    imported.add(n.asname or n.name)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Name) and node.id in fastapi_names:
+                if node.id not in imported:
+                    missing.append(f"{os.path.basename(f)}:{node.lineno} missing import for '{node.id}'")
+    assert not missing, "Undefined FastAPI identifiers found in routers:\n" + "\n".join(missing)
+    # IF THIS FAILS: import the missing FastAPI symbol in the router header.
+
+
 @test(1, "i18n.page_texts_current",
       "The list of on-screen phrases matches the screens, and every bundled language translates all of them with the same {placeholders} and <0> tags.")
 def t_page_texts():

@@ -55,9 +55,9 @@ fi
 FAILED_CHECKS=0
 
 # ── 1. Backend Security Unit Tests ───────────────────────────────────────────
-info "Running backend security tests..."
-if python3 -m backend.tests.run_tests --only security.; then
-  success "Backend security test suite passed"
+info "Running backend security tests & router import validation..."
+if python3 -m backend.tests.run_tests --only security. && python3 -m backend.tests.run_tests --only routers.; then
+  success "Backend security test suite and router imports passed"
 else
   fail "Backend security test suite failed"
   FAILED_CHECKS=$((FAILED_CHECKS + 1))
@@ -171,3 +171,4 @@ else
   echo "======================================================================"
   exit 1
 fi
+

@@ -9,7 +9,7 @@ User administration:
   - Roles, manager permissions and the manager defaults: super admins only.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, field_validator, Field
 import json
