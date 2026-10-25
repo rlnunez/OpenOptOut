@@ -27,7 +27,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build && python3 ../scripts/inject_sri.py",
+    "build": "vite build && node scripts/inject-sri.mjs",
     "preview": "vite preview",
     "check:names": "node scripts/check-names.mjs src"
   },
