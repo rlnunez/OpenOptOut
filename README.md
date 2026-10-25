@@ -39,35 +39,18 @@ OpenOptOut is a free, self-hostable privacy automation platform built for two au
 
 ## Quick Start
 
-### One-Line Automated Install (Recommended)
+### Docker Compose (Recommended)
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/install.sh | sh
-```
-
-The installer automatically detects your environment:
-- Uses **Docker Compose** if Docker is installed and running.
-- Installs **natively** (systemd + nginx, no containers) on Debian/Ubuntu systems without Docker.
-- Safe to re-run: updates an existing checkout without overwriting `.env` configuration.
-- To specify explicitly, use `| sh -s -- --docker` or `| sh -s -- --native`. See `install.sh --help` for details.
-
-### Docker Compose (Manual)
+Docker Compose is the recommended deployment method. It provides strong defense-in-depth isolation, including CIS Docker Benchmark-hardened read-only root filesystems, unprivileged container execution (UID 1000), scoped ephemeral RAM tmpfs mounts for browser automation profiles, resource and PID ceilings, and sandboxed socket proxy mediation.
 
 ```bash
 # 1. Clone repository
 git clone https://github.com/rlnunez/OpenOptOut.git openoptout
 cd openoptout
 
-# 2. Create environment file (or use ./install.sh to auto-configure security keys)
+# 2. Create environment file
 cp .env.example .env
-# Auto-generate security keys with random lengths (128..256 hex chars) and lock permissions:
-#   chmod 600 .env
-# The system automatically generates and secures secret.key (0600 permissions).
-# Upon first sign-in, the Setup Wizard presents a top-level mode switch:
-#   - Express Setup: Zero-touch defaults for home users (SQLite, local/managed HTTPS, deferred email).
-#   - Advanced Setup: Granular control (PostgreSQL, custom reverse proxies, mail transports, branding).
-# The master SECRET_KEY is showcased with masked verification, 1-click clipboard copy,
-# and an interactive entropy mixer for custom randomness.
+chmod 600 .env
 
 # 3. Start containers
 docker compose up -d
@@ -76,7 +59,25 @@ docker compose up -d
 #    The first registered user automatically becomes the Super Admin and enters the Setup Wizard.
 ```
 
+Upon first sign-in, the Setup Wizard presents a top-level mode switch:
+- **Express Setup:** Zero-touch defaults for home users (SQLite, local/managed HTTPS, deferred email).
+- **Advanced Setup:** Granular control (PostgreSQL, custom reverse proxies, mail transports, branding).
+
+The master `SECRET_KEY` is showcased with masked verification, 1-click clipboard copy, and an interactive entropy mixer for custom randomness.
+
 For real production deployments accessible over a network, always enable HTTPS before inviting users. See [`docs/admin/https.md`](docs/admin/https.md).
+
+### Automated One-Line Install
+
+For an automated setup script that detects your environment and configures keys:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/install.sh | sh -s -- --docker
+```
+
+- Uses **Docker Compose** when passed `--docker` (recommended for container isolation).
+- Falls back to a **native bare-metal install** (systemd + nginx, no containers) on Debian/Ubuntu systems without Docker via `| sh -s -- --native`.
+- Safe to re-run: updates an existing checkout without overwriting `.env` configuration. Run `install.sh --help` for all options.
 
 ### Hardware Sizing
 
