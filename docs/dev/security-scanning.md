@@ -74,17 +74,31 @@ Triage findings via GitHub Security UI (Dismiss alert as False positive or Won't
 - Hadolint: `# hadolint ignore=<rule>`
 - ShellCheck: `# shellcheck disable=<rule>`
 
-## Local execution
+## Local execution & pre-push hook
+
+You can run the full security verification suite locally before pushing:
 
 ```bash
-pip install semgrep bandit zizmor
+# Run security tests, frontend SRI builds, broker validations, and available linters
+./scripts/security-check.sh
+
+# Automatically run security checks on every 'git push'
+./scripts/security-check.sh --install-hook
+```
+
+To install all security linters locally:
+
+```bash
+# macOS (Homebrew)
+brew install gitleaks hadolint shellcheck actionlint zizmor
+pip install bandit semgrep
+
+# Run individual scanners
 semgrep scan --config .semgrep/ --config p/python --config p/owasp-top-ten backend/
 bandit -r backend -x backend/tests -s B101,B110,B112
 zizmor .github/workflows/
-
-gitleaks git .
-osv-scanner scan source -r .
-trivy config .
+gitleaks detect --no-git
+hadolint backend/Dockerfile frontend/Dockerfile
 shellcheck install.sh scripts/*.sh
 ```
 
