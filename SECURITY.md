@@ -1,160 +1,94 @@
 # Security policy
 
-OpenOptOut stores sensitive patron data including names, addresses, phone numbers, and email accounts. Security reports are welcome.
+OpenOptOut handles sensitive patron and family data. Security reports are welcome.
 
 ## Reporting a vulnerability
 
-**Please do not open a public issue for a security problem.**
+**Please do not open a public issue for a security vulnerability.**
 
 Report privately via **[Report a vulnerability](https://github.com/rlnunez/OpenOptOut/security/advisories/new)** (Security tab → Report a vulnerability).
 
 Include:
-- Vulnerability description and security impact
-- Reproduction steps (request, script, or screenshot)
-- Affected version or commit (from `/api/health`)
+- Vulnerability description and potential security impact
+- Reproduction steps (requests, scripts, or screenshots)
+- Affected version or commit hash (available via `/api/health`)
 
-You should receive a reply within 7 days. Fixes will credit reporters in the security advisory unless anonymity is requested.
+You should receive an initial response within 7 days. Valid reports will be credited in published advisories unless anonymity is requested.
 
 ## Scope
 
-In scope: backend API, web UI, plugin sandbox (bubblewrap, seccomp, gRPC broker), encryption at rest, authentication (local, OIDC, SAML, LDAP, SIP2), distributed workers, installers, and Docker images.
+- **In scope:** Backend API, web UI, plugin sandbox (bubblewrap, seccomp, gRPC broker), data encryption at rest, authentication mechanisms (local, OIDC, SAML, LDAP, SIP2), distributed workers, installers, and official Docker images.
+- **Out of scope:** Third-party data broker sites, and issues requiring prior root or host compromise (unless enabling container escapes or cross-tenant privilege escalation).
 
-Out of scope: data broker websites, and vulnerabilities requiring an already compromised host/admin account (unless enabling sandbox escapes or cross-tenant privilege escalation).
+## Core Data Protection & Privacy Controls
 
-## Memory Hygiene & Host Hardening
+- **No Personal Data Outside Encrypted Storage:** Patron and family member identifiers (names, addresses, phones, emails) are encrypted at rest using AES-256-GCM (NIST SP 800-38D) with HKDF domain separation.
+- **Never Store SSNs or Government IDs:** Hard architectural boundary. SSNs, government IDs, and third-party passwords are never collected, filled, or stored.
+- **Children's Data Protection (COPPA):** Dependent profiles are managed exclusively through authenticated parent/guardian accounts. Aux data (confirmation links, email logs) for minors is automatically crypto-shredded after the retention window (`coppa_children_retention_days`).
+- **Zero Third-Party Telemetry:** Zero analytics SDKs, tracking pixels, or outbound telemetry. Outbound network requests are limited to admin-configured integrations and broker automation.
+- **Memory Hygiene & Crash Protection:** Core dumps are suppressed at the process (`RLIMIT_CORE = 0`), container (`ulimits: core: 0`), and service levels to prevent cleartext memory dumps to disk. Ephemeral decrypted buffers are zeroized upon completion.
+- **Plugin Sandboxing:** Broker plugins execute within OS-level namespaces (bubblewrap), seccomp syscall filters, and declared network boundaries.
 
-OpenOptOut implements defense-in-depth against data leakage from process memory:
-- **Core Dump Suppression**: Core dumps disabled at process level (`RLIMIT_CORE = 0`), container level (`ulimits: core: 0`), and systemd service level (`LimitCORE=0`) so patron PII is never written to disk on crash.
-- **In-Memory Zeroization**: Decrypted secrets and patron records wrap in ephemeral scoped buffers (`core.memory_hygiene.SecureBuffer`) and zeroize immediately upon block completion.
-- **Encrypted Swap**: Operators should run in pure RAM or configure ephemeral encrypted swap via `/etc/crypttab` (`/dev/urandom` key) to prevent cleartext memory paging.
+## Data Classification
 
-## Architecture & Cryptographic Controls
-
-OpenOptOut enforces rigorous defense-in-depth protections across all layers:
-
-- **Credential & Secret Isolation**: Database and proxy credentials, TLS certificates, and encryption keys are read exclusively from environment variables or mounted files (Docker/Kubernetes secrets, HashiCorp Vault). Secrets are never stored in plaintext database tables and are never written to logs.
-- **PII Field Encryption**: Identifiers (names, physical addresses, phone numbers, email accounts) are encrypted prior to database persistence using authenticated AES-256-GCM (NIST SP 800-38D) with HKDF domain separation, with backward-compatible support for legacy Fernet.
-- **Key Separation & Cryptographic Derivation**: Operators and installer scripts can configure distinct random keys for `SECRET_KEY`, `SEARXNG_SECRET`, `DB_ENCRYPTION_KEY`, and `FIELD_ENCRYPTION_KEY`. Where dedicated subsystem keys are not explicitly supplied, OpenOptOut uses RFC 5869 HKDF (`backend/core/hkdf.py`) to derive cryptographically isolated, purpose-specific keys for settings encryption, OAuth credentials, MFA tickets, envelope HMAC signatures, and queue payload encryption. Auto-generated keys use non-deterministic lengths (128..256 hex characters / 64..128 raw bytes) to prevent brute-force heuristics and key-length guessing attacks.
-- **User-Driven Master Key Generation**: The main `SECRET_KEY` is generated by the administrator via the web interface — combining cryptographic image entropy with physical human randomness (mouse movement and keyboard typing), pure mouse/keyboard entropy, or entering a custom 128+ character key.
-- **Filesystem Permission Lockdown**: All key-bearing files (`secret.key`, `.env`, and dedicated key files) require strict owner-only file permissions (`0600` on POSIX, owner-only ACLs via `icacls` on Windows). The system actively monitors and alerts if permissions are broader than owner-only.
-- **Client-Certificate (mTLS) Revocation Enforcement**: Revoked client certificate serials are forwarded by reverse proxies (`X-Client-Cert-Serial` in Caddy/Nginx, `passTLSClientCert` in Traefik) and enforced at application middleware (`reject_revoked_client_certs`), immediately refusing revoked devices with HTTP 403 on subsequent requests without proxy restarts.
-- **AI Helper Untrusted Data Boundaries**: Scraped data broker web pages fed to AI spec drafting helpers are strictly encapsulated in `<broker_page_content>` tags and treated as untrusted data rather than instructions, preventing prompt injection attacks from adversarial broker websites.
-- **Identity Input Sanitization & Control Character Neutralization**: All patron and family member records (names, email addresses, phone numbers, and physical addresses) pass through strict input filters (`backend/core/text_input.py:clean_text`) across manual vault entries and SSO/LDAP/SIP2 ingestion, neutralizing embedded control characters, CRLF injection attempts, bidi overrides, and lone surrogates before storage and template rendering.
-- **Server-Side Authorization**: Every administrative, family management, and patron data API route enforces authentication and role boundaries. Unauthenticated endpoints are strictly limited to container health probes (`/api/health`), sign-in session initialization (`/api/auth/*`), and public translation catalogs (`/api/i18n/translations/*`).
-- **Bot-Evasion Realism**: User-agent rotation and residential proxies defend against basic IP rate limits, but do not claim to defeat advanced behavioral browser fingerprinting.
-- **Mandatory Production HTTPS**: Deployments must run behind TLS (Caddy, Traefik, or reverse proxies) to prevent plaintext transmission of session tokens, passwords, and patron data. See [`docs/admin/https.md`](docs/admin/https.md).
-
-## Data Protection & Classification
-
-Sensitive data this app creates or processes, classified by protection level, with the controls each level requires (ASVS 14.1.1/14.1.2/14.2.4):
-
-| Data | Classification | Encryption | Logging | Retention | Access |
-|---|---|---|---|---|---|
-| Family member PII (name, address, phone, email, dob) | Restricted — children's data, COPPA-relevant | AES-256-GCM at rest (`EncryptedText` columns) | Never logged (scrubbed by `core/logging_config.py` regardless of what a log call passes); access by staff logged (`core/privacy_record.py:log_access`) | Deleted on request (`DELETE /api/family/{id}`); minors' aux data (confirmation links, email excerpts) auto-purged after `coppa_children_retention_days` (default 30) | Owning parent/guardian, or staff via `ProfileAccess`/admin permission, each access-logged for staff |
-| SSNs, government ID numbers, passwords (third-party) | **Never stored** | N/A | N/A | N/A | Never collected, filled, or retained — a hard rule (AGENTS.md), not a configurable one |
-| Credentials & secrets (SMTP/IMAP passwords, OAuth client secrets, API keys, backup passphrases) | Restricted | AES-256-GCM / Fernet, HKDF-derived keys | Never logged; never returned in plaintext to the frontend once saved (masked/boolean `*_set` flags only, `routers/settings.py` and others) | Kept until replaced or the integration is removed by an admin | `settings.manage`/equivalent admin permission only |
-| Session tokens (JWT) | Restricted | Signed (HMAC-SHA256), not encrypted — not meant to be opaque, just unforgeable | Never logged in full; audit lines use the numeric session/user id | Expires per session policy; revocable per-session or account-wide (`UserSession`) | Held client-side in `localStorage` (the one ASVS-acknowledged exception to "nothing sensitive in browser storage") |
-| Security event / audit logs (`auth_event`, `authz_denied`, etc.) | Internal | Not encrypted (local file, owner-only `0600`) | This *is* the log | Configurable, default 30+ days (`core/privacy_record.py`) | Admin (Logs page) and optional configured forwarding destination |
-| Broker interaction artifacts (automation logs, email excerpts, CAPTCHA screenshots) | Restricted while linked to a family member | PII fields encrypted; CAPTCHA images have personal details blacked out before leaving the app (`core/captcha_privacy.py`) | Scrubbed, as above | Purged per `logs_retention_days`/`artifacts_retention_days`/`coppa_children_retention_days` | Owning account, or staff with access logged |
-| Uploaded files (branding logo) | Low sensitivity, but still re-encoded/sanitized (ASVS 14.2.8) — not trusted as opaque bytes from an admin's machine | N/A (not PII) | N/A | Replaced on next upload | Public (served unauthenticated, by design — it's the login-page branding) |
-
-**What's never sent to a third party**: this app makes zero outbound calls containing user-derived (family member) data for anything but a feature the admin explicitly configured and that specific integration's own purpose (e.g. an admin-configured webhook, which is itself PII-filtered before send — see `core/webhooks.py`). There are no analytics SDKs, tracking pixels, or telemetry calls anywhere in this codebase.
+| Data Category | Classification | Encryption & Protection | Retention & Access |
+|---|---|---|---|
+| **Family Member PII** | Restricted (COPPA) | AES-256-GCM at rest; access logged; scrubbed from all logs | Self-service deletion; minors' aux data auto-purged |
+| **SSNs & Government IDs** | Prohibited | Never collected, filled, or stored | N/A |
+| **Credentials & Secrets** | Restricted | AES-256-GCM / Fernet; masked in UI; never logged | Kept until replaced/removed; admin only |
+| **Session Tokens (JWT)** | Restricted | Signed (HMAC-SHA256); ephemeral browser storage | Revocable per-session or account-wide; expires per policy |
+| **Security Audit Logs** | Internal | Structured text (`0600` permissions); PII scrubbed | Configurable retention (default 30+ days); admin only |
+| **Interaction Artifacts** | Restricted | PII encrypted; CAPTCHAs blacked out before transmission | Purged per retention schedule |
+| **Uploaded Branding** | Low | Validated, stripped of metadata, re-encoded from pixels | Replaced on upload; public login asset |
 
 ## Web Frontend & Browser Security
 
-- **Expected browser features**: the frontend is a modern React/Vite single-page app and assumes an evergreen, currently-supported browser (recent Chrome/Firefox/Safari/Edge). There's no explicit "your browser doesn't support X" detection or fallback UI today (ASVS 3.1.1/3.7.5) — on an unsupported browser a feature that depends on a missing API (e.g. WebAuthn) fails at the point of use rather than being pre-flighted.
-- **No cookies, so no CSRF in the usual sense**: sign-in issues a Bearer token the frontend keeps in `localStorage` and sends via the `Authorization` header (`frontend/src/api.js`) — never a cookie. Browsers never auto-attach that header cross-site, which is the actual CSRF defense here; there's nothing to set `SameSite`/`Secure`/`HttpOnly` on because no session cookie exists.
-- **Security headers on every response**, set independently at up to three layers depending on deployment (the backend API itself, the bundled nginx SPA container, and the optional Caddy HTTPS front door — see `docs/admin/https.md`): `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`/`SAMEORIGIN`, `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`, and a `Content-Security-Policy` with `object-src 'none'`, `base-uri 'none'`, and `frame-ancestors 'none'`. CSP violations are reported to `/api/csp-report` (`backend/routers/csp_report.py`) rather than going nowhere. HSTS is applied once a response is known to have actually reached the browser over HTTPS — see `is_hsts_enabled()` (API) and the nginx/Caddy layers' own forwarded-proto checks — and is not submitted to the public HSTS preload list, since each operator owns their own domain and that's their call to make (ASVS 3.7.4).
-- **No externally-hosted client assets**: every script, stylesheet and font the frontend loads is bundled by Vite and served from the app's own origin — there's no CDN dependency and therefore no Subresource Integrity gap to cover (ASVS 3.6.1).
-- **Externally-sourced URLs are scheme-checked before rendering as a link**: a listing/search/registry/confirmation URL that ultimately comes from a broker page, a web search, or a pasted link is validated with `isSafeHref()` (`frontend/src/components/Markdown.jsx`) before it's used as an `<a href>`, rejecting `javascript:`/`data:`/other non-http(s)/mailto schemes.
+- **Token Authentication:** Authentication uses Bearer tokens passed in the `Authorization` header rather than ambient cookies, eliminating cross-site request forgery (CSRF) exposure.
+- **Security Headers & CSP:** Enforces `nosniff`, `strict-origin-when-cross-origin`, frame restrictions, and an explicit `Content-Security-Policy` (`object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`) with reporting to `/api/csp-report`.
+- **Self-Hosted Assets:** All JavaScript, stylesheets, and fonts are bundled locally with no external CDN runtime dependencies.
+- **Input Neutralization:** External links and broker text are validated and sanitized (`isSafeHref`, control character filtering) to prevent injection and malicious scheme execution.
 
 ## Authentication & Session Controls
 
-- **Progressive Sign-In Lockout**: Repeated failed sign-ins (password, LDAP, SIP2, TOTP, backup codes) lock that account name and the client IP separately (`core/login_throttle.py`), with exponential backoff per failure and no account enumeration — an unknown account locks the same way a real one does.
-- **Multi-Factor Authentication**: TOTP (RFC 6238) and FIDO2/WebAuthn security keys, with replay protection per time-step (not just per MFA ticket) and current-password re-verification required before a new factor can be added to an account.
-- **Session Tracking & Revocation**: Each sign-in is tracked by a per-session identifier (`UserSession`, keyed by the JWT's `jti` claim), independent of the account-wide session-version mechanism. Users can view and revoke their own active sessions or sign out everywhere; admins can force-revoke all of a specific user's sessions without disabling the account. An idle session can also be configured to time out automatically, separate from its absolute expiry.
-- **Audit Logging**: Sign-in success/failure, sign-out, authorization denials, and anti-automation lockouts are written to this app's own log store (see "Security event logging" below) — not just rate-limited in memory.
-
-## Security event logging
-
-- **What's logged**: authentication outcomes (success/failure, method, account id, source IP), authorization denials, sign-out, admin-forced session revocation, and lockouts triggered by the sign-in throttle — each as a structured `auth_event`/`authz_denied`/`lockout_triggered` line.
-- **What's never logged**: credentials, tokens, and patron/family PII (names, emails, phone numbers, addresses, SSNs) are scrubbed from every log line before it's written, by a formatter every handler goes through (`core/logging_config.py`), regardless of what a given log call passes in. Audit events identify an account by its numeric id, never its email.
-- **Format & timestamps**: plain structured key=value text, UTC timestamps throughout.
-- **Where it's stored**: a local rotating file plus an in-memory ring buffer the admin's Logs page reads from; file permissions are owner-only (`0600`). An operator can additionally opt in to forwarding (syslog, OTLP, Loki, or Splunk) to a separate system for longer retention/alerting — off by default, consistent with this app making no outbound calls with user data unless explicitly configured to.
-- **Last-resort handling**: an exception type with no specific handler still gets its full detail logged (`backend/main.py`) and returns a generic error to the caller, rather than leaking internals or taking the process down.
+- **Progressive Throttling:** Exponential backoff and independent account/IP locking on repeated failed attempts without account enumeration.
+- **Multi-Factor Authentication:** TOTP (RFC 6238) and FIDO2/WebAuthn with counter-replay protection and password re-verification.
+- **Session Tracking & Revocation:** Each sign-in issues a discrete session ID (`UserSession`). Users can view and revoke individual sessions or sign out everywhere; admins can force-revoke sessions globally.
+- **Audit Logging:** Structured audit lines (`auth_event`, `authz_denied`, `lockout_triggered`) record security events in UTC with numeric IDs and scrubbed PII.
 
 ## Cryptographic Inventory & Key Management
 
-| Key / material | Purpose | Algorithm | Where |
+All cryptographic keys are operator-supplied via environment variables or owner-only files (`0600`), or derived using RFC 5869 HKDF for purpose-specific domain separation.
+
+| Key / Material | Purpose | Algorithm / Standard | Rotation Guidance |
 |---|---|---|---|
-| `SECRET_KEY` | JWT signing, root of HKDF-derived subsystem keys | HMAC-SHA256 (JWT: HS256) | env var / `secret.key` file |
-| `FIELD_ENCRYPTION_KEY` (or HKDF-derived) | PII field encryption (names, addresses, phones, emails) | AES-256-GCM (NIST SP 800-38D) | env var, or derived from `SECRET_KEY` |
-| `DB_ENCRYPTION_KEY` | SQLCipher database file encryption | AES-256 | env var |
-| Password pepper (`PASSWORD_PEPPER` or `pepper.key`) | Pre-hash passwords before bcrypt | PBKDF2-HMAC-SHA256, 210,000 iterations (NIST SP 800-132) | env var / `pepper.key` file |
-| `SEARXNG_SECRET` | Bundled search instance session signing | HMAC-SHA256 | env var |
-| Job envelope signing key (HKDF-derived) | Distributed worker queue message integrity | HMAC-SHA256 | derived, `core/distributed/` |
-| Backup encryption key | Backup file confidentiality | AES-GCM, scrypt-derived from passphrase | `core/backups.py` |
-| S3/cloud storage signing | Backup upload authentication | AWS Signature V4 | `core/backups.py` |
+| `SECRET_KEY` | Root secret, JWT signing, HKDF root | HMAC-SHA256 (128+ chars) | Annually, or immediately on suspected compromise |
+| `FIELD_ENCRYPTION_KEY` | Patron PII encryption at rest | AES-256-GCM (NIST SP 800-38D) | On compromise (with data re-encryption) |
+| `DB_ENCRYPTION_KEY` | Database file encryption | SQLCipher AES-256 | On compromise |
+| Password Pepper | Pre-hash passwords before bcrypt | PBKDF2-HMAC-SHA256 (210k rounds) | On compromise (independent of `SECRET_KEY`) |
+| `SEARXNG_SECRET` | Search instance session signing | HMAC-SHA256 | Annually |
+| Queue HMAC Key | Distributed worker envelope integrity | HMAC-SHA256 (HKDF-derived) | Derived from `SECRET_KEY` |
+| Backup Key | Backup archive confidentiality | AES-256-GCM (scrypt/PBKDF2) | Per organizational backup policy |
+| DB / Redis Passwords | Service-to-service authentication | High-entropy string | Annually or on staff turnover |
 
-**Lifecycle policy:** every key above is either operator-supplied (env var or mounted file, never generated with a hardcoded fallback — `hardcoded-fallback-secret` Semgrep rule enforces this) or derived via RFC 5869 HKDF with purpose-specific domain separation, so a subsystem key can be rotated independently without needing a brand-new root secret. Rotating `SECRET_KEY` itself invalidates all outstanding JWTs (by design — see Session Management above) but not `pepper.key`, which persists separately so password hashes stay valid across a `SECRET_KEY` rotation. There is no automatic expiry on any of these keys; an operator rotates them manually (e.g. on suspected compromise) by regenerating the env var/file and restarting.
+## External Services & File Uploads
 
-**Migration path:** every primitive in use today (AES-256-GCM, HMAC-SHA256, PBKDF2-HMAC-SHA256, bcrypt) is a NIST-approved, currently-unbroken construction with at least 128 bits of security. None of them are asymmetric/public-key algorithms that a quantum adversary's Shor's-algorithm attack would target, so there's no near-term post-quantum migration pressure on this inventory; the practical migration path if any primitive here were ever deprecated is to add the new algorithm alongside the old (the same way legacy unpeppered password hashes are already transparently upgraded on next login), not a hard cutover.
-
-**Rotation schedule** (ASVS 13.1.4/13.3.4 — there is no automated enforcement of any of this; an operator rotates by regenerating the env var/file and restarting):
-
-| Secret | Recommended cadence | Immediately on suspected compromise |
-|---|---|---|
-| `SECRET_KEY` | Annually, or per organizational policy | Yes — also invalidates every outstanding session |
-| `FIELD_ENCRYPTION_KEY` / `DB_ENCRYPTION_KEY` | Not routinely (re-encrypting data at rest is a migration, not a restart) | Yes, with a planned re-encryption pass |
-| `pepper.key` | Not routinely (persists across `SECRET_KEY` rotation by design) | Yes |
-| `POSTGRES_PASSWORD` / `REDIS_PASSWORD` (distributed deployment) | Annually | Yes |
-| OAuth/OIDC client secrets, SMTP/IMAP passwords, CAPTCHA-solver/webhook API keys | Per the third party's own policy, or annually | Yes — revoke at the provider too, not just here |
-| Metrics token (`/api/metrics`) | On staff turnover, or annually | Yes |
-
-## External Service Connections & Configuration
-
-**Services this app connects to** (ASVS 13.1.1), all admin-configured — never a value an end user supplies and this app then connects to on their behalf:
-
-| Service | Purpose | Required? |
-|---|---|---|
-| SMTP / IMAP | Sending opt-out requests, reading broker replies | One or the other, for email-based opt-outs |
-| OAuth/OIDC providers, SAML IdP, LDAP, SIP2 | Single sign-on / library-card sign-in | Optional |
-| Bundled SearXNG | Web search for finding a person's listings | Optional (on by default when bundled) |
-| CAPTCHA-solving services | Unblocking an automated opt-out | Optional |
-| Webhook destinations, log forwarding (syslog/OTLP/Loki/Splunk) | Operator-configured notifications/observability | Optional, off by default |
-| PostgreSQL | Alternative to the default SQLite | Optional |
-| Redis | Distributed worker-queue topology only (`docker-compose.distributed.yml`) | Only in that topology |
-| Data broker sites | The core opt-out function | Required, but sandboxed (`broker-plugins/README.md`) |
-
-**Connection limits & behavior at the limit** (ASVS 13.1.2/13.1.3/13.2.6): PostgreSQL uses SQLAlchemy's pool with `pool_pre_ping=True` (dead connections are detected and replaced, not surfaced as a request failure) and a 30-minute recycle on the structured/IAM-auth path; the default pool/overflow sizing (5 + 10) applies otherwise — a deployment expecting more concurrent DB load should raise it via `DATABASE_URL` pool kwargs. Every outbound HTTP call this app makes to an external service (OAuth token/userinfo exchange, OIDC/SAML metadata fetch, registry sync, webhook delivery, log forwarding) uses an explicit short timeout (10–25 seconds) and does not automatically retry — a failure is surfaced to the caller or logged, not silently retried into a cascading delay, matching 13.1.3's guidance for synchronous request–response calls. SMTP/IMAP and the broker-automation browser sessions have their own timeout handling in `core/email_send.py`/`core/confirm_links.py`/`core/network_health.py`, including backoff on repeated network loss (the worker requeues rather than hammering).
-
-## File Upload & Download Handling
-
-**Permitted types, extensions and size per upload feature** (ASVS 5.1.1), all admin/super-admin-gated — none are an unauthenticated or ordinary-user upload surface:
-
-| Upload | Accepted types | Max size | Content validated by |
-|---|---|---|---|
-| Branding logo | PNG, SVG, JPEG, WebP | 2 MB | Real magic-byte sniffing (`_sniff_image_kind`), then re-encoded from raw pixels (raster) or stripped of comments/`<metadata>` (SVG) before saving — `routers/branding.py` |
-| Broker plugin bundle | `.zip` | 50 MB (200 MB uncompressed, 5,000 entries) | `manifest.json` required, static code inspection (`code_inspector.py`), symlink entries rejected, extracted paths validated — `routers/plugins.py` |
-| Broker CSV/JSON import | CSV, JSON (UTF-8 text) | 10 MB | Must decode as UTF-8; row/field shape validated against the broker schema — `routers/brokers.py` |
-| State registry import | CSV, XLSX/XLSM | 20 MB (100 MB uncompressed, 2,000 zip entries for XLSX) | Column-alias header matching; XLSX's zip container is entry/size-capped before `openpyxl` reads it — `core/registry_sync.py` |
-| Resident address list import | CSV | 30 MB | Row shape validated against expected columns — `core/resident_addresses.py` |
-
-**Malicious-file behavior**: a file that fails a check above is refused with a 400/413 before being written to disk or processed further — never partially saved, never silently coerced into a "best guess" type. Uploaded raster images are never processed as the original bytes at all (re-encoded from decoded pixels), so a crafted PNG/JPEG exploiting a decoder bug in some *other* tool that might later open the file has nothing of the original file surviving to exploit. There is no antivirus/signature scanning of uploaded content (no ClamAV-style integration) — a deliberate scope call for this self-hosted, single-operator profile; the one upload type where that would matter most (plugin `.zip` bundles, which can contain arbitrary Python from a third-party author) is instead covered by static code inspection plus the bubblewrap/seccomp sandbox at runtime, which is a more precise control for custom code than signature-based AV scanning would be.
-
-**Downloads**: every `Content-Disposition` filename this app sets is either a fixed string or built from internally-generated/integer-derived data (request/member IDs, timestamps), never unsanitized user text — confirmed across every such site in the codebase (backups, exports, logs, reports, calendar feeds).
+- **External Integrations:** Outbound connections (SMTP/IMAP, SearXNG, SSO IdPs, webhooks, brokers) are strictly administrator-configured, enforce short bounded timeouts (10–25s), and do not silently cascade retries.
+- **File Upload Boundaries:** All upload endpoints are restricted to authenticated administrators and enforce size caps:
+  - Branding logos: 2 MB limit; magic-byte verified; raster images re-encoded from raw pixels; SVGs sanitized.
+  - Broker plugins: 50 MB zip limit; manifest verified; inspected for path traversal and disallowed syscalls before installation.
+  - CSV/JSON/Registry imports: 10–30 MB limits; strict schema validation; uncompressed size and entry limits enforced on zip/xlsx archives.
 
 ## Compliance & Security Standards
 
-OpenOptOut is engineered to follow recognized industry standards for security, cryptography, application verification, and privacy:
+OpenOptOut is engineered to follow recognized industry standards for application security, cryptography, and privacy:
 
 - **NIST SP 800-38D**: Authenticated Encryption with Galois/Counter Mode (AES-256-GCM).
-- **NIST SP 800-132**: Password-Based Key Derivation (PBKDF2).
-- **ISO/IEC 27701 & COPPA**: Privacy Information Management, configurable data retention schedules, and automated crypto-shredding on member deletion.
+- **NIST SP 800-132 & SP 800-63B**: Password-Based Key Derivation (PBKDF2), MFA standards, and session controls.
+- **ISO/IEC 27701 & COPPA**: Privacy Information Management, parental consent boundaries, and automated crypto-shredding.
 - **OWASP ASVS 5.0.0 Level 2**: Application Security Verification Standard baseline for web applications and APIs.
-- **OWASP Top 10 for LLMs**: Large Language Model application security, prompt injection defenses, and bounded consumption limits.
+- **OWASP Top 10 for LLMs**: Large Language Model application security and prompt injection encapsulation boundaries.
 - **WCAG 2.2 Level AAA**: Universal web accessibility and contrast (see [`ACCESSIBILITY.md`](ACCESSIBILITY.md)).
 
-## Automated scanning
+## Automated Scanning
 
-Every change is verified by automated scanners. See [`docs/dev/security-scanning.md`](docs/dev/security-scanning.md).
+Every change is verified by automated static and dynamic security scanners. See [`docs/dev/security-scanning.md`](docs/dev/security-scanning.md).
