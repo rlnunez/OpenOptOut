@@ -21,7 +21,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from ..core import auth as auth_core, people
-from ..core.database import get_db
+from ..models.database import get_db
 from ..core.settings_store import get_secret_key, load_settings
 from ..models import database as m
 

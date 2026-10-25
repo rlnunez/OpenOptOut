@@ -15198,7 +15198,7 @@ def t_frontend_names():
 
 
 @test(1, "routers.no_undefined_fastapi_names",
-      "FastAPI dependency and parameter identifiers (Query, Depends, HTTPException, Body, Header, Path) are imported in every router module (catches container startup NameError).")
+      "FastAPI dependency and parameter identifiers (Query, Depends, HTTPException, Body, Header, Path) and relative module paths are properly imported in every router module (catches container startup NameError/ModuleNotFoundError).")
 def t_routers_fastapi_names():
     import ast, glob
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -15210,6 +15210,7 @@ def t_routers_fastapi_names():
         with open(f, "r", encoding="utf-8") as fp:
             tree = ast.parse(fp.read(), filename=f)
         imported = set()
+        rel_dir = os.path.dirname(os.path.abspath(f))
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for n in node.names:
@@ -15217,12 +15218,20 @@ def t_routers_fastapi_names():
             elif isinstance(node, ast.ImportFrom):
                 for n in node.names:
                     imported.add(n.asname or n.name)
+                # Verify relative import path exists on disk
+                if node.level > 0 and node.module:
+                    cur = rel_dir
+                    for _ in range(node.level - 1):
+                        cur = os.path.dirname(cur)
+                    mod_path = os.path.join(cur, *node.module.split("."))
+                    if not (os.path.isfile(mod_path + ".py") or os.path.isdir(mod_path)):
+                        missing.append(f"{os.path.basename(f)}:{node.lineno} broken relative import 'from {'.' * node.level}{node.module}'")
         for node in ast.walk(tree):
             if isinstance(node, ast.Name) and node.id in fastapi_names:
                 if node.id not in imported:
                     missing.append(f"{os.path.basename(f)}:{node.lineno} missing import for '{node.id}'")
-    assert not missing, "Undefined FastAPI identifiers found in routers:\n" + "\n".join(missing)
-    # IF THIS FAILS: import the missing FastAPI symbol in the router header.
+    assert not missing, "Undefined FastAPI identifiers or broken imports in routers:\n" + "\n".join(missing)
+    # IF THIS FAILS: import the missing symbol or fix the relative import path in the router header.
 
 
 @test(1, "i18n.page_texts_current",

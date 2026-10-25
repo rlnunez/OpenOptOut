@@ -558,7 +558,7 @@ def _check_children_limit(db, manager_id: int, admin_id: int):
 
 @router.get("/sbom")
 def get_sbom(
-    format: str = Query("cyclonedx", regex="^(cyclonedx|spdx)$"),
+    format: str = Query("cyclonedx", pattern="^(cyclonedx|spdx)$"),
     _: User = Depends(access.require_permission("settings.system")),
 ):
     """
