@@ -14210,7 +14210,10 @@ def t_privacy_record():
       "so a future caller that ever passes freer text can't break out of the header or the "
       "quoted-string (ASVS 5.4.1/5.4.2) — current callers all pass a fixed or int-derived name.")
 def t_download_filename_safety():
-    priv = _imp("routers.privacy")
+    try:
+        priv = _imp("routers.privacy")
+    except ImportError as e:
+        raise Skip(f"fastapi required: {e}")
     r = priv._download({"x": 1}, 'evil"\r\nX-Injected: yes\\.json')
     cd = r.headers["content-disposition"]
     assert "\r" not in cd and "\n" not in cd, cd
@@ -14218,6 +14221,41 @@ def t_download_filename_safety():
     # A normal name is untouched.
     r2 = priv._download({}, "openoptout-my-data.json")
     assert r2.headers["content-disposition"] == 'attachment; filename="openoptout-my-data.json"'
+
+
+@test(1, "privacy.iso_29100_framework_alignment",
+      "ISO/IEC 29100 Privacy Architecture Framework mapping in privacy records and public data inventory.")
+def t_iso_29100_alignment():
+    pr = _imp("core.privacy_record")
+
+    # 1. Public inventory structure
+    inv = pr.public_inventory()
+    assert "inventory" in inv
+    assert "never_stored" in inv
+    assert "standards" in inv
+    assert "counts" not in inv, "public inventory must not leak database counts"
+    assert "warnings" not in inv, "public inventory must not leak internal server warnings"
+
+    # 2. ISO/IEC 29100 roles and principles
+    iso = inv["standards"]["iso_29100"]
+    assert iso["framework"] == "ISO/IEC 29100:2011"
+    roles = iso["roles"]
+    assert set(roles.keys()) == {"pii_principal", "pii_controller", "pii_processor", "third_party"}
+    assert "Consent and Choice" in iso["principles"]
+    assert "Data Minimization" in iso["principles"]
+    assert "Information Security" in iso["principles"]
+
+    # 3. Router endpoint verification (requires fastapi)
+    try:
+        priv = _imp("routers.privacy")
+        resp = priv.privacy_inventory()
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("application/json")
+    except ImportError as e:
+        if "fastapi" in str(e):
+            pass
+        else:
+            raise
     # IF THIS FAILS: a future _download() caller passing less-trusted text
     #   could inject a response header or break out of the filename's
     #   quoted-string in the Content-Disposition response header.

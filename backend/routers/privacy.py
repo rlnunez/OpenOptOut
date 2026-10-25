@@ -38,6 +38,18 @@ def _download(data: dict, name: str):
     return JSONResponse(content=data, headers={"Content-Disposition": f'attachment; filename="{safe_name}"'})
 
 
+@router.get("/inventory")
+def privacy_inventory():
+    """
+    Public, machine-readable privacy data inventory and framework alignment.
+    Conforms to ISO/IEC 29100 Principle 7 (Openness, Transparency and Notice).
+    """
+    return JSONResponse(
+        content=pr.public_inventory(),
+        headers={"Content-Type": "application/json", "Cache-Control": "public, max-age=3600"},
+    )
+
+
 @router.get("/record")
 def privacy_record(db: Session = Depends(get_db), _=Depends(require_permission("settings.system"))):
     return pr.record(db, load_settings())

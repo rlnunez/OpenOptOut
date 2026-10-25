@@ -84,6 +84,7 @@ OpenOptOut is engineered to follow recognized industry standards for application
 
 - **NIST SP 800-38D**: Authenticated Encryption with Galois/Counter Mode (AES-256-GCM).
 - **NIST SP 800-132 & SP 800-63B**: Password-Based Key Derivation (PBKDF2), MFA standards, and session controls.
+- **ISO/IEC 29100**: Privacy Architecture Framework, role boundaries, and 11 privacy principles (see [`docs/architecture/privacy-framework-29100.md`](docs/architecture/privacy-framework-29100.md)).
 - **ISO/IEC 27701 & COPPA**: Privacy Information Management, parental consent boundaries, and automated crypto-shredding.
 - **OWASP ASVS 5.0.0 Level 2**: Application Security Verification Standard baseline for web applications and APIs.
 - **OWASP Top 10 for LLMs**: Large Language Model application security and prompt injection encapsulation boundaries.

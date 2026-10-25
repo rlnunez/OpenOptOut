@@ -62,6 +62,36 @@ INVENTORY = [
 
 NEVER_STORED = ["Social Security numbers", "Government ID images", "Payment card numbers", "Passwords in readable form"]
 
+STANDARDS_ALIGNMENT = {
+    "iso_29100": {
+        "framework": "ISO/IEC 29100:2011",
+        "title": "Information technology — Security techniques — Privacy framework",
+        "roles": {
+            "pii_principal": "Family member / patron whose personal data is protected",
+            "pii_controller": "Self-hosted instance operator / family account holder",
+            "pii_processor": "OpenOptOut core engine and worker execution fleet",
+            "third_party": "External data brokers and isolated challenge solvers",
+        },
+        "principles": [
+            "Consent and Choice",
+            "Purpose Legitimacy and Specification",
+            "Collection Limitation",
+            "Data Minimization",
+            "Use, Retention and Disclosure Limitation",
+            "Accuracy and Quality",
+            "Openness, Transparency and Notice",
+            "Individual Participation and Access",
+            "Accountability",
+            "Information Security",
+            "Privacy Compliance",
+        ],
+    },
+    "iso_27701": "Aligned (Privacy Information Management Controls)",
+    "coppa": "Aligned (Parental representation boundaries & minor retention floor)",
+    "drp": "Aligned (Data Rights Protocol v0.9/v1.0)",
+    "gpc": "Aligned (W3C Global Privacy Control Universal Signal)",
+}
+
 
 def retention_days(cfg: dict) -> int:
     priv = (cfg or {}).get("privacy") or {}
@@ -121,7 +151,22 @@ def record(db, cfg: dict) -> dict:
     }
     return {"generated_at": datetime.utcnow().isoformat(), "inventory": INVENTORY, "never_stored": NEVER_STORED,
             "counts": counts, "encryption": enc, "retention_days": days, "last_purge": last, "warnings": warnings,
-            "lifecycle": lifecycle}
+            "lifecycle": lifecycle, "standards": STANDARDS_ALIGNMENT}
+
+
+def public_inventory() -> dict:
+    """
+    Public, machine-readable privacy data inventory and framework alignment.
+    Safe for unauthenticated inspection: exposes data categories, encryption status,
+    retention rules, and standards mapping without disclosing database counts,
+    patron details, or server infrastructure warnings.
+    """
+    return {
+        "generated_at": datetime.utcnow().isoformat(),
+        "inventory": INVENTORY,
+        "never_stored": NEVER_STORED,
+        "standards": STANDARDS_ALIGNMENT,
+    }
 
 
 # ── Export (access requests) ──────────────────────────────────────────────────

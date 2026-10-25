@@ -60,6 +60,10 @@ Each completed roadmap item is cross-referenced with its architectural milestone
   - **Universal HTTP Header Emission:** Automated emission of standard `Sec-GPC: 1` and paired `DNT: 1` headers across all automated browser contexts (discovery, opt-out submission, worker fleet, link confirmation, URL verification), DRP client requests, and frontend API calls.
   - **DOM Property Enforcement:** Injected `navigator.globalPrivacyControl = true` init script across all automated Playwright browser frames and pages to satisfy legal opt-out preference signal requirements under CCPA/CPRA (11 CCR § 7025) and Colorado CPA (4 CCR 904-3 Rule 5.06).
   - **W3C Well-Known Resource:** Implemented `GET /.well-known/gpc.json` (and proxied `/api/.well-known/gpc.json`) conforming to section 4 of the W3C Global Privacy Control community specification.
+- **ISO/IEC 29100 Privacy Architecture Framework Alignment:**
+  - **Formal Architecture & Role Mapping:** Published comprehensive privacy framework specification (`docs/architecture/privacy-framework-29100.md`) establishing technical boundaries and roles across PII Principals (family members and patrons), PII Controllers (self-hosting administrators and library authorities), PII Processors (core engine and worker fleet), and Third Parties (data brokers and privacy-masked solvers).
+  - **11 Privacy Principles Mapping:** Aligned codebase safeguards to all 11 ISO/IEC 29100 principles, documenting parental representation consent (`terms.py`), collection minimization (zero SSNs), field-level AES-256-GCM encryption, visual CAPTCHA masking, cadenced crypto-shredding purges, and immutable staff access logging (`AccessLog`).
+  - **Public Data Inventory Endpoint:** Added `GET /api/privacy/inventory` serving a transparent, machine-readable data inventory detailing personal data categories, storage protections, retention schedules, and standards alignment without exposing internal system counts or server diagnostics.
 
 ### Authentication & Identity Providers (OIDC, SIP2, MFA)
 - **NIST SP 800-63B Authentication & Lifecycle Hardening:**
