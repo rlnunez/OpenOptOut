@@ -55,10 +55,12 @@ class DrpClient:
 
     def _open(self, req: urllib.request.Request, timeout: float):
         """Open request, bypassing environment proxy when allow_local is enabled for tests."""
+        if req.type not in ("https", "http"):
+            raise ValueError(f"Disallowed scheme: {req.type}")
         if self.allow_local:
             opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-            return opener.open(req, timeout=timeout)
-        return urllib.request.urlopen(req, timeout=timeout)
+            return opener.open(req, timeout=timeout)  # nosec: B310 -- scheme is validated to http/https
+        return urllib.request.urlopen(req, timeout=timeout)  # nosec: B310 -- scheme is validated to http/https
 
     def exercise(
         self,

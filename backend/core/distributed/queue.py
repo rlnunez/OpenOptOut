@@ -219,12 +219,7 @@ class InProcessJobQueue(JobQueue):
                         # Signature verification is deliberately deferred to WorkerDaemon.execute_envelope()
                         # so that tampered or unauthenticated messages produce an auditable result envelope
                         # and can be routed to the DLQ rather than dropping unhandled in dequeue.
-                        verify_on_dequeue = False
-                        envelope = JobEnvelope.from_json(
-                            raw_json,
-                            secret_key=self.secret_key,
-                            verify_signature=verify_on_dequeue,  # nosemgrep: queue-message-signature-not-verified
-                        )
+                        envelope = JobEnvelope.from_untrusted_json(raw_json)
                         self._in_flight[envelope.envelope_id] = {
                             "raw_json": raw_json,
                             "envelope": envelope,
@@ -411,12 +406,7 @@ class RedisJobQueue(JobQueue):
                 if item:
                     # In python redis, decode_responses may return str or bytes
                     raw_json = item.decode("utf-8") if isinstance(item, bytes) else str(item)
-                    verify_on_dequeue = False
-                    env = JobEnvelope.from_json(
-                        raw_json,
-                        secret_key=self.secret_key,
-                        verify_signature=verify_on_dequeue,  # nosemgrep: queue-message-signature-not-verified
-                    )
+                    env = JobEnvelope.from_untrusted_json(raw_json)
                     lease_data = json.dumps({"leased_at": time.time(), "raw_json": raw_json})
                     self.client.hset(self.KEY_INFLIGHT, env.envelope_id, lease_data)
                     return env
@@ -431,12 +421,7 @@ class RedisJobQueue(JobQueue):
         # blpop returns (key, item) tuple
         _, item = res
         raw_json = item.decode("utf-8") if isinstance(item, bytes) else str(item)
-        verify_on_dequeue = False
-        env = JobEnvelope.from_json(
-            raw_json,
-            secret_key=self.secret_key,
-            verify_signature=verify_on_dequeue,  # nosemgrep: queue-message-signature-not-verified
-        )
+        env = JobEnvelope.from_untrusted_json(raw_json)
         lease_data = json.dumps({"leased_at": time.time(), "raw_json": raw_json})
         self.client.hset(self.KEY_INFLIGHT, env.envelope_id, lease_data)
         return env
@@ -537,12 +522,7 @@ class RedisJobQueue(JobQueue):
                 except Exception:
                     pass
                 try:
-                    verify_on_dequeue = False
-                    env = JobEnvelope.from_json(
-                        raw_json,
-                        secret_key=self.secret_key,
-                        verify_signature=verify_on_dequeue,  # nosemgrep: queue-message-signature-not-verified
-                    )
+                    env = JobEnvelope.from_untrusted_json(raw_json)
                     leases.append({
                         "envelope_id": env_id,
                         "envelope": env,

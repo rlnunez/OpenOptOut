@@ -733,7 +733,8 @@ async def backchannel_logout(
         payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
         payload = json.loads(base64.urlsafe_b64decode(payload_b64.encode("ascii")).decode("utf-8"))
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Malformed logout_token: {e}")
+        log.warning("Malformed logout_token received: %s", e)
+        raise HTTPException(status_code=400, detail="Malformed logout_token")
 
     # Validate OIDC Back-Channel Logout 1.0 claims
     if "nonce" in payload:

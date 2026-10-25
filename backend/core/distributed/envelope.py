@@ -415,6 +415,16 @@ class JobEnvelope:
             allow_expired=allow_expired,
         )
 
+    @classmethod
+    def from_untrusted_json(cls, json_str: str) -> "JobEnvelope":
+        """
+        Reconstructs an envelope without verifying signature or expiry.
+        Used by queue dequeue handlers so worker daemons can inspect
+        the envelope and route invalid/tampered jobs to the DLQ.
+        """
+        # nosemgrep: queue-message-signature-not-verified, openoptout.queue-message-signature-not-verified, semgrep.queue-message-signature-not-verified
+        return cls.from_json(json_str, verify_signature=False)
+
 
 # ── JobResultEnvelope (Response from Worker to Control Plane) ──────────────────
 
