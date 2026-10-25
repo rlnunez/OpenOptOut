@@ -108,3 +108,4 @@ The CISA Secure by Design posture is verified in automated regression test suite
 - `security.cisa_secure_by_design_and_security_txt`: Asserts RFC 9116 `security.txt` syntax, safe harbor statements, and CycloneDX SBOM output.
 - `ssrf.dns_rebinding_defense`: Asserts pre-flight rejection of cloud metadata and internal IPs.
 - `auth.password_strength_and_blocklist`: Validates 15-char password floor and compromised password blocklists.
+

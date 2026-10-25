@@ -113,3 +113,4 @@ def generate_cyclonedx_sbom() -> Dict[str, Any]:
         },
         "components": sorted_components,
     }
+
