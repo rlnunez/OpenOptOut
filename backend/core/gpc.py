@@ -89,3 +89,4 @@ def gpc_well_known_document() -> Dict[str, Any]:
         "gpc": True,
         "lastUpdate": "2026-10-24",
     }
+
