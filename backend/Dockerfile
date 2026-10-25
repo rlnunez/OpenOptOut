@@ -9,9 +9,13 @@ ARG RCLONE_VERSION=v1.75.2
 ARG PYTHON_BASE=python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258
 
 # Stage 0: Build rclone with patched Go runtime (remediating CVE-2026-111943)
+# and patched chi v5.4.0 (remediating CVE-2026-114437)
 FROM golang:1.27.3-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS rclone-builder
 ARG RCLONE_VERSION
-RUN CGO_ENABLED=0 go install -ldflags="-s -w" github.com/rclone/rclone@${RCLONE_VERSION}
+RUN git clone --depth 1 --branch ${RCLONE_VERSION} https://github.com/rclone/rclone.git /src/rclone && \
+    cd /src/rclone && \
+    go get github.com/go-chi/chi/v5@v5.4.0 && \
+    CGO_ENABLED=0 go build -ldflags="-s -w" -o /go/bin/rclone .
 
 # Stage 1: compile the Python deps that ship no prebuilt wheels (python-ldap
 # needs libldap2-dev/libsasl2-dev headers; sqlcipher3-binary may need to build
@@ -31,7 +35,10 @@ RUN apt-get update && \
 ARG WITH_ENCRYPTION=true
 ENV WITH_ENCRYPTION=${WITH_ENCRYPTION}
 RUN python3 install_deps.py && \
-    rm -rf /usr/local/lib/python*/ensurepip/_bundled /root/.cache
+    rm -rf /usr/local/lib/python*/ensurepip/_bundled \
+           /usr/local/lib/python*/site-packages/pip-25* \
+           /usr/local/lib/python*/site-packages/pip/_vendor/bom.cdx.json \
+           /root/.cache
 
 FROM ${PYTHON_BASE}
 
@@ -64,12 +71,20 @@ RUN apt-get update && \
     libldap-2.5-0 libsasl2-2 libsqlcipher0 \
     && rm -rf /var/lib/apt/lists/*
 
+# Purge base-image pre-bundled site-packages and ensurepip bootstrap wheels
+# before copying the hardened site-packages from the builder stage, preventing
+# stale dist-info (pip 25.0.1, setuptools 70.3.0) from persisting in the final image.
+RUN rm -rf /usr/local/lib/python*/site-packages/* /usr/local/lib/python*/ensurepip/_bundled
+
 # The compiled Python packages from the builder stage above (site-packages)
 # plus their console-script entry points (uvicorn, playwright, ...) — same
 # base image/Python build as this stage, so this is a same-lineage copy, not
 # a cross-image one.
 COPY --from=pydeps-builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=pydeps-builder /usr/local/bin /usr/local/bin
+RUN rm -rf /usr/local/lib/python*/site-packages/pip-25* \
+           /usr/local/lib/python*/site-packages/pip/_vendor/bom.cdx.json \
+           /root/.cache
 
 # rclone, for the "Other cloud storage" backup option (Proton Drive, Box,
 # pCloud, MEGA, Nextcloud...). Built from source via rclone-builder using
