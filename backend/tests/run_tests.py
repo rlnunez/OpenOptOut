@@ -7580,6 +7580,75 @@ def t_standards_suite():
     assert "scim_2_0" in st
 
 
+@test(1, "security.standards_keymgmt_dpop_ropa_csaf_and_sri",
+      "Verification of NIST SP 800-57 key epochs, RFC 9449 DPoP proofs, ISO 27701 ROPA/DPIA, CSAF 2.0, and SRI.")
+def t_standards_suite_part2():
+    import json, os, time, base64
+
+    # 1. NIST SP 800-57 Epoch Key Derivation & Re-encryption
+    enc = _imp("core.encryption")
+    key_epoch1 = enc._derive_aesgcm_epoch_key("test_secret_123", epoch=1)
+    key_epoch2 = enc._derive_aesgcm_epoch_key("test_secret_123", epoch=2)
+    assert len(key_epoch1) == 32 and len(key_epoch2) == 32
+    assert key_epoch1 != key_epoch2, "Distinct epochs must derive cryptographically distinct keys"
+
+    # Multi-epoch encryption / decryption
+    if enc.AESGCM is not None:
+        ct_v2 = enc.encrypt_field("Alice Secret", epoch=2)
+        assert ct_v2.startswith("gcm:v2:")
+        decrypted = enc.decrypt_field(ct_v2)
+        assert decrypted == "Alice Secret"
+
+    # 2. RFC 9449 DPoP Proof Validation
+    dpop = _imp("core.dpop")
+    jwk = {"kty": "EC", "crv": "P-256", "x": "test_x_coord", "y": "test_y_coord"}
+    jkt = dpop.compute_jwk_thumbprint(jwk)
+    assert len(jkt) > 20
+
+    header = {"typ": "dpop+jwt", "alg": "ES256", "jwk": jwk}
+    now = time.time()
+    payload = {"jti": "dpop-nonce-1", "htm": "POST", "htu": "https://api.example/resource", "iat": now}
+    h_b64 = base64.urlsafe_b64encode(json.dumps(header).encode()).rstrip(b"=").decode()
+    p_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
+    proof_jwt = f"{h_b64}.{p_b64}.fake_sig"
+
+    parsed = dpop.validate_dpop_proof(proof_jwt, "POST", "https://api.example/resource")
+    assert parsed["jkt"] == jkt
+
+    # Replay protection assertion
+    try:
+        dpop.validate_dpop_proof(proof_jwt, "POST", "https://api.example/resource")
+        assert False, "DPoP replay should be rejected"
+    except ValueError as e:
+        assert "replay" in str(e).lower()
+
+    # 3. ISO/IEC 27701:2019 ROPA & DPIA
+    ropa_mod = _imp("core.ropa")
+    ropa = ropa_mod.generate_ropa_report()
+    assert ropa["report_type"] == "Record of Processing Activities (ROPA)"
+    assert len(ropa["processing_activities"]) >= 3
+    assert "technical_and_organizational_measures" in ropa
+
+    dpia = ropa_mod.generate_dpia_assessment()
+    assert dpia["assessment_type"] == "Data Protection Impact Assessment (DPIA)"
+    assert len(dpia["risk_evaluations"]) >= 3
+
+    # 4. OASIS CSAF 2.0 Provider Metadata
+    csaf_mod = _imp("core.csaf")
+    csaf = csaf_mod.get_csaf_provider_metadata()
+    assert csaf["csaf_version"] == "2.0"
+    assert "publisher" in csaf and csaf["publisher"]["category"] == "vendor"
+
+    # 5. W3C Subresource Integrity (SRI)
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    index_html = os.path.join(repo_root, "frontend", "dist", "index.html")
+    if os.path.isfile(index_html):
+        with open(index_html, "r", encoding="utf-8") as f:
+            content = f.read()
+        assert 'integrity="sha384-' in content
+        assert 'crossorigin="anonymous"' in content
+
+
 @test(1, "security.backup_codes_hmac_and_totp_constant_time",
       "TOTP constant-time verification, HMAC backup codes generation, and legacy SHA-256 fallback consumption.")
 def t_security_backup_codes_and_totp():

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Body, Form, Response
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func
@@ -703,6 +703,69 @@ def signout_everywhere(
     revoke_all_sessions(db, current_user.id)
     _log_auth_event("logout_everywhere", "success", request, user_id=current_user.id)
     return {"ok": True, "message": "All sessions revoked."}
+
+
+@router.post("/backchannel-logout")
+async def backchannel_logout(
+    request: Request,
+    logout_token: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    """
+    OpenID Connect Back-Channel Logout 1.0 (OpenID Foundation).
+    Receives logout_token JWT from the identity provider and revokes
+    matching patron/staff user sessions.
+    """
+    if not logout_token:
+        try:
+            form = await request.form()
+            logout_token = form.get("logout_token")
+        except Exception:
+            pass
+    if not logout_token:
+        raise HTTPException(status_code=400, detail="Missing logout_token parameter.")
+
+    import base64
+    try:
+        parts = logout_token.split(".")
+        if len(parts) != 3:
+            raise ValueError("Invalid JWT format")
+        payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64.encode("ascii")).decode("utf-8"))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Malformed logout_token: {e}")
+
+    # Validate OIDC Back-Channel Logout 1.0 claims
+    if "nonce" in payload:
+        raise HTTPException(status_code=400, detail="logout_token must not contain a nonce")
+
+    events = payload.get("events") or {}
+    if "http://schemas.openid.net/event/backchannel-logout" not in events:
+        raise HTTPException(status_code=400, detail="Missing backchannel-logout event claim")
+
+    sub = payload.get("sub")
+    sid = payload.get("sid")
+    if not sub and not sid:
+        raise HTTPException(status_code=400, detail="logout_token must contain sub or sid")
+
+    from ..models.database import User, UserSession
+    from ..core.session_policy import revoke_all_sessions
+
+    target_user = None
+    if sub:
+        target_user = db.query(User).filter((User.external_id == sub) | (User.email == sub)).first()
+
+    if target_user:
+        target_user.token_version = (getattr(target_user, "token_version", 0) or 0) + 1
+        db.commit()
+        revoke_all_sessions(db, target_user.id)
+        _log_auth_event("backchannel_logout", "success", request, user_id=target_user.id)
+
+    if sid:
+        db.query(UserSession).filter(UserSession.jti == sid).delete(synchronize_session=False)
+        db.commit()
+
+    return Response(content="OK", media_type="text/plain", headers={"Cache-Control": "no-store"})
 
 
 @router.get("/sessions")

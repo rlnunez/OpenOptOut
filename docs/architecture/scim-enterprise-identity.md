@@ -49,3 +49,4 @@ Authorization: Bearer <SCIM_BEARER_TOKEN>
 Tokens are validated against:
 1. Configured dedicated SCIM token (`auth.scim_bearer_token` in system settings).
 2. Administrator JWT sessions with `settings.system` administrative privilege.
+

@@ -64,3 +64,4 @@ jobs:
             -a "workflow=${{ github.workflow }}" \
             -a "ref=${{ github.ref }}" \
             ghcr.io/${{ github.repository }}/backend@${{ steps.push-step.outputs.digest }}
+

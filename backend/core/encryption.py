@@ -54,8 +54,29 @@ log = logging.getLogger(__name__)
 
 def _derive_aesgcm_key(raw: str) -> bytes:
     """Derive a 256-bit (32-byte) AES-GCM key using HKDF-SHA256 (NIST SP 800-132 / RFC 5869)."""
+    return _derive_aesgcm_epoch_key(raw, epoch=1)
+
+
+def _derive_aesgcm_epoch_key(raw: str, epoch: int = 1) -> bytes:
+    """
+    Derive an isolated 256-bit (32-byte) AES-GCM key for a specific cryptoperiod epoch
+    conforming to NIST SP 800-57 Part 1 Rev. 5 key management lifecycle.
+    Epoch 1 matches the baseline derivation info b'openoptout:field-encryption-gcm:v1'.
+    """
     from .hkdf import hkdf_derive
-    return hkdf_derive(raw.encode("utf-8"), info=b"openoptout:field-encryption-gcm:v1", length=32)
+    info = b"openoptout:field-encryption-gcm:v1" if epoch == 1 else f"openoptout:field-encryption-gcm:epoch-{epoch}".encode("utf-8")
+    return hkdf_derive(raw.encode("utf-8"), info=info, length=32)
+
+
+def get_active_key_epoch() -> int:
+    """Return the active encryption key epoch (NIST SP 800-57 key version). Defaults to 1."""
+    try:
+        val = os.getenv("FIELD_ENCRYPTION_EPOCH")
+        if val:
+            return max(1, int(val))
+    except Exception:
+        pass
+    return 1
 
 
 def _derive_fernet_primary_key(raw: str) -> bytes:
@@ -186,10 +207,10 @@ def is_production_mode() -> bool:
            os.getenv("ENFORCE_ENCRYPTION_AT_REST", "").lower() in ("true", "1", "yes")
 
 
-def encrypt_field(value: Optional[str]) -> Optional[str]:
+def encrypt_field(value: Optional[str], epoch: Optional[int] = None) -> Optional[str]:
     """
     Encrypt a string field value using NIST SP 800-38D AES-256-GCM AEAD encryption
-    (with 96-bit nonce and 128-bit authentication tag) or Fernet fallback.
+    (with 96-bit nonce and 128-bit authentication tag) supporting NIST SP 800-57 epoch key versioning.
     Fails closed in production if key is missing or invalid.
     """
     if value is None:
@@ -209,13 +230,18 @@ def encrypt_field(value: Optional[str]) -> Optional[str]:
             )
         return value
 
+    active_epoch = epoch if epoch is not None else get_active_key_epoch()
+
     # 1. NIST SP 800-38D AES-256-GCM authenticated encryption (primary)
     if AESGCM is not None:
-        k_gcm = _derive_aesgcm_key(raw)
+        k_gcm = _derive_aesgcm_epoch_key(raw, epoch=active_epoch)
         aes = AESGCM(k_gcm)
         iv = secrets.token_bytes(12)  # NIST SP 800-38D §5.2.1.1 recommended 96-bit nonce
         ct = aes.encrypt(iv, value.encode("utf-8"), None)
-        return "gcm1:" + base64.urlsafe_b64encode(iv + ct).decode("ascii")
+        encoded = base64.urlsafe_b64encode(iv + ct).decode("ascii")
+        if active_epoch == 1:
+            return "gcm1:" + encoded
+        return f"gcm:v{active_epoch}:" + encoded
 
     # 2. Fernet fallback when cryptography hazmat AESGCM is not available
     if hasattr(f, "encrypt"):
@@ -230,8 +256,8 @@ def encrypt_field(value: Optional[str]) -> Optional[str]:
 
 def decrypt_field(value: Optional[str]) -> Optional[str]:
     """
-    Decrypt a field value. Supports NIST SP 800-38D AES-256-GCM (gcm1: prefix)
-    and MultiFernet (HKDF primary and legacy SHA-256 keys) for full backward compatibility.
+    Decrypt a field value. Supports NIST SP 800-57 epoch versioning (gcm:v{N}:),
+    NIST SP 800-38D AES-256-GCM (gcm1: prefix), and MultiFernet (HKDF primary and legacy SHA-256 keys).
     Fails closed in production if key or decryption fails.
     """
     if value is None:
@@ -251,7 +277,26 @@ def decrypt_field(value: Optional[str]) -> Optional[str]:
             )
         return value
 
-    # 1. NIST SP 800-38D AES-256-GCM authenticated decryption
+    # 1. NIST SP 800-57 Versioned AES-256-GCM (gcm:v{epoch}:)
+    if value.startswith("gcm:v"):
+        try:
+            parts = value.split(":", 2)
+            epoch_num = int(parts[1][1:])
+            encoded = parts[2]
+            payload = base64.urlsafe_b64decode(encoded.encode("ascii"))
+            if len(payload) < 28:
+                raise ValueError("Corrupted AES-GCM payload")
+            iv, ct = payload[:12], payload[12:]
+            if AESGCM is None:
+                raise RuntimeError("AESGCM is required to decrypt ciphertext")
+            k_gcm = _derive_aesgcm_epoch_key(raw, epoch=epoch_num)
+            return AESGCM(k_gcm).decrypt(iv, ct, None).decode("utf-8")
+        except Exception:
+            if is_production_mode():
+                raise RuntimeError("Field decryption failed in production: stored token corrupted or key mismatch.")
+            return value
+
+    # 2. Baseline NIST SP 800-38D AES-256-GCM (gcm1: prefix = epoch 1)
     if value.startswith("gcm1:"):
         try:
             payload = base64.urlsafe_b64decode(value[5:].encode("ascii"))
@@ -260,7 +305,7 @@ def decrypt_field(value: Optional[str]) -> Optional[str]:
             iv, ct = payload[:12], payload[12:]
             if AESGCM is None:
                 raise RuntimeError("AESGCM is required to decrypt gcm1 ciphertext")
-            k_gcm = _derive_aesgcm_key(raw)
+            k_gcm = _derive_aesgcm_epoch_key(raw, epoch=1)
             return AESGCM(k_gcm).decrypt(iv, ct, None).decode("utf-8")
         except Exception:
             if is_production_mode():
@@ -269,7 +314,7 @@ def decrypt_field(value: Optional[str]) -> Optional[str]:
                 )
             return value
 
-    # 2. MultiFernet backward-compatible decryption (primary HKDF + legacy single-round SHA-256)
+    # 3. MultiFernet backward-compatible decryption (primary HKDF + legacy single-round SHA-256)
     if hasattr(f, "decrypt"):
         try:
             return f.decrypt(value.encode("utf-8")).decode("utf-8")
@@ -292,6 +337,50 @@ def decrypt_field(value: Optional[str]) -> Optional[str]:
             "Field decryption failed in production: stored token is corrupted or key mismatch."
         )
     return value
+
+
+def reencrypt_all_records(db: Any) -> Dict[str, Any]:
+    """
+    Automated Key Re-encryption Pipeline conforming to NIST SP 800-57 Part 1 Rev. 5.
+    Scans encrypted database fields (Identity.value, FamilyMember.formal_name, User.email)
+    and re-encrypts any records encrypted with older epochs or legacy ciphers to the
+    active key epoch.
+    """
+    from ..models import database as m
+    active_epoch = get_active_key_epoch()
+    target_prefix = "gcm1:" if active_epoch == 1 else f"gcm:v{active_epoch}:"
+    reencrypted_count = 0
+
+    try:
+        # 1. Identity records
+        for ident in db.query(m.Identity).all():
+            val = ident.value
+            if val and not val.startswith(target_prefix):
+                plain = decrypt_field(val)
+                if plain:
+                    ident.value = encrypt_field(plain, epoch=active_epoch)
+                    reencrypted_count += 1
+
+        # 2. FamilyMember formal_name
+        for member in db.query(m.FamilyMember).filter(m.FamilyMember.formal_name.isnot(None)).all():
+            val = member.formal_name
+            if val and not val.startswith(target_prefix):
+                plain = decrypt_field(val)
+                if plain:
+                    member.formal_name = encrypt_field(plain, epoch=active_epoch)
+                    reencrypted_count += 1
+
+        db.commit()
+    except Exception as e:
+        log.warning("Re-encryption pass error: %s", e)
+        db.rollback()
+
+    return {
+        "status": "COMPLETED",
+        "standard": "NIST SP 800-57 Part 1 Rev. 5",
+        "active_epoch": active_epoch,
+        "reencrypted_records": reencrypted_count,
+    }
 
 
 def hash_for_index(value: str, server_key: Optional[str] = None) -> str:

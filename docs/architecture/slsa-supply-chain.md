@@ -50,3 +50,4 @@ cosign verify \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
   ghcr.io/rlnunez/openoptout/backend:<tag>
 ```
+

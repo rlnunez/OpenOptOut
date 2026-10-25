@@ -81,6 +81,18 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 - **OpenSSF SLSA Level 3 & Cosign Container Signing:**
   - **Cryptographic Provenance Attestation:** Added `.github/workflows/build-provenance.yml` generating non-falsifiable in-toto SLSA Level 3 build provenance via `actions/attest-build-provenance@v2`.
   - **Keyless Container Signing:** Integrated `sigstore/cosign-installer` to sign release container images via GitHub OIDC identity.
+- **NIST SP 800-57 Part 1 Rev. 5 Key Management Lifecycle:**
+  - **Epoch Key Versioning:** Supported versioned AES-256-GCM ciphertexts (`gcm:v{epoch}:`) with cryptoperiod derivation under HKDF-SHA256 in `backend/core/encryption.py`.
+  - **Automated Re-encryption Pipeline:** Added `reencrypt_all_records(db)` migrating older ciphertexts and legacy Fernet data to active key epochs without service downtime.
+- **OpenID Connect Back-Channel Logout 1.0:**
+  - **Server-to-Server Session Revocation:** Added `POST /api/auth/backchannel-logout` in `backend/routers/auth.py` verifying OIDC `logout_token` claims, immediately revoking all active sessions for matching user subjects (`sub`) or session IDs (`sid`).
+- **RFC 9449 OAuth 2.0 Demonstrating Proof-of-Possession (DPoP):**
+  - **Asymmetric Sender-Constrained Tokens:** Implemented `backend/core/dpop.py` verifying client DPoP proof JWTs, binding tokens to RFC 7638 JWK thumbprints (`jkt`), matching HTTP method and URI, and enforcing single-use `jti` replay defense.
+- **ISO/IEC 27701:2019 (PIMS) Compliance Reporting:**
+  - **Statutory ROPA & DPIA Endpoints:** Implemented `GET /api/privacy/ropa` (GDPR Article 30 Record of Processing Activities) and `GET /api/privacy/dpia` (GDPR Article 35 Data Protection Impact Assessment) in `backend/core/ropa.py` and `backend/routers/privacy.py`.
+- **W3C Subresource Integrity (SRI) & OASIS CSAF 2.0:**
+  - **Automated SRI Injection:** Added `scripts/inject_sri.py` injecting SHA-384 cryptographic integrity hashes and `crossorigin="anonymous"` attributes into frontend bundle scripts and stylesheets.
+  - **CSAF 2.0 Provider Metadata:** Implemented standard CSAF 2.0 discovery metadata at `/.well-known/csaf/provider-metadata.json` and linked in RFC 9116 `security.txt`.
 
 ### Privacy Protocols & Data Rights Automation
 - **Data Rights Protocol (DRP v0.9/v1.0) Client & Execution Engine (Roadmap Item 73):**

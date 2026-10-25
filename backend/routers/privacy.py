@@ -50,6 +50,32 @@ def privacy_inventory():
     )
 
 
+@router.get("/ropa")
+def privacy_ropa():
+    """
+    Exportable Record of Processing Activities (ROPA).
+    Conforms to GDPR Article 30 and ISO/IEC 27701:2019 Clause 7.2.5.
+    """
+    from ..core.ropa import generate_ropa_report
+    return JSONResponse(
+        content=generate_ropa_report(load_settings()),
+        headers={"Content-Type": "application/json", "Cache-Control": "public, max-age=3600"},
+    )
+
+
+@router.get("/dpia")
+def privacy_dpia():
+    """
+    Exportable Data Protection Impact Assessment (DPIA) matrix.
+    Conforms to GDPR Article 35 and ISO/IEC 27701:2019 Clause 7.2.6.
+    """
+    from ..core.ropa import generate_dpia_assessment
+    return JSONResponse(
+        content=generate_dpia_assessment(load_settings()),
+        headers={"Content-Type": "application/json", "Cache-Control": "public, max-age=3600"},
+    )
+
+
 @router.get("/record")
 def privacy_record(db: Session = Depends(get_db), _=Depends(require_permission("settings.system"))):
     return pr.record(db, load_settings())

@@ -159,6 +159,47 @@ STANDARDS_ALIGNMENT = {
             "Cascading deprovisioning and cryptographic erasure",
         ],
     },
+    "nist_sp_800_57": {
+        "standard": "NIST SP 800-57 Part 1 Rev. 5 (Recommendation for Key Management)",
+        "features": [
+            "Epoch key versioning with multi-epoch derivation (gcm:v{N}:)",
+            "Automated background key re-encryption pipeline",
+            "Defined cryptoperiod isolation under HKDF-SHA256",
+        ],
+    },
+    "oidc_backchannel_logout": {
+        "standard": "OpenID Connect Back-Channel Logout 1.0",
+        "endpoint": "/api/auth/backchannel-logout",
+        "features": [
+            "Server-to-server OIDC logout_token verification",
+            "Automatic user session termination on IdP logout",
+        ],
+    },
+    "rfc_9449_dpop": {
+        "standard": "RFC 9449 (OAuth 2.0 Demonstrating Proof-of-Possession — DPoP)",
+        "features": [
+            "Asymmetric sender-constrained access and refresh tokens",
+            "RFC 7638 JWK thumbprint binding (jkt)",
+            "Single-use JTI replay protection",
+        ],
+    },
+    "iso_27701_ropa": {
+        "standard": "ISO/IEC 27701:2019 & GDPR Article 30/35",
+        "endpoints": ["/api/privacy/ropa", "/api/privacy/dpia"],
+        "reports": [
+            "Record of Processing Activities (ROPA)",
+            "Data Protection Impact Assessment (DPIA)",
+        ],
+    },
+    "w3c_sri": {
+        "standard": "W3C Subresource Integrity (SRI)",
+        "algorithm": "sha384",
+        "target": "Frontend bundled scripts and stylesheets in dist/index.html",
+    },
+    "oasis_csaf_2_0": {
+        "standard": "OASIS Common Security Advisory Framework (CSAF) 2.0",
+        "endpoint": "/.well-known/csaf/provider-metadata.json",
+    },
 }
 
 

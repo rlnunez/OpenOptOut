@@ -84,3 +84,4 @@ def child_traceparent(parent_header: Optional[str], sampled: Optional[bool] = No
         return generate_traceparent(sampled=True if sampled is None else sampled)
     is_sampled = parsed["sampled"] if sampled is None else sampled
     return generate_traceparent(trace_id=parsed["trace_id"], sampled=is_sampled)
+

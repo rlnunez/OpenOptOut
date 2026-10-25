@@ -5,4 +5,5 @@ Canonical: https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/.well-known
 Policy: https://github.com/rlnunez/OpenOptOut/blob/main/SECURITY.md
 Acknowledgments: https://github.com/rlnunez/OpenOptOut/graphs/contributors
 Acknowledgments: https://github.com/rlnunez/OpenOptOut/blob/main/CHANGELOG.md
+CSAF: https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/.well-known/csaf/provider-metadata.json
 

@@ -140,3 +140,4 @@ def generate_sanitization_certificate(
         cert_payload["hmac_signature"] = "UNSIGNED_DEV_MODE"
 
     return cert_payload
+

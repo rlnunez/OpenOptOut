@@ -334,12 +334,32 @@ def security_txt():
         "Preferred-Languages: en\n"
         "Canonical: https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/.well-known/security.txt\n"
         "Policy: https://github.com/rlnunez/OpenOptOut/blob/main/SECURITY.md\n"
+        "Acknowledgments: https://github.com/rlnunez/OpenOptOut/graphs/contributors\n"
         "Acknowledgments: https://github.com/rlnunez/OpenOptOut/blob/main/CHANGELOG.md\n"
+        "CSAF: https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/.well-known/csaf/provider-metadata.json\n"
     )
     return PlainTextResponse(
         content=content,
         headers={
             "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "public, max-age=86400",
+        },
+    )
+
+
+@app.get("/.well-known/csaf/provider-metadata.json")
+@app.get("/api/.well-known/csaf/provider-metadata.json")
+def csaf_provider_metadata():
+    """
+    OASIS Common Security Advisory Framework (CSAF) 2.0 Provider Metadata.
+    Enables automated machine ingestion of vulnerability advisories.
+    """
+    from .core.csaf import get_csaf_provider_metadata
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        content=get_csaf_provider_metadata(),
+        headers={
+            "Content-Type": "application/json",
             "Cache-Control": "public, max-age=86400",
         },
     )
