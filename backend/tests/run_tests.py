@@ -11642,6 +11642,84 @@ def t_drp_client_and_ssrf():
     assert any("drp ->" in t for t in dry_res.trace)
 
 
+@test(1, "gpc.headers_and_dom_injection",
+      "W3C Global Privacy Control (GPC) injects Sec-GPC: 1 / DNT: 1 HTTP headers and "
+      "navigator.globalPrivacyControl DOM init script into all browser automation contexts and API clients.")
+def t_gpc_headers_and_dom():
+    import asyncio
+    gpc_mod = _imp("core.gpc")
+    drp_client_mod = _imp("core.drp.client")
+
+    # 1. Header merging
+    empty_args = gpc_mod.apply_gpc_headers()
+    assert empty_args["extra_http_headers"]["Sec-GPC"] == "1"
+    assert empty_args["extra_http_headers"]["DNT"] == "1"
+
+    existing_args = {
+        "locale": "en-US",
+        "extra_http_headers": {"X-Custom-Header": "hello"}
+    }
+    merged_args = gpc_mod.apply_gpc_headers(existing_args)
+    assert merged_args["locale"] == "en-US"
+    assert merged_args["extra_http_headers"]["X-Custom-Header"] == "hello"
+    assert merged_args["extra_http_headers"]["Sec-GPC"] == "1"
+    assert merged_args["extra_http_headers"]["DNT"] == "1"
+
+    # 2. DOM init script injection on Playwright context
+    script_injected = []
+    class MockContext:
+        async def add_init_script(self, script):
+            script_injected.append(script)
+
+    ctx = MockContext()
+    asyncio.run(gpc_mod.apply_gpc_to_context(ctx))
+    assert len(script_injected) == 1
+    assert "globalPrivacyControl" in script_injected[0]
+    assert "writable: false" in script_injected[0]
+
+    # Non-fatal on None or contexts without add_init_script
+    asyncio.run(gpc_mod.apply_gpc_to_context(None))
+    asyncio.run(gpc_mod.apply_gpc_to_context(object()))
+
+    # 3. DRP client includes Sec-GPC and DNT
+    drp_client = drp_client_mod.DrpClient()
+    headers = drp_client._make_headers(api_token="token123")
+    assert headers["Sec-GPC"] == "1"
+    assert headers["DNT"] == "1"
+    assert headers["Authorization"] == "Bearer token123"
+
+
+@test(1, "gpc.well_known_endpoint",
+      "W3C Global Privacy Control (GPC) exposes /.well-known/gpc.json per the W3C community standard.")
+def t_gpc_well_known_endpoint():
+    gpc_mod = _imp("core.gpc")
+    doc = gpc_mod.gpc_well_known_document()
+    assert doc.get("gpc") is True
+    assert "lastUpdate" in doc
+
+    try:
+        from fastapi.testclient import TestClient
+        main = importlib.import_module(_mod("main"))
+    except ImportError as e:
+        raise Skip(f"needs full backend deps: {e}")
+
+    client = TestClient(main.app, raise_server_exceptions=False)
+
+    # Root /.well-known/gpc.json
+    res1 = client.get("/.well-known/gpc.json")
+    assert res1.status_code == 200
+    assert res1.headers["content-type"].startswith("application/json")
+    data1 = res1.json()
+    assert data1["gpc"] is True
+    assert "lastUpdate" in data1
+
+    # Proxied /api/.well-known/gpc.json
+    res2 = client.get("/api/.well-known/gpc.json")
+    assert res2.status_code == 200
+    data2 = res2.json()
+    assert data2["gpc"] is True
+
+
 @test(1, "i18n.international_profile_resolution",
       "Address parser, date parser, and member fields handle international formats: Arabic comma, "
       "alphanumeric/European postcodes, mononyms, DD/MM/YYYY dates, and Eastern Arabic numerals.")

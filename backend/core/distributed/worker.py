@@ -164,7 +164,10 @@ class WorkerBrowserPool:
             )
             ctx_args["viewport"] = {"width": 1280, "height": 800}
 
+        from ..gpc import apply_gpc_headers, apply_gpc_to_context
+        ctx_args = apply_gpc_headers(ctx_args)
         context = await self._browser.new_context(**ctx_args)
+        await apply_gpc_to_context(context)
         page = await context.new_page()
         return context, page
 

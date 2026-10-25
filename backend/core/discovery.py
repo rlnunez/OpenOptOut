@@ -39,6 +39,7 @@ async def _launch_browser(playwright):
     UA rotation is one layer of bot-detection evasion — see core/user_agents.py.
     """
     from .user_agents import get_random_agent, get_custom_uas_from_settings, rotation_enabled
+    from .gpc import apply_gpc_headers, apply_gpc_to_context
 
     browser = await playwright.firefox.launch(
         headless=True,
@@ -57,12 +58,16 @@ async def _launch_browser(playwright):
         agent  = get_random_agent(custom)
         ctx_args["user_agent"] = agent["ua"]
         ctx_args["viewport"]   = agent["viewport"]
+        ctx_args = apply_gpc_headers(ctx_args)
         context = await browser.new_context(**ctx_args)
+        await apply_gpc_to_context(context)
         log.debug(f"Browser context UA: {agent['platform']} — {agent['ua'][:50]}...")
     else:
         ctx_args["user_agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:124.0) Gecko/20100101 Firefox/124.0"
         ctx_args["viewport"]   = {"width": 1280, "height": 800}
+        ctx_args = apply_gpc_headers(ctx_args)
         context = await browser.new_context(**ctx_args)
+        await apply_gpc_to_context(context)
     return browser, context
 
 

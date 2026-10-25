@@ -330,14 +330,17 @@ async def _browser_press(url: str, domains: set) -> str:
             return await route.abort()
         await route.continue_()
 
+    from .gpc import apply_gpc_headers, apply_gpc_to_context
     async with async_playwright() as p:
         ctx_args = {}
         proxy = get_proxy_for_context()
         if proxy:
             ctx_args["proxy"] = proxy
+        ctx_args = apply_gpc_headers(ctx_args)
         browser = await p.firefox.launch(headless=True)
         try:
             ctx = await browser.new_context(**ctx_args)
+            await apply_gpc_to_context(ctx)
             await ctx.route("**/*", guard)
             page = await ctx.new_page()
             resp = await page.goto(url, timeout=20000, wait_until="domcontentloaded")

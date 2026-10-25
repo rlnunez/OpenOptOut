@@ -26,6 +26,7 @@ The guiding architectural principle: **the core does not contain broker-specific
 | [70](#item-70) | [Native-speaker review for 5 newest languages](#item-70) | Planned | Medium |
 | [72](#item-72) | [Instance migration, tenant merging & identity re-anchoring](#item-72) | Planned | Medium (Institutional & Consortium) |
 | [73](#item-73) | [Data Rights Protocol (DRP v0.9/v1.0) native execution engine](#item-73) | Complete (v0.11.3) | High (Core Protocol) |
+| [74](#item-74) | [W3C Global Privacy Control (GPC) universal opt-out signal](#item-74) | Complete (v0.11.3) | High (Core Protocol) |
 
 ---
 
@@ -170,3 +171,14 @@ The guiding architectural principle: **the core does not contain broker-specific
 - **Standardized Client (`backend/core/drp/client.py`):** Structured `/exercise` request submission, `/status` verification polling, and `/.well-known/data-rights` discovery.
 - **SSRF & Privacy Guarantees:** Endpoints are pre-flight validated against `dns_guard.assert_safe_url()`, and all network interactions run within `safe_dns_context()`. Family PII is strictly encrypted at rest and never exposed to unencrypted application logs.
 - **Compiler & Interpreter Integration:** Declared `method: "drp"` in `BrokerSpec` with dedicated `DrpSpec`, compiled into `DrpJob` payloads, and executed via `DryRunExecutor` and runtime executors.
+
+---
+
+<a id="item-74"></a>
+### 74. W3C Global Privacy Control (GPC) universal opt-out signal
+**Goal:** Automatically signal universal opt-out of personal data sale, sharing, and tracking across all web interactions, automated browser contexts, and API endpoints per the W3C Global Privacy Control specification and state privacy statutes.
+
+- **Status:** **Complete (v0.11.3)**.
+- **Universal HTTP Header Emission:** Automatically sets `Sec-GPC: 1` and paired `DNT: 1` headers on all Playwright browser contexts (`backend/core/optout_engine.py`, `backend/core/discovery.py`, `backend/core/distributed/worker.py`, `backend/core/confirm_links.py`, `backend/core/verification.py`), outbound DRP client requests, and frontend API interactions.
+- **DOM Property Injection:** Injects `navigator.globalPrivacyControl = true` init script across all automated Playwright browser frames and pages to satisfy legal opt-out preference signal requirements under CCPA/CPRA (11 CCR § 7025) and Colorado CPA (4 CCR 904-3 Rule 5.06).
+- **W3C Well-Known Resource:** Serves `GET /.well-known/gpc.json` (and proxied `/api/.well-known/gpc.json`) conforming to section 4 of the W3C Global Privacy Control community specification.

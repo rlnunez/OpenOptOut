@@ -46,6 +46,8 @@ class DrpClient:
             "User-Agent": self.user_agent,
             "Accept": "application/json",
             "Content-Type": "application/json",
+            "Sec-GPC": "1",
+            "DNT": "1",
         }
         if api_token:
             headers["Authorization"] = f"Bearer {api_token.strip()}"

@@ -55,6 +55,10 @@ Each completed roadmap item is cross-referenced with its architectural milestone
   - **DRP Client Implementation (`core/drp`):** Built dedicated DRP client supporting standardized `/exercise`, `/status`, and `/.well-known/data-rights` discovery operations across privacy regimes (`ccpa`, `gdpr`, `coppa`, `general`, `lgpd`) and right types (`sale:opt-out`, `deletion`, `access`).
   - **Zero-PII Audit Logging & SSRF Guard:** Enforced `dns_guard.assert_safe_url()` and `safe_dns_context()` across all DRP endpoints, with strict PII filtering ensuring consumer identity records are never written to unencrypted logs.
   - **Model & Database Support:** Extended `OptOutMethod` enum with `drp` and integrated direct status/token tracking via `RemovalRequest.request_key`.
+- **W3C Global Privacy Control (GPC) Universal Opt-Out Signal:**
+  - **Universal HTTP Header Emission:** Automated emission of standard `Sec-GPC: 1` and paired `DNT: 1` headers across all automated browser contexts (discovery, opt-out submission, worker fleet, link confirmation, URL verification), DRP client requests, and frontend API calls.
+  - **DOM Property Enforcement:** Injected `navigator.globalPrivacyControl = true` init script across all automated Playwright browser frames and pages to satisfy legal opt-out preference signal requirements under CCPA/CPRA (11 CCR § 7025) and Colorado CPA (4 CCR 904-3 Rule 5.06).
+  - **W3C Well-Known Resource:** Implemented `GET /.well-known/gpc.json` (and proxied `/api/.well-known/gpc.json`) conforming to section 4 of the W3C Global Privacy Control community specification.
 
 ### Authentication & Identity Providers (OIDC, SIP2, MFA)
 - **NIST SP 800-63B Authentication & Lifecycle Hardening:**

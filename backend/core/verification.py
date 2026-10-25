@@ -107,14 +107,17 @@ def browser_get(url: str, domain: str):
         from playwright.async_api import async_playwright
         from .dns_guard import is_public_ip, public_host
         from .proxy import get_proxy_for_context
+        from .gpc import apply_gpc_headers, apply_gpc_to_context
         async with async_playwright() as p:
             ctx_args = {}
             proxy = get_proxy_for_context()
             if proxy:
                 ctx_args["proxy"] = proxy
+            ctx_args = apply_gpc_headers(ctx_args)
             b = await p.firefox.launch(headless=True)
             try:
                 ctx = await b.new_context(**ctx_args)
+                await apply_gpc_to_context(ctx)
 
                 async def guard(route):
                     h = _host(route.request.url)

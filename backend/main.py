@@ -60,6 +60,7 @@ from .routers.csp_report import router as csp_report_router
 from .core.scheduler import start_scheduler, stop_scheduler
 from .core.version import get_version, get_commit, version_string
 from .core.logging_config import init_logging
+from .core.gpc import gpc_well_known_document
 
 # The interactive Swagger/ReDoc explorer UIs hand an unauthenticated visitor
 # a human-browsable map of every route and field name on an appliance that
@@ -300,6 +301,22 @@ def shutdown():
             mgr.stop()
     except Exception:
         pass
+
+
+@app.get("/.well-known/gpc.json")
+@app.get("/api/.well-known/gpc.json")
+def gpc_well_known():
+    """
+    W3C Global Privacy Control (GPC) server discovery resource.
+    Conforms to W3C GPC spec (https://privacycg.github.io/gpc-spec/#well-known-resource).
+    """
+    return JSONResponse(
+        content=gpc_well_known_document(),
+        headers={
+            "Content-Type": "application/json",
+            "Cache-Control": "public, max-age=86400",
+        },
+    )
 
 
 @app.get("/api/health")

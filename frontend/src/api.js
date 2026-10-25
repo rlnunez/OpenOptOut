@@ -1,6 +1,12 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: '/api' })
+const api = axios.create({
+  baseURL: '/api',
+  headers: {
+    'Sec-GPC': '1',
+    'DNT': '1',
+  },
+})
 
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('token')

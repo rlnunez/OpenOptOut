@@ -50,6 +50,7 @@ async def _fresh_context(browser):
     is contacted from a different IP — the strongest evasion configuration.
     """
     from .proxy import get_proxy_for_context
+    from .gpc import apply_gpc_headers, apply_gpc_to_context
 
     ctx_args = {"locale": "en-US"}
     proxy = get_proxy_for_context()
@@ -64,7 +65,10 @@ async def _fresh_context(browser):
         ctx_args["user_agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:124.0) Gecko/20100101 Firefox/124.0"
         ctx_args["viewport"]   = {"width": 1280, "height": 800}
 
-    return await browser.new_context(**ctx_args)
+    ctx_args = apply_gpc_headers(ctx_args)
+    ctx = await browser.new_context(**ctx_args)
+    await apply_gpc_to_context(ctx)
+    return ctx
 
 
 # ── Email opt-out (sends ONE email listing all identity variants) ──────────────
