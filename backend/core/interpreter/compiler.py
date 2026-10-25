@@ -88,6 +88,41 @@ class EmailJob:
 
 
 @dataclass
+class DrpJob:
+    """Compiled Data Rights Protocol (DRP) execution payload."""
+    endpoint: str
+    regime: str
+    rights: list[str]
+    identity: dict
+    broker_id: str
+    discovery_url: str = ""
+    auth_token_env: str = ""
+
+    def to_dict(self) -> dict:
+        return {
+            "endpoint": self.endpoint,
+            "regime": self.regime,
+            "rights": list(self.rights),
+            "identity": dict(self.identity),
+            "broker_id": self.broker_id,
+            "discovery_url": self.discovery_url,
+            "auth_token_env": self.auth_token_env,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "DrpJob":
+        return cls(
+            endpoint=str(d.get("endpoint", "")),
+            regime=str(d.get("regime", "ccpa")),
+            rights=list(d.get("rights", [])),
+            identity=dict(d.get("identity", {})),
+            broker_id=str(d.get("broker_id", "")),
+            discovery_url=str(d.get("discovery_url", "")),
+            auth_token_env=str(d.get("auth_token_env", "")),
+        )
+
+
+@dataclass
 class Job:
     """
     A compiled, executable opt-out for one (broker × member). Serializable and
@@ -97,9 +132,10 @@ class Job:
     broker_id: str
     broker_name: str
     member_id: str
-    method: str                       # "form" | "email" | "manual"
+    method: str                       # "form" | "email" | "manual" | "drp"
     steps: list[JobStep] = field(default_factory=list)   # for form method
     email: Optional[EmailJob] = None                     # for email method
+    drp: Optional[DrpJob] = None                         # for DRP method
     success_selector: str = ""
     success_text: str = ""
     # The address filled into contact_email fields, so the executor can tell
@@ -116,6 +152,8 @@ class Job:
         }
         if self.email:
             d["email"] = self.email.to_dict() if hasattr(self.email, "to_dict") else vars(self.email)
+        if self.drp:
+            d["drp"] = self.drp.to_dict() if hasattr(self.drp, "to_dict") else vars(self.drp)
         return d
 
     @classmethod
@@ -126,6 +164,8 @@ class Job:
         ]
         email_data = d.get("email")
         email = EmailJob.from_dict(email_data) if isinstance(email_data, dict) else None
+        drp_data = d.get("drp")
+        drp = DrpJob.from_dict(drp_data) if isinstance(drp_data, dict) else None
         return cls(
             broker_id=str(d.get("broker_id", "")),
             broker_name=str(d.get("broker_name", "")),
@@ -133,6 +173,7 @@ class Job:
             method=str(d.get("method", "form")),
             steps=steps,
             email=email,
+            drp=drp,
             success_selector=str(d.get("success_selector", "")),
             success_text=str(d.get("success_text", "")),
             contact_email=str(d.get("contact_email", "")),
@@ -232,6 +273,38 @@ def compile_job(spec: BrokerSpec, member_fields: dict, member_id: str, lang: str
             subject=_render(e.subject_template, member_fields),
             body=_render(e.body_template, member_fields),
             locale=e.locale,
+        )
+        return job
+
+    if spec.method == "drp":
+        d = spec.drp
+        if not d:
+            raise CompileError(f"drp spec missing on '{spec.broker_id}'")
+        missing = [f for f in (d.require_fields or []) if not member_fields.get(f)]
+        if missing:
+            raise CompileError(
+                f"member is missing fields required by '{spec.broker_id}' drp: {missing}")
+        try:
+            from ..drp.schema import DrpIdentity
+        except (ImportError, ValueError):
+            from core.drp.schema import DrpIdentity
+        ident = DrpIdentity(
+            full_name=str(member_fields.get("full_name") or member_fields.get("name") or ""),
+            email=str(member_fields.get("email") or member_fields.get("contact_email") or ""),
+            phone=str(member_fields.get("phone") or ""),
+            street_address=str(member_fields.get("address") or member_fields.get("street") or ""),
+            city=str(member_fields.get("city") or ""),
+            state=str(member_fields.get("state") or ""),
+            postal_code=str(member_fields.get("zip") or member_fields.get("postal_code") or ""),
+        )
+        job.drp = DrpJob(
+            endpoint=d.endpoint,
+            regime=d.regime,
+            rights=list(d.rights),
+            identity=ident.to_drp_dict(),
+            broker_id=spec.broker_id,
+            discovery_url=d.discovery_url,
+            auth_token_env=d.auth_token_env,
         )
         return job
 

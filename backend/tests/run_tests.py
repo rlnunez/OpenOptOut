@@ -11450,6 +11450,198 @@ def t_forms_executor():
     assert not r_429.ok and "HTTP 429" in r_429.detail, r_429.detail
 
 
+@test(1, "drp.spec_validation_and_compilation",
+      "Data Rights Protocol (DRP) specs validate, reject bad regimes/rights, and compile into executable DrpJobs.")
+def t_drp_spec_and_compilation():
+    ci = _imp("core.interpreter")
+    bs = _imp("core.interpreter.broker_spec")
+    comp = _imp("core.interpreter.compiler")
+
+    # 1. Valid DRP Spec
+    valid_data = {
+        "broker_id": "drp-broker",
+        "name": "DRP Covered Business",
+        "method": "drp",
+        "opt_out_url": "https://drp.example/privacy",
+        "drp": {
+            "endpoint": "https://drp.example/data-rights/v1",
+            "regime": "ccpa",
+            "rights": ["sale:opt-out", "deletion"],
+            "require_fields": ["full_name", "email", "state"],
+        },
+    }
+    spec = bs.BrokerSpec.from_dict(valid_data)
+    assert spec.validate() == [], spec.validate()
+    assert spec.method == "drp"
+    assert spec.drp.regime == "ccpa"
+
+    # 2. Rejection of invalid DRP specs
+    bad_spec1 = bs.BrokerSpec.from_dict({
+        "broker_id": "drp-bad",
+        "name": "Bad",
+        "method": "drp",
+        "drp": {
+            "endpoint": "http://insecure.example/drp",
+            "regime": "unknown_law",
+            "rights": ["invalid:action"],
+            "require_fields": ["fake_field"],
+        },
+    })
+    errs1 = bad_spec1.validate()
+    assert any("drp endpoint must start with https://" in e for e in errs1)
+    assert any("drp regime must be one of" in e for e in errs1)
+    assert any("invalid right" in e for e in errs1)
+    assert any("unknown field" in e for e in errs1)
+
+    # 3. Missing DRP block when method is 'drp'
+    bad_spec2 = bs.BrokerSpec.from_dict({"broker_id": "drp-missing", "name": "Missing", "method": "drp"})
+    assert "drp method requires a drp spec" in bad_spec2.validate()
+
+    # 4. Successful Compilation into DrpJob
+    member_fields = {
+        "full_name": "Jordan Example",
+        "email": "jordan@example.invalid",
+        "state": "TX",
+        "city": "Austin",
+        "phone": "+15555550123",
+        "address": "123 Main St",
+        "zip": "78701",
+    }
+    job = comp.compile_job(spec, member_fields, "mem-101")
+    assert job.method == "drp"
+    assert job.drp is not None
+    assert job.drp.endpoint == "https://drp.example/data-rights/v1"
+    assert job.drp.regime == "ccpa"
+    assert "sale:opt-out" in job.drp.rights
+    assert job.drp.identity["name"] == "Jordan Example"
+    assert job.drp.identity["email"] == "jordan@example.invalid"
+    assert job.drp.identity["address"]["city"] == "Austin"
+    assert job.drp.identity["address"]["state"] == "TX"
+
+    # 5. Missing required field raises CompileError
+    try:
+        comp.compile_job(spec, {"full_name": "Jordan", "state": "TX"}, "mem-101")
+        assert False, "compilation should fail when required field (email) is missing"
+    except comp.CompileError as e:
+        assert "missing fields required by 'drp-broker' drp" in str(e)
+
+
+@test(1, "drp.client_exercise_status_and_ssrf",
+      "DrpClient dispatches exercise and status queries to Covered Businesses, parses DRP responses, and blocks SSRF.")
+def t_drp_client_and_ssrf():
+    import json
+    import urllib.error
+    drp_mod = _imp("core.drp")
+    comp = _imp("core.interpreter.compiler")
+    ci = _imp("core.interpreter")
+
+    class MockResponse:
+        def __init__(self, data, status=200):
+            self.data = data
+            self.status = status
+        def read(self):
+            return json.dumps(self.data).encode("utf-8")
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+
+    client = drp_mod.DrpClient(allow_local=True)
+    base_endpoint = "http://127.0.0.1:8080/data-rights/v1"
+
+    def mock_open(req, timeout=0):
+        url = req.full_url if hasattr(req, "full_url") else req.get_full_url()
+        method = req.get_method()
+        if method == "POST" and url.endswith("/exercise"):
+            raw = req.data
+            data = json.loads(raw.decode("utf-8"))
+            assert data["regime"] == "ccpa"
+            assert "sale:opt-out" in data["exercise"]
+            return MockResponse({
+                "request_id": "drp-req-abc-123",
+                "status": "in_progress",
+                "received_at": "2026-10-24T21:00:00Z",
+                "expected_by": "2026-11-23T21:00:00Z",
+                "reason": "Request accepted for processing",
+            })
+        elif method == "GET" and "/status/drp-req-abc-123" in url:
+            return MockResponse({
+                "request_id": "drp-req-abc-123",
+                "status": "completed",
+                "reason": "All matching records removed per CCPA request",
+            })
+        elif method == "GET" and url.endswith("/.well-known/data-rights"):
+            return MockResponse({
+                "version": "0.9",
+                "endpoints": {"exercise": "/data-rights/v1/exercise", "status": "/data-rights/v1/status"},
+                "supported_regimes": ["ccpa", "gdpr"],
+            })
+        raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+
+    client._open = mock_open
+
+    # 0. Assert strict client rejects local endpoint without allow_local
+    strict_client = drp_mod.DrpClient(allow_local=False)
+    try:
+        strict_client.exercise(
+            endpoint=base_endpoint,
+            regime="ccpa",
+            rights=["sale:opt-out"],
+            identity={},
+        )
+        assert False, "strict client without allow_local should reject 127.0.0.1"
+    except ValueError as e:
+        assert "prohibited address" in str(e).lower()
+
+    # 1. Exercise request
+    res = client.exercise(
+        endpoint=base_endpoint,
+        regime="ccpa",
+        rights=["sale:opt-out", "deletion"],
+        identity={"name": "Jordan Example", "email": "jordan@example.invalid"},
+    )
+    assert res.ok is True, f"exercise failed: {res.error}"
+    assert res.request_id == "drp-req-abc-123"
+    assert res.status == "in_progress"
+
+    # 2. Status inquiry
+    st = client.check_status(endpoint=base_endpoint, request_id="drp-req-abc-123")
+    assert st.ok is True, f"status query failed: {st.error}"
+    assert st.status == "completed"
+    assert "All matching records removed" in st.reason
+
+    # 3. Discovery check
+    disc = client.discover("http://127.0.0.1:8080")
+    assert disc.get("version") == "0.9"
+    assert "ccpa" in disc.get("supported_regimes", [])
+
+    # 4. SSRF Defense: loopback/cloud metadata rejection on non-local addresses
+    try:
+        client.exercise(
+            endpoint="https://169.254.169.254/drp/exercise",
+            regime="ccpa",
+            rights=["sale:opt-out"],
+            identity={},
+        )
+        assert False, "SSRF attempt against cloud metadata address should be rejected"
+    except ValueError as e:
+        assert "prohibited address" in str(e).lower() or "metadata" in str(e).lower()
+
+    # 5. DryRunExecutor handles DRP Job
+    drp_job = comp.DrpJob(
+        endpoint=base_endpoint,
+        regime="ccpa",
+        rights=["sale:opt-out", "deletion"],
+        identity={"name": "Jordan Example"},
+        broker_id="mock-drp",
+    )
+    job = comp.Job(broker_id="mock-drp", broker_name="Mock DRP", member_id="m1", method="drp", drp=drp_job)
+    dry_res = ci.DryRunExecutor().run(job)
+    assert dry_res.ok is True
+    assert dry_res.steps_run == 1
+    assert any("drp ->" in t for t in dry_res.trace)
+
+
 @test(1, "i18n.international_profile_resolution",
       "Address parser, date parser, and member fields handle international formats: Arabic comma, "
       "alphanumeric/European postcodes, mononyms, DD/MM/YYYY dates, and Eastern Arabic numerals.")

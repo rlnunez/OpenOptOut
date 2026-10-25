@@ -1151,6 +1151,55 @@ async def execute_optout(
                 finally:
                     await page.close()
 
+        elif broker.method == OptOutMethod.drp:
+            from .drp.client import DrpClient
+            from .interpreter.compiler import compile_job
+            spec = _get_spec(broker)
+            if not spec or not getattr(spec, "drp", None):
+                last_error = f"No DRP specification configured for broker {broker.name}"
+                failures += 1
+            else:
+                member_fields = resolve_fields(member)
+                try:
+                    job = compile_job(spec, member_fields, member_id=str(member.id))
+                    client = DrpClient()
+                    import os
+                    token = os.environ.get(job.drp.auth_token_env, "") if job.drp.auth_token_env else None
+                    drp_res = client.exercise(
+                        endpoint=job.drp.endpoint,
+                        regime=job.drp.regime,
+                        rights=job.drp.rights,
+                        identity=job.drp.identity,
+                        api_token=token,
+                    )
+                    if drp_res.ok:
+                        successes += 1
+                        request.request_key = drp_res.request_id
+                        db.add(AutomationLog(
+                            request_id=request.id, member_id=member.id, broker_id=broker.id,
+                            action="drp_exercise", status="success",
+                            detail=f"DRP request submitted (id={drp_res.request_id}, status={drp_res.status})",
+                            duration_ms=int((time.monotonic() - start) * 1000),
+                        ))
+                    else:
+                        failures += 1
+                        last_error = drp_res.error
+                        db.add(AutomationLog(
+                            request_id=request.id, member_id=member.id, broker_id=broker.id,
+                            action="drp_exercise", status="failure",
+                            detail=f"DRP exercise error: {drp_res.error}",
+                            duration_ms=int((time.monotonic() - start) * 1000),
+                        ))
+                except Exception as e:
+                    failures += 1
+                    last_error = str(e)
+                    db.add(AutomationLog(
+                        request_id=request.id, member_id=member.id, broker_id=broker.id,
+                        action="drp_exercise", status="failure",
+                        detail=f"DRP compile/execution exception: {e}",
+                        duration_ms=int((time.monotonic() - start) * 1000),
+                    ))
+
         elif broker.method in (OptOutMethod.manual, OptOutMethod.phone):
             # Nothing was sent: a person has to do this one. It goes on the
             # checklist with the steps, instead of being counted as sent.

@@ -246,6 +246,34 @@ class EmailSpec:
                 errs.append(f"email require_fields references unknown field: {f}")
         return errs
 
+
+@dataclass
+class DrpSpec:
+    """How to execute an opt-out via the Data Rights Protocol (DRP)."""
+    endpoint: str = ""                       # e.g. "https://broker.example/data-rights/v1"
+    regime: str = "ccpa"                     # "ccpa" | "gdpr" | "coppa" | "general" | "lgpd"
+    rights: list[str] = field(default_factory=lambda: ["sale:opt-out", "deletion"])
+    require_fields: list[str] = field(default_factory=lambda: ["full_name", "email"])
+    discovery_url: str = ""                  # optional e.g. "https://broker.example/.well-known/data-rights"
+    auth_token_env: str = ""                 # optional env var holding API token
+
+    def validate(self) -> list[str]:
+        errs = []
+        if not self.endpoint or not _is_allowed_spec_url(self.endpoint):
+            errs.append("drp endpoint must start with https://")
+        if self.regime not in ("ccpa", "gdpr", "coppa", "general", "lgpd"):
+            errs.append("drp regime must be one of: ccpa, gdpr, coppa, general, lgpd")
+        valid_rights = ("sale:opt-out", "deletion", "access", "access:categories", "access:specific")
+        if not self.rights:
+            errs.append("drp rights cannot be empty")
+        for r in self.rights:
+            if r not in valid_rights:
+                errs.append(f"drp rights contains invalid right: {r} (known: {', '.join(valid_rights)})")
+        for f in self.require_fields:
+            if f not in KNOWN_FIELDS:
+                errs.append(f"drp require_fields references unknown field: {f}")
+        return errs
+
 def _is_allowed_spec_url(u: str) -> bool:
     if not u or not isinstance(u, str):
         return False
@@ -265,13 +293,15 @@ class BrokerSpec:
     """
     broker_id: str                       # stable slug, e.g. "spokeo"
     name: str
-    method: str                          # "form" | "email" | "manual"
+    method: str                          # "form" | "email" | "manual" | "drp"
     spec_version: str = SPEC_VERSION
     opt_out_url: str = ""
     # For form method:
     steps: list[Step] = field(default_factory=list)
     # For email method:
     email: Optional[EmailSpec] = None
+    # For DRP method:
+    drp: Optional[DrpSpec] = None
     # Declared success signal for the whole opt-out (a form may also use
     # expect_success steps; this is the overall confirmation).
     success_selector: str = ""
@@ -374,7 +404,7 @@ class BrokerSpec:
             errs.append("broker_id must be a non-empty alphanumeric slug")
         if not self.name:
             errs.append("name is required")
-        if self.method not in ("form", "email", "manual"):
+        if self.method not in ("form", "email", "manual", "drp"):
             errs.append(f"unknown method: {self.method}")
         if self.lookup_by not in LOOKUP_KEYS:
             errs.append(f"lookup_by must be one of {[k for k in LOOKUP_KEYS if k]}")
@@ -456,6 +486,11 @@ class BrokerSpec:
                 errs.append("email method requires an email spec")
             else:
                 errs.extend(f"email: {e}" for e in self.email.validate())
+        elif self.method == "drp":
+            if not self.drp:
+                errs.append("drp method requires a drp spec")
+            else:
+                errs.extend(f"drp: {e}" for e in self.drp.validate())
         # manual method needs nothing more — it just queues for a human.
 
         for b in self.legal_basis:
@@ -536,6 +571,13 @@ class BrokerSpec:
                 raise ValueError("email must be an object")
             email = EmailSpec(**{k: v for k, v in ed.items() if k in EmailSpec.__dataclass_fields__})
             _require_types(email, "email")
+        drp = None
+        if d.get("drp"):
+            drpd = d["drp"]
+            if not isinstance(drpd, dict):
+                raise ValueError("drp must be an object")
+            drp = DrpSpec(**{k: v for k, v in drpd.items() if k in DrpSpec.__dataclass_fields__})
+            _require_types(drp, "drp")
         spec = cls(
             broker_id=d.get("broker_id", ""),
             name=d.get("name", ""),
@@ -544,6 +586,7 @@ class BrokerSpec:
             opt_out_url=d.get("opt_out_url", ""),
             steps=steps,
             email=email,
+            drp=drp,
             success_selector=d.get("success_selector", ""),
             success_text=d.get("success_text", ""),
             notes=d.get("notes", ""),
@@ -600,4 +643,7 @@ class BrokerSpec:
         if self.email:
             out["email"] = {k: getattr(self.email, k) for k in EmailSpec.__dataclass_fields__
                             if getattr(self.email, k) not in ("", [])}
+        if self.drp:
+            out["drp"] = {k: getattr(self.drp, k) for k in DrpSpec.__dataclass_fields__
+                          if getattr(self.drp, k) not in ("", [])}
         return out

@@ -25,6 +25,7 @@ The guiding architectural principle: **the core does not contain broker-specific
 | [69](#item-69) | [Removal-service ownership & broker-family conflict flags](#item-69) | Planned | Medium |
 | [70](#item-70) | [Native-speaker review for 5 newest languages](#item-70) | Planned | Medium |
 | [72](#item-72) | [Instance migration, tenant merging & identity re-anchoring](#item-72) | Planned | Medium (Institutional & Consortium) |
+| [73](#item-73) | [Data Rights Protocol (DRP v0.9/v1.0) native execution engine](#item-73) | Complete (v0.11.3) | High (Core Protocol) |
 
 ---
 
@@ -157,3 +158,15 @@ The guiding architectural principle: **the core does not contain broker-specific
   - Self-service claiming flow allows patrons to verify legacy credentials once and bind their existing family vault to their library or enterprise credentials with zero data loss.
 - **Operator Decommission & Cutover Tooling:**
   - Administrative handoff wizard with pre-flight schema compatibility verification, cutover redirect notices on the departing instance, and cryptographic zeroization of decommissioned host storage.
+
+---
+
+<a id="item-73"></a>
+### 73. Data Rights Protocol (DRP v0.9/v1.0) native execution engine
+**Goal:** Implement native Data Rights Protocol (DRP) execution capabilities as a first-class opt-out mechanism alongside web form scraping and email dispatch, standardizing automated consumer rights exercises with participating covered businesses and data brokers.
+
+- **Status:** **Complete (v0.11.3)**.
+- **Protocol Schema & Identity Models (`backend/core/drp/schema.py`):** Canonical DRP data structures supporting multiple privacy regimes (`ccpa`, `gdpr`, `coppa`, `general`, `lgpd`) and rights (`sale:opt-out`, `deletion`, `access`).
+- **Standardized Client (`backend/core/drp/client.py`):** Structured `/exercise` request submission, `/status` verification polling, and `/.well-known/data-rights` discovery.
+- **SSRF & Privacy Guarantees:** Endpoints are pre-flight validated against `dns_guard.assert_safe_url()`, and all network interactions run within `safe_dns_context()`. Family PII is strictly encrypted at rest and never exposed to unencrypted application logs.
+- **Compiler & Interpreter Integration:** Declared `method: "drp"` in `BrokerSpec` with dedicated `DrpSpec`, compiled into `DrpJob` payloads, and executed via `DryRunExecutor` and runtime executors.

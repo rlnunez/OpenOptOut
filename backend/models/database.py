@@ -82,6 +82,7 @@ class OptOutMethod(str, enum.Enum):
     email  = "email"
     manual = "manual"
     phone  = "phone"
+    drp    = "drp"
 
 class Difficulty(str, enum.Enum):
     easy   = "easy"

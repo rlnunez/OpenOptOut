@@ -80,7 +80,7 @@ def public_host(host: str) -> bool:
     return True
 
 
-def assert_safe_url(url: str, schemes=("http", "https")) -> str:
+def assert_safe_url(url: str, schemes=("http", "https"), allow_local: bool = False) -> str:
     """Parse an admin/plugin-configured URL and assert it's safe to fetch right
     now: an allowed scheme, a non-empty host, not a known cloud-metadata
     address, and resolves only to public IPs (public_host). Raises ValueError
@@ -101,13 +101,15 @@ def assert_safe_url(url: str, schemes=("http", "https")) -> str:
         raise ValueError("missing host in address")
     if host in CLOUD_METADATA_HOSTS or host.startswith("169.254."):
         raise ValueError("prohibited address (cloud metadata)")
+    if allow_local and host in ("127.0.0.1", "localhost"):
+        return host
     if not public_host(host):
         raise ValueError("prohibited address (private or non-public host)")
     return host
 
 
 @contextlib.contextmanager
-def safe_dns_context():
+def safe_dns_context(allow_local: bool = False):
     """Context manager intercepting socket.getaddrinfo to prevent DNS-rebinding attacks.
     Every IP resolved during the block is validated against is_public_ip; resolves to
     internal or non-public addresses raise ValueError immediately, aborting the connection."""
@@ -115,6 +117,8 @@ def safe_dns_context():
 
     def safe_getaddrinfo(host, port, *args, **kwargs):
         res = real_getaddrinfo(host, port, *args, **kwargs)
+        if allow_local and str(host).lower() in ("127.0.0.1", "localhost"):
+            return res
         for *_, addr in res:
             try:
                 if not is_public_ip(addr[0]):

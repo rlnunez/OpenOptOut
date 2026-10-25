@@ -49,6 +49,13 @@ Each completed roadmap item is cross-referenced with its architectural milestone
   - **Security Audit Event Logging (16.3.1, 16.3.2, 16.3.3):** Added structured audit event logging for authentication outcomes, access authorization denials, and anti-automation rate-limit lockouts using account IDs and PII-sanitized formatters.
   - **Global Exception Sanitization (16.5.4):** Added top-level unhandled exception fallback handler returning generic error bodies to prevent internal diagnostic leaks.
 
+### Privacy Protocols & Data Rights Automation
+- **Data Rights Protocol (DRP v0.9/v1.0) Client & Execution Engine:**
+  - **First-Class Opt-Out Method (`drp`):** Added native `drp` opt-out execution method alongside `form`, `email`, and `manual` across `BrokerSpec`, `JobCompiler`, `DryRunExecutor`, and `OptOutEngine`.
+  - **DRP Client Implementation (`core/drp`):** Built dedicated DRP client supporting standardized `/exercise`, `/status`, and `/.well-known/data-rights` discovery operations across privacy regimes (`ccpa`, `gdpr`, `coppa`, `general`, `lgpd`) and right types (`sale:opt-out`, `deletion`, `access`).
+  - **Zero-PII Audit Logging & SSRF Guard:** Enforced `dns_guard.assert_safe_url()` and `safe_dns_context()` across all DRP endpoints, with strict PII filtering ensuring consumer identity records are never written to unencrypted logs.
+  - **Model & Database Support:** Extended `OptOutMethod` enum with `drp` and integrated direct status/token tracking via `RemovalRequest.request_key`.
+
 ### Authentication & Identity Providers (OIDC, SIP2, MFA)
 - **NIST SP 800-63B Authentication & Lifecycle Hardening:**
   - **Magic-Link Mandatory MFA (§3.1.3):** Enforced that magic-link email sign-in always requires MFA (or initiates mandated MFA setup) and never completes authentication on its own, complying with NIST SP 800-63B rev. 4 §3.1.3 prohibiting email as an out-of-band authentication factor.

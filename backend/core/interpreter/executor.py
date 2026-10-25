@@ -145,6 +145,17 @@ class DryRunExecutor(JobExecutor):
             return ExecResult(ok=True, steps_run=1, steps_total=1,
                               detail="email composed", trace=trace)
 
+        if job.method == "drp":
+            if not job.drp:
+                return ExecResult(ok=False, detail="drp job missing drp payload")
+            trace = [
+                f"drp -> {job.drp.endpoint} (regime={job.drp.regime})",
+                f"rights: {', '.join(job.drp.rights)}",
+                f"identity fields: {', '.join(job.drp.identity.keys())}",
+            ]
+            return ExecResult(ok=True, steps_run=1, steps_total=1,
+                              detail="drp exercise prepared", trace=trace)
+
         # form method: walk the steps, "performing" each.
         trace = []
         total = len(job.steps)
@@ -342,6 +353,33 @@ class PlaywrightExecutor(JobExecutor):
             ok = await self._maybe_await(self.email_sender(job.email))
             return ExecResult(ok=bool(ok), steps_run=1, steps_total=1,
                               detail="email sent" if ok else "email send failed")
+
+        if job.method == "drp":
+            if not job.drp:
+                return ExecResult(ok=False, detail="drp job missing drp payload")
+            try:
+                from ..drp.client import DrpClient
+            except (ImportError, ValueError):
+                from core.drp.client import DrpClient
+            client = DrpClient()
+            import os
+            token = os.environ.get(job.drp.auth_token_env, "") if job.drp.auth_token_env else None
+            res = client.exercise(
+                endpoint=job.drp.endpoint,
+                regime=job.drp.regime,
+                rights=job.drp.rights,
+                identity=job.drp.identity,
+                api_token=token,
+            )
+            if not res.ok:
+                return ExecResult(ok=False, detail=f"DRP exercise failed: {res.error}")
+            return ExecResult(
+                ok=True,
+                steps_run=1,
+                steps_total=1,
+                detail=f"DRP request submitted (request_id={res.request_id}, status={res.status})",
+                trace=[f"drp_request_id: {res.request_id}", f"drp_status: {res.status}"],
+            )
 
         if not self.page:
             return ExecResult(ok=False, detail="no browser page provided for form job")
