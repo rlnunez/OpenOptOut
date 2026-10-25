@@ -25,3 +25,4 @@ Traditional OAuth 2.0 / 2.1 access and refresh tokens are *Bearer* tokens: any p
 4. **Method & URI Verification:** The asserted `htm` and `htu` must match the incoming request exactly.
 5. **Replay Protection:** Single-use `jti` is checked against an in-memory replay cache to prevent proof reuse.
 6. **Thumbprint Binding:** Computes the RFC 7638 JWK Thumbprint (`jkt`) to bind tokens to the client key.
+

@@ -43,3 +43,4 @@ Administrators can trigger or schedule background cryptoperiod re-encryption via
 - Decrypts values encrypted under older epochs.
 - Re-encrypts with the current `FIELD_ENCRYPTION_EPOCH`.
 - Emits structured audit events recording the count of upgraded records.
+

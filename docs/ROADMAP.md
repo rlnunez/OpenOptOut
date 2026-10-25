@@ -21,7 +21,7 @@ The guiding architectural principle: **the core does not contain broker-specific
 | [38](#item-38) | [Built-in receive-only inbox](#item-38) | Considering | Low / Backup Seam |
 | [64](#item-64) | [Community onboarding: mailed postcard tokens & manager review](#item-64) | Planned | Low / Enhancements |
 | [67](#item-67) | [High-risk mode for domestic violence survivors & election workers](#item-67) | Planned | High |
-| [68](#item-68) | [Audit scope document for independent security review](#item-68) | Planned | High (Pre-audit) |
+| [68](#item-68) | [Audit scope document for independent security review](#item-68) | Complete | High (Pre-audit) |
 | [69](#item-69) | [Removal-service ownership & broker-family conflict flags](#item-69) | Planned | Medium |
 | [70](#item-70) | [Native-speaker review for 5 newest languages](#item-70) | Planned | Medium |
 | [72](#item-72) | [Instance migration, tenant merging & identity re-anchoring](#item-72) | Planned | Medium (Institutional & Consortium) |
@@ -126,7 +126,7 @@ The guiding architectural principle: **the core does not contain broker-specific
 ### 68. Audit scope document for independent security review
 **Goal:** Produce a concise, actionable audit scope document (`docs/dev/audit-scope.md`) defining architecture boundaries, threat models, cryptographic invariants, and test harnesses for external security evaluators.
 
-- **Status:** Baseline security, cryptographic, and accessibility standards consolidated in [`SECURITY.md`](../SECURITY.md) and [`ACCESSIBILITY.md`](../ACCESSIBILITY.md) (NIST SP 800-38D, NIST SP 800-132, ISO/IEC 27701, COPPA, OWASP ASVS 4.0.3 L2, OWASP LLM Top 10, and WCAG 2.2 AAA).
+- **Status:** Complete. Published [`docs/dev/audit-scope.md`](dev/audit-scope.md) defining architecture boundaries, threat models, cryptographic invariants, rules of engagement, and test execution harnesses for external evaluators across OWASP ASVS 5.0.0, NIST SP 800-57, NIST SP 800-88, CISA Secure by Design, FIDO2/WebAuthn Level 3, OAuth 2.1, DPoP, SCIM 2.0, and ISO/IEC 27701.
 
 ---
 

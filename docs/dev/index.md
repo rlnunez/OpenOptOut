@@ -34,6 +34,8 @@ Welcome to the **OpenOptOut Developer Guide**. This documentation provides archi
   WCAG 2.2 Level AAA compliance, high-contrast themes, OpenDyslexic support, self-hosted assets, and RTL layouts.
 - **[Security Scanning & Hardening](security-scanning.md)**  
   Static analysis with CodeQL, Semgrep, and bandit; bubblewrap/seccomp plugin sandbox policies; PII encryption rules.
+- **[Security Audit Scope](audit-scope.md)**  
+  Independent penetration testing boundaries, threat models, cryptographic invariants, and test harnesses (Roadmap Item #68).
 - **Proposals & Architecture RFCs**:
   - [Catalog & Localization Design](proposals/catalog-design.md) — Dynamic broker catalog caching and localization architecture.
   - [Builtin Inbox Proposal](proposals/builtin-inbox.md) — Embedded mail receiver engine specifications.

@@ -26,3 +26,4 @@ The ROPA report details:
 4. **Recipients & Third Parties:** Direct broker gateways (80+ catalog plugins), DRP endpoints, and privacy-masked CAPTCHA proxies.
 5. **Retention & Erasure Schedules:** 30-day retention floor for minor aux records; on-demand NIST SP 800-88 Cryptographic Erase.
 6. **Technical & Organizational Measures (TOMs):** Documented encryption, sandbox isolation, and access logging.
+

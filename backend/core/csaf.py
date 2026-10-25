@@ -34,3 +34,4 @@ def get_csaf_provider_metadata() -> Dict[str, Any]:
         ],
         "security_txt": "https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/.well-known/security.txt",
     }
+

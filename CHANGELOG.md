@@ -93,6 +93,8 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 - **W3C Subresource Integrity (SRI) & OASIS CSAF 2.0:**
   - **Automated SRI Injection:** Added `scripts/inject_sri.py` injecting SHA-384 cryptographic integrity hashes and `crossorigin="anonymous"` attributes into frontend bundle scripts and stylesheets.
   - **CSAF 2.0 Provider Metadata:** Implemented standard CSAF 2.0 discovery metadata at `/.well-known/csaf/provider-metadata.json` and linked in RFC 9116 `security.txt`.
+- **Independent Security Audit Scope Specification (Roadmap Item 68):**
+  - **Formal Audit Boundaries & Invariants:** Published `docs/dev/audit-scope.md` defining technical boundaries, in-scope modules, out-of-scope rules of engagement, threat models, cryptographic invariants, and auditor test execution commands for external penetration testing across OWASP ASVS 5.0.0, NIST SP 800-57, NIST SP 800-88, CISA Secure by Design, FIDO2/WebAuthn Level 3, OAuth 2.1, DPoP, SCIM 2.0, and ISO/IEC 27701.
 
 ### Privacy Protocols & Data Rights Automation
 - **Data Rights Protocol (DRP v0.9/v1.0) Client & Execution Engine (Roadmap Item 73):**

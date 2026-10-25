@@ -138,3 +138,4 @@ def generate_dpia_assessment(cfg: Optional[Dict[str, Any]] = None) -> Dict[str, 
             },
         ],
     }
+
