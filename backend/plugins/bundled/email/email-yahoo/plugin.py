@@ -57,7 +57,7 @@ plugin.email_provider(info={
     # See the matching comment in email-gmail/plugin.py.
     "oauth_auth_url": "https://api.login.yahoo.com/oauth2/request_auth",
     "oauth_token_url": "https://api.login.yahoo.com/oauth2/get_token",
-    "oauth_use_pkce": False,
+    "oauth_use_pkce": True,
     "oauth_scopes": "mail-r mail-w",
     "notes": "Sign in with Yahoo (OAuth). Mail is sent and read over Yahoo's IMAP and SMTP with "
              "the sign-in token; no app password. The OAuth client needs Yahoo's approval for "

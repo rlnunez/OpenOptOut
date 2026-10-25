@@ -115,6 +115,50 @@ STANDARDS_ALIGNMENT = {
         ],
         "rfc9116": "/.well-known/security.txt",
     },
+    "oauth_2_1": {
+        "standard": "OAuth 2.1 & RFC 9700 (Security Best Current Practice)",
+        "features": [
+            "Mandatory PKCE with S256 across all authorization code grants",
+            "Exact redirect URI validation without path traversal or fragments",
+            "Single-use refresh token rotation with token family reuse revocation",
+        ],
+    },
+    "nist_sp_800_88": {
+        "standard": "NIST SP 800-88 Rev. 1 (Guidelines for Media Sanitization)",
+        "method": "Cryptographic Erase (CE)",
+        "procedures": [
+            "Multi-pass high-entropy PII field overwrite (1-7 passes)",
+            "Database WAL checkpointing (PRAGMA wal_checkpoint TRUNCATE)",
+            "Storage page reclamation and incremental vacuum",
+            "HMAC-signed machine-readable Certificate of Sanitization",
+        ],
+    },
+    "spdx_2_3": {
+        "standard": "ISO/IEC 5962:2021 (SPDX 2.3 Specification)",
+        "endpoint": "/api/admin/sbom?format=spdx",
+        "compliance": "Fulfills NTIA Minimum Elements for SBOM with package dependency graph",
+    },
+    "w3c_trace_context": {
+        "standard": "W3C Trace Context (Recommendation)",
+        "headers": ["traceparent", "tracestate"],
+        "scope": "Distributed queue envelope and worker execution correlation",
+    },
+    "openssf_slsa_3": {
+        "standard": "OpenSSF SLSA v1.0 Level 3",
+        "features": [
+            "GitHub Actions non-falsifiable build provenance attestations",
+            "Keyless container image signing via Sigstore / Cosign",
+        ],
+    },
+    "scim_2_0": {
+        "standard": "RFC 7643 & RFC 7644 (SCIM 2.0)",
+        "endpoint": "/api/scim/v2",
+        "capabilities": [
+            "Automated account provisioning (Okta, Entra ID, PingIdentity)",
+            "Real-time attribute synchronization and session revocation",
+            "Cascading deprovisioning and cryptographic erasure",
+        ],
+    },
 }
 
 

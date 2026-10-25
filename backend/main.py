@@ -57,6 +57,7 @@ from .routers.usage_stats import router as stats_admin_router, api_router as sta
 from .routers.resident_addresses import router as resident_addresses_router
 from .routers.updates import router as updates_router
 from .routers.csp_report import router as csp_report_router
+from .routers.scim import router as scim_router
 from .core.scheduler import start_scheduler, stop_scheduler
 from .core.version import get_version, get_commit, version_string
 from .core.logging_config import init_logging
@@ -232,7 +233,7 @@ for r in [
     email_oauth_router, test_broker_router, saml_router, cert_monitor_router,
     consortium_router, logs_router, captcha_router, i18n_router,
     workers_router, mailboxes_router, listings_router, registry_router,
-    web_search_router, checklist_router, variants_router, privacy_pages_router, confirm_links_router, broker_updates_router, verification_router, broker_network_router, credit_freeze_router, timeline_router, compliance_router, privacy_router, reports_router, calendar_router, spec_helpers_router, live_steps_router, letters_router, observability_router, ops_router, terms_router, stats_admin_router, stats_api_router, resident_addresses_router, updates_router, csp_report_router,
+    web_search_router, checklist_router, variants_router, privacy_pages_router, confirm_links_router, broker_updates_router, verification_router, broker_network_router, credit_freeze_router, timeline_router, compliance_router, privacy_router, reports_router, calendar_router, spec_helpers_router, live_steps_router, letters_router, observability_router, ops_router, terms_router, stats_admin_router, stats_api_router, resident_addresses_router, updates_router, csp_report_router, scim_router,
 ]:
     app.include_router(r)
 

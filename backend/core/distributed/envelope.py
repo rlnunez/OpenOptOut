@@ -215,6 +215,8 @@ class JobEnvelope:
     payload: Dict[str, Any] = field(default_factory=dict)
     encrypted_payload: Optional[str] = None
     meta: Dict[str, Any] = field(default_factory=dict)
+    traceparent: Optional[str] = None                 # W3C Trace Context (traceparent)
+    tracestate: Optional[str] = None                  # W3C Trace Context (tracestate)
     hmac_signature: str = ""
     is_zeroized: bool = False
 
@@ -330,6 +332,10 @@ class JobEnvelope:
             "encrypted_payload": self.encrypted_payload,
             "meta": self.meta,
         }
+        if self.traceparent:
+            d["traceparent"] = self.traceparent
+        if self.tracestate:
+            d["tracestate"] = self.tracestate
         if self.hmac_signature:
             d["hmac_signature"] = self.hmac_signature
         return d
@@ -364,6 +370,8 @@ class JobEnvelope:
                 payload=dict(d.get("payload", {})),
                 encrypted_payload=d.get("encrypted_payload"),
                 meta=dict(d.get("meta", {})),
+                traceparent=d.get("traceparent"),
+                tracestate=d.get("tracestate"),
                 hmac_signature=str(d.get("hmac_signature", "")),
             )
         except EnvelopeError:
@@ -433,6 +441,8 @@ class JobResultEnvelope:
     screenshots: Dict[str, str] = field(default_factory=dict)  # name -> base64
     error: Optional[str] = None
     meta: Dict[str, Any] = field(default_factory=dict)
+    traceparent: Optional[str] = None                 # W3C Trace Context (traceparent)
+    tracestate: Optional[str] = None                  # W3C Trace Context (tracestate)
     hmac_signature: str = ""
     is_zeroized: bool = False
 
@@ -501,6 +511,10 @@ class JobResultEnvelope:
             "error": self.error,
             "meta": self.meta,
         }
+        if self.traceparent:
+            d["traceparent"] = self.traceparent
+        if self.tracestate:
+            d["tracestate"] = self.tracestate
         if self.hmac_signature:
             d["hmac_signature"] = self.hmac_signature
         return d
@@ -537,6 +551,8 @@ class JobResultEnvelope:
                 screenshots=dict(d.get("screenshots", {})),
                 error=d.get("error"),
                 meta=dict(d.get("meta", {})),
+                traceparent=d.get("traceparent"),
+                tracestate=d.get("tracestate"),
                 hmac_signature=str(d.get("hmac_signature", "")),
             )
         except EnvelopeError:

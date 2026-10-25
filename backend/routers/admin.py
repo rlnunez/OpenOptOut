@@ -557,19 +557,31 @@ def _check_children_limit(db, manager_id: int, admin_id: int):
 
 
 @router.get("/sbom")
-def get_sbom(_: User = Depends(access.require_permission("settings.system"))):
+def get_sbom(
+    format: str = Query("cyclonedx", regex="^(cyclonedx|spdx)$"),
+    _: User = Depends(access.require_permission("settings.system")),
+):
     """
-    Download Software Bill of Materials (SBOM) in CycloneDX 1.5 JSON format.
-    Fulfills CISA 'Secure by Design' Goal 7 (Supply Chain Dependency Transparency).
+    Download Software Bill of Materials (SBOM) in CycloneDX 1.5 JSON or SPDX 2.3 JSON format.
+    Fulfills CISA 'Secure by Design' Goal 7 and ISO/IEC 5962:2021 (NTIA Minimum Elements).
     """
-    from ..core.sbom import generate_cyclonedx_sbom
+    from ..core.sbom import generate_cyclonedx_sbom, generate_spdx_sbom
     from fastapi.responses import JSONResponse
-    sbom = generate_cyclonedx_sbom()
+
+    if format.lower() == "spdx":
+        sbom = generate_spdx_sbom()
+        media_type = "application/spdx+json"
+        filename = "openoptout-sbom.spdx.json"
+    else:
+        sbom = generate_cyclonedx_sbom()
+        media_type = "application/vnd.cyclonedx+json"
+        filename = "openoptout-sbom.cyclonedx.json"
+
     return JSONResponse(
         content=sbom,
         headers={
-            "Content-Type": "application/vnd.cyclonedx+json",
-            "Content-Disposition": 'attachment; filename="openoptout-sbom.cyclonedx.json"',
+            "Content-Type": media_type,
+            "Content-Disposition": f'attachment; filename="{filename}"',
             "Cache-Control": "private, no-cache",
         },
     )

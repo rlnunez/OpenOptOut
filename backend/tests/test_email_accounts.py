@@ -65,7 +65,7 @@ BUILTIN_FLOWS = {
         "https://api.login.yahoo.com/oauth2/request_auth",
         "https://api.login.yahoo.com/oauth2/get_token",
         "mail-r mail-w",
-        use_pkce=False,
+        use_pkce=True,
     ) if oe else None,
 }
 

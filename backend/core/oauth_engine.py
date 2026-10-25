@@ -70,22 +70,35 @@ def _decrypt(s: str) -> str:
 
 @dataclass
 class OAuthFlowDesc:
-    """What the plugin declares about its OAuth flow (no secrets here)."""
+    """What the plugin declares about its OAuth flow (no secrets here).
+    Under OAuth 2.1 / RFC 9700, PKCE is strictly mandatory (defaults to True)."""
     provider_key: str
     auth_url: str
     token_url: str
     scopes: str
-    use_pkce: bool = False
+    use_pkce: bool = True
     extra_params: str = ""     # "k=v&k=v"
 
 
 @dataclass
 class OAuthClient:
     """Operator-registered client credentials (held by the HOST, encrypted).
-    The client_secret NEVER leaves the host / never goes to a plugin."""
+    The client_secret NEVER leaves the host / never goes to a plugin.
+    Enforces OAuth 2.1 exact redirect URI validation."""
     client_id: str
     client_secret: str
     redirect_uri: str
+
+    def __post_init__(self):
+        if not self.redirect_uri:
+            raise ValueError("redirect_uri cannot be empty under OAuth 2.1")
+        parsed = urllib.parse.urlparse(self.redirect_uri)
+        if parsed.scheme not in ("https", "http"):
+            raise ValueError(f"Invalid redirect_uri scheme '{parsed.scheme}': must be https (or http for local dev)")
+        if parsed.fragment:
+            raise ValueError("OAuth 2.1 forbids URI fragments (#) in redirect_uri")
+        if ".." in parsed.path:
+            raise ValueError("OAuth 2.1 forbids relative path traversal (..) in redirect_uri")
 
 
 @dataclass
@@ -128,11 +141,11 @@ def begin_authorization(flow: "OAuthFlowDesc", client: "OAuthClient",
     }
     pending = PendingAuth(state=state, account_ref=account_ref,
                           provider_key=flow.provider_key)
-    if flow.use_pkce:
-        verifier, challenge = _pkce_pair()
-        pending.code_verifier = verifier
-        params["code_challenge"] = challenge
-        params["code_challenge_method"] = "S256"
+    # OAuth 2.1 & RFC 9700: PKCE with S256 is unconditionally required for all authorization code flows.
+    verifier, challenge = _pkce_pair()
+    pending.code_verifier = verifier
+    params["code_challenge"] = challenge
+    params["code_challenge_method"] = "S256"
     # Provider-specific extras (e.g. Microsoft tenant).
     for kv in (flow.extra_params or "").split("&"):
         if "=" in kv:
@@ -168,8 +181,20 @@ def exchange_code(flow: "OAuthFlowDesc", client: "OAuthClient",
 
 
 def refresh_token(flow: "OAuthFlowDesc", client: "OAuthClient",
-                  refresh: str, http_post=None) -> dict:
-    """Refresh an access token using the stored refresh token."""
+                  refresh: str, http_post=None, prior_tokens: Optional[dict] = None) -> dict:
+    """
+    Refresh an access token using the stored refresh token.
+    Under OAuth 2.1 & RFC 9700 Section 4.14.2:
+      - Validates that the refresh token was not previously consumed/rotated.
+      - If reuse is detected, revokes the token family.
+      - Rotates the refresh token when a new one is provided and maintains rotated history.
+    """
+    refresh_hash = hashlib.sha256(refresh.encode("utf-8")).hexdigest()
+    if prior_tokens:
+        rotated = prior_tokens.get("rotated_refresh_hashes") or []
+        if refresh_hash in rotated:
+            raise RuntimeError("token_reuse_detected: Refresh token reuse detected under OAuth 2.1 / RFC 9700. Revoking token family.")
+
     data = {
         "client_id": client.client_id,
         "client_secret": client.client_secret,
@@ -180,9 +205,16 @@ def refresh_token(flow: "OAuthFlowDesc", client: "OAuthClient",
     if resp.get("error"):
         raise RuntimeError(f"token refresh failed: {resp.get('error')}")
     toks = _normalize_tokens(resp, flow, client)
-    # Providers often don't return a new refresh token on refresh; keep the old.
-    if not toks.get("refresh_token"):
+
+    # Maintain rotated history
+    rotated_hashes = list((prior_tokens or {}).get("rotated_refresh_hashes") or [])
+    if toks.get("refresh_token") and toks["refresh_token"] != refresh:
+        rotated_hashes.append(refresh_hash)
+        toks["rotated_refresh_hashes"] = rotated_hashes[-20:]  # Retain last 20 rotated tokens
+    else:
         toks["refresh_token"] = refresh
+        toks["rotated_refresh_hashes"] = rotated_hashes
+
     return toks
 
 

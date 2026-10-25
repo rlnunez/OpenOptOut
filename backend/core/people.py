@@ -92,7 +92,14 @@ def delete_person(db, user) -> None:
 
     if crypto_shred_enabled and do_vacuum:
         try:
-            from sqlalchemy import text
-            db.execute(text("PRAGMA incremental_vacuum"))
-        except Exception:
-            pass
+            from .sanitization import execute_media_sanitization, generate_sanitization_certificate
+            execute_media_sanitization(db)
+            cert = generate_sanitization_certificate(
+                subject_identifier=f"user-{user.id}",
+                key_id=f"member-{member.id}" if member else f"user-{user.id}",
+                shred_passes=shred_passes,
+            )
+            log.info("NIST SP 800-88 Rev. 1 sanitization certificate generated: %s (status: %s)",
+                     cert["certificate_id"], cert["status"])
+        except Exception as e:
+            log.debug("NIST SP 800-88 Rev. 1 sanitization sweep notice: %s", e)

@@ -7464,6 +7464,122 @@ def t_cisa_secure_by_design():
     assert len(cisa.get("principles", [])) >= 3
 
 
+@test(1, "security.standards_oauth21_spdx_trace_scim_and_800_88",
+      "Comprehensive verification of OAuth 2.1, NIST SP 800-88 Rev. 1, SPDX 2.3 SBOM, W3C Trace Context, and SCIM 2.0.")
+def t_standards_suite():
+    import json
+
+    # 1. OAuth 2.1 & RFC 9700 Security BCP
+    oe = _imp("core.oauth_engine")
+    # Redirect URI validation
+    try:
+        oe.OAuthClient(client_id="cid", client_secret="csec", redirect_uri="https://app.example/callback#fragment")
+        assert False, "OAuthClient should reject URI fragment under OAuth 2.1"
+    except ValueError as e:
+        assert "fragment" in str(e).lower()
+
+    try:
+        oe.OAuthClient(client_id="cid", client_secret="csec", redirect_uri="https://app.example/callback/../evil")
+        assert False, "OAuthClient should reject relative path traversal under OAuth 2.1"
+    except ValueError as e:
+        assert "traversal" in str(e).lower()
+
+    # Mandatory PKCE in begin_authorization
+    flow = oe.OAuthFlowDesc(
+        provider_key="test_provider",
+        auth_url="https://auth.example/oauth",
+        token_url="https://auth.example/token",
+        scopes="email profile",
+    )
+    client = oe.OAuthClient(client_id="cid", client_secret="csec", redirect_uri="https://app.example/callback")
+    url, pending = oe.begin_authorization(flow, client, account_ref="test_ref")
+    assert "code_challenge=" in url
+    assert "code_challenge_method=S256" in url
+    assert bool(pending.code_verifier), "PendingAuth should contain code_verifier"
+
+    # Refresh token reuse detection & rotation
+    old_hash = oe.hashlib.sha256(b"used_refresh_token_123").hexdigest()
+    prior_tokens = {"rotated_refresh_hashes": [old_hash]}
+    try:
+        oe.refresh_token(flow, client, refresh="used_refresh_token_123", http_post=lambda u, d: {}, prior_tokens=prior_tokens)
+        assert False, "Should raise RuntimeError on refresh token reuse"
+    except RuntimeError as e:
+        assert "token_reuse_detected" in str(e)
+
+    # 2. NIST SP 800-88 Rev. 1 Media Sanitization & Cryptographic Erase
+    san = _imp("core.sanitization")
+    cert = san.generate_sanitization_certificate(
+        subject_identifier="subject-user-42",
+        key_id="vault-key-42",
+        shred_passes=3,
+    )
+    assert cert["standard"] == "NIST SP 800-88 Rev. 1"
+    assert cert["sanitization_type"] == "Cryptographic Erase (CE)"
+    assert cert["status"] == "VERIFIED_DESTROYED"
+    assert "subject_hash" in cert and len(cert["subject_hash"]) == 64
+    assert "hmac_signature" in cert
+    assert "sqlite_wal_checkpoint_truncate" in cert["storage_procedures"]
+
+    # In-memory buffer zeroization
+    b = bytearray(b"secret_key_bytes_1234")
+    san.zeroize_buffer(b)
+    assert all(x == 0 for x in b)
+
+    # 3. ISO/IEC 5962:2021 (SPDX 2.3) SBOM & NTIA Minimum Elements
+    sbom_mod = _imp("core.sbom")
+    spdx = sbom_mod.generate_spdx_sbom()
+    assert spdx["spdxVersion"] == "SPDX-2.3"
+    assert spdx["dataLicense"] == "CC0-1.0"
+    assert spdx["SPDXID"] == "SPDXRef-DOCUMENT"
+    assert len(spdx["packages"]) > 0
+    assert len(spdx["relationships"]) > 0
+    # CycloneDX dependencies list (NTIA element)
+    cdx = sbom_mod.generate_cyclonedx_sbom()
+    assert "dependencies" in cdx and len(cdx["dependencies"]) > 0
+
+    # 4. W3C Trace Context (Distributed Tracing)
+    tracing = _imp("core.tracing")
+    tp = tracing.generate_traceparent()
+    assert tracing.is_valid_traceparent(tp)
+    parsed = tracing.parse_traceparent(tp)
+    assert parsed["version"] == "00"
+    assert len(parsed["trace_id"]) == 32
+    assert len(parsed["parent_id"]) == 16
+    assert parsed["sampled"] is True
+
+    child_tp = tracing.child_traceparent(tp)
+    parsed_child = tracing.parse_traceparent(child_tp)
+    assert parsed_child["trace_id"] == parsed["trace_id"], "Child span must preserve trace_id"
+    assert parsed_child["parent_id"] != parsed["parent_id"], "Child span must have new parent_id"
+
+    # Distributed Envelope Traceparent Serialization
+    envelope_mod = _imp("core.distributed.envelope")
+    job_env = envelope_mod.JobEnvelope(
+        broker_id="test_broker",
+        broker_name="Test Broker",
+        member_id="m1",
+        traceparent=tp,
+        tracestate="openoptout=test",
+    )
+    d = job_env.to_dict()
+    assert d.get("traceparent") == tp
+    assert d.get("tracestate") == "openoptout=test"
+    restored = envelope_mod.JobEnvelope.from_dict(d, verify_signature=False)
+    assert restored.traceparent == tp
+    assert restored.tracestate == "openoptout=test"
+
+    # 5. Standards Alignment Registry
+    pr = _imp("core.privacy_record")
+    inv = pr.public_inventory()
+    st = inv.get("standards", {})
+    assert "oauth_2_1" in st
+    assert "nist_sp_800_88" in st
+    assert "spdx_2_3" in st
+    assert "w3c_trace_context" in st
+    assert "openssf_slsa_3" in st
+    assert "scim_2_0" in st
+
+
 @test(1, "security.backup_codes_hmac_and_totp_constant_time",
       "TOTP constant-time verification, HMAC backup codes generation, and legacy SHA-256 fallback consumption.")
 def t_security_backup_codes_and_totp():

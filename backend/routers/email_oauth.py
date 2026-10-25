@@ -105,7 +105,7 @@ def _provider_flow(provider_key: str) -> oe.OAuthFlowDesc:
             "yahoo",
             "https://api.login.yahoo.com/oauth2/request_auth",
             "https://api.login.yahoo.com/oauth2/get_token",
-            "mail-r mail-w", use_pkce=False),
+            "mail-r mail-w", use_pkce=True),
     }
     flow = builtins.get(provider_key)
     if not flow:

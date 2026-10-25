@@ -47,6 +47,9 @@ Resources for contributing to OpenOptOut and understanding system internals:
 - [Privacy Architecture Framework](architecture/privacy-framework-29100.md) — ISO/IEC 29100 role definitions, trust boundaries, and 11 privacy principles.
 - [NIST Privacy Framework Profile](architecture/nist-privacy-profile.md) — NIST Privacy Framework Version 1.0 and CSF Privacy Profile.
 - [CISA Secure by Design](architecture/cisa-secure-by-design.md) — CISA / NSA / FBI Secure by Design principles, safe harbor, and vulnerability class elimination.
+- [Media Sanitization & Cryptographic Erase](architecture/media-sanitization-800-88.md) — NIST SP 800-88 Rev. 1 media sanitization, WAL purge, and signed destruction certificates.
+- [SCIM 2.0 Enterprise Identity](architecture/scim-enterprise-identity.md) — RFC 7643 & RFC 7644 automated user provisioning, session revocation, and deprovisioning.
+- [SLSA Level 3 & Supply Chain Security](architecture/slsa-supply-chain.md) — OpenSSF SLSA Level 3 build provenance, Sigstore attestations, and Cosign image signing.
 - [Development Workflow](dev/development.md) — Local environment setup and running test matrices.
 - [Interpreter Runtime](dev/interpreter.md) — Declarative broker specifications and Playwright execution.
 - [Writing Broker Plugins](dev/plugins.md) — Step-by-step authoring guide for data broker add-ons.

@@ -58,9 +58,29 @@ Each completed roadmap item is cross-referenced with its architectural milestone
   - **Standardized Machine-Readable Contact:** Deployed standard RFC 9116 `security.txt` discovery at `/.well-known/security.txt` and `/api/.well-known/security.txt` linking to the GitHub Private Vulnerability Reporting program (`https://github.com/rlnunez/OpenOptOut/security/advisories/new`), canonical policy, contributors graph, and changelog acknowledgments.
   - **Security Researcher Safe Harbor Policy:** Added explicit safe harbor protections in `SECURITY.md` assuring good-faith security researchers of protection against civil or criminal legal action (including under CFAA and DMCA anti-circumvention provisions), safe harbor scope boundaries, and clear communication guidelines.
 - **Software Bill of Materials (SBOM):**
-  - **CycloneDX 1.5 JSON Generator (`backend/core/sbom.py`):** Added dynamic CycloneDX 1.5 JSON SBOM generation combining installed environment package metadata via `importlib.metadata` and pinned project manifest dependencies (`requirements.txt`).
-  - **Admin Diagnostic Endpoint (`GET /api/admin/sbom`):** Exposed authenticated administrative endpoint providing real-time, machine-readable inventory of software components, versions, licenses, and suppliers.
-  - **Standards Alignment Registry:** Updated `STANDARDS_ALIGNMENT` in `backend/core/privacy_record.py` to index `cisa_secure_by_design` alongside ISO/IEC 29100 and NIST Privacy Framework.
+  - **CycloneDX 1.5 & SPDX 2.3 Generators (`backend/core/sbom.py`):** Added dynamic CycloneDX 1.5 JSON and ISO/IEC 5962:2021 (SPDX 2.3) SBOM generation combining installed environment package metadata via `importlib.metadata` and pinned project manifest dependencies (`requirements.txt`).
+  - **NTIA Minimum Elements Dependency Graph:** Resolved declared library dependencies (`requires`) to construct hierarchical dependency trees (`DEPENDS_ON` relationships).
+  - **Admin Diagnostic Endpoint (`GET /api/admin/sbom`):** Exposed authenticated administrative endpoint supporting format negotiation (`?format=cyclonedx` or `?format=spdx`) providing real-time, machine-readable inventory of software components, versions, licenses, and suppliers.
+  - **Standards Alignment Registry:** Updated `STANDARDS_ALIGNMENT` in `backend/core/privacy_record.py` to index `cisa_secure_by_design`, `spdx_2_3`, `oauth_2_1`, `nist_sp_800_88`, `w3c_trace_context`, `openssf_slsa_3`, and `scim_2_0`.
+
+### Enterprise Identity, Sanitization & Standards Alignment
+- **OAuth 2.1 & RFC 9700 Security Best Current Practice Alignment:**
+  - **Unconditional PKCE Enforcement:** Defaulted and enforced PKCE with S256 (`code_challenge_method=S256`) unconditionally across all authorization code grants in `backend/core/oauth_engine.py`, updating Yahoo Mail and custom plugins.
+  - **Exact Redirect URI Matching:** Added strict byte-for-byte URI validation in `OAuthClient`, forbidding fragments (`#`), relative traversal (`..`), and unencrypted schemes.
+  - **Refresh Token Rotation & Reuse Detection:** Implemented single-use refresh token rotation in `OAuthEngine.refresh_token()`; detects reuse of consumed tokens and automatically revokes the compromised token family.
+- **NIST SP 800-88 Rev. 1 Media Sanitization & Cryptographic Erase (CE):**
+  - **Storage Residual Purging:** Integrated `PRAGMA wal_checkpoint(TRUNCATE)` and incremental vacuuming on SQLite during patron/dependent deletion in `backend/core/people.py` and `backend/core/sanitization.py`, eliminating lingering unallocated WAL transaction pages.
+  - **In-Memory Zeroization:** Implemented `zeroize_buffer()` to scrub sensitive cryptographic keys in memory buffers prior to garbage collection.
+  - **Certificate of Sanitization:** Generated machine-readable, HMAC-signed JSON destruction receipts verifying data erasure under NIST SP 800-88 Rev. 1 with zero plaintext PII exposure.
+- **W3C Trace Context (Distributed Tracing Recommendation):**
+  - **Standardized Tracing Headers:** Implemented W3C `traceparent` and `tracestate` header generation, validation, and child span derivation in `backend/core/tracing.py`.
+  - **Distributed Queue Propagation:** Added `traceparent` and `tracestate` fields to `JobEnvelope` and `JobResultEnvelope` in `backend/core/distributed/envelope.py`, enabling end-to-end distributed audit correlation across API, Redis queues, and worker bots.
+- **SCIM 2.0 Enterprise Identity Management (RFC 7643 & RFC 7644):**
+  - **Service Provider Discovery:** Implemented RFC 7643 discovery endpoints at `/api/scim/v2/` (`ServiceProviderConfig`, `Schemas`, `ResourceTypes`).
+  - **User Lifecycle Management:** Implemented RFC 7644 user operations (`GET /api/scim/v2/Users`, `GET /Users/{id}`, `POST /Users`, `PATCH /Users/{id}`, `DELETE /Users/{id}`) supporting automated provisioning, real-time attribute sync, session revocation upon deactivation (`active: false`), and cascading cryptographic erasure on deprovisioning.
+- **OpenSSF SLSA Level 3 & Cosign Container Signing:**
+  - **Cryptographic Provenance Attestation:** Added `.github/workflows/build-provenance.yml` generating non-falsifiable in-toto SLSA Level 3 build provenance via `actions/attest-build-provenance@v2`.
+  - **Keyless Container Signing:** Integrated `sigstore/cosign-installer` to sign release container images via GitHub OIDC identity.
 
 ### Privacy Protocols & Data Rights Automation
 - **Data Rights Protocol (DRP v0.9/v1.0) Client & Execution Engine (Roadmap Item 73):**
