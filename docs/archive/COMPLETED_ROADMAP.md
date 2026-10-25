@@ -92,7 +92,7 @@ Each data broker is modeled as an installable add-on describing its opt-out flow
 | [65](#item-65) | [Containerized release updater & Docker engine supervisor](#item-65) | Complete |
 | [66](#item-66) | [Network circuit breaker & graceful offline halt](#item-66) | Complete |
 | [67](#item-67) | [High-risk mode for domestic violence survivors, doxxing targets & election workers](#item-67) | Considering / Planned |
-| [68](#item-68) | [Audit scope document for independent security review (Item 22)](#item-68) | Considering / Planned |
+| [68](#item-68) | [Audit scope document for independent security review (Item 22)](#item-68) | Complete |
 | [69](#item-69) | [Removal-service ownership & broker-family conflict flags](#item-69) | Considering / Planned |
 | [70](#item-70) | [Native-speaker review for the 5 new languages (17 languages total)](#item-70) | Considering / Planned |
 | [71](#item-71) | [Re-measure minimum PC & worker specs after Firefox switch](#item-71) | Complete |
@@ -602,7 +602,7 @@ plugins/
 - Remediation of all critical and high-severity findings prior to v1.0 enterprise/consortium readiness.
 - Clear disclosure and bug bounty / coordinated vulnerability reporting policy.
 
-**Status:** Planned (audit scope document tracked in [Item 68](#item-68)).
+**Status:** Planned (audit scope document completed in [Item 68](#item-68) / [`docs/dev/audit-scope.md`](../dev/audit-scope.md)).
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 
@@ -1264,15 +1264,15 @@ plugins/
 
 <a id="item-68"></a>
 ### 68. Audit scope document for independent security review (Item 22)
-**Goal:** Produce a concise, actionable audit scope document (`docs/AUDIT_SCOPE.md`) building on the recent CodeQL, Semgrep, and scanner hardening pass so external audit firms (e.g. OSTIF, Radically Open Security) can scope and quote a focused engagement.
+**Goal:** Produce a concise, actionable audit scope document (`docs/dev/audit-scope.md`) defining architecture boundaries, threat models, cryptographic invariants, and test harnesses for external security evaluators.
 
 - **Targeted Subsystem Boundaries:**
   - **Plugin Sandbox (`backend/plugins/sandbox.py`):** Bubblewrap namespace isolation, seccomp-bpf syscall filters, read-only mounts, and `no-new-privileges` fallback behavior.
   - **IPC & Capability Broker (`backend/plugins/host_service.py`):** Unix domain socket gRPC channel, per-invocation token validation, permission enforcement (`read_pii` + network egress mutual exclusion), and static code inspection (`code_inspector.py`).
-  - **Authentication, OAuth & Token Governance (`backend/core/auth.py`, `oauth_engine.py`, `sso_policy.py`, `mfa.py`):** Envelope/Fernet secret encryption, MFA step-up boundaries, OAuth 2.0 refresh token storage, SAML/OIDC/LDAP/SIP2 policy gates, and session token lifespans.
-- **Deliverable:** Exact file list, line counts, threat model assumptions, and reproduction harness instructions (`test-docker-matrix.sh` and `run_tests.py`) to streamline third-party scoping for [Item 22](#item-22).
+  - **Authentication, OAuth & Token Governance (`backend/core/auth.py`, `oauth_engine.py`, `sso_policy.py`, `mfa.py`):** Envelope/Fernet secret encryption, MFA step-up boundaries, OAuth 2.1 refresh token storage, DPoP, SAML/OIDC/LDAP/SIP2 policy gates, and session token lifespans.
+- **Deliverable:** Formal audit scope document published at [`docs/dev/audit-scope.md`](../dev/audit-scope.md) covering OWASP ASVS 5.0.0, NIST SP 800-57, NIST SP 800-88, CISA Secure by Design, FIDO2/WebAuthn Level 3, OAuth 2.1, DPoP, SCIM 2.0, and ISO/IEC 27701.
 
-**Status:** Considering / Planned.
+**Status:** Complete. Published [`docs/dev/audit-scope.md`](../dev/audit-scope.md).
 
 [↑ Back to Status at a Glance](#status-at-a-glance)
 

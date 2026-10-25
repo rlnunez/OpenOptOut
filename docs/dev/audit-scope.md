@@ -167,3 +167,4 @@ Security evaluators operating in good faith are protected under OpenOptOut's **S
 * **Disclosure Portal:** [GitHub Private Security Advisory Portal](https://github.com/rlnunez/OpenOptOut/security/advisories/new)
 * **RFC 9116 Metadata:** [`/.well-known/security.txt`](../../.well-known/security.txt)
 * **OASIS CSAF 2.0:** [`/.well-known/csaf/provider-metadata.json`](../../.well-known/csaf/provider-metadata.json)
+
