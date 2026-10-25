@@ -116,6 +116,9 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=512m,mode=1777
+      - /home/appuser:size=256m,uid=1000,gid=1000,mode=0700
+      - /root:size=64m,mode=0700
+      - /var/cache:size=128m
     ports:
       - "${API_BIND:-127.0.0.1}:${API_PORT:-8010}:8000"
     depends_on:
@@ -160,6 +163,9 @@ services:
       - app_data:/data
     tmpfs:
       - /tmp:size=1g,mode=1777
+      - /home/appuser:size=256m,uid=1000,gid=1000,mode=0700
+      - /root:size=64m,mode=0700
+      - /var/cache:size=128m
     depends_on:
       redis:
         condition: service_healthy

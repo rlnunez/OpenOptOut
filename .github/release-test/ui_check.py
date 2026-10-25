@@ -128,7 +128,10 @@ def main():
             detail = f"{r.method} {r.url} — {r.failure}"
             # Our own server failing is serious; a third-party resource (web fonts,
             # CDNs) or a request cancelled by navigating away is only a warning.
-            if r.url.startswith(base) and "ERR_ABORTED" not in str(r.failure):
+            # Chromium reports ERR_ABORTED, Firefox reports NS_BINDING_ABORTED,
+            # and WebKit reports 'Request cancelled'.
+            aborted = any(tok in str(r.failure) for tok in ("ERR_ABORTED", "NS_BINDING_ABORTED", "Request cancelled"))
+            if r.url.startswith(base) and not aborted:
                 rec.error("Request failed", detail)
             else:
                 rec.warn("Request failed", detail)

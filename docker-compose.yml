@@ -125,9 +125,12 @@ services:
     # the rootfs.
     read_only: true
     # Ephemeral RAM storage: guarantees temporary browser artifacts, downloads,
-    # and profile caches vanish on reboot and never touch persistent disk.
+    # fontconfig caches, and profile caches vanish on reboot and never touch persistent disk.
     tmpfs:
       - /tmp:size=512m,mode=1777
+      - /home/appuser:size=256m,uid=1000,gid=1000,mode=0700
+      - /root:size=64m,mode=0700
+      - /var/cache:size=128m
     ports:
       # host:container. The container always listens on 8000 internally; only
       # the HOST port is configurable (via API_PORT in .env) so you can avoid

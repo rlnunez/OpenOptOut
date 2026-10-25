@@ -61,6 +61,7 @@ RUN apt-get update && \
     apt-get upgrade -y --no-install-recommends && \
     apt-get install -y --no-install-recommends \
     wget curl ca-certificates fonts-liberation git \
+    libpci3 \
     libasound2 \
     libatk-bridge2.0-0 libatk1.0-0 libcups2 libdbus-1-3 \
     libdrm2 libgbm1 libgtk-3-0 libnspr4 libnss3 \
@@ -95,7 +96,10 @@ RUN chmod 755 /usr/local/bin/rclone && /usr/local/bin/rclone --version
 
 WORKDIR /app
 
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    XDG_CACHE_HOME=/tmp/.cache \
+    XDG_CONFIG_HOME=/tmp/.config \
+    MOZ_DISABLE_RDD_SANDBOX=1
 RUN playwright install firefox && \
     playwright install-deps firefox
 
@@ -119,8 +123,10 @@ RUN if [ -L VERSION ] || [ ! -s VERSION ]; then \
 # Data directories (screenshots, plugins, plugin storage) and unprivileged user
 RUN groupadd -g 1000 appuser && \
     useradd -u 1000 -g appuser -m -s /bin/bash appuser && \
-    mkdir -p /data/screenshots /data/plugins /data/plugin_storage && \
-    chown -R appuser:appuser /data /app /ms-playwright && \
+    mkdir -p /data/screenshots /data/plugins /data/plugin_storage \
+             /home/appuser/.cache /home/appuser/.mozilla \
+             /root/.cache /root/.mozilla && \
+    chown -R appuser:appuser /data /app /ms-playwright /home/appuser && \
     touch /app/__init__.py && \
     for d in models routers core; do \
       [ -d "/app/$d" ] && touch "/app/$d/__init__.py"; \
