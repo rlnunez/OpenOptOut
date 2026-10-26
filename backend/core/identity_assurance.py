@@ -197,3 +197,4 @@ def validate_identity_rebinding(
         return False, "invalid_rebind_proof_token"
 
     return False, "identity_rebind_rejected: email mismatch and no rebind authorization proof provided"
+

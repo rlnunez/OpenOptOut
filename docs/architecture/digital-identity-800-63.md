@@ -157,3 +157,4 @@ The digital identity assurance engine is continuously validated in the Tier 1 au
 - **DPoP Sender-Constrained Tokens (RFC 9449)**: [`dpop-rfc-9449.md`](dpop-rfc-9449.md)
 - **SCIM 2.0 Enterprise Identity (RFC 7643/7644)**: [`scim-enterprise-identity.md`](scim-enterprise-identity.md)
 - **Key Management & Epoch Versioning (NIST SP 800-57)**: [`nist-key-management-800-57.md`](nist-key-management-800-57.md)
+

@@ -47,6 +47,7 @@ The guiding architectural principle: **the core does not contain broker-specific
   - **Admin Approval Gate:** Plugin updates require explicit super-admin review and approval before activation.
 - **Phase 8.3 — Cryptographic Code Signing & Marketplace Registry (Planned):**
   - **Cryptographic Provenance:** Author signing keys, catalog root of trust, and signature validation before extraction.
+  - **Marketplace Security Invariants:** Bound by the [Marketplace Supply Chain Architecture](architecture/marketplace-security-invariants.md), enforcing the 6 non-negotiable supply-chain invariants under ISO/IEC 27001:2022 (pure declarative JSON data, Cosign/Ed25519 signing, Rekor transparency, Bubblewrap/seccomp sandboxing, signed CRL emergency revocation, and air-gapped mirroring).
   - **Public Web Directory:** Searchable registry with ratings, usage telemetry, and security audit badges.
 
 ---

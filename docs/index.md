@@ -59,6 +59,8 @@ Resources for contributing to OpenOptOut and understanding system internals:
 - [Writing Broker Plugins](dev/plugins.md) — Step-by-step authoring guide for data broker add-ons.
 - [Automatic Steps & AI Drafter](dev/automatic-steps.md) — Spec rehearsal, auto-repair, and AI helpers.
 - [AI Governance (NIST AI RMF 1.0 & ISO/IEC 42001)](architecture/ai-governance-nist-iso.md) — AI risk management, prompt injection boundaries, synthetic rehearsal, and local model governance.
+- [ISO/IEC 27001:2022 ISMS Statement of Applicability](architecture/isms-iso-27001.md) — Information Security Management System covering all 93 Annex A controls.
+- [Marketplace Security Invariants](architecture/marketplace-security-invariants.md) — Six non-negotiable supply chain invariants (declarative data, Cosign signing, CRL revocation) for Item #8.
 - [FERPA Architecture Alignment](architecture/ferpa-alignment.md) — 34 CFR Part 99, School Official exception, student data minimization, and campus IdP/SCIM integration.
 - [Security Policy](../SECURITY.md) & [Accessibility & VPAT Conformance](../ACCESSIBILITY.md) — NIST SP 800-38D, NIST SP 800-132, ISO/IEC 27701, COPPA, OWASP ASVS L2, OWASP LLM Top 10, WCAG 2.2 (Level AA/AAA), Revised Section 508, and EN 301 549.
 - [Security Scanning & Hardening](dev/security-scanning.md) — CodeQL, Semgrep, bandit, and audit posture.

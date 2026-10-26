@@ -226,6 +226,29 @@ STANDARDS_ALIGNMENT = {
             "Deterministic re-binding rules preventing unverified email account claiming",
         ],
     },
+    "iso_27001_isms": {
+        "standard": "ISO/IEC 27001:2022 (Information Security Management System — ISMS)",
+        "statement_of_applicability": "docs/architecture/isms-iso-27001.md",
+        "controls_evaluated": 93,
+        "themes": [
+            "Organizational Controls (37): Policies, asset management, supplier supply chain, incident response",
+            "People Controls (8): Awareness training, SCIM deprovisioning, confidential processing",
+            "Physical Controls (14): Full-disk encryption and database file protection (SQLCipher)",
+            "Technological Controls (34): Cryptography, sandboxing, network isolation, secure SDLC",
+        ],
+    },
+    "marketplace_security_invariants": {
+        "standard": "Marketplace Supply Chain Invariants (Roadmap Item #8)",
+        "specification": "docs/architecture/marketplace-security-invariants.md",
+        "invariants": [
+            "Declarative Pure Data: Broker add-ons are strictly declarative JSON data; zero executable code",
+            "Cryptographic Signing: Cosign / Ed25519 signatures with SLSA Level 3 provenance",
+            "Tiered Publisher Governance: Core Bundled, Verified Partner, and Community Experimental rings",
+            "Syscall Sandbox Containment: Bubblewrap Linux namespaces + Seccomp BPF syscall isolation",
+            "Emergency Revocation: Signed Certificate Revocation List (CRL) with instant quarantine",
+            "Air-Gapped Mirroring: Support for offline enterprise catalog mirrors and private keyrings",
+        ],
+    },
 }
 
 

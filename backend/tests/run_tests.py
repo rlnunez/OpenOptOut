@@ -7731,6 +7731,51 @@ def t_standards_nist_800_63():
     assert "nist_sp_800_63c" in st
 
 
+@test(1, "security.standards_iso_27001_isms_and_marketplace",
+      "Verification of ISO/IEC 27001:2022 ISMS Statement of Applicability and Marketplace Security Invariants.")
+def t_standards_iso_27001_and_marketplace():
+    import os
+    pr = _imp("core.privacy_record")
+
+    # 1. Verify Standards Alignment Registry entries
+    inv = pr.public_inventory()
+    st = inv.get("standards", {})
+    assert "iso_27001_isms" in st, "iso_27001_isms must be registered in STANDARDS_ALIGNMENT"
+    assert "marketplace_security_invariants" in st, "marketplace_security_invariants must be registered"
+
+    isms = st["iso_27001_isms"]
+    assert isms["controls_evaluated"] == 93
+    assert len(isms["themes"]) == 4
+
+    mkt = st["marketplace_security_invariants"]
+    assert len(mkt["invariants"]) == 6
+    inv_text = " ".join(mkt["invariants"]).lower()
+    assert "declarative pure data" in inv_text
+    assert "cryptographic signing" in inv_text
+    assert "tiered publisher" in inv_text
+    assert "syscall sandbox" in inv_text
+    assert "emergency revocation" in inv_text
+    assert "air-gapped mirroring" in inv_text
+
+    # 2. Verify Architecture Documentation Files Exist and are Populated
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    soa_doc = os.path.join(repo_root, "docs", "architecture", "isms-iso-27001.md")
+    assert os.path.isfile(soa_doc), f"Missing SoA document at {soa_doc}"
+    with open(soa_doc, "r", encoding="utf-8") as f:
+        soa_content = f.read()
+    assert "Statement of Applicability" in soa_content
+    assert "Organizational Controls (37 Controls)" in soa_content
+    assert "Technological Controls (34 Controls)" in soa_content
+
+    mkt_doc = os.path.join(repo_root, "docs", "architecture", "marketplace-security-invariants.md")
+    assert os.path.isfile(mkt_doc), f"Missing Marketplace Invariants document at {mkt_doc}"
+    with open(mkt_doc, "r", encoding="utf-8") as f:
+        mkt_content = f.read()
+    assert "The Six Marketplace Security Invariants" in mkt_content
+    assert "Bubblewrap" in mkt_content
+    assert "Certificate Revocation List" in mkt_content
+
+
 @test(1, "security.backup_codes_hmac_and_totp_constant_time",
       "TOTP constant-time verification, HMAC backup codes generation, and legacy SHA-256 fallback consumption.")
 def t_security_backup_codes_and_totp():

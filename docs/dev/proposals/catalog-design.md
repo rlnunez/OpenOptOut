@@ -43,9 +43,14 @@ The catalog client runs strictly on the control plane inside OpenOptOut core (`b
 │         ├── Safe Zip Boundary Checks (path traversal)  │
 │         ├── Static Code Inspector                      │
 │         ├── Permission Review & Grants                 │
-│         └── SHA-256 Checksum Verification              │
+│         ├── SHA-256 Checksum Verification              │
+│         └── Marketplace Security Invariants (ISO 27001)│
 └────────────────────────────────────────────────────────┘
 ```
+
+> [!IMPORTANT]
+> **Mandatory Security Specification:**  
+> All marketplace operations are strictly governed by the [Marketplace Supply Chain Architecture & Security Invariants](../../architecture/marketplace-security-invariants.md) and [ISO/IEC 27001:2022 Statement of Applicability](../../architecture/isms-iso-27001.md). Packages containing non-declarative executable code in broker add-on paths are rejected automatically.
 
 ### 1.3 Catalog Index Schema (`index.json`)
 The catalog repository serves a canonical `index.json` structured as follows:
