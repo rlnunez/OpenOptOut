@@ -1,7 +1,7 @@
-fastapi==0.143.0
-starlette==1.7.0
+fastapi==0.150.0
+starlette==1.9.0
 uvicorn[standard]==0.54.0
-sqlalchemy==2.1.4
+sqlalchemy==2.1.5
 pydantic[email]==2.14.1
 PyJWT==2.15.1
 passlib[bcrypt]==1.7.4
@@ -32,11 +32,11 @@ requests==2.34.2
 certifi==2026.10.19
 idna==3.20
 anyio==4.15.1
-authlib==1.8.0
+authlib==1.9.1
 psycopg2-binary==2.9.13
 grpcio==1.84.0
 grpcio-tools==1.84.0
-setuptools==84.1.0
+setuptools==84.2.0
 pip==26.2.2
 protobuf==7.36.2
 msgpack==1.2.3
@@ -52,17 +52,17 @@ pyopenssl==26.4.0
 # the API (see plugins/runner.py), so these need to be installed here, not in
 # a separate plugin-specific environment, for the bundled Gmail plugin to
 # actually be usable once auto-provisioned (see core/provider_plugins.py).
-google-auth==2.61.0
+google-auth==2.62.0
 google-api-python-client==2.201.0
 httplib2==0.32.0
 # SFTP backup destination (core/backup.py)
-paramiko==5.0.0
+paramiko==5.1.0
 # PDF removal reports (core/removal_report.py)
 reportlab==5.0.1
 # CAPTCHA privacy masking & image processing (core/captcha_privacy.py)
 pillow==13.0.0
 # Cloud IAM database authentication (core/db_connection.py)
-boto3==1.43.111
+boto3==1.43.115
 azure-identity==1.26.0
 # Syscall filter for the plugin sandbox (module name: pyseccomp). Pure Python over
 # libseccomp2; Linux only. The "seccomp" module from Debian's python3-seccomp is
