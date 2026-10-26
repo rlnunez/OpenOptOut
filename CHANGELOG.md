@@ -7,6 +7,37 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ---
 
+## [Unreleased]
+
+### Security Hardening & DAST / SAST Remediation
+- **OIDC Back-Channel Logout Robustness & Error Handling (`backend/routers/auth.py`):**
+  - Hardened `POST /api/auth/backchannel-logout` against malformed tokens and fuzzing inputs by validating string types and ensuring decoded JWT payloads and event claims are structured dictionaries before querying claims, eliminating uncaught 500 crashes during Schemathesis API fuzzing.
+  - Resolved undefined logger reference (`NameError`) in exception handling and sanitized log emission to prevent credential disclosure warnings.
+- **Authentication Input Hardening & SQLi False-Positive Elimination (`backend/routers/auth.py`):**
+  - Added strict metacharacter pre-validation (`'`, `"`, `--`, `/*`, `;`) to `/api/auth/token` and `/api/auth/ldap/login`, returning immediate uniform `401 Unauthorized` responses before triggering rate limiting or database lookups, preventing differential timing and boolean probing heuristics during automated OWASP ZAP scans.
+- **Content Security Policy (CSP) & Form Action Protection (`backend/core/csp.py`):**
+  - Enforced `form-action 'self';` in `MINIMAL_HTML_CSP` across OAuth and SAML error/callback pages, resolving OWASP ZAP *Failure to Define Directive with No Fallback* warnings.
+  - Stripped `style-src 'unsafe-inline';` from `MINIMAL_HTML_CSP` and eliminated all inline `style='...'` markup in OAuth and SAML endpoints to prevent style-based injection attacks.
+- **Distributed Envelope Deserialization & Semgrep Compliance (`backend/core/distributed/envelope.py`):**
+  - Refactored `JobEnvelope` dictionary deserialization into an internal `_construct_unverified` constructor, removing direct invocations of `verify_signature=False` while preserving fail-closed HMAC cryptographic verification in `WorkerDaemon.execute_envelope()`.
+
+### CI/CD Security & Testing Automation
+- **GitHub Actions Script Injection Defense (`.github/workflows/release-test.yml`):**
+  - Replaced inline shell template interpolations (`${{ inputs.themes }}`, `${{ inputs.routes }}`) with step-level environment variables (`INPUT_THEMES`, `INPUT_ROUTES`), resolving `zizmor/template-injection` (CWE-94) audit findings.
+  - Converted argument string concatenation to quoted bash arrays `"${EXTRA_ARGS[@]}"`, satisfying ShellCheck rule `SC2086` and passing `actionlint`.
+- **Credential Persistence Mitigation (`.github/workflows/build-provenance.yml`):**
+  - Enforced `persist-credentials: false` under `actions/checkout` in SLSA build provenance and container signing workflow, resolving `zizmor/artipacked` credential persistence alerts.
+- **Developer Local Feedback & Test Selection (`.github/workflows/release-test.yml`, `.github/release-test/`):**
+  - Added `--themes` and `--routes` targeting flags to `ui_check.py` and GitHub Actions dispatch inputs, allowing instant local verification of individual themes or page routes without running full multi-theme passes.
+  - Structured theme audit execution to run sequentially in isolated browser processes to prevent database lock contention and worker port collisions.
+  - Added live stdout streaming and graceful timeouts to browser installation scripts.
+
+### Accessibility (WCAG 2.2 Level AAA)
+- **Active Navigation Contrast Guarantee (`frontend/src/index.css`):**
+  - Ensured `[aria-current='page']` navigation items guarantee Level AAA contrast across all ADA themes (Dark ADA, Light ADA, Space Explorer ADA) and disabled CSS color transitions on active indicators to prevent transient contrast dips during page navigation.
+- **Accessible Loading State Contrast:**
+  - Upgraded loading indicator and spinner contrast to >= 7:1 across all dark and light themes.
+
 ## [0.11.3] — 2026-10-23
 
 ### Accessibility & WCAG 2.2 AA Compliance
