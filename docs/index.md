@@ -43,6 +43,7 @@ Technical guides for self-hosters, library IT, and community operators:
 
 ### [Developer & Architecture Guide](dev/index.md)
 Resources for contributing to OpenOptOut and understanding system internals:
+- [Architecture & Standards Index](architecture/index.md) — Comprehensive guide to OpenOptOut's compliance, security, privacy, and governance specifications.
 - [System Architecture](dev/architecture.md) — Modular design, boundaries, and thread models.
 - [Privacy Architecture Framework](architecture/privacy-framework-29100.md) — ISO/IEC 29100 role definitions, trust boundaries, and 11 privacy principles.
 - [NIST Privacy Framework Profile](architecture/nist-privacy-profile.md) — NIST Privacy Framework Version 1.0 and CSF Privacy Profile.
