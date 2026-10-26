@@ -21,10 +21,12 @@ Exit code: 0 = no serious problems, 1 = serious problems found, 2 = could not ru
 Requires: pip install playwright && python -m playwright install --with-deps chromium
 """
 import argparse
+import concurrent.futures
 import json
 import os
 import re
 import secrets
+import subprocess
 import sys
 import time
 
@@ -140,6 +142,247 @@ class Recorder:
         self.warnings.append({"screen": self.screen, "kind": kind, "detail": detail[:4000]})
 
 
+def settle(page, ms=8000):
+    try:
+        page.wait_for_load_state("networkidle", timeout=ms)
+    except PWTimeout:
+        pass
+
+
+def visible(page, role, name, timeout=1500):
+    loc = page.get_by_role(role, name=name)
+    try:
+        loc.first.wait_for(state="visible", timeout=timeout)
+        return loc.first
+    except PWTimeout:
+        return None
+
+
+ADA_THEMES = [
+    {
+        "id": "dark-ada",
+        "label": "Dark ADA",
+        "desc": "WCAG Level AAA 21:1 contrast, 125% font, enhanced targets",
+        "classes": [
+            "theme-dark", "theme-dark-ada",
+            "a11y-high-contrast", "a11y-high-contrast-dark",
+            "a11y-enhanced-targets", "a11y-large-text"
+        ],
+    },
+    {
+        "id": "light-ada",
+        "label": "Light ADA",
+        "desc": "Crisp white, high-contrast black & saturated blue, enhanced targets",
+        "classes": [
+            "theme-light", "theme-light-ada",
+            "a11y-high-contrast", "a11y-high-contrast-light",
+            "a11y-enhanced-targets", "a11y-large-text"
+        ],
+    },
+    {
+        "id": "space-ada",
+        "label": "Space Explorer ADA",
+        "desc": "Cosmic black, high-contrast luminous amber (AAA), 2px visibility borders",
+        "classes": [
+            "theme-space", "theme-space-ada",
+            "a11y-high-contrast", "a11y-high-contrast-space",
+            "a11y-enhanced-targets", "a11y-large-text"
+        ],
+    },
+]
+
+
+def run_worker(theme_id, args):
+    """Audit all routes for one specific theme in an isolated browser process."""
+    base = args.base_url.rstrip("/")
+    shots = os.path.join(args.out_dir, "screenshots")
+    os.makedirs(shots, exist_ok=True)
+    rec = Recorder()
+    page_results = []
+    steps = []
+
+    def snap(page, name, force=False):
+        if not force and not args.save_all_screenshots and "failure" not in name:
+            return None
+        path = os.path.join(shots, f"{name}.png")
+        try:
+            page.screenshot(path=path, full_page=True)
+        except Exception:
+            try:
+                page.screenshot(path=path, full_page=False)
+            except Exception as e:
+                rec.warn("screenshot", f"{name}: {e}")
+        return path
+
+    t_cfg = next((t for t in ADA_THEMES if t["id"] == theme_id), None)
+    is_regular = (theme_id == "regular")
+    t_label = "Regular Theme" if is_regular else (t_cfg["label"] if t_cfg else theme_id)
+    t_classes = t_cfg["classes"] if t_cfg else []
+    t_desc = t_cfg.get("desc", "") if t_cfg else ""
+
+    with sync_playwright() as p:
+        exe = os.environ.get("CHROMIUM_EXECUTABLE") or None
+        launcher = getattr(p, args.browser.lower(), p.chromium)
+        browser = launcher.launch(executable_path=exe)
+        ctx = browser.new_context(
+            storage_state=args.storage_state,
+            viewport={"width": 1366, "height": 900},
+        )
+        if AXE_SCRIPT:
+            ctx.add_init_script(AXE_SCRIPT)
+        page = ctx.new_page()
+
+        page.on("pageerror", lambda e: rec.error("JavaScript crash", str(e)))
+        page.on("console", lambda m: m.type == "error" and rec.warn("Console error", m.text))
+
+        def on_failed(r):
+            detail = f"{r.method} {r.url} — {r.failure}"
+            aborted = any(tok in str(r.failure) for tok in ("ERR_ABORTED", "NS_BINDING_ABORTED", "Request cancelled"))
+            if r.url.startswith(base) and not aborted:
+                rec.error("Request failed", detail)
+            else:
+                rec.warn("Request failed", detail)
+        page.on("requestfailed", on_failed)
+
+        def on_response(r):
+            if "/api/" not in r.url:
+                return
+            if r.status >= 500:
+                rec.error("Server error", f"{r.status} {r.request.method} {r.url}")
+            elif r.status >= 400 and r.status not in (401,):
+                rec.warn("API error", f"{r.status} {r.request.method} {r.url}")
+        page.on("response", on_response)
+
+        if not is_regular:
+            rec.screen = f"switch to {t_label}"
+            try:
+                page.goto(base + "/", timeout=30000)
+                settle(page)
+                page.evaluate("""(themeId) => {
+                    localStorage.setItem('app_theme', themeId);
+                    localStorage.setItem('a11y_high_contrast', 'true');
+                    localStorage.setItem('a11y_enhanced_targets', 'true');
+                    localStorage.setItem('a11y_font_size', '125');
+                }""", theme_id)
+                page.goto(base + "/", timeout=30000)
+                settle(page)
+                page.evaluate("""(classes) => {
+                    const root = document.documentElement;
+                    root.classList.remove(
+                        'theme-light', 'theme-light-ada',
+                        'theme-gray',
+                        'theme-dark', 'theme-dark-ada',
+                        'theme-space', 'theme-space-ada',
+                        'a11y-high-contrast',
+                        'a11y-high-contrast-light',
+                        'a11y-high-contrast-dark',
+                        'a11y-high-contrast-space'
+                    );
+                    for (const c of classes) {
+                        root.classList.add(c);
+                    }
+                    root.style.setProperty('--a11y-font-size', '125%');
+                }""", t_classes)
+                settle(page, 2000)
+                snap(page, f"ada-{theme_id}-dashboard", force=True)
+                steps.append((f"Switch to {t_label} ({t_desc})", True, f"Theme {theme_id} activated"))
+            except Exception as e:
+                steps.append((f"Switch to {t_label}", False, str(e)[:200]))
+
+        for route in PAGES:
+            rec.screen = f"page {route}" if is_regular else f"page {route} ({t_label} mode)"
+            before = (len(rec.errors), len(rec.warnings))
+            try:
+                page.goto(base + route, timeout=30000)
+            except Exception as e:  # noqa: BLE001
+                rec.error(f"Page did not load in {t_label} mode" if not is_regular else "Page did not load", str(e))
+            settle(page)
+            time.sleep(0.3)
+
+            if is_regular:
+                try:
+                    tb = page.locator("section[aria-labelledby='terms-title'] input[type='checkbox']")
+                    if tb.count() > 0 and tb.first.is_visible() and not tb.first.is_checked():
+                        tb.first.check()
+                        time.sleep(0.2)
+                except Exception:
+                    pass
+                cont = (visible(page, "button", re.compile(r"^\s*Continue\s*$", re.I), timeout=300)
+                        or visible(page, "button", re.compile(r"^\s*I understand\s*$", re.I), timeout=300))
+                if cont and cont.is_enabled():
+                    cont.click()
+                    settle(page, 2000)
+                tour = visible(page, "button", re.compile(r"^\s*Skip Tutorial\s*$", re.I), timeout=300)
+                if tour:
+                    tour.click()
+                    settle(page, 3000)
+            else:
+                try:
+                    page.evaluate("""(classes) => {
+                        const root = document.documentElement;
+                        root.classList.remove(
+                            'theme-light', 'theme-light-ada',
+                            'theme-gray',
+                            'theme-dark', 'theme-dark-ada',
+                            'theme-space', 'theme-space-ada',
+                            'a11y-high-contrast',
+                            'a11y-high-contrast-light',
+                            'a11y-high-contrast-dark',
+                            'a11y-high-contrast-space'
+                        );
+                        for (const c of classes) {
+                            root.classList.add(c);
+                        }
+                        root.style.setProperty('--a11y-font-size', '125%');
+                    }""", t_classes)
+                except Exception:
+                    pass
+
+            text = ""
+            try:
+                text = page.inner_text("body")
+            except Exception:  # noqa: BLE001
+                pass
+            if len(text.strip()) < 20:
+                rec.error("Blank page", f"{route} rendered almost no text")
+            m = ERROR_TEXT.search(text)
+            if m and route not in CONTENT_PAGES:
+                rec.error("Error shown on page", f"{route}: …{text[max(0, m.start() - 80):m.end() + 120]}…")
+            if "/login" in page.url and route != "/login":
+                rec.error("Logged out unexpectedly", f"opening {route} sent us to {page.url}")
+
+            audit_route = route if is_regular else f"{route} ({t_label})"
+            audit_page_a11y(page, rec, audit_route, is_ada=not is_regular, ada_theme_name=f"{t_label} ({theme_id})" if not is_regular else None)
+
+            has_error = len(rec.errors) > before[0]
+            name = ("page-root" if route == "/" else "page" + route.replace("/", "-")) if is_regular else (("page-root-" if route == "/" else "page" + route.replace("/", "-") + "-") + theme_id)
+            if has_error or args.save_all_screenshots:
+                snap(page, f"{name}-failure" if has_error else name, force=True)
+            page_results.append({
+                "route": audit_route,
+                "errors": len(rec.errors) - before[0],
+                "warnings": len(rec.warnings) - before[1],
+            })
+
+        if is_regular:
+            steps.append(("Open every page (Regular theme)", True, f"{len(PAGES)} pages"))
+        else:
+            steps.append((f"Open every page in {t_label} mode", True, f"{len(PAGES)} pages audited"))
+
+        browser.close()
+
+    out_file = os.path.join(args.out_dir, f"worker-results-{theme_id}.json")
+    with open(out_file, "w", encoding="utf-8") as f:
+        json.dump({
+            "theme_id": theme_id,
+            "errors": rec.errors,
+            "warnings": rec.warnings,
+            "pages": page_results,
+            "steps": steps,
+        }, f)
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", default="http://localhost")
@@ -152,7 +395,23 @@ def main():
         default=os.environ.get("SAVE_ALL_SCREENSHOTS", "").lower() in ("1", "true", "yes"),
         help="Capture full screenshots for every page rather than only on failure or key milestones",
     )
+    ap.add_argument(
+        "--worker-theme",
+        help="Run audit only for a specific theme ('regular', 'dark-ada', 'light-ada', 'space-ada')",
+    )
+    ap.add_argument(
+        "--storage-state",
+        help="Path to browser storage_state json file with authenticated session",
+    )
+    ap.add_argument(
+        "--no-parallel",
+        action="store_true",
+        help="Run theme passes sequentially instead of parallel processes",
+    )
     args = ap.parse_args()
+
+    if args.worker_theme:
+        return run_worker(args.worker_theme, args)
 
     base = args.base_url.rstrip("/")
     shots = os.path.join(args.out_dir, "screenshots")
@@ -179,20 +438,6 @@ def main():
             except Exception as e:  # noqa: BLE001
                 rec.warn("screenshot", f"{name}: {e}")
         return path
-
-    def settle(page, ms=8000):
-        try:
-            page.wait_for_load_state("networkidle", timeout=ms)
-        except PWTimeout:
-            pass
-
-    def visible(page, role, name, timeout=1500):
-        loc = page.get_by_role(role, name=name)
-        try:
-            loc.first.wait_for(state="visible", timeout=timeout)
-            return loc.first
-        except PWTimeout:
-            return None
 
     with sync_playwright() as p:
         # Optional: use an already-installed browser executable
@@ -411,203 +656,68 @@ def main():
         steps.append(("Click through the setup wizard", reached,
                       "" if reached else "wizard never finished"))
 
-        # ── 4. every page in the app ─────────────────────────────────────────
-        page_results = []
-        for route in PAGES:
-            rec.screen = f"page {route}"
-            before = (len(rec.errors), len(rec.warnings))
-            try:
-                page.goto(base + route, timeout=30000)
-            except Exception as e:  # noqa: BLE001
-                rec.error("Page did not load", str(e))
-            settle(page)
-            time.sleep(0.5)
-
-            # Defensive: clear any unexpected terms modal popup
-            try:
-                tb = page.locator("section[aria-labelledby='terms-title'] input[type='checkbox']")
-                if tb.count() > 0 and tb.first.is_visible() and not tb.first.is_checked():
-                    tb.first.check()
-                    time.sleep(0.2)
-            except Exception:
-                pass
-            cont = (visible(page, "button", re.compile(r"^\s*Continue\s*$", re.I), timeout=300)
-                    or visible(page, "button", re.compile(r"^\s*I understand\s*$", re.I), timeout=300))
-            if cont and cont.is_enabled():
-                cont.click()
-                settle(page, 2000)
-
-            # Dismiss a welcome tour if it pops up, so it doesn't hide the page
-            tour = visible(page, "button", re.compile(r"^\s*Skip Tutorial\s*$", re.I), timeout=300)
-            if tour:
-                tour.click()
-                settle(page, 3000)
-
-            # Defensive: clear any unexpected secret key prompt only if critical banner is active
-            body_prefix = ""
-            try:
-                body_prefix = page.inner_text("body")[:500]
-            except Exception:
-                pass
-            if any(w in body_prefix for w in ("Critical Security Action",)):
-                sk_btn = visible(page, "button", re.compile(r"^\s*Save Master Key to File\s*$", re.I), timeout=200)
-                if sk_btn and sk_btn.is_enabled():
-                    try:
-                        txt = page.locator("#master-secret-key-input, textarea[id*='secret-key']")
-                        if txt.count() > 0 and txt.first.is_visible():
-                            val = txt.first.input_value()
-                            if len(val.strip()) < 128:
-                                txt.first.fill(secrets.token_hex(64))
-                                time.sleep(0.2)
-                            sk_btn.click()
-                            settle(page, 2000)
-                    except Exception:
-                        pass
-            text = ""
-            try:
-                text = page.inner_text("body")
-            except Exception:  # noqa: BLE001
-                pass
-            if len(text.strip()) < 20:
-                rec.error("Blank page", f"{route} rendered almost no text")
-            m = ERROR_TEXT.search(text)
-            if m and route not in CONTENT_PAGES:
-                rec.error("Error shown on page", f"{route}: …{text[max(0, m.start() - 80):m.end() + 120]}…")
-            if "/login" in page.url and route != "/login":
-                rec.error("Logged out unexpectedly", f"opening {route} sent us to {page.url}")
-            audit_page_a11y(page, rec, route, is_ada=False)
-            has_error = len(rec.errors) > before[0]
-            name = "page-root" if route == "/" else "page" + route.replace("/", "-")
-            if has_error or args.save_all_screenshots:
-                snap(page, f"{name}-failure" if has_error else name, force=True)
-            page_results.append({
-                "route": route,
-                "errors": len(rec.errors) - before[0],
-                "warnings": len(rec.warnings) - before[1],
-            })
-        steps.append(("Open every page (Regular theme)", True, f"{len(PAGES)} pages"))
-
-        # ── 5. Second round: ADA / WCAG compliance themes & large font ────
-        ADA_THEMES = [
-            {
-                "id": "dark-ada",
-                "label": "Dark ADA",
-                "desc": "WCAG Level AAA 21:1 contrast, 125% font, enhanced targets",
-                "classes": [
-                    "theme-dark", "theme-dark-ada",
-                    "a11y-high-contrast", "a11y-high-contrast-dark",
-                    "a11y-enhanced-targets", "a11y-large-text"
-                ],
-            },
-            {
-                "id": "light-ada",
-                "label": "Light ADA",
-                "desc": "Crisp white, high-contrast black & saturated blue, enhanced targets",
-                "classes": [
-                    "theme-light", "theme-light-ada",
-                    "a11y-high-contrast", "a11y-high-contrast-light",
-                    "a11y-enhanced-targets", "a11y-large-text"
-                ],
-            },
-            {
-                "id": "space-ada",
-                "label": "Space Explorer ADA",
-                "desc": "Cosmic black, high-contrast luminous amber (AAA), 2px visibility borders",
-                "classes": [
-                    "theme-space", "theme-space-ada",
-                    "a11y-high-contrast", "a11y-high-contrast-space",
-                    "a11y-enhanced-targets", "a11y-large-text"
-                ],
-            },
-        ]
-
-        for t in ADA_THEMES:
-            t_id = t["id"]
-            t_label = t["label"]
-            t_classes = t["classes"]
-            t_desc = t["desc"]
-
-            rec.screen = f"switch to {t_label}"
-            try:
-                page.evaluate("""(themeId) => {
-                    localStorage.setItem('app_theme', themeId);
-                    localStorage.setItem('a11y_high_contrast', 'true');
-                    localStorage.setItem('a11y_enhanced_targets', 'true');
-                    localStorage.setItem('a11y_font_size', '125');
-                }""", t_id)
-                page.goto(base + "/", timeout=30000)
-                page.evaluate("""(classes) => {
-                    const root = document.documentElement;
-                    root.classList.remove(
-                        'theme-light', 'theme-light-ada',
-                        'theme-gray',
-                        'theme-dark', 'theme-dark-ada',
-                        'theme-space', 'theme-space-ada',
-                        'a11y-high-contrast',
-                        'a11y-high-contrast-light',
-                        'a11y-high-contrast-dark',
-                        'a11y-high-contrast-space'
-                    );
-                    for (const c of classes) {
-                        root.classList.add(c);
-                    }
-                    root.style.setProperty('--a11y-font-size', '125%');
-                }""", t_classes)
-                settle(page, 2000)
-                snap(page, f"ada-{t_id}-dashboard", force=True)
-                steps.append((f"Switch to {t_label} ({t_desc})", True, f"Theme {t_id} activated"))
-            except Exception as e:
-                steps.append((f"Switch to {t_label}", False, str(e)[:200]))
-
-            for route in PAGES:
-                rec.screen = f"page {route} ({t_label} mode)"
-                before = (len(rec.errors), len(rec.warnings))
-                try:
-                    page.goto(base + route, timeout=30000)
-                except Exception as e:  # noqa: BLE001
-                    rec.error(f"Page did not load in {t_label} mode", str(e))
-                settle(page)
-                time.sleep(0.3)
-                try:
-                    page.evaluate("""(classes) => {
-                        const root = document.documentElement;
-                        root.classList.remove(
-                            'theme-light', 'theme-light-ada',
-                            'theme-gray',
-                            'theme-dark', 'theme-dark-ada',
-                            'theme-space', 'theme-space-ada',
-                            'a11y-high-contrast',
-                            'a11y-high-contrast-light',
-                            'a11y-high-contrast-dark',
-                            'a11y-high-contrast-space'
-                        );
-                        for (const c of classes) {
-                            root.classList.add(c);
-                        }
-                        root.style.setProperty('--a11y-font-size', '125%');
-                    }""", t_classes)
-                except Exception:
-                    pass
-                audit_page_a11y(page, rec, f"{route} ({t_label})", is_ada=True, ada_theme_name=f"{t_label} ({t_id})")
-                has_error = len(rec.errors) > before[0]
-                name = ("page-root-" if route == "/" else "page" + route.replace("/", "-") + "-") + t_id
-                if has_error or args.save_all_screenshots:
-                    snap(page, f"{name}-failure" if has_error else name, force=True)
-                page_results.append({
-                    "route": f"{route} ({t_label})",
-                    "errors": len(rec.errors) - before[0],
-                    "warnings": len(rec.warnings) - before[1],
-                })
-            steps.append((f"Open every page in {t_label} mode", True, f"{len(PAGES)} pages audited"))
-
-        return finish(args, rec, steps, browser, pages=page_results)
-
-
-def finish(args, rec, steps, browser, pages=None, fatal=False):
-    try:
+        # ── 4. save auth state & dispatch theme passes ────────────────────────
+        auth_state_path = os.path.join(args.out_dir, "auth_state.json")
+        ctx.storage_state(path=auth_state_path)
         browser.close()
-    except Exception:  # noqa: BLE001
-        pass
+
+        theme_ids = ["regular", "dark-ada", "light-ada", "space-ada"]
+        all_pages = []
+
+        if args.no_parallel:
+            for t_id in theme_ids:
+                args.storage_state = auth_state_path
+                run_worker(t_id, args)
+        else:
+            def run_sub(t_id):
+                cmd = [
+                    sys.executable,
+                    __file__,
+                    "--base-url", args.base_url,
+                    "--browser", args.browser,
+                    "--out-dir", args.out_dir,
+                    "--creds-file", args.creds_file,
+                    "--storage-state", auth_state_path,
+                    "--worker-theme", t_id,
+                ]
+                if args.save_all_screenshots:
+                    cmd.append("--save-all-screenshots")
+                return t_id, subprocess.run(cmd, capture_output=True, text=True)
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(theme_ids)) as executor:
+                futures = [executor.submit(run_sub, t_id) for t_id in theme_ids]
+                for fut in concurrent.futures.as_completed(futures):
+                    t_id, proc = fut.result()
+                    if proc.returncode != 0:
+                        rec.warn("Worker process error", f"Theme {t_id} worker exited with code {proc.returncode}:\n{proc.stderr[:1000]}")
+
+        for t_id in theme_ids:
+            worker_file = os.path.join(args.out_dir, f"worker-results-{t_id}.json")
+            if os.path.exists(worker_file):
+                try:
+                    with open(worker_file, "r", encoding="utf-8") as f:
+                        w_data = json.load(f)
+                        rec.errors.extend(w_data.get("errors", []))
+                        rec.warnings.extend(w_data.get("warnings", []))
+                        all_pages.extend(w_data.get("pages", []))
+                        for s in w_data.get("steps", []):
+                            steps.append((s[0], s[1], s[2]))
+                except Exception as e:
+                    rec.error("Worker result parse failed", f"Failed to read results for {t_id}: {e}")
+                    steps.append((f"Run audit for theme {t_id}", False, str(e)[:200]))
+            else:
+                rec.error("Worker failed", f"Worker for theme {t_id} did not produce results file {worker_file}.")
+                steps.append((f"Run audit for theme {t_id}", False, "Worker results missing"))
+
+        return finish(args, rec, steps, pages=all_pages)
+
+
+def finish(args, rec, steps, browser=None, pages=None, fatal=False):
+    if browser:
+        try:
+            browser.close()
+        except Exception:  # noqa: BLE001
+            pass
     result = {
         "ok": not rec.errors and not fatal and all(ok for _, ok, _ in steps),
         "steps": [{"name": n, "ok": ok, "note": note} for n, ok, note in steps],
