@@ -57,7 +57,7 @@ Resources for contributing to OpenOptOut and understanding system internals:
 - [Interpreter Runtime](dev/interpreter.md) — Declarative broker specifications and Playwright execution.
 - [Writing Broker Plugins](dev/plugins.md) — Step-by-step authoring guide for data broker add-ons.
 - [Automatic Steps & AI Drafter](dev/automatic-steps.md) — Spec rehearsal, auto-repair, and AI helpers.
-- [Security Policy](../SECURITY.md) & [Accessibility](../ACCESSIBILITY.md) — NIST SP 800-38D, NIST SP 800-132, ISO/IEC 27701, COPPA, OWASP ASVS L2, OWASP LLM Top 10, and WCAG 2.2 AAA.
+- [Security Policy](../SECURITY.md) & [Accessibility & VPAT Conformance](../ACCESSIBILITY.md) — NIST SP 800-38D, NIST SP 800-132, ISO/IEC 27701, COPPA, OWASP ASVS L2, OWASP LLM Top 10, WCAG 2.2 (Level AA/AAA), Revised Section 508, and EN 301 549.
 - [Security Scanning & Hardening](dev/security-scanning.md) — CodeQL, Semgrep, bandit, and audit posture.
 - [Proposals & Design RFCs](dev/proposals/catalog-design.md) — Upcoming designs and request-for-comments.
 
