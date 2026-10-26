@@ -7,7 +7,7 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ---
 
-## [Unreleased]
+## [0.11.3] — 2026-10-23
 
 ### Accessibility & WCAG 2.2 AA Compliance
 - **Dual-Round Automated Accessibility Verification (`.github/release-test/ui_check.py`):**
@@ -53,10 +53,6 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 - **Release Test Workflow Enhancements (`.github/workflows/release-test.yml`):**
   - Added dynamic workflow dispatch parameters (`test_name`, `tag`) and custom execution run names.
   - Resolved Actionlint YAML parsing errors in run-name expressions.
-
----
-
-## [0.11.3] — 2026-10-23
 
 ### OWASP ASVS 5.0.0 Security Hardening & Audit Completion
 - **ASVS V2 Business Logic & Pipeline Integrity:**
