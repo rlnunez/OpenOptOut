@@ -138,3 +138,4 @@ The marketplace security invariants are enforced and tested across:
 - **SLSA Level 3 Supply Chain Security**: [`slsa-supply-chain.md`](slsa-supply-chain.md)
 - **Core Catalog Design RFC**: [`../dev/proposals/catalog-design.md`](../dev/proposals/catalog-design.md)
 - **Roadmap Item #8 Specification**: [`../ROADMAP.md`](../ROADMAP.md#item-8)
+

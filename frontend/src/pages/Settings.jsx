@@ -903,6 +903,7 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
                   </label>
                   <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1">
                     <input type="number" min="0" max="50"
+                      aria-label={tx("Per-member opt-out limits")}
                       value={mc.max_optouts_per_day ?? ''}
                       onChange={e => updateMemberLimit(mc.member_id, 'max_optouts_per_day', e.target.value ? parseInt(e.target.value) : 0)}
                       placeholder={tx("{effective_limit} (default)", { effective_limit: mc.effective_limit })}
@@ -1000,6 +1001,7 @@ function RetentionPicker({ label, hint, value, onChange, presets, min = 7 }) {
           <input
             type="number"
             min={min}
+            aria-label={tx("Custom duration:")}
             value={customVal}
             onChange={onCustomInputChange}
             className="w-20 bg-slate-900 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-200 text-end"
@@ -1476,9 +1478,11 @@ function VaultLimitsSection({ initial, userRole, onSaved }) {
 
           {/* Children per parent */}
           <div className="border-t border-slate-700/50 pt-4">
-            <p className="text-slate-400 text-xs font-medium mb-2">{tx("Children per parent")}</p>
+            <label htmlFor="max_children_per_parent" className="block text-slate-400 text-xs font-medium mb-2">{tx("Children per parent")}</label>
             <div className="flex items-center gap-3">
               <input
+                id="max_children_per_parent"
+                aria-label={tx("Children per parent")}
                 type="number" min="0" max="100"
                 value={childrenLimit}
                 onChange={e => setForm(prev => ({...prev, max_children_per_parent: Math.max(0, parseInt(e.target.value) || 0)}))}
@@ -2382,6 +2386,7 @@ function MfaAccountSection({ user }) {
             <input
               type="password"
               placeholder={tx("Your password")}
+              aria-label={tx("Your password")}
               value={disablePassword}
               onChange={e => setDisablePassword(e.target.value)}
               className={inp}
@@ -2870,6 +2875,7 @@ function WebAuthnPolicySection({ userRole }) {
                               type="number"
                               min="1"
                               max="99"
+                              aria-label={tx("Mandate")}
                               value={comp.value ?? 3}
                               onChange={e => {
                                 setPolicyError('')
@@ -2883,6 +2889,7 @@ function WebAuthnPolicySection({ userRole }) {
                               className="w-12 px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded-sm text-slate-100 font-mono text-xs text-center focus:outline-hidden focus:border-shield-500"
                             />
                             <select
+                              aria-label={tx("Mandate")}
                               value={comp.unit || 'days'}
                               onChange={e => {
                                 setPolicyError('')

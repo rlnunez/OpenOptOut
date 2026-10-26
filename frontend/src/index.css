@@ -466,15 +466,27 @@ html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-s
 html.a11y-high-contrast-dark .bg-shield-600,
 html.a11y-high-contrast-dark .bg-blue-600,
 html.a11y-high-contrast-dark .bg-emerald-600,
+html.a11y-high-contrast-dark .bg-sky-700,
+html.a11y-high-contrast-dark .bg-sky-600,
+html.a11y-high-contrast-dark .bg-sky-500,
 html.theme-dark-ada .bg-shield-600,
 html.theme-dark-ada .bg-blue-600,
 html.theme-dark-ada .bg-emerald-600,
+html.theme-dark-ada .bg-sky-700,
+html.theme-dark-ada .bg-sky-600,
+html.theme-dark-ada .bg-sky-500,
 html.theme-dark.a11y-high-contrast .bg-shield-600,
 html.theme-dark.a11y-high-contrast .bg-blue-600,
 html.theme-dark.a11y-high-contrast .bg-emerald-600,
+html.theme-dark.a11y-high-contrast .bg-sky-700,
+html.theme-dark.a11y-high-contrast .bg-sky-600,
+html.theme-dark.a11y-high-contrast .bg-sky-500,
 html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-shield-600,
 html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-blue-600,
-html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-emerald-600 {
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-emerald-600,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-sky-700,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-sky-600,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-sky-500 {
   background-color: #ffff00 !important;
   color: #000000 !important;
   font-weight: 700 !important;

@@ -87,7 +87,7 @@ export default function ParentCompanies() {
         </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={dispatchAll} disabled={dispatchingAll}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-sky-600 hover:bg-sky-500 text-white rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-sky-700 hover:bg-sky-600 text-white rounded-lg transition-colors"
             title={tx("Dispatch email opt-outs across all parent companies")}>
             <Send size={14} /> {dispatchingAll ? tx("Dispatching…") : tx("Send all parent opt-outs")}
           </button>
