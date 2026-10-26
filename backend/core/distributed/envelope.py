@@ -345,18 +345,12 @@ class JobEnvelope:
         return canonical_json(self.to_dict())
 
     @classmethod
-    def from_dict(
-        cls,
-        d: Dict[str, Any],
-        secret_key: Optional[Union[str, bytes]] = None,
-        verify_signature: bool = True,
-        allow_expired: bool = False,
-    ) -> "JobEnvelope":
-        """Reconstruct JobEnvelope from dictionary, optionally verifying signature."""
+    def _construct_unverified(cls, d: Dict[str, Any]) -> "JobEnvelope":
+        """Construct raw JobEnvelope from dict without cryptographic signature verification."""
         if not isinstance(d, dict):
             raise EnvelopeInvalidError("envelope must be a JSON object")
         try:
-            env = cls(
+            return cls(
                 envelope_id=d.get("envelope_id", str(uuid.uuid4())),
                 action=d.get("action", "removal"),
                 priority=d.get("priority", "normal"),
@@ -380,6 +374,17 @@ class JobEnvelope:
             # Queue contents are untrusted (anyone who can write to Redis):
             # report malformed fields as an invalid envelope, never a crash.
             raise EnvelopeInvalidError(f"Malformed envelope field: {e}") from None
+
+    @classmethod
+    def from_dict(
+        cls,
+        d: Dict[str, Any],
+        secret_key: Optional[Union[str, bytes]] = None,
+        verify_signature: bool = True,
+        allow_expired: bool = False,
+    ) -> "JobEnvelope":
+        """Reconstruct JobEnvelope from dictionary, optionally verifying signature."""
+        env = cls._construct_unverified(d)
         if verify_signature:
             # A caller that wants verification but didn't supply a key gets
             # an error, not a silent pass — pass verify_signature=False
@@ -422,8 +427,11 @@ class JobEnvelope:
         Used by queue dequeue handlers so worker daemons can inspect
         the envelope and route invalid/tampered jobs to the DLQ.
         """
-        # nosemgrep: queue-message-signature-not-verified, openoptout.queue-message-signature-not-verified, semgrep.queue-message-signature-not-verified
-        return cls.from_json(json_str, verify_signature=False)
+        try:
+            d = json.loads(json_str)
+        except Exception as e:
+            raise EnvelopeInvalidError(f"Malformed envelope JSON: {e}")
+        return cls._construct_unverified(d)
 
 
 # ── JobResultEnvelope (Response from Worker to Control Plane) ──────────────────
