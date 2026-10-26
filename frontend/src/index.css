@@ -477,11 +477,23 @@ html.theme-dark-ada .bg-sky-600,
 html.theme-dark-ada .bg-sky-500,
 html.theme-dark.a11y-high-contrast .bg-shield-600,
 html.theme-dark.a11y-high-contrast .bg-blue-600,
+html.theme-dark-ada .bg-shield-600,
+html.theme-dark-ada [aria-current="page"],
+html.a11y-high-contrast-dark [aria-current="page"],
+html.theme-dark.a11y-high-contrast [aria-current="page"],
+html.theme-dark-ada .bg-blue-600,
+html.theme-dark-ada .bg-emerald-600,
+html.theme-dark-ada .bg-sky-700,
+html.theme-dark-ada .bg-sky-600,
+html.theme-dark-ada .bg-sky-500,
+html.theme-dark.a11y-high-contrast .bg-shield-600,
+html.theme-dark.a11y-high-contrast .bg-blue-600,
 html.theme-dark.a11y-high-contrast .bg-emerald-600,
 html.theme-dark.a11y-high-contrast .bg-sky-700,
 html.theme-dark.a11y-high-contrast .bg-sky-600,
 html.theme-dark.a11y-high-contrast .bg-sky-500,
 html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-shield-600,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) [aria-current="page"],
 html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-blue-600,
 html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-emerald-600,
 html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-sky-700,
@@ -493,6 +505,9 @@ html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-s
 }
 
 html.a11y-high-contrast-dark .bg-shield-600 *,
+html.a11y-high-contrast-dark [aria-current="page"] *,
+html.theme-dark-ada [aria-current="page"] *,
+html.theme-dark.a11y-high-contrast [aria-current="page"] *,
 html.a11y-high-contrast-dark .bg-blue-600 *,
 html.a11y-high-contrast-dark .bg-emerald-600 *,
 html.a11y-high-contrast-dark .bg-sky-700 *,
@@ -511,6 +526,7 @@ html.theme-dark.a11y-high-contrast .bg-sky-700 *,
 html.theme-dark.a11y-high-contrast .bg-sky-600 *,
 html.theme-dark.a11y-high-contrast .bg-sky-500 *,
 html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-shield-600 *,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) [aria-current="page"] *,
 html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-blue-600 *,
 html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-emerald-600 *,
 html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-sky-700 *,
@@ -950,6 +966,9 @@ html.theme-light.a11y-high-contrast :focus-visible {
 }
 
 html.a11y-high-contrast-light .bg-shield-600,
+html.a11y-high-contrast-light [aria-current="page"],
+html.theme-light-ada [aria-current="page"],
+html.theme-light.a11y-high-contrast [aria-current="page"],
 html.a11y-high-contrast-light .bg-blue-600,
 html.a11y-high-contrast-light .bg-emerald-600,
 html.a11y-high-contrast-light .bg-sky-700,
@@ -973,6 +992,9 @@ html.theme-light.a11y-high-contrast .bg-sky-500 {
 }
 
 html.a11y-high-contrast-light .bg-shield-600 *,
+html.a11y-high-contrast-light [aria-current="page"] *,
+html.theme-light-ada [aria-current="page"] *,
+html.theme-light.a11y-high-contrast [aria-current="page"] *,
 html.a11y-high-contrast-light .bg-blue-600 *,
 html.a11y-high-contrast-light .bg-emerald-600 *,
 html.a11y-high-contrast-light .bg-sky-700 *,
@@ -1368,6 +1390,9 @@ html.theme-space.a11y-high-contrast :focus-visible {
 }
 
 html.a11y-high-contrast-space .bg-shield-600,
+html.a11y-high-contrast-space [aria-current="page"],
+html.theme-space-ada [aria-current="page"],
+html.theme-space.a11y-high-contrast [aria-current="page"],
 html.a11y-high-contrast-space .bg-blue-600,
 html.a11y-high-contrast-space .bg-emerald-600,
 html.a11y-high-contrast-space .bg-sky-700,
@@ -1391,6 +1416,9 @@ html.theme-space.a11y-high-contrast .bg-sky-500 {
 }
 
 html.a11y-high-contrast-space .bg-shield-600 *,
+html.a11y-high-contrast-space [aria-current="page"] *,
+html.theme-space-ada [aria-current="page"] *,
+html.theme-space.a11y-high-contrast [aria-current="page"] *,
 html.a11y-high-contrast-space .bg-blue-600 *,
 html.a11y-high-contrast-space .bg-emerald-600 *,
 html.a11y-high-contrast-space .bg-sky-700 *,
@@ -1437,13 +1465,22 @@ html.a11y-enhanced-targets input[type="password"] {
   padding-bottom: 0.5rem !important;
 }
 
-/* 3. Reduced Motion (SC 2.3.3 Level AAA) */
+/* 3. Reduced Motion & ADA Immediate Contrast Transition (SC 2.3.3 Level AAA) */
 html.a11y-reduced-motion *,
 html.a11y-reduced-motion *::before,
-html.a11y-reduced-motion *::after {
+html.a11y-reduced-motion *::after,
+html.a11y-high-contrast,
+html.a11y-high-contrast *,
+html.theme-dark-ada,
+html.theme-dark-ada *,
+html.theme-light-ada,
+html.theme-light-ada *,
+html.theme-space-ada,
+html.theme-space-ada * {
   animation-duration: 0.001ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
+  transition-delay: 0ms !important;
   scroll-behavior: auto !important;
 }
 
