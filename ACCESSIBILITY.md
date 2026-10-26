@@ -13,7 +13,7 @@ This document serves as the formal **Accessibility Conformance Report (ACR)** us
 | Attribute | Specification |
 |---|---|
 | **Product Name** | OpenOptOut |
-| **Product Version** | v0.11.3 |
+| **Product Version** | v0.11.4 |
 | **Report Date** | October 2026 |
 | **Product Description** | Self-hosted web application and administrative portal for automated personal data removal, family profile management, and privacy rights enforcement. |
 | **Contact Information** | Robert Nunez (`nunez.robert@gmail.com`) / GitHub Accessibility Tracker |
