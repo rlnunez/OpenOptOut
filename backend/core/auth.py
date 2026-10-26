@@ -331,7 +331,37 @@ def _session_revoked(db: Session, jti: Optional[str], user: Optional[User] = Non
     return False
 
 
-# ── FastAPI dependencies ──────────────────────────────────────────────────────
+# ── FastAPI dependencies & Token Resolution ──────────────────────────────────
+
+def resolve_user_from_token(token: Optional[str], db: Session) -> Optional[User]:
+    """Resolve and validate a User from a JWT bearer token string.
+
+    Verifies the JWT signature, decodes claims, verifies user account existence
+    and login eligibility, confirms token version matches, and ensures session (jti)
+    has not been revoked. Returns None if invalid, revoked, missing, or in environments
+    without a JWT library.
+    """
+    if not token or jwt is None or db is None:
+        return None
+    try:
+        payload = jwt.decode(token, _jwt_secret(), algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if not email:
+            return None
+    except (JWTError, Exception):
+        return None
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not user.can_login:
+        return None
+    token_ver = payload.get("token_version")
+    user_ver = getattr(user, "token_version", 0) or 0
+    if (token_ver or 0) != user_ver:
+        return None
+    if _session_revoked(db, payload.get("jti"), user):
+        return None
+    return user
+
 
 def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -342,22 +372,8 @@ def get_current_user(
         detail="Your sign-in has expired. Please sign in again.",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    try:
-        payload = jwt.decode(token, _jwt_secret(), algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if not email:
-            raise exc
-    except JWTError:
-        raise exc
-
-    user = db.query(User).filter(User.email == email).first()
-    if not user or not user.can_login:
-        raise exc
-    token_ver = payload.get("token_version")
-    user_ver = getattr(user, "token_version", 0) or 0
-    if (token_ver or 0) != user_ver:
-        raise exc
-    if _session_revoked(db, payload.get("jti"), user):
+    user = resolve_user_from_token(token, db)
+    if not user:
         raise exc
     return user
 
@@ -373,25 +389,7 @@ def get_current_user_optional(
     token: Optional[str] = Depends(_oauth2_optional),
     db: Session = Depends(get_db),
 ) -> Optional[User]:
-    if not token:
-        return None
-    try:
-        payload = jwt.decode(token, _jwt_secret(), algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        if not email:
-            return None
-    except JWTError:
-        return None
-    user = db.query(User).filter(User.email == email).first()
-    if not user or not user.can_login:
-        return None
-    token_ver = payload.get("token_version")
-    user_ver = getattr(user, "token_version", 0) or 0
-    if (token_ver or 0) != user_ver:
-        return None
-    if _session_revoked(db, payload.get("jti"), user):
-        return None
-    return user
+    return resolve_user_from_token(token, db)
 
 
 def get_current_jti(token: str = Depends(oauth2_scheme)) -> Optional[str]:

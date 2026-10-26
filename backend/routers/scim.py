@@ -51,7 +51,6 @@ def require_scim_auth(
             headers={"WWW-Authenticate": "Bearer"},
         )
     token = authorization[7:].strip()
-    secret = get_secret_key()
     cfg = load_settings() or {}
     scim_token = cfg.get("auth", {}).get("scim_bearer_token")
 
@@ -61,7 +60,8 @@ def require_scim_auth(
 
     # 2. Or validate as admin JWT session token
     user = auth_core.resolve_user_from_token(token, db)
-    if user and getattr(user, "role", None) in ("super_admin", "admin"):
+    role_val = getattr(user.role, "value", user.role) if (user and getattr(user, "role", None)) else None
+    if user and role_val in ("super_admin", "admin"):
         return
 
     raise HTTPException(

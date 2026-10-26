@@ -7579,6 +7579,12 @@ def t_standards_suite():
     assert "openssf_slsa_3" in st
     assert "scim_2_0" in st
 
+    # 6. SCIM 2.0 Auth and Token Resolution
+    auth = _imp("core.auth")
+    assert hasattr(auth, "resolve_user_from_token"), "core.auth must export resolve_user_from_token"
+    assert auth.resolve_user_from_token(None, None) is None
+    assert auth.resolve_user_from_token("invalid.jwt.token", None) is None
+
 
 @test(1, "security.standards_keymgmt_dpop_ropa_csaf_and_sri",
       "Verification of NIST SP 800-57 key epochs, RFC 9449 DPoP proofs, ISO 27701 ROPA/DPIA, CSAF 2.0, and SRI.")
