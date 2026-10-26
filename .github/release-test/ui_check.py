@@ -336,10 +336,14 @@ def run_worker(theme_id, args):
                     pass
 
             text = ""
-            try:
-                text = page.inner_text("body")
-            except Exception:  # noqa: BLE001
-                pass
+            for _ in range(10):
+                try:
+                    text = page.inner_text("body")
+                except Exception:  # noqa: BLE001
+                    pass
+                if len(text.strip()) >= 20:
+                    break
+                time.sleep(0.5)
             if len(text.strip()) < 20:
                 rec.error("Blank page", f"{route} rendered almost no text")
             m = ERROR_TEXT.search(text)
