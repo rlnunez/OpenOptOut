@@ -25,6 +25,7 @@ import json
 import os
 import re
 import secrets
+import subprocess
 import sys
 import time
 
@@ -383,12 +384,35 @@ def run_worker(theme_id, args):
 
 
 def dispatch_workers(args, rec, steps, theme_ids, auth_state_path=None):
-    """Run audits for selected themes sequentially to guarantee database consistency and avoid port contention."""
+    """Run audits for selected themes sequentially in isolated subprocesses to guarantee database consistency and avoid port contention."""
     all_pages = []
     for t_id in theme_ids:
-        if auth_state_path:
-            args.storage_state = auth_state_path
-        run_worker(t_id, args)
+        print(f"==> Starting sequential audit for theme: {t_id}")
+        cmd = [
+            sys.executable,
+            __file__,
+            "--base-url", args.base_url,
+            "--browser", args.browser,
+            "--out-dir", args.out_dir,
+            "--worker-theme", t_id,
+        ]
+        if args.creds_file:
+            cmd.extend(["--creds-file", args.creds_file])
+        if auth_state_path and os.path.exists(auth_state_path):
+            cmd.extend(["--storage-state", auth_state_path])
+        elif getattr(args, "storage_state", None) and os.path.exists(args.storage_state):
+            cmd.extend(["--storage-state", args.storage_state])
+        if getattr(args, "routes", None) and args.routes != "all":
+            cmd.extend(["--routes", args.routes])
+        if args.save_all_screenshots:
+            cmd.append("--save-all-screenshots")
+
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        if proc.returncode != 0:
+            rec.warn("Worker process error", f"Theme {t_id} worker exited with code {proc.returncode}:\n{proc.stderr[:1000]}")
+            print(f"Theme {t_id} worker error:\n{proc.stderr}")
+        else:
+            print(f"==> Finished audit for theme: {t_id} (success)")
 
         worker_file = os.path.join(args.out_dir, f"worker-results-{t_id}.json")
         if os.path.exists(worker_file):
@@ -720,8 +744,8 @@ def main():
         ctx.storage_state(path=auth_state_path)
         browser.close()
 
-        all_pages = dispatch_workers(args, rec, steps, theme_ids, auth_state_path)
-        return finish(args, rec, steps, pages=all_pages)
+    all_pages = dispatch_workers(args, rec, steps, theme_ids, auth_state_path)
+    return finish(args, rec, steps, pages=all_pages)
 
 
 def finish(args, rec, steps, browser=None, pages=None, fatal=False):

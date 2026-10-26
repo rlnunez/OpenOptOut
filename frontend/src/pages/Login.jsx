@@ -622,7 +622,7 @@ export default function Login() {
             <ShieldCheck size={28} className="text-shield-500 mb-2" />
           )}
           <h1 className="text-white font-semibold text-lg">{name}</h1>
-          <p className="text-slate-500 text-xs mt-0.5 text-center">{tagline}</p>
+          <p className="text-slate-400 text-xs mt-0.5 text-center">{tagline}</p>
         </div>
 
         <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
@@ -1670,10 +1670,10 @@ export default function Login() {
               )}
 
               {/* Footer */}
-              <div className="mt-4 flex items-center justify-between text-xs text-slate-600">
-                <a href="/terms" className="hover:text-slate-400">{tx("Terms")}</a>
+              <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
+                <a href="/terms" className="hover:text-slate-300">{tx("Terms")}</a>
                 {branding?.contact_email
-                  ? <a href={`mailto:${branding.contact_email}`} className="hover:text-slate-400">{branding.contact_email}</a>
+                  ? <a href={`mailto:${branding.contact_email}`} className="hover:text-slate-300">{branding.contact_email}</a>
                   : <span>{tx("Contact your administrator for access")}</span>}
               </div>
             </div>
@@ -1681,7 +1681,7 @@ export default function Login() {
         </div>
 
         {branding?.show_powered_by && (
-          <p className="text-center text-slate-700 text-xs mt-4">{tx("Powered by OpenOptOut")}</p>
+          <p className="text-center text-slate-400 text-xs mt-4">{tx("Powered by OpenOptOut")}</p>
         )}
       </div>
     </div>
