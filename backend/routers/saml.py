@@ -50,9 +50,9 @@ def _error_page(message: str, status: int = 400) -> HTMLResponse:
     return HTMLResponse(
         status_code=status,
         content=(
-            "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;"
-            "padding:2rem;max-width:40rem'><h2>Sign-in didn't complete</h2>"
-            f"<p>{html.escape(message)}</p><p><a style='color:#818cf8' href='{html.escape(login)}'>"
+            "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Sign-in Error</title></head>"
+            "<body><h2>Sign-in didn't complete</h2>"
+            f"<p>{html.escape(message)}</p><p><a href='{html.escape(login)}'>"
             "Back to sign in</a></p></body></html>"
         ),
         headers={

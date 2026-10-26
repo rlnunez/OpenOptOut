@@ -234,8 +234,8 @@ def callback(code: Optional[str] = Query(None), state: Optional[str] = Query(Non
         email["provider"] = pending.provider_key
     _save(s)
     return _html_resp(
-        "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;"
-        "padding:2rem'><h2>✓ Email account connected</h2>"
+        "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Email Account Connected</title></head>"
+        "<body><h2>✓ Email account connected</h2>"
         "<p>You can close this window and return to OpenOptOut.</p></body></html>")
 
 
@@ -257,8 +257,8 @@ def _finish_backup_storage(pending, code: str, s: dict) -> HTMLResponse:
             d["connected"] = True
     _save(s)
     return _html_resp(
-        "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;"
-        "padding:2rem'><h2>✓ Backup storage connected</h2>"
+        "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Backup Storage Connected</title></head>"
+        "<body><h2>✓ Backup storage connected</h2>"
         "<p>You can close this window and return to OpenOptOut.</p></body></html>")
 
 
@@ -278,8 +278,8 @@ def _finish_member_inbox(db, account_ref: str, settings: dict) -> HTMLResponse:
             note = ("We sent a test email to check whether it accepts +addresses; "
                     "you can delete it when it arrives.")
     return _html_resp(
-        "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;"
-        "padding:2rem'><h2>✓ Inbox connected</h2>"
+        "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Inbox Connected</title></head>"
+        "<body><h2>✓ Inbox connected</h2>"
         f"<p>{html.escape(note)}</p><p>You can close this window and return to OpenOptOut.</p>"
         "</body></html>")
 

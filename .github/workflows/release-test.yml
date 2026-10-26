@@ -191,14 +191,14 @@ jobs:
         if: steps.health.outcome == 'success'
         continue-on-error: true
         run: |
-          EXTRA_ARGS=""
+          EXTRA_ARGS=()
           if [ -n "${{ inputs.themes }}" ] && [ "${{ inputs.themes }}" != "all" ]; then
-            EXTRA_ARGS="$EXTRA_ARGS --themes ${{ inputs.themes }}"
+            EXTRA_ARGS+=(--themes "${{ inputs.themes }}")
           fi
           if [ -n "${{ inputs.routes }}" ] && [ "${{ inputs.routes }}" != "all" ]; then
-            EXTRA_ARGS="$EXTRA_ARGS --routes ${{ inputs.routes }}"
+            EXTRA_ARGS+=(--routes "${{ inputs.routes }}")
           fi
-          python3 "$HARNESS/ui_check.py" --base-url http://localhost --out-dir "$OUT" --creds-file "$CREDS" $EXTRA_ARGS
+          python3 "$HARNESS/ui_check.py" --base-url http://localhost --out-dir "$OUT" --creds-file "$CREDS" "${EXTRA_ARGS[@]}"
 
       - name: API — version, setup wizard, Identity Vault, all GET endpoints
         id: api

@@ -7,6 +7,8 @@ import os, secrets, json, hashlib, hmac, logging, threading, time
 from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
+log = logger
+_log = logger
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Body, Form, Response
 from fastapi.responses import RedirectResponse
@@ -556,6 +558,12 @@ def login(
 ):
     username = (form.username or "").replace("\x00", "").strip().lower()
     password = (form.password or "").replace("\x00", "")
+    if any(ch in username for ch in ("'", '"', "--", "/*", ";")):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     throttle_key = login_throttle.account_key("password", username)
     ip_key = login_throttle.ip_key(request)
     login_throttle.check(throttle_key, ip_key)
@@ -722,7 +730,7 @@ async def backchannel_logout(
             logout_token = form.get("logout_token")
         except Exception:
             pass
-    if not logout_token:
+    if not logout_token or not isinstance(logout_token, str):
         raise HTTPException(status_code=400, detail="Missing logout_token parameter.")
 
     try:
@@ -731,16 +739,18 @@ async def backchannel_logout(
         if len(parts) != 3:
             raise ValueError("Invalid JWT format")
         payload = b64url_decode_json(parts[1])
+        if not isinstance(payload, dict):
+            raise ValueError("Invalid JWT payload")
     except Exception as e:
-        log.warning("Malformed logout_token received: %s", e)
+        logger.warning("Malformed logout_token received: %s", e)
         raise HTTPException(status_code=400, detail="Malformed logout_token")
 
     # Validate OIDC Back-Channel Logout 1.0 claims
     if "nonce" in payload:
         raise HTTPException(status_code=400, detail="logout_token must not contain a nonce")
 
-    events = payload.get("events") or {}
-    if "http://schemas.openid.net/event/backchannel-logout" not in events:
+    events = payload.get("events")
+    if not isinstance(events, dict) or "http://schemas.openid.net/event/backchannel-logout" not in events:
         raise HTTPException(status_code=400, detail="Missing backchannel-logout event claim")
 
     sub = payload.get("sub")
@@ -812,6 +822,9 @@ def revoke_my_session(
 def ldap_login(req: LDAPLoginRequest, db: Session = Depends(get_db), request: Request = None):
     if not provider_enabled("ldap"):
         raise HTTPException(400, "LDAP authentication is not enabled")
+
+    if any(ch in req.username for ch in ("'", '"', "--", "/*", ";")) or any(ch in req.password for ch in ("'", '"', "--", "/*", ";")):
+        raise HTTPException(401, "Invalid credentials")
 
     throttle_key = login_throttle.account_key("ldap", req.username)
     ip_key = login_throttle.ip_key(request)

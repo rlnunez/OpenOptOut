@@ -12,7 +12,7 @@ CSP_REPORT_PATH = "/api/csp-report"
 # ASVS 3.4.3: object-src/base-uri 'none'. ASVS 3.4.7: violations are reported
 # via both the legacy report-uri directive and the newer Reporting API.
 MINIMAL_HTML_CSP = (
-    "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; "
+    "default-src 'none'; frame-ancestors 'none'; form-action 'self'; "
     f"object-src 'none'; base-uri 'none'; report-uri {CSP_REPORT_PATH}; report-to csp-endpoint;"
 )
 SVG_CSP = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
