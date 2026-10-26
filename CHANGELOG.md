@@ -80,6 +80,10 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 - **Release Test Workflow Enhancements (`.github/workflows/release-test.yml`):**
   - Added dynamic workflow dispatch parameters (`test_name`, `tag`) and custom execution run names.
   - Resolved Actionlint YAML parsing errors in run-name expressions.
+- **Automated Dependency Maintenance:**
+  - Upgraded frontend dependencies (`lucide-react` 1.59.0, `react`/`react-dom`/`react-is` 19.3.1, `postcss` 8.5.31) with verified JSX accessibility and production build integrity.
+  - Upgraded backend dependencies (`fastapi` 0.150.0, `starlette` 1.9.0, `sqlalchemy` 2.1.5, `authlib` 1.9.1, `google-auth` 2.62.0, `paramiko` 5.1.0, `boto3` 1.43.115, `setuptools` 84.2.0) with zero breaking changes across routers and test suites.
+  - Pinned GitHub Actions commit hashes across build provenance, fuzzing, scorecard, and security workflows (`cosign-installer`, `setup-buildx-action`, `login-action`, `metadata-action`, `build-push-action`, `attest-build-provenance`, `upload-sarif`).
 
 ### OWASP ASVS 5.0.0 Security Hardening & Audit Completion
 - **ASVS V2 Business Logic & Pipeline Integrity:**
