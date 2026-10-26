@@ -560,6 +560,253 @@ html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-s
   font-weight: 700 !important;
 }
 
+/* Universal High-Contrast Opacity Normalization (WCAG 1.4.3 Level AA / SC 1.4.6 AAA) */
+html.a11y-high-contrast .opacity-40,
+html.a11y-high-contrast [class*="opacity-40"],
+html.a11y-high-contrast .opacity-50,
+html.a11y-high-contrast [class*="opacity-50"],
+html.a11y-high-contrast .opacity-60,
+html.a11y-high-contrast [class*="opacity-60"] {
+  opacity: 1 !important;
+}
+
+/* Avatar circles and profile pills across all ADA high-contrast modes */
+html.a11y-high-contrast-light [class*="bg-shield-600/"],
+html.theme-light-ada [class*="bg-shield-600/"],
+html.theme-light.a11y-high-contrast [class*="bg-shield-600/"] {
+  background-color: #0000ee !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+html.a11y-high-contrast-space [class*="bg-shield-600/"],
+html.theme-space-ada [class*="bg-shield-600/"],
+html.theme-space.a11y-high-contrast [class*="bg-shield-600/"] {
+  background-color: #ff9900 !important;
+  color: #000000 !important;
+  border-color: #ff9900 !important;
+}
+
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) [class*="bg-shield-600/"],
+html.theme-dark-ada [class*="bg-shield-600/"],
+html.theme-dark.a11y-high-contrast [class*="bg-shield-600/"] {
+  background-color: #ffff00 !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+/* Red / Danger buttons across all ADA themes */
+html.a11y-high-contrast-light .bg-red-600,
+html.a11y-high-contrast-light .bg-red-700,
+html.a11y-high-contrast-light .bg-red-800,
+html.a11y-high-contrast-light .bg-red-900,
+html.theme-light-ada .bg-red-600,
+html.theme-light-ada .bg-red-700,
+html.theme-light-ada .bg-red-800,
+html.theme-light-ada .bg-red-900,
+html.theme-light.a11y-high-contrast .bg-red-600,
+html.theme-light.a11y-high-contrast .bg-red-700,
+html.theme-light.a11y-high-contrast .bg-red-800,
+html.theme-light.a11y-high-contrast .bg-red-900 {
+  background-color: #cc0000 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html.a11y-high-contrast-light .bg-red-600 *,
+html.a11y-high-contrast-light .bg-red-700 *,
+html.a11y-high-contrast-light .bg-red-800 *,
+html.a11y-high-contrast-light .bg-red-900 *,
+html.theme-light-ada .bg-red-600 *,
+html.theme-light-ada .bg-red-700 *,
+html.theme-light-ada .bg-red-800 *,
+html.theme-light-ada .bg-red-900 *,
+html.theme-light.a11y-high-contrast .bg-red-600 *,
+html.theme-light.a11y-high-contrast .bg-red-700 *,
+html.theme-light.a11y-high-contrast .bg-red-800 *,
+html.theme-light.a11y-high-contrast .bg-red-900 * {
+  color: #ffffff !important;
+}
+
+html.a11y-high-contrast-dark .bg-red-600,
+html.a11y-high-contrast-dark .bg-red-700,
+html.a11y-high-contrast-dark .bg-red-800,
+html.a11y-high-contrast-dark .bg-red-900,
+html.theme-dark-ada .bg-red-600,
+html.theme-dark-ada .bg-red-700,
+html.theme-dark-ada .bg-red-800,
+html.theme-dark-ada .bg-red-900,
+html.theme-dark.a11y-high-contrast .bg-red-600,
+html.theme-dark.a11y-high-contrast .bg-red-700,
+html.theme-dark.a11y-high-contrast .bg-red-800,
+html.theme-dark.a11y-high-contrast .bg-red-900,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-red-600,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-red-700,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-red-800,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-red-900 {
+  background-color: #ff3333 !important;
+  color: #000000 !important;
+  font-weight: 700 !important;
+}
+
+html.a11y-high-contrast-dark .bg-red-600 *,
+html.a11y-high-contrast-dark .bg-red-700 *,
+html.a11y-high-contrast-dark .bg-red-800 *,
+html.a11y-high-contrast-dark .bg-red-900 *,
+html.theme-dark-ada .bg-red-600 *,
+html.theme-dark-ada .bg-red-700 *,
+html.theme-dark-ada .bg-red-800 *,
+html.theme-dark-ada .bg-red-900 *,
+html.theme-dark.a11y-high-contrast .bg-red-600 *,
+html.theme-dark.a11y-high-contrast .bg-red-700 *,
+html.theme-dark.a11y-high-contrast .bg-red-800 *,
+html.theme-dark.a11y-high-contrast .bg-red-900 *,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-red-600 *,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-red-700 *,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-red-800 *,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-red-900 * {
+  color: #000000 !important;
+}
+
+html.a11y-high-contrast-space .bg-red-600,
+html.a11y-high-contrast-space .bg-red-700,
+html.a11y-high-contrast-space .bg-red-800,
+html.a11y-high-contrast-space .bg-red-900,
+html.theme-space-ada .bg-red-600,
+html.theme-space-ada .bg-red-700,
+html.theme-space-ada .bg-red-800,
+html.theme-space-ada .bg-red-900,
+html.theme-space.a11y-high-contrast .bg-red-600,
+html.theme-space.a11y-high-contrast .bg-red-700,
+html.theme-space.a11y-high-contrast .bg-red-800,
+html.theme-space.a11y-high-contrast .bg-red-900 {
+  background-color: #ff3333 !important;
+  color: #000000 !important;
+  font-weight: 800 !important;
+}
+
+html.a11y-high-contrast-space .bg-red-600 *,
+html.a11y-high-contrast-space .bg-red-700 *,
+html.a11y-high-contrast-space .bg-red-800 *,
+html.a11y-high-contrast-space .bg-red-900 *,
+html.theme-space-ada .bg-red-600 *,
+html.theme-space-ada .bg-red-700 *,
+html.theme-space-ada .bg-red-800 *,
+html.theme-space-ada .bg-red-900 *,
+html.theme-space.a11y-high-contrast .bg-red-600 *,
+html.theme-space.a11y-high-contrast .bg-red-700 *,
+html.theme-space.a11y-high-contrast .bg-red-800 *,
+html.theme-space.a11y-high-contrast .bg-red-900 * {
+  color: #000000 !important;
+}
+
+/* Alert banners (HTTPS, secret key, inbox prompts) in Light ADA */
+html.a11y-high-contrast-light [role="alert"],
+html.a11y-high-contrast-light [role="status"],
+html.theme-light-ada [role="alert"],
+html.theme-light-ada [role="status"],
+html.theme-light.a11y-high-contrast [role="alert"],
+html.theme-light.a11y-high-contrast [role="status"],
+html.a11y-high-contrast-light [class*="bg-red-9"],
+html.a11y-high-contrast-light [class*="bg-amber-9"],
+html.a11y-high-contrast-light [class*="bg-emerald-9"],
+html.theme-light-ada [class*="bg-red-9"],
+html.theme-light-ada [class*="bg-amber-9"],
+html.theme-light-ada [class*="bg-emerald-9"],
+html.theme-light.a11y-high-contrast [class*="bg-red-9"],
+html.theme-light.a11y-high-contrast [class*="bg-amber-9"],
+html.theme-light.a11y-high-contrast [class*="bg-emerald-9"] {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-width: 2px !important;
+}
+
+html.a11y-high-contrast-light [role="alert"] p,
+html.a11y-high-contrast-light [role="alert"] span,
+html.a11y-high-contrast-light [role="status"] p,
+html.a11y-high-contrast-light [role="status"] span,
+html.theme-light-ada [role="alert"] p,
+html.theme-light-ada [role="alert"] span,
+html.theme-light-ada [role="status"] p,
+html.theme-light-ada [role="status"] span,
+html.theme-light.a11y-high-contrast [role="alert"] p,
+html.theme-light.a11y-high-contrast [role="alert"] span,
+html.theme-light.a11y-high-contrast [role="status"] p,
+html.theme-light.a11y-high-contrast [role="status"] span,
+html.a11y-high-contrast-light [class*="text-amber-"],
+html.a11y-high-contrast-light [class*="text-red-"],
+html.theme-light-ada [class*="text-amber-"],
+html.theme-light-ada [class*="text-red-"],
+html.theme-light.a11y-high-contrast [class*="text-amber-"],
+html.theme-light.a11y-high-contrast [class*="text-red-"] {
+  color: #000000 !important;
+}
+
+html.a11y-high-contrast-light [role="status"] a,
+html.theme-light-ada [role="status"] a,
+html.theme-light.a11y-high-contrast [role="status"] a,
+html.a11y-high-contrast-light a.underline,
+html.theme-light-ada a.underline,
+html.theme-light.a11y-high-contrast a.underline {
+  color: #0000cc !important;
+  text-decoration: underline !important;
+  font-weight: 700 !important;
+}
+
+/* Alert banners in Dark ADA */
+html.a11y-high-contrast-dark [role="alert"],
+html.theme-dark-ada [role="alert"],
+html.theme-dark.a11y-high-contrast [role="alert"],
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) [role="alert"],
+html.a11y-high-contrast-dark [class*="bg-red-9"],
+html.theme-dark-ada [class*="bg-red-9"],
+html.theme-dark.a11y-high-contrast [class*="bg-red-9"],
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) [class*="bg-red-9"] {
+  background-color: #000000 !important;
+  border-color: #ff3333 !important;
+  border-width: 2px !important;
+  color: #ffffff !important;
+}
+
+html.a11y-high-contrast-dark [role="status"],
+html.theme-dark-ada [role="status"],
+html.theme-dark.a11y-high-contrast [role="status"],
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) [role="status"],
+html.a11y-high-contrast-dark [class*="bg-amber-9"],
+html.theme-dark-ada [class*="bg-amber-9"],
+html.theme-dark.a11y-high-contrast [class*="bg-amber-9"],
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) [class*="bg-amber-9"] {
+  background-color: #000000 !important;
+  border-color: #ffff00 !important;
+  border-width: 2px !important;
+  color: #ffffff !important;
+}
+
+/* Alert banners in Space Explorer ADA */
+html.a11y-high-contrast-space [role="alert"],
+html.theme-space-ada [role="alert"],
+html.theme-space.a11y-high-contrast [role="alert"],
+html.a11y-high-contrast-space [class*="bg-red-9"],
+html.theme-space-ada [class*="bg-red-9"],
+html.theme-space.a11y-high-contrast [class*="bg-red-9"] {
+  background-color: #000000 !important;
+  border-color: #ff3333 !important;
+  border-width: 2px !important;
+  color: #ffffff !important;
+}
+
+html.a11y-high-contrast-space [role="status"],
+html.theme-space-ada [role="status"],
+html.theme-space.a11y-high-contrast [role="status"],
+html.a11y-high-contrast-space [class*="bg-amber-9"],
+html.theme-space-ada [class*="bg-amber-9"],
+html.theme-space.a11y-high-contrast [class*="bg-amber-9"] {
+  background-color: #000000 !important;
+  border-color: #ff9900 !important;
+  border-width: 2px !important;
+  color: #ffb800 !important;
+}
+
 /* ── Light ADA Theme (WCAG 2.2 Level AAA: Pure #ffffff with #000000 and high-visibility blue) ── */
 html.a11y-high-contrast-light body,
 html.a11y-high-contrast-light,
