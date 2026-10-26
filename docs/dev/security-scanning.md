@@ -48,6 +48,7 @@ Dynamic testing executes within an internal isolated Docker network (`.github/se
 - `.github/dependabot.yml`: Automated dependency updates.
 - `.github/security/`: Runner scripts and isolated DAST compose environment.
 - `.semgrep/openoptout.yml`: Repository Semgrep rules.
+- `.gitleaks.toml`: Repository Gitleaks configuration with test suite allowlists.
 - `.gitleaksignore`: Validated secret false positives.
 - `SECURITY.md`: Vulnerability reporting process.
 
@@ -70,7 +71,7 @@ Enable in **Settings → Code security**:
 Triage findings via GitHub Security UI (Dismiss alert as False positive or Won't fix), or via inline comments with documented rationale:
 - Semgrep: `# nosemgrep: <rule-id>`
 - Bandit: `# nosec <id>`
-- Gitleaks: Add fingerprint to `.gitleaksignore`
+- Gitleaks: Add path/pattern to `.gitleaks.toml`, append `# gitleaks:allow`, or add fingerprint to `.gitleaksignore`
 - Hadolint: `# hadolint ignore=<rule>`
 - ShellCheck: `# shellcheck disable=<rule>`
 

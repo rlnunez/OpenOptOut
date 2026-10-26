@@ -41,3 +41,4 @@ def b64url_decode_str(s: Union[str, bytes], encoding: str = "utf-8", errors: str
 def b64url_decode_json(s: Union[str, bytes]) -> Any:
     """Decode a base64url encoded JSON payload (e.g., JWT header or claim set)."""
     return json.loads(b64url_decode_str(s))
+

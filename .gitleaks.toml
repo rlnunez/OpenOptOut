@@ -1,0 +1,14 @@
+# OpenOptOut — Gitleaks Configuration
+# Inherits default rules while allowlisting harmless test fixtures and synthetic test credentials
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Ignore synthetic test credentials and mock tokens in test suites"
+paths = [
+  '''(^|/)backend/tests/.*$''',
+  '''(^|/)deploy/tests/.*$''',
+  '''(^|/)tests/.*$''',
+  '''(^|/)test-reports/.*$''',
+]

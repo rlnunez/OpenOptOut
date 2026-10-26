@@ -57,3 +57,4 @@ def epoch_seconds(dt: Optional[datetime] = None) -> int:
     if dt is None:
         dt = utc_now()
     return int(dt.timestamp())
+

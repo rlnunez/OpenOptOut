@@ -144,7 +144,7 @@ fi
 # ── 8. Secret & Key Scanning (Gitleaks) ───────────────────────────────────────
 info "Running Gitleaks (Secret and credential detection)..."
 if command -v gitleaks > /dev/null 2>&1; then
-  if gitleaks detect --no-git --redact > /dev/null 2>&1; then
+  if gitleaks detect --config .gitleaks.toml --no-git --redact > /dev/null 2>&1; then
     success "Gitleaks passed (no unencrypted credentials or API keys found)"
   else
     fail "Gitleaks detected potential secret or API key patterns"

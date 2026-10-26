@@ -150,7 +150,7 @@ jobs:
 
       - name: Gitleaks (every commit; reviewed false positives live in .gitleaksignore)
         run: |
-          ./gitleaks git . --redact --no-banner --exit-code 0 \
+          ./gitleaks git . --config .gitleaks.toml --redact --no-banner --exit-code 0 \
             --report-format sarif --report-path gitleaks.sarif
           python3 .github/security/sarif_summary.py "Gitleaks" gitleaks.sarif >> "$GITHUB_STEP_SUMMARY"
 
