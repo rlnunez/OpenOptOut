@@ -168,7 +168,7 @@ function renderInline(text) {
       const [, label, url] = linkMatch
       if (isSafeHref(url)) {
         return (
-          <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="text-shield-400 hover:underline">
+          <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="text-shield-400 underline hover:no-underline">
             {label}
           </a>
         )

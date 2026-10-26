@@ -2795,9 +2795,21 @@
    ]
   },
   {
+   "text": "Bulk priority level",
+   "where": [
+    "pages/BrokerPriority.jsx"
+   ]
+  },
+  {
    "text": "Bulk set failed",
    "where": [
     "pages/BrokerPriority.jsx"
+   ]
+  },
+  {
+   "text": "Bundle Password",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -2870,6 +2882,12 @@
    "text": "CA certificate (optional)",
    "where": [
     "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "CA Certificate (PEM)",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -3525,6 +3543,7 @@
    "text": "Client ID",
    "where": [
     "pages/Branding.jsx",
+    "pages/Settings.jsx",
     "pages/SetupWizard.jsx"
    ]
   },
@@ -3550,6 +3569,7 @@
    "text": "Client secret",
    "where": [
     "pages/Branding.jsx",
+    "pages/Settings.jsx",
     "pages/SetupWizard.jsx"
    ]
   },
@@ -3575,8 +3595,8 @@
    "text": "Close",
    "where": [
     "components/LiveCaptcha.jsx",
+    "components/Modal.jsx",
     "components/PluginUploadWizard.jsx",
-    "pages/AdminPanel.jsx",
     "pages/Inboxes.jsx",
     "pages/Letters.jsx"
    ]
@@ -3633,6 +3653,12 @@
    "text": "Codes copied",
    "where": [
     "pages/Login.jsx"
+   ]
+  },
+  {
+   "text": "Collapse plugin details",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -5344,7 +5370,9 @@
   {
    "text": "Delete",
    "where": [
-    "pages/AdminPanel.jsx"
+    "pages/AdminPanel.jsx",
+    "pages/Help.jsx",
+    "pages/ParentCompanies.jsx"
    ]
   },
   {
@@ -5417,6 +5445,12 @@
    "text": "Description",
    "where": [
     "pages/BrokerSubmit.jsx"
+   ]
+  },
+  {
+   "text": "Deselect {name}",
+   "where": [
+    "pages/BrokerPriority.jsx"
    ]
   },
   {
@@ -5638,6 +5672,8 @@
    "where": [
     "components/AnnouncementBanner.jsx",
     "components/MaintenanceNoticeBanner.jsx",
+    "pages/BrokerPriority.jsx",
+    "pages/ParentCompanies.jsx",
     "pages/WorkerFleet.jsx"
    ]
   },
@@ -6256,6 +6292,7 @@
   {
    "text": "Edit",
    "where": [
+    "pages/Help.jsx",
     "pages/ParentCompanies.jsx",
     "pages/SpecHelpers.jsx",
     "pages/Terms.jsx"
@@ -6327,6 +6364,12 @@
    ]
   },
   {
+   "text": "Email attribute name",
+   "where": [
+    "pages/Branding.jsx"
+   ]
+  },
+  {
    "text": "Email bounces",
    "where": [
     "pages/ParentCompanies.jsx"
@@ -6380,6 +6423,12 @@
    "text": "Email me when…",
    "where": [
     "pages/DeadlineReport.jsx"
+   ]
+  },
+  {
+   "text": "Email provider",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -6977,7 +7026,19 @@
    ]
   },
   {
+   "text": "Expand plugin details",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "Expires (optional)",
+   "where": [
+    "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Expires in days",
    "where": [
     "pages/Branding.jsx"
    ]
@@ -7363,10 +7424,28 @@
    ]
   },
   {
+   "text": "Filter by log level",
+   "where": [
+    "pages/SystemLogs.jsx"
+   ]
+  },
+  {
    "text": "Filter by name",
    "where": [
     "pages/BrokerHealth.jsx",
     "pages/Letters.jsx"
+   ]
+  },
+  {
+   "text": "Filter by screen location",
+   "where": [
+    "pages/Translations.jsx"
+   ]
+  },
+  {
+   "text": "Filter by subsystem",
+   "where": [
+    "pages/SystemLogs.jsx"
    ]
   },
   {
@@ -7988,6 +8067,12 @@
    ]
   },
   {
+   "text": "Groups attribute name",
+   "where": [
+    "pages/Branding.jsx"
+   ]
+  },
+  {
    "text": "Guides, templates, and tactics for data removal",
    "where": [
     "pages/Help.jsx"
@@ -8479,6 +8564,18 @@
    ]
   },
   {
+   "text": "IdP metadata URL",
+   "where": [
+    "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "IdP metadata XML",
+   "where": [
+    "pages/Branding.jsx"
+   ]
+  },
+  {
    "text": "IdP signing certificate: {message}",
    "where": [
     "pages/Branding.jsx"
@@ -8902,6 +8999,12 @@
    "where": [
     "pages/Branding.jsx",
     "pages/Signup.jsx"
+   ]
+  },
+  {
+   "text": "Invite code note",
+   "where": [
+    "pages/Branding.jsx"
    ]
   },
   {
@@ -9559,6 +9662,12 @@
    ]
   },
   {
+   "text": "Lines to display",
+   "where": [
+    "pages/SystemLogs.jsx"
+   ]
+  },
+  {
    "text": "Link Gmail, Outlook, Yahoo, or your personal mail server for instant system alerts.",
    "where": [
     "pages/SetupWizard.jsx"
@@ -9782,6 +9891,18 @@
    "where": [
     "pages/Monitoring.jsx",
     "server: monitoring.py"
+   ]
+  },
+  {
+   "text": "Log records",
+   "where": [
+    "pages/SystemLogs.jsx"
+   ]
+  },
+  {
+   "text": "Log verbosity level",
+   "where": [
+    "pages/SystemLogs.jsx"
    ]
   },
   {
@@ -10664,6 +10785,12 @@
   },
   {
    "text": "name attr (default: displayName)",
+   "where": [
+    "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Name attribute name",
    "where": [
     "pages/Branding.jsx"
    ]
@@ -13222,6 +13349,12 @@
    ]
   },
   {
+   "text": "Priority for {name}",
+   "where": [
+    "pages/BrokerPriority.jsx"
+   ]
+  },
+  {
    "text": "Priority removal",
    "where": [
     "pages/WorkerFleet.jsx"
@@ -14300,6 +14433,12 @@
    ]
   },
   {
+   "text": "Reset priority for {name}",
+   "where": [
+    "pages/BrokerPriority.jsx"
+   ]
+  },
+  {
    "text": "Reset removal history",
    "where": [
     "pages/Settings.jsx"
@@ -14497,7 +14636,8 @@
   {
    "text": "Role",
    "where": [
-    "pages/AdminPanel.jsx"
+    "pages/AdminPanel.jsx",
+    "pages/Branding.jsx"
    ]
   },
   {
@@ -14717,6 +14857,7 @@
     "pages/Branding.jsx",
     "pages/BrokerUpdates.jsx",
     "pages/Calendar.jsx",
+    "pages/Family.jsx",
     "pages/IdentityVault.jsx",
     "pages/Monitoring.jsx",
     "pages/ParentCompanies.jsx",
@@ -15125,6 +15266,12 @@
    ]
   },
   {
+   "text": "Search log messages",
+   "where": [
+    "pages/SystemLogs.jsx"
+   ]
+  },
+  {
    "text": "Search log messages…",
    "where": [
     "pages/SystemLogs.jsx"
@@ -15375,6 +15522,7 @@
   {
    "text": "Select {name}",
    "where": [
+    "pages/BrokerPriority.jsx",
     "pages/StateRegistries.jsx"
    ]
   },
@@ -17943,6 +18091,12 @@
    "text": "Time",
    "where": [
     "pages/EmailMonitor.jsx"
+   ]
+  },
+  {
+   "text": "Time range",
+   "where": [
+    "pages/Reporting.jsx"
    ]
   },
   {

@@ -374,16 +374,65 @@ html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-s
 html.a11y-high-contrast-dark .text-slate-400,
 html.a11y-high-contrast-dark .text-slate-500,
 html.a11y-high-contrast-dark .text-slate-600,
+html.a11y-high-contrast-dark .text-slate-700,
 html.theme-dark-ada .text-slate-400,
 html.theme-dark-ada .text-slate-500,
 html.theme-dark-ada .text-slate-600,
+html.theme-dark-ada .text-slate-700,
 html.theme-dark.a11y-high-contrast .text-slate-400,
 html.theme-dark.a11y-high-contrast .text-slate-500,
 html.theme-dark.a11y-high-contrast .text-slate-600,
+html.theme-dark.a11y-high-contrast .text-slate-700,
 html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .text-slate-400,
 html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .text-slate-500,
-html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .text-slate-600 {
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .text-slate-600,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .text-slate-700 {
   color: #f1f5f9 !important;
+}
+
+html.theme-dark-ada ::placeholder,
+html.a11y-high-contrast-dark ::placeholder,
+html.theme-dark.a11y-high-contrast ::placeholder,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) ::placeholder {
+  color: #cbd5e1 !important;
+  opacity: 1 !important;
+}
+
+html.theme-dark-ada .text-amber-400,
+html.theme-dark-ada .text-amber-300,
+html.theme-dark-ada .text-amber-400\/80,
+html.theme-dark.a11y-high-contrast .text-amber-400,
+html.theme-dark.a11y-high-contrast .text-amber-300,
+html.theme-dark.a11y-high-contrast .text-amber-400\/80 {
+  color: #fde047 !important;
+}
+
+html.theme-dark-ada .text-red-400,
+html.theme-dark-ada .text-red-300,
+html.theme-dark.a11y-high-contrast .text-red-400,
+html.theme-dark.a11y-high-contrast .text-red-300 {
+  color: #fca5a5 !important;
+}
+
+html.theme-dark-ada .text-emerald-400,
+html.theme-dark-ada .text-emerald-300,
+html.theme-dark.a11y-high-contrast .text-emerald-400,
+html.theme-dark.a11y-high-contrast .text-emerald-300 {
+  color: #86efac !important;
+}
+
+html.theme-dark-ada .text-sky-400,
+html.theme-dark-ada .text-sky-300,
+html.theme-dark.a11y-high-contrast .text-sky-400,
+html.theme-dark.a11y-high-contrast .text-sky-300 {
+  color: #7dd3fc !important;
+}
+
+html.theme-dark-ada .text-purple-400,
+html.theme-dark-ada .text-purple-300,
+html.theme-dark.a11y-high-contrast .text-purple-400,
+html.theme-dark.a11y-high-contrast .text-purple-300 {
+  color: #d8b4fe !important;
 }
 
 html.a11y-high-contrast-dark .border-slate-800,

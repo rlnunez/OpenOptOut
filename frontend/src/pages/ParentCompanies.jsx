@@ -137,12 +137,12 @@ export default function ParentCompanies() {
                     <div className="flex items-center gap-3 mt-1 text-xs text-slate-400 flex-wrap">
                       {p.optout_email
                         ? <span className="inline-flex items-center gap-1"><Mail size={11} /> {p.optout_email}</span>
-                        : <span className="text-amber-400/80 inline-flex items-center gap-1"><AlertTriangle size={11} />{" "}{tx("no opt-out email set")}</span>}
+                        : <span className="text-amber-300 inline-flex items-center gap-1"><AlertTriangle size={11} />{" "}{tx("no opt-out email set")}</span>}
                       <span>· {txn(p.child_count, "{n} child site", "{n} child sites")}</span>
                       {p.letter?.id && (
                         <span title={tx("Opt-out letters follow the company's country and are written in its legal language, not the language you use the app in.")}>
                           · {tx("Letter: {law} in {language}", { law: letterName(p.letter.id), language: (p.letter.language || '').toUpperCase() })}
-                          {p.letter.review_status !== 'reviewed' && <span className="text-amber-400/80">{" "}{tx("(draft wording, not yet checked by a lawyer)")}</span>}
+                          {p.letter.review_status !== 'reviewed' && <span className="text-amber-300">{" "}{tx("(draft wording, not yet checked by a lawyer)")}</span>}
                         </span>
                       )}
                       {p.emails_sent > 0 && (

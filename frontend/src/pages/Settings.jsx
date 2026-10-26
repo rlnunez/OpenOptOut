@@ -122,7 +122,13 @@ function AppearanceSection({ initial, onSaved, userRole }) {
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors">
               <Upload size={11} />{" "}{tx("Upload")}
             </button>
-            {form.app_icon_url && <button onClick={() => setForm(f => ({...f, app_icon_url: null}))} className="text-slate-600 hover:text-red-400"><X size={13} /></button>}
+            {form.app_icon_url && (
+              <button onClick={() => setForm(f => ({...f, app_icon_url: null}))}
+                aria-label={tx("Remove icon")} title={tx("Remove icon")}
+                className="text-slate-600 hover:text-red-400">
+                <X size={13} />
+              </button>
+            )}
             <input ref={iconRef} type="file" accept="image/*" className="hidden" onChange={handleIconUpload} />
           </div>
         </Field>
@@ -1148,6 +1154,7 @@ function DataLifecycleSection({ userRole, initial = {}, onSaved }) {
               <button
                 type="button"
                 role="switch"
+                aria-label={tx("Cryptographic Shredding")}
                 aria-checked={cryptoShredEnabled}
                 onClick={() => setCryptoShredEnabled(!cryptoShredEnabled)}
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
@@ -1829,7 +1836,9 @@ function AutomationSection({ userRole }) {
               {config.custom_user_agents.map((ua, i) => (
                 <div key={i} className="flex items-center gap-2 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg">
                   <span className="text-slate-400 font-mono text-xs truncate flex-1">{ua}</span>
-                  <button onClick={() => removeUA(i)} className="text-slate-600 hover:text-red-400 transition-colors shrink-0">
+                  <button onClick={() => removeUA(i)}
+                    aria-label={tx("Remove user agent")} title={tx("Remove user agent")}
+                    className="text-slate-600 hover:text-red-400 transition-colors shrink-0">
                     <Trash2 size={12} />
                   </button>
                 </div>
@@ -2513,6 +2522,7 @@ function MfaAccountSection({ user }) {
             <button
               type="button"
               onClick={() => setShowBackupCodes(false)}
+              aria-label={tx("Close")}
               className="text-slate-500 hover:text-slate-300">
               <X size={14} />
             </button>
@@ -3280,6 +3290,7 @@ function SessionPolicySection({ userRole }) {
                   type="number"
                   min="1"
                   max="720"
+                  aria-label={tx("Standard Session Lifetime (Hours)")}
                   value={curRoleCfg.session_duration_hours ?? 8}
                   onChange={e => {
                     const v = Math.max(1, parseInt(e.target.value, 10) || 1)
@@ -3300,6 +3311,7 @@ function SessionPolicySection({ userRole }) {
                   type="number"
                   min="0"
                   max="1440"
+                  aria-label={tx("Idle Timeout (Minutes)")}
                   value={curRoleCfg.idle_timeout_minutes ?? 0}
                   onChange={e => {
                     const v = Math.max(0, parseInt(e.target.value, 10) || 0)
@@ -3337,6 +3349,7 @@ function SessionPolicySection({ userRole }) {
                 <select
                   value={curRoleCfg.remember_me_mode || 'username_only'}
                   onChange={e => updateCurrentRole({ remember_me_mode: e.target.value })}
+                  aria-label={tx("Remember Me Mode")}
                   className={inp}
                 >
                   <option value="username_only">{tx("Save Username Only (Recommended for Staff/Admin)")}</option>
@@ -3361,6 +3374,7 @@ function SessionPolicySection({ userRole }) {
                     type="number"
                     min="1"
                     max="30"
+                    aria-label={curRoleCfg.remember_me_mode === 'extend_session' ? tx("Extended Session Lifetime (Days)") : tx("Device Prefill Retention (Days)")}
                     value={curRoleCfg.remember_me_duration_days ?? 30}
                     onChange={e => {
                       const v = Math.min(30, Math.max(1, parseInt(e.target.value, 10) || 1))
@@ -3662,7 +3676,7 @@ function ClientMtlsSection({ userRole }) {
           <div className="ps-6 space-y-3">
             <div>
               <label className={labelCls}>{tx("Verification Mode")}</label>
-              <select className={inp} value={mode} onChange={e => setMode(e.target.value)}>
+              <select className={inp} aria-label={tx("Verification Mode")} value={mode} onChange={e => setMode(e.target.value)}>
                 <option value="require">{tx("Require certificate (strict — drop unauthenticated connections)")}</option>
                 <option value="optional">{tx("Optional certificate (accept if presented — useful for healthchecks)")}</option>
               </select>
@@ -3797,7 +3811,7 @@ function ClientMtlsSection({ userRole }) {
           <div className="p-4 rounded-lg border border-slate-700 bg-slate-800 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-white text-sm font-semibold">{tx("Issue Client Certificate")}</span>
-              <button type="button" onClick={() => setShowIssueModal(false)} className="text-slate-400 hover:text-white">
+              <button type="button" onClick={() => setShowIssueModal(false)} aria-label={tx("Close")} className="text-slate-400 hover:text-white">
                 <X size={14} />
               </button>
             </div>
@@ -3823,16 +3837,20 @@ function ClientMtlsSection({ userRole }) {
                 <div>
                   <label className={labelCls}>{tx("Device or User Name")}</label>
                   <input className={inp} value={devName} onChange={e => setDevName(e.target.value)}
-                    placeholder={tx("e.g. Jordan's MacBook Pro")} required />
+                    placeholder={tx("e.g. Jordan's MacBook Pro")}
+                    aria-label={tx("Device or User Name")}
+                    required />
                 </div>
                 <div>
                   <label className={labelCls}>{tx("Bundle Password (optional)")}</label>
                   <input className={inp} type="password" value={devPass} onChange={e => setDevPass(e.target.value)}
-                    placeholder={tx("Password protecting the .p12 file")} />
+                    placeholder={tx("Password protecting the .p12 file")}
+                    aria-label={tx("Bundle Password")} />
                 </div>
                 <div>
                   <label className={labelCls}>{tx("Validity (days)")}</label>
                   <input className={inp} type="number" value={devDays} onChange={e => setDevDays(e.target.value)}
+                    aria-label={tx("Validity (days)")}
                     min="1" max="1825" />
                 </div>
                 <div className="flex justify-end gap-2 pt-1">
@@ -3854,7 +3872,7 @@ function ClientMtlsSection({ userRole }) {
           <div className="p-4 rounded-lg border border-slate-700 bg-slate-800 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-white text-sm font-semibold">{tx("Upload Existing CA Certificate")}</span>
-              <button type="button" onClick={() => setShowCaModal(false)} className="text-slate-400 hover:text-white">
+              <button type="button" onClick={() => setShowCaModal(false)} aria-label={tx("Close")} className="text-slate-400 hover:text-white">
                 <X size={14} />
               </button>
             </div>
@@ -3863,6 +3881,7 @@ function ClientMtlsSection({ userRole }) {
             </p>
             <textarea className={`${inp} font-mono text-xs h-28`}
               placeholder="-----BEGIN CERTIFICATE-----..."
+              aria-label={tx("CA Certificate (PEM)")}
               value={caPemInput} onChange={e => setCaPemInput(e.target.value)} />
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setShowCaModal(false)}

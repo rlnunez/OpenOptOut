@@ -306,6 +306,7 @@ export default function CaptchaQueue() {
               <span className="text-white font-medium text-sm">{tx("What the page showed")}</span>
               <button
                 onClick={() => setSelectedShot(null)}
+                aria-label={tx("Close")}
                 className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
               >
                 <X size={18} />
@@ -339,6 +340,7 @@ export default function CaptchaQueue() {
               </div>
               <button
                 onClick={() => setShowTokenModal(false)}
+                aria-label={tx("Close")}
                 className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
               >
                 <X size={18} />

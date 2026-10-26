@@ -165,6 +165,7 @@ export default function SystemLogs() {
                 value={activeLevel}
                 onChange={(e) => handleLevelChange(e.target.value)}
                 disabled={updatingLevel}
+                aria-label={tx("Log verbosity level")}
                 className="bg-slate-950 border border-slate-700 text-white rounded-sm px-1.5 py-0.5 text-xs font-mono focus:outline-hidden focus:border-shield-500"
               >
                 <option value="DEBUG">{tx("DEBUG")}</option>
@@ -235,6 +236,7 @@ export default function SystemLogs() {
             <input
               type="text"
               placeholder={tx("Search log messages…")}
+              aria-label={tx("Search log messages")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="bg-slate-900 border border-slate-800 text-xs text-white rounded-sm ps-8 pe-3 py-1.5 w-56 focus:outline-hidden focus:border-shield-500 placeholder-slate-500"
@@ -245,6 +247,7 @@ export default function SystemLogs() {
           <select
             value={levelFilter}
             onChange={(e) => setLevelFilter(e.target.value)}
+            aria-label={tx("Filter by log level")}
             className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-sm px-2.5 py-1.5 focus:outline-hidden focus:border-shield-500"
           >
             <option value="">{tx("All Levels")}</option>
@@ -258,6 +261,7 @@ export default function SystemLogs() {
           <select
             value={loggerFilter}
             onChange={(e) => setLoggerFilter(e.target.value)}
+            aria-label={tx("Filter by subsystem")}
             className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-sm px-2.5 py-1.5 focus:outline-hidden focus:border-shield-500"
           >
             {COMMON_SUBSYSTEMS.map((s) => (
@@ -269,6 +273,7 @@ export default function SystemLogs() {
           <select
             value={limit}
             onChange={(e) => setLimit(Number(e.target.value))}
+            aria-label={tx("Lines to display")}
             className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-sm px-2 py-1.5 focus:outline-hidden focus:border-shield-500"
           >
             <option value={100}>{tx("Last 100 lines")}</option>
@@ -313,7 +318,7 @@ export default function SystemLogs() {
           </div>
         </div>
 
-        <div className="flex-1 p-3 overflow-y-auto space-y-1 selection:bg-shield-600/40">
+        <div tabIndex={0} role="region" aria-label={tx("Log records")} className="flex-1 p-3 overflow-y-auto space-y-1 selection:bg-shield-600/40">
           {logs.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-2 py-12">
               <Terminal size={32} className="opacity-40" />

@@ -118,19 +118,19 @@ function MatrixPreview({ stats, memberId }) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
             <div className="bg-slate-800 rounded-lg px-2.5 py-2">
               <p className="text-slate-500 mb-0.5">{tx("Legal name")}</p>
-              <p className={stats.has_formal_name ? 'text-slate-200 font-medium truncate' : 'text-slate-700 italic'}>
+              <p className={stats.has_formal_name ? 'text-slate-200 font-medium truncate' : 'text-slate-400 italic'}>
                 {stats.formal_name || tx("not set")}
               </p>
             </div>
             <div className="bg-slate-800 rounded-lg px-2.5 py-2">
               <p className="text-slate-500 mb-0.5">{tx("Addresses on deeds")}</p>
-              <p className={stats.deed_addresses > 0 ? 'text-purple-400 font-semibold' : 'text-slate-700'}>
+              <p className={stats.deed_addresses > 0 ? 'text-purple-400 font-semibold' : 'text-slate-400'}>
                 {stats.deed_addresses}
               </p>
             </div>
             <div className="bg-slate-800 rounded-lg px-2.5 py-2">
               <p className="text-slate-500 mb-0.5">{tx("Addresses on mortgages")}</p>
-              <p className={stats.mortgage_addresses > 0 ? 'text-blue-400 font-semibold' : 'text-slate-700'}>
+              <p className={stats.mortgage_addresses > 0 ? 'text-blue-400 font-semibold' : 'text-slate-400'}>
                 {stats.mortgage_addresses}
               </p>
             </div>
@@ -270,10 +270,12 @@ function FormalNameEditor({ member, onUpdated }) {
             className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500 font-mono"
           />
           <button onClick={save} disabled={saving}
+            aria-label={tx("Save")}
             className="px-2 py-1.5 bg-shield-600 text-white rounded-lg text-sm hover:bg-shield-700 disabled:opacity-40 transition-colors">
             {saving ? '…' : <Check size={13} />}
           </button>
           <button onClick={() => setEditing(false)}
+            aria-label={tx("Cancel")}
             className="px-2 py-1.5 text-slate-500 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors">
             <X size={13} />
           </button>
@@ -284,10 +286,12 @@ function FormalNameEditor({ member, onUpdated }) {
             <>
               <span className="text-slate-200 text-sm font-mono flex-1">{member.formal_name}</span>
               <button onClick={() => { setVal(member.formal_name); setEditing(true) }}
+                aria-label={tx("Edit legal name")}
                 className="text-slate-500 hover:text-shield-400 transition-colors p-1">
                 <Edit2 size={12} />
               </button>
               <button onClick={clear} disabled={saving}
+                aria-label={tx("Remove legal name")}
                 className="text-slate-500 hover:text-red-400 transition-colors p-1">
                 <X size={12} />
               </button>
@@ -295,7 +299,7 @@ function FormalNameEditor({ member, onUpdated }) {
           ) : (
             <button onClick={() => setEditing(true)}
               className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 text-sm transition-colors">
-              <Plus size={12} />{" "}{txr("Add full legal name<0>(your name as it's written on a deed or mortgage)</0>", [<span className="text-slate-700 text-xs" />])}
+              <Plus size={12} />{" "}{txr("Add full legal name<0>(your name as it's written on a deed or mortgage)</0>", [<span className="text-slate-400 text-xs" />])}
             </button>
           )}
         </div>
@@ -410,6 +414,7 @@ function IdentityRow({ identity, onDeleted, onTogglePrimary, masked }) {
           {identity.is_primary ? <StarOff size={12} /> : <Star size={12} />}
         </button>
         <button onClick={del} disabled={deleting}
+          aria-label={tx("Delete")}
           className="p-1 rounded-sm text-slate-600 hover:text-red-400 transition-colors">
           <Trash2 size={12} />
         </button>
@@ -429,6 +434,8 @@ function KindSection({ cfg, identities, memberId, onAdded, onDeleted, onTogglePr
   return (
     <div className={`rounded-xl border ${bg} overflow-hidden`}>
       <button onClick={() => setOpen(o => !o)}
+        aria-label={open ? tx("Collapse {label}", { label }) : tx("Expand {label}", { label })}
+        aria-expanded={open}
         className="w-full flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <Icon size={14} className={color} />

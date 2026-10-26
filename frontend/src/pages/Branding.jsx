@@ -136,7 +136,7 @@ function BrandingSection() {
             <img src={`${branding.logo_url}?v=${Date.now()}`} alt={tx("Logo")}
               className="h-10 object-contain border border-slate-700 rounded-sm bg-slate-900 px-2" />
           ) : (
-            <div className="h-10 w-20 border border-dashed border-slate-700 rounded-sm flex items-center justify-center text-slate-700 text-xs">
+            <div className="h-10 w-20 border border-dashed border-slate-700 rounded-sm flex items-center justify-center text-slate-400 text-xs">
               {tx("No logo")}
             </div>
           )}
@@ -145,7 +145,7 @@ function BrandingSection() {
             <Upload size={11} />{uploading ? tx("Uploading…") : tx("Upload logo")}
           </button>
           {branding.logo_url && (
-            <button onClick={deleteLogo} className="text-slate-600 hover:text-red-400 transition-colors">
+            <button onClick={deleteLogo} aria-label={tx("Remove logo")} title={tx("Remove logo")} className="text-slate-600 hover:text-red-400 transition-colors">
               <X size={14} />
             </button>
           )}
@@ -353,7 +353,7 @@ function RegistrationSection() {
                 <span className="text-slate-600 text-xs">{c.role}</span>
                 {c.note && <span className="text-slate-600 text-xs truncate max-w-32">{c.note}</span>}
                 {c.expires_at && <span className="text-slate-600 text-xs">{fmtDate(c.expires_at)}</span>}
-                <button onClick={() => revokeCode(c.id)} className="text-slate-600 hover:text-red-400 transition-colors">
+                <button onClick={() => revokeCode(c.id)} aria-label={tx("Revoke invite code")} title={tx("Revoke invite code")} className="text-slate-600 hover:text-red-400 transition-colors">
                   <Trash2 size={12} />
                 </button>
               </div>
@@ -1573,10 +1573,15 @@ function SamlPanel() {
               <label className="flex items-center gap-1 text-slate-400"><input type="radio" checked={metaMode==='paste'} onChange={() => setMetaMode('paste')} />{" "}{tx("Paste XML")}</label>
             </div>
             {metaMode === 'url' ? (
-              <input value={form.idp_metadata_url} onChange={set('idp_metadata_url')} placeholder="https://idp.example.edu/idp/shibboleth" className={inp} />
+              <input value={form.idp_metadata_url} onChange={set('idp_metadata_url')}
+                placeholder="https://idp.example.edu/idp/shibboleth"
+                aria-label={tx("IdP metadata URL")}
+                className={inp} />
             ) : (
               <textarea value={form.idp_metadata_xml} onChange={set('idp_metadata_xml')} rows={5}
-                placeholder={"<md:EntityDescriptor …>"} className={`${inp} font-mono text-xs`} />
+                placeholder={"<md:EntityDescriptor …>"}
+                aria-label={tx("IdP metadata XML")}
+                className={`${inp} font-mono text-xs`} />
             )}
             {cfg.has_idp_metadata && (
               <p className="text-emerald-400/80 text-xs">{tx("Metadata loaded:")}{" "}{(cfg.idp_entity_ids || []).join(', ') || tx("no IdP found")}</p>
@@ -1624,9 +1629,18 @@ function SamlPanel() {
             <details className="text-xs text-slate-500">
               <summary className="cursor-pointer">{tx("Attribute names (only if your IdP uses unusual ones)")}</summary>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
-                <input value={form.attr_email} onChange={set('attr_email')} placeholder={tx("email attr (default: mail)")} className={inp} />
-                <input value={form.attr_name} onChange={set('attr_name')} placeholder={tx("name attr (default: displayName)")} className={inp} />
-                <input value={form.attr_groups} onChange={set('attr_groups')} placeholder={tx("groups attr (default: groups/memberOf)")} className={inp} />
+                <input value={form.attr_email} onChange={set('attr_email')}
+                  placeholder={tx("email attr (default: mail)")}
+                  aria-label={tx("Email attribute name")}
+                  className={inp} />
+                <input value={form.attr_name} onChange={set('attr_name')}
+                  placeholder={tx("name attr (default: displayName)")}
+                  aria-label={tx("Name attribute name")}
+                  className={inp} />
+                <input value={form.attr_groups} onChange={set('attr_groups')}
+                  placeholder={tx("groups attr (default: groups/memberOf)")}
+                  aria-label={tx("Groups attribute name")}
+                  className={inp} />
               </div>
             </details>
             <p className="text-slate-600 text-xs">{tx("Super admin is never granted automatically through sign-in.")}</p>

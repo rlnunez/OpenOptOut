@@ -144,6 +144,7 @@ export default function BrokerPriority() {
         <div className="relative">
           <Search size={13} className="absolute start-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={tx("Filter brokers")}
+            aria-label={tx("Filter brokers")}
             className="ps-8 pe-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 w-48" />
         </div>
         <button onClick={selected.size ? clearSelection : selectAllVisible}
@@ -155,6 +156,7 @@ export default function BrokerPriority() {
           <div className="flex items-center gap-2 ms-auto">
             <span className="text-slate-400 text-xs">{tx("Set {size} to:", { size: selected.size })}</span>
             <select value={bulkPriority} onChange={e => setBulkPriority(+e.target.value)}
+              aria-label={tx("Bulk priority level")}
               className="bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm px-2 py-1.5">
               {[5,4,3,2,1].map(p => <option key={p} value={p}>{p} — {PRIORITY_LABELS[p]}</option>)}
             </select>
@@ -189,7 +191,9 @@ export default function BrokerPriority() {
                   return (
                     <tr key={id} className="border-b border-slate-800/60 last:border-0">
                       <td className="px-3 py-2.5">
-                        <button onClick={() => toggleSelect(id)} className="text-slate-500 hover:text-slate-300">
+                        <button onClick={() => toggleSelect(id)}
+                          aria-label={sel ? tx("Deselect {name}", { name: b.name }) : tx("Select {name}", { name: b.name })}
+                          className="text-slate-500 hover:text-slate-300">
                           {sel ? <CheckSquare size={15} className="text-shield-400" /> : <Square size={15} />}
                         </button>
                       </td>
@@ -199,6 +203,7 @@ export default function BrokerPriority() {
                         <select
                           value={b.priority ?? 3}
                           onChange={e => setPriority(b, +e.target.value)}
+                          aria-label={tx("Priority for {name}", { name: b.name })}
                           className={`bg-slate-800 border border-slate-700 rounded-lg text-sm px-2 py-1 ${PRIORITY_COLORS[b.priority ?? 3]}`}>
                           {[5,4,3,2,1].map(p => <option key={p} value={p}>{p} — {PRIORITY_LABELS[p]}</option>)}
                         </select>
@@ -210,6 +215,7 @@ export default function BrokerPriority() {
                       </td>
                       <td className="px-4 py-2.5 text-end">
                         <button onClick={() => resetOne(b)} title={tx("Reset to default")}
+                          aria-label={tx("Reset priority for {name}", { name: b.name })}
                           className="text-slate-500 hover:text-slate-300"><RotateCcw size={13} /></button>
                       </td>
                     </tr>
