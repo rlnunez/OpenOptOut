@@ -328,7 +328,7 @@ export default function SystemLogs() {
             logs.map((entry) => {
               const levelCls = LEVEL_COLORS[entry.level] || 'text-slate-400 bg-slate-900 border-slate-800'
               return (
-                <div key={entry.id} className="flex items-start gap-2 hover:bg-slate-900/40 px-1 py-0.5 rounded-sm leading-relaxed">
+                <div key={entry.id} className="flex items-start gap-2 bg-slate-950 hover:bg-slate-900/40 px-1 py-0.5 rounded-sm leading-relaxed">
                   <span className="text-slate-500 select-none shrink-0 text-[11px]">
                     {entry.timestamp.replace(' UTC', '')}
                   </span>

@@ -710,35 +710,50 @@ html.theme-light.a11y-high-contrast [role="status"],
 html.a11y-high-contrast-light [class*="bg-red-9"],
 html.a11y-high-contrast-light [class*="bg-amber-9"],
 html.a11y-high-contrast-light [class*="bg-emerald-9"],
+html.a11y-high-contrast-light [class*="bg-blue-9"],
+html.a11y-high-contrast-light [class*="bg-orange-9"],
+html.a11y-high-contrast-light [class*="bg-purple-9"],
+html.a11y-high-contrast-light [class*="bg-sky-9"],
+html.a11y-high-contrast-light [class*="bg-indigo-9"],
 html.theme-light-ada [class*="bg-red-9"],
 html.theme-light-ada [class*="bg-amber-9"],
 html.theme-light-ada [class*="bg-emerald-9"],
+html.theme-light-ada [class*="bg-blue-9"],
+html.theme-light-ada [class*="bg-orange-9"],
+html.theme-light-ada [class*="bg-purple-9"],
+html.theme-light-ada [class*="bg-sky-9"],
+html.theme-light-ada [class*="bg-indigo-9"],
 html.theme-light.a11y-high-contrast [class*="bg-red-9"],
 html.theme-light.a11y-high-contrast [class*="bg-amber-9"],
-html.theme-light.a11y-high-contrast [class*="bg-emerald-9"] {
+html.theme-light.a11y-high-contrast [class*="bg-emerald-9"],
+html.theme-light.a11y-high-contrast [class*="bg-blue-9"],
+html.theme-light.a11y-high-contrast [class*="bg-orange-9"],
+html.theme-light.a11y-high-contrast [class*="bg-purple-9"],
+html.theme-light.a11y-high-contrast [class*="bg-sky-9"],
+html.theme-light.a11y-high-contrast [class*="bg-indigo-9"] {
   background-color: #ffffff !important;
   color: #000000 !important;
   border-width: 2px !important;
 }
 
-html.a11y-high-contrast-light [role="alert"] p,
-html.a11y-high-contrast-light [role="alert"] span,
-html.a11y-high-contrast-light [role="status"] p,
-html.a11y-high-contrast-light [role="status"] span,
-html.theme-light-ada [role="alert"] p,
-html.theme-light-ada [role="alert"] span,
-html.theme-light-ada [role="status"] p,
-html.theme-light-ada [role="status"] span,
-html.theme-light.a11y-high-contrast [role="alert"] p,
-html.theme-light.a11y-high-contrast [role="alert"] span,
-html.theme-light.a11y-high-contrast [role="status"] p,
-html.theme-light.a11y-high-contrast [role="status"] span,
-html.a11y-high-contrast-light [class*="text-amber-"],
-html.a11y-high-contrast-light [class*="text-red-"],
-html.theme-light-ada [class*="text-amber-"],
-html.theme-light-ada [class*="text-red-"],
-html.theme-light.a11y-high-contrast [class*="text-amber-"],
-html.theme-light.a11y-high-contrast [class*="text-red-"] {
+html.a11y-high-contrast-light [role="alert"] p:not(button *),
+html.a11y-high-contrast-light [role="alert"] span:not(button *),
+html.a11y-high-contrast-light [role="status"] p:not(button *),
+html.a11y-high-contrast-light [role="status"] span:not(button *),
+html.theme-light-ada [role="alert"] p:not(button *),
+html.theme-light-ada [role="alert"] span:not(button *),
+html.theme-light-ada [role="status"] p:not(button *),
+html.theme-light-ada [role="status"] span:not(button *),
+html.theme-light.a11y-high-contrast [role="alert"] p:not(button *),
+html.theme-light.a11y-high-contrast [role="alert"] span:not(button *),
+html.theme-light.a11y-high-contrast [role="status"] p:not(button *),
+html.theme-light.a11y-high-contrast [role="status"] span:not(button *),
+html.a11y-high-contrast-light [class*="text-amber-"]:not(button *),
+html.a11y-high-contrast-light [class*="text-red-"]:not(button *),
+html.theme-light-ada [class*="text-amber-"]:not(button *),
+html.theme-light-ada [class*="text-red-"]:not(button *),
+html.theme-light.a11y-high-contrast [class*="text-amber-"]:not(button *),
+html.theme-light.a11y-high-contrast [class*="text-red-"]:not(button *) {
   color: #000000 !important;
 }
 
@@ -818,33 +833,24 @@ html.theme-light.a11y-high-contrast {
   color: #000000 !important;
 }
 
-html.a11y-high-contrast-light .bg-slate-950,
-html.a11y-high-contrast-light .bg-slate-900,
-html.a11y-high-contrast-light .bg-slate-800,
-html.a11y-high-contrast-light .bg-slate-950\/60,
-html.a11y-high-contrast-light .bg-slate-950\/80,
-html.a11y-high-contrast-light .bg-slate-900\/50,
-html.a11y-high-contrast-light .bg-slate-900\/40,
+html.a11y-high-contrast-light [class*="bg-slate-"],
+html.a11y-high-contrast-light [class*="bg-gray-"],
+html.a11y-high-contrast-light [class*="bg-zinc-"],
+html.a11y-high-contrast-light [class*="bg-neutral-"],
 html.a11y-high-contrast-light aside,
 html.a11y-high-contrast-light header,
 html.a11y-high-contrast-light nav,
-html.theme-light-ada .bg-slate-950,
-html.theme-light-ada .bg-slate-900,
-html.theme-light-ada .bg-slate-800,
-html.theme-light-ada .bg-slate-950\/60,
-html.theme-light-ada .bg-slate-950\/80,
-html.theme-light-ada .bg-slate-900\/50,
-html.theme-light-ada .bg-slate-900\/40,
+html.theme-light-ada [class*="bg-slate-"],
+html.theme-light-ada [class*="bg-gray-"],
+html.theme-light-ada [class*="bg-zinc-"],
+html.theme-light-ada [class*="bg-neutral-"],
 html.theme-light-ada aside,
 html.theme-light-ada header,
 html.theme-light-ada nav,
-html.theme-light.a11y-high-contrast .bg-slate-950,
-html.theme-light.a11y-high-contrast .bg-slate-900,
-html.theme-light.a11y-high-contrast .bg-slate-800,
-html.theme-light.a11y-high-contrast .bg-slate-950\/60,
-html.theme-light.a11y-high-contrast .bg-slate-950\/80,
-html.theme-light.a11y-high-contrast .bg-slate-900\/50,
-html.theme-light.a11y-high-contrast .bg-slate-900\/40,
+html.theme-light.a11y-high-contrast [class*="bg-slate-"],
+html.theme-light.a11y-high-contrast [class*="bg-gray-"],
+html.theme-light.a11y-high-contrast [class*="bg-zinc-"],
+html.theme-light.a11y-high-contrast [class*="bg-neutral-"],
 html.theme-light.a11y-high-contrast aside,
 html.theme-light.a11y-high-contrast header,
 html.theme-light.a11y-high-contrast nav {
@@ -1038,8 +1044,22 @@ html.a11y-high-contrast-light [class*="text-shield-"] {
 }
 
 html.theme-light-ada [class*="text-purple-"],
-html.a11y-high-contrast-light [class*="text-purple-"] {
+html.a11y-high-contrast-light [class*="text-purple-"],
+html.theme-light.a11y-high-contrast [class*="text-purple-"] {
   color: #3b0066 !important; /* >= 12:1 contrast against #ffffff (AAA) */
+  font-weight: 700 !important;
+}
+
+html.theme-light-ada [class*="text-yellow-"],
+html.theme-light-ada [class*="text-amber-"],
+html.theme-light-ada [class*="text-orange-"],
+html.a11y-high-contrast-light [class*="text-yellow-"],
+html.a11y-high-contrast-light [class*="text-amber-"],
+html.a11y-high-contrast-light [class*="text-orange-"],
+html.theme-light.a11y-high-contrast [class*="text-yellow-"],
+html.theme-light.a11y-high-contrast [class*="text-amber-"],
+html.theme-light.a11y-high-contrast [class*="text-orange-"] {
+  color: #613b00 !important; /* >= 7.5:1 contrast against #ffffff (AAA) */
   font-weight: 700 !important;
 }
 
@@ -1057,39 +1077,99 @@ html.a11y-high-contrast-light div[role="region"] {
 }
 
 /* Explicit Level AAA button overrides for alert banners & action controls */
-html.theme-light-ada .a11y-banner-action,
-html.a11y-high-contrast-light .a11y-banner-action {
-  background-color: #0000ee !important;
+html.theme-light-ada [role="alert"] button,
+html.theme-light-ada [role="alert"] button.bg-red-600,
+html.theme-light-ada [role="alert"] .a11y-banner-action,
+html.theme-light-ada button.a11y-banner-action,
+html.a11y-high-contrast-light [role="alert"] button,
+html.a11y-high-contrast-light [role="alert"] button.bg-red-600,
+html.a11y-high-contrast-light [role="alert"] .a11y-banner-action,
+html.a11y-high-contrast-light button.a11y-banner-action,
+html.theme-light.a11y-high-contrast [role="alert"] button,
+html.theme-light.a11y-high-contrast [role="alert"] button.bg-red-600,
+html.theme-light.a11y-high-contrast [role="alert"] .a11y-banner-action,
+html.theme-light.a11y-high-contrast button.a11y-banner-action {
+  background-color: #000000 !important;
   color: #ffffff !important;
   border: 2px solid #000000 !important;
   font-weight: 700 !important;
 }
+html.theme-light-ada [role="alert"] button span,
+html.theme-light-ada [role="alert"] button svg,
+html.theme-light-ada [role="alert"] button *,
 html.theme-light-ada .a11y-banner-action *,
-html.a11y-high-contrast-light .a11y-banner-action * {
+html.a11y-high-contrast-light [role="alert"] button span,
+html.a11y-high-contrast-light [role="alert"] button svg,
+html.a11y-high-contrast-light [role="alert"] button *,
+html.a11y-high-contrast-light .a11y-banner-action *,
+html.theme-light.a11y-high-contrast [role="alert"] button span,
+html.theme-light.a11y-high-contrast [role="alert"] button svg,
+html.theme-light.a11y-high-contrast [role="alert"] button *,
+html.theme-light.a11y-high-contrast .a11y-banner-action * {
   color: #ffffff !important;
 }
 
-html.theme-dark-ada .a11y-banner-action,
-html.a11y-high-contrast-dark .a11y-banner-action {
+html.theme-dark-ada [role="alert"] button,
+html.theme-dark-ada [role="alert"] button.bg-red-600,
+html.theme-dark-ada [role="alert"] .a11y-banner-action,
+html.theme-dark-ada button.a11y-banner-action,
+html.a11y-high-contrast-dark [role="alert"] button,
+html.a11y-high-contrast-dark [role="alert"] button.bg-red-600,
+html.a11y-high-contrast-dark [role="alert"] .a11y-banner-action,
+html.a11y-high-contrast-dark button.a11y-banner-action,
+html.theme-dark.a11y-high-contrast [role="alert"] button,
+html.theme-dark.a11y-high-contrast [role="alert"] button.bg-red-600,
+html.theme-dark.a11y-high-contrast [role="alert"] .a11y-banner-action,
+html.theme-dark.a11y-high-contrast button.a11y-banner-action {
   background-color: #ffff00 !important;
   color: #000000 !important;
   border: 2px solid #ffffff !important;
   font-weight: 700 !important;
 }
+html.theme-dark-ada [role="alert"] button span,
+html.theme-dark-ada [role="alert"] button svg,
+html.theme-dark-ada [role="alert"] button *,
 html.theme-dark-ada .a11y-banner-action *,
-html.a11y-high-contrast-dark .a11y-banner-action * {
+html.a11y-high-contrast-dark [role="alert"] button span,
+html.a11y-high-contrast-dark [role="alert"] button svg,
+html.a11y-high-contrast-dark [role="alert"] button *,
+html.a11y-high-contrast-dark .a11y-banner-action *,
+html.theme-dark.a11y-high-contrast [role="alert"] button span,
+html.theme-dark.a11y-high-contrast [role="alert"] button svg,
+html.theme-dark.a11y-high-contrast [role="alert"] button *,
+html.theme-dark.a11y-high-contrast .a11y-banner-action * {
   color: #000000 !important;
 }
 
-html.theme-space-ada .a11y-banner-action,
-html.a11y-high-contrast-space .a11y-banner-action {
+html.theme-space-ada [role="alert"] button,
+html.theme-space-ada [role="alert"] button.bg-red-600,
+html.theme-space-ada [role="alert"] .a11y-banner-action,
+html.theme-space-ada button.a11y-banner-action,
+html.a11y-high-contrast-space [role="alert"] button,
+html.a11y-high-contrast-space [role="alert"] button.bg-red-600,
+html.a11y-high-contrast-space [role="alert"] .a11y-banner-action,
+html.a11y-high-contrast-space button.a11y-banner-action,
+html.theme-space.a11y-high-contrast [role="alert"] button,
+html.theme-space.a11y-high-contrast [role="alert"] button.bg-red-600,
+html.theme-space.a11y-high-contrast [role="alert"] .a11y-banner-action,
+html.theme-space.a11y-high-contrast button.a11y-banner-action {
   background-color: #ff9900 !important;
   color: #000000 !important;
   border: 2px solid #ff9900 !important;
   font-weight: 800 !important;
 }
+html.theme-space-ada [role="alert"] button span,
+html.theme-space-ada [role="alert"] button svg,
+html.theme-space-ada [role="alert"] button *,
 html.theme-space-ada .a11y-banner-action *,
-html.a11y-high-contrast-space .a11y-banner-action * {
+html.a11y-high-contrast-space [role="alert"] button span,
+html.a11y-high-contrast-space [role="alert"] button svg,
+html.a11y-high-contrast-space [role="alert"] button *,
+html.a11y-high-contrast-space .a11y-banner-action *,
+html.theme-space.a11y-high-contrast [role="alert"] button span,
+html.theme-space.a11y-high-contrast [role="alert"] button svg,
+html.theme-space.a11y-high-contrast [role="alert"] button *,
+html.theme-space.a11y-high-contrast .a11y-banner-action * {
   color: #000000 !important;
 }
 

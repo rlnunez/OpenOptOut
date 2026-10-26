@@ -900,10 +900,10 @@ export default function SecretKeyBanner() {
                 type="button"
                 onClick={recheckNow}
                 disabled={checking}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-900 hover:bg-red-800 border border-red-400/40 text-white text-xs font-medium transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-900 hover:bg-red-800 border border-red-400/40 text-white text-xs font-medium transition-colors a11y-banner-action"
               >
                 <RefreshCw size={13} className={checking ? 'animate-spin' : ''} />
-                {tx("Verify File Permissions")}
+                <span>{tx("Verify File Permissions")}</span>
               </button>
             )}
             <button
