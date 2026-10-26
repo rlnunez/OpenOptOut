@@ -51,6 +51,53 @@ ERROR_TEXT = re.compile(
 # run-failing error.
 CONTENT_PAGES = {"/translations", "/logs", "/help", "/plugin-help"}
 
+AXE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "axe.min.js")
+AXE_SCRIPT = None
+if os.path.isfile(AXE_PATH):
+    try:
+        with open(AXE_PATH, "r", encoding="utf-8") as f:
+            AXE_SCRIPT = f.read()
+    except Exception:
+        pass
+
+
+def audit_page_a11y(page, rec, route):
+    """Evaluate WCAG 2.2 accessibility rules via axe-core."""
+    if not AXE_SCRIPT:
+        return
+    try:
+        page.evaluate(AXE_SCRIPT)
+        results = page.evaluate("""() => {
+            return new Promise((resolve) => {
+                if (typeof axe === 'undefined') {
+                    resolve({ error: 'axe not loaded' });
+                    return;
+                }
+                axe.run(document, {
+                    runOnly: {
+                        type: 'tag',
+                        values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']
+                    }
+                }, (err, res) => {
+                    if (err) resolve({ error: String(err) });
+                    else resolve(res);
+                });
+            });
+        }""")
+        if isinstance(results, dict) and "violations" in results:
+            for v in results["violations"]:
+                impact = str(v.get("impact", "unknown")).lower()
+                desc = v.get("description", "")
+                nodes = len(v.get("nodes", []))
+                rule = v.get("id", "rule")
+                msg = f"[{impact.upper()}] {rule}: {desc} ({nodes} nodes)"
+                if impact in ("critical", "serious"):
+                    rec.error("Accessibility violation (WCAG 2.2)", f"{route}: {msg}")
+                else:
+                    rec.warn("Accessibility warning (WCAG 2.2)", f"{route}: {msg}")
+    except Exception as e:
+        rec.warn("Accessibility audit exception", f"{route}: {e}")
+
 
 class Recorder:
     """Collects problems, tagged with the screen they happened on."""
@@ -170,6 +217,7 @@ def main():
             steps.append(("First-run screen appears", False, "button not found"))
             return finish(args, rec, steps, browser, fatal=True)
         steps.append(("First-run screen appears", True, ""))
+        audit_page_a11y(page, rec, "/first-run")
 
         # ── 2. create the administrator through the form ─────────────────────
         rec.screen = "create administrator"
@@ -393,6 +441,7 @@ def main():
                 rec.error("Logged out unexpectedly", f"opening {route} sent us to {page.url}")
             name = "page-root" if route == "/" else "page" + route.replace("/", "-")
             snap(page, name)
+            audit_page_a11y(page, rec, route)
             page_results.append({
                 "route": route,
                 "errors": len(rec.errors) - before[0],

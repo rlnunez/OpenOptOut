@@ -81,6 +81,14 @@ else
   FAILED_CHECKS=$((FAILED_CHECKS + 1))
 fi
 
+# ── 3b. Frontend Accessibility (WCAG 2.2) Verification ───────────────────────
+info "Validating frontend accessibility rules (WCAG 2.2 AA / AAA)..."
+if (cd frontend && npm run check:a11y); then
+  success "Frontend accessibility check completed"
+else
+  warn "Accessibility warnings detected in frontend JSX components"
+fi
+
 # ── 4. Python AST Security (Bandit) ──────────────────────────────────────────
 info "Running Bandit (Python AST security linter)..."
 if command -v bandit > /dev/null 2>&1; then
