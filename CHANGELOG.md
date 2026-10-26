@@ -10,10 +10,12 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 ## [0.11.3] — 2026-10-23
 
 ### Accessibility & WCAG 2.2 AA Compliance
-- **Dual-Round Automated Accessibility Verification (`.github/release-test/ui_check.py`):**
+- **Dual-Round & Multi-Theme Automated Accessibility Verification (`.github/release-test/ui_check.py`):**
   - **Round 1 (Regular/Default Theme):** Strict functional auditing of all application pages with axe-core, asserting zero blocking form label, select name, button name, or interactive element accessibility defects while treating non-blocking contrast and minimum target size as diagnostic notices.
-  - **Round 2 (High-Contrast ADA Theme):** Comprehensive WCAG 2.2 Level AA and Level AAA audit asserting strict adherence under high-contrast dark theme (`dark-ada`), 125% root font scaling, 21:1 text contrast ratios, and enlarged touch targets.
+  - **Round 2 (Multi-Theme ADA Audit):** Expanded automated browser walkthrough to audit all three distinct ADA compliance themes across every page (Dark ADA `dark-ada`, Light ADA `light-ada`, and Space Explorer ADA `space-ada`), enforcing WCAG 2.2 Level AA and Level AAA adherence, 125% root font scaling, and enhanced touch targets.
   - **Verbose Failure & Theme Diagnostics:** Upgraded test runner and markdown reporting to output full node-level diagnostics (exact CSS selector path, HTML snippet, axe-core remediation failure explanation, and active theme tag) directly to CI standard output and release test artifacts.
+- **Universal Multi-Theme High-Contrast Overrides (`frontend/src/index.css`):**
+  - Added comprehensive styling rules across Dark ADA, Light ADA, and Space Explorer ADA themes covering form controls (`input`, `select`, `textarea`, `::placeholder`), text hues (`.text-slate-100` through `.text-slate-600`), and action/badge button backgrounds (`.bg-shield-600`, `.bg-blue-600`, `.bg-emerald-600`, `.bg-sky-700`, `.bg-sky-600`, `.bg-sky-500`) with explicit child text inheritance.
 - **System-Wide Form Control Label Association (`frontend/src/components/Field.jsx`):**
   - Implemented automatic recursive DOM tree inspection in the core `<Field>` wrapper, auto-generating and binding `htmlFor`/`id` and fallback `aria-label` attributes to nested `<input>`, `<select>`, and `<textarea>` controls across all form views.
 - **Interactive Component Accessibility Enhancements:**

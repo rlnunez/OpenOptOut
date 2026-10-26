@@ -61,7 +61,7 @@ if os.path.isfile(AXE_PATH):
         pass
 
 
-def audit_page_a11y(page, rec, route, is_ada=False):
+def audit_page_a11y(page, rec, route, is_ada=False, ada_theme_name=None):
     """Evaluate WCAG 2.2 accessibility rules via axe-core."""
     if not AXE_SCRIPT:
         return
@@ -84,7 +84,7 @@ def audit_page_a11y(page, rec, route, is_ada=False):
                 });
             });
         }""")
-        theme_name = "ADA/WCAG (theme-dark-ada)" if is_ada else "Regular Theme"
+        theme_name = ada_theme_name or ("ADA/WCAG (theme-dark-ada)" if is_ada else "Regular Theme")
         if isinstance(results, dict) and "violations" in results:
             for v in results["violations"]:
                 impact = str(v.get("impact", "unknown")).lower()
@@ -473,50 +473,116 @@ def main():
             })
         steps.append(("Open every page (Regular theme)", True, f"{len(PAGES)} pages"))
 
-        # ── 5. second round: ADA / WCAG high-contrast theme & large font ────
-        rec.screen = "switch to ADA / WCAG theme"
-        try:
-            page.evaluate("""() => {
-                localStorage.setItem('app_theme', 'dark-ada');
-                localStorage.setItem('a11y_high_contrast', 'true');
-                localStorage.setItem('a11y_enhanced_targets', 'true');
-                localStorage.setItem('a11y_font_size', '125');
-                const root = document.documentElement;
-                root.classList.add('theme-dark', 'theme-dark-ada', 'a11y-high-contrast', 'a11y-high-contrast-dark', 'a11y-enhanced-targets', 'a11y-large-text');
-                root.style.setProperty('--a11y-font-size', '125%');
-            }""")
-            settle(page, 2000)
-            snap(page, "ada-dashboard")
-            steps.append(("Switch to ADA/WCAG high-contrast theme & large font", True, "theme-dark-ada (125% font, 21:1 contrast, enhanced targets)"))
-        except Exception as e:
-            steps.append(("Switch to ADA/WCAG high-contrast theme & large font", False, str(e)[:200]))
+        # ── 5. Second round: ADA / WCAG compliance themes & large font ────
+        ADA_THEMES = [
+            {
+                "id": "dark-ada",
+                "label": "Dark ADA",
+                "desc": "WCAG Level AAA 21:1 contrast, 125% font, enhanced targets",
+                "classes": [
+                    "theme-dark", "theme-dark-ada",
+                    "a11y-high-contrast", "a11y-high-contrast-dark",
+                    "a11y-enhanced-targets", "a11y-large-text"
+                ],
+            },
+            {
+                "id": "light-ada",
+                "label": "Light ADA",
+                "desc": "Crisp white, high-contrast black & saturated blue, enhanced targets",
+                "classes": [
+                    "theme-light", "theme-light-ada",
+                    "a11y-high-contrast", "a11y-high-contrast-light",
+                    "a11y-enhanced-targets", "a11y-large-text"
+                ],
+            },
+            {
+                "id": "space-ada",
+                "label": "Space Explorer ADA",
+                "desc": "Cosmic black, high-contrast luminous amber (AAA), 2px visibility borders",
+                "classes": [
+                    "theme-space", "theme-space-ada",
+                    "a11y-high-contrast", "a11y-high-contrast-space",
+                    "a11y-enhanced-targets", "a11y-large-text"
+                ],
+            },
+        ]
 
-        for route in PAGES:
-            rec.screen = f"page {route} (ADA mode)"
-            before = (len(rec.errors), len(rec.warnings))
+        for t in ADA_THEMES:
+            t_id = t["id"]
+            t_label = t["label"]
+            t_classes = t["classes"]
+            t_desc = t["desc"]
+
+            rec.screen = f"switch to {t_label}"
             try:
-                page.goto(base + route, timeout=30000)
-            except Exception as e:  # noqa: BLE001
-                rec.error("Page did not load in ADA mode", str(e))
-            settle(page)
-            time.sleep(0.3)
-            try:
-                page.evaluate("""() => {
+                page.evaluate("""(themeId) => {
+                    localStorage.setItem('app_theme', themeId);
+                    localStorage.setItem('a11y_high_contrast', 'true');
+                    localStorage.setItem('a11y_enhanced_targets', 'true');
+                    localStorage.setItem('a11y_font_size', '125');
+                }""", t_id)
+                page.goto(base + "/", timeout=30000)
+                page.evaluate("""(classes) => {
                     const root = document.documentElement;
-                    root.classList.add('theme-dark', 'theme-dark-ada', 'a11y-high-contrast', 'a11y-high-contrast-dark', 'a11y-enhanced-targets', 'a11y-large-text');
+                    root.classList.remove(
+                        'theme-light', 'theme-light-ada',
+                        'theme-gray',
+                        'theme-dark', 'theme-dark-ada',
+                        'theme-space', 'theme-space-ada',
+                        'a11y-high-contrast',
+                        'a11y-high-contrast-light',
+                        'a11y-high-contrast-dark',
+                        'a11y-high-contrast-space'
+                    );
+                    for (const c of classes) {
+                        root.classList.add(c);
+                    }
                     root.style.setProperty('--a11y-font-size', '125%');
-                }""")
-            except Exception:
-                pass
-            name = "page-root-ada" if route == "/" else "page" + route.replace("/", "-") + "-ada"
-            snap(page, name)
-            audit_page_a11y(page, rec, f"{route} (ADA)", is_ada=True)
-            page_results.append({
-                "route": f"{route} (ADA)",
-                "errors": len(rec.errors) - before[0],
-                "warnings": len(rec.warnings) - before[1],
-            })
-        steps.append(("Open every page in ADA/WCAG mode", True, f"{len(PAGES)} pages"))
+                }""", t_classes)
+                settle(page, 2000)
+                snap(page, f"ada-{t_id}-dashboard")
+                steps.append((f"Switch to {t_label} ({t_desc})", True, f"Theme {t_id} activated"))
+            except Exception as e:
+                steps.append((f"Switch to {t_label}", False, str(e)[:200]))
+
+            for route in PAGES:
+                rec.screen = f"page {route} ({t_label} mode)"
+                before = (len(rec.errors), len(rec.warnings))
+                try:
+                    page.goto(base + route, timeout=30000)
+                except Exception as e:  # noqa: BLE001
+                    rec.error(f"Page did not load in {t_label} mode", str(e))
+                settle(page)
+                time.sleep(0.3)
+                try:
+                    page.evaluate("""(classes) => {
+                        const root = document.documentElement;
+                        root.classList.remove(
+                            'theme-light', 'theme-light-ada',
+                            'theme-gray',
+                            'theme-dark', 'theme-dark-ada',
+                            'theme-space', 'theme-space-ada',
+                            'a11y-high-contrast',
+                            'a11y-high-contrast-light',
+                            'a11y-high-contrast-dark',
+                            'a11y-high-contrast-space'
+                        );
+                        for (const c of classes) {
+                            root.classList.add(c);
+                        }
+                        root.style.setProperty('--a11y-font-size', '125%');
+                    }""", t_classes)
+                except Exception:
+                    pass
+                name = ("page-root-" if route == "/" else "page" + route.replace("/", "-") + "-") + t_id
+                snap(page, name)
+                audit_page_a11y(page, rec, f"{route} ({t_label})", is_ada=True, ada_theme_name=f"{t_label} ({t_id})")
+                page_results.append({
+                    "route": f"{route} ({t_label})",
+                    "errors": len(rec.errors) - before[0],
+                    "warnings": len(rec.warnings) - before[1],
+                })
+            steps.append((f"Open every page in {t_label} mode", True, f"{len(PAGES)} pages audited"))
 
         return finish(args, rec, steps, browser, pages=page_results)
 

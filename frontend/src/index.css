@@ -492,6 +492,58 @@ html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-s
   font-weight: 700 !important;
 }
 
+html.a11y-high-contrast-dark .bg-shield-600 *,
+html.a11y-high-contrast-dark .bg-blue-600 *,
+html.a11y-high-contrast-dark .bg-emerald-600 *,
+html.a11y-high-contrast-dark .bg-sky-700 *,
+html.a11y-high-contrast-dark .bg-sky-600 *,
+html.a11y-high-contrast-dark .bg-sky-500 *,
+html.theme-dark-ada .bg-shield-600 *,
+html.theme-dark-ada .bg-blue-600 *,
+html.theme-dark-ada .bg-emerald-600 *,
+html.theme-dark-ada .bg-sky-700 *,
+html.theme-dark-ada .bg-sky-600 *,
+html.theme-dark-ada .bg-sky-500 *,
+html.theme-dark.a11y-high-contrast .bg-shield-600 *,
+html.theme-dark.a11y-high-contrast .bg-blue-600 *,
+html.theme-dark.a11y-high-contrast .bg-emerald-600 *,
+html.theme-dark.a11y-high-contrast .bg-sky-700 *,
+html.theme-dark.a11y-high-contrast .bg-sky-600 *,
+html.theme-dark.a11y-high-contrast .bg-sky-500 *,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-shield-600 *,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-blue-600 *,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-emerald-600 *,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-sky-700 *,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-sky-600 *,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) .bg-sky-500 * {
+  color: #000000 !important;
+}
+
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) input,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) select,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) textarea,
+html.theme-dark-ada input,
+html.theme-dark-ada select,
+html.theme-dark-ada textarea,
+html.theme-dark.a11y-high-contrast input,
+html.theme-dark.a11y-high-contrast select,
+html.theme-dark.a11y-high-contrast textarea {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+  border-width: 2px !important;
+}
+
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) input::placeholder,
+html.a11y-high-contrast:not(.a11y-high-contrast-light):not(.a11y-high-contrast-space):not(.theme-light-ada):not(.theme-space-ada) textarea::placeholder,
+html.theme-dark-ada input::placeholder,
+html.theme-dark-ada textarea::placeholder,
+html.theme-dark.a11y-high-contrast input::placeholder,
+html.theme-dark.a11y-high-contrast textarea::placeholder {
+  color: #cccccc !important;
+  opacity: 1 !important;
+}
+
 html.a11y-high-contrast-dark .text-blue-400,
 html.a11y-high-contrast-dark .text-shield-400,
 html.a11y-high-contrast-dark .text-shield-500,
@@ -554,22 +606,71 @@ html.theme-light.a11y-high-contrast nav {
 }
 
 html.a11y-high-contrast-light .text-white,
+html.a11y-high-contrast-light .text-slate-100,
+html.a11y-high-contrast-light .text-slate-200,
 html.a11y-high-contrast-light .text-slate-300,
 html.a11y-high-contrast-light .text-slate-400,
 html.a11y-high-contrast-light .text-slate-500,
 html.a11y-high-contrast-light .text-slate-600,
+html.a11y-high-contrast-light .text-gray-100,
+html.a11y-high-contrast-light .text-gray-200,
+html.a11y-high-contrast-light .text-gray-300,
+html.a11y-high-contrast-light .text-gray-400,
+html.a11y-high-contrast-light .text-gray-500,
+html.a11y-high-contrast-light .text-gray-600,
 html.theme-light-ada .text-white,
+html.theme-light-ada .text-slate-100,
+html.theme-light-ada .text-slate-200,
 html.theme-light-ada .text-slate-300,
 html.theme-light-ada .text-slate-400,
 html.theme-light-ada .text-slate-500,
 html.theme-light-ada .text-slate-600,
+html.theme-light-ada .text-gray-100,
+html.theme-light-ada .text-gray-200,
+html.theme-light-ada .text-gray-300,
+html.theme-light-ada .text-gray-400,
+html.theme-light-ada .text-gray-500,
+html.theme-light-ada .text-gray-600,
 html.theme-light.a11y-high-contrast .text-white,
+html.theme-light.a11y-high-contrast .text-slate-100,
+html.theme-light.a11y-high-contrast .text-slate-200,
 html.theme-light.a11y-high-contrast .text-slate-300,
 html.theme-light.a11y-high-contrast .text-slate-400,
 html.theme-light.a11y-high-contrast .text-slate-500,
-html.theme-light.a11y-high-contrast .text-slate-600 {
+html.theme-light.a11y-high-contrast .text-slate-600,
+html.theme-light.a11y-high-contrast .text-gray-100,
+html.theme-light.a11y-high-contrast .text-gray-200,
+html.theme-light.a11y-high-contrast .text-gray-300,
+html.theme-light.a11y-high-contrast .text-gray-400,
+html.theme-light.a11y-high-contrast .text-gray-500,
+html.theme-light.a11y-high-contrast .text-gray-600 {
   color: #000000 !important;
   font-weight: 600 !important;
+}
+
+html.a11y-high-contrast-light input,
+html.a11y-high-contrast-light select,
+html.a11y-high-contrast-light textarea,
+html.theme-light-ada input,
+html.theme-light-ada select,
+html.theme-light-ada textarea,
+html.theme-light.a11y-high-contrast input,
+html.theme-light.a11y-high-contrast select,
+html.theme-light.a11y-high-contrast textarea {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #000000 !important;
+  border-width: 2px !important;
+}
+
+html.a11y-high-contrast-light input::placeholder,
+html.a11y-high-contrast-light textarea::placeholder,
+html.theme-light-ada input::placeholder,
+html.theme-light-ada textarea::placeholder,
+html.theme-light.a11y-high-contrast input::placeholder,
+html.theme-light.a11y-high-contrast textarea::placeholder {
+  color: #333333 !important;
+  opacity: 1 !important;
 }
 
 html.a11y-high-contrast-light .border-slate-800,
@@ -597,13 +698,46 @@ html.theme-light.a11y-high-contrast :focus-visible {
 
 html.a11y-high-contrast-light .bg-shield-600,
 html.a11y-high-contrast-light .bg-blue-600,
+html.a11y-high-contrast-light .bg-emerald-600,
+html.a11y-high-contrast-light .bg-sky-700,
+html.a11y-high-contrast-light .bg-sky-600,
+html.a11y-high-contrast-light .bg-sky-500,
 html.theme-light-ada .bg-shield-600,
 html.theme-light-ada .bg-blue-600,
+html.theme-light-ada .bg-emerald-600,
+html.theme-light-ada .bg-sky-700,
+html.theme-light-ada .bg-sky-600,
+html.theme-light-ada .bg-sky-500,
 html.theme-light.a11y-high-contrast .bg-shield-600,
-html.theme-light.a11y-high-contrast .bg-blue-600 {
+html.theme-light.a11y-high-contrast .bg-blue-600,
+html.theme-light.a11y-high-contrast .bg-emerald-600,
+html.theme-light.a11y-high-contrast .bg-sky-700,
+html.theme-light.a11y-high-contrast .bg-sky-600,
+html.theme-light.a11y-high-contrast .bg-sky-500 {
   background-color: #0000ee !important;
   color: #ffffff !important;
   font-weight: 700 !important;
+}
+
+html.a11y-high-contrast-light .bg-shield-600 *,
+html.a11y-high-contrast-light .bg-blue-600 *,
+html.a11y-high-contrast-light .bg-emerald-600 *,
+html.a11y-high-contrast-light .bg-sky-700 *,
+html.a11y-high-contrast-light .bg-sky-600 *,
+html.a11y-high-contrast-light .bg-sky-500 *,
+html.theme-light-ada .bg-shield-600 *,
+html.theme-light-ada .bg-blue-600 *,
+html.theme-light-ada .bg-emerald-600 *,
+html.theme-light-ada .bg-sky-700 *,
+html.theme-light-ada .bg-sky-600 *,
+html.theme-light-ada .bg-sky-500 *,
+html.theme-light.a11y-high-contrast .bg-shield-600 *,
+html.theme-light.a11y-high-contrast .bg-blue-600 *,
+html.theme-light.a11y-high-contrast .bg-emerald-600 *,
+html.theme-light.a11y-high-contrast .bg-sky-700 *,
+html.theme-light.a11y-high-contrast .bg-sky-600 *,
+html.theme-light.a11y-high-contrast .bg-sky-500 * {
+  color: #ffffff !important;
 }
 
 html.a11y-high-contrast-light .text-blue-400,
@@ -670,20 +804,69 @@ html.theme-space.a11y-high-contrast .text-white {
   font-weight: 700 !important;
 }
 
+html.a11y-high-contrast-space .text-slate-100,
+html.a11y-high-contrast-space .text-slate-200,
 html.a11y-high-contrast-space .text-slate-300,
 html.a11y-high-contrast-space .text-slate-400,
 html.a11y-high-contrast-space .text-slate-500,
 html.a11y-high-contrast-space .text-slate-600,
+html.a11y-high-contrast-space .text-gray-100,
+html.a11y-high-contrast-space .text-gray-200,
+html.a11y-high-contrast-space .text-gray-300,
+html.a11y-high-contrast-space .text-gray-400,
+html.a11y-high-contrast-space .text-gray-500,
+html.a11y-high-contrast-space .text-gray-600,
+html.theme-space-ada .text-slate-100,
+html.theme-space-ada .text-slate-200,
 html.theme-space-ada .text-slate-300,
 html.theme-space-ada .text-slate-400,
 html.theme-space-ada .text-slate-500,
 html.theme-space-ada .text-slate-600,
+html.theme-space-ada .text-gray-100,
+html.theme-space-ada .text-gray-200,
+html.theme-space-ada .text-gray-300,
+html.theme-space-ada .text-gray-400,
+html.theme-space-ada .text-gray-500,
+html.theme-space-ada .text-gray-600,
+html.theme-space.a11y-high-contrast .text-slate-100,
+html.theme-space.a11y-high-contrast .text-slate-200,
 html.theme-space.a11y-high-contrast .text-slate-300,
 html.theme-space.a11y-high-contrast .text-slate-400,
 html.theme-space.a11y-high-contrast .text-slate-500,
-html.theme-space.a11y-high-contrast .text-slate-600 {
+html.theme-space.a11y-high-contrast .text-slate-600,
+html.theme-space.a11y-high-contrast .text-gray-100,
+html.theme-space.a11y-high-contrast .text-gray-200,
+html.theme-space.a11y-high-contrast .text-gray-300,
+html.theme-space.a11y-high-contrast .text-gray-400,
+html.theme-space.a11y-high-contrast .text-gray-500,
+html.theme-space.a11y-high-contrast .text-gray-600 {
   color: #ffb800 !important;
   font-weight: 600 !important;
+}
+
+html.a11y-high-contrast-space input,
+html.a11y-high-contrast-space select,
+html.a11y-high-contrast-space textarea,
+html.theme-space-ada input,
+html.theme-space-ada select,
+html.theme-space-ada textarea,
+html.theme-space.a11y-high-contrast input,
+html.theme-space.a11y-high-contrast select,
+html.theme-space.a11y-high-contrast textarea {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #ff9900 !important;
+  border-width: 2px !important;
+}
+
+html.a11y-high-contrast-space input::placeholder,
+html.a11y-high-contrast-space textarea::placeholder,
+html.theme-space-ada input::placeholder,
+html.theme-space-ada textarea::placeholder,
+html.theme-space.a11y-high-contrast input::placeholder,
+html.theme-space.a11y-high-contrast textarea::placeholder {
+  color: #ffb800 !important;
+  opacity: 0.9 !important;
 }
 
 html.a11y-high-contrast-space .border-slate-800,
@@ -712,15 +895,45 @@ html.theme-space.a11y-high-contrast :focus-visible {
 html.a11y-high-contrast-space .bg-shield-600,
 html.a11y-high-contrast-space .bg-blue-600,
 html.a11y-high-contrast-space .bg-emerald-600,
+html.a11y-high-contrast-space .bg-sky-700,
+html.a11y-high-contrast-space .bg-sky-600,
+html.a11y-high-contrast-space .bg-sky-500,
 html.theme-space-ada .bg-shield-600,
 html.theme-space-ada .bg-blue-600,
 html.theme-space-ada .bg-emerald-600,
+html.theme-space-ada .bg-sky-700,
+html.theme-space-ada .bg-sky-600,
+html.theme-space-ada .bg-sky-500,
 html.theme-space.a11y-high-contrast .bg-shield-600,
 html.theme-space.a11y-high-contrast .bg-blue-600,
-html.theme-space.a11y-high-contrast .bg-emerald-600 {
+html.theme-space.a11y-high-contrast .bg-emerald-600,
+html.theme-space.a11y-high-contrast .bg-sky-700,
+html.theme-space.a11y-high-contrast .bg-sky-600,
+html.theme-space.a11y-high-contrast .bg-sky-500 {
   background-color: #ff9900 !important;
   color: #000000 !important;
   font-weight: 800 !important;
+}
+
+html.a11y-high-contrast-space .bg-shield-600 *,
+html.a11y-high-contrast-space .bg-blue-600 *,
+html.a11y-high-contrast-space .bg-emerald-600 *,
+html.a11y-high-contrast-space .bg-sky-700 *,
+html.a11y-high-contrast-space .bg-sky-600 *,
+html.a11y-high-contrast-space .bg-sky-500 *,
+html.theme-space-ada .bg-shield-600 *,
+html.theme-space-ada .bg-blue-600 *,
+html.theme-space-ada .bg-emerald-600 *,
+html.theme-space-ada .bg-sky-700 *,
+html.theme-space-ada .bg-sky-600 *,
+html.theme-space-ada .bg-sky-500 *,
+html.theme-space.a11y-high-contrast .bg-shield-600 *,
+html.theme-space.a11y-high-contrast .bg-blue-600 *,
+html.theme-space.a11y-high-contrast .bg-emerald-600 *,
+html.theme-space.a11y-high-contrast .bg-sky-700 *,
+html.theme-space.a11y-high-contrast .bg-sky-600 *,
+html.theme-space.a11y-high-contrast .bg-sky-500 * {
+  color: #000000 !important;
 }
 
 html.a11y-high-contrast-space .text-blue-400,
