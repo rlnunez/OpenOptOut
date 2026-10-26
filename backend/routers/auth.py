@@ -15,7 +15,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, field_validator, Field
 
-from ..core.limits import LimitedModel, NAME_MAX
+from ..core.limits import LimitedModel, NAME_MAX, LONG_TEXT_MAX
 from ..models.database import get_db, User, FamilyMember, UserRole, InviteCode, UsageEvent
 from ..core.auth import (
     hash_password, verify_password, is_legacy_unpeppered_hash, create_access_token,
@@ -708,7 +708,7 @@ def signout_everywhere(
 @router.post("/backchannel-logout")
 async def backchannel_logout(
     request: Request,
-    logout_token: Optional[str] = Form(None, max_length=50_000),
+    logout_token: Optional[str] = Form(None, max_length=LONG_TEXT_MAX),
     db: Session = Depends(get_db),
 ):
     """
