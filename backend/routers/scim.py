@@ -16,7 +16,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
@@ -271,8 +271,8 @@ def get_user(
 
 @router.post("/Users", status_code=status.HTTP_201_CREATED, response_class=JSONResponse)
 def create_user(
-    payload: Dict[str, Any],
-    request: Request,
+    payload: Dict[str, Any] = Body(..., max_length=100),
+    request: Request = None,
     _: None = Depends(require_scim_auth),
     db: Session = Depends(get_db),
 ):
@@ -316,8 +316,8 @@ def create_user(
 @router.patch("/Users/{user_id}", response_class=JSONResponse)
 def patch_user(
     user_id: int,
-    payload: Dict[str, Any],
-    request: Request,
+    payload: Dict[str, Any] = Body(..., max_length=100),
+    request: Request = None,
     _: None = Depends(require_scim_auth),
     db: Session = Depends(get_db),
 ):

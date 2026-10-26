@@ -708,7 +708,7 @@ def signout_everywhere(
 @router.post("/backchannel-logout")
 async def backchannel_logout(
     request: Request,
-    logout_token: Optional[str] = Form(None),
+    logout_token: Optional[str] = Form(None, max_length=50_000),
     db: Session = Depends(get_db),
 ):
     """

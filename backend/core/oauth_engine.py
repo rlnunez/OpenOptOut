@@ -87,18 +87,17 @@ class OAuthClient:
     Enforces OAuth 2.1 exact redirect URI validation."""
     client_id: str
     client_secret: str
-    redirect_uri: str
+    redirect_uri: str = ""
 
     def __post_init__(self):
-        if not self.redirect_uri:
-            raise ValueError("redirect_uri cannot be empty under OAuth 2.1")
-        parsed = urllib.parse.urlparse(self.redirect_uri)
-        if parsed.scheme not in ("https", "http"):
-            raise ValueError(f"Invalid redirect_uri scheme '{parsed.scheme}': must be https (or http for local dev)")
-        if parsed.fragment:
-            raise ValueError("OAuth 2.1 forbids URI fragments (#) in redirect_uri")
-        if ".." in parsed.path:
-            raise ValueError("OAuth 2.1 forbids relative path traversal (..) in redirect_uri")
+        if self.redirect_uri:
+            parsed = urllib.parse.urlparse(self.redirect_uri)
+            if parsed.scheme not in ("https", "http"):
+                raise ValueError(f"Invalid redirect_uri scheme '{parsed.scheme}': must be https (or http for local dev)")
+            if parsed.fragment:
+                raise ValueError("OAuth 2.1 forbids URI fragments (#) in redirect_uri")
+            if ".." in parsed.path:
+                raise ValueError("OAuth 2.1 forbids relative path traversal (..) in redirect_uri")
 
 
 @dataclass
@@ -129,6 +128,8 @@ def begin_authorization(flow: "OAuthFlowDesc", client: "OAuthClient",
     operator to auth_url and stashes `pending` (keyed by its state) to correlate
     the callback. No secrets are in the URL (only client_id, which is not secret).
     """
+    if not client.redirect_uri:
+        raise ValueError("redirect_uri cannot be empty under OAuth 2.1")
     state = secrets.token_urlsafe(24)
     params = {
         "client_id": client.client_id,
@@ -164,6 +165,8 @@ def exchange_code(flow: "OAuthFlowDesc", client: "OAuthClient",
     testability; defaults to httpx. Returns the token dict (access_token,
     refresh_token, expiry). Raises on failure.
     """
+    if not client.redirect_uri:
+        raise ValueError("redirect_uri cannot be empty under OAuth 2.1")
     data = {
         "client_id": client.client_id,
         "client_secret": client.client_secret,   # HOST-only secret
