@@ -387,7 +387,7 @@ def dispatch_workers(args, rec, steps, theme_ids, auth_state_path=None):
     """Run audits for selected themes sequentially in isolated subprocesses to guarantee database consistency and avoid port contention."""
     all_pages = []
     for t_id in theme_ids:
-        print(f"==> Starting sequential audit for theme: {t_id}")
+        print(f"==> Starting sequential audit for theme: {t_id}", flush=True)
         cmd = [
             sys.executable,
             __file__,
@@ -407,12 +407,16 @@ def dispatch_workers(args, rec, steps, theme_ids, auth_state_path=None):
         if args.save_all_screenshots:
             cmd.append("--save-all-screenshots")
 
-        proc = subprocess.run(cmd, capture_output=True, text=True)
-        if proc.returncode != 0:
-            rec.warn("Worker process error", f"Theme {t_id} worker exited with code {proc.returncode}:\n{proc.stderr[:1000]}")
-            print(f"Theme {t_id} worker error:\n{proc.stderr}")
-        else:
-            print(f"==> Finished audit for theme: {t_id} (success)")
+        try:
+            proc = subprocess.run(cmd, timeout=600)
+            if proc.returncode != 0:
+                rec.warn("Worker process error", f"Theme {t_id} worker exited with code {proc.returncode}")
+                print(f"Theme {t_id} worker exited with error code {proc.returncode}", flush=True)
+            else:
+                print(f"==> Finished audit for theme: {t_id} (success)", flush=True)
+        except subprocess.TimeoutExpired:
+            rec.error("Worker process timeout", f"Theme {t_id} worker timed out after 600s")
+            print(f"::error::Theme {t_id} worker timed out after 600s", flush=True)
 
         worker_file = os.path.join(args.out_dir, f"worker-results-{t_id}.json")
         if os.path.exists(worker_file):

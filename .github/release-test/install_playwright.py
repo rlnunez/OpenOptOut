@@ -18,7 +18,7 @@ def main() -> None:
     )
     subprocess.run(
         [sys.executable, "-m", "playwright", "install", "--with-deps", "firefox"],
-        stdout=subprocess.DEVNULL,
+        timeout=180,
         check=True,
     )
 
