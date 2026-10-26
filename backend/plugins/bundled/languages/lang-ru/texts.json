@@ -3486,5 +3486,16 @@
  "Priority for {name}": "Приоритет для {name}",
  "Reset priority for {name}": "Сбросить приоритет для {name}",
  "Search log messages": "Поиск сообщений журнала",
- "Time range": "Временной диапазон"
+ "Time range": "Временной диапазон",
+ "Brand color": "Цвет бренда",
+ "Collapse {label}": "Свернуть {label}",
+ "Cryptographic Shredding": "Криптографическое уничтожение",
+ "Edit legal name": "Изменить официальное имя",
+ "Expand {label}": "Развернуть {label}",
+ "Remove icon": "Удалить значок",
+ "Remove legal name": "Удалить официальное имя",
+ "Remove user agent": "Удалить агент пользователя",
+ "Revoke invite code": "Отозвать код приглашения",
+ "Upload application icon": "Загрузить значок приложения",
+ "Upload logo file": "Загрузить файл логотипа"
 }

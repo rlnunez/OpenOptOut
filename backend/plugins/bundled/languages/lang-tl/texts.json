@@ -3486,5 +3486,16 @@
  "Priority for {name}": "Priyoridad para sa {name}",
  "Reset priority for {name}": "I-reset ang priyoridad para sa {name}",
  "Search log messages": "Maghanap sa mga mensahe ng log",
- "Time range": "Saklaw ng oras"
+ "Time range": "Saklaw ng oras",
+ "Brand color": "Kulay ng brand",
+ "Collapse {label}": "I-collapse ang {label}",
+ "Cryptographic Shredding": "Cryptographic Shredding",
+ "Edit legal name": "I-edit ang legal na pangalan",
+ "Expand {label}": "I-expand ang {label}",
+ "Remove icon": "Alisin ang icon",
+ "Remove legal name": "Alisin ang legal na pangalan",
+ "Remove user agent": "Alisin ang user agent",
+ "Revoke invite code": "Bawiin ang invite code",
+ "Upload application icon": "I-upload ang icon ng application",
+ "Upload logo file": "I-upload ang file ng logo"
 }

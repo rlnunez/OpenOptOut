@@ -3484,5 +3484,16 @@
  "Priority for {name}": "{name} کے لیے ترجیح",
  "Reset priority for {name}": "{name} کے لیے ترجیح دوبارہ ترتیب دیں",
  "Search log messages": "لاگ پیغامات تلاش کریں",
- "Time range": "وقت کی حد"
+ "Time range": "وقت کی حد",
+ "Brand color": "برانڈ کا رنگ",
+ "Collapse {label}": "{label} سکیڑیں",
+ "Cryptographic Shredding": "کرپٹوگرافک کٹائی",
+ "Edit legal name": "قانونی نام میں ترمیم کریں",
+ "Expand {label}": "{label} پھیلائیں",
+ "Remove icon": "آئیکن ہٹائیں",
+ "Remove legal name": "قانونی نام ہٹائیں",
+ "Remove user agent": "صارف ایجنٹ کو ہٹائیں",
+ "Revoke invite code": "دعوت نامہ کوڈ منسوخ کریں",
+ "Upload application icon": "ایپلی کیشن آئیکن اپ لوڈ کریں",
+ "Upload logo file": "لوگو فائل اپ لوڈ کریں"
 }

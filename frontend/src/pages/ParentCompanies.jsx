@@ -115,9 +115,9 @@ export default function ParentCompanies() {
           <RefreshCw size={14} className="animate-spin" />{" "}{tx("Loading…")}
         </div>
       ) : parents.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 text-slate-500 py-12 mt-4">
-          <Building2 size={26} className="text-slate-600" />
-          <p className="text-sm">{tx("No parent companies yet. Create one, then group its broker sites under it.")}</p>
+        <div className="flex flex-col items-center gap-2 py-12 mt-4">
+          <Building2 size={26} className="text-slate-400" />
+          <p className="text-sm text-slate-300">{tx("No parent companies yet. Create one, then group its broker sites under it.")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 mt-4">

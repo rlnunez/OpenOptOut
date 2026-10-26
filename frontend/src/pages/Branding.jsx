@@ -74,6 +74,7 @@ function ColorPicker({ label, value, onChange }) {
         ))}
         <div className="flex items-center gap-1.5 ms-1">
           <input type="color" value={value} onChange={e => onChange(e.target.value)}
+            aria-label={label || tx("Brand color")}
             className="w-7 h-7 rounded-sm cursor-pointer bg-transparent border-0" />
           <span className="text-slate-500 text-xs font-mono">{value}</span>
         </div>
@@ -149,7 +150,7 @@ function BrandingSection() {
               <X size={14} />
             </button>
           )}
-          <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={uploadLogo} />
+          <input ref={logoRef} type="file" accept="image/*" aria-label={tx("Upload logo file")} className="hidden" onChange={uploadLogo} />
         </div>
       </Field>
 
@@ -195,6 +196,7 @@ function BrandingSection() {
           <label className="flex items-center gap-2 cursor-pointer mt-5">
             <input type="checkbox" checked={form.show_powered_by ?? true}
               onChange={e => setForm(f => ({...f, show_powered_by: e.target.checked}))}
+              aria-label={tx("Show \"Powered by OpenOptOut\" footer")}
               className="w-3.5 h-3.5 rounded-sm accent-shield-500" />
             <span className="text-slate-300 text-sm">{tx("Show \"Powered by OpenOptOut\" footer")}</span>
           </label>

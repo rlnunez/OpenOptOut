@@ -3486,5 +3486,16 @@
  "Priority for {name}": "Mức ưu tiên cho {name}",
  "Reset priority for {name}": "Đặt lại mức ưu tiên cho {name}",
  "Search log messages": "Tìm kiếm thông báo nhật ký",
- "Time range": "Khoảng thời gian"
+ "Time range": "Khoảng thời gian",
+ "Brand color": "Màu thương hiệu",
+ "Collapse {label}": "Thu gọn {label}",
+ "Cryptographic Shredding": "Hủy bằng mật mã",
+ "Edit legal name": "Chỉnh sửa tên pháp lý",
+ "Expand {label}": "Mở rộng {label}",
+ "Remove icon": "Xóa biểu tượng",
+ "Remove legal name": "Xóa tên pháp lý",
+ "Remove user agent": "Xóa tác nhân người dùng",
+ "Revoke invite code": "Thu hồi mã mời",
+ "Upload application icon": "Tải lên biểu tượng ứng dụng",
+ "Upload logo file": "Tải lên tệp biểu trưng"
 }

@@ -3486,5 +3486,16 @@
  "Priority for {name}": "Bounty priority for {name}",
  "Reset priority for {name}": "Clear mark on {name}",
  "Search log messages": "Search th' Cap'n's log",
- "Time range": "Glass-turn watch span"
+ "Time range": "Glass-turn watch span",
+ "Brand color": "Colors of our flag",
+ "Collapse {label}": "Stow {label}",
+ "Cryptographic Shredding": "Feeding documents to Davy Jones",
+ "Edit legal name": "Alter official pirate name",
+ "Expand {label}": "Unroll {label}",
+ "Remove icon": "Toss icon overboard",
+ "Remove legal name": "Scrub legal pirate name",
+ "Remove user agent": "Cast off user agent disguise",
+ "Revoke invite code": "Burn invite parchment",
+ "Upload application icon": "Hoist application crest",
+ "Upload logo file": "Hoist jolly roger file"
 }

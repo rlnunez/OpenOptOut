@@ -3485,5 +3485,16 @@
  "Priority for {name}": "Prioritas untuk {name}",
  "Reset priority for {name}": "Atur ulang prioritas untuk {name}",
  "Search log messages": "Cari pesan log",
- "Time range": "Rentang waktu"
+ "Time range": "Rentang waktu",
+ "Brand color": "Warna merek",
+ "Collapse {label}": "Ciutkan {label}",
+ "Cryptographic Shredding": "Penghancuran kriptografi",
+ "Edit legal name": "Edit nama resmi",
+ "Expand {label}": "Perluas {label}",
+ "Remove icon": "Hapus ikon",
+ "Remove legal name": "Hapus nama resmi",
+ "Remove user agent": "Hapus agen pengguna",
+ "Revoke invite code": "Cabut kode undangan",
+ "Upload application icon": "Unggah ikon aplikasi",
+ "Upload logo file": "Unggah berkas logo"
 }

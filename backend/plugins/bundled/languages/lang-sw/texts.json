@@ -3484,5 +3484,16 @@
  "Priority for {name}": "Kipaumbele kwa {name}",
  "Reset priority for {name}": "Weka upya kipaumbele kwa {name}",
  "Search log messages": "Tafuta ujumbe wa kumbukumbu",
- "Time range": "Kipindi cha muda"
+ "Time range": "Kipindi cha muda",
+ "Brand color": "Rangi ya chapa",
+ "Collapse {label}": "Kunja {label}",
+ "Cryptographic Shredding": "Uharibifu wa njia fiche",
+ "Edit legal name": "Hariri jina rasmi",
+ "Expand {label}": "Panua {label}",
+ "Remove icon": "Ondoa ikoni",
+ "Remove legal name": "Ondoa jina rasmi",
+ "Remove user agent": "Ondoa wakala wa mtumiaji",
+ "Revoke invite code": "Batilisha msimbo wa mwaliko",
+ "Upload application icon": "Pakia ikoni ya programu",
+ "Upload logo file": "Pakia faili ya nembo"
 }

@@ -3486,5 +3486,16 @@
  "Priority for {name}": "{name} 우선순위",
  "Reset priority for {name}": "{name} 우선순위 재설정",
  "Search log messages": "로그 메시지 검색",
- "Time range": "시간 범위"
+ "Time range": "시간 범위",
+ "Brand color": "브랜드 색상",
+ "Collapse {label}": "{label} 접기",
+ "Cryptographic Shredding": "암호화 파쇄",
+ "Edit legal name": "법적 이름 수정",
+ "Expand {label}": "{label} 펼치기",
+ "Remove icon": "아이콘 제거",
+ "Remove legal name": "법적 이름 제거",
+ "Remove user agent": "사용자 에이전트 제거",
+ "Revoke invite code": "초대 코드 해지",
+ "Upload application icon": "애플리케이션 아이콘 업로드",
+ "Upload logo file": "로고 파일 업로드"
 }

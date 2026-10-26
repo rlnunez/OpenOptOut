@@ -2588,6 +2588,12 @@
    ]
   },
   {
+   "text": "Brand color",
+   "where": [
+    "pages/Branding.jsx"
+   ]
+  },
+  {
    "text": "Branding",
    "where": [
     "components/Sidebar.jsx",
@@ -2978,6 +2984,7 @@
     "pages/CaptchaQueue.jsx",
     "pages/Family.jsx",
     "pages/Help.jsx",
+    "pages/IdentityVault.jsx",
     "pages/Inboxes.jsx",
     "pages/Monitoring.jsx",
     "pages/ParentCompanies.jsx",
@@ -3597,8 +3604,10 @@
     "components/LiveCaptcha.jsx",
     "components/Modal.jsx",
     "components/PluginUploadWizard.jsx",
+    "pages/CaptchaQueue.jsx",
     "pages/Inboxes.jsx",
-    "pages/Letters.jsx"
+    "pages/Letters.jsx",
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -3659,6 +3668,12 @@
    "text": "Collapse plugin details",
    "where": [
     "pages/Plugins.jsx"
+   ]
+  },
+  {
+   "text": "Collapse {label}",
+   "where": [
+    "pages/IdentityVault.jsx"
    ]
   },
   {
@@ -4944,6 +4959,12 @@
    ]
   },
   {
+   "text": "Cryptographic Shredding",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "CSV has a header and the same rows as JSON",
    "where": [
     "server: stats_check.py"
@@ -5372,6 +5393,7 @@
    "where": [
     "pages/AdminPanel.jsx",
     "pages/Help.jsx",
+    "pages/IdentityVault.jsx",
     "pages/ParentCompanies.jsx"
    ]
   },
@@ -6305,6 +6327,12 @@
    ]
   },
   {
+   "text": "Edit legal name",
+   "where": [
+    "pages/IdentityVault.jsx"
+   ]
+  },
+  {
    "text": "Edit note",
    "where": [
     "pages/Help.jsx"
@@ -7029,6 +7057,12 @@
    "text": "Expand plugin details",
    "where": [
     "pages/Plugins.jsx"
+   ]
+  },
+  {
+   "text": "Expand {label}",
+   "where": [
+    "pages/IdentityVault.jsx"
    ]
   },
   {
@@ -14105,6 +14139,12 @@
    ]
   },
   {
+   "text": "Remove icon",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Remove key",
    "where": [
     "components/SolvingSettings.jsx",
@@ -14112,8 +14152,15 @@
    ]
   },
   {
+   "text": "Remove legal name",
+   "where": [
+    "pages/IdentityVault.jsx"
+   ]
+  },
+  {
    "text": "Remove logo",
    "where": [
+    "pages/Branding.jsx",
     "pages/SetupWizard.jsx"
    ]
   },
@@ -14175,6 +14222,12 @@
    "text": "Remove this person",
    "where": [
     "pages/Family.jsx"
+   ]
+  },
+  {
+   "text": "Remove user agent",
+   "where": [
+    "pages/Settings.jsx"
    ]
   },
   {
@@ -14595,6 +14648,12 @@
    "where": [
     "pages/AdminPanel.jsx",
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Revoke invite code",
+   "where": [
+    "pages/Branding.jsx"
    ]
   },
   {
@@ -18815,6 +18874,12 @@
    ]
   },
   {
+   "text": "Upload application icon",
+   "where": [
+    "pages/Settings.jsx"
+   ]
+  },
+  {
    "text": "Upload CA Certificate",
    "where": [
     "pages/Settings.jsx"
@@ -18834,6 +18899,12 @@
   },
   {
    "text": "Upload logo",
+   "where": [
+    "pages/Branding.jsx"
+   ]
+  },
+  {
+   "text": "Upload logo file",
    "where": [
     "pages/Branding.jsx"
    ]

@@ -3486,5 +3486,16 @@
  "Priority for {name}": "{name} 的优先级",
  "Reset priority for {name}": "重置 {name} 的优先级",
  "Search log messages": "搜索日志消息",
- "Time range": "时间范围"
+ "Time range": "时间范围",
+ "Brand color": "品牌颜色",
+ "Collapse {label}": "折叠 {label}",
+ "Cryptographic Shredding": "加密粉碎",
+ "Edit legal name": "编辑法定姓名",
+ "Expand {label}": "展开 {label}",
+ "Remove icon": "移除图标",
+ "Remove legal name": "移除法定姓名",
+ "Remove user agent": "移除用户代理",
+ "Revoke invite code": "撤销邀请码",
+ "Upload application icon": "上传应用程序图标",
+ "Upload logo file": "上传标志文件"
 }

@@ -3486,5 +3486,16 @@
  "Priority for {name}": "الأولوية لـ {name}",
  "Reset priority for {name}": "إعادة تعيين الأولوية لـ {name}",
  "Search log messages": "البحث في رسائل السجل",
- "Time range": "النطاق الزمني"
+ "Time range": "النطاق الزمني",
+ "Brand color": "لون العلامة التجارية",
+ "Collapse {label}": "طي {label}",
+ "Cryptographic Shredding": "الإتلاف التشفيري",
+ "Edit legal name": "تعديل الاسم القانوني",
+ "Expand {label}": "توسيع {label}",
+ "Remove icon": "إزالة الرمز",
+ "Remove legal name": "إزالة الاسم القانوني",
+ "Remove user agent": "إزالة وكيل المستخدم",
+ "Revoke invite code": "إلغاء رمز الدعوة",
+ "Upload application icon": "تحميل رمز التطبيق",
+ "Upload logo file": "تحميل ملف الشعار"
 }

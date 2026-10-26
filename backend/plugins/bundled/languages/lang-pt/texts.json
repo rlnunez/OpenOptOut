@@ -3486,5 +3486,16 @@
  "Priority for {name}": "Prioridade para {name}",
  "Reset priority for {name}": "Redefinir prioridade para {name}",
  "Search log messages": "Pesquisar mensagens de log",
- "Time range": "Intervalo de tempo"
+ "Time range": "Intervalo de tempo",
+ "Brand color": "Cor da marca",
+ "Collapse {label}": "Recolher {label}",
+ "Cryptographic Shredding": "Destruição criptográfica",
+ "Edit legal name": "Editar nome legal",
+ "Expand {label}": "Expandir {label}",
+ "Remove icon": "Remover ícone",
+ "Remove legal name": "Remover nome legal",
+ "Remove user agent": "Remover agente do usuário",
+ "Revoke invite code": "Revogar código de convite",
+ "Upload application icon": "Carregar ícone do aplicativo",
+ "Upload logo file": "Carregar arquivo de logotipo"
 }

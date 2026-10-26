@@ -3484,5 +3484,16 @@
  "Priority for {name}": "Пріоритет для {name}",
  "Reset priority for {name}": "Скинути пріоритет для {name}",
  "Search log messages": "Пошук повідомлень журналу",
- "Time range": "Діапазон часу"
+ "Time range": "Діапазон часу",
+ "Brand color": "Колір бренду",
+ "Collapse {label}": "Згорнути {label}",
+ "Cryptographic Shredding": "Криптографічне знищення",
+ "Edit legal name": "Редагувати юридичне ім'я",
+ "Expand {label}": "Розгорнути {label}",
+ "Remove icon": "Видалити значок",
+ "Remove legal name": "Видалити юридичне ім'я",
+ "Remove user agent": "Видалити агент користувача",
+ "Revoke invite code": "Відкликати код запрошення",
+ "Upload application icon": "Завантажити значок програми",
+ "Upload logo file": "Завантажити файл логотипа"
 }

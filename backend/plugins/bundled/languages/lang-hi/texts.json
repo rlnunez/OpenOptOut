@@ -3486,5 +3486,16 @@
  "Priority for {name}": "{name} के लिए प्राथमिकता",
  "Reset priority for {name}": "{name} के लिए प्राथमिकता रीसेट करें",
  "Search log messages": "लॉग संदेश खोजें",
- "Time range": "समय सीमा"
+ "Time range": "समय सीमा",
+ "Brand color": "ब्रांड का रंग",
+ "Collapse {label}": "{label} संक्षिप्त करें",
+ "Cryptographic Shredding": "क्रिप्टोग्राफ़िक श्रेडिंग",
+ "Edit legal name": "कानूनी नाम संपादित करें",
+ "Expand {label}": "{label} विस्तृत करें",
+ "Remove icon": "आइकन हटाएं",
+ "Remove legal name": "कानूनी नाम हटाएं",
+ "Remove user agent": "उपयोगकर्ता एजेंट हटाएं",
+ "Revoke invite code": "निमंत्रण कोड रद्द करें",
+ "Upload application icon": "एप्लिकेशन आइकन अपलोड करें",
+ "Upload logo file": "लोगो फ़ाइल अपलोड करें"
 }

@@ -129,7 +129,7 @@ function AppearanceSection({ initial, onSaved, userRole }) {
                 <X size={13} />
               </button>
             )}
-            <input ref={iconRef} type="file" accept="image/*" className="hidden" onChange={handleIconUpload} />
+            <input ref={iconRef} type="file" accept="image/*" aria-label={tx("Upload application icon")} className="hidden" onChange={handleIconUpload} />
           </div>
         </Field>
       </div>
@@ -154,6 +154,7 @@ function AppearanceSection({ initial, onSaved, userRole }) {
           ))}
           <div className="flex items-center gap-1.5 ms-1">
             <input type="color" value={form.accent_color ?? '#6366f1'} onChange={e => setForm(f => ({...f, accent_color: e.target.value}))}
+              aria-label={tx("Accent color")}
               className="w-7 h-7 rounded-sm cursor-pointer bg-transparent border-0" />
             <span className="text-slate-500 text-xs font-mono">{form.accent_color}</span>
           </div>
@@ -584,7 +585,9 @@ function EmailSection({ initial, userRole }) {
               <Field label={tx("Poll every (minutes)")}><input type="number" min="5" max="60" value={form.poll_interval_minutes ?? 15} onChange={e => setForm(f=>({...f,poll_interval_minutes:parseInt(e.target.value)}))} className={inp}/></Field>
             </div>
             <label className="flex items-center gap-2 mt-2 cursor-pointer">
-              <input type="checkbox" checked={form.imap_ssl ?? true} onChange={e => setForm(f=>({...f,imap_ssl:e.target.checked}))} className="w-3.5 h-3.5 rounded-sm accent-shield-500"/>
+              <input type="checkbox" checked={form.imap_ssl ?? true} onChange={e => setForm(f=>({...f,imap_ssl:e.target.checked}))}
+                aria-label={tx("Use SSL/TLS")}
+                className="w-3.5 h-3.5 rounded-sm accent-shield-500"/>
               <span className="text-slate-400 text-sm">{tx("Use SSL/TLS")}</span>
             </label>
           </div>
@@ -605,7 +608,9 @@ function EmailSection({ initial, userRole }) {
               <Field label={tx("\"From\" email")}><input type="email" value={form.from_email ?? ''} onChange={e => setForm(f=>({...f,from_email:e.target.value}))} placeholder="removals@example.com" className={inp}/></Field>
             </div>
             <label className="flex items-center gap-2 mt-2 cursor-pointer">
-              <input type="checkbox" checked={form.smtp_tls ?? true} onChange={e => setForm(f=>({...f,smtp_tls:e.target.checked}))} className="w-3.5 h-3.5 rounded-sm accent-shield-500"/>
+              <input type="checkbox" checked={form.smtp_tls ?? true} onChange={e => setForm(f=>({...f,smtp_tls:e.target.checked}))}
+                aria-label={tx("Use STARTTLS")}
+                className="w-3.5 h-3.5 rounded-sm accent-shield-500"/>
               <span className="text-slate-400 text-sm">{tx("Use STARTTLS")}</span>
             </label>
           </div>
@@ -824,12 +829,16 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
 
           <div className="space-y-2">
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.pause_before_send ?? true} onChange={e => setForm(f=>({...f,pause_before_send:e.target.checked}))} className="w-3.5 h-3.5 rounded-sm accent-shield-500"/>
+              <input type="checkbox" checked={form.pause_before_send ?? true} onChange={e => setForm(f=>({...f,pause_before_send:e.target.checked}))}
+                aria-label={tx("Pause before sending")}
+                className="w-3.5 h-3.5 rounded-sm accent-shield-500"/>
               <span className="text-slate-300 text-sm">{tx("Pause before sending")}</span>
               <span className="text-slate-600 text-xs">{tx("— get opt-outs ready, but wait for you to press Send")}</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.auto_recheck ?? true} onChange={e => setForm(f=>({...f,auto_recheck:e.target.checked}))} className="w-3.5 h-3.5 rounded-sm accent-shield-500"/>
+              <input type="checkbox" checked={form.auto_recheck ?? true} onChange={e => setForm(f=>({...f,auto_recheck:e.target.checked}))}
+                aria-label={tx("Ask again automatically")}
+                className="w-3.5 h-3.5 rounded-sm accent-shield-500"/>
               <span className="text-slate-300 text-sm">{tx("Ask again automatically")}</span>
               <span className="text-slate-600 text-xs">{tx("— send the request again when its check-again date arrives")}</span>
             </label>
@@ -3466,7 +3475,8 @@ function MatchingSection() {
           <p className="text-slate-300 text-sm font-medium">{tx("For everyone (default)")}</p>
           <ChoiceList name="match-default" value={def} onChange={setDef} choices={m.choices} />
           <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-            <input type="checkbox" checked={usersChoose} onChange={e => setUsersChoose(e.target.checked)} />
+            <input type="checkbox" checked={usersChoose} onChange={e => setUsersChoose(e.target.checked)}
+              aria-label={tx("Let people choose this for themselves")} />
             {tx("Let people choose this for themselves")}
           </label>
           <SaveButton onClick={saveDefault} />
@@ -3522,7 +3532,9 @@ function HstsSection({ userRole }) {
       description={tx("Require browsers to connect only over HTTPS")}
       adminOnly userRole={userRole}>
       <label className="flex items-start gap-2.5 cursor-pointer">
-        <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} className="mt-1 accent-shield-500" />
+        <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)}
+          aria-label={tx("Enable HSTS (HTTP Strict Transport Security)")}
+          className="mt-1 accent-shield-500" />
         <div>
           <span className="text-slate-200 text-sm font-medium block">{tx("Enable HSTS (HTTP Strict Transport Security)")}</span>
           <span className="text-slate-400 text-xs block mt-0.5">
@@ -3663,7 +3675,9 @@ function ClientMtlsSection({ userRole }) {
         )}
 
         <label className="flex items-start gap-2.5 cursor-pointer">
-          <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} className="mt-1 accent-shield-500" />
+          <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)}
+            aria-label={tx("Enable Client-Certificate Authentication (mTLS)")}
+            className="mt-1 accent-shield-500" />
           <div>
             <span className="text-slate-200 text-sm font-medium block">{tx("Enable Client-Certificate Authentication (mTLS)")}</span>
             <span className="text-slate-400 text-xs block mt-0.5">

@@ -591,7 +591,7 @@ export default function Help() {
             href="https://github.com/rlnunez/Privacy-Shield"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-shield-400 hover:underline"
+            className="text-shield-400 underline hover:no-underline"
           >
             https://github.com/rlnunez/Privacy-Shield
           </a>
@@ -601,7 +601,7 @@ export default function Help() {
             href="https://github.com/rlnunez/Privacy-Shield/blob/main/CREDITS.md"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-shield-400 hover:underline font-medium"
+            className="text-shield-400 underline hover:no-underline font-medium"
           >
             CREDITS.md
           </a>
