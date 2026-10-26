@@ -909,14 +909,16 @@ export default function SecretKeyBanner() {
             <button
               type="button"
               onClick={() => setExpanded(v => !v)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-colors a11y-banner-action"
             >
               {expanded ? <X size={14} /> : <Key size={14} />}
-              {expanded
-                ? tx("Hide Key Setup")
-                : status.needs_key
-                  ? tx("Generate & Save Master Key")
-                  : tx("Show Permission Commands")}
+              <span>
+                {expanded
+                  ? tx("Hide Key Setup")
+                  : status.needs_key
+                    ? tx("Generate & Save Master Key")
+                    : tx("Show Permission Commands")}
+              </span>
             </button>
           </div>
         </div>

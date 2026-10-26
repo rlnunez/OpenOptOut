@@ -318,7 +318,7 @@ export default function SystemLogs() {
           </div>
         </div>
 
-        <div tabIndex={0} role="region" aria-label={tx("Log records")} className="flex-1 p-3 overflow-y-auto space-y-1 selection:bg-shield-600/40">
+        <div tabIndex={0} role="region" aria-label={tx("Log records")} className="flex-1 bg-slate-950 p-3 overflow-y-auto space-y-1 selection:bg-shield-600/40">
           {logs.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-2 py-12">
               <Terminal size={32} className="opacity-40" />

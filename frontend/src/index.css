@@ -997,6 +997,102 @@ html.theme-light.a11y-high-contrast .text-shield-400 {
   font-weight: 700 !important;
 }
 
+/* Light ADA badges, pills, code blocks, and accent text (WCAG Level AAA) */
+html.theme-light-ada .bg-slate-700,
+html.theme-light-ada [class*="bg-purple-"],
+html.theme-light-ada [class*="bg-slate-800"],
+html.theme-light-ada code,
+html.theme-light-ada pre,
+html.a11y-high-contrast-light .bg-slate-700,
+html.a11y-high-contrast-light [class*="bg-purple-"],
+html.a11y-high-contrast-light code,
+html.a11y-high-contrast-light pre {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #000000 !important;
+}
+
+html.theme-light-ada code *,
+html.theme-light-ada pre *,
+html.a11y-high-contrast-light code *,
+html.a11y-high-contrast-light pre * {
+  color: #000000 !important;
+}
+
+html.theme-light-ada [class*="text-emerald-"],
+html.a11y-high-contrast-light [class*="text-emerald-"] {
+  color: #005a1e !important; /* >= 7.5:1 contrast against #ffffff (AAA) */
+  font-weight: 700 !important;
+}
+
+html.theme-light-ada [class*="text-cyan-"],
+html.theme-light-ada [class*="text-sky-"],
+html.theme-light-ada [class*="text-blue-"],
+html.theme-light-ada [class*="text-shield-"],
+html.a11y-high-contrast-light [class*="text-cyan-"],
+html.a11y-high-contrast-light [class*="text-sky-"],
+html.a11y-high-contrast-light [class*="text-blue-"],
+html.a11y-high-contrast-light [class*="text-shield-"] {
+  color: #000099 !important; /* >= 11:1 contrast against #ffffff (AAA) */
+  font-weight: 700 !important;
+}
+
+html.theme-light-ada [class*="text-purple-"],
+html.a11y-high-contrast-light [class*="text-purple-"] {
+  color: #3b0066 !important; /* >= 12:1 contrast against #ffffff (AAA) */
+  font-weight: 700 !important;
+}
+
+/* Scrollable log regions explicit solid background */
+html.theme-dark-ada div[role="region"],
+html.a11y-high-contrast-dark div[role="region"],
+html.theme-space-ada div[role="region"],
+html.a11y-high-contrast-space div[role="region"] {
+  background-color: #000000 !important;
+}
+
+html.theme-light-ada div[role="region"],
+html.a11y-high-contrast-light div[role="region"] {
+  background-color: #ffffff !important;
+}
+
+/* Explicit Level AAA button overrides for alert banners & action controls */
+html.theme-light-ada .a11y-banner-action,
+html.a11y-high-contrast-light .a11y-banner-action {
+  background-color: #0000ee !important;
+  color: #ffffff !important;
+  border: 2px solid #000000 !important;
+  font-weight: 700 !important;
+}
+html.theme-light-ada .a11y-banner-action *,
+html.a11y-high-contrast-light .a11y-banner-action * {
+  color: #ffffff !important;
+}
+
+html.theme-dark-ada .a11y-banner-action,
+html.a11y-high-contrast-dark .a11y-banner-action {
+  background-color: #ffff00 !important;
+  color: #000000 !important;
+  border: 2px solid #ffffff !important;
+  font-weight: 700 !important;
+}
+html.theme-dark-ada .a11y-banner-action *,
+html.a11y-high-contrast-dark .a11y-banner-action * {
+  color: #000000 !important;
+}
+
+html.theme-space-ada .a11y-banner-action,
+html.a11y-high-contrast-space .a11y-banner-action {
+  background-color: #ff9900 !important;
+  color: #000000 !important;
+  border: 2px solid #ff9900 !important;
+  font-weight: 800 !important;
+}
+html.theme-space-ada .a11y-banner-action *,
+html.a11y-high-contrast-space .a11y-banner-action * {
+  color: #000000 !important;
+}
+
 /* ── Space Explorer ADA Theme (WCAG 2.2 Level AAA: Pitch Black with Luminous Amber & White) ── */
 html.a11y-high-contrast-space body,
 html.a11y-high-contrast-space,
