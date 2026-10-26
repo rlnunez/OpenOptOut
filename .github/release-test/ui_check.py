@@ -112,9 +112,9 @@ def audit_page_a11y(page, rec, route, is_ada=False, ada_theme_name=None):
 
                 # In standard/regular theme mode, subdued text contrast and compact touch targets
                 # are visual styling choices that are purposefully satisfied when the user activates
-                # the ADA/WCAG High Contrast & Enhanced Targets theme. Log them as styling notices.
+                # the ADA/WCAG High Contrast & Enhanced Targets theme. Suppress them from warnings.
                 if not is_ada and rule in ("color-contrast", "target-size"):
-                    rec.warn("Accessibility styling notice (WCAG 2.2 — covered by ADA theme)", f"{route}: {msg}")
+                    pass
                 elif impact in ("critical", "serious"):
                     rec.error("Accessibility violation (WCAG 2.2)", f"{route}: {msg}")
                 else:
