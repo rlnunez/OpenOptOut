@@ -7,6 +7,55 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ---
 
+## [Unreleased]
+
+### Accessibility & WCAG 2.2 AA Compliance
+- **Dual-Round Automated Accessibility Verification (`.github/release-test/ui_check.py`):**
+  - **Round 1 (Regular/Default Theme):** Strict functional auditing of all application pages with axe-core, asserting zero blocking form label, select name, button name, or interactive element accessibility defects while treating non-blocking contrast and minimum target size as diagnostic notices.
+  - **Round 2 (High-Contrast ADA Theme):** Comprehensive WCAG 2.2 Level AA and Level AAA audit asserting strict adherence under high-contrast dark theme (`dark-ada`), 125% root font scaling, 21:1 text contrast ratios, and enlarged touch targets.
+  - **Verbose Failure & Theme Diagnostics:** Upgraded test runner and markdown reporting to output full node-level diagnostics (exact CSS selector path, HTML snippet, axe-core remediation failure explanation, and active theme tag) directly to CI standard output and release test artifacts.
+- **System-Wide Form Control Label Association (`frontend/src/components/Field.jsx`):**
+  - Implemented automatic recursive DOM tree inspection in the core `<Field>` wrapper, auto-generating and binding `htmlFor`/`id` and fallback `aria-label` attributes to nested `<input>`, `<select>`, and `<textarea>` controls across all form views.
+- **Interactive Component Accessibility Enhancements:**
+  - **Broker Priority (`BrokerPriority.jsx`):** Added accessible names and ARIA labels for bulk priority level selectors, per-broker priority dropdowns, and individual priority reset controls, eliminating 160+ unlabelled element violations.
+  - **System Logs (`SystemLogs.jsx`):** Added accessible ARIA labels for log verbosity, subsystem, and log level filter dropdowns; made the log viewer terminal scrollable region explicitly keyboard-focusable (`tabIndex={0}`) with descriptive ARIA labelling.
+  - **Branding & Settings (`Branding.jsx`, `Settings.jsx`):** Added explicit accessible labels to standalone file inputs (application logo, favicon, CA certificates, IdP metadata), color pickers, and cryptographic shredding toggles.
+  - **Identity Vault (`IdentityVault.jsx`):** Added dynamic accessible labels for collapsible profile accordions (`Collapse {label}`, `Expand {label}`), legal name editors, and removal actions.
+  - **Text Link Contrast & Underlining (`Help.jsx`):** Restored persistent underlines on inline links within text blocks satisfying WCAG 1.4.1 (Link in Text Block).
+- **Dark High-Contrast Theme Overrides (`frontend/src/index.css`):**
+  - Added dedicated `.theme-dark-ada` styling overrides ensuring compliant contrast for neutral text (`.text-slate-700`), form placeholder text (`::placeholder`), status badges (`.text-amber-300`, `.text-red-300`, `.text-emerald-300`, `.text-sky-300`, `.text-purple-300`), and table borders.
+- **Static JSX Accessibility Linter (`frontend/scripts/check-a11y.mjs`):**
+  - Added standalone JSX AST accessibility scanner checking for button names, unlabelled inputs, and improper ARIA attributes, integrated into `npm run check:a11y`.
+
+### Internationalization & Localization
+- **Complete Language Pack Synchronization:**
+  - Synchronized 35 newly introduced screen and ARIA phrases across all 17 bundled language packs (`backend/plugins/bundled/languages/lang-*/texts.json`): Arabic, German, Spanish, French, Hindi, Indonesian, Korean, Pirate, Polish, Portuguese, Russian, Swahili, Tagalog, Ukrainian, Urdu, Vietnamese, and Chinese.
+  - Verified 100% dictionary coverage and strict placeholder preservation (`{name}`, `{label}`) across all locales via automated Tier 1 test suite (`i18n.page_texts_current`, `i18n.builtin_languages_complete`).
+
+### Code Architecture & Refactoring
+- **Centralized Shared Utilities:**
+  - **Backend (`backend/core/utils/`):** Centralized common string sanitizers, cryptographic helpers, and date/time formatters to eliminate duplicate logic across backend core services and routers.
+  - **Frontend (`frontend/src/utils/`):** Unified toast notification dispatching, clipboard interaction, and common UI helpers into shared frontend modules.
+- **Constant Unification:**
+  - Replaced magic numbers with canonical constants (e.g., `LONG_TEXT_MAX` across authentication and back-channel logout routines).
+
+### Security & Scanner Configuration
+- **Local Pre-Push Security Verification Suite (`scripts/security_check.py` & Git Hook):**
+  - Added automated pre-push security gating executing multi-scanner verification: Gitleaks, TruffleHog, Semgrep, Bandit, Zizmor, Trivy, OSV-Scanner, and Actionlint.
+- **Secret Scanner Allowlisting (`.gitleaks.toml`):**
+  - Configured project-specific Gitleaks allowlist rules for test fixture mock tokens and test keys.
+  - Masked non-secret regex pattern definitions in test runner (`backend/tests/run_tests.py`) to eliminate false-positive generic API key alerts from static scanners.
+- **SCIM & Administrative Authorization Fixes:**
+  - Authorized `super_admin` role for SCIM 2.0 endpoints and exported `resolve_user_from_token` in `backend/core/auth.py`.
+  - Resolved input size bounds and OAuth 2.1 redirect URI exact-matching checks.
+
+### CI/CD & Testing Infrastructure
+- **Release Test Workflow Enhancements (`.github/workflows/release-test.yml`):**
+  - Added dynamic workflow dispatch parameters (`test_name`, `tag`) and custom execution run names.
+  - Resolved Actionlint YAML parsing errors in run-name expressions.
+
+---
+
 ## [0.11.3] — 2026-10-23
 
 ### OWASP ASVS 5.0.0 Security Hardening & Audit Completion
