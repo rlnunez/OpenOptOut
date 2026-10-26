@@ -23,7 +23,6 @@
 # ==============================================================================
 
 name: Release test
-run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.test_name != '' && format('{0} ({1})', inputs.test_name, inputs.tag || 'main') || (github.event_name == 'release' && format('Release test: {0}', github.event.release.tag_name) || format('Release test ({0})', inputs.tag || 'main')) }}
 
 on:
   release:
