@@ -16,11 +16,19 @@ def main() -> None:
         [sys.executable, "-m", "pip", "install", "--quiet", pkg],
         check=True,
     )
-    subprocess.run(
-        [sys.executable, "-m", "playwright", "install", "--with-deps", "firefox"],
-        timeout=180,
-        check=True,
-    )
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "playwright", "install", "--with-deps", "firefox"],
+            timeout=480,
+            check=True,
+        )
+    except Exception as e:
+        print(f"Warning: --with-deps install had issue ({e}), trying without system packages...", flush=True)
+        subprocess.run(
+            [sys.executable, "-m", "playwright", "install", "firefox"],
+            timeout=180,
+            check=True,
+        )
 
 
 if __name__ == "__main__":
