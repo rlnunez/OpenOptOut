@@ -190,13 +190,16 @@ jobs:
         id: ui
         if: steps.health.outcome == 'success'
         continue-on-error: true
+        env:
+          INPUT_THEMES: ${{ inputs.themes }}
+          INPUT_ROUTES: ${{ inputs.routes }}
         run: |
           EXTRA_ARGS=()
-          if [ -n "${{ inputs.themes }}" ] && [ "${{ inputs.themes }}" != "all" ]; then
-            EXTRA_ARGS+=(--themes "${{ inputs.themes }}")
+          if [ -n "$INPUT_THEMES" ] && [ "$INPUT_THEMES" != "all" ]; then
+            EXTRA_ARGS+=(--themes "$INPUT_THEMES")
           fi
-          if [ -n "${{ inputs.routes }}" ] && [ "${{ inputs.routes }}" != "all" ]; then
-            EXTRA_ARGS+=(--routes "${{ inputs.routes }}")
+          if [ -n "$INPUT_ROUTES" ] && [ "$INPUT_ROUTES" != "all" ]; then
+            EXTRA_ARGS+=(--routes "$INPUT_ROUTES")
           fi
           python3 "$HARNESS/ui_check.py" --base-url http://localhost --out-dir "$OUT" --creds-file "$CREDS" "${EXTRA_ARGS[@]}"
 
