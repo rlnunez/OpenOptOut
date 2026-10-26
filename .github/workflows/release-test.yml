@@ -56,11 +56,6 @@ on:
         description: "Routes to audit (comma-separated e.g. '/logs,/settings' or 'all')"
         required: false
         default: "all"
-      skip_upgrade:
-        description: "Skip the upgrade test (saves ~5 minutes when testing UI/themes only)"
-        required: false
-        type: boolean
-        default: false
 
 permissions: {}
 
@@ -93,7 +88,6 @@ jobs:
           EVENT_TAG: ${{ github.event.release.tag_name }}
           INPUT_TAG: ${{ inputs.tag }}
           INPUT_FROM: ${{ inputs.upgrade_from }}
-          INPUT_SKIP_UPGRADE: ${{ inputs.skip_upgrade }}
         run: |
           gh api "repos/$REPO/releases?per_page=100" > releases.json 2>/dev/null || echo "[]" > releases.json
           python3 - <<'EOF'
@@ -118,8 +112,7 @@ jobs:
               published_at = "9999-99-99T99:99:99Z"
 
           frm = os.environ.get("INPUT_FROM", "").strip()
-          skip_up = os.environ.get("INPUT_SKIP_UPGRADE", "false").lower() in ("true", "1", "yes")
-          if frm.lower() == "none" or skip_up:
+          if frm.lower() == "none":
               prev = ""
           elif frm:
               prev = frm
