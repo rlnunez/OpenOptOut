@@ -37,8 +37,7 @@ ENV WITH_ENCRYPTION=${WITH_ENCRYPTION}
 RUN --mount=type=cache,target=/root/.cache/pip python3 install_deps.py && \
     rm -rf /usr/local/lib/python*/ensurepip/_bundled \
            /usr/local/lib/python*/site-packages/pip-25* \
-           /usr/local/lib/python*/site-packages/pip/_vendor/bom.cdx.json \
-           /root/.cache
+           /usr/local/lib/python*/site-packages/pip/_vendor/bom.cdx.json
 
 FROM ${PYTHON_BASE}
 

@@ -289,7 +289,12 @@ def run_worker(theme_id, args):
             except Exception as e:
                 steps.append((f"Switch to {t_label}", False, str(e)[:200]))
 
-        for route in PAGES:
+        if getattr(args, "routes", None) and args.routes.strip() and args.routes.strip().lower() != "all":
+            routes_to_test = [r.strip() for r in args.routes.split(",") if r.strip()]
+        else:
+            routes_to_test = PAGES
+
+        for route in routes_to_test:
             rec.screen = f"page {route}" if is_regular else f"page {route} ({t_label} mode)"
             before = (len(rec.errors), len(rec.warnings))
             try:
@@ -365,9 +370,9 @@ def run_worker(theme_id, args):
             })
 
         if is_regular:
-            steps.append(("Open every page (Regular theme)", True, f"{len(PAGES)} pages"))
+            steps.append(("Open every page (Regular theme)", True, f"{len(routes_to_test)} pages"))
         else:
-            steps.append((f"Open every page in {t_label} mode", True, f"{len(PAGES)} pages audited"))
+            steps.append((f"Open every page in {t_label} mode", True, f"{len(routes_to_test)} pages audited"))
 
         browser.close()
 
@@ -383,12 +388,70 @@ def run_worker(theme_id, args):
     return 0
 
 
+def dispatch_workers(args, rec, steps, theme_ids, auth_state_path=None):
+    """Run audits for selected themes (in parallel or sequentially) and aggregate results."""
+    all_pages = []
+    if args.no_parallel or len(theme_ids) == 1:
+        for t_id in theme_ids:
+            if auth_state_path:
+                args.storage_state = auth_state_path
+            run_worker(t_id, args)
+    else:
+        def run_sub(t_id):
+            cmd = [
+                sys.executable,
+                __file__,
+                "--base-url", args.base_url,
+                "--browser", args.browser,
+                "--out-dir", args.out_dir,
+                "--worker-theme", t_id,
+            ]
+            if args.creds_file:
+                cmd.extend(["--creds-file", args.creds_file])
+            if auth_state_path and os.path.exists(auth_state_path):
+                cmd.extend(["--storage-state", auth_state_path])
+            elif getattr(args, "storage_state", None) and os.path.exists(args.storage_state):
+                cmd.extend(["--storage-state", args.storage_state])
+            if getattr(args, "routes", None) and args.routes != "all":
+                cmd.extend(["--routes", args.routes])
+            if args.save_all_screenshots:
+                cmd.append("--save-all-screenshots")
+            return t_id, subprocess.run(cmd, capture_output=True, text=True)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(theme_ids)) as executor:
+            futures = [executor.submit(run_sub, t_id) for t_id in theme_ids]
+            for fut in concurrent.futures.as_completed(futures):
+                t_id, proc = fut.result()
+                if proc.returncode != 0:
+                    rec.warn("Worker process error", f"Theme {t_id} worker exited with code {proc.returncode}:\n{proc.stderr[:1000]}")
+
+    for t_id in theme_ids:
+        worker_file = os.path.join(args.out_dir, f"worker-results-{t_id}.json")
+        if os.path.exists(worker_file):
+            try:
+                with open(worker_file, "r", encoding="utf-8") as f:
+                    w_data = json.load(f)
+                    rec.errors.extend(w_data.get("errors", []))
+                    rec.warnings.extend(w_data.get("warnings", []))
+                    all_pages.extend(w_data.get("pages", []))
+                    for s in w_data.get("steps", []):
+                        steps.append((s[0], s[1], s[2]))
+            except Exception as e:
+                rec.error("Worker result parse failed", f"Failed to read results for {t_id}: {e}")
+                steps.append((f"Run audit for theme {t_id}", False, str(e)[:200]))
+        else:
+            rec.error("Worker failed", f"Worker for theme {t_id} did not produce results file {worker_file}.")
+            steps.append((f"Run audit for theme {t_id}", False, "Worker results missing"))
+
+    return all_pages
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", default="http://localhost")
     ap.add_argument("--browser", default=os.environ.get("PLAYWRIGHT_BROWSER", "firefox"))
     ap.add_argument("--out-dir", required=True)
-    ap.add_argument("--creds-file", required=True)
+    ap.add_argument("--creds-file", default=None, help="Path to credentials output file")
     ap.add_argument(
         "--save-all-screenshots",
         action="store_true",
@@ -408,16 +471,48 @@ def main():
         action="store_true",
         help="Run theme passes sequentially instead of parallel processes",
     )
+    ap.add_argument(
+        "--routes",
+        default="all",
+        help="Comma-separated list of routes to audit (e.g. '/logs,/settings' or 'all')",
+    )
+    ap.add_argument(
+        "--themes",
+        default="all",
+        help="Comma-separated list of themes to audit ('all', or subset of 'regular,dark-ada,light-ada,space-ada')",
+    )
+    ap.add_argument(
+        "--skip-setup",
+        action="store_true",
+        help="Skip first-run account creation and onboarding wizard (audit existing instance)",
+    )
     args = ap.parse_args()
+
+    if not args.creds_file:
+        args.creds_file = os.path.join(args.out_dir, "creds.json")
 
     if args.worker_theme:
         return run_worker(args.worker_theme, args)
 
-    base = args.base_url.rstrip("/")
+    valid_themes = ["regular", "dark-ada", "light-ada", "space-ada"]
+    if args.themes and args.themes.lower() != "all":
+        theme_ids = [t.strip() for t in args.themes.split(",") if t.strip() in valid_themes]
+        if not theme_ids:
+            theme_ids = valid_themes
+    else:
+        theme_ids = valid_themes
+
     shots = os.path.join(args.out_dir, "screenshots")
     os.makedirs(shots, exist_ok=True)
     rec = Recorder()
-    steps = []          # (name, ok, note)
+    steps = []
+
+    if args.skip_setup:
+        steps.append(("Skip first-run setup (direct audit)", True, "Direct route audit mode"))
+        all_pages = dispatch_workers(args, rec, steps, theme_ids, args.storage_state)
+        return finish(args, rec, steps, pages=all_pages)
+
+    base = args.base_url.rstrip("/")
     shot_no = [0]
 
     email = f"release-test-{secrets.token_hex(3)}@example.com"
@@ -661,54 +756,7 @@ def main():
         ctx.storage_state(path=auth_state_path)
         browser.close()
 
-        theme_ids = ["regular", "dark-ada", "light-ada", "space-ada"]
-        all_pages = []
-
-        if args.no_parallel:
-            for t_id in theme_ids:
-                args.storage_state = auth_state_path
-                run_worker(t_id, args)
-        else:
-            def run_sub(t_id):
-                cmd = [
-                    sys.executable,
-                    __file__,
-                    "--base-url", args.base_url,
-                    "--browser", args.browser,
-                    "--out-dir", args.out_dir,
-                    "--creds-file", args.creds_file,
-                    "--storage-state", auth_state_path,
-                    "--worker-theme", t_id,
-                ]
-                if args.save_all_screenshots:
-                    cmd.append("--save-all-screenshots")
-                return t_id, subprocess.run(cmd, capture_output=True, text=True)
-
-            with concurrent.futures.ThreadPoolExecutor(max_workers=len(theme_ids)) as executor:
-                futures = [executor.submit(run_sub, t_id) for t_id in theme_ids]
-                for fut in concurrent.futures.as_completed(futures):
-                    t_id, proc = fut.result()
-                    if proc.returncode != 0:
-                        rec.warn("Worker process error", f"Theme {t_id} worker exited with code {proc.returncode}:\n{proc.stderr[:1000]}")
-
-        for t_id in theme_ids:
-            worker_file = os.path.join(args.out_dir, f"worker-results-{t_id}.json")
-            if os.path.exists(worker_file):
-                try:
-                    with open(worker_file, "r", encoding="utf-8") as f:
-                        w_data = json.load(f)
-                        rec.errors.extend(w_data.get("errors", []))
-                        rec.warnings.extend(w_data.get("warnings", []))
-                        all_pages.extend(w_data.get("pages", []))
-                        for s in w_data.get("steps", []):
-                            steps.append((s[0], s[1], s[2]))
-                except Exception as e:
-                    rec.error("Worker result parse failed", f"Failed to read results for {t_id}: {e}")
-                    steps.append((f"Run audit for theme {t_id}", False, str(e)[:200]))
-            else:
-                rec.error("Worker failed", f"Worker for theme {t_id} did not produce results file {worker_file}.")
-                steps.append((f"Run audit for theme {t_id}", False, "Worker results missing"))
-
+        all_pages = dispatch_workers(args, rec, steps, theme_ids, auth_state_path)
         return finish(args, rec, steps, pages=all_pages)
 
 

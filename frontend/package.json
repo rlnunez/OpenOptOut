@@ -31,7 +31,8 @@
     "build": "vite build && node scripts/inject-sri.mjs",
     "preview": "vite preview",
     "check:names": "node scripts/check-names.mjs src",
-    "check:a11y": "node scripts/check-a11y.mjs src"
+    "check:a11y": "node scripts/check-a11y.mjs src",
+    "audit:ui": "python3 ../.github/release-test/ui_check.py --base-url http://localhost:5173 --skip-setup --out-dir /tmp/ui-check"
   },
   "overrides": {
     "braces": "npm:@franciscosolis/braces@^3.1.1"
