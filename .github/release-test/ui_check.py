@@ -21,12 +21,10 @@ Exit code: 0 = no serious problems, 1 = serious problems found, 2 = could not ru
 Requires: pip install playwright && python -m playwright install --with-deps chromium
 """
 import argparse
-import concurrent.futures
 import json
 import os
 import re
 import secrets
-import subprocess
 import sys
 import time
 
@@ -385,46 +383,13 @@ def run_worker(theme_id, args):
 
 
 def dispatch_workers(args, rec, steps, theme_ids, auth_state_path=None):
-    """Run audits for selected themes (in parallel or sequentially) and aggregate results."""
+    """Run audits for selected themes sequentially to guarantee database consistency and avoid port contention."""
     all_pages = []
-    if args.no_parallel or len(theme_ids) == 1:
-        for t_id in theme_ids:
-            if auth_state_path:
-                args.storage_state = auth_state_path
-            run_worker(t_id, args)
-    else:
-        def run_sub(t_id):
-            cmd = [
-                sys.executable,
-                __file__,
-                "--base-url", args.base_url,
-                "--browser", args.browser,
-                "--out-dir", args.out_dir,
-                "--worker-theme", t_id,
-            ]
-            if args.creds_file:
-                cmd.extend(["--creds-file", args.creds_file])
-            if auth_state_path and os.path.exists(auth_state_path):
-                cmd.extend(["--storage-state", auth_state_path])
-            elif getattr(args, "storage_state", None) and os.path.exists(args.storage_state):
-                cmd.extend(["--storage-state", args.storage_state])
-            if getattr(args, "routes", None) and args.routes != "all":
-                cmd.extend(["--routes", args.routes])
-            if args.save_all_screenshots:
-                cmd.append("--save-all-screenshots")
-            return t_id, subprocess.run(cmd, capture_output=True, text=True)
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(theme_ids)) as executor:
-            futures = []
-            for t_id in theme_ids:
-                futures.append(executor.submit(run_sub, t_id))
-                time.sleep(0.5)
-            for fut in concurrent.futures.as_completed(futures):
-                t_id, proc = fut.result()
-                if proc.returncode != 0:
-                    rec.warn("Worker process error", f"Theme {t_id} worker exited with code {proc.returncode}:\n{proc.stderr[:1000]}")
-
     for t_id in theme_ids:
+        if auth_state_path:
+            args.storage_state = auth_state_path
+        run_worker(t_id, args)
+
         worker_file = os.path.join(args.out_dir, f"worker-results-{t_id}.json")
         if os.path.exists(worker_file):
             try:
