@@ -3,7 +3,7 @@ WORKDIR /app
 RUN chown -R node:node /app
 USER 1000:1000
 COPY --chown=node:node package.json package-lock.json .npmrc* ./
-RUN npm ci --legacy-peer-deps
+RUN --mount=type=cache,target=/home/node/.npm,uid=1000,gid=1000 npm ci --legacy-peer-deps
 COPY --chown=node:node . .
 RUN npm run build
 

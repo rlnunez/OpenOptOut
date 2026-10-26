@@ -66,8 +66,10 @@ def audit_page_a11y(page, rec, route, is_ada=False, ada_theme_name=None):
     if not AXE_SCRIPT:
         return
     try:
-        page.evaluate(AXE_SCRIPT)
-        results = page.evaluate("""() => {
+        results = page.evaluate("""(fallbackScript) => {
+            if (typeof axe === 'undefined' && fallbackScript) {
+                window.eval(fallbackScript);
+            }
             return new Promise((resolve) => {
                 if (typeof axe === 'undefined') {
                     resolve({ error: 'axe not loaded' });
@@ -83,7 +85,7 @@ def audit_page_a11y(page, rec, route, is_ada=False, ada_theme_name=None):
                     else resolve(res);
                 });
             });
-        }""")
+        }""", AXE_SCRIPT)
         theme_name = ada_theme_name or ("ADA/WCAG (theme-dark-ada)" if is_ada else "Regular Theme")
         if isinstance(results, dict) and "violations" in results:
             for v in results["violations"]:
@@ -190,6 +192,8 @@ def main():
         launcher = getattr(p, args.browser.lower(), p.chromium)
         browser = launcher.launch(executable_path=exe)
         ctx = browser.new_context(viewport={"width": 1366, "height": 900})
+        if AXE_SCRIPT:
+            ctx.add_init_script(AXE_SCRIPT)
         page = ctx.new_page()
 
         # ── listeners: anything that goes wrong on any screen ────────────────

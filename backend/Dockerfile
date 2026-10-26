@@ -34,7 +34,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 ARG WITH_ENCRYPTION=true
 ENV WITH_ENCRYPTION=${WITH_ENCRYPTION}
-RUN python3 install_deps.py && \
+RUN --mount=type=cache,target=/root/.cache/pip python3 install_deps.py && \
     rm -rf /usr/local/lib/python*/ensurepip/_bundled \
            /usr/local/lib/python*/site-packages/pip-25* \
            /usr/local/lib/python*/site-packages/pip/_vendor/bom.cdx.json \

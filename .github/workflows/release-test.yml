@@ -131,6 +131,8 @@ jobs:
       APP_DIR: ${{ github.workspace }}/openoptout
       OUT: ${{ github.workspace }}/report
       CREDS: ${{ github.workspace }}/private/admin-creds.json   # throwaway; never uploaded
+      DOCKER_BUILDKIT: "1"
+      COMPOSE_DOCKER_CLI_BUILD: "1"
     steps:
       # The test scripts come from the default branch, so any release (even an
       # older one) is tested with the current harness.
@@ -295,6 +297,8 @@ jobs:
       OUT: ${{ github.workspace }}/report
       CREDS: ${{ github.workspace }}/private/admin-creds.json   # throwaway; never uploaded
       STATE: ${{ github.workspace }}/private/before-upgrade.json
+      DOCKER_BUILDKIT: "1"
+      COMPOSE_DOCKER_CLI_BUILD: "1"
     steps:
       - name: Get the test harness
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
