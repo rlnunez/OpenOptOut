@@ -61,7 +61,7 @@ def require_scim_auth(
 
     # 2. Or validate as admin JWT session token
     user = auth_core.resolve_user_from_token(token, db)
-    if user and getattr(user, "role", None) == "admin":
+    if user and getattr(user, "role", None) in ("super_admin", "admin"):
         return
 
     raise HTTPException(
