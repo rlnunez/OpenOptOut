@@ -116,13 +116,13 @@ jobs:
 
       - name: Upload Semgrep results
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('semgrep.sarif') != ''
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: semgrep.sarif
           category: semgrep
       - name: Upload Bandit results
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('bandit.sarif') != ''
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: bandit.sarif
           category: bandit
@@ -161,7 +161,7 @@ jobs:
 
       - name: Upload Gitleaks results
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('gitleaks.sarif') != ''
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: gitleaks.sarif
           category: gitleaks
@@ -191,7 +191,7 @@ jobs:
           python3 .github/security/sarif_summary.py "OSV-Scanner (dependencies)" osv.sarif >> "$GITHUB_STEP_SUMMARY"
       - name: Upload OSV-Scanner results
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('osv.sarif') != ''
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: osv.sarif
           category: osv-scanner
@@ -252,25 +252,25 @@ jobs:
 
       - name: Upload Trivy results
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('trivy-config.sarif') != ''
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: trivy-config.sarif
           category: trivy-config
       - name: Upload Hadolint results (backend)
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('hadolint-backend.sarif') != ''
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: hadolint-backend.sarif
           category: hadolint-backend
       - name: Upload Hadolint results (frontend)
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('hadolint-frontend.sarif') != ''
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: hadolint-frontend.sarif
           category: hadolint-frontend
       - name: Upload ShellCheck results
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('shellcheck.sarif') != ''
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: shellcheck.sarif
           category: shellcheck
@@ -303,7 +303,7 @@ jobs:
           actionlint -color
       - name: Upload zizmor results
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('zizmor.sarif') != ''
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: zizmor.sarif
           category: zizmor
@@ -440,13 +440,13 @@ jobs:
 
       - name: Upload Trivy image results (backend)
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('trivy-image-api.sarif') != ''
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: trivy-image-api.sarif
           category: trivy-image-api
       - name: Upload Trivy image results (frontend)
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('trivy-image-web.sarif') != ''
-        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: trivy-image-web.sarif
           category: trivy-image-web
