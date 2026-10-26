@@ -10,18 +10,8 @@ import { useAuth } from '../hooks/useAuth'
 import { tx, txr } from '../i18n/tx'
 import { fmtMB, fmtNumber } from '../i18n/format'
 import { detailText } from '../errorMessage'
+import Field, { inputCls as inp } from '../components/Field'
 
-function Field({ label, hint, children }) {
-  return (
-    <div>
-      <label className="text-slate-400 text-xs mb-1 block">{label}</label>
-      {children}
-      {hint && <p className="text-slate-500 text-xs mt-1">{hint}</p>}
-    </div>
-  )
-}
-
-const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 
 function RecommendationPill({ rec }) {
   const styles = {

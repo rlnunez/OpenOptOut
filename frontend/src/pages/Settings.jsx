@@ -13,20 +13,9 @@ import { tx, txn, txr } from '../i18n/tx'
 import { fmtDate, fmtDateTime, fmtNumber, formatLocale, regional, setRegional } from '../i18n/format'
 import { SecretKeyGeneratorPanel } from '../components/SecretKeyBanner'
 import { detailText } from '../errorMessage'
+import Field, { inputCls as inp, labelCls } from '../components/Field'
 
 // ── Shared ────────────────────────────────────────────────────────────────────
-const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
-const labelCls = "text-slate-400 text-xs mb-1 block"
-
-function Field({ label, hint, children }) {
-  return (
-    <div>
-      <label className={labelCls}>{label}</label>
-      {children}
-      {hint && <p className="text-slate-600 text-xs mt-1">{hint}</p>}
-    </div>
-  )
-}
 
 // Sections unlock their admin controls when userRole is 'super_admin'. The
 // Settings page passes that for managers too when they hold the section's

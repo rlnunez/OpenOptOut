@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import os
 import re
-from datetime import datetime
+from .time_utils import utc_now, utc_iso
 from typing import Optional
 
 LIMITS_VERSION = 1
@@ -59,7 +59,7 @@ def template(operator: str = "", contact: str = "", date: str = "") -> str:
         text = f.read()
     return (text.replace("{operator}", operator or "[Your organization]")
                 .replace("{contact}", contact or "[how to reach you]")
-                .replace("{date}", date or datetime.utcnow().date().isoformat()))
+                .replace("{date}", date or utc_now().date().isoformat()))
 
 
 def unfinished(text: str) -> list:
@@ -95,7 +95,7 @@ def save(settings: dict, data: dict) -> dict:
     if new["enabled"] and digest != old["digest"]:
         new["version"] = old["version"] + 1
         new["digest"] = digest
-        new["updated_at"] = datetime.utcnow().isoformat(timespec="seconds")
+        new["updated_at"] = utc_iso()
     settings["terms"] = new
     return new
 

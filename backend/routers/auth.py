@@ -725,13 +725,12 @@ async def backchannel_logout(
     if not logout_token:
         raise HTTPException(status_code=400, detail="Missing logout_token parameter.")
 
-    import base64
     try:
+        from ..core.b64_utils import b64url_decode_json
         parts = logout_token.split(".")
         if len(parts) != 3:
             raise ValueError("Invalid JWT format")
-        payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
-        payload = json.loads(base64.urlsafe_b64decode(payload_b64.encode("ascii")).decode("utf-8"))
+        payload = b64url_decode_json(parts[1])
     except Exception as e:
         log.warning("Malformed logout_token received: %s", e)
         raise HTTPException(status_code=400, detail="Malformed logout_token")

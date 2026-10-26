@@ -88,10 +88,9 @@ def validate_dpop_proof(
         raise ValueError("Invalid DPoP JWT format: must contain 3 segments.")
 
     try:
-        header_b64 = parts[0] + "=" * (-len(parts[0]) % 4)
-        payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
-        header = json.loads(base64.urlsafe_b64decode(header_b64.encode("ascii")).decode("utf-8"))
-        payload = json.loads(base64.urlsafe_b64decode(payload_b64.encode("ascii")).decode("utf-8"))
+        from .b64_utils import b64url_decode_json
+        header = b64url_decode_json(parts[0])
+        payload = b64url_decode_json(parts[1])
     except Exception as e:
         raise ValueError(f"Malformed DPoP proof encoding: {e}")
 

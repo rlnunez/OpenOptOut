@@ -500,8 +500,8 @@ def verify_webauthn_assertion(
 
 def _b64_pad(s: str) -> str:
     """Pad base64url string with '=' to make its length a multiple of 4."""
-    s = s.strip()
-    return s + "=" * ((4 - len(s) % 4) % 4)
+    from .b64_utils import b64url_pad
+    return b64url_pad(s)
 
 
 # ── 4. 3-Day Post-Install Mandate Policy ───────────────────────────────────────

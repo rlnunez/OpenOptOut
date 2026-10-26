@@ -10,6 +10,7 @@ import { isSafeHref } from '../components/Markdown'
 import { tx } from '../i18n/tx'
 import { fmtDate } from '../i18n/format'
 import { detailText } from '../errorMessage'
+import Modal from '../components/Modal'
 
 // ── Static documentation data ─────────────────────────────────────────────────
 
@@ -232,8 +233,10 @@ function DocItem({ item, isAdmin, onEdit, onDelete }) {
           {isAdmin && item._custom && (
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
               <button onClick={e => { e.stopPropagation(); onEdit(item) }}
+                aria-label={tx("Edit")}
                 className="p-1 text-slate-500 hover:text-shield-400 transition-colors"><Edit3 size={12} /></button>
               <button onClick={e => { e.stopPropagation(); onDelete(item.id) }}
+                aria-label={tx("Delete")}
                 className="p-1 text-slate-500 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
             </div>
           )}
@@ -275,46 +278,45 @@ function NoteModal({ initial, onClose, onSaved }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl p-6 max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-white font-semibold">{initial ? tx("Edit note") : tx("Add custom note")}</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-white"><X size={16} /></button>
+    <Modal
+      title={initial ? tx("Edit note") : tx("Add custom note")}
+      onClose={onClose}
+      maxWidth="max-w-2xl"
+      className="flex flex-col"
+    >
+      {error && <p className="text-red-400 text-sm mb-3 bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
+      <div className="space-y-3 flex-1 overflow-y-auto">
+        <div>
+          <label className="text-slate-400 text-xs mb-1 block">{tx("Title")}</label>
+          <input value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))}
+            placeholder={tx("e.g. How to opt out of Acxiom")} autoFocus
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500" />
         </div>
-        {error && <p className="text-red-400 text-sm mb-3 bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
-        <div className="space-y-3 flex-1 overflow-y-auto">
-          <div>
-            <label className="text-slate-400 text-xs mb-1 block">{tx("Title")}</label>
-            <input value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))}
-              placeholder={tx("e.g. How to opt out of Acxiom")} autoFocus
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500" />
-          </div>
-          <div>
-            <label className="text-slate-400 text-xs mb-1 block">{tx("Section")}</label>
-            <select value={form.section} onChange={e => setForm(f => ({...f, section: e.target.value}))}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-hidden">
-              <option value="general">{tx("General")}</option>
-              <option value="protect">{tx("Phone & credit")}</option>
-              <option value="resistant">{tx("Resistant vendors")}</option>
-              <option value="setup">{tx("Setup & configuration")}</option>
-            </select>
-          </div>
-          <div className="flex-1">
-            <label className="text-slate-400 text-xs mb-1 block">{tx("Content (Markdown supported)")}</label>
-            <textarea value={form.content} onChange={e => setForm(f => ({...f, content: e.target.value}))}
-              rows={12} placeholder={tx("Write your documentation here. **Bold**, `code`, [links](url), and bullet lists are supported.")}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500 font-mono resize-none" />
-          </div>
+        <div>
+          <label className="text-slate-400 text-xs mb-1 block">{tx("Section")}</label>
+          <select value={form.section} onChange={e => setForm(f => ({...f, section: e.target.value}))}
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-hidden">
+            <option value="general">{tx("General")}</option>
+            <option value="protect">{tx("Phone & credit")}</option>
+            <option value="resistant">{tx("Resistant vendors")}</option>
+            <option value="setup">{tx("Setup & configuration")}</option>
+          </select>
         </div>
-        <div className="flex gap-2 pt-4">
-          <button onClick={onClose} className="flex-1 py-2 border border-slate-700 rounded-lg text-slate-400 text-sm hover:bg-slate-800 transition-colors">{tx("Cancel")}</button>
-          <button onClick={save} disabled={saving}
-            className="flex-1 py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white rounded-lg text-sm font-medium transition-colors">
-            {saving ? tx("Saving…") : initial ? tx("Save changes") : tx("Add note")}
-          </button>
+        <div className="flex-1">
+          <label className="text-slate-400 text-xs mb-1 block">{tx("Content (Markdown supported)")}</label>
+          <textarea value={form.content} onChange={e => setForm(f => ({...f, content: e.target.value}))}
+            rows={12} placeholder={tx("Write your documentation here. **Bold**, `code`, [links](url), and bullet lists are supported.")}
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500 font-mono resize-none" />
         </div>
       </div>
-    </div>
+      <div className="flex gap-2 pt-4">
+        <button onClick={onClose} className="flex-1 py-2 border border-slate-700 rounded-lg text-slate-400 text-sm hover:bg-slate-800 transition-colors">{tx("Cancel")}</button>
+        <button onClick={save} disabled={saving}
+          className="flex-1 py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white rounded-lg text-sm font-medium transition-colors">
+          {saving ? tx("Saving…") : initial ? tx("Save changes") : tx("Add note")}
+        </button>
+      </div>
+    </Modal>
   )
 }
 

@@ -9,6 +9,7 @@ import { useAuth } from '../hooks/useAuth'
 import { tx, txn, txr } from '../i18n/tx'
 import { detailText } from '../errorMessage'
 import ChildPrivacyNotice from '../components/ChildPrivacyNotice'
+import Modal from '../components/Modal'
 
 const KIND_LABELS = { name: tx("Names"), email: tx("Emails"), phone: tx("Phones"), address: tx("Addresses") }
 const KIND_COLORS = {
@@ -64,47 +65,41 @@ function AddMemberModal({ onClose, onCreated }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-white font-semibold">{tx("Add family member")}</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><X size={16} /></button>
+    <Modal title={tx("Add family member")} onClose={onClose}>
+      {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
+      <form onSubmit={submit} className="space-y-3">
+        <div>
+          <label className="text-slate-400 text-xs mb-1 block">{tx("Full name *")}</label>
+          <input
+            value={name} onChange={e => setName(e.target.value)}
+            placeholder={tx("Jane Smith")}
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
+            required autoFocus
+          />
         </div>
-        {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
-        <form onSubmit={submit} className="space-y-3">
-          <div>
-            <label className="text-slate-400 text-xs mb-1 block">{tx("Full name *")}</label>
-            <input
-              value={name} onChange={e => setName(e.target.value)}
-              placeholder={tx("Jane Smith")}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
-              required autoFocus
-            />
-          </div>
-          <div>
-            <label className="text-slate-400 text-xs mb-1 block">{txr("Age <0>(optional)</0>", [<span className="text-slate-600" />])}</label>
-            <input
-              type="number" value={age} onChange={e => setAge(e.target.value)}
-              placeholder="42"
-              min="1" max="120"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
-            />
-          </div>
-          <ChildPrivacyNotice age={age ? parseInt(age) : null} />
-          <label className="flex items-start gap-2 text-sm text-slate-300 pt-1">
-            <input type="checkbox" checked={authorized} onChange={e => setAuthorized(e.target.checked)} required
-              className="mt-0.5 h-4 w-4 accent-shield-500 shrink-0" />
-            <span>{tx("I'm allowed to ask brokers to remove this person's details: they've agreed, or I'm their parent or legal guardian.")}</span>
-          </label>
-          <div className="flex gap-2 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 py-2 border border-slate-700 rounded-lg text-slate-400 text-sm hover:bg-slate-800 transition-colors">{tx("Cancel")}</button>
-            <button type="submit" disabled={saving || !authorized} className="flex-1 py-2 bg-shield-600 hover:bg-shield-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
-              {saving ? tx("Adding…") : tx("Add person")}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div>
+          <label className="text-slate-400 text-xs mb-1 block">{txr("Age <0>(optional)</0>", [<span className="text-slate-600" />])}</label>
+          <input
+            type="number" value={age} onChange={e => setAge(e.target.value)}
+            placeholder="42"
+            min="1" max="120"
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
+          />
+        </div>
+        <ChildPrivacyNotice age={age ? parseInt(age) : null} />
+        <label className="flex items-start gap-2 text-sm text-slate-300 pt-1">
+          <input type="checkbox" checked={authorized} onChange={e => setAuthorized(e.target.checked)} required
+            className="mt-0.5 h-4 w-4 accent-shield-500 shrink-0" />
+          <span>{tx("I'm allowed to ask brokers to remove this person's details: they've agreed, or I'm their parent or legal guardian.")}</span>
+        </label>
+        <div className="flex gap-2 pt-1">
+          <button type="button" onClick={onClose} className="flex-1 py-2 border border-slate-700 rounded-lg text-slate-400 text-sm hover:bg-slate-800 transition-colors">{tx("Cancel")}</button>
+          <button type="submit" disabled={saving || !authorized} className="flex-1 py-2 bg-shield-600 hover:bg-shield-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
+            {saving ? tx("Adding…") : tx("Add person")}
+          </button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 
@@ -129,8 +124,8 @@ function EditableName({ member, onUpdated }) {
         className="bg-slate-700 border border-slate-600 rounded-sm px-2 py-0.5 text-sm text-white focus:outline-hidden focus:border-shield-500 w-40"
         autoFocus
       />
-      <button onClick={save} className="text-emerald-400 hover:text-emerald-300"><Check size={13} /></button>
-      <button onClick={() => setEditing(false)} className="text-slate-500 hover:text-white"><X size={13} /></button>
+      <button onClick={save} aria-label={tx("Save")} className="text-emerald-400 hover:text-emerald-300"><Check size={13} /></button>
+      <button onClick={() => setEditing(false)} aria-label={tx("Cancel")} className="text-slate-500 hover:text-white"><X size={13} /></button>
     </div>
   )
 

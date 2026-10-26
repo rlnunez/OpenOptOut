@@ -35,7 +35,7 @@ from ..models.database import get_db, User
 from ..core.auth import get_current_user
 from ..core.settings_store import (
     load_settings, save_settings, SETTINGS_FILE, get_secret_key,
-    get_secret_key_status, read_secret_key_file,
+    get_secret_key_status, read_secret_key_file, encrypt_setting,
 )
 
 router = APIRouter(prefix="/api/wizard", tags=["wizard"])
@@ -46,26 +46,7 @@ def _admin(user: User):
         raise HTTPException(403, "Super admin access required")
 
 
-def _fernet():
-    raw = get_secret_key()
-    from ..core.hkdf import hkdf_derive
-    hkdf_key = base64.urlsafe_b64encode(hkdf_derive(raw.encode(), info=b"openoptout:settings:v1"))
-    fernet_primary = Fernet(hkdf_key)
-
-    # Legacy key: padded raw secret (retained for backward-compatible decryption of existing secrets)
-    _kb = raw.encode() or b"\0"
-    padded = (_kb * (32 // len(_kb) + 1))[:32]
-    fernet_legacy = Fernet(base64.urlsafe_b64encode(padded))
-
-    try:
-        from cryptography.fernet import MultiFernet
-        return MultiFernet([fernet_primary, fernet_legacy])
-    except ImportError:
-        return fernet_primary
-
-
-def _encrypt(v: str) -> str:
-    return _fernet().encrypt(v.encode()).decode() if v else ""
+_encrypt = encrypt_setting
 
 
 def _load() -> dict:

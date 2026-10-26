@@ -6,19 +6,9 @@ import { useAuth } from '../hooks/useAuth'
 import { useBranding } from '../hooks/useBranding'
 import { tx } from '../i18n/tx'
 import { detailText } from '../errorMessage'
+import Field, { inputCls as inp } from '../components/Field'
 
-const inp = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 const btn = "w-full py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
-
-function Field({ id, label, hint, children }) {
-  return (
-    <div>
-      <label htmlFor={id} className="block text-slate-300 text-xs font-medium mb-1">{label}</label>
-      {children}
-      {hint && <p className="text-slate-500 text-xs mt-1">{hint}</p>}
-    </div>
-  )
-}
 
 function Card({ name, branding, children }) {
   return (

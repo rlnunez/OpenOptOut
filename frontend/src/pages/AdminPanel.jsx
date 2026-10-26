@@ -7,6 +7,8 @@ import {
 import api from '../api'
 import { tx, txn, txr } from '../i18n/tx'
 import { detailText } from '../errorMessage'
+import Modal from '../components/Modal'
+import Field, { inputCls as input } from '../components/Field'
 
 const ROLE_STYLES = {
   super_admin: 'bg-purple-900/40 text-purple-300 border-purple-700',
@@ -60,14 +62,9 @@ function CreateUserModal({ onClose, onCreated, isSuper }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-white font-semibold">{tx("Add user")}</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-white"><X size={16} /></button>
-        </div>
-        {error && <p className="text-red-400 text-sm mb-3 bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
-        <form onSubmit={submit} className="space-y-3">
+    <Modal title={tx("Add user")} onClose={onClose}>
+      {error && <p className="text-red-400 text-sm mb-3 bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
+      <form onSubmit={submit} className="space-y-3">
           <Field label={tx("Full name")} required>
             <input value={form.full_name} onChange={e => setForm(f => ({...f, full_name: e.target.value}))}
               placeholder={tx("Jane Smith")} className={input} required autoFocus />
@@ -118,8 +115,7 @@ function CreateUserModal({ onClose, onCreated, isSuper }) {
             <button type="submit" disabled={saving} className={primaryBtn}>{saving ? tx("Creating…") : tx("Create user")}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -152,51 +148,45 @@ function GrantModal({ users, onClose, onGranted }) {
   const loginUsers = users.filter(u => u.can_login)
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-white font-semibold">{tx("Grant profile access")}</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-white"><X size={16} /></button>
+    <Modal title={tx("Grant profile access")} onClose={onClose}>
+      {error && <p className="text-red-400 text-sm mb-3 bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
+      <form onSubmit={submit} className="space-y-3">
+        <Field label={tx("Who gets access (manager)")}>
+          <UserSelect users={loginUsers} value={managerId} onChange={setManagerId} placeholder={tx("Select manager…")} />
+        </Field>
+        <div className="flex items-center justify-center gap-2 text-slate-600 text-xs">
+          <div className="flex-1 h-px bg-slate-700"/>
+          {tx("can access profile of")}
+          <div className="flex-1 h-px bg-slate-700"/>
         </div>
-        {error && <p className="text-red-400 text-sm mb-3 bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
-        <form onSubmit={submit} className="space-y-3">
-          <Field label={tx("Who gets access (manager)")}>
-            <UserSelect users={loginUsers} value={managerId} onChange={setManagerId} placeholder={tx("Select manager…")} />
-          </Field>
-          <div className="flex items-center justify-center gap-2 text-slate-600 text-xs">
-            <div className="flex-1 h-px bg-slate-700"/>
-            {tx("can access profile of")}
-            <div className="flex-1 h-px bg-slate-700"/>
-          </div>
-          <Field label={tx("Whose profile (managed)")}>
-            <UserSelect users={users} value={managedId} onChange={setManagedId} placeholder={tx("Select profile…")} />
-          </Field>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={canEdit} onChange={e => setCanEdit(e.target.checked)}
-              className="w-3.5 h-3.5 rounded-sm accent-shield-500" />
-            <span className="text-slate-300 text-sm">{tx("Allow editing (not just viewing)")}</span>
+        <Field label={tx("Whose profile (managed)")}>
+          <UserSelect users={users} value={managedId} onChange={setManagedId} placeholder={tx("Select profile…")} />
+        </Field>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={canEdit} onChange={e => setCanEdit(e.target.checked)}
+            className="w-3.5 h-3.5 rounded-sm accent-shield-500" />
+          <span className="text-slate-300 text-sm">{tx("Allow editing (not just viewing)")}</span>
+        </label>
+        <div>
+          <label className="text-slate-400 text-xs mb-1 block">
+            {txr("Children limit override <0>(blank = use system default)</0>", [<span className="text-slate-600" />])}
           </label>
-          <div>
-            <label className="text-slate-400 text-xs mb-1 block">
-              {txr("Children limit override <0>(blank = use system default)</0>", [<span className="text-slate-600" />])}
-            </label>
-            <input type="number" min="0" value={childLimit}
-              onChange={e => setChildLimit(e.target.value)}
-              placeholder={tx("System default")}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500" />
-            <p className="text-slate-600 text-xs mt-1">
-              {tx("Max number of member (child) profiles this parent can manage. 0 = unlimited.")}
-            </p>
-          </div>
-          <div className="flex gap-2 pt-1">
-            <button type="button" onClick={onClose} className={cancelBtn}>{tx("Cancel")}</button>
-            <button type="submit" disabled={saving || !managerId || !managedId} className={primaryBtn}>
-              {saving ? tx("Granting…") : tx("Grant access")}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          <input type="number" min="0" value={childLimit}
+            onChange={e => setChildLimit(e.target.value)}
+            placeholder={tx("System default")}
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500" />
+          <p className="text-slate-600 text-xs mt-1">
+            {tx("Max number of member (child) profiles this parent can manage. 0 = unlimited.")}
+          </p>
+        </div>
+        <div className="flex gap-2 pt-1">
+          <button type="button" onClick={onClose} className={cancelBtn}>{tx("Cancel")}</button>
+          <button type="submit" disabled={saving || !managerId || !managedId} className={primaryBtn}>
+            {saving ? tx("Granting…") : tx("Grant access")}
+          </button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 
@@ -285,8 +275,8 @@ function EditUserRow({ user, onUpdated, onDeleted, currentUserId, isSuper, onEdi
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {editing ? (
             <>
-              <button onClick={save} disabled={saving} className="p-1 text-emerald-400 hover:text-emerald-300"><Check size={13} /></button>
-              <button onClick={() => setEditing(false)} className="p-1 text-slate-500 hover:text-white"><X size={13} /></button>
+              <button onClick={save} disabled={saving} aria-label={tx("Save")} className="p-1 text-emerald-400 hover:text-emerald-300"><Check size={13} /></button>
+              <button onClick={() => setEditing(false)} aria-label={tx("Cancel")} className="p-1 text-slate-500 hover:text-white"><X size={13} /></button>
             </>
           ) : canAct && (
             <>
@@ -519,77 +509,61 @@ function PermissionsModal({ catalog, defaults, initial, title, subtitle, resetLa
     catch (e) { setError(detailText(e) ?? tx("Could not save permissions")); setSaving(false) }
   }
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col"
-        onClick={e => e.stopPropagation()}>
-        <div className="px-5 py-4 border-b border-slate-700/50 flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-white font-semibold">{title}</h2>
-            <p className="text-slate-500 text-xs mt-0.5">{subtitle}</p>
-          </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-white" aria-label={tx("Close")}><X size={16} /></button>
-        </div>
-        <div className="px-5 py-4 overflow-y-auto space-y-4">
-          {error && <p className="text-red-400 text-sm bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
-          {groups.map(g => (
-            <div key={g}>
-              <p className="text-slate-500 text-[11px] uppercase tracking-wide mb-1.5">{g}</p>
-              <div className="space-y-1">
-                {catalog.filter(p => p.group === g).map(p => (
-                  <label key={p.key} className="flex items-start gap-2.5 px-2 py-1.5 rounded-lg hover:bg-slate-800/60 cursor-pointer">
-                    <input type="checkbox" checked={selected.has(p.key)} onChange={() => toggle(p.key)}
-                      className="mt-0.5 accent-sky-500" />
-                    <span className="min-w-0">
-                      <span className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-slate-200 text-sm">{p.label}</span>
-                        {defaults.includes(p.key) && <span className="text-[10px] px-1 rounded-sm border border-slate-700 text-slate-500">{tx("default")}</span>}
-                        {p.sensitive && (
-                          <span className="inline-flex items-center gap-0.5 text-[10px] px-1 rounded-sm border border-amber-800 text-amber-300">
-                            <AlertTriangle size={9} />{" "}{tx("sensitive")}
-                          </span>
-                        )}
-                      </span>
-                      <span className="block text-slate-500 text-xs mt-0.5">{p.description}</span>
+    <Modal
+      title={title}
+      description={subtitle}
+      onClose={onClose}
+      maxWidth="max-w-lg"
+      className="p-0 overflow-hidden flex flex-col max-h-[85vh]"
+    >
+      <div className="px-5 py-4 overflow-y-auto space-y-4">
+        {error && <p className="text-red-400 text-sm bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
+        {groups.map(g => (
+          <div key={g}>
+            <p className="text-slate-500 text-[11px] uppercase tracking-wide mb-1.5">{g}</p>
+            <div className="space-y-1">
+              {catalog.filter(p => p.group === g).map(p => (
+                <label key={p.key} className="flex items-start gap-2.5 px-2 py-1.5 rounded-lg hover:bg-slate-800/60 cursor-pointer">
+                  <input type="checkbox" checked={selected.has(p.key)} onChange={() => toggle(p.key)}
+                    className="mt-0.5 accent-sky-500" />
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-slate-200 text-sm">{p.label}</span>
+                      {defaults.includes(p.key) && <span className="text-[10px] px-1 rounded-sm border border-slate-700 text-slate-500">{tx("default")}</span>}
+                      {p.sensitive && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] px-1 rounded-sm border border-amber-800 text-amber-300">
+                          <AlertTriangle size={9} />{" "}{tx("sensitive")}
+                        </span>
+                      )}
                     </span>
-                  </label>
-                ))}
-              </div>
+                    <span className="block text-slate-500 text-xs mt-0.5">{p.description}</span>
+                  </span>
+                </label>
+              ))}
             </div>
-          ))}
-          <p className="text-slate-600 text-xs">
-            {tx("Always kept for super admins: roles and permissions, the setup wizard, enabling plugins and the plugin-system switch, database migration, and resetting all requests.")}
-          </p>
-        </div>
-        <div className="px-5 py-3 border-t border-slate-700/50 flex items-center justify-between gap-2">
-          <button onClick={() => setSelected(new Set(defaults))}
-            className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200">
-            <RotateCcw size={11} /> {resetLabel}
-          </button>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="px-3 py-1.5 border border-slate-700 rounded-lg text-slate-400 text-sm hover:bg-slate-800">{tx("Cancel")}</button>
-            <button onClick={save} disabled={saving}
-              className="px-3 py-1.5 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white rounded-lg text-sm">
-              {saving ? tx("Saving…") : tx("Save")}
-            </button>
           </div>
+        ))}
+        <p className="text-slate-600 text-xs">
+          {tx("Always kept for super admins: roles and permissions, the setup wizard, enabling plugins and the plugin-system switch, database migration, and resetting all requests.")}
+        </p>
+      </div>
+      <div className="px-5 py-3 border-t border-slate-700/50 flex items-center justify-between gap-2">
+        <button onClick={() => setSelected(new Set(defaults))}
+          className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200">
+          <RotateCcw size={11} /> {resetLabel}
+        </button>
+        <div className="flex gap-2">
+          <button onClick={onClose} className="px-3 py-1.5 border border-slate-700 rounded-lg text-slate-400 text-sm hover:bg-slate-800">{tx("Cancel")}</button>
+          <button onClick={save} disabled={saving}
+            className="px-3 py-1.5 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white rounded-lg text-sm">
+            {saving ? tx("Saving…") : tx("Save")}
+          </button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
-const input = "w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-hidden focus:border-shield-500"
 const cancelBtn = "flex-1 py-2 border border-slate-700 rounded-lg text-slate-400 text-sm hover:bg-slate-800 transition-colors"
 const primaryBtn = "flex-1 py-2 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white rounded-lg text-sm font-medium transition-colors"
-
-function Field({ label, required, children }) {
-  return (
-    <div>
-      <label className="text-slate-400 text-xs mb-1 block">
-        {label}{required && <span className="text-red-500 ms-0.5">*</span>}
-      </label>
-      {children}
-    </div>
-  )
-}

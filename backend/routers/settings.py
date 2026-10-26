@@ -15,40 +15,20 @@ from ..core.limits import LimitedModel, ICON_DATA_URL_MAX, ITEMS_MAX
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, require_super_admin
 from ..core.access import require_permission
-from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE, get_secret_key, is_valid_secret_key
+from ..core.settings_store import (
+    load_settings, save_settings, SETTINGS_FILE, get_secret_key, is_valid_secret_key,
+    encrypt_setting, decrypt_setting,
+)
 from ..core.email_send import normalize_smtp_tls
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
-# ── Encryption ────────────────────────────────────────────────────────────────
+# ── Encryption (centralized in settings_store) ─────────────────────────────────
 
-def _fernet():
-    raw = get_secret_key()
-    from ..core.hkdf import hkdf_derive
-    hkdf_key = base64.urlsafe_b64encode(hkdf_derive(raw.encode(), info=b"openoptout:settings:v1"))
-    fernet_primary = Fernet(hkdf_key)
-
-    # Legacy key: padded raw secret (retained for backward-compatible decryption of existing secrets)
-    _kb = raw.encode() or b"\0"
-    padded = (_kb * (32 // len(_kb) + 1))[:32]
-    fernet_legacy = Fernet(base64.urlsafe_b64encode(padded))
-
-    try:
-        from cryptography.fernet import MultiFernet
-        return MultiFernet([fernet_primary, fernet_legacy])
-    except ImportError:
-        return fernet_primary
-
-def _encrypt(v: str) -> str:
-    return _fernet().encrypt(v.encode()).decode()
-
-def _decrypt(v: str) -> str:
-    try:
-        return _fernet().decrypt(v.encode()).decode()
-    except Exception:
-        return ""
+_encrypt = encrypt_setting
+_decrypt = decrypt_setting
 
 def _save(data: dict):
     save_settings(data)

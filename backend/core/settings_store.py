@@ -568,15 +568,24 @@ def _fernet():
     return fernet_primary
 
 
-def encrypt_password(plain: str) -> str:
+def encrypt_setting(plain: str) -> str:
+    """Encrypt a sensitive setting string using the settings HKDF Fernet key."""
     if not plain:
         return ""
     return _fernet().encrypt(plain.encode()).decode()
 
 
-def decrypt_password(enc: str) -> str:
+def decrypt_setting(enc: str) -> str:
+    """Decrypt a sensitive setting string using the settings HKDF/legacy Fernet key."""
+    if not enc:
+        return ""
     try:
         return _fernet().decrypt(enc.encode()).decode()
     except Exception:
         return ""
+
+
+encrypt_password = encrypt_setting
+decrypt_password = decrypt_setting
+
 

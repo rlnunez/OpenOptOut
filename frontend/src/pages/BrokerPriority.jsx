@@ -6,6 +6,7 @@ import {
 import api from '../api'
 import { tx, txr } from '../i18n/tx'
 import { detailText } from '../errorMessage'
+import Modal from '../components/Modal'
 
 const PRIORITY_LABELS = { 1: tx("Lowest"), 2: tx("Low"), 3: tx("Medium"), 4: tx("High"), 5: tx("Highest") }
 const PRIORITY_COLORS = {
@@ -134,7 +135,7 @@ export default function BrokerPriority() {
       {msg && (
         <div className="mt-3 px-3 py-2 rounded-lg border border-slate-700 bg-slate-800/60 text-slate-300 text-xs flex items-center justify-between">
           <span>{msg}</span>
-          <button onClick={() => setMsg('')} className="text-slate-500 hover:text-slate-300"><X size={13} /></button>
+          <button onClick={() => setMsg('')} aria-label={tx("Dismiss")} className="text-slate-500 hover:text-slate-300"><X size={13} /></button>
         </div>
       )}
 
@@ -276,13 +277,19 @@ function RulesModal({ onClose, onApplied }) {
   )
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
-        <div className="px-5 py-4 border-b border-slate-700/50 flex items-center justify-between">
-          <h2 className="text-white font-semibold flex items-center gap-2"><Wand2 size={16} className="text-shield-400" />{" "}{tx("Priority rule")}</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-200"><X size={18} /></button>
-        </div>
-        <div className="px-5 py-4 space-y-3">
+    <Modal
+      title={
+        <span className="flex items-center gap-2">
+          <Wand2 size={16} className="text-shield-400" />
+          {" "}
+          {tx("Priority rule")}
+        </span>
+      }
+      onClose={onClose}
+      maxWidth="max-w-lg"
+      className="p-0 overflow-hidden flex flex-col max-h-[85vh]"
+    >
+      <div className="px-5 py-4 space-y-3 overflow-y-auto flex-1">
           <p className="text-slate-400 text-xs">
             {tx("A rule sets a priority on every broker matching the criteria below. Matching is AND across the fields you set; leave a field on \"(any)\" to ignore it. Preview first — running a rule overwrites existing priorities, including ones you set by hand.")}
           </p>
@@ -349,7 +356,6 @@ function RulesModal({ onClose, onApplied }) {
             </button>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

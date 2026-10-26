@@ -16,7 +16,7 @@ from ..core.limits import LimitedModel, LONG_TEXT_MAX, LOGO_MAX_BYTES, read_uplo
 from ..models.database import get_db, User
 from ..core.auth import get_current_user, get_current_user_optional, require_super_admin
 from ..core.access import require_permission, has_permission
-from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE
+from ..core.settings_store import load_settings, save_settings, SETTINGS_FILE, encrypt_setting, decrypt_setting
 from ..core.auth_providers import OIDC_PRESETS
 
 import base64 as b64lib
@@ -33,30 +33,10 @@ def _logo_exists() -> bool:
     return any(os.path.exists(os.path.join(LOGO_PATH, f"logo.{ext}")) for ext in _LOGO_EXTENSIONS.values())
 
 
-# ── Encryption (reuse from settings) ─────────────────────────────────────────
+# ── Encryption (centralized in settings_store) ─────────────────────────────────
 
-def _fernet():
-    from ..core.settings_store import get_secret_key
-    raw = get_secret_key()
-    from ..core.hkdf import hkdf_derive
-    hkdf_key = b64lib.urlsafe_b64encode(hkdf_derive(raw.encode(), info=b"openoptout:settings:v1"))
-    fernet_primary = Fernet(hkdf_key)
-
-    # Legacy key: padded raw secret (retained for backward-compatible decryption of existing secrets)
-    _kb = raw.encode() or b"\0"
-    padded = (_kb * (32 // len(_kb) + 1))[:32]
-    fernet_legacy = Fernet(b64lib.urlsafe_b64encode(padded))
-
-    try:
-        from cryptography.fernet import MultiFernet
-        return MultiFernet([fernet_primary, fernet_legacy])
-    except ImportError:
-        return fernet_primary
-
-def _encrypt(v: str) -> str: return _fernet().encrypt(v.encode()).decode()
-def _decrypt(v: str) -> str:
-    try: return _fernet().decrypt(v.encode()).decode()
-    except: return ""
+_encrypt = encrypt_setting
+_decrypt = decrypt_setting
 
 def _save(data: dict):
     save_settings(data)

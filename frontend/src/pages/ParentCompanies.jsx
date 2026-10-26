@@ -6,6 +6,7 @@ import {
 import api from '../api'
 import { tx, txn, txr } from '../i18n/tx'
 import { detailText } from '../errorMessage'
+import Modal from '../components/Modal'
 
 const HONOR = {
   honors:  { label: tx("Honors requests"), icon: CheckCircle2, cls: 'text-emerald-400' },
@@ -105,7 +106,7 @@ export default function ParentCompanies() {
       {msg && (
         <div className="mt-3 px-3 py-2 rounded-lg border border-slate-700 bg-slate-800/60 text-slate-300 text-xs flex items-center justify-between">
           <span>{msg}</span>
-          <button onClick={() => setMsg('')} className="text-slate-500 hover:text-slate-300"><X size={13} /></button>
+          <button onClick={() => setMsg('')} aria-label={tx("Dismiss")} className="text-slate-500 hover:text-slate-300"><X size={13} /></button>
         </div>
       )}
 
@@ -165,6 +166,7 @@ export default function ParentCompanies() {
                     <button onClick={() => setEditing(p)}
                       className="px-2.5 py-1 text-xs text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">{tx("Edit")}</button>
                     <button onClick={() => remove(p)}
+                      aria-label={tx("Delete")}
                       className="px-2 py-1 text-xs text-slate-500 hover:text-red-400"><Trash2 size={13} /></button>
                   </div>
                 </div>
@@ -226,41 +228,40 @@ function EditModal({ parent, onClose, onSaved }) {
   )
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md max-h-[85vh] overflow-y-auto">
-        <div className="px-5 py-4 border-b border-slate-700/50 flex items-center justify-between">
-          <h2 className="text-white font-semibold">{isNew ? tx("New parent company") : `Edit ${parent.name}`}</h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-200"><X size={18} /></button>
+    <Modal
+      title={isNew ? tx("New parent company") : `Edit ${parent.name}`}
+      onClose={onClose}
+      maxWidth="max-w-md"
+      className="p-0 overflow-hidden flex flex-col max-h-[85vh]"
+    >
+      <div className="px-5 py-4 space-y-3 overflow-y-auto flex-1">
+        {field(tx("Company name"), 'name', tx("e.g. PeopleConnect"))}
+        {field(tx("Opt-out email"), 'optout_email', 'privacy@company.com')}
+        {field(tx("CC emails (comma-separated)"), 'cc_emails', 'dpo@company.com')}
+        {field(tx("Website"), 'website', 'company.com')}
+        <div className="grid grid-cols-2 gap-3">
+          {field(tx("Country"), 'jurisdiction', 'US')}
+          {field(tx("Letter language"), 'locale', tx("automatic"))}
         </div>
-        <div className="px-5 py-4 space-y-3">
-          {field(tx("Company name"), 'name', tx("e.g. PeopleConnect"))}
-          {field(tx("Opt-out email"), 'optout_email', 'privacy@company.com')}
-          {field(tx("CC emails (comma-separated)"), 'cc_emails', 'dpo@company.com')}
-          {field(tx("Website"), 'website', 'company.com')}
-          <div className="grid grid-cols-2 gap-3">
-            {field(tx("Country"), 'jurisdiction', 'US')}
-            {field(tx("Letter language"), 'locale', tx("automatic"))}
-          </div>
-          <p className="text-slate-500 text-xs">
-            {tx("The country decides which privacy law the opt-out letter cites (US, GB, FR, BR, CA, or EU). The letter is written in the company's language — French for a French company — not the language you use here. Leave the language blank to use the usual one for the country.")}
-          </p>
-          <div>
-            <label className="text-slate-400 text-xs block mb-1">{tx("Notes")}</label>
-            <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
-              rows={2}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm px-2.5 py-1.5" />
-          </div>
-          {error && <div className="px-3 py-2 rounded-lg border border-red-800 bg-red-900/20 text-red-300 text-xs">{error}</div>}
+        <p className="text-slate-500 text-xs">
+          {tx("The country decides which privacy law the opt-out letter cites (US, GB, FR, BR, CA, or EU). The letter is written in the company's language — French for a French company — not the language you use here. Leave the language blank to use the usual one for the country.")}
+        </p>
+        <div>
+          <label className="text-slate-400 text-xs block mb-1">{tx("Notes")}</label>
+          <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
+            rows={2}
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-sm px-2.5 py-1.5" />
         </div>
-        <div className="px-5 py-4 border-t border-slate-700/50 flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-1.5 text-sm text-slate-400 hover:text-slate-200">{tx("Cancel")}</button>
-          <button onClick={save} disabled={saving}
-            className="px-4 py-1.5 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white text-sm rounded-lg">
-            {saving ? tx("Saving…") : (isNew ? tx("Create") : tx("Save"))}
-          </button>
-        </div>
+        {error && <div className="px-3 py-2 rounded-lg border border-red-800 bg-red-900/20 text-red-300 text-xs">{error}</div>}
       </div>
-    </div>
+      <div className="px-5 py-4 border-t border-slate-700/50 flex justify-end gap-2">
+        <button onClick={onClose} className="px-4 py-1.5 text-sm text-slate-400 hover:text-slate-200">{tx("Cancel")}</button>
+        <button onClick={save} disabled={saving}
+          className="px-4 py-1.5 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white text-sm rounded-lg">
+          {saving ? tx("Saving…") : (isNew ? tx("Create") : tx("Save"))}
+        </button>
+      </div>
+    </Modal>
   )
 }
 
@@ -295,62 +296,65 @@ function ManageChildrenModal({ parent, onClose, onChanged }) {
   })
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto">
-        <div className="px-5 py-4 border-b border-slate-700/50 flex items-center justify-between">
-          <h2 className="text-white font-semibold flex items-center gap-2">
-            <Link2 size={16} className="text-shield-400" />{" "}{tx("Child sites of {name}", { name: parent.name })}
-          </h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-200"><X size={18} /></button>
-        </div>
-        <div className="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Current children */}
-          <div>
-            <p className="text-slate-300 text-sm font-medium mb-2">{tx("Grouped under this parent ({length})", { length: children.length })}</p>
-            <div className="space-y-1 max-h-72 overflow-y-auto">
-              {children.length === 0
-                ? <p className="text-slate-500 text-xs">{tx("No sites grouped yet.")}</p>
-                : children.map(c => (
-                  <div key={c.id} className="flex items-center justify-between px-2.5 py-1.5 bg-slate-800/60 rounded-lg">
-                    <span className="text-slate-200 text-sm truncate">{c.name}</span>
-                    <button onClick={() => unassign(c.id)} title={tx("Remove from parent")}
-                      className="text-slate-500 hover:text-red-400"><X size={13} /></button>
-                  </div>
-                ))}
-            </div>
-          </div>
-          {/* Add candidates */}
-          <div>
-            <p className="text-slate-300 text-sm font-medium mb-2">{tx("Add unassigned brokers")}</p>
-            <div className="relative mb-2">
-              <Search size={13} className="absolute start-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder={tx("Search brokers")}
-                className="ps-8 pe-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 w-full" />
-            </div>
-            <div className="space-y-1 max-h-56 overflow-y-auto">
-              {loading ? <p className="text-slate-500 text-xs">{tx("Loading…")}</p>
-                : candidates.length === 0 ? <p className="text-slate-500 text-xs">{tx("No unassigned brokers match.")}</p>
-                : candidates.map(c => (
-                  <label key={c.id} className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-800/40 rounded-lg cursor-pointer">
-                    <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)}
-                      className="accent-shield-500" />
-                    <span className="text-slate-300 text-sm truncate">{c.name}</span>
-                  </label>
-                ))}
-            </div>
-            {selected.size > 0 && (
-              <button onClick={assign}
-                className="mt-2 w-full px-3 py-1.5 bg-shield-600 hover:bg-shield-700 text-white text-sm rounded-lg">
-                {tx("Group {size} under {name}", { size: selected.size, name: parent.name })}
-              </button>
-            )}
+    <Modal
+      title={
+        <span className="flex items-center gap-2">
+          <Link2 size={16} className="text-shield-400" />
+          {" "}
+          {tx("Child sites of {name}", { name: parent.name })}
+        </span>
+      }
+      onClose={onClose}
+      maxWidth="max-w-2xl"
+      className="p-0 overflow-hidden flex flex-col max-h-[85vh]"
+    >
+      <div className="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto flex-1">
+        {/* Current children */}
+        <div>
+          <p className="text-slate-300 text-sm font-medium mb-2">{tx("Grouped under this parent ({length})", { length: children.length })}</p>
+          <div className="space-y-1 max-h-72 overflow-y-auto">
+            {children.length === 0
+              ? <p className="text-slate-500 text-xs">{tx("No sites grouped yet.")}</p>
+              : children.map(c => (
+                <div key={c.id} className="flex items-center justify-between px-2.5 py-1.5 bg-slate-800/60 rounded-lg">
+                  <span className="text-slate-200 text-sm truncate">{c.name}</span>
+                  <button onClick={() => unassign(c.id)} title={tx("Remove from parent")} aria-label={tx("Remove from parent")}
+                    className="text-slate-500 hover:text-red-400"><X size={13} /></button>
+                </div>
+              ))}
           </div>
         </div>
-        <div className="px-5 py-4 border-t border-slate-700/50 flex justify-end">
-          <button onClick={onClose} className="px-4 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">{tx("Done")}</button>
+        {/* Add candidates */}
+        <div>
+          <p className="text-slate-300 text-sm font-medium mb-2">{tx("Add unassigned brokers")}</p>
+          <div className="relative mb-2">
+            <Search size={13} className="absolute start-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={tx("Search brokers")}
+              className="ps-8 pe-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 w-full" />
+          </div>
+          <div className="space-y-1 max-h-56 overflow-y-auto">
+            {loading ? <p className="text-slate-500 text-xs">{tx("Loading…")}</p>
+              : candidates.length === 0 ? <p className="text-slate-500 text-xs">{tx("No unassigned brokers match.")}</p>
+              : candidates.map(c => (
+                <label key={c.id} className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-800/40 rounded-lg cursor-pointer">
+                  <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)}
+                    className="accent-shield-500" />
+                  <span className="text-slate-300 text-sm truncate">{c.name}</span>
+                </label>
+              ))}
+          </div>
+          {selected.size > 0 && (
+            <button onClick={assign}
+              className="mt-2 w-full px-3 py-1.5 bg-shield-600 hover:bg-shield-700 text-white text-sm rounded-lg">
+              {tx("Group {size} under {name}", { size: selected.size, name: parent.name })}
+            </button>
+          )}
         </div>
       </div>
-    </div>
+      <div className="px-5 py-4 border-t border-slate-700/50 flex justify-end">
+        <button onClick={onClose} className="px-4 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">{tx("Done")}</button>
+      </div>
+    </Modal>
   )
 }
 
