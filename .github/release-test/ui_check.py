@@ -84,13 +84,31 @@ def audit_page_a11y(page, rec, route, is_ada=False):
                 });
             });
         }""")
+        theme_name = "ADA/WCAG (theme-dark-ada)" if is_ada else "Regular Theme"
         if isinstance(results, dict) and "violations" in results:
             for v in results["violations"]:
                 impact = str(v.get("impact", "unknown")).lower()
                 desc = v.get("description", "")
-                nodes = len(v.get("nodes", []))
+                nodes = v.get("nodes", [])
                 rule = v.get("id", "rule")
-                msg = f"[{impact.upper()}] {rule}: {desc} ({nodes} nodes)"
+
+                node_details = []
+                for idx, n in enumerate(nodes[:5], 1):
+                    target = " > ".join(n.get("target", []))
+                    html_snippet = n.get("html", "").strip().replace("\n", " ")
+                    if len(html_snippet) > 90:
+                        html_snippet = html_snippet[:87] + "..."
+                    why = n.get("failureSummary", "").strip().replace("\n", "; ")
+                    if len(why) > 130:
+                        why = why[:127] + "..."
+                    node_details.append(f"#{idx} <{target}> `{html_snippet}` ({why})")
+
+                elements_str = " | ".join(node_details)
+                if len(nodes) > 5:
+                    elements_str += f" | ... +{len(nodes) - 5} more"
+
+                msg = f"[{theme_name}] [{impact.upper()}] {rule}: {desc} ({len(nodes)} node(s)) -> {elements_str}"
+                print(f"  [A11Y] {route}: {msg}", flush=True)
 
                 # In standard/regular theme mode, subdued text contrast and compact touch targets
                 # are visual styling choices that are purposefully satisfied when the user activates
@@ -114,10 +132,10 @@ class Recorder:
         self.warnings = []   # worth a look, don't fail
 
     def error(self, kind, detail):
-        self.errors.append({"screen": self.screen, "kind": kind, "detail": detail[:500]})
+        self.errors.append({"screen": self.screen, "kind": kind, "detail": detail[:4000]})
 
     def warn(self, kind, detail):
-        self.warnings.append({"screen": self.screen, "kind": kind, "detail": detail[:500]})
+        self.warnings.append({"screen": self.screen, "kind": kind, "detail": detail[:4000]})
 
 
 def main():
@@ -551,7 +569,7 @@ def finish(args, rec, steps, browser, pages=None, fatal=False):
 
 
 def cell(s):
-    return s.replace("|", "\\|").replace("\n", " ")[:300]
+    return s.replace("|", "\\|").replace("\n", " ")[:2500]
 
 
 if __name__ == "__main__":
