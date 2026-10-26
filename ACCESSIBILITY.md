@@ -194,7 +194,7 @@ OpenOptOut implements a purpose-built, centralized accessibility framework (`fro
 For institutions evaluating OpenOptOut for campus, library, municipal, or enterprise procurement:
 
 1. **Higher Education (HECVAT & Section 508)**:
-   OpenOptOut satisfies Title II and Title III Americans with Disabilities Act (ADA) requirements, Revised Section 508 Chapter 5, and WCAG 2.2 AA standards. Academic libraries and campus privacy initiatives can deploy the platform with confidence that student and faculty privacy rights are universally exercisable.
+   OpenOptOut satisfies Title II and Title III Americans with Disabilities Act (ADA) requirements, Revised Section 508 Chapter 5, and WCAG 2.2 AA standards. Academic libraries and campus privacy initiatives can deploy the platform with confidence that student and faculty privacy rights are universally exercisable. For student records privacy and campus IdP federation details, see the [FERPA Architecture Alignment Guide](docs/architecture/ferpa-alignment.md).
 2. **European Public Procurement (EN 301 549 & European Accessibility Act)**:
    Complies with EU Directive 2016/2102 and the European Accessibility Act (EAA) procurement requirements for public sector software.
 3. **Air-Gapped Privacy & Security Isolation**:
