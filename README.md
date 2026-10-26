@@ -97,6 +97,7 @@ OpenOptOut documentation is organized by reader audience and powered by **[MkDoc
 - 👨‍👩‍👧‍👦 **[User & Family Guide](docs/user/index.md)** — Setting up family email aliases, private SearXNG search, discovering opt-out forms, and removal verification monitoring.
 - ⚙️ **[Administrator & Operations Guide](docs/admin/index.md)** — Automated HTTPS (Caddy/Traefik/Cloudflare), native bare-metal install, PostgreSQL, SSO/SAML, encrypted backups, and auto-rollback updates.
 - 💻 **[Developer & Contributor Guide](docs/dev/index.md)** — System architecture, declarative broker interpreter runtime, [broker add-on authoring](broker-plugins/README.md), and security scanning.
+- 🏛️ **[Architecture & Standards Guide](docs/architecture/index.md)** — ISO/IEC 27001 ISMS, NIST AI RMF 1.0, NIST SP 800-63, FERPA, CISA Secure by Design, and SLSA Level 3 supply chain invariants.
 - 📜 **[About & Governance](docs/about/index.md)** — Our [Mission & Principles](docs/about/mission.md) and plain-language [Privacy Legislation](docs/about/legislation.md) advocacy.
 - 📋 **[Active Roadmap](docs/ROADMAP.md)** & **[Completed Milestones (Archive)](docs/archive/COMPLETED_ROADMAP.md)** — Active/planned initiatives and frozen historical milestone archive (through v0.11.0).
 - 📝 **[Changelog](CHANGELOG.md)** — Semantic release notes and historical tracking for all completed roadmap items and updates.

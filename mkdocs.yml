@@ -80,6 +80,22 @@ nav:
       - Proposals:
           - Catalog & Localization Design: dev/proposals/catalog-design.md
           - Built-in Inbox Proposal: dev/proposals/builtin-inbox.md
+  - Architecture & Standards:
+      - Overview: architecture/index.md
+      - ISO/IEC 27001 ISMS: architecture/isms-iso-27001.md
+      - Marketplace Invariants: architecture/marketplace-security-invariants.md
+      - CISA Secure by Design: architecture/cisa-secure-by-design.md
+      - SLSA Level 3 Supply Chain: architecture/slsa-supply-chain.md
+      - ISO/IEC 29100 Privacy: architecture/privacy-framework-29100.md
+      - NIST Privacy Framework: architecture/nist-privacy-profile.md
+      - ISO/IEC 27701 PIMS ROPA: architecture/pims-iso-27701-ropa.md
+      - FERPA Alignment: architecture/ferpa-alignment.md
+      - NIST SP 800-88 Sanitization: architecture/media-sanitization-800-88.md
+      - NIST SP 800-63 Digital Identity: architecture/digital-identity-800-63.md
+      - NIST SP 800-57 Key Epochs: architecture/nist-key-management-800-57.md
+      - RFC 9449 DPoP: architecture/dpop-rfc-9449.md
+      - SCIM 2.0 Identity: architecture/scim-enterprise-identity.md
+      - AI Governance (NIST & ISO): architecture/ai-governance-nist-iso.md
   - About:
       - Overview: about/index.md
       - Our Mission: about/mission.md
