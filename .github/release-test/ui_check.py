@@ -146,6 +146,12 @@ def main():
     ap.add_argument("--browser", default=os.environ.get("PLAYWRIGHT_BROWSER", "firefox"))
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--creds-file", required=True)
+    ap.add_argument(
+        "--save-all-screenshots",
+        action="store_true",
+        default=os.environ.get("SAVE_ALL_SCREENSHOTS", "").lower() in ("1", "true", "yes"),
+        help="Capture full screenshots for every page rather than only on failure or key milestones",
+    )
     args = ap.parse_args()
 
     base = args.base_url.rstrip("/")
@@ -160,7 +166,9 @@ def main():
     with open(args.creds_file, "w") as f:
         json.dump({"email": email, "password": password}, f)
 
-    def snap(page, name):
+    def snap(page, name, force=False):
+        if not force and not args.save_all_screenshots and "failure" not in name:
+            return None
         shot_no[0] += 1
         path = os.path.join(shots, f"{shot_no[0]:02d}-{name}.png")
         try:
@@ -233,12 +241,12 @@ def main():
         # Advance through first-boot usability / language personalization screen if presented
         continue_usability_btn = visible(page, "button", re.compile(r"^\s*Continue\s*$", re.I), timeout=5000)
         if continue_usability_btn and not visible(page, "button", "Create administrator account", timeout=500):
-            snap(page, "first-run-usability")
+            snap(page, "first-run-usability", force=True)
             continue_usability_btn.click()
             settle(page)
 
         create_btn = visible(page, "button", "Create administrator account", timeout=20000)
-        snap(page, "first-run")
+        snap(page, "first-run", force=True)
         if not create_btn:
             rec.error("First-run screen missing",
                       "A fresh install should show 'Create administrator account'.")
@@ -276,7 +284,7 @@ def main():
         create_btn.click()
         settle(page)
         time.sleep(1)
-        snap(page, "after-create-admin")
+        snap(page, "after-create-admin", force=True)
         if visible(page, "button", "Create administrator account", timeout=1000):
             body = page.inner_text("body")[:300]
             rec.error("Could not create administrator", body)
@@ -397,7 +405,7 @@ def main():
 
             time.sleep(0.5)
 
-        snap(page, "dashboard")
+        snap(page, "dashboard", force=True)
         if not reached:
             rec.error("Setup wizard stuck", "Still showing wizard buttons after 25 clicks.")
         steps.append(("Click through the setup wizard", reached,
@@ -467,9 +475,11 @@ def main():
                 rec.error("Error shown on page", f"{route}: …{text[max(0, m.start() - 80):m.end() + 120]}…")
             if "/login" in page.url and route != "/login":
                 rec.error("Logged out unexpectedly", f"opening {route} sent us to {page.url}")
-            name = "page-root" if route == "/" else "page" + route.replace("/", "-")
-            snap(page, name)
             audit_page_a11y(page, rec, route, is_ada=False)
+            has_error = len(rec.errors) > before[0]
+            name = "page-root" if route == "/" else "page" + route.replace("/", "-")
+            if has_error or args.save_all_screenshots:
+                snap(page, f"{name}-failure" if has_error else name, force=True)
             page_results.append({
                 "route": route,
                 "errors": len(rec.errors) - before[0],
@@ -544,7 +554,7 @@ def main():
                     root.style.setProperty('--a11y-font-size', '125%');
                 }""", t_classes)
                 settle(page, 2000)
-                snap(page, f"ada-{t_id}-dashboard")
+                snap(page, f"ada-{t_id}-dashboard", force=True)
                 steps.append((f"Switch to {t_label} ({t_desc})", True, f"Theme {t_id} activated"))
             except Exception as e:
                 steps.append((f"Switch to {t_label}", False, str(e)[:200]))
@@ -578,9 +588,11 @@ def main():
                     }""", t_classes)
                 except Exception:
                     pass
-                name = ("page-root-" if route == "/" else "page" + route.replace("/", "-") + "-") + t_id
-                snap(page, name)
                 audit_page_a11y(page, rec, f"{route} ({t_label})", is_ada=True, ada_theme_name=f"{t_label} ({t_id})")
+                has_error = len(rec.errors) > before[0]
+                name = ("page-root-" if route == "/" else "page" + route.replace("/", "-") + "-") + t_id
+                if has_error or args.save_all_screenshots:
+                    snap(page, f"{name}-failure" if has_error else name, force=True)
                 page_results.append({
                     "route": f"{route} ({t_label})",
                     "errors": len(rec.errors) - before[0],
@@ -631,7 +643,10 @@ def finish(args, rec, steps, browser, pages=None, fatal=False):
         md.append("\n</details>\n")
     if not rec.errors and not fatal:
         md.append("✅ No problems found in the browser.\n")
-    md.append("Screenshots of every screen: download the **release-test-*** artifact → `screenshots/`.\n")
+    if args.save_all_screenshots:
+        md.append("Screenshots of every screen: download the **release-test-*** artifact → `screenshots/`.\n")
+    else:
+        md.append("Screenshots of key milestones & failures: download the **release-test-*** artifact → `screenshots/`.\n")
     with open(os.path.join(args.out_dir, "ui-report.md"), "w") as f:
         f.write("\n".join(md))
     print("\n".join(md))
