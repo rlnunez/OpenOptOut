@@ -121,7 +121,7 @@ function Layout() {
         <UserWelcomeModal />
         <main id="main-content" tabIndex="-1" role="main" className="flex-1 overflow-auto focus:outline-hidden">
           <Breadcrumbs />
-          <Suspense fallback={<div className="p-8 text-center text-slate-500 text-sm">{tx("Loading…")}</div>}>
+          <Suspense fallback={<div className="p-8 text-center text-slate-400 text-sm">{tx("Loading…")}</div>}>
             <Routes>
               <Route path="/"            element={<Dashboard />} />
               <Route path="/brokers"     element={<Brokers />} />
@@ -186,11 +186,11 @@ function RequireAuth({ children }) {
     }
   }, [user])
 
-  if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-500 text-sm">{tx("Loading…")}</p></div>
+  if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 text-sm">{tx("Loading…")}</p></div>
   if (!user)   return <Navigate to="/login" replace />
   // Fresh install: super admin hasn't finished the setup wizard yet.
   if (user.role === 'super_admin' && wizard === undefined)
-    return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-500 text-sm">{tx("Loading…")}</p></div>
+    return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 text-sm">{tx("Loading…")}</p></div>
   // Before anything else, what they still have to accept (core/terms.py).
   if (wizard && !wizard.completed)
     return <TermsGate><SetupWizard onDone={() => setWizard({ ...wizard, completed: true })} /></TermsGate>
@@ -205,7 +205,7 @@ export default function App() {
           <LanguageProvider>
             <SkipLink />
             <BrowserRouter>
-              <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-500 text-sm">{tx("Loading…")}</p></div>}>
+              <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 text-sm">{tx("Loading…")}</p></div>}>
                 <Routes>
                   <Route path="/login"                element={<Login />} />
                   <Route path="/auth/callback"        element={<OIDCCallback />} />

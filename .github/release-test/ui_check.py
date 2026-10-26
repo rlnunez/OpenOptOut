@@ -256,15 +256,7 @@ def run_worker(theme_id, args):
         if not is_regular:
             rec.screen = f"switch to {t_label}"
             try:
-                page.goto(base + "/", timeout=30000)
-                settle(page)
-                page.evaluate("""(themeId) => {
-                    localStorage.setItem('app_theme', themeId);
-                    localStorage.setItem('a11y_high_contrast', 'true');
-                    localStorage.setItem('a11y_enhanced_targets', 'true');
-                    localStorage.setItem('a11y_font_size', '125');
-                }""", theme_id)
-                page.goto(base + "/", timeout=30000)
+                page.goto(base + "/", timeout=45000)
                 settle(page)
                 page.evaluate("""(classes) => {
                     const root = document.documentElement;
@@ -419,7 +411,10 @@ def dispatch_workers(args, rec, steps, theme_ids, auth_state_path=None):
             return t_id, subprocess.run(cmd, capture_output=True, text=True)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(theme_ids)) as executor:
-            futures = [executor.submit(run_sub, t_id) for t_id in theme_ids]
+            futures = []
+            for t_id in theme_ids:
+                futures.append(executor.submit(run_sub, t_id))
+                time.sleep(0.5)
             for fut in concurrent.futures.as_completed(futures):
                 t_id, proc = fut.result()
                 if proc.returncode != 0:

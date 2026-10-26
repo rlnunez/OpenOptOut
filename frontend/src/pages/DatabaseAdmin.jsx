@@ -219,7 +219,7 @@ function ConnectionConfig({ readOnly = false }) {
     }).catch(() => {})
   }, [])
 
-  if (!config) return <p className="text-slate-500 text-sm">{tx("Loading…")}</p>
+  if (!config) return <p className="text-slate-400 text-sm">{tx("Loading…")}</p>
 
   const save = async () => {
     setSaving(true)
@@ -439,7 +439,7 @@ export default function DatabaseAdmin() {
         </button>
       </div>
 
-      {loading && <p className="text-slate-500 text-sm">{tx("Loading…")}</p>}
+      {loading && <p className="text-slate-400 text-sm">{tx("Loading…")}</p>}
 
       {!loading && health && (
         <>

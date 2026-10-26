@@ -141,7 +141,7 @@ export default function TermsGate({ children }) {
     api.get('/terms/status').then(r => setData(r.data)).catch(() => setData(null))
   }, [user?.id])
   if (data === undefined)
-    return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-500 text-sm">{tx("Loading…")}</p></div>
+    return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 text-sm">{tx("Loading…")}</p></div>
   const need = data?.needs?.[0]
   if (!need) return children
   return <Step need={need} data={data} onSignOut={logout}
