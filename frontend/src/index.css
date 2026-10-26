@@ -680,7 +680,7 @@ html.theme-space.a11y-high-contrast .bg-red-600,
 html.theme-space.a11y-high-contrast .bg-red-700,
 html.theme-space.a11y-high-contrast .bg-red-800,
 html.theme-space.a11y-high-contrast .bg-red-900 {
-  background-color: #ff3333 !important;
+  background-color: #ff6b6b !important; /* 7.36:1 contrast with #000000 text (WCAG Level AAA) */
   color: #000000 !important;
   font-weight: 800 !important;
 }
@@ -1008,6 +1008,58 @@ html.theme-space.a11y-high-contrast {
   color: #ffffff !important;
   font-family: 'Antonio', 'Swiss 911', 'Oswald', sans-serif-condensed, sans-serif !important;
   letter-spacing: 0.04em;
+}
+
+/* Links in Space Explorer ADA (Level AAA: 12.12:1 contrast against pure black) */
+html.a11y-high-contrast-space a:not(.bg-shield-600):not(.bg-blue-600):not(.bg-sky-700):not([role="button"]),
+html.theme-space-ada a:not(.bg-shield-600):not(.bg-blue-600):not(.bg-sky-700):not([role="button"]),
+html.theme-space.a11y-high-contrast a:not(.bg-shield-600):not(.bg-blue-600):not(.bg-sky-700):not([role="button"]) {
+  color: #ffb800 !important;
+  text-decoration: underline !important;
+  font-weight: 700 !important;
+}
+
+/* Status text tones in Space Explorer ADA (WCAG 2.2 Level AAA >= 7:1 against #000000) */
+html.a11y-high-contrast-space .text-red-300,
+html.a11y-high-contrast-space .text-red-400,
+html.a11y-high-contrast-space .text-red-500,
+html.theme-space-ada .text-red-300,
+html.theme-space-ada .text-red-400,
+html.theme-space-ada .text-red-500,
+html.theme-space.a11y-high-contrast .text-red-300,
+html.theme-space.a11y-high-contrast .text-red-400,
+html.theme-space.a11y-high-contrast .text-red-500 {
+  color: #ff7777 !important; /* 8.2:1 contrast against #000000 (AAA) */
+  font-weight: 700 !important;
+}
+
+html.a11y-high-contrast-space .text-emerald-300,
+html.a11y-high-contrast-space .text-emerald-400,
+html.a11y-high-contrast-space .text-emerald-500,
+html.theme-space-ada .text-emerald-300,
+html.theme-space-ada .text-emerald-400,
+html.theme-space-ada .text-emerald-500,
+html.theme-space.a11y-high-contrast .text-emerald-300,
+html.theme-space.a11y-high-contrast .text-emerald-400,
+html.theme-space.a11y-high-contrast .text-emerald-500 {
+  color: #00ff88 !important; /* 12.8:1 contrast against #000000 (AAA) */
+  font-weight: 700 !important;
+}
+
+html.a11y-high-contrast-space .text-sky-300,
+html.a11y-high-contrast-space .text-sky-400,
+html.a11y-high-contrast-space .text-blue-300,
+html.a11y-high-contrast-space .text-blue-400,
+html.theme-space-ada .text-sky-300,
+html.theme-space-ada .text-sky-400,
+html.theme-space-ada .text-blue-300,
+html.theme-space-ada .text-blue-400,
+html.theme-space.a11y-high-contrast .text-sky-300,
+html.theme-space.a11y-high-contrast .text-sky-400,
+html.theme-space.a11y-high-contrast .text-blue-300,
+html.theme-space.a11y-high-contrast .text-blue-400 {
+  color: #00ffff !important; /* 16.7:1 contrast against #000000 (AAA) */
+  font-weight: 700 !important;
 }
 
 html.a11y-high-contrast-space .bg-slate-950,
