@@ -7662,6 +7662,75 @@ def t_standards_suite_part2():
         assert 'crossorigin="anonymous"' in content
 
 
+@test(1, "security.standards_nist_800_63a_and_800_63c",
+      "Verification of NIST SP 800-63A (IAL1/IAL2/IAL3), 800-63C (FAL1/FAL2/FAL3), and identity re-anchoring guards.")
+def t_standards_nist_800_63():
+    ida = _imp("core.identity_assurance")
+    pr = _imp("core.privacy_record")
+
+    # 1. Identity Assurance Levels (IAL) - NIST SP 800-63A
+    assert ida.evaluate_ial("email_signup") == "IAL1"
+    assert ida.evaluate_ial("sip2_ils", verified_evidence=["sip2_library_card"]) == "IAL2"
+    assert ida.evaluate_ial("community", verified_evidence=["mailed_postcard_token"]) == "IAL2"
+    assert ida.evaluate_ial("in_person", verified_evidence=["in_person_inspection", "crypto_hardware_bound"]) == "IAL3"
+    # Dependent minor requires guardian representation for IAL2
+    assert ida.evaluate_ial("parent_managed", has_guardian_consent=True, is_minor=True) == "IAL2"
+    assert ida.evaluate_ial("self", has_guardian_consent=False, is_minor=True) == "IAL1"
+
+    # 2. Federation Assurance Levels (FAL) - NIST SP 800-63C
+    assert ida.evaluate_fal(signed=False) is None
+    assert ida.evaluate_fal(signed=True) == "FAL1"
+    assert ida.evaluate_fal(signed=True, encrypted=True) == "FAL2"
+    assert ida.evaluate_fal(signed=True, sender_constrained=True) == "FAL3"
+
+    # 3. Authenticator Assurance Levels (AAL) - NIST SP 800-63B
+    assert ida.evaluate_aal(has_second_factor=False) == "AAL1"
+    assert ida.evaluate_aal(has_second_factor=True, is_hardware_token=False) == "AAL2"
+    assert ida.evaluate_aal(has_second_factor=True, is_hardware_token=True) == "AAL3"
+
+    # 4. Assertion Constraints Verification (Audience & Timing)
+    now = 1700000000.0
+    valid_claims = {"aud": "openoptout_client_id", "exp": now + 300, "nbf": now - 10}
+    ok, reason = ida.validate_assertion_constraints(valid_claims, expected_audience="openoptout_client_id", current_time=now)
+    assert ok is True and reason == "valid"
+
+    # Audience mismatch
+    ok, reason = ida.validate_assertion_constraints(valid_claims, expected_audience="other_client", current_time=now)
+    assert ok is False and "audience_mismatch" in reason
+
+    # Expired assertion
+    expired_claims = {"aud": "openoptout_client_id", "exp": now - 100}
+    ok, reason = ida.validate_assertion_constraints(expired_claims, expected_audience="openoptout_client_id", current_time=now)
+    assert ok is False and "assertion_expired" in reason
+
+    # 5. Identity Re-Anchoring & Tenant Merging Guards (Item #72 Foundation)
+    source = {"id": "u1", "email": "patron@library.org"}
+    # Rule: Unverified email cannot claim existing account
+    target_unverified = {"sub": "idp-123", "email": "patron@library.org", "email_verified": False}
+    ok, reason = ida.validate_identity_rebinding(source, target_unverified)
+    assert ok is False and "unverified_email_claiming_forbidden" in reason
+
+    # Rule: Verified email in allowed domains permitted
+    target_verified = {"sub": "idp-123", "email": "patron@library.org", "email_verified": True}
+    ok, reason = ida.validate_identity_rebinding(source, target_verified, trusted_domains=["library.org"])
+    assert ok is True and "rebind_permitted_email_verified" in reason
+
+    # Rule: Domain mismatch rejected
+    ok, reason = ida.validate_identity_rebinding(source, target_verified, trusted_domains=["otherdistrict.gov"])
+    assert ok is False and "domain_not_authorized" in reason
+
+    # Rule: IAL1 assertion cannot overwrite IAL2 verified account without step-up proof
+    target_ial1 = {"sub": "idp-999", "email": "new@example.com", "ial": "IAL1"}
+    ok, reason = ida.validate_identity_rebinding(source, target_ial1, source_ial="IAL2")
+    assert ok is False and "ial_downgrade_forbidden" in reason
+
+    # 6. Standards Alignment Registry
+    inv = pr.public_inventory()
+    st = inv.get("standards", {})
+    assert "nist_sp_800_63a" in st
+    assert "nist_sp_800_63c" in st
+
+
 @test(1, "security.backup_codes_hmac_and_totp_constant_time",
       "TOTP constant-time verification, HMAC backup codes generation, and legacy SHA-256 fallback consumption.")
 def t_security_backup_codes_and_totp():

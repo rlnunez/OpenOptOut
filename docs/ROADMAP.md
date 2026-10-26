@@ -146,5 +146,6 @@ The guiding architectural principle: **the core does not contain broker-specific
 - **Identity Re-Anchoring & Auth Provider Migration:**
   - Facilitates transitioning users from legacy authentication (local password, magic link, community OIDC) to institutional authentication methods chosen by the host (e.g., public library card SIP2 barcode/PIN, university/municipal SAML 2.0, or LDAP).
   - Self-service claiming flow allows patrons to verify legacy credentials once and bind their existing family vault to their library or enterprise credentials with zero data loss.
+  - Enforces deterministic assurance validation under the [NIST SP 800-63A/C Digital Identity Architecture](architecture/digital-identity-800-63.md) (`validate_identity_rebinding`), preventing unverified account claiming or IAL downgrades.
 - **Operator Decommission & Cutover Tooling:**
   - Administrative handoff wizard with pre-flight schema compatibility verification, cutover redirect notices on the departing instance, and cryptographic zeroization of decommissioned host storage.

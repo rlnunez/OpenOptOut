@@ -200,6 +200,32 @@ STANDARDS_ALIGNMENT = {
         "standard": "OASIS Common Security Advisory Framework (CSAF) 2.0",
         "endpoint": "/.well-known/csaf/provider-metadata.json",
     },
+    "nist_sp_800_63a": {
+        "standard": "NIST SP 800-63A (Digital Identity Guidelines: Enrollment and Identity Proofing)",
+        "levels": {
+            "IAL1": "Self-asserted attributes, email verification, single-use invite tokens",
+            "IAL2": "Verified ILS library cards (SIP2), mailed postcard tokens, enterprise IdP domain verification",
+            "IAL3": "Supervised in-person identity proofing with cryptographic token binding",
+        },
+        "features": [
+            "Authorized representative consent verification for dependent minors",
+            "Zero SSN / government ID collection invariant",
+            "Step-up proofing requirements preventing identity collision during re-anchoring",
+        ],
+    },
+    "nist_sp_800_63c": {
+        "standard": "NIST SP 800-63C (Digital Identity Guidelines: Federation and Assertions)",
+        "levels": {
+            "FAL1": "Bearer signed assertions (OIDC JWT, SAML 2.0) with single-use replay defense",
+            "FAL2": "Encrypted assertions preventing intermediate proxy inspection",
+            "FAL3": "Holder-of-key / sender-constrained token binding via RFC 9449 DPoP or mTLS",
+        },
+        "features": [
+            "Strict audience matching (aud) and 60-second clock skew enforcement",
+            "Pairwise pseudonymous subject ID mapping preventing cross-site correlation",
+            "Deterministic re-binding rules preventing unverified email account claiming",
+        ],
+    },
 }
 
 

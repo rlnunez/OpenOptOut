@@ -162,3 +162,4 @@ When evaluating OpenOptOut under institutional AI governance policies:
 - **FERPA Compliance Alignment**: [`ferpa-alignment.md`](ferpa-alignment.md)
 - **Automatic Steps & Spec Drafter Architecture**: [`../dev/automatic-steps.md`](../dev/automatic-steps.md)
 - **Security Policy**: [`../../SECURITY.md`](../../SECURITY.md)
+

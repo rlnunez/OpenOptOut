@@ -52,6 +52,7 @@ Resources for contributing to OpenOptOut and understanding system internals:
 - [Privacy Information Management (ROPA & DPIA)](architecture/pims-iso-27701-ropa.md) — ISO/IEC 27701 & GDPR Article 30/35 compliance reports.
 - [DPoP Sender-Constrained Tokens](architecture/dpop-rfc-9449.md) — RFC 9449 proof-of-possession token replay defense.
 - [SCIM 2.0 Enterprise Identity](architecture/scim-enterprise-identity.md) — RFC 7643 & RFC 7644 automated user provisioning, session revocation, and deprovisioning.
+- [Digital Identity Guidelines (NIST SP 800-63A/B/C)](architecture/digital-identity-800-63.md) — IAL, AAL, FAL assurance levels, and identity re-anchoring architecture for Item #72.
 - [SLSA Level 3 & Supply Chain Security](architecture/slsa-supply-chain.md) — OpenSSF SLSA Level 3 build provenance, Sigstore attestations, and Cosign image signing.
 - [Development Workflow](dev/development.md) — Local environment setup and running test matrices.
 - [Interpreter Runtime](dev/interpreter.md) — Declarative broker specifications and Playwright execution.
