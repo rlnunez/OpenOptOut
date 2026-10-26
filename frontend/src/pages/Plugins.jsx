@@ -438,6 +438,7 @@ function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onView
               </button>
             ))}
             <button onClick={() => setExpanded(e => !e)}
+              aria-label={expanded ? tx("Collapse plugin details") : tx("Expand plugin details")}
               className="p-1.5 text-slate-500 hover:text-slate-300">
               {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
             </button>

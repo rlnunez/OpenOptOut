@@ -93,6 +93,7 @@ export default function Reporting() {
         </div>
         <div className="flex gap-2">
           <select value={months} onChange={e => setMonths(parseInt(e.target.value))}
+            aria-label={tx("Time range")}
             className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:outline-hidden">
             <option value={3}>{tx("Last 3 months")}</option>
             <option value={6}>{tx("Last 6 months")}</option>

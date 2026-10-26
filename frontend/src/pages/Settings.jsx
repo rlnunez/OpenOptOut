@@ -380,7 +380,7 @@ function ConnectedAccounts({ currentProvider, onChanged }) {
       ) : (
         <div className="px-3 py-2.5 rounded-lg border border-slate-700 bg-slate-800/40">
           <div className="flex items-center gap-2 mb-2">
-            <select className={inp} value={addProvider} onChange={e => setAddProvider(e.target.value)}>
+            <select className={inp} aria-label={tx("Email provider")} value={addProvider} onChange={e => setAddProvider(e.target.value)}>
               <option value="gmail">{tx("Gmail / Google Workspace")}</option>
               <option value="outlook">{tx("Outlook / Microsoft 365")}</option>
               <option value="yahoo">{"Yahoo"}</option>
@@ -390,9 +390,9 @@ function ConnectedAccounts({ currentProvider, onChanged }) {
             {tx("If this provider already has a client registered, leave these blank to reuse it — one client can authorize several accounts. Otherwise, enter it (from the provider's developer console) to register one now.")}
           </p>
           <div className="space-y-2 mb-2">
-            <input className={inp} placeholder={tx("Client ID (optional if already registered)")} value={client.client_id}
+            <input className={inp} aria-label={tx("Client ID")} placeholder={tx("Client ID (optional if already registered)")} value={client.client_id}
               onChange={e => setClient({ ...client, client_id: e.target.value })} />
-            <input className={inp} type="password" placeholder={tx("Client secret (optional if already registered)")} value={client.client_secret}
+            <input className={inp} type="password" aria-label={tx("Client secret")} placeholder={tx("Client secret (optional if already registered)")} value={client.client_secret}
               onChange={e => setClient({ ...client, client_secret: e.target.value })} />
           </div>
           <div className="flex items-center gap-2">
@@ -696,11 +696,12 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label={tx("Daily run time (server local)")}>
-              <input type="time" value={form.run_time ?? '02:00'} onChange={e => setForm(f=>({...f,run_time:e.target.value}))} className={inp}/>
+              <input type="time" aria-label={tx("Daily run time (server local)")} value={form.run_time ?? '02:00'} onChange={e => setForm(f=>({...f,run_time:e.target.value}))} className={inp}/>
             </Field>
             <Field label={tx("Timezone")}>
               <div className="relative">
                 <select value={form.timezone ?? 'America/Chicago'} onChange={e => setForm(f=>({...f,timezone:e.target.value}))}
+                  aria-label={tx("Timezone")}
                   className={`${inp} appearance-none pe-7`}>
                   {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
                 </select>
@@ -711,11 +712,11 @@ function SchedulerSection({ initial, memberConfigs, onMemberConfigUpdate, userRo
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label={tx("System max opt-outs / day")} hint={tx("Hard ceiling across all members combined")}>
-              <input type="number" min="1" max="200" value={form.max_optouts_per_day ?? 20}
+              <input type="number" min="1" max="200" aria-label={tx("System max opt-outs / day")} value={form.max_optouts_per_day ?? 20}
                 onChange={e => setForm(f=>({...f,max_optouts_per_day:parseInt(e.target.value)}))} className={inp}/>
             </Field>
             <Field label={tx("Default recheck interval (days)")} hint={tx("How long before re-verifying a confirmed removal")}>
-              <input type="number" min="30" max="365" value={form.recheck_interval_days ?? 90}
+              <input type="number" min="30" max="365" aria-label={tx("Default recheck interval (days)")} value={form.recheck_interval_days ?? 90}
                 onChange={e => setForm(f=>({...f,recheck_interval_days:parseInt(e.target.value)}))} className={inp}/>
             </Field>
           </div>

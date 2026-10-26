@@ -253,6 +253,7 @@ export default function Translations() {
           <select
             value={selectedLocation}
             onChange={(e) => setSelectedLocation(e.target.value)}
+            aria-label={tx("Filter by screen location")}
             className="w-full sm:w-64 px-3.5 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-300 focus:outline-hidden focus:border-blue-500"
           >
             {locations.map(loc => (

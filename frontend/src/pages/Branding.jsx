@@ -319,15 +319,19 @@ function RegistrationSection() {
         <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">{tx("Invite codes")}</p>
         <div className="flex gap-2 mb-3 flex-wrap">
           <input value={newCode.note} onChange={e => setNewCode(n => ({...n, note: e.target.value}))}
+            aria-label={tx("Invite code note")}
             placeholder={tx("Note (e.g. Staff batch Jan 2025)")} className={`${inp} flex-1 min-w-32`} />
           <input type="number" min="1" value={newCode.max_uses}
             onChange={e => setNewCode(n => ({...n, max_uses: parseInt(e.target.value)}))}
+            aria-label={tx("Max uses")}
             className={`${inp} w-20 text-center`} title={tx("Max uses")} />
           <input type="number" min="1" value={newCode.expires_days}
             onChange={e => setNewCode(n => ({...n, expires_days: e.target.value}))}
+            aria-label={tx("Expires in days")}
             placeholder={tx("Days")} className={`${inp} w-20 text-center`} title={tx("Expires in days (blank=never)")} />
           <div className="relative">
             <select value={newCode.role} onChange={e => setNewCode(n => ({...n, role: e.target.value}))}
+              aria-label={tx("Role")}
               className={`${inp} appearance-none pe-7 w-28`}>
               <option value="parent">{tx("parent")}</option>
               <option value="member">{tx("member")}</option>

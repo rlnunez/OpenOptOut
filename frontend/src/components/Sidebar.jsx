@@ -206,6 +206,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
+                  aria-label={t('nav.language', 'Language')}
                   className="bg-transparent text-white text-xs border-0 focus:ring-0 cursor-pointer pe-1 truncate max-w-[110px]"
                 >
                   {availableLanguages.map(l => (
@@ -225,6 +226,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
                 <select
                   value={theme}
                   onChange={(e) => setTheme(e.target.value)}
+                  aria-label={t('a11y.theme', 'Theme')}
                   className="bg-transparent text-white text-xs border-0 focus:ring-0 cursor-pointer pe-1 truncate max-w-[130px]"
                 >
                   <option value="dark" className="bg-slate-900 text-white">{t('a11y.theme_dark', 'Dark')}</option>
