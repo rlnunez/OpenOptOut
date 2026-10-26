@@ -177,3 +177,4 @@ For additional technical specifications or assistance in completing institutiona
 - **Architecture Documentation**: [`docs/architecture/`](index.md)
 - **Security Policy & Vulnerability Reporting**: [`SECURITY.md`](../../SECURITY.md)
 - **Institutional Contact**: Robert Nunez (`nunez.robert@gmail.com`)
+

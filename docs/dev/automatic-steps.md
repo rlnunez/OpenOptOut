@@ -66,3 +66,4 @@ For people improving OpenOptOut itself with a coding agent:
 - `frontend/src/pages/SpecHelpers.jsx`: the page
 - The `SpecDraft` table holds every draft. An applied or approved one is used in place of the plugin's steps (`interpreter/script_bridge.get_or_build_broker_spec`).
 - A failure classified as `form_not_found` (`core/broker_health.py`) queues one repair per broker per day. The hourly `spec_helpers` job works on them.
+- For institutional governance, prompt injection boundaries, and risk management specifications, see [AI Governance Architecture (NIST AI RMF 1.0 & ISO/IEC 42001)](../architecture/ai-governance-nist-iso.md).
