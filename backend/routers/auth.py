@@ -741,8 +741,8 @@ async def backchannel_logout(
         payload = b64url_decode_json(parts[1])
         if not isinstance(payload, dict):
             raise ValueError("Invalid JWT payload")
-    except Exception as e:
-        logger.warning("Malformed logout_token received: %s", e)
+    except Exception:
+        logger.warning("Malformed OIDC backchannel logout request received")
         raise HTTPException(status_code=400, detail="Malformed logout_token")
 
     # Validate OIDC Back-Channel Logout 1.0 claims
