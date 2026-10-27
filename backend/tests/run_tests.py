@@ -7523,6 +7523,7 @@ def t_cisa_secure_by_design():
     assert "Policy:" in content
     assert "Acknowledgments: https://github.com/rlnunez/OpenOptOut/graphs/contributors" in content
     assert "Acknowledgments: https://github.com/rlnunez/OpenOptOut/blob/main/CHANGELOG.md" in content
+    assert "Acknowledgments: https://github.com/rlnunez/OpenOptOut/blob/main/CREDITS.md" in content
 
     # 2. SECURITY.md contains researcher safe harbor
     sec_md_path = os.path.join(repo_root, "SECURITY.md")

@@ -336,6 +336,7 @@ def security_txt():
         "Policy: https://github.com/rlnunez/OpenOptOut/blob/main/SECURITY.md\n"
         "Acknowledgments: https://github.com/rlnunez/OpenOptOut/graphs/contributors\n"
         "Acknowledgments: https://github.com/rlnunez/OpenOptOut/blob/main/CHANGELOG.md\n"
+        "Acknowledgments: https://github.com/rlnunez/OpenOptOut/blob/main/CREDITS.md\n"
         "CSAF: https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/.well-known/csaf/provider-metadata.json\n"
     )
     return PlainTextResponse(

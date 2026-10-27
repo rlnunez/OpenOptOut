@@ -13,7 +13,7 @@ Include:
 - Reproduction steps (requests, scripts, or screenshots)
 - Affected version or commit hash (available via `/api/health`)
 
-You should receive an initial response within 7 days. Valid reports will be credited in published advisories and the [Changelog](CHANGELOG.md) unless anonymity is requested.
+You should receive an initial response within 7 days. Valid reports will be credited in published advisories, the [Credits](CREDITS.md), and the [Changelog](CHANGELOG.md) unless anonymity is requested.
 
 ## Scope
 
