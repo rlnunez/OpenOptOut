@@ -68,8 +68,9 @@ jobs:
           GIT_REF: ${{ github.ref }}
           IMAGE_DIGEST: ${{ steps.push-step.outputs.digest }}
         run: |
+          IMAGE_REPO_LOWER=$(echo "${IMAGE_REPO}" | tr '[:upper:]' '[:lower:]')
           cosign sign --yes \
             -a "repo=${IMAGE_REPO}" \
             -a "workflow=${WORKFLOW_NAME}" \
             -a "ref=${GIT_REF}" \
-            "ghcr.io/${IMAGE_REPO}/backend@${IMAGE_DIGEST}"
+            "ghcr.io/${IMAGE_REPO_LOWER}/backend@${IMAGE_DIGEST}"
