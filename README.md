@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="OpenOptOut Logo" width="480">
+  <img src="assets/logo.png" alt="OpenOptOut Logo" width="160">
 </p>
 
 # OpenOptOut
