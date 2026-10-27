@@ -15,6 +15,12 @@ Each completed roadmap item is cross-referenced with its architectural milestone
   - **Key Rotation Synchronization:** Ensured `save_secret_key_file()` and `ensure_bootstrap_secret_key()` actively persist the current active pepper before rotating `SECRET_KEY`, preventing password invalidation when administrators configure or rotate the master key.
   - **Candidate Pepper Fallback & Transparent Auto-Upgrade:** Added candidate pepper fallbacks in `verify_password()` checking `.env` and `secret.key` derivations if the primary pepper does not match, transparently migrating verified passwords to the modern active pepper upon successful login without 401 Unauthorized errors.
   - **Audit Key Files:** Included `pepper.key` in `get_security_key_files()` to ensure strict `0600` permissions auditing.
+- **Agent Skill Security & Compliance Standards (`.agents/skills/broker-plugin/SKILL.md`, `.claude/skills/broker-plugin/SKILL.md`):**
+  - Codified mandatory, non-negotiable security, privacy, and compliance standards for AI coding agents authoring or repairing data broker plugins.
+  - Enforced strict COPPA/GDPR data minimization (only requesting and filling fields explicitly mandated by the broker's form).
+  - Explicitly prohibited automated filling or collection of SSNs, government IDs, driver's licenses, passports, or passwords, mandating fallback to `method: manual` (guided) plugins.
+  - Formalized strict boundary isolation between `{contact_email}` (isolated sub-addressed alias for confirmations) and `{email}` (data to be expunged).
+  - Documented sandbox domain isolation rules, synthetic rehearsal requirements, and plain-language accessibility requirements for human escalation steps (`pause_for_human`).
 
 ### Automated Dependency Maintenance
 - **Frontend Dependencies (`frontend/package.json`):**

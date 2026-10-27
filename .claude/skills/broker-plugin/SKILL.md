@@ -7,6 +7,19 @@ description: Write a new OpenOptOut data-broker plugin, or fix one whose opt-out
 
 Each data broker is a plugin in `backend/plugins/bundled/brokers/<id>/` with `manifest.json`, `spec.json` and `README.md`. The spec is data only: a closed list of step kinds, never code.
 
+OpenOptOut is an AGPL-3.0 tool handling sensitive personal data, including children's records (COPPA). Every plugin change is security-relevant.
+
+## Security, privacy and compliance standards (Non-negotiable)
+
+- **Data minimization (COPPA & GDPR):** Only include fields in `steps` or `instructions` that the specific broker's form strictly requires. Never populate `dob`, `relatives`, `phone`, `street`, or `age` "just in case". Minors' data is handled by this system; minimize every field requested.
+- **Strictly prohibited data & mandatory manual fallback:** Never fill, automate, or request SSNs, government IDs, driver's licenses, passports, passwords, or file uploads. If a broker requires any of these (e.g. LexisNexis, TLOxp), the plugin **must** use `method: manual` with clear instructions explaining that the user must submit directly because OpenOptOut never stores or transmits identity documents.
+- **Email privacy (`contact_email` vs. `email`):**
+  - Use `contact_email` for any "reply / confirmation email" field or in `{contact_email}` instructions. It provides an isolated, sub-addressed alias (`+oo...`) that enables automatic confirmation matching without exposing the person's real email.
+  - Use `email` ONLY when the broker's form explicitly asks for "an email address you want removed from our search engine". Never mix them up.
+- **Sandbox & domain isolation:** Plugins execute inside a bubblewrap/seccomp sandbox with declared `outbound_domains`. Step URLs and `search_url` must stay strictly on the broker's own domains. Never touch third-party tracking pixels, ad networks, or external analytics.
+- **Rehearsal & testing safety:** Never enter real personal details on a broker's site. Rehearse only with synthetic mock data ("Jordan Example", `rehearsal@example.invalid`), and stop before the final submit button (`rehearse()` enforces this).
+- **Human-in-the-loop safety:** If a broker flow requires SMS verification codes, CAPTCHA challenges, picking a profile among duplicates, or manual identity confirmation, use a `pause_for_human` step with plain, non-technical instructions.
+
 ## 1. Find out how the opt-out works
 
 - Read the broker's privacy policy and opt-out page. Note the opt-out address, every form field, the buttons, any CAPTCHA, any email confirmation, and anything only a person can do (pick their record, answer a phone call, upload ID, pay).
