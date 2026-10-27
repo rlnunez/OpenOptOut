@@ -114,3 +114,4 @@ When an existing broker flow stops working:
 3. Preserve existing field bindings, URLs, and instructions unless the broker's underlying procedure has changed.
 4. Bump `manifest.version`.
 5. Run the validator.
+

@@ -17,3 +17,4 @@
 4. The submission button is clicked using visible label matching (`Submit Removal Request`).
 5. Success text is asserted.
 6. The user clicks the verification link in their email inbox.
+

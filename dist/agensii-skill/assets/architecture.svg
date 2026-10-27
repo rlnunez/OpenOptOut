@@ -1,0 +1,169 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0f19" />
+      <stop offset="50%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="cyan-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+    <linearGradient id="emerald-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <linearGradient id="shield-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)" />
+
+  <!-- Subtle grid pattern -->
+  <g opacity="0.07" stroke="#94a3b8" stroke-width="1">
+    <line x1="0" y1="100" x2="1200" y2="100" />
+    <line x1="0" y1="200" x2="1200" y2="200" />
+    <line x1="0" y1="300" x2="1200" y2="300" />
+    <line x1="0" y1="400" x2="1200" y2="400" />
+    <line x1="0" y1="500" x2="1200" y2="500" />
+    <line x1="200" y1="0" x2="200" y2="630" />
+    <line x1="400" y1="0" x2="400" y2="630" />
+    <line x1="600" y1="0" x2="600" y2="630" />
+    <line x1="800" y1="0" x2="800" y2="630" />
+    <line x1="1000" y1="0" x2="1000" y2="630" />
+  </g>
+
+  <!-- Header Section -->
+  <g transform="translate(60, 50)">
+    <path d="M 0 15 L 20 0 L 40 15 L 40 40 C 40 60 20 75 20 75 C 20 75 0 60 0 40 Z" fill="url(#shield-grad)" filter="url(#shadow)"/>
+    <path d="M 12 38 L 18 44 L 28 32" stroke="#ffffff" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="60" y="32" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="800" fill="#f8fafc" letter-spacing="-0.5">
+      Data Broker Opt-Out Agent Skill
+    </text>
+    <text x="60" y="58" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="500" fill="#94a3b8">
+      Declarative Zero-PII Browser Automation Pipeline
+    </text>
+    <rect x="780" y="14" width="300" height="36" rx="18" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <circle cx="800" cy="32" r="6" fill="#10b981"/>
+    <text x="816" y="38" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" fill="#cbd5e1">
+      COPPA • GDPR • ASVS Compliant
+    </text>
+  </g>
+
+  <!-- Process Flow Cards -->
+  <!-- Card 1: User Request -->
+  <g transform="translate(60, 160)" filter="url(#shadow)">
+    <rect width="240" height="380" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1.5" />
+    <rect x="20" y="24" width="40" height="40" rx="10" fill="#38bdf8" fill-opacity="0.15" />
+    <text x="32" y="50" font-family="monospace" font-size="20" fill="#38bdf8">&gt;_</text>
+    <text x="75" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#38bdf8" letter-spacing="1">STAGE 1</text>
+    <text x="75" y="62" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="16" font-weight="700" fill="#f8fafc">User Request</text>
+    
+    <rect x="20" y="85" width="200" height="110" rx="8" fill="#0f172a" stroke="#1e293b" />
+    <text x="32" y="112" font-family="monospace" font-size="12" fill="#94a3b8">"Write an opt-out</text>
+    <text x="32" y="132" font-family="monospace" font-size="12" fill="#94a3b8">plugin for broker</text>
+    <text x="32" y="152" font-family="monospace" font-size="12" fill="#38bdf8">FastPeopleSearch</text>
+    <text x="32" y="172" font-family="monospace" font-size="12" fill="#94a3b8">from their form"</text>
+
+    <text x="20" y="225" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="600" fill="#cbd5e1">Triggers:</text>
+    <text x="20" y="250" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" fill="#94a3b8">• Form inspection</text>
+    <text x="20" y="275" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" fill="#94a3b8">• Policy analysis</text>
+    <text x="20" y="300" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" fill="#94a3b8">• Target discovery</text>
+  </g>
+
+  <!-- Arrow 1 -> 2 -->
+  <path d="M 315 350 L 345 350" stroke="#38bdf8" stroke-width="3" stroke-dasharray="6,4" stroke-linecap="round"/>
+
+  <!-- Card 2: AI Agent & Safety Firewalls -->
+  <g transform="translate(360, 160)" filter="url(#shadow)">
+    <rect width="250" height="380" rx="16" fill="#1e293b" stroke="#0ea5e9" stroke-width="2" />
+    <rect x="20" y="24" width="40" height="40" rx="10" fill="#0ea5e9" fill-opacity="0.15" />
+    <text x="31" y="50" font-family="sans-serif" font-size="20" fill="#38bdf8">⚡</text>
+    <text x="75" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#38bdf8" letter-spacing="1">STAGE 2</text>
+    <text x="75" y="62" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="16" font-weight="700" fill="#f8fafc">Agent Firewall</text>
+
+    <g transform="translate(20, 85)">
+      <!-- Rule 1 -->
+      <rect width="210" height="52" rx="8" fill="#0f172a" stroke="#1e293b"/>
+      <circle cx="16" cy="26" r="4" fill="#10b981"/>
+      <text x="30" y="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#f8fafc">Data Minimization</text>
+      <text x="30" y="38" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#94a3b8">COPPA / GDPR field floor</text>
+
+      <!-- Rule 2 -->
+      <rect y="60" width="210" height="52" rx="8" fill="#0f172a" stroke="#1e293b"/>
+      <circle cx="16" cy="86" r="4" fill="#ef4444"/>
+      <text x="30" y="82" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#f8fafc">Prohibited Data</text>
+      <text x="30" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#94a3b8">Bans SSNs, IDs, Passwords</text>
+
+      <!-- Rule 3 -->
+      <rect y="120" width="210" height="52" rx="8" fill="#0f172a" stroke="#1e293b"/>
+      <circle cx="16" cy="146" r="4" fill="#38bdf8"/>
+      <text x="30" y="142" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#f8fafc">Email Isolation</text>
+      <text x="30" y="158" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#94a3b8">Sub-addressed alias routing</text>
+
+      <!-- Rule 4 -->
+      <rect y="180" width="210" height="52" rx="8" fill="#0f172a" stroke="#1e293b"/>
+      <circle cx="16" cy="206" r="4" fill="#f59e0b"/>
+      <text x="30" y="202" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#f8fafc">Semantic Selectors</text>
+      <text x="30" y="218" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#94a3b8">ARIA &amp; text over CSS paths</text>
+    </g>
+  </g>
+
+  <!-- Arrow 2 -> 3 -->
+  <path d="M 625 350 L 655 350" stroke="#0ea5e9" stroke-width="3" stroke-dasharray="6,4" stroke-linecap="round"/>
+
+  <!-- Card 3: Declarative Spec Output -->
+  <g transform="translate(670, 160)" filter="url(#shadow)">
+    <rect width="240" height="380" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1.5" />
+    <rect x="20" y="24" width="40" height="40" rx="10" fill="#10b981" fill-opacity="0.15" />
+    <text x="31" y="50" font-family="sans-serif" font-size="20" fill="#10b981">📦</text>
+    <text x="75" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#10b981" letter-spacing="1">STAGE 3</text>
+    <text x="75" y="62" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="16" font-weight="700" fill="#f8fafc">Plugin Bundle</text>
+
+    <rect x="20" y="85" width="200" height="150" rx="8" fill="#0f172a" stroke="#1e293b" />
+    <text x="32" y="110" font-family="monospace" font-size="11" fill="#38bdf8">{</text>
+    <text x="44" y="128" font-family="monospace" font-size="11" fill="#cbd5e1">"kind": <tspan fill="#34d399">"fill"</tspan>,</text>
+    <text x="44" y="146" font-family="monospace" font-size="11" fill="#cbd5e1">"field": <tspan fill="#fbbf24">"contact_email"</tspan></text>
+    <text x="32" y="164" font-family="monospace" font-size="11" fill="#38bdf8">}, {</text>
+    <text x="44" y="182" font-family="monospace" font-size="11" fill="#cbd5e1">"kind": <tspan fill="#34d399">"pause_for_human"</tspan>,</text>
+    <text x="44" y="200" font-family="monospace" font-size="11" fill="#cbd5e1">"text": <tspan fill="#94a3b8">"Solve CAPTCHA"</tspan></text>
+    <text x="32" y="218" font-family="monospace" font-size="11" fill="#38bdf8">}</text>
+
+    <text x="20" y="260" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="600" fill="#cbd5e1">Bundle Files:</text>
+    <text x="20" y="285" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" fill="#94a3b8">📄 manifest.json</text>
+    <text x="20" y="310" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" fill="#94a3b8">⚙️ spec.json (Closed Vocab)</text>
+    <text x="20" y="335" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" fill="#94a3b8">📖 README.md</text>
+  </g>
+
+  <!-- Arrow 3 -> 4 -->
+  <path d="M 925 350 L 955 350" stroke="#10b981" stroke-width="3" stroke-dasharray="6,4" stroke-linecap="round"/>
+
+  <!-- Card 4: Verification & Sandbox -->
+  <g transform="translate(970, 160)" filter="url(#shadow)">
+    <rect width="170" height="380" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1.5" />
+    <rect x="20" y="24" width="40" height="40" rx="10" fill="#10b981" fill-opacity="0.15" />
+    <text x="30" y="50" font-family="sans-serif" font-size="20" fill="#10b981">🛡️</text>
+    <text x="70" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#10b981" letter-spacing="1">STAGE 4</text>
+    <text x="70" y="62" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#f8fafc">Verification</text>
+
+    <g transform="translate(16, 90)">
+      <rect width="138" height="60" rx="8" fill="#0f172a" stroke="#1e293b"/>
+      <text x="12" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#10b981">✓ CLI Validator</text>
+      <text x="12" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#94a3b8">validate.py passing</text>
+
+      <rect y="75" width="138" height="60" rx="8" fill="#0f172a" stroke="#1e293b"/>
+      <text x="12" y="99" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#10b981">✓ Rehearsal</text>
+      <text x="12" y="117" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#94a3b8">Zero-PII synthetic</text>
+
+      <rect y="150" width="138" height="60" rx="8" fill="#0f172a" stroke="#1e293b"/>
+      <text x="12" y="174" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#10b981">✓ Sandboxed</text>
+      <text x="12" y="192" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#94a3b8">Seccomp / bubblewrap</text>
+    </g>
+  </g>
+
+</svg>

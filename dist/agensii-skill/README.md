@@ -5,6 +5,24 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Compatible with: Claude Code & Antigravity](https://img.shields.io/badge/Compatible-Claude%20Code%20%7C%20Antigravity-orange.svg)](SKILL.md)
 
+![Data Broker Opt-Out Agent Skill Banner](assets/marketplace-hero.png)
+
+---
+
+## 📸 Agent in Action
+
+Here is what it looks like when an AI agent runs with the skill loaded:
+
+![Agent Terminal Execution](assets/agent-terminal-action.png)
+
+---
+
+## 🏛️ Pipeline & Compliance Architecture
+
+The skill enforces safety firewalls at every stage of plugin synthesis:
+
+![Architecture and Pipeline](assets/architecture.svg)
+
 ---
 
 ## 🎯 What This Skill Does
@@ -103,3 +121,4 @@ dist/agensii-skill/
 ## 📜 Origin & Upstream
 
 This skill was designed for [OpenOptOut](https://github.com/rlnunez/OpenOptOut), the self-hosted privacy tool for removing family data from broker databases. It is open-sourced under the MIT license to empower any developer or AI agent to build resilient, privacy-preserving automation.
+
