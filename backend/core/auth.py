@@ -75,8 +75,34 @@ except (ImportError, ValueError):
         ManagerScope = _ModelPlaceholder("ManagerScope")
         Branch = _ModelPlaceholder("Branch")
 
+
+def _ensure_models():
+    """Ensure real ORM models are imported if circular import left _ModelPlaceholder."""
+    global User, FamilyMember, ProfileAccess, UserRole, ManagerScope, Branch, get_db
+    if isinstance(User, _ModelPlaceholder) or not hasattr(User, "__table__"):
+        try:
+            from ..models import database as _db_mod
+        except (ImportError, ValueError):
+            try:
+                from models import database as _db_mod
+            except (ImportError, ValueError):
+                return
+        for attr in ("get_db", "User", "FamilyMember", "ProfileAccess", "UserRole", "ManagerScope", "Branch"):
+            val = getattr(_db_mod, attr, None)
+            if val is not None and not isinstance(val, _ModelPlaceholder):
+                globals()[attr] = val
+
+
 import secrets
-from .settings_store import get_secret_key, is_valid_secret_key
+from .settings_store import (
+    get_secret_key,
+    is_valid_secret_key,
+    get_password_pepper,
+    ensure_password_pepper_persisted,
+    get_candidate_peppers,
+    _read_pepper_file,
+    _CACHED_PEPPER,
+)
 
 SECRET_KEY = os.getenv("SECRET_KEY") or ""
 ALGORITHM  = "HS256"
@@ -131,174 +157,6 @@ def validate_password_length(password: Optional[str]) -> Optional[str]:
                 "Please choose a less predictable one."
             )
     return password
-
-_CACHED_PEPPER: Optional[bytes] = None
-
-
-def _read_pepper_file(path: str) -> Optional[bytes]:
-    """Safely read a persistent pepper key from disk (supporting 64-character hex or raw 32+ bytes)."""
-    if not os.path.exists(path):
-        return None
-    try:
-        with open(path, "rb") as f:
-            raw = f.read().strip()
-        if not raw:
-            return None
-        # Stored as 64-character hex string
-        if len(raw) == 64:
-            try:
-                return bytes.fromhex(raw.decode("ascii"))
-            except ValueError:
-                pass
-        # Stored as raw binary bytes (take first 32 bytes without destructive strip truncation)
-        if len(raw) >= 32:
-            return raw[:32]
-    except OSError as e:
-        import logging
-        logging.getLogger(__name__).warning("Could not read pepper.key at %s: %s", path, e)
-    return None
-
-
-def ensure_password_pepper_persisted() -> bytes:
-    """Ensure that the persistent pepper.key file exists on disk, locking in the
-    current password pepper so subsequent master secret key rotations never invalidate
-    existing password hashes."""
-    global _CACHED_PEPPER
-    pepper = get_password_pepper()
-    try:
-        from .settings_store import get_secret_key_file_path
-        sk_path = get_secret_key_file_path()
-        pepper_path = os.path.join(os.path.dirname(os.path.abspath(sk_path)), "pepper.key")
-        os.makedirs(os.path.dirname(os.path.abspath(pepper_path)), exist_ok=True)
-        if not os.path.exists(pepper_path):
-            fd = os.open(pepper_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            try:
-                os.write(fd, (pepper.hex() + "\n").encode("ascii"))
-                os.fsync(fd)
-            finally:
-                os.close(fd)
-    except FileExistsError:
-        pass
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning("Could not persist pepper.key: %s", e)
-    return pepper
-
-
-def get_password_pepper() -> bytes:
-    """
-    Return the HMAC pepper key used to harden password hashes against offline brute-force attacks.
-    Priority:
-    1. PASSWORD_PEPPER environment variable
-    2. Cached pepper in memory
-    3. Persistent pepper.key file alongside secret.key (keeps passwords valid across SECRET_KEY rotation)
-    4. Derived from SECRET_KEY (via HMAC-SHA256 key separation)
-    """
-    global _CACHED_PEPPER
-    pepper = os.getenv("PASSWORD_PEPPER")
-    if pepper and is_valid_secret_key(pepper):
-        return pepper.encode("utf-8")
-    if _CACHED_PEPPER is not None:
-        return _CACHED_PEPPER
-
-    try:
-        from .settings_store import get_secret_key_file_path
-        sk_path = get_secret_key_file_path()
-        pepper_path = os.path.join(os.path.dirname(os.path.abspath(sk_path)), "pepper.key")
-        content = _read_pepper_file(pepper_path)
-        if content is not None:
-            _CACHED_PEPPER = content
-            return _CACHED_PEPPER
-    except Exception:
-        pepper_path = None
-
-    sec = get_secret_key()
-    derived = hmac.new(b"openoptout-password-pepper-derivation", sec.encode("utf-8"), hashlib.sha256).digest()
-    _CACHED_PEPPER = derived
-
-    if pepper_path:
-        try:
-            os.makedirs(os.path.dirname(os.path.abspath(pepper_path)), exist_ok=True)
-            if not os.path.exists(pepper_path):
-                fd = os.open(pepper_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-                try:
-                    os.write(fd, (derived.hex() + "\n").encode("ascii"))
-                    os.fsync(fd)
-                finally:
-                    os.close(fd)
-        except FileExistsError:
-            pass
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning("Could not persist initial pepper.key at %s: %s", pepper_path, e)
-
-    return _CACHED_PEPPER
-
-
-def get_candidate_peppers() -> list[bytes]:
-    """Return all valid candidate peppers in priority order for robust password verification:
-    1. Active pepper (from get_password_pepper())
-    2. Pepper derived from secret.key file on disk
-    3. Pepper derived from SECRET_KEY environment variable
-    4. Pepper derived from .env file directly (if env was replaced in memory)
-    """
-    candidates: list[bytes] = []
-    try:
-        active = get_password_pepper()
-        if active and len(active) >= 32 and active[:32] not in candidates:
-            candidates.append(active[:32])
-    except Exception:
-        pass
-
-    def _derive_from_key(k: Optional[str]) -> Optional[bytes]:
-        if not k:
-            return None
-        cleaned = k.replace("\x00", "").strip()
-        from .settings_store import is_valid_secret_key
-        if not is_valid_secret_key(cleaned):
-            return None
-        return hmac.new(b"openoptout-password-pepper-derivation", cleaned.encode("utf-8"), hashlib.sha256).digest()
-
-    try:
-        from .settings_store import read_secret_key_file
-        fk = read_secret_key_file()
-        p = _derive_from_key(fk)
-        if p and p not in candidates:
-            candidates.append(p)
-    except Exception:
-        pass
-
-    try:
-        ek = os.getenv("SECRET_KEY")
-        p = _derive_from_key(ek)
-        if p and p not in candidates:
-            candidates.append(p)
-    except Exception:
-        pass
-
-    try:
-        from .settings_store import get_secret_key_file_path
-        sk_path = get_secret_key_file_path()
-        sk_dir = os.path.dirname(os.path.abspath(sk_path))
-        for env_path in [
-            os.path.join(sk_dir, ".env"),
-            os.path.join(os.path.dirname(sk_dir), ".env"),
-            os.path.abspath(".env"),
-        ]:
-            if os.path.isfile(env_path):
-                with open(env_path, "r", encoding="utf-8", errors="ignore") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line.startswith("SECRET_KEY="):
-                            val = line.split("=", 1)[1].strip().strip("'\"")
-                            p = _derive_from_key(val)
-                            if p and p not in candidates:
-                                candidates.append(p)
-                            break
-    except Exception:
-        pass
-
-    return candidates
 
 
 DEFAULT_PBKDF2_ITERATIONS = 210_000
@@ -484,6 +342,7 @@ def resolve_user_from_token(token: Optional[str], db: Session) -> Optional[User]
     except (JWTError, Exception):
         return None
 
+    _ensure_models()
     user = db.query(User).filter(User.email == email).first()
     if not user or not user.can_login:
         return None
@@ -565,6 +424,7 @@ def get_accessible_member_ids(db: Session, user: User) -> List[int]:
       systems and branches, plus their own and explicitly shared profiles.
     - Regular users see only their own and explicitly shared profiles.
     """
+    _ensure_models()
     if user.is_super_admin or _has(user, "consortium.cross_system"):
         return [m.id for m in db.query(FamilyMember).all()]
 
@@ -622,6 +482,7 @@ def manager_scope(db: Session, user: User):
     managers with no scopes or a consortium-wide scope. branch_ids includes
     every branch of a scoped system.
     """
+    _ensure_models()
     if user.is_super_admin or _has(user, "consortium.cross_system"):
         return None
     scopes = db.query(ManagerScope).filter(ManagerScope.user_id == user.id).all()
@@ -659,6 +520,7 @@ def assert_branch_in_scope(db: Session, actor: User, branch_id: int):
 
 def assert_can_view(db: Session, user: User, member_id: int) -> FamilyMember:
     """Raise 403 if user cannot view this family member. Returns the member."""
+    _ensure_models()
     member = db.query(FamilyMember).filter(FamilyMember.id == member_id).first()
     if not member:
         raise HTTPException(404, "That person is gone. Refresh the page.")

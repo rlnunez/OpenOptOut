@@ -3,7 +3,7 @@ Thin helpers used by scheduler.py to read settings and decrypt passwords
 without importing the full FastAPI router (avoids circular imports).
 """
 
-import json, os, base64, logging, glob
+import json, os, base64, logging, glob, hmac, hashlib
 from typing import Optional
 try:
     from cryptography.fernet import Fernet, MultiFernet
@@ -119,6 +119,199 @@ def get_secret_key_file_path() -> str:
     return os.path.join(base_dir, "secret.key")
 
 
+def get_pepper_key_file_path() -> str:
+    """Return the path to the persistent password pepper key file."""
+    override = (os.getenv("PEPPER_KEY_FILE") or "").strip()
+    if override:
+        return override
+    sk_path = get_secret_key_file_path()
+    return os.path.join(os.path.dirname(os.path.abspath(sk_path)), "pepper.key")
+
+
+_CACHED_PEPPER: Optional[bytes] = None
+
+
+def _read_pepper_file(path: str) -> Optional[bytes]:
+    """Safely read a persistent pepper key from disk (supporting 64-character hex or raw 32+ bytes)."""
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "rb") as f:
+            raw = f.read().strip()
+        if not raw:
+            return None
+        # Stored as 64-character hex string
+        if len(raw) == 64:
+            try:
+                return bytes.fromhex(raw.decode("ascii"))
+            except ValueError:
+                pass
+        # Stored as raw binary bytes (take first 32 bytes without destructive strip truncation)
+        if len(raw) >= 32:
+            return raw[:32]
+    except OSError as e:
+        log.warning("Could not read pepper.key at %s: %s", path, e)
+    return None
+
+
+def get_password_pepper() -> bytes:
+    """
+    Return the HMAC pepper key used to harden password hashes against offline brute-force attacks.
+    Priority:
+    1. PASSWORD_PEPPER environment variable
+    2. Cached pepper in memory
+    3. Persistent pepper.key file alongside secret.key (keeps passwords valid across SECRET_KEY rotation)
+    4. Derived from SECRET_KEY (via HMAC-SHA256 key separation)
+    """
+    global _CACHED_PEPPER
+    try:
+        import sys
+        _auth_mod = sys.modules.get("backend.core.auth") or sys.modules.get("core.auth") or sys.modules.get("app.core.auth")
+        if _auth_mod and hasattr(_auth_mod, "_CACHED_PEPPER"):
+            if _auth_mod._CACHED_PEPPER is None:
+                _CACHED_PEPPER = None
+            else:
+                return _auth_mod._CACHED_PEPPER
+    except Exception:
+        _auth_mod = None
+
+    pepper = os.getenv("PASSWORD_PEPPER")
+    if pepper and is_valid_secret_key(pepper):
+        return pepper.encode("utf-8")
+    if _CACHED_PEPPER is not None:
+        return _CACHED_PEPPER
+
+    pepper_path = get_pepper_key_file_path()
+    try:
+        content = _read_pepper_file(pepper_path)
+        if content is not None:
+            _CACHED_PEPPER = content
+            if _auth_mod and hasattr(_auth_mod, "_CACHED_PEPPER"):
+                _auth_mod._CACHED_PEPPER = _CACHED_PEPPER
+            return _CACHED_PEPPER
+    except Exception:
+        pass
+
+    sec = get_secret_key()
+    derived = hmac.new(b"openoptout-password-pepper-derivation", sec.encode("utf-8"), hashlib.sha256).digest()
+    _CACHED_PEPPER = derived
+    if _auth_mod and hasattr(_auth_mod, "_CACHED_PEPPER"):
+        _auth_mod._CACHED_PEPPER = _CACHED_PEPPER
+
+    if pepper_path:
+        try:
+            os.makedirs(os.path.dirname(os.path.abspath(pepper_path)), exist_ok=True)
+            if not os.path.exists(pepper_path):
+                fd = os.open(pepper_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                try:
+                    os.write(fd, (derived.hex() + "\n").encode("ascii"))
+                    os.fsync(fd)
+                finally:
+                    os.close(fd)
+        except FileExistsError:
+            pass
+        except Exception as e:
+            log.warning("Could not persist initial pepper.key at %s: %s", pepper_path, e)
+
+    return _CACHED_PEPPER
+
+
+def ensure_password_pepper_persisted() -> bytes:
+    """Ensure that the persistent pepper.key file exists on disk, locking in the
+    current password pepper so subsequent master secret key rotations never invalidate
+    existing password hashes."""
+    global _CACHED_PEPPER
+    try:
+        import sys
+        _auth_mod = sys.modules.get("backend.core.auth") or sys.modules.get("core.auth") or sys.modules.get("app.core.auth")
+        if _auth_mod and hasattr(_auth_mod, "_CACHED_PEPPER"):
+            if _auth_mod._CACHED_PEPPER is None:
+                _CACHED_PEPPER = None
+            else:
+                return _auth_mod._CACHED_PEPPER
+    except Exception:
+        pass
+    pepper = get_password_pepper()
+    try:
+        pepper_path = get_pepper_key_file_path()
+        os.makedirs(os.path.dirname(os.path.abspath(pepper_path)), exist_ok=True)
+        if not os.path.exists(pepper_path):
+            fd = os.open(pepper_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            try:
+                os.write(fd, (pepper.hex() + "\n").encode("ascii"))
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+    except FileExistsError:
+        pass
+    except Exception as e:
+        log.warning("Could not persist pepper.key: %s", e)
+    return pepper
+
+
+def get_candidate_peppers() -> list[bytes]:
+    """Return all valid candidate peppers in priority order for robust password verification:
+    1. Active pepper (from get_password_pepper())
+    2. Candidate derived from secret.key file on disk
+    3. Candidate derived from environment SECRET_KEY
+    4. Candidate derived from .env file directly (if env was replaced in memory)
+    """
+    candidates: list[bytes] = []
+    try:
+        active = get_password_pepper()
+        if active and len(active) >= 32 and active[:32] not in candidates:
+            candidates.append(active[:32])
+    except Exception:
+        pass
+
+    def _derive_from_key(k: Optional[str]) -> Optional[bytes]:
+        if not k:
+            return None
+        cleaned = k.replace("\x00", "").strip()
+        if not is_valid_secret_key(cleaned):
+            return None
+        return hmac.new(b"openoptout-password-pepper-derivation", cleaned.encode("utf-8"), hashlib.sha256).digest()
+
+    try:
+        fk = read_secret_key_file()
+        p = _derive_from_key(fk)
+        if p and p not in candidates:
+            candidates.append(p)
+    except Exception:
+        pass
+
+    try:
+        ek = os.getenv("SECRET_KEY")
+        p = _derive_from_key(ek)
+        if p and p not in candidates:
+            candidates.append(p)
+    except Exception:
+        pass
+
+    try:
+        sk_path = get_secret_key_file_path()
+        sk_dir = os.path.dirname(os.path.abspath(sk_path))
+        for env_path in [
+            os.path.join(sk_dir, ".env"),
+            os.path.join(os.path.dirname(sk_dir), ".env"),
+            os.path.abspath(".env"),
+        ]:
+            if os.path.isfile(env_path):
+                with open(env_path, "r", encoding="utf-8", errors="ignore") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("SECRET_KEY="):
+                            val = line.split("=", 1)[1].strip().strip("'\"")
+                            p = _derive_from_key(val)
+                            if p and p not in candidates:
+                                candidates.append(p)
+                            break
+    except Exception:
+        pass
+
+    return candidates
+
+
 def read_secret_key_file() -> Optional[str]:
     """Read the master secret key from secret.key if it exists and is non-empty."""
     path = get_secret_key_file_path()
@@ -202,7 +395,6 @@ def ensure_bootstrap_secret_key() -> str:
         os.environ["SECRET_KEY"] = file_key
         _USING_BOOTSTRAP_KEY = False
         try:
-            from .auth import ensure_password_pepper_persisted
             ensure_password_pepper_persisted()
         except Exception:
             pass
@@ -211,7 +403,6 @@ def ensure_bootstrap_secret_key() -> str:
     if is_valid_secret_key(env_key):
         _USING_BOOTSTRAP_KEY = False
         try:
-            from .auth import ensure_password_pepper_persisted
             ensure_password_pepper_persisted()
         except Exception:
             pass
@@ -416,7 +607,6 @@ def save_secret_key_file(new_key: str) -> dict:
 
     # Ensure existing password pepper is safely persisted to pepper.key before rotating the master key
     try:
-        from .auth import ensure_password_pepper_persisted
         ensure_password_pepper_persisted()
     except Exception as e:
         log.warning("Could not persist password pepper prior to secret key rotation: %s", e)
