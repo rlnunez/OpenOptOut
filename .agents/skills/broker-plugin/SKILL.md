@@ -16,6 +16,7 @@ OpenOptOut is an AGPL-3.0 tool handling sensitive personal data, including child
 - **Email privacy (`contact_email` vs. `email`):**
   - Use `contact_email` for any "reply / confirmation email" field or in `{contact_email}` instructions. It provides an isolated, sub-addressed alias (`+oo...`) that enables automatic confirmation matching without exposing the person's real email.
   - Use `email` ONLY when the broker's form explicitly asks for "an email address you want removed from our search engine". Never mix them up.
+- **No marketing or promotional boxes:** Only check boxes that are strictly mandatory legal certifications (*"I certify under penalty of perjury that I am this individual"*). Never tick optional boxes for marketing, newsletters, or partner offers.
 - **Sandbox & domain isolation:** Plugins execute inside a bubblewrap/seccomp sandbox with declared `outbound_domains`. Step URLs and `search_url` must stay strictly on the broker's own domains. Never touch third-party tracking pixels, ad networks, or external analytics.
 - **Rehearsal & testing safety:** Never enter real personal details on a broker's site. Rehearse only with synthetic mock data ("Jordan Example", `rehearsal@example.invalid`), and stop before the final submit button (`rehearse()` enforces this).
 - **Human-in-the-loop safety:** If a broker flow requires SMS verification codes, CAPTCHA challenges, picking a profile among duplicates, or manual identity confirmation, use a `pause_for_human` step with plain, non-technical instructions.
@@ -38,19 +39,23 @@ OpenOptOut is an AGPL-3.0 tool handling sensitive personal data, including child
 
 - Start from `broker-plugins/_template/spec.json`.
 - Step kinds come from `STEP_KINDS` in `backend/core/interpreter/broker_spec.py`. Member fields come from `KNOWN_FIELDS` in the same file.
-- Prefer stable selectors: `#id`, `[name=...]`, `click_matching` on visible text. Avoid long CSS paths.
+- **Stable selectors:** Prefer semantic attributes: `[name=...]`, `[aria-label=...]`, stable `#id`, or `click_matching` on visible button text. Never use framework-generated dynamic IDs (e.g. `#ember1234`, `.css-19z2x3a`) or deep positional CSS paths (`div:nth-child(...)`).
 - `contact_email` goes in any "email for the confirmation / reply" box. `email` is only for an address the person wants removed.
 - `listing_url` goes in boxes asking for the person's own listing.
+- **Synchronize `requires`:**
+  - If any step uses `listing_url`, add `"listing_url"` to `spec.requires`.
+  - If the broker requires email confirmation, add `"email_confirmation"` to `spec.requires` and ensure `contact_email` is used.
 - Never fill SSNs, ID numbers, passwords or uploads. Never tick marketing boxes.
 - `pause_for_human.text` and `instructions` are read by non-technical people. Write numbered-feeling plain steps, name the buttons exactly as the site shows them, and end with: press "I've done this".
 - Fill in `legal_basis`, `statutory_response_days`, `requires`, `search_url` and `listing_pattern` when known.
 - For brokers outside the US, also fill in `jurisdiction` and `legal_language` (e.g. `FR`/`fr`, `BR`/`pt-BR`). The opt-out letter follows these, not the family's language.
 - If the automatic letter is wrong for this broker, name another with `"letter": "<letter id>"` (for example `uk_gdpr`); letters are listed under Admin → Opt-out letters and in `backend/core/legal_templates/README.md`. An admin's choice still wins.
-- Leave `last_verified` empty unless you ran it against the live site yourself.
+- **Verification integrity:** Leave `last_verified` empty unless you ran it against the live site yourself. Never invent verification dates.
 
 ## 4. Write `manifest.json`
 
-Make `id`, `broker_id` and the folder name identical, with `"type": "brokers"`, a plain-language `description`, and a `version` you bump on every change.
+- Make `id`, `broker_id` and the folder name identical, with `"type": "brokers"`, a plain-language `description`, and a `version` you bump on every change.
+- **Bot mitigation & unchecked brokers:** If the broker's page blocks automated access (Cloudflare, bot walls) or has not been verified live by hand, set `"starts_enabled": false`. The broker will install turned off until confirmed by an admin.
 
 ## 5. Translations
 

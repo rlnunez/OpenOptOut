@@ -22,6 +22,7 @@ Each completed roadmap item is cross-referenced with its architectural milestone
   - Explicitly prohibited automated filling or collection of SSNs, government IDs, driver's licenses, passports, or passwords, mandating fallback to `method: manual` (guided) plugins.
   - Formalized strict boundary isolation between `{contact_email}` (isolated sub-addressed alias for confirmations) and `{email}` (data to be expunged).
   - Documented sandbox domain isolation rules, synthetic rehearsal requirements, and plain-language accessibility requirements for human escalation steps (`pause_for_human`).
+  - Added anti-flakiness and integrity protocols: bot-protection and unverified broker flags (`starts_enabled: false`), verification date honesty (`last_verified`), mandatory `requires` array synchronization, anti-brittle selector rules, and prohibition on checking marketing/newsletter boxes.
 
 ### Automated Dependency Maintenance
 - **Frontend Dependencies (`frontend/package.json`):**
