@@ -201,10 +201,20 @@ def ensure_bootstrap_secret_key() -> str:
     if file_key and is_valid_user_secret_key(file_key):
         os.environ["SECRET_KEY"] = file_key
         _USING_BOOTSTRAP_KEY = False
+        try:
+            from .auth import ensure_password_pepper_persisted
+            ensure_password_pepper_persisted()
+        except Exception:
+            pass
         return file_key
     env_key = (os.getenv("SECRET_KEY") or "").strip()
     if is_valid_secret_key(env_key):
         _USING_BOOTSTRAP_KEY = False
+        try:
+            from .auth import ensure_password_pepper_persisted
+            ensure_password_pepper_persisted()
+        except Exception:
+            pass
         return env_key
 
     import secrets
@@ -251,11 +261,14 @@ def ensure_bootstrap_secret_key() -> str:
 
 
 def get_security_key_files() -> list[str]:
-    """Return all detected on-disk files storing security keys (master key, field key, DB key, search secret, .env)."""
+    """Return all detected on-disk files storing security keys (master key, pepper key, field key, DB key, search secret, .env)."""
     files = []
     sk_path = get_secret_key_file_path()
     if os.path.isfile(sk_path):
         files.append(sk_path)
+    pepper_path = os.path.join(os.path.dirname(os.path.abspath(sk_path)), "pepper.key")
+    if os.path.isfile(pepper_path) and pepper_path not in files:
+        files.append(pepper_path)
 
     # Configured dedicated key files
     for var in ("FIELD_ENCRYPTION_KEY_FILE", "DB_ENCRYPTION_KEY_FILE", "SQLCIPHER_KEY_FILE", "SEARXNG_SECRET_FILE"):
@@ -400,6 +413,13 @@ def save_secret_key_file(new_key: str) -> dict:
         raise ValueError("Master secret key cannot be a placeholder or example value.")
     if len(set(cleaned)) < 8:
         raise ValueError("Master secret key must contain at least 8 distinct characters for sufficient entropy.")
+
+    # Ensure existing password pepper is safely persisted to pepper.key before rotating the master key
+    try:
+        from .auth import ensure_password_pepper_persisted
+        ensure_password_pepper_persisted()
+    except Exception as e:
+        log.warning("Could not persist password pepper prior to secret key rotation: %s", e)
 
     # Re-encrypt any stored SMTP password in settings before rotating the key
     old_plain_smtp = None

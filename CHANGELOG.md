@@ -9,6 +9,13 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ## [0.11.4] — 2026-10-26
 
+### Security & Authentication Resilience
+- **Master Secret Key Rotation & Pepper Persistence (`backend/core/auth.py`, `backend/core/settings_store.py`):**
+  - **Hex Encoded Pepper Storage:** Ensured `pepper.key` is stored and read safely as a 64-character hex string with `os.fsync`, eliminating raw binary byte truncation issues from trailing whitespace characters while retaining full backward-compatible reading of legacy 32-byte raw binary files.
+  - **Key Rotation Synchronization:** Ensured `save_secret_key_file()` and `ensure_bootstrap_secret_key()` actively persist the current active pepper before rotating `SECRET_KEY`, preventing password invalidation when administrators configure or rotate the master key.
+  - **Candidate Pepper Fallback & Transparent Auto-Upgrade:** Added candidate pepper fallbacks in `verify_password()` checking `.env` and `secret.key` derivations if the primary pepper does not match, transparently migrating verified passwords to the modern active pepper upon successful login without 401 Unauthorized errors.
+  - **Audit Key Files:** Included `pepper.key` in `get_security_key_files()` to ensure strict `0600` permissions auditing.
+
 ### Automated Dependency Maintenance
 - **Frontend Dependencies (`frontend/package.json`):**
   - Upgraded dependencies (`lucide-react` 1.59.0, `react`/`react-dom`/`react-is` 19.3.1, `postcss` 8.5.31) with verified JSX accessibility and production build integrity (PR #154).

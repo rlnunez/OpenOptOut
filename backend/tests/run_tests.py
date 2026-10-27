@@ -6951,6 +6951,91 @@ def t_auth_timing_mitigation():
     assert auth.dummy_verify_password("") is False
 
 
+@test(1, "auth.pepper_persistence_and_rotation_fallback",
+      "Password pepper is persisted to pepper.key across SECRET_KEY rotations and candidate fallbacks allow seamless verification.")
+def t_auth_pepper_rotation():
+    auth = _imp("core.auth")
+    ss = _imp("core.settings_store")
+    import tempfile, shutil
+
+    orig_pepper = auth._CACHED_PEPPER
+    orig_env_key = os.environ.get("SECRET_KEY")
+    orig_sk_file = os.environ.get("SECRET_KEY_FILE")
+    orig_settings = os.environ.get("SETTINGS_FILE")
+    orig_cache = dict(ss._secret_file_cache)
+
+    key1 = "0123456789abcdef" * 10
+    key2 = "fedcba9876543210" * 10
+
+    orig_verify_raw = auth._verify_raw
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            sk_path = os.path.join(td, "secret.key")
+            settings_path = os.path.join(td, "openoptout_settings.json")
+            pepper_path = os.path.join(td, "pepper.key")
+
+            os.environ["SECRET_KEY_FILE"] = sk_path
+            os.environ["SETTINGS_FILE"] = settings_path
+            os.environ["SECRET_KEY"] = key1
+            ss.SETTINGS_FILE = settings_path
+            auth._CACHED_PEPPER = None
+            ss._secret_file_cache.update({"mtime": None, "path": None, "key": None})
+
+            # 1. First get_password_pepper() initializes pepper and writes pepper.key
+            p1 = auth.get_password_pepper()
+            assert os.path.isfile(pepper_path), "pepper.key was not persisted"
+            assert len(p1) == 32
+            with open(pepper_path, "r", encoding="ascii") as f:
+                hex_content = f.read().strip()
+                assert len(hex_content) == 64
+                assert bytes.fromhex(hex_content) == p1
+
+            # Mock verify_raw for verification tests
+            mock_hashes = {}
+            auth._verify_raw = lambda cand, h: mock_hashes.get(h) == cand
+
+            # Password hashed under key 1
+            pw = "ReleaseTestAdminPassword123!"
+            h1 = "hash_v1"
+            mock_hashes[h1] = auth._pepper_password(pw)
+
+            # 2. Rotate master key via save_secret_key_file
+            ss.save_secret_key_file(key2)
+            assert os.path.isfile(sk_path)
+
+            # 3. Simulate process restart: cache reset, secret.key present with key2
+            auth._CACHED_PEPPER = None
+            ss._secret_file_cache.update({"mtime": None, "path": None, "key": None})
+
+            # Since pepper.key exists, get_password_pepper() returns the preserved pepper p1
+            p2 = auth.get_password_pepper()
+            assert p2 == p1, "pepper.key failed to preserve pepper across key rotation"
+            assert auth.verify_password(pw, h1) is True, "verify_password failed with preserved pepper"
+            assert auth.is_legacy_unpeppered_hash(pw, h1) is False
+
+            # 4. Fallback test: simulate missing/corrupted pepper.key after rotation
+            os.remove(pepper_path)
+            auth._CACHED_PEPPER = None
+            # Now active pepper derives from key2 in secret.key
+            p3 = auth.get_password_pepper()
+            assert p3 != p1, "active pepper must differ when pepper.key is missing and key rotated"
+
+            # But candidate fallback derives key1 from os.environ["SECRET_KEY"] (or .env)
+            os.environ["SECRET_KEY"] = key1
+            assert auth.verify_password(pw, h1) is True, "candidate fallback must authenticate password hashed under key1"
+            assert auth.is_legacy_unpeppered_hash(pw, h1) is True
+        finally:
+            auth._verify_raw = orig_verify_raw
+            auth._CACHED_PEPPER = orig_pepper
+            if orig_env_key is not None: os.environ["SECRET_KEY"] = orig_env_key
+            else: os.environ.pop("SECRET_KEY", None)
+            if orig_sk_file is not None: os.environ["SECRET_KEY_FILE"] = orig_sk_file
+            else: os.environ.pop("SECRET_KEY_FILE", None)
+            if orig_settings is not None: os.environ["SETTINGS_FILE"] = orig_settings
+            else: os.environ.pop("SETTINGS_FILE", None)
+            ss._secret_file_cache.update(orig_cache)
+
+
 @test(1, "auth.mfa_ticket_single_use",
       "code_attempts enforces single use and attempt-capping on MFA tickets.")
 def t_auth_mfa_ticket_single_use():

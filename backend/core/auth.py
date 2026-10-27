@@ -135,6 +135,56 @@ def validate_password_length(password: Optional[str]) -> Optional[str]:
 _CACHED_PEPPER: Optional[bytes] = None
 
 
+def _read_pepper_file(path: str) -> Optional[bytes]:
+    """Safely read a persistent pepper key from disk (supporting 64-character hex or raw 32+ bytes)."""
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "rb") as f:
+            raw = f.read().strip()
+        if not raw:
+            return None
+        # Stored as 64-character hex string
+        if len(raw) == 64:
+            try:
+                return bytes.fromhex(raw.decode("ascii"))
+            except ValueError:
+                pass
+        # Stored as raw binary bytes (take first 32 bytes without destructive strip truncation)
+        if len(raw) >= 32:
+            return raw[:32]
+    except OSError as e:
+        import logging
+        logging.getLogger(__name__).warning("Could not read pepper.key at %s: %s", path, e)
+    return None
+
+
+def ensure_password_pepper_persisted() -> bytes:
+    """Ensure that the persistent pepper.key file exists on disk, locking in the
+    current password pepper so subsequent master secret key rotations never invalidate
+    existing password hashes."""
+    global _CACHED_PEPPER
+    pepper = get_password_pepper()
+    try:
+        from .settings_store import get_secret_key_file_path
+        sk_path = get_secret_key_file_path()
+        pepper_path = os.path.join(os.path.dirname(os.path.abspath(sk_path)), "pepper.key")
+        os.makedirs(os.path.dirname(os.path.abspath(pepper_path)), exist_ok=True)
+        if not os.path.exists(pepper_path):
+            fd = os.open(pepper_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            try:
+                os.write(fd, (pepper.hex() + "\n").encode("ascii"))
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+    except FileExistsError:
+        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Could not persist pepper.key: %s", e)
+    return pepper
+
+
 def get_password_pepper() -> bytes:
     """
     Return the HMAC pepper key used to harden password hashes against offline brute-force attacks.
@@ -155,12 +205,10 @@ def get_password_pepper() -> bytes:
         from .settings_store import get_secret_key_file_path
         sk_path = get_secret_key_file_path()
         pepper_path = os.path.join(os.path.dirname(os.path.abspath(sk_path)), "pepper.key")
-        if os.path.exists(pepper_path):
-            with open(pepper_path, "rb") as f:
-                content = f.read().strip()
-                if len(content) >= 32:
-                    _CACHED_PEPPER = content
-                    return _CACHED_PEPPER
+        content = _read_pepper_file(pepper_path)
+        if content is not None:
+            _CACHED_PEPPER = content
+            return _CACHED_PEPPER
     except Exception:
         pepper_path = None
 
@@ -174,18 +222,93 @@ def get_password_pepper() -> bytes:
             if not os.path.exists(pepper_path):
                 fd = os.open(pepper_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
                 try:
-                    os.write(fd, derived)
+                    os.write(fd, (derived.hex() + "\n").encode("ascii"))
+                    os.fsync(fd)
                 finally:
                     os.close(fd)
-        except Exception:
+        except FileExistsError:
             pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("Could not persist initial pepper.key at %s: %s", pepper_path, e)
 
     return _CACHED_PEPPER
 
 
+def get_candidate_peppers() -> list[bytes]:
+    """Return all valid candidate peppers in priority order for robust password verification:
+    1. Active pepper (from get_password_pepper())
+    2. Pepper derived from secret.key file on disk
+    3. Pepper derived from SECRET_KEY environment variable
+    4. Pepper derived from .env file directly (if env was replaced in memory)
+    """
+    candidates: list[bytes] = []
+    try:
+        active = get_password_pepper()
+        if active and len(active) >= 32 and active[:32] not in candidates:
+            candidates.append(active[:32])
+    except Exception:
+        pass
+
+    def _derive_from_key(k: Optional[str]) -> Optional[bytes]:
+        if not k:
+            return None
+        cleaned = k.replace("\x00", "").strip()
+        from .settings_store import is_valid_secret_key
+        if not is_valid_secret_key(cleaned):
+            return None
+        return hmac.new(b"openoptout-password-pepper-derivation", cleaned.encode("utf-8"), hashlib.sha256).digest()
+
+    try:
+        from .settings_store import read_secret_key_file
+        fk = read_secret_key_file()
+        p = _derive_from_key(fk)
+        if p and p not in candidates:
+            candidates.append(p)
+    except Exception:
+        pass
+
+    try:
+        ek = os.getenv("SECRET_KEY")
+        p = _derive_from_key(ek)
+        if p and p not in candidates:
+            candidates.append(p)
+    except Exception:
+        pass
+
+    try:
+        from .settings_store import get_secret_key_file_path
+        sk_path = get_secret_key_file_path()
+        sk_dir = os.path.dirname(os.path.abspath(sk_path))
+        for env_path in [
+            os.path.join(sk_dir, ".env"),
+            os.path.join(os.path.dirname(sk_dir), ".env"),
+            os.path.abspath(".env"),
+        ]:
+            if os.path.isfile(env_path):
+                with open(env_path, "r", encoding="utf-8", errors="ignore") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("SECRET_KEY="):
+                            val = line.split("=", 1)[1].strip().strip("'\"")
+                            p = _derive_from_key(val)
+                            if p and p not in candidates:
+                                candidates.append(p)
+                            break
+    except Exception:
+        pass
+
+    return candidates
+
 
 DEFAULT_PBKDF2_ITERATIONS = 210_000
 LEGACY_PBKDF2_ITERATIONS = 100_000
+
+
+def _pepper_password_with_key(password: str, pepper_key: bytes, iterations: int = DEFAULT_PBKDF2_ITERATIONS) -> str:
+    """Apply PBKDF2-HMAC-SHA256 peppering using a specific pepper key."""
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), pepper_key, iterations)
+    return base64.b64encode(digest).decode("ascii")
 
 
 def _pepper_password(password: str, iterations: int = DEFAULT_PBKDF2_ITERATIONS) -> str:
@@ -198,8 +321,7 @@ def _pepper_password(password: str, iterations: int = DEFAULT_PBKDF2_ITERATIONS)
     and OWASP for sensitive password key derivation.
     """
     key = get_password_pepper()
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), key, iterations)
-    return base64.b64encode(digest).decode("ascii")
+    return _pepper_password_with_key(password, key, iterations)
 
 
 def _verify_raw(candidate: str, hashed: str) -> bool:
@@ -235,25 +357,37 @@ def hash_password(password: str, use_pepper: bool = True) -> str:
 
 def verify_password(plain: str, hashed: str) -> bool:
     """
-    Verify password with backward compatibility:
-    1. First tries modern NIST SP 800-132 PBKDF2-HMAC-SHA256 (210,000 rounds) peppered verification.
-    2. Falls back to legacy peppered verification (100,000 rounds).
-    3. Falls back to legacy unpeppered verification.
+    Verify password with backward compatibility and key rotation resilience:
+    1. First tries modern NIST SP 800-132 PBKDF2-HMAC-SHA256 (210,000 rounds) with active pepper.
+    2. Tries candidate fallback peppers (e.g. across master SECRET_KEY rotation).
+    3. Falls back to legacy peppered verification (100,000 rounds) with active pepper.
+    4. Falls back to legacy peppered verification (100,000 rounds) with fallback peppers.
+    5. Falls back to legacy unpeppered verification.
     """
     if not plain or not hashed:
         return False
 
-    # 1. Modern NIST SP 800-132 verification (210,000 rounds)
-    peppered = _pepper_password(plain, DEFAULT_PBKDF2_ITERATIONS)
-    if _verify_raw(peppered, hashed):
+    active = get_password_pepper()
+    # 1. Modern NIST SP 800-132 verification (210,000 rounds) with active pepper
+    if _verify_raw(_pepper_password_with_key(plain, active, DEFAULT_PBKDF2_ITERATIONS), hashed):
         return True
 
-    # 2. Legacy peppered verification (100,000 rounds)
-    peppered_legacy = _pepper_password(plain, LEGACY_PBKDF2_ITERATIONS)
-    if _verify_raw(peppered_legacy, hashed):
+    candidates = [p for p in get_candidate_peppers() if p != active]
+    # 2. Modern NIST SP 800-132 verification with candidate fallback peppers
+    for cand in candidates:
+        if _verify_raw(_pepper_password_with_key(plain, cand, DEFAULT_PBKDF2_ITERATIONS), hashed):
+            return True
+
+    # 3. Legacy peppered verification (100,000 rounds) with active pepper
+    if _verify_raw(_pepper_password_with_key(plain, active, LEGACY_PBKDF2_ITERATIONS), hashed):
         return True
 
-    # 3. Backward compatibility fallback (unpeppered legacy bcrypt hash)
+    # 4. Legacy peppered verification (100,000 rounds) with candidate fallback peppers
+    for cand in candidates:
+        if _verify_raw(_pepper_password_with_key(plain, cand, LEGACY_PBKDF2_ITERATIONS), hashed):
+            return True
+
+    # 5. Backward compatibility fallback (unpeppered legacy bcrypt hash)
     if _verify_raw(plain, hashed):
         return True
 
@@ -262,18 +396,16 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def is_legacy_unpeppered_hash(plain: str, hashed: str) -> bool:
     """
-    Check if a password matches only via legacy verification (either 100k rounds or unpeppered),
-    signaling that the stored hash should be upgraded to the modern 210,000 iteration format.
+    Check if a password matches only via legacy verification (either 100k rounds, unpeppered,
+    or a fallback candidate pepper from before key rotation), signaling that the stored hash
+    should be upgraded to the modern 210,000 iteration format with the active pepper.
     """
     if not plain or not hashed:
         return False
-    peppered = _pepper_password(plain, DEFAULT_PBKDF2_ITERATIONS)
-    if _verify_raw(peppered, hashed):
+    active = get_password_pepper()
+    if _verify_raw(_pepper_password_with_key(plain, active, DEFAULT_PBKDF2_ITERATIONS), hashed):
         return False
-    peppered_legacy = _pepper_password(plain, LEGACY_PBKDF2_ITERATIONS)
-    if _verify_raw(peppered_legacy, hashed):
-        return True
-    return _verify_raw(plain, hashed)
+    return verify_password(plain, hashed)
 
 
 # Valid bcrypt hash for constant-time comparison when an account does not exist
@@ -283,7 +415,8 @@ _DUMMY_BCRYPT_HASH = "$2b$12$e8Y7X4Q9L7Z1N5M3J2K1O.e5wL8.dD4xR5e5wL8.dD4xR5e5wL8
 def dummy_verify_password(password: str) -> bool:
     """Execute full peppered verification against a dummy hash to prevent login timing side-channels."""
     try:
-        return verify_password(password, _DUMMY_BCRYPT_HASH)
+        active = get_password_pepper()
+        return _verify_raw(_pepper_password_with_key(password, active, DEFAULT_PBKDF2_ITERATIONS), _DUMMY_BCRYPT_HASH)
     except Exception:
         return False
 
