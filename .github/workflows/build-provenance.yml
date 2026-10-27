@@ -1,26 +1,50 @@
 name: SLSA Level 3 Build Provenance & Container Signing
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag version to build, attest, and sign (e.g., v0.11.4)"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   build-and-attest:
+    name: Build, Attest & Sign Release
     runs-on: ubuntu-latest
+    if: github.actor == 'rlnunez' || github.actor == github.repository_owner
     permissions:
       contents: read
       packages: write       # Required to push images and attestations to GHCR
       id-token: write       # Required for OIDC token generation (Cosign & GitHub Attestations)
       attestations: write   # Required for SLSA build provenance attestations
     steps:
-      - name: Checkout repository
+      - name: Verify authorization
+        env:
+          ACTOR: ${{ github.actor }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          if [ "$ACTOR" != "rlnunez" ] && [ "$ACTOR" != "$OWNER" ]; then
+            echo "::error::Unauthorized user '$ACTOR'. Only repository owner '$OWNER' can trigger release signing."
+            exit 1
+          fi
+
+      - name: Validate tag input
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
+            echo "::error::Invalid tag format '$TAG'. Expected format 'vX.Y.Z' (e.g., v0.11.4)."
+            exit 1
+          fi
+
+      - name: Checkout repository at tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.tag }}
           persist-credentials: false
 
       - name: Install Cosign
@@ -41,6 +65,9 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/${{ github.repository }}/backend
+          tags: |
+            type=raw,value=${{ inputs.tag }}
+            type=raw,value=latest
 
       - name: Build and push Docker image
         id: push-step
@@ -48,24 +75,22 @@ jobs:
         with:
           context: ./backend
           file: ./backend/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Generate SLSA Level 3 Build Provenance Attestation
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
-        if: ${{ github.event_name != 'pull_request' }}
         with:
           subject-name: ghcr.io/${{ github.repository }}/backend
           subject-digest: ${{ steps.push-step.outputs.digest }}
           push-to-registry: true
 
       - name: Sign container image with Cosign (Keyless Sigstore)
-        if: ${{ github.event_name != 'pull_request' }}
         env:
           IMAGE_REPO: ${{ github.repository }}
           WORKFLOW_NAME: ${{ github.workflow }}
-          GIT_REF: ${{ github.ref }}
+          GIT_REF: refs/tags/${{ inputs.tag }}
           IMAGE_DIGEST: ${{ steps.push-step.outputs.digest }}
         run: |
           IMAGE_REPO_LOWER=$(echo "${IMAGE_REPO}" | tr '[:upper:]' '[:lower:]')
