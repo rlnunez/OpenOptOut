@@ -1,8 +1,7 @@
 <p align="center">
-  <img src="assets/logo.png" alt="OpenOptOut Logo" width="160">
+  <img src="assets/logo.png" alt="OpenOptOut Logo" width="130"><br>
+  <span style="font-size:2rem; font-weight:bold; font-family:Helvetica, sans-serif;">OpenOptOut</span>
 </p>
-
-# OpenOptOut
 
 **Open-source personal data removal pipeline.** Automated opt-out submission, confirmation tracking, and continuous defense against quiet data-broker re-listings.
 
