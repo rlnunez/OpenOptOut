@@ -1,0 +1,12 @@
+{
+  "id": "mock_broker",
+  "type": "brokers",
+  "broker_id": "mock_broker",
+  "name": "Mock People Directory",
+  "version": "1.0.0",
+  "author": "OpenOptOut Community",
+  "description": "Automated opt-out for Mock People Directory records.",
+  "spec_file": "spec.json",
+  "difficulty": "medium",
+  "starts_enabled": true
+}

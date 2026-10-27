@@ -1,0 +1,47 @@
+{
+  "broker_id": "my_broker",
+  "name": "My Broker Name",
+  "method": "form",
+  "spec_version": "1.0",
+  "opt_out_url": "https://example.com/opt-out",
+  "steps": [
+    {
+      "kind": "wait_for",
+      "selector": "form"
+    },
+    {
+      "kind": "fill",
+      "selector": "input[name=first_name]",
+      "field": "first_name"
+    },
+    {
+      "kind": "fill",
+      "selector": "input[name=last_name]",
+      "field": "last_name"
+    },
+    {
+      "kind": "fill",
+      "selector": "input[name=email]",
+      "field": "contact_email"
+    },
+    {
+      "kind": "click",
+      "selector": "button[type=submit]"
+    },
+    {
+      "kind": "expect_success",
+      "text": "Your opt-out request has been submitted"
+    }
+  ],
+  "legal_basis": [
+    "ccpa",
+    "gdpr"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "email_confirmation"
+  ],
+  "source": "https://example.com/privacy-policy",
+  "last_verified": "",
+  "notes": ""
+}

@@ -1,0 +1,12 @@
+{
+  "id": "my_broker",
+  "type": "brokers",
+  "broker_id": "my_broker",
+  "name": "My Broker Name",
+  "version": "1.0.0",
+  "author": "Your Name / Organization",
+  "description": "Automated privacy opt-out for My Broker Name.",
+  "spec_file": "spec.json",
+  "difficulty": "medium",
+  "starts_enabled": true
+}

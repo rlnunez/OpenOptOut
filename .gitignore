@@ -21,7 +21,8 @@ __pycache__/
 *.pyd
 .Python
 *.egg-info/
-dist/
+dist/*
+!dist/agensii-skill/
 build/
 venv/
 .venv/
@@ -29,7 +30,7 @@ env/
 
 # Node
 node_modules/
-dist/
+frontend/dist/
 .vite/
 
 # OS
