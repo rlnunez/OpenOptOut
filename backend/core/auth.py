@@ -46,6 +46,23 @@ try:
 except ImportError:
     Session = None
 
+class _ModelPlaceholder:
+    def __init__(self, name):
+        self._name = name
+    def __getattr__(self, item):
+        return self
+    def __str__(self):
+        return self._name
+    def __repr__(self):
+        return self._name
+    def in_(self, *args, **kwargs):
+        return self
+    def __eq__(self, other):
+        return self
+    def __ne__(self, other):
+        return self
+
+
 try:
     from ..models.database import get_db, User, FamilyMember, ProfileAccess, UserRole, ManagerScope, Branch
 except (ImportError, ValueError):
@@ -53,21 +70,6 @@ except (ImportError, ValueError):
         from models.database import get_db, User, FamilyMember, ProfileAccess, UserRole, ManagerScope, Branch
     except (ImportError, ValueError):
         get_db = None
-        class _ModelPlaceholder:
-            def __init__(self, name):
-                self._name = name
-            def __getattr__(self, item):
-                return self
-            def __str__(self):
-                return self._name
-            def __repr__(self):
-                return self._name
-            def in_(self, *args, **kwargs):
-                return self
-            def __eq__(self, other):
-                return self
-            def __ne__(self, other):
-                return self
         User = _ModelPlaceholder("User")
         FamilyMember = _ModelPlaceholder("FamilyMember")
         ProfileAccess = _ModelPlaceholder("ProfileAccess")
@@ -79,7 +81,7 @@ except (ImportError, ValueError):
 def _ensure_models():
     """Ensure real ORM models are imported if circular import left _ModelPlaceholder."""
     global User, FamilyMember, ProfileAccess, UserRole, ManagerScope, Branch, get_db
-    if isinstance(User, _ModelPlaceholder) or not hasattr(User, "__table__"):
+    if not hasattr(User, "__table__") or isinstance(User, _ModelPlaceholder):
         try:
             from ..models import database as _db_mod
         except (ImportError, ValueError):
