@@ -609,7 +609,7 @@ def save_secret_key_file(new_key: str) -> dict:
     try:
         ensure_password_pepper_persisted()
     except Exception as e:
-        log.warning("Could not persist password pepper prior to secret key rotation: %s", e)
+        log.warning("Could not persist pepper file prior to rotation: %s", e)
 
     # Re-encrypt any stored SMTP password in settings before rotating the key
     old_plain_smtp = None
