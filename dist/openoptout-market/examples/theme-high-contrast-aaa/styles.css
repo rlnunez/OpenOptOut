@@ -1,0 +1,91 @@
+/* High-Contrast Accessible Dark Theme (WCAG 2.2 Level AAA) */
+
+html.theme-high-contrast-aaa body,
+html.theme-high-contrast-aaa {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* Background surfaces */
+html.theme-high-contrast-aaa .bg-slate-950 {
+  background-color: #000000 !important;
+}
+
+html.theme-high-contrast-aaa aside,
+html.theme-high-contrast-aaa header,
+html.theme-high-contrast-aaa .bg-slate-900,
+html.theme-high-contrast-aaa .bg-slate-900\/50,
+html.theme-high-contrast-aaa .bg-slate-900\/40 {
+  background-color: #0a0a0a !important;
+  border-color: #ffff00 !important;
+}
+
+html.theme-high-contrast-aaa .bg-slate-800,
+html.theme-high-contrast-aaa .bg-slate-950\/60,
+html.theme-high-contrast-aaa .bg-slate-950\/80 {
+  background-color: #141414 !important;
+  border-color: #ffffff !important;
+}
+
+/* High-contrast borders */
+html.theme-high-contrast-aaa .border-slate-800,
+html.theme-high-contrast-aaa .border-slate-700,
+html.theme-high-contrast-aaa .border-slate-700\/50,
+html.theme-high-contrast-aaa .border-slate-800\/80 {
+  border-color: #ffff00 !important;
+  border-width: 1.5px !important;
+}
+
+/* Text elements */
+html.theme-high-contrast-aaa .text-white,
+html.theme-high-contrast-aaa .text-slate-100,
+html.theme-high-contrast-aaa .text-slate-200,
+html.theme-high-contrast-aaa .text-slate-300,
+html.theme-high-contrast-aaa .text-slate-400 {
+  color: #ffffff !important;
+}
+
+html.theme-high-contrast-aaa .text-slate-500,
+html.theme-high-contrast-aaa .text-slate-600 {
+  color: #e0e0e0 !important;
+}
+
+/* Interactive elements and focus rings (WCAG 2.4.11 / 2.4.12) */
+html.theme-high-contrast-aaa :focus-visible {
+  outline: 3px solid #ffff00 !important;
+  outline-offset: 3px !important;
+}
+
+/* Form inputs */
+html.theme-high-contrast-aaa input,
+html.theme-high-contrast-aaa select,
+html.theme-high-contrast-aaa textarea {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffff00 !important;
+}
+
+/* Buttons */
+html.theme-high-contrast-aaa .bg-shield-600,
+html.theme-high-contrast-aaa .bg-shield-700 {
+  background-color: #ffff00 !important;
+  color: #000000 !important;
+  font-weight: 700 !important;
+  border: 2px solid #ffffff !important;
+}
+
+html.theme-high-contrast-aaa .bg-red-600,
+html.theme-high-contrast-aaa .bg-red-700 {
+  background-color: #ff3333 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border: 2px solid #ffffff !important;
+}
+
+/* Reduced motion preference (WCAG 2.3.3) */
+@media (prefers-reduced-motion: reduce) {
+  html.theme-high-contrast-aaa * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

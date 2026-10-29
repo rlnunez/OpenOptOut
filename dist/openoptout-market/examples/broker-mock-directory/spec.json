@@ -1,0 +1,57 @@
+{
+  "broker_id": "mock_broker",
+  "name": "Mock People Directory",
+  "method": "form",
+  "spec_version": "1.0",
+  "opt_out_url": "https://example.com/optout",
+  "search_url": "https://example.com/search?q={full_name}",
+  "listing_pattern": "https://example.com/profile/*",
+  "steps": [
+    {
+      "kind": "wait_for",
+      "selector": "form#removal-form"
+    },
+    {
+      "kind": "fill",
+      "selector": "input[name=listing_url]",
+      "field": "listing_url"
+    },
+    {
+      "kind": "fill",
+      "selector": "input[name=requester_email]",
+      "field": "contact_email"
+    },
+    {
+      "kind": "check",
+      "selector": "input[name=certify_authorized]"
+    },
+    {
+      "kind": "pause_for_human",
+      "selector": "div.h-captcha",
+      "text": "Please solve the security challenge (CAPTCHA) on screen, then press 'I\\'ve done this'."
+    },
+    {
+      "kind": "click_matching",
+      "selector": "button",
+      "value": "Submit Removal Request"
+    },
+    {
+      "kind": "expect_success",
+      "text": "Your request has been queued for verification"
+    }
+  ],
+  "legal_basis": [
+    "ccpa",
+    "cpra",
+    "gdpr"
+  ],
+  "statutory_response_days": 45,
+  "requires": [
+    "listing_url",
+    "email_confirmation"
+  ],
+  "source": "https://example.com/privacy-center/opt-out-guidelines",
+  "last_verified": "",
+  "notes": "Demonstrates safe human-in-the-loop CAPTCHA escalation and isolated alias email binding."
+}
+

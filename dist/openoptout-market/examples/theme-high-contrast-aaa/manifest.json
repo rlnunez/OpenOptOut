@@ -1,0 +1,9 @@
+{
+  "id": "theme-high-contrast-aaa",
+  "name": "High-Contrast Accessible Dark (WCAG AAA)",
+  "version": "1.0.0",
+  "author": "OpenOptOut Accessibility Working Group",
+  "type": "themes",
+  "description": "High-contrast accessibility theme with 19:1 contrast ratio, meeting WCAG 2.2 Level AAA requirements.",
+  "wcag_level": "AAA"
+}

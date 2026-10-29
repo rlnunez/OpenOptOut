@@ -1,0 +1,107 @@
+name: OpenOptOut Plugin CI & Release
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate Plugin Structure
+        run: |
+          python3 -c "
+          import json, os, sys
+
+          if not os.path.isfile('manifest.json'):
+              print('Error: Missing manifest.json')
+              sys.exit(1)
+
+          with open('manifest.json') as f:
+              manifest = json.load(f)
+
+          p_type = manifest.get('type')
+          print(f'Validating OpenOptOut plugin: {manifest.get(\"name\")} (Type: {p_type})')
+
+          if not os.path.isfile('README.md'):
+              print('Error: Missing README.md')
+              sys.exit(1)
+
+          if p_type == 'brokers':
+              if not os.path.isfile('spec.json'):
+                  print('Error: Broker plugin missing spec.json')
+                  sys.exit(1)
+              with open('spec.json') as sf:
+                  spec = json.load(sf)
+              # Verify no prohibited PII fields
+              steps_str = json.dumps(spec.get('steps', []))
+              for forbidden in ['ssn', 'social_security', 'driver_license', 'passport']:
+                  if forbidden in steps_str.lower():
+                      print(f'Error: Prohibited credential {forbidden} found in spec steps')
+                      sys.exit(1)
+
+          elif p_type == 'themes':
+              if not os.path.isfile('theme.json'):
+                  print('Error: Theme plugin missing theme.json')
+                  sys.exit(1)
+              with open('theme.json') as tf:
+                  theme = json.load(tf)
+              # Verify WCAG contrast
+              def srgb(c): return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+              def lum(hex_c):
+                  h = hex_c.lstrip('#')
+                  r, g, b = [int(h[i:i+2], 16)/255.0 for i in (0, 2, 4)]
+                  return 0.2126 * srgb(r) + 0.7152 * srgb(g) + 0.0722 * srgb(b)
+              colors = theme.get('colors', {})
+              bg, txt = colors.get('background'), colors.get('text_primary')
+              if bg and txt:
+                  l1, l2 = lum(bg), lum(txt)
+                  ratio = (max(l1, l2) + 0.05) / (min(l1, l2) + 0.05)
+                  print(f'Calculated contrast ratio: {ratio:.2f}:1')
+                  if ratio < 4.5:
+                      print('Error: Contrast ratio is below WCAG 2.2 Level AA requirement (4.5:1)')
+                      sys.exit(1)
+
+          elif p_type == 'languages':
+              if not os.path.isfile('texts.json') and not os.path.isfile('messages.json'):
+                  print('Error: Language pack missing texts.json or messages.json')
+                  sys.exit(1)
+
+          print('Plugin validation passed.')
+          "
+
+  package-release:
+    needs: validate
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Package Plugin Archive
+        id: package
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          PLUGIN_ID=$(python3 -c "import json; print(json.load(open('manifest.json')).get('id', 'plugin'))")
+          ARCHIVE_NAME="${PLUGIN_ID}-${VERSION}.zip"
+          zip -r "${ARCHIVE_NAME}" . -x "*.git*" -x ".github/*" -x "*.DS_Store"
+          echo "archive_name=${ARCHIVE_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Attach ZIP to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.package.outputs.archive_name }}

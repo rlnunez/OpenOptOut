@@ -1,0 +1,30 @@
+{
+  "name": "High-Contrast Accessible Dark",
+  "mode": "dark",
+  "wcag_compliance": "AAA",
+  "contrast_ratios": {
+    "text_on_background": "21.0:1",
+    "accent_on_background": "19.5:1",
+    "borders_on_background": "19.5:1"
+  },
+  "colors": {
+    "background": "#000000",
+    "surface": "#050505",
+    "surface_secondary": "#111111",
+    "border": "#ffff00",
+    "text_primary": "#ffffff",
+    "text_secondary": "#ffff00",
+    "text_muted": "#ffffff",
+    "accent": "#ffff00",
+    "accent_hover": "#e6e600",
+    "focus_ring": "#ffff00",
+    "status_success": "#00ff66",
+    "status_warning": "#ffcc00",
+    "status_danger": "#ff3333"
+  },
+  "typography": {
+    "font_family_sans": "Inter, system-ui, sans-serif",
+    "font_family_mono": "JetBrains Mono, monospace",
+    "border_radius": "0.25rem"
+  }
+}
