@@ -7,6 +7,42 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ---
 
+## [0.12.0] — 2026-10-28
+
+### Community Marketplace & Plugin Distribution (Roadmap Item 8)
+- **Community Marketplace Core Client (`backend/plugins/catalog.py`, `backend/routers/plugins.py`):**
+  - **Declarative Remote Catalog Ingestion:** Implemented `backend/plugins/catalog.py` resolving official catalog index from `https://rlnunez.github.io/openoptout-market/index.json` (overridable via `OPENOPTOUT_CATALOG_URL` or admin settings).
+  - **Resilient Multi-Tier Caching:** Implemented local TTL-backed cache (`openoptout_catalog_cache.json`, 4-hour refresh window) supporting conditional HTTP `If-None-Match` (ETag) validation and graceful offline air-gapped fallback.
+  - **Marketplace Invariant 1 (Declarative Pure Data):** Enforced install-time AST and archive inspection strictly rejecting executable scripts (`.py`, `.sh`, `.exe`, `.bin`, `.bat`, `.so`, `.dylib`) in broker, theme, language, and legal letter packages before extraction.
+  - **SHA-256 Digest Verification:** Verified cryptographic package integrity against catalog digests prior to extracting plugins into local directories.
+  - **API Endpoints:** Added `GET /api/plugins/catalog` (listing with install/update status and category filters), `POST /api/plugins/catalog/refresh` (force-refresh), `GET /api/plugins/catalog/{plugin_id}/readme` (README markdown inspection), `POST /api/plugins/catalog/install` (download, verify, inspect, and install), and `POST /api/plugins/catalog/update` (version-controlled in-place upgrade).
+  - **Unit Test Coverage:** Added `plugins.catalog_client` test in `backend/tests/run_tests.py` verifying SemVer comparisons, Invariant 1 enforcement, caching, and filtering.
+- **Administrative Console Marketplace Browser (`frontend/src/pages/Plugins.jsx`):**
+  - **Top-Level Tab Switcher:** Added interactive tabs separating "Installed" plugins (with installed count badge) and the "Community Marketplace" (with pending update count badge).
+  - **Category Filtering & Real-Time Search:** Added category pill filters (`All`, `Brokers`, `Themes`, `Languages`, `CAPTCHA`, `Email`) and client-side real-time substring filtering across plugin names, descriptions, and authors.
+  - **Plugin Detail Drawer / Modal:** Added `<CatalogDetailModal>` rendering full Markdown documentation (`README.md`), author attribution, package SHA-256 digest hint, and 1-click Install/Update action buttons with loading states.
+  - **SemVer Update Detection:** Integrated automatic SemVer comparison between local manifests and catalog versions, surfacing prominent "Update to {v}" action badges.
+  - **Air-Gapped Notice:** Displayed clear offline indicator when running disconnected from the remote registry.
+- **Decoupled Category Repositories & Official Registry (`dist/repos/`, `openoptout-market`):**
+  - **Standalone Category Repositories:** Decoupled bundled plugins into 5 dedicated category repositories under `dist/repos/` with turnkey CI workflows (`.github/workflows/ci.yml`), stdlib validation tools (`tools/validate.py`), packaging scripts (`tools/package.py`), AGPL-3.0 licenses, and comprehensive documentation:
+    - `openoptout-brokers`: 80 official data broker opt-out specs.
+    - `openoptout-languages`: 17 official language packs with full UI translations and RTL formatting.
+    - `openoptout-email`: 4 official email provider integrations (Gmail OAuth, Outlook, Yahoo, SMTP).
+    - `openoptout-captcha`: 1 official CAPTCHA solver service integration with zero-PII challenge redaction.
+    - `openoptout-letters`: 7 statutory legal opt-out letter templates (CCPA, GDPR, LGPD, PIPEDA, UK-GDPR, US, Generic).
+  - **Full Marketplace Catalog Population:** Populated `plugins.json` and compiled `index.json` containing all 111 official core plugins with Tier 1 Curated status, precomputed SHA-256 digests, and direct GitHub Pages CDN package downloads (`packages/<category>/<id>.zip`).
+  - **Continuous Sync Utility:** Added `scripts/export_category_repos.py` in core to regenerate category repositories and marketplace packages whenever bundled plugins are updated.
+- **Internationalization (i18n) & Accessibility (a11y):**
+  - **Universal Translation Coverage:** Added and translated 25 new marketplace UI phrases across all 17 bundled language packs (`backend/plugins/bundled/languages/lang-*/texts.json`), satisfying `i18n.page_texts_current` and `plugin_texts.py --check` with zero missing phrases.
+  - **WCAG 2.2 AA Baseline & AAA Target:** Verified all new JSX components meet strict accessibility standards with zero violations across 80 scanned JSX files (`npm run check:a11y`).
+  - **Zero-Emoticon Standard:** Enforced strict negative constraint eliminating all emoticons and emojis across all markdown documentation files.
+
+### Container Security & Vulnerability Remediation
+- **Multi-Stage rclone Builder (`backend/Dockerfile`):**
+  - Upgraded `golang.org/x/net` to `v0.62.0` in Stage 0 (`rclone-builder`), remediating both **CVE-2026-97045** (namespace traversal in `childTextNodesAreLiteral`) and **CVE-2026-78661** (quadratic allocation DoS via text node string concatenation in `html.addText` and `html.fosterParent`) in the `/usr/local/bin/rclone` container binary.
+
+---
+
 ## [0.11.4] — 2026-10-26
 
 ### Security & Authentication Resilience

@@ -13,7 +13,7 @@ The guiding architectural principle: **the core does not contain broker-specific
 
 | # | Item | Status | Priority / Target |
 |---|------|--------|-------------------|
-| [8](#item-8) | [Add-on distribution: Git repo to curated marketplace](#item-8) | Active / In Design | High (Phase 8.1 Active) |
+| [8](#item-8) | [Add-on distribution: Git repo to curated marketplace](#item-8) | Complete (v0.12.0) | High (Phases 8.1 & 8.2 Done) |
 | [11](#item-11) | [Setup wizard: Catalog step & recommended protections bundle](#item-11) | Planned | Medium (Follows Item 8) |
 | [12](#item-12) | [School district authentication (Parent Portal SSO)](#item-12) | On-Demand | District Request Only |
 | [14](#item-14) | [Extended DNS-01 ACME challenge providers (AWS, DigitalOcean, deSEC)](#item-14) | Planned | Medium |
@@ -36,16 +36,16 @@ The guiding architectural principle: **the core does not contain broker-specific
 **Detailed Design:** See [`docs/dev/proposals/catalog-design.md`](dev/proposals/catalog-design.md).
 
 **Phased Execution:**
-- **Phase 8.1 — Core Catalog Client & Declarative Index (`index.json`) (Active / In Design):**
-  - **Catalog Client Daemon:** Implement `backend/plugins/catalog.py` on the control plane to fetch official `index.json`, maintain a local TTL-backed cache (`data/catalog_cache.json`, 4h refresh), and support conditional HTTP (`If-None-Match` / ETag).
-  - **Catalog Schema & Tiering:** Declarative `index.json` defining metadata (`tier`: 1=recommended, 2=available, 3=experimental; `rank`: ordering integer within category; `recommended_bundle`: bool), checksums (SHA-256), and dependencies.
-  - **Unified Install Pipeline:** Catalog installation downloads archives to ephemeral storage, verifies SHA-256 digests, and routes through the existing security boundary (`_extracted_bundle`, path traversal checks, static code inspection via `code_inspector.py`, and administrative permission grants).
-  - **Air-Gapped & Resilient Fallback:** Provides graceful offline operation using cached indices or bundled fallback definitions if egress network is unavailable.
-- **Phase 8.2 — Administrative Console "Browse" Tab & Update Detection (Planned):**
-  - **Admin Catalog Browser:** Dedicated "Browse Catalog" tab in `frontend/src/pages/Plugins.jsx` filterable by category (`brokers`, `captcha`, `email`, `languages`, `themes`) with Tier 1 recommended items pinned to top.
-  - **Update Notification Badges:** Automatic version comparison between installed plugins and catalog releases, displaying non-intrusive update badges.
-  - **Admin Approval Gate:** Plugin updates require explicit super-admin review and approval before activation.
-- **Phase 8.3 — Cryptographic Code Signing & Marketplace Registry (Planned):**
+- **Phase 8.1 — Core Catalog Client & Declarative Index (`index.json`) (Complete - v0.12.0):**
+  - **Catalog Client Daemon:** Implemented `backend/plugins/catalog.py` on the control plane fetching official `index.json`, maintaining local TTL-backed cache (`openoptout_catalog_cache.json`, 4h refresh), and supporting conditional HTTP (`If-None-Match` / ETag).
+  - **Catalog Schema & Tiering:** Declarative `index.json` defining metadata (`tier`: 1=recommended, 2=available; SHA-256 digests; recommended bundle flags).
+  - **Unified Install Pipeline:** Catalog installation downloads archives to ephemeral storage, verifies SHA-256 digests, enforces Invariant 1 (pure data), and routes through existing security boundaries (`code_inspector.py`).
+  - **Air-Gapped & Resilient Fallback:** Provides graceful offline operation using cached indices or bundled fallback definitions when offline.
+- **Phase 8.2 — Administrative Console Marketplace Tab & Update Detection (Complete - v0.12.0):**
+  - **Admin Catalog Browser:** Dedicated "Community Marketplace" tab in `frontend/src/pages/Plugins.jsx` filterable by category (`brokers`, `captcha`, `email`, `languages`, `themes`) with Tier 1 recommended items pinned.
+  - **Update Notification Badges:** Automatic version comparison between installed plugins and catalog releases, displaying non-intrusive "Update to {v}" action badges.
+  - **Documentation Drawer:** Detail modal rendering full Markdown documentation (`README.md`), author attribution, and SHA-256 digest hint.
+- **Phase 8.3 — Cryptographic Code Signing & Transparency (Planned):**
   - **Cryptographic Provenance:** Author signing keys, catalog root of trust, and signature validation before extraction.
   - **Marketplace Security Invariants:** Bound by the [Marketplace Supply Chain Architecture](architecture/marketplace-security-invariants.md), enforcing the 6 non-negotiable supply-chain invariants under ISO/IEC 27001:2022 (pure declarative JSON data, Cosign/Ed25519 signing, Rekor transparency, Bubblewrap/seccomp sandboxing, signed CRL emergency revocation, and air-gapped mirroring).
   - **Public Web Directory:** Searchable registry with ratings, usage telemetry, and security audit badges.
