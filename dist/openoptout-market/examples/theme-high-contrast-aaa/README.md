@@ -16,3 +16,4 @@ An institutional-grade accessibility theme for OpenOptOut engineered to meet WCA
 ## Installation
 
 Place this directory in `<plugins_root>/themes/theme-high-contrast-aaa/` or install via the OpenOptOut Community Market.
+

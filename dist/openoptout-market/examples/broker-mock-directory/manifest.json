@@ -9,6 +9,8 @@
   "spec_file": "spec.json",
   "difficulty": "medium",
   "is_property_broker": false,
-  "starts_enabled": true
+  "starts_enabled": true,
+  "default_locale": "en",
+  "locales": ["es", "fr"]
 }
 

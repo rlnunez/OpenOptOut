@@ -80,3 +80,4 @@ When translating into Right-to-Left languages (Arabic, Hebrew, Persian, Urdu, et
 2. The UI automatically activates `html[dir="rtl"]`.
 3. Directional navigation icons (arrows, chevrons, undo/redo) automatically mirror using CSS `scale: -1 1`.
 4. Technical data (code blocks, email addresses, phone digits, and URLs) retain Left-to-Right orientation (`direction: ltr`).
+

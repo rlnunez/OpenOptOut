@@ -79,6 +79,36 @@ jobs:
                   print('Error: Language pack missing texts.json or messages.json')
                   sys.exit(1)
 
+          # Validate bundled translations if locales/ folder is present
+          if os.path.isdir('locales'):
+              import re
+              lang_re = re.compile(r'^[a-z]{2,3}(-[a-z0-9]{2,8})*\.json$', re.IGNORECASE)
+              ph_re = re.compile(r'\{(\w+)\}')
+              for lf in os.listdir('locales'):
+                  if not lf.endswith('.json'):
+                      continue
+                  if not lang_re.match(lf):
+                      print(f'Error: locales/{lf} filename must be a valid language code (e.g. es.json, pt-br.json)')
+                      sys.exit(1)
+                  lpath = os.path.join('locales', lf)
+                  if os.path.getsize(lpath) > 512 * 1024:
+                      print(f'Error: locales/{lf} exceeds maximum size of 512KB')
+                      sys.exit(1)
+                  try:
+                      with open(lpath, 'r', encoding='utf-8') as f:
+                          ltable = json.load(f)
+                  except Exception as e:
+                      print(f'Error: locales/{lf} is not valid JSON: {e}')
+                      sys.exit(1)
+                  if not isinstance(ltable, dict):
+                      print(f'Error: locales/{lf} must be a JSON object mapping keys to text')
+                      sys.exit(1)
+                  for k, v in ltable.items():
+                      if not isinstance(k, str) or not isinstance(v, str):
+                          print(f'Error: locales/{lf} key \"{k}\" and value must be strings')
+                          sys.exit(1)
+              print('Bundled locales validation passed.')
+
           print('Plugin validation passed.')
           "
 
@@ -105,3 +135,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.package.outputs.archive_name }}
+

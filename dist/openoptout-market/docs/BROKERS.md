@@ -125,3 +125,46 @@ The declarative specification defines the steps executed by OpenOptOut's sandbox
 2. **Data Minimization:** Only request fields that the broker's form explicitly requires. Never add fields speculatively.
 3. **Prohibited Credentials:** Never automate forms that require Social Security Numbers, government IDs, credit cards, or account passwords.
 4. **No Real PII in Git:** Test fixtures must strictly use synthetic data (such as "Jane Sample", "12 Oak St", and "@example.invalid").
+
+---
+
+## 6. Plugin-Bundled Translations (`locales/`)
+
+Plugins that present text to operators or users—such as plugin descriptions, manual instructions, or `pause_for_human` checkpoint messages—can bundle their own translations directly inside a `locales/` subfolder:
+
+```text
+my-broker/
+├── manifest.json
+├── spec.json
+├── README.md
+└── locales/
+    ├── es.json
+    ├── fr.json
+    └── de.json
+```
+
+### Manifest Declaration
+In `manifest.json`, declare the default language and available locale packs:
+```json
+{
+  "default_locale": "en",
+  "locales": ["es", "fr", "de"]
+}
+```
+
+### Translation File Format (`locales/es.json`)
+Locale files map standard keys to translated text:
+```json
+{
+  "description": "Exclusión automatizada para los registros de My Broker.",
+  "instructions": "Abra la página y seleccione su perfil...",
+  "steps.4.text": "Por favor resuelva el desafío de seguridad en pantalla, luego presione 'He completado esto'."
+}
+```
+
+Key translation rules:
+- Keys correspond to `"description"`, `"instructions"`, or `"steps.<i>.text"` (where `<i>` is the 0-indexed step number).
+- Translations must preserve any `{placeholder}` tokens from the original text (such as `{listing_url}` or `{contact_email}`).
+- Fallback chain: If a language pack exists in OpenOptOut, it is checked first; if not, the plugin's own `locales/<lang>.json` is loaded; if neither exists, the default English string in `spec.json` is displayed.
+
+

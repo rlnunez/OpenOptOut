@@ -158,3 +158,4 @@ Luminance is calculated using the standard IEC 61966-2-1 sRGB formula:
    Interactive touch targets must provide at least 24x24 CSS pixels of clickable area (44x44 CSS pixels for Level AAA).
 5. **Right-to-Left (RTL) Layout:**
    Use logical CSS properties (`border-inline-start`, `margin-inline-end`) rather than physical properties (`border-left`, `margin-right`) so the theme renders correctly in Arabic, Hebrew, Urdu, and other RTL languages.
+

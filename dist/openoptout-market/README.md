@@ -35,6 +35,29 @@ OpenOptOut is deployed in public libraries, schools, municipal offices, and cons
 
 ---
 
+## Bundled Translations for UI-Modifying Plugins (`locales/`)
+
+Plugins that present text, notifications, or manual checkpoints in the OpenOptOut interface (such as `brokers`, `captcha`, and `email` providers) can bundle their own localized phrase packs directly inside a `locales/` directory:
+
+```text
+my-plugin/
+├── manifest.json
+├── spec.json (or plugin.py)
+├── README.md
+└── locales/
+    ├── es.json
+    ├── fr.json
+    └── de.json
+```
+
+- In `manifest.json`, declare available languages: `"locales": ["es", "fr", "de"]`.
+- Files map keys (e.g. `"description"`, `"instructions"`, `"steps.4.text"`, or custom UI notification keys) to localized strings.
+- Translations preserve variable placeholders such as `{contact_email}` and `{listing_url}`.
+- Our automated CI workflow validates all JSON files in `locales/` on every pull request.
+
+
+---
+
 ## Automated CI and Release Tasks for Your Repository
 
 To maintain quality and avoid broken releases, plugin authors should enable automated testing and packaging in their own repositories.
