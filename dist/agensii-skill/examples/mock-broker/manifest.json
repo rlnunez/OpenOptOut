@@ -8,6 +8,7 @@
   "description": "Automated opt-out for Mock People Directory records.",
   "spec_file": "spec.json",
   "difficulty": "medium",
+  "is_property_broker": false,
   "starts_enabled": true
 }
 

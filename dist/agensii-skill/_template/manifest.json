@@ -8,6 +8,7 @@
   "description": "Automated privacy opt-out for My Broker Name.",
   "spec_file": "spec.json",
   "difficulty": "medium",
+  "is_property_broker": false,
   "starts_enabled": true
 }
 

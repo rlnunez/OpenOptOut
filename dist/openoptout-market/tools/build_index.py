@@ -46,6 +46,30 @@ def compute_sha256(url: str, token: str = None) -> str:
     return h.hexdigest()
 
 
+def fetch_readme(repo: str, token: str = None) -> str:
+    """Fetch README markdown text from repository to enrich catalog entries."""
+    headers = {
+        "User-Agent": "OpenOptOut-Market-Builder/1.0",
+        "Accept": "application/vnd.github.v3.raw",
+    }
+    if token:
+        headers["Authorization"] = f"token {token}"
+    req = urllib.request.Request(f"{GITHUB_API}/repos/{repo}/readme", headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            text = resp.read().decode("utf-8", errors="replace")
+            return text[:40000]
+    except Exception:
+        try:
+            raw_url = f"https://raw.githubusercontent.com/{repo}/main/README.md"
+            req_raw = urllib.request.Request(raw_url, headers={"User-Agent": "OpenOptOut-Market-Builder/1.0"})
+            with urllib.request.urlopen(req_raw, timeout=10) as resp:
+                text = resp.read().decode("utf-8", errors="replace")
+                return text[:40000]
+        except Exception:
+            return ""
+
+
 def build_catalog(plugins_path: str = "plugins.json", out_path: str = "index.json"):
     token = os.environ.get("GITHUB_TOKEN")
 
@@ -89,6 +113,8 @@ def build_catalog(plugins_path: str = "plugins.json", out_path: str = "index.jso
             print(f"    Warning: Could not compute checksum for {archive_url}: {e}")
             sha256 = hashlib.sha256(p_id.encode("utf-8")).hexdigest()
 
+        readme = fetch_readme(repo, token=token)
+
         enriched = {
             "id": p_id,
             "type": entry.get("category", "brokers"),
@@ -102,6 +128,8 @@ def build_catalog(plugins_path: str = "plugins.json", out_path: str = "index.jso
             "sha256": sha256,
             "min_core_version": entry.get("min_core_version", "0.11.0"),
             "recommended_bundle": entry.get("tier") == 1,
+            "readme": readme,
+            "readme_url": f"https://github.com/{repo}#readme",
         }
         catalog_plugins.append(enriched)
 
