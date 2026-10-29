@@ -116,7 +116,7 @@ To target specific components in your `styles.css`, use the following standard U
 
 ## 5. Accessibility Guidelines (WCAG 2.2 AA and AAA)
 
-OpenOptOut enforces rigorous accessibility standards to serve patrons of public libraries, universities, and government agencies. Themes should target WCAG 2.2 Level AA at a minimum, and ideally Level AAA.
+OpenOptOut is designed to be deployed in a family's home, public libraries, universities, schools, or civic organizations, so it enforces rigorous accessibility standards. Themes should target WCAG 2.2 Level AA at a minimum, and ideally Level AAA.
 
 ### Contrast Requirements
 

@@ -22,7 +22,7 @@ Every plugin submitted to OpenOptOut must follow standardized conventions based 
 
 ## Accessibility and ADA Standards (WCAG 2.2 AA / AAA)
 
-OpenOptOut is deployed in public libraries, schools, municipal offices, and consortium networks. Accessibility is a first-class requirement across all plugins and themes:
+OpenOptOut is designed to be deployed in a family's home, public libraries, schools, municipal offices, or consortium networks. Accessibility is a first-class requirement across all plugins and themes:
 
 1. **Baseline Compliance:** All user interface extensions and themes must achieve **WCAG 2.2 Level AA** compliance at a minimum.
 2. **Target Compliance:** Authors are strongly encouraged to target **WCAG 2.2 Level AAA** for high-contrast and civic themes.
