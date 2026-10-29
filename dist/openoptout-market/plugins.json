@@ -1,0 +1,11 @@
+[
+  {
+    "id": "mock_broker",
+    "name": "Mock People Directory",
+    "description": "Reference opt-out plugin demonstrating safe form automation, alias emails, and human-in-the-loop CAPTCHA escalation.",
+    "repo": "rlnunez/OpenOptOut",
+    "category": "brokers",
+    "tier": 2,
+    "author": "OpenOptOut Community"
+  }
+]

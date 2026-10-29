@@ -1,0 +1,25 @@
+name: Validate PR Submission
+
+on:
+  pull_request:
+    paths:
+      - 'plugins.json'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate plugins.json
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Schema Validator
+        run: python3 tools/validate_submission.py plugins.json
