@@ -11472,16 +11472,27 @@ def t_wizard_catalog_bundle():
         assert store["wizard"]["catalog"]["bundle_id"] == "bundle-us"
         assert store["wizard"]["catalog"]["installed_count"] == 12
 
-        # 3. Skipping catalog step works
+        # 3. State reflects catalog configuration
+        state = wiz.get_state(db=None, user=admin)
+        assert state["catalog"]["bundle_id"] == "bundle-us"
+        assert state["catalog"]["installed_count"] == 12
+
+        # 4. Skipping catalog step works
         wiz.skip_step(wiz.SkipStep(step="catalog"), db=None, user=admin)
         assert store["wizard"]["steps"]["catalog"] == "skipped"
 
-        # 4. Invalid bundle install rejection
+        # 5. Invalid bundle install rejection
         try:
             wiz.install_bundle(wiz.BundleInstallStep(bundle_id="non-existent-bundle"), db=None, user=admin)
             raise AssertionError("invalid bundle_id accepted")
         except HTTPException as e:
             assert e.status_code == 400
+
+        # 6. Empty bundle or custom list handled cleanly
+        res = wiz.install_bundle(wiz.BundleInstallStep(bundle_id=None, plugin_ids=[]), db=None, user=admin)
+        assert res["ok"] is True
+        assert res["total"] == 0
+        assert store["wizard"]["steps"]["catalog"] == "done"
     finally:
         wiz._load, wiz._save = orig_load, orig_save
 

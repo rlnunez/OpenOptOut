@@ -16584,8 +16584,7 @@
   {
    "text": "Skip for now",
    "where": [
-    "pages/Login.jsx",
-    "pages/SetupWizard.jsx"
+    "pages/Login.jsx"
    ]
   },
   {

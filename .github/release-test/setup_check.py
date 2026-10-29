@@ -184,11 +184,15 @@ class Checker:
         if "deployment" not in steps:
             st, b = self.call("POST", "/api/wizard/deployment", {"reverse_proxy": "none", "domain": ""})
             self.step("Wizard: configure 'deployment' (reverse_proxy=none)", st == 200, f"HTTP {st} {short(b)}")
-        # Skippable steps: security (master key), email, ai, branding
-        for s in ("security", "email", "ai", "branding"):
+        # Check protection bundles endpoint (Roadmap Item 11)
+        st, b = self.call("GET", "/api/wizard/bundles")
+        if st == 200 and isinstance(b, dict) and "bundles" in b:
+            self.step("Wizard: read protection bundles", True, f"{len(b['bundles'])} bundles available")
+        # Skippable steps: security (master key), email, catalog, ai, branding
+        for s in ("security", "email", "catalog", "ai", "branding"):
             if s not in steps:
                 st, b = self.call("POST", "/api/wizard/skip", {"step": s})
-                # On older releases (e.g. v0.10.2 before-upgrade), newer steps like 'security' or 'ai' don't exist yet
+                # On older releases (e.g. v0.10.2 before-upgrade), newer steps like 'security', 'catalog', or 'ai' don't exist yet
                 if st == 400 and isinstance(b, dict) and b.get("detail") == "unknown step":
                     continue
                 self.step(f"Wizard: skip '{s}' step", st == 200, f"HTTP {st} {short(b)}")

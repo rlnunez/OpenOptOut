@@ -1343,7 +1343,7 @@ function CatalogStep({ onNext, onBack, onSkip, busy, setError }) {
             disabled={busy || installing}
             className="flex items-center gap-1 text-slate-400 hover:text-slate-200 text-xs py-2 px-3 rounded-lg disabled:opacity-50"
           >
-            <SkipForward size={14} /> {tx("Skip for now")}
+            <SkipForward size={14} /> {tx("Skip")}
           </button>
           <button
             type="button"
