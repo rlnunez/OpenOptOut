@@ -4,6 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Compatible with: Claude Code & Antigravity](https://img.shields.io/badge/Compatible-Claude%20Code%20%7C%20Antigravity-orange.svg)](SKILL.md)
+[![Agensii Skill](https://img.shields.io/badge/Agensii-Verified%20Skill-blueviolet.svg)](https://www.agensi.io/skills/openoptout-broker-development-and-repair-plugin)
 
 ![Data Broker Opt-Out Agent Skill Banner](assets/marketplace-hero.png)
 
@@ -43,7 +44,11 @@ This skill equips AI coding agents with a **declarative, sandboxed methodology**
 
 ## Quick Install
 
-### 1. Claude Code
+### 1. Agensii (One-Click)
+Access or install the verified skill directly on Agensii:
+[OpenOptOut Broker Development & Repair Plugin](https://www.agensi.io/skills/openoptout-broker-development-and-repair-plugin)
+
+### 2. Claude Code
 Install to your user profile:
 ```bash
 mkdir -p ~/.claude/skills/broker-plugin
@@ -51,7 +56,7 @@ curl -fsSL https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/dist/agensi
   -o ~/.claude/skills/broker-plugin/SKILL.md
 ```
 
-### 2. Google Antigravity
+### 3. Google Antigravity
 Install globally:
 ```bash
 mkdir -p ~/.gemini/antigravity/custom/skills/broker-plugin
@@ -59,7 +64,7 @@ curl -fsSL https://raw.githubusercontent.com/rlnunez/OpenOptOut/main/dist/agensi
   -o ~/.gemini/antigravity/custom/skills/broker-plugin/SKILL.md
 ```
 
-### 3. Repository-Specific (Any Agent)
+### 4. Repository-Specific (Any Agent)
 Drop into your workspace:
 ```bash
 mkdir -p .agents/skills/broker-plugin

@@ -19,7 +19,17 @@ This repository hosts the official declarative registry (`plugins.json`) and aut
 Submitting a plugin is a **one-time process**. Once your repository is registered in `plugins.json`, all future releases and updates are synced automatically without requiring new pull requests!
 
 ### Step 1: Build Your Plugin
-Author your plugin according to OpenOptOut's declarative standards. We recommend using the [`data-broker-optout`](https://github.com/rlnunez/OpenOptOut/tree/main/dist/agensii-skill) AI agent skill to ensure:
+Author your plugin according to OpenOptOut's declarative standards.
+
+- **Using an AI Coding Agent?** Install the verified agent skill directly:
+  - [OpenOptOut Broker Development & Repair Plugin on Agensii](https://www.agensi.io/skills/openoptout-broker-development-and-repair-plugin)
+  - [Local Skill Package (`dist/agensii-skill`)](https://github.com/rlnunez/OpenOptOut/tree/main/dist/agensii-skill)
+- **Official Core Development Documentation:**
+  - [Broker Plugin Authoring Guide](https://github.com/rlnunez/OpenOptOut/tree/main/broker-plugins)
+  - [Declarative Spec Format (`broker_spec.py`)](https://github.com/rlnunez/OpenOptOut/blob/main/backend/core/interpreter/broker_spec.py)
+  - [Instructions for Coding Agents (`AGENTS.md`)](https://github.com/rlnunez/OpenOptOut/blob/main/AGENTS.md)
+
+Key compliance standards to follow:
 - Strict **COPPA & GDPR data minimization** (only requesting mandatory fields).
 - **Prohibited credentials check** (never automating SSNs, government IDs, or passwords).
 - **Isolated email aliases** (`contact_email` vs `email`).
