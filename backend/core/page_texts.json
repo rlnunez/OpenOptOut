@@ -1745,6 +1745,12 @@
    ]
   },
   {
+   "text": "already installed",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Also put it behind Cloudflare's proxy (DDoS protection)",
    "where": [
     "pages/SetupWizard.jsx"
@@ -7280,6 +7286,12 @@
    ]
   },
   {
+   "text": "Failed to install protection bundle",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Failed to issue client certificate",
    "where": [
     "pages/Settings.jsx"
@@ -7293,6 +7305,12 @@
   },
   {
    "text": "Failed to load master encryption key",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Failed to load recommended protection bundles",
    "where": [
     "pages/SetupWizard.jsx"
    ]
@@ -8997,6 +9015,12 @@
    ]
   },
   {
+   "text": "Install Selected Bundle",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Install start time",
    "where": [
     "pages/SystemUpdates.jsx"
@@ -9036,6 +9060,12 @@
    "text": "Installed Version",
    "where": [
     "pages/Help.jsx"
+   ]
+  },
+  {
+   "text": "Installing protections...",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -9899,6 +9929,12 @@
   },
   {
    "text": "Loading master key…",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Loading protection bundles...",
    "where": [
     "pages/SetupWizard.jsx"
    ]
@@ -13610,6 +13646,24 @@
    ]
   },
   {
+   "text": "Protection Bundle",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Protection bundle installed successfully! Advancing to next step...",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "protections included",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Proton Drive, Box, pCloud, MEGA, iCloud Drive, Nextcloud and many more, through rclone. Run \"rclone config\" on any computer to set up the remote, then paste its section of rclone.conf here. It is stored encrypted. For Proton Drive, this uses rclone's unofficial connection, which needs your Proton password and can break when Proton changes things.",
    "where": [
     "pages/Backups.jsx"
@@ -13889,6 +13943,12 @@
    "text": "Recommended Architecture",
    "where": [
     "components/CapacityPlanner.jsx"
+   ]
+  },
+  {
+   "text": "Recommended Protections",
+   "where": [
+    "pages/SetupWizard.jsx"
    ]
   },
   {
@@ -15674,6 +15734,12 @@
    ]
   },
   {
+   "text": "Select a pre-curated protection bundle from the Community Marketplace to install automatically.",
+   "where": [
+    "pages/SetupWizard.jsx"
+   ]
+  },
+  {
    "text": "Select all shown",
    "where": [
     "pages/BrokerPriority.jsx"
@@ -16518,7 +16584,8 @@
   {
    "text": "Skip for now",
    "where": [
-    "pages/Login.jsx"
+    "pages/Login.jsx",
+    "pages/SetupWizard.jsx"
    ]
   },
   {

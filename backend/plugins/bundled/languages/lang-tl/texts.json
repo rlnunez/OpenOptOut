@@ -3522,5 +3522,16 @@
   "Update": "I-update",
   "Update available": "Available ang update",
   "Update to {v}": "I-update sa {v}",
-  "View details": "Tingnan ang mga detalye"
+  "View details": "Tingnan ang mga detalye",
+  "already installed": "naka-install na",
+  "Failed to install protection bundle": "Nabigong i-install ang bundle ng proteksyon",
+  "Failed to load recommended protection bundles": "Nabigong i-load ang mga inirerekomendang bundle ng proteksyon",
+  "Install Selected Bundle": "I-install ang Napiling Bundle",
+  "Installing protections...": "Nag-i-install ng mga proteksyon...",
+  "Loading protection bundles...": "Naglo-load ng mga bundle ng proteksyon...",
+  "Protection Bundle": "Bundle ng Proteksyon",
+  "Protection bundle installed successfully! Advancing to next step...": "Matagumpay na na-install ang bundle ng proteksyon! Papunta sa susunod na hakbang...",
+  "protections included": "kasamang proteksyon",
+  "Recommended Protections": "Mga Inirerekomendang Proteksyon",
+  "Select a pre-curated protection bundle from the Community Marketplace to install automatically.": "Pumili ng pre-curated na bundle ng proteksyon mula sa Pamilihan ng Komunidad para awtomatikong i-install."
 }

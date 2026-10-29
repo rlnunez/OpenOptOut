@@ -9,6 +9,26 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ## [0.12.0] — 2026-10-28
 
+### Setup Wizard: Catalog Step & Recommended Protections Bundle (Roadmap Item 11)
+- **Wizard Recommended Protections Step (`backend/routers/wizard.py`, `frontend/src/pages/SetupWizard.jsx`):**
+  - **Curated Protection Bundles (`PROTECTION_BUNDLES`):** Defined pre-curated protection bundles covering high-impact opt-out workflows:
+    - *US High Priority (`bundle-us`)*: Essential protection against the highest-traffic US people-search engines and public records brokers (Whitepages, BeenVerified, Spokeo, Radaris, FastPeopleSearch, TruePeopleSearch, PeopleFinders, CyberBackgroundChecks, Nuwber, ThatsThem, CheckPeople, SmartBackgroundChecks).
+    - *EU / UK Privacy Focus (`bundle-gdpr`)*: Curated for European and UK residents, prioritizing global directories and automated legal removal letters (LocateFamily, Whitepages, Sync.ME, Truecaller, Lusha, RocketReach, Apollo, GDPR legal letter, UK-GDPR legal letter).
+    - *Protective Mode / Survivors (`bundle-high-risk`)*: Intensive coverage for domestic violence survivors, law enforcement, healthcare providers, and stalking targets (including CAPTCHA solving service integration).
+    - *Full Protection (`bundle-all-core`)*: Comprehensive defense installing all vetted broker specs, legal templates, and CAPTCHA solving integration.
+  - **Backend Endpoints:**
+    - `GET /api/wizard/bundles`: Returns available protection bundles, plugin counts, and local installation status.
+    - `POST /api/wizard/bundle/install`: Executes batch installation from the community catalog with SHA-256 integrity verification, automatically enables installed plugins to protect the operator immediately, and handles pre-installed plugins gracefully.
+    - `POST /api/wizard/catalog`: Records step completion status and chosen bundle metadata in wizard settings.
+    - `POST /api/wizard/skip`: Added `"catalog"` to valid skippable steps.
+  - **Frontend UI & Accessibility:**
+    - Embedded `<CatalogStep>` into both Express and Advanced wizard tracks between Email and AI Helpers.
+    - Implemented accessible WAI-ARIA selection cards with `role="radiogroup"`, `role="radio"`, `aria-checked`, keyboard navigation (Enter/Space), and high-contrast badges.
+    - Added 1-click batch installation with animated loading state, feedback alerts, and "Skip for now" option.
+    - Updated `<SummaryStep>` to record and display configured protection bundle status.
+  - **Unit Test Coverage:** Added `wizard.catalog_bundle_selection` test in `backend/tests/run_tests.py` validating bundle listing, direct saving, skipping, and validation rejection.
+  - **Universal Translation Coverage:** Added and translated 11 new UI phrases across all 17 bundled language packs (`backend/plugins/bundled/languages/lang-*/texts.json`).
+
 ### Community Marketplace & Plugin Distribution (Roadmap Item 8)
 - **Community Marketplace Core Client (`backend/plugins/catalog.py`, `backend/routers/plugins.py`):**
   - **Declarative Remote Catalog Ingestion:** Implemented `backend/plugins/catalog.py` resolving official catalog index from `https://rlnunez.github.io/openoptout-market/index.json` (overridable via `OPENOPTOUT_CATALOG_URL` or admin settings).

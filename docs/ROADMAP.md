@@ -13,7 +13,6 @@ The guiding architectural principle: **the core does not contain broker-specific
 
 | # | Item | Status | Priority / Target |
 |---|------|--------|-------------------|
-| [11](#item-11) | [Setup wizard: Catalog step & recommended protections bundle](#item-11) | Planned | Medium (Follows Item 8) |
 | [12](#item-12) | [School district authentication (Parent Portal SSO)](#item-12) | On-Demand | District Request Only |
 | [14](#item-14) | [Extended DNS-01 ACME challenge providers (AWS, DigitalOcean, deSEC)](#item-14) | Planned | Medium |
 | [22](#item-22) | [Independent security audit & penetration testing](#item-22) | Planned | High (Pre-1.0) |
@@ -27,15 +26,6 @@ The guiding architectural principle: **the core does not contain broker-specific
 ---
 
 ## Active & Upcoming Work Items
-
-<a id="item-11"></a>
-### 11. Setup wizard: Catalog step & recommended protections bundle
-**Goal:** Streamline initial installation onboarding by selecting pre-curated protection bundles (e.g., "US High Priority", "EU GDPR Focus", "Stalker & Harassment Protection").
-
-- Wizard Step 4 ("Recommended Protections") pulls the Tier 1 bundle from the catalog index.
-- 1-click batch installation and automated dependency resolution during first-run setup.
-
----
 
 <a id="item-12"></a>
 ### 12. School district authentication (Parent Portal SSO)

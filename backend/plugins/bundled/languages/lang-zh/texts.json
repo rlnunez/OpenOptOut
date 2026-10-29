@@ -3522,5 +3522,16 @@
   "Update": "更新",
   "Update available": "有可用更新",
   "Update to {v}": "更新至 {v}",
-  "View details": "查看详情"
+  "View details": "查看详情",
+  "already installed": "已安装",
+  "Failed to install protection bundle": "安装保护包失败",
+  "Failed to load recommended protection bundles": "加载推荐保护包失败",
+  "Install Selected Bundle": "安装所选保护包",
+  "Installing protections...": "正在安装保护...",
+  "Loading protection bundles...": "正在加载保护包...",
+  "Protection Bundle": "保护包",
+  "Protection bundle installed successfully! Advancing to next step...": "保护包安装成功！正在前往下一步...",
+  "protections included": "项包含的保护",
+  "Recommended Protections": "推荐保护",
+  "Select a pre-curated protection bundle from the Community Marketplace to install automatically.": "从社区应用市场选择预选的保护包以自动安装。"
 }

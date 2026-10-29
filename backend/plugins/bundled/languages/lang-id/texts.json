@@ -3521,5 +3521,16 @@
   "Update": "Perbarui",
   "Update available": "Pembaruan tersedia",
   "Update to {v}": "Perbarui ke {v}",
-  "View details": "Lihat detail"
+  "View details": "Lihat detail",
+  "already installed": "sudah terpasang",
+  "Failed to install protection bundle": "Gagal memasang bundel perlindungan",
+  "Failed to load recommended protection bundles": "Gagal memuat bundel perlindungan yang disarankan",
+  "Install Selected Bundle": "Pasang Bundel yang Dipilih",
+  "Installing protections...": "Memasang perlindungan...",
+  "Loading protection bundles...": "Memuat bundel perlindungan...",
+  "Protection Bundle": "Bundel Perlindungan",
+  "Protection bundle installed successfully! Advancing to next step...": "Bundel perlindungan berhasil dipasang! Melanjutkan ke langkah berikutnya...",
+  "protections included": "perlindungan disertakan",
+  "Recommended Protections": "Perlindungan yang Disarankan",
+  "Select a pre-curated protection bundle from the Community Marketplace to install automatically.": "Pilih bundel perlindungan yang telah dikurasi dari Pasar Komunitas untuk dipasang secara otomatis."
 }

@@ -3522,5 +3522,16 @@
   "Update": "Обновить",
   "Update available": "Доступно обновление",
   "Update to {v}": "Обновить до {v}",
-  "View details": "Подробнее"
+  "View details": "Подробнее",
+  "already installed": "уже установлено",
+  "Failed to install protection bundle": "Не удалось установить пакет защиты",
+  "Failed to load recommended protection bundles": "Не удалось загрузить рекомендованные пакеты защиты",
+  "Install Selected Bundle": "Установить выбранный пакет",
+  "Installing protections...": "Установка средств защиты...",
+  "Loading protection bundles...": "Загрузка пакетов защиты...",
+  "Protection Bundle": "Пакет защиты",
+  "Protection bundle installed successfully! Advancing to next step...": "Пакет защиты успешно установлен! Переход к следующему шагу...",
+  "protections included": "средств защиты включено",
+  "Recommended Protections": "Рекомендуемая защита",
+  "Select a pre-curated protection bundle from the Community Marketplace to install automatically.": "Выберите предварительно подобранный пакет защиты из каталога сообщества для автоматической установки."
 }

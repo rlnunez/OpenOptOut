@@ -2,15 +2,15 @@ import { useState, useRef, useEffect } from 'react'
 import {
   Database, Mail, Palette, CheckCircle2, AlertTriangle, ChevronRight,
   ChevronLeft, SkipForward, Server, Shield, Globe, Home, Copy, Check,
-  UploadCloud, X, Eye, EyeOff, Key, Sparkles, Sliders, Zap
+  UploadCloud, X, Eye, EyeOff, Key, Sparkles, Sliders, Zap, Package, Download
 } from 'lucide-react'
 import api from '../api'
 import { tx, txr } from '../i18n/tx'
 import { SecretKeyGeneratorPanel } from '../components/SecretKeyBanner'
 import { detailText } from '../errorMessage'
 
-const EXPRESS_STEPS = ['security', 'database', 'deployment', 'email', 'ai', 'summary']
-const ADVANCED_STEPS = ['security', 'database', 'deployment', 'email', 'ai', 'branding', 'summary']
+const EXPRESS_STEPS = ['security', 'database', 'deployment', 'email', 'catalog', 'ai', 'summary']
+const ADVANCED_STEPS = ['security', 'database', 'deployment', 'email', 'catalog', 'ai', 'branding', 'summary']
 
 export default function SetupWizard({ onDone }) {
   const [mode, setMode] = useState('express') // 'express' | 'advanced'
@@ -178,6 +178,15 @@ export default function SetupWizard({ onDone }) {
                 />
               )}
               {step === 4 && (
+                <CatalogStep
+                  onNext={next}
+                  onBack={back}
+                  onSkip={async () => { await skip('catalog'); next() }}
+                  busy={busy}
+                  setError={setError}
+                />
+              )}
+              {step === 5 && (
                 <AIStep
                   onNext={finish}
                   onBack={back}
@@ -186,7 +195,7 @@ export default function SetupWizard({ onDone }) {
                   isLastStep={true}
                 />
               )}
-              {step === 5 && <SummaryStep summary={summary} onDone={onDone} />}
+              {step === 6 && <SummaryStep summary={summary} onDone={onDone} />}
             </>
           ) : (
             <>
@@ -222,6 +231,15 @@ export default function SetupWizard({ onDone }) {
                 />
               )}
               {step === 4 && (
+                <CatalogStep
+                  onNext={next}
+                  onBack={back}
+                  onSkip={async () => { await skip('catalog'); next() }}
+                  busy={busy}
+                  setError={setError}
+                />
+              )}
+              {step === 5 && (
                 <AIStep
                   onNext={next}
                   onBack={back}
@@ -230,7 +248,7 @@ export default function SetupWizard({ onDone }) {
                   isLastStep={false}
                 />
               )}
-              {step === 5 && (
+              {step === 6 && (
                 <BrandingStep
                   onNext={finish}
                   onSkip={async () => { await skip('branding'); finish() }}
@@ -239,7 +257,7 @@ export default function SetupWizard({ onDone }) {
                   setError={setError}
                 />
               )}
-              {step === 6 && <SummaryStep summary={summary} onDone={onDone} />}
+              {step === 7 && <SummaryStep summary={summary} onDone={onDone} />}
             </>
           )}
         </div>
@@ -1190,6 +1208,168 @@ function DeploymentStep({ onNext, onBack, busy, setError }) {
   )
 }
 
+// ── Step: Recommended Protections Bundle (Catalog) ───────────────────────────
+function CatalogStep({ onNext, onBack, onSkip, busy, setError }) {
+  const [bundles, setBundles] = useState([])
+  const [selectedBundleId, setSelectedBundleId] = useState('bundle-us')
+  const [loading, setLoading] = useState(true)
+  const [installing, setInstalling] = useState(false)
+  const [installResult, setInstallResult] = useState(null)
+
+  useEffect(() => {
+    api.get('/wizard/bundles')
+      .then(r => {
+        if (r.data?.bundles) {
+          setBundles(r.data.bundles)
+          const rec = r.data.bundles.find(b => b.recommended)
+          if (rec) setSelectedBundleId(rec.id)
+        }
+      })
+      .catch(e => {
+        setError(detailText(e) || tx("Failed to load recommended protection bundles"))
+      })
+      .finally(() => setLoading(false))
+  }, [setError])
+
+  const handleInstall = async () => {
+    setInstalling(true)
+    setError('')
+    setInstallResult(null)
+    try {
+      const res = await api.post('/wizard/bundle/install', { bundle_id: selectedBundleId })
+      setInstallResult(res.data)
+      setTimeout(() => {
+        onNext()
+      }, 1200)
+    } catch (e) {
+      setError(detailText(e) || tx("Failed to install protection bundle"))
+      setInstalling(false)
+    }
+  }
+
+  const selectedBundle = bundles.find(b => b.id === selectedBundleId)
+
+  return (
+    <div>
+      <StepHeader
+        icon={Package}
+        title={tx("Recommended Protections")}
+        subtitle={tx("Select a pre-curated protection bundle from the Community Marketplace to install automatically.")}
+      />
+
+      {loading ? (
+        <div className="py-8 text-center text-slate-400 text-sm">
+          {tx("Loading protection bundles...")}
+        </div>
+      ) : (
+        <div className="space-y-3 mb-6" role="radiogroup" aria-label={tx("Recommended Protections")}>
+          {bundles.map(b => {
+            const isSelected = b.id === selectedBundleId
+            return (
+              <div
+                key={b.id}
+                onClick={() => setSelectedBundleId(b.id)}
+                onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setSelectedBundleId(b.id) } }}
+                role="radio"
+                aria-checked={isSelected}
+                tabIndex={0}
+                className={`p-4 rounded-xl border cursor-pointer transition-all focus:outline-hidden focus:ring-2 focus:ring-shield-500 ${
+                  isSelected
+                    ? 'border-shield-500 bg-shield-950/20 shadow-md'
+                    : 'border-slate-800 bg-slate-900/50 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                      isSelected ? 'border-shield-500 bg-shield-600' : 'border-slate-600'
+                    }`}>
+                      {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-white text-sm font-medium">{b.name}</span>
+                        {b.badge && (
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                            b.recommended
+                              ? 'bg-shield-500/20 text-shield-300 border border-shield-500/30'
+                              : 'bg-slate-800 text-slate-300 border border-slate-700'
+                          }`}>
+                            {b.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-slate-400 text-xs mt-1">{b.description}</p>
+                      <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
+                        <span>{b.plugin_count} {tx("protections included")}</span>
+                        {b.installed_count > 0 && (
+                          <span className="text-emerald-400 font-medium">
+                            • {b.installed_count} {tx("already installed")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {installResult && (
+        <div className="mb-4 px-3 py-2 rounded-lg border border-emerald-800 bg-emerald-950/30 text-emerald-300 text-xs flex items-center gap-2">
+          <CheckCircle2 size={14} className="shrink-0" />
+          <span>
+            {tx("Protection bundle installed successfully! Advancing to next step...")}
+          </span>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={busy || installing}
+          className="flex items-center gap-1 text-slate-400 hover:text-slate-200 text-xs py-2 px-3 rounded-lg disabled:opacity-50"
+        >
+          <ChevronLeft size={14} /> {tx("Back")}
+        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onSkip}
+            disabled={busy || installing}
+            className="flex items-center gap-1 text-slate-400 hover:text-slate-200 text-xs py-2 px-3 rounded-lg disabled:opacity-50"
+          >
+            <SkipForward size={14} /> {tx("Skip for now")}
+          </button>
+          <button
+            type="button"
+            onClick={handleInstall}
+            disabled={busy || installing || loading || !selectedBundle}
+            className="flex items-center gap-1.5 bg-shield-600 hover:bg-shield-700 text-white text-xs font-medium py-2 px-4 rounded-lg shadow-xs transition-colors disabled:opacity-50"
+          >
+            {installing ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>{tx("Installing protections...")}</span>
+              </>
+            ) : (
+              <>
+                <Download size={14} />
+                <span>{tx("Install Selected Bundle")}</span>
+                <ChevronRight size={14} />
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Step: AI Helpers Connection ──────────────────────────────────────────────
 function AIStep({ onNext, onBack, busy, setError, isLastStep }) {
   const [provider, setProvider] = useState('none') // 'none' | 'claude' | 'openai' | 'antigravity' | 'local'
@@ -1699,9 +1879,11 @@ function SummaryStep({ summary, onDone }) {
             {tx("✓ 0600 file secured")}
           </span>
         </div>
-        {['database', 'deployment', 'email', 'ai', 'branding'].map(s => (
+        {['database', 'deployment', 'email', 'catalog', 'ai', 'branding'].map(s => (
           <div key={s} className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50">
-            <span className="text-slate-300 text-sm capitalize">{s === 'ai' ? tx("AI Helper") : s}</span>
+            <span className="text-slate-300 text-sm capitalize">
+              {s === 'ai' ? tx("AI Helper") : s === 'catalog' ? tx("Protection Bundle") : s}
+            </span>
             <span className={`text-xs ${steps[s] === 'done' ? 'text-emerald-400' : 'text-slate-500'}`}>
               {steps[s] === 'done' ? tx("✓ configured") : tx("skipped")}
             </span>

@@ -6534,8 +6534,12 @@ def t_safe_filename_fragment():
     # not reconstruct their own ad-hoc sanitization (the exact bug this fixes
     # — the old code only stripped '.' and ' ', never '/').
     for mod_name, needle in (("core.optout_engine", "screenshot_path = f"), ("core.discovery", 'f"{SCREENSHOTS_DIR}')):
-        mod = _imp(mod_name)
-        with open(mod.__file__, encoding="utf-8") as f:
+        try:
+            mod = _imp(mod_name)
+            file_path = mod.__file__
+        except ImportError:
+            file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), *mod_name.split(".")) + ".py"
+        with open(file_path, encoding="utf-8") as f:
             src = f.read()
         idx = src.index(needle)
         window = src[max(0, idx - 400):idx + 200]
@@ -11426,6 +11430,58 @@ def t_wizard_express_mode():
         # Master key endpoint returns key and status
         key_data = wiz.get_master_key(user=admin)
         assert "key" in key_data and "status" in key_data
+    finally:
+        wiz._load, wiz._save = orig_load, orig_save
+
+
+@test(2, "wizard.catalog_bundle_selection",
+      "The wizard's catalog step lists curated protection bundles, installs selected bundles, "
+      "persists state, and supports skipping cleanly.")
+def t_wizard_catalog_bundle():
+    from types import SimpleNamespace as NS
+    try:
+        wiz = _imp("routers.wizard")
+        from fastapi import HTTPException
+    except ImportError as e:
+        raise Skip(f"needs full backend deps / package layout: {e}")
+
+    import copy
+    store = {}
+    orig_load, orig_save = wiz._load, wiz._save
+    wiz._load = lambda: copy.deepcopy(store)
+    def fake_save(data):
+        store.clear(); store.update(data)
+    wiz._save = fake_save
+    admin = NS(is_super_admin=True)
+
+    try:
+        # 1. Bundles list returns pre-curated definitions
+        bundles_resp = wiz.list_protection_bundles(db=None, user=admin)
+        assert "bundles" in bundles_resp
+        bundles = bundles_resp["bundles"]
+        assert len(bundles) >= 4
+        b_ids = [b["id"] for b in bundles]
+        assert "bundle-us" in b_ids
+        assert "bundle-gdpr" in b_ids
+        assert "bundle-high-risk" in b_ids
+        assert "bundle-all-core" in b_ids
+
+        # 2. Saving catalog step directly
+        wiz.save_catalog_step(wiz.CatalogStep(bundle_id="bundle-us", installed_count=12), user=admin)
+        assert store["wizard"]["steps"]["catalog"] == "done"
+        assert store["wizard"]["catalog"]["bundle_id"] == "bundle-us"
+        assert store["wizard"]["catalog"]["installed_count"] == 12
+
+        # 3. Skipping catalog step works
+        wiz.skip_step(wiz.SkipStep(step="catalog"), db=None, user=admin)
+        assert store["wizard"]["steps"]["catalog"] == "skipped"
+
+        # 4. Invalid bundle install rejection
+        try:
+            wiz.install_bundle(wiz.BundleInstallStep(bundle_id="non-existent-bundle"), db=None, user=admin)
+            raise AssertionError("invalid bundle_id accepted")
+        except HTTPException as e:
+            assert e.status_code == 400
     finally:
         wiz._load, wiz._save = orig_load, orig_save
 

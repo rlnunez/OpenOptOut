@@ -3522,5 +3522,16 @@
   "Update": "تحديث",
   "Update available": "يتوفر تحديث",
   "Update to {v}": "تحديث إلى {v}",
-  "View details": "عرض التفاصيل"
+  "View details": "عرض التفاصيل",
+  "already installed": "مثبت بالفعل",
+  "Failed to install protection bundle": "فشل تثبيت حزمة الحماية",
+  "Failed to load recommended protection bundles": "فشل تحميل حزم الحماية الموصى بها",
+  "Install Selected Bundle": "تثبيت الحزمة المحددة",
+  "Installing protections...": "جارٍ تثبيت الحماية...",
+  "Loading protection bundles...": "جارٍ تحميل حزم الحماية...",
+  "Protection Bundle": "حزمة الحماية",
+  "Protection bundle installed successfully! Advancing to next step...": "تم تثبيت حزمة الحماية بنجاح! الانتقال إلى الخطوة التالية...",
+  "protections included": "حماية متضمنة",
+  "Recommended Protections": "الحماية الموصى بها",
+  "Select a pre-curated protection bundle from the Community Marketplace to install automatically.": "حدد حزمة حماية منسقة مسبقاً من سوق المجتمع لتثبيتها تلقائياً."
 }

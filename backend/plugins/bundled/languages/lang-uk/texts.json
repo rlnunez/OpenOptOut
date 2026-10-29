@@ -3520,5 +3520,16 @@
   "Update": "Оновити",
   "Update available": "Доступне оновлення",
   "Update to {v}": "Оновити до {v}",
-  "View details": "Детальніше"
+  "View details": "Детальніше",
+  "already installed": "вже встановлено",
+  "Failed to install protection bundle": "Не вдалося встановити пакет захисту",
+  "Failed to load recommended protection bundles": "Не вдалося завантажити рекомендовані пакети захисту",
+  "Install Selected Bundle": "Встановити вибраний пакет",
+  "Installing protections...": "Встановлення засобів захисту...",
+  "Loading protection bundles...": "Завантаження пакетів захисту...",
+  "Protection Bundle": "Пакет захисту",
+  "Protection bundle installed successfully! Advancing to next step...": "Пакет захисту успішно встановлено! Перехід до наступного кроку...",
+  "protections included": "засобів захисту включено",
+  "Recommended Protections": "Рекомендований захист",
+  "Select a pre-curated protection bundle from the Community Marketplace to install automatically.": "Виберіть попередньо підібраний пакет захисту з каталогу спільноти для автоматичного встановлення."
 }

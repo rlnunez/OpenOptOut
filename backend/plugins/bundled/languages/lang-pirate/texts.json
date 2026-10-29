@@ -3522,5 +3522,16 @@
   "Update": "Overhaul",
   "Update available": "Fresh trim available",
   "Update to {v}": "Overhaul to {v}",
-  "View details": "Cast Yer Eyes"
+  "View details": "Cast Yer Eyes",
+  "already installed": "already in yer hold",
+  "Failed to install protection bundle": "Failed to hoist protection bundle aboard",
+  "Failed to load recommended protection bundles": "Failed to fetch the recommended protection caches",
+  "Install Selected Bundle": "Hoist Selected Bundle",
+  "Installing protections...": "Rigging protections...",
+  "Loading protection bundles...": "Scouting protection bundles...",
+  "Protection Bundle": "Protection Bundle",
+  "Protection bundle installed successfully! Advancing to next step...": "Protection bundle hoisted tight! Sailing to the next port...",
+  "protections included": "protections in the hold",
+  "Recommended Protections": "Captain's Recommended Protections",
+  "Select a pre-curated protection bundle from the Community Marketplace to install automatically.": "Pick a pre-stowed protection bundle from the Community Bazaar to rig automatically."
 }

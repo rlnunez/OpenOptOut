@@ -3522,5 +3522,16 @@
   "Update": "업데이트",
   "Update available": "업데이트 가능",
   "Update to {v}": "{v}(으)로 업데이트",
-  "View details": "세부정보 보기"
+  "View details": "세부정보 보기",
+  "already installed": "이미 설치됨",
+  "Failed to install protection bundle": "보호 번들 설치 실패",
+  "Failed to load recommended protection bundles": "추천 보호 번들 로드 실패",
+  "Install Selected Bundle": "선택한 번들 설치",
+  "Installing protections...": "보호 항목 설치 중...",
+  "Loading protection bundles...": "보호 번들 로드 중...",
+  "Protection Bundle": "보호 번들",
+  "Protection bundle installed successfully! Advancing to next step...": "보호 번들이 성공적으로 설치되었습니다! 다음 단계로 진행 중...",
+  "protections included": "개 보호 포함",
+  "Recommended Protections": "권장 보호 조치",
+  "Select a pre-curated protection bundle from the Community Marketplace to install automatically.": "자동으로 설치하려면 커뮤니티 마켓플레이스에서 미리 선별된 보호 번들을 선택하세요."
 }

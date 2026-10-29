@@ -135,6 +135,7 @@ def get_state(db: Session = Depends(get_db), user: User = Depends(get_current_us
             "active_key_length": sec_status.get("active_key_length", 0),
             "file_path": sec_status.get("file_path", ""),
         },
+        "catalog": wiz.get("catalog", {}),
     }
 
 
@@ -505,7 +506,219 @@ def save_deployment(body: DeploymentStep, db: Session = Depends(get_db),
     return {"ok": True}
 
 
-# ── Step 4: AI Helpers (Optional) ─────────────────────────────────────────────
+# ── Step 4: Recommended Protections Bundle (Catalog) ──────────────────────────
+
+PROTECTION_BUNDLES = [
+    {
+        "id": "bundle-us",
+        "name": "US High Priority",
+        "badge": "Recommended",
+        "description": "Essential protection against the highest-traffic US people-search engines and public records brokers.",
+        "recommended": True,
+        "plugin_ids": [
+            "whitepages", "beenverified", "spokeo", "radaris",
+            "fastpeoplesearch", "truepeoplesearch", "peoplefinders",
+            "cyberbackgroundchecks", "nuwber", "thatsthem",
+            "checkpeople", "smartbackgroundchecks"
+        ]
+    },
+    {
+        "id": "bundle-gdpr",
+        "name": "EU / UK Privacy Focus",
+        "badge": "GDPR / UK-GDPR",
+        "description": "Curated for European and UK residents, prioritizing global directories and automated legal removal letters.",
+        "recommended": False,
+        "plugin_ids": [
+            "locatefamily", "whitepages", "syncme", "truecaller",
+            "lusha", "rocketreach", "apollo", "letter-gdpr", "letter-uk-gdpr"
+        ]
+    },
+    {
+        "id": "bundle-high-risk",
+        "name": "Protective Mode (High-Risk & Survivors)",
+        "badge": "Maximum Coverage",
+        "description": "Intensive coverage for domestic violence survivors, law enforcement, healthcare providers, and stalking targets.",
+        "recommended": False,
+        "plugin_ids": [
+            "beenverified", "radaris", "peoplefinders", "fastpeoplesearch",
+            "truepeoplesearch", "cyberbackgroundchecks", "instantcheckmate",
+            "truthfinder", "peekyou", "familytreenow", "smartbackgroundchecks",
+            "unmask", "captcha-solving-service"
+        ]
+    },
+    {
+        "id": "bundle-all-core",
+        "name": "Full Protection (All Core Plugins)",
+        "badge": "Comprehensive",
+        "description": "Complete defense installing all vetted broker specs, legal templates, and CAPTCHA solving integration.",
+        "recommended": False,
+        "plugin_ids": []
+    }
+]
+
+
+class BundleInstallStep(LimitedModel):
+    bundle_id: Optional[str] = None
+    plugin_ids: Optional[List[str]] = None
+
+
+class CatalogStep(LimitedModel):
+    bundle_id: Optional[str] = None
+    installed_count: Optional[int] = 0
+
+
+@router.get("/bundles")
+def list_protection_bundles(db: Session = Depends(get_db),
+                            user: User = Depends(get_current_user)):
+    """Return pre-curated protection bundles and installed status."""
+    _admin(user)
+    installed_ids = set()
+    try:
+        from ..models.database import InstalledPlugin
+        if db is not None and InstalledPlugin is not None:
+            rows = db.query(InstalledPlugin.plugin_id).all()
+            installed_ids = {r[0] for r in rows}
+    except Exception:
+        pass
+
+    try:
+        from ..plugins import layout
+        for p in layout.bundled_plugins():
+            installed_ids.add(p.id)
+    except Exception:
+        pass
+
+    bundles_out = []
+    for b in PROTECTION_BUNDLES:
+        p_ids = b["plugin_ids"]
+        installed_in_bundle = [pid for pid in p_ids if pid in installed_ids]
+        bundles_out.append({
+            "id": b["id"],
+            "name": b["name"],
+            "badge": b.get("badge", ""),
+            "description": b["description"],
+            "recommended": b.get("recommended", False),
+            "plugin_ids": p_ids,
+            "plugin_count": len(p_ids) if p_ids else 80,
+            "installed_count": len(installed_in_bundle),
+        })
+
+    return {
+        "bundles": bundles_out,
+        "installed_total": len(installed_ids),
+    }
+
+
+@router.post("/bundle/install")
+def install_bundle(body: BundleInstallStep,
+                   db: Session = Depends(get_db),
+                   user: User = Depends(get_current_user)):
+    """
+    Install a curated protection bundle or specific list of plugins from the community catalog.
+    Handles existing plugins gracefully and reports progress per plugin.
+    """
+    _admin(user)
+    from ..plugins import catalog
+
+    target_ids = []
+    if body.bundle_id:
+        bundle = next((b for b in PROTECTION_BUNDLES if b["id"] == body.bundle_id), None)
+        if not bundle:
+            raise HTTPException(400, f"Unknown bundle ID: {body.bundle_id}")
+        target_ids = list(bundle["plugin_ids"])
+        if not target_ids and body.bundle_id == "bundle-all-core":
+            try:
+                cat = catalog.get_catalog(db=db)
+                target_ids = [p["id"] for p in cat.get("plugins", []) if p.get("type") in ("brokers", "captcha", "letters")]
+            except Exception:
+                target_ids = []
+    elif body.plugin_ids:
+        target_ids = [pid.strip() for pid in body.plugin_ids if pid.strip()]
+
+    if not target_ids:
+        _mark_step("catalog", "done")
+        return {"ok": True, "installed": [], "already_installed": [], "failed": [], "total": 0}
+
+    installed = []
+    already_installed = []
+    failed = []
+
+    installed_ids = set()
+    try:
+        from ..models.database import InstalledPlugin
+        if db is not None and InstalledPlugin is not None:
+            rows = db.query(InstalledPlugin.plugin_id).all()
+            installed_ids = {r[0] for r in rows}
+    except Exception:
+        pass
+
+    for pid in target_ids:
+        if pid in installed_ids:
+            already_installed.append(pid)
+            continue
+        try:
+            res = catalog.install_from_catalog(pid, db=db, current_user=user)
+            if res.get("success"):
+                installed.append(pid)
+                installed_ids.add(pid)
+            else:
+                failed.append({"plugin_id": pid, "error": res.get("message", "Installation failed")})
+        except catalog.CatalogError as ce:
+            if "already installed" in str(ce).lower():
+                already_installed.append(pid)
+                installed_ids.add(pid)
+            else:
+                failed.append({"plugin_id": pid, "error": str(ce)})
+        except Exception as e:
+            failed.append({"plugin_id": pid, "error": str(e)})
+
+    # Auto-enable installed/existing plugins in bundle so they protect the operator immediately
+    try:
+        from ..models.database import InstalledPlugin
+        if db is not None and InstalledPlugin is not None:
+            all_active = installed + already_installed
+            if all_active:
+                db.query(InstalledPlugin).filter(
+                    InstalledPlugin.plugin_id.in_(all_active)
+                ).update({"enabled": True, "status": "running"}, synchronize_session=False)
+                db.commit()
+    except Exception as e:
+        logger.warning("Could not auto-enable bundle plugins: %s", e)
+
+    s = _load()
+    wiz = _wizard_state(s)
+    wiz.setdefault("catalog", {})["bundle_id"] = body.bundle_id or "custom"
+    wiz["catalog"]["installed_count"] = len(installed) + len(already_installed)
+    s["wizard"] = wiz
+    _save(s)
+    _mark_step("catalog", "done")
+
+    return {
+        "ok": True,
+        "bundle_id": body.bundle_id,
+        "installed": installed,
+        "already_installed": already_installed,
+        "failed": failed,
+        "total": len(target_ids),
+    }
+
+
+@router.post("/catalog")
+def save_catalog_step(body: CatalogStep,
+                      user: User = Depends(get_current_user)):
+    """Save catalog step completion status."""
+    _admin(user)
+    s = _load()
+    wiz = _wizard_state(s)
+    wiz.setdefault("catalog", {})["bundle_id"] = body.bundle_id or "custom"
+    wiz["catalog"]["installed_count"] = body.installed_count or 0
+    s["wizard"] = wiz
+    _save(s)
+    _mark_step("catalog", "done")
+    return {"ok": True}
+
+
+# ── Step 5: AI Helpers (Optional) ─────────────────────────────────────────────
 
 class AIStep(LimitedModel):
     provider: Optional[str] = "none"  # "none" | "claude" | "openai" | "antigravity" | "local"
@@ -619,7 +832,7 @@ def skip_step(body: SkipStep, db: Session = Depends(get_db),
               user: User = Depends(get_current_user)):
     """Record that a step was skipped."""
     _admin(user)
-    if body.step not in ("security", "database", "email", "deployment", "branding", "ai"):
+    if body.step not in ("security", "database", "email", "deployment", "branding", "ai", "catalog"):
         raise HTTPException(400, "unknown step")
     _mark_step(body.step, "skipped")
     return {"ok": True, "skipped": body.step}

@@ -3522,5 +3522,16 @@
   "Update": "Atualizar",
   "Update available": "Atualização disponível",
   "Update to {v}": "Atualizar para {v}",
-  "View details": "Ver detalhes"
+  "View details": "Ver detalhes",
+  "already installed": "já instalado",
+  "Failed to install protection bundle": "Falha ao instalar o pacote de proteção",
+  "Failed to load recommended protection bundles": "Falha ao carregar os pacotes de proteção recomendados",
+  "Install Selected Bundle": "Instalar Pacote Selecionado",
+  "Installing protections...": "Instalando proteções...",
+  "Loading protection bundles...": "Carregando pacotes de proteção...",
+  "Protection Bundle": "Pacote de Proteção",
+  "Protection bundle installed successfully! Advancing to next step...": "Pacote de proteção instalado com sucesso! Avançando para a próxima etapa...",
+  "protections included": "proteções incluídas",
+  "Recommended Protections": "Proteções Recomendadas",
+  "Select a pre-curated protection bundle from the Community Marketplace to install automatically.": "Selecione um pacote de proteção pré-selecionado do Marketplace da Comunidade para instalar automaticamente."
 }

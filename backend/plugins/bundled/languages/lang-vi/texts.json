@@ -3522,5 +3522,16 @@
   "Update": "Cập nhật",
   "Update available": "Có bản cập nhật",
   "Update to {v}": "Cập nhật lên {v}",
-  "View details": "Xem chi tiết"
+  "View details": "Xem chi tiết",
+  "already installed": "đã được cài đặt",
+  "Failed to install protection bundle": "Không thể cài đặt gói bảo vệ",
+  "Failed to load recommended protection bundles": "Không thể tải các gói bảo vệ được đề xuất",
+  "Install Selected Bundle": "Cài đặt gói đã chọn",
+  "Installing protections...": "Đang cài đặt các biện pháp bảo vệ...",
+  "Loading protection bundles...": "Đang tải các gói bảo vệ...",
+  "Protection Bundle": "Gói bảo vệ",
+  "Protection bundle installed successfully! Advancing to next step...": "Đã cài đặt thành công gói bảo vệ! Đang chuyển sang bước tiếp theo...",
+  "protections included": "biện pháp bảo vệ đi kèm",
+  "Recommended Protections": "Bảo vệ được đề xuất",
+  "Select a pre-curated protection bundle from the Community Marketplace to install automatically.": "Chọn gói bảo vệ được tuyển chọn sẵn từ Thị trường cộng đồng để cài đặt tự động."
 }

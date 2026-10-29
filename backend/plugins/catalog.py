@@ -130,7 +130,7 @@ def fetch_remote_catalog(url: str, etag: Optional[str] = None) -> Tuple[Optional
 
 
 def get_catalog(
-    db: Optional[Session] = None,
+    db: Optional[Any] = None,
     force_refresh: bool = False,
     search: Optional[str] = None,
     category: Optional[str] = None

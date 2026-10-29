@@ -3520,5 +3520,16 @@
   "Update": "Sasisha",
   "Update available": "Sasisho linapatikana",
   "Update to {v}": "Sasisha hadi {v}",
-  "View details": "Angalia maelezo"
+  "View details": "Angalia maelezo",
+  "already installed": "tayari imewekwa",
+  "Failed to install protection bundle": "Imeshindwa kusakinisha kifurushi cha ulinzi",
+  "Failed to load recommended protection bundles": "Imeshindwa kupakia vifurushi vinavyopendekezwa vya ulinzi",
+  "Install Selected Bundle": "Sakinisha Kifurushi Kilichochaguliwa",
+  "Installing protections...": "Inasakinisha ulinzi...",
+  "Loading protection bundles...": "Inapakia vifurushi vya ulinzi...",
+  "Protection Bundle": "Kifurushi cha Ulinzi",
+  "Protection bundle installed successfully! Advancing to next step...": "Kifurushi cha ulinzi kimesakinishwa kwa mafanikio! Kuendelea na hatua inayofuata...",
+  "protections included": "ulinzi umejumuishwa",
+  "Recommended Protections": "Ulinzi Unaopendekezwa",
+  "Select a pre-curated protection bundle from the Community Marketplace to install automatically.": "Chagua kifurushi cha ulinzi kilichoandaliwa kutoka Soko la Jamii ili kusakinisha kiotomatiki."
 }

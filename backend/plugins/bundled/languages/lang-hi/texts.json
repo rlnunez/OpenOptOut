@@ -3522,5 +3522,16 @@
   "Update": "अपडेट करें",
   "Update available": "अपडेट उपलब्ध है",
   "Update to {v}": "{v} पर अपडेट करें",
-  "View details": "विवरण देखें"
+  "View details": "विवरण देखें",
+  "already installed": "पहले से स्थापित",
+  "Failed to install protection bundle": "सुरक्षा बंडल स्थापित करने में विफल",
+  "Failed to load recommended protection bundles": "अनुशंसित सुरक्षा बंडल लोड करने में विफल",
+  "Install Selected Bundle": "चयनित बंडल स्थापित करें",
+  "Installing protections...": "सुरक्षा स्थापित की जा रही है...",
+  "Loading protection bundles...": "सुरक्षा बंडल लोड हो रहे हैं...",
+  "Protection Bundle": "सुरक्षा बंडल",
+  "Protection bundle installed successfully! Advancing to next step...": "सुरक्षा बंडल सफलतापूर्वक स्थापित! अगले चरण पर आगे बढ़ रहे हैं...",
+  "protections included": "सुरक्षा शामिल",
+  "Recommended Protections": "अनुशंसित सुरक्षा",
+  "Select a pre-curated protection bundle from the Community Marketplace to install automatically.": "स्वचालित रूप से स्थापित करने के लिए सामुदायिक बाज़ार से पूर्व-क्युरेट किया गया सुरक्षा बंडल चुनें।"
 }
