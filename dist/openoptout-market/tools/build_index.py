@@ -126,3 +126,4 @@ def build_catalog(plugins_path: str = "plugins.json", out_path: str = "index.jso
 
 if __name__ == "__main__":
     build_catalog()
+

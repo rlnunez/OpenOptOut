@@ -6,7 +6,7 @@ This repository hosts the official declarative registry (`plugins.json`) and aut
 
 ---
 
-## 🌐 How It Works
+## How It Works
 
 1. **Decentralized Hosting:** Plugin authors host and maintain plugins in their own GitHub repositories.
 2. **Automated Release Tracking:** When authors publish a tagged GitHub release (e.g., `v1.1.0`), this repository automatically indexes the release, computes SHA-256 integrity checksums, and updates `index.json`.
@@ -14,7 +14,7 @@ This repository hosts the official declarative registry (`plugins.json`) and aut
 
 ---
 
-## 🚀 How to Submit a Plugin
+## How to Submit a Plugin
 
 Submitting a plugin is a **one-time process**. Once your repository is registered in `plugins.json`, all future releases and updates are synced automatically without requiring new pull requests!
 
@@ -50,7 +50,7 @@ Author your plugin according to OpenOptOut's declarative standards. We recommend
 
 ---
 
-## 🔄 How to Push Updates
+## How to Push Updates
 
 **You do NOT need to open a new PR to push updates!**
 
@@ -62,7 +62,7 @@ Whenever you update your selectors, repair a flow, or add features:
 
 ---
 
-## 📂 Categories
+## Categories
 
 | Category | Description |
 |---|---|
@@ -74,7 +74,7 @@ Whenever you update your selectors, repair a flow, or add features:
 
 ---
 
-## 🛡️ Security & Quality Guidelines
+## Security & Quality Guidelines
 
 All community plugins must adhere to OpenOptOut's core security invariants:
 - **Declarative Only:** Broker plugins must be pure JSON specs (`spec.json`). Executable Python/Bash scripts are prohibited in broker add-on paths.
@@ -83,6 +83,7 @@ All community plugins must adhere to OpenOptOut's core security invariants:
 
 ---
 
-## 📜 License
+## License
 
 The marketplace registry, submission tools, and catalog index are licensed under the [MIT License](LICENSE). Individual plugins retain their authors' declared open-source licenses.
+

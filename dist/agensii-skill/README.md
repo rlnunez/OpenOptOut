@@ -9,7 +9,7 @@
 
 ---
 
-## 📸 Agent in Action
+## Agent in Action
 
 Here is what it looks like when an AI agent runs with the skill loaded:
 
@@ -17,7 +17,7 @@ Here is what it looks like when an AI agent runs with the skill loaded:
 
 ---
 
-## 🏛️ Pipeline & Compliance Architecture
+## Pipeline & Compliance Architecture
 
 The skill enforces safety firewalls at every stage of plugin synthesis:
 
@@ -25,7 +25,7 @@ The skill enforces safety firewalls at every stage of plugin synthesis:
 
 ---
 
-## 🎯 What This Skill Does
+## What This Skill Does
 
 Data brokers and people-search sites store personal details about families, children, and individuals. Writing automated web removal scripts typically leads to two severe failure modes:
 1. **Security & Privacy Violations:** Scripts handling real personal data, leaking PII in logs, attempting to bypass legal barriers, or storing sensitive identity credentials.
@@ -41,7 +41,7 @@ This skill equips AI coding agents with a **declarative, sandboxed methodology**
 
 ---
 
-## 🚀 Quick Install
+## Quick Install
 
 ### 1. Claude Code
 Install to your user profile:
@@ -68,7 +68,7 @@ cp SKILL.md .agents/skills/broker-plugin/SKILL.md
 
 ---
 
-## 💬 Example Agent Prompts
+## Example Agent Prompts
 
 Once installed, your AI agent automatically activates the skill whenever you ask:
 
@@ -79,7 +79,7 @@ Once installed, your AI agent automatically activates the skill whenever you ask
 
 ---
 
-## 🛠️ Standalone Validator CLI
+## Standalone Validator CLI
 
 Included in `tools/validate.py` is a zero-dependency Python validator that verifies plugin integrity, requirement synchronization, and safety invariants:
 
@@ -99,7 +99,7 @@ Checks performed:
 
 ---
 
-## 📁 Package Contents
+## Package Contents
 
 ```text
 dist/agensii-skill/
@@ -118,7 +118,7 @@ dist/agensii-skill/
 
 ---
 
-## 📜 Origin & Upstream
+## Origin & Upstream
 
 This skill was designed for [OpenOptOut](https://github.com/rlnunez/OpenOptOut), the self-hosted privacy tool for removing family data from broker databases. It is open-sourced under the MIT license to empower any developer or AI agent to build resilient, privacy-preserving automation.
 
