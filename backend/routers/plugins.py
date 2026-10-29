@@ -817,3 +817,85 @@ def plugin_doc(doc: str, _: User = Depends(require_permission("plugins.view"))):
     except Exception:
         raise HTTPException(500, "Could not read plugin doc.")
     return {"doc": doc, "filename": fname, "markdown": content}
+
+
+# ── Catalog / Marketplace Endpoints ──────────────────────────────────────────
+
+class CatalogActionRequest(LimitedModel):
+    plugin_id: str = Field(..., max_length=120, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+@router.get("/catalog")
+def get_catalog_listing(
+    category: Optional[str] = None,
+    search: Optional[str] = None,
+    force_refresh: bool = False,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_permission("plugins.view")),
+):
+    """
+    Query community catalog marketplace index with installation status,
+    update flags, and category filters.
+    """
+    from ..plugins.catalog import get_catalog
+    return get_catalog(db=db, force_refresh=force_refresh, search=search, category=category)
+
+
+@router.post("/catalog/refresh")
+def refresh_catalog_cache(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_super_admin),
+):
+    """Force an immediate refresh of the catalog index from the remote repository."""
+    from ..plugins.catalog import get_catalog
+    return get_catalog(db=db, force_refresh=True)
+
+
+@router.get("/catalog/{plugin_id}/readme")
+def get_catalog_readme(
+    plugin_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_permission("plugins.view")),
+):
+    """Retrieve README markdown content for a catalog plugin."""
+    from ..plugins.catalog import get_catalog
+    cat = get_catalog(db=db, force_refresh=False)
+    entry = next((p for p in cat.get("plugins", []) if p.get("id") == plugin_id), None)
+    if not entry:
+        raise HTTPException(404, f"Plugin '{plugin_id}' not found in catalog")
+    return {
+        "plugin_id": plugin_id,
+        "name": entry.get("name", plugin_id),
+        "version": entry.get("version"),
+        "readme": entry.get("readme", ""),
+        "readme_url": entry.get("readme_url", ""),
+    }
+
+
+@router.post("/catalog/install")
+def install_catalog_plugin(
+    req: CatalogActionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_super_admin),
+):
+    """Download, verify SHA-256 integrity, inspect, and install a plugin from the catalog."""
+    from ..plugins.catalog import install_from_catalog, CatalogError
+    try:
+        return install_from_catalog(req.plugin_id, db=db, current_user=current_user, is_update=False)
+    except CatalogError as e:
+        raise HTTPException(e.status_code, e.message)
+
+
+@router.post("/catalog/update")
+def update_catalog_plugin(
+    req: CatalogActionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_super_admin),
+):
+    """Download, verify SHA-256 integrity, inspect, and update an installed plugin from the catalog."""
+    from ..plugins.catalog import install_from_catalog, CatalogError
+    try:
+        return install_from_catalog(req.plugin_id, db=db, current_user=current_user, is_update=True)
+    except CatalogError as e:
+        raise HTTPException(e.status_code, e.message)
+

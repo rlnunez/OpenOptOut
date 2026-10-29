@@ -15858,6 +15858,78 @@ def t_plugin_locales_valid():
     # IF THIS FAILS: a broken translation could drop a person's link or crash the Plugins page.
 
 
+@test(1, "plugins.catalog_client",
+      "Catalog client correctly parses semvers, caches indices, filters by category/search, and strictly enforces Invariant 1 (no code in data packages).")
+def t_plugins_catalog_client():
+    import json, os, tempfile, zipfile, hashlib
+    cat = _imp("plugins.catalog")
+
+    # 1. Semver parsing and version comparisons
+    assert cat.is_newer_version("1.2.0", "1.1.0") is True
+    assert cat.is_newer_version("v2.0.0", "1.9.9") is True
+    assert cat.is_newer_version("1.0.0", "1.0.0") is False
+    assert cat.is_newer_version("0.9.1", "1.0.0") is False
+
+    # 2. Invariant 1: Declarative pure data check on broker package
+    with tempfile.TemporaryDirectory() as td:
+        bad_zip = os.path.join(td, "bad_broker.zip")
+        with zipfile.ZipFile(bad_zip, "w") as z:
+            z.writestr("manifest.json", json.dumps({"id": "bad", "type": "brokers", "name": "Bad", "version": "1.0.0", "author": "a"}))
+            z.writestr("spec.json", json.dumps({"broker_id": "bad", "name": "Bad", "method": "manual"}))
+            z.writestr("malicious.py", "import os; os.system('echo pwned')")
+
+        try:
+            cat.extract_package_safely(bad_zip, os.path.join(td, "out"), "brokers")
+            assert False, "Broker package containing .py file should be rejected by Invariant 1"
+        except cat.CatalogError as e:
+            assert "Marketplace Invariant Violation" in str(e), e
+
+        # Clean broker package
+        good_zip = os.path.join(td, "good_broker.zip")
+        with zipfile.ZipFile(good_zip, "w") as z:
+            z.writestr("manifest.json", json.dumps({"id": "good", "type": "brokers", "name": "Good", "version": "1.0.0", "author": "a"}))
+            z.writestr("spec.json", json.dumps({"broker_id": "good", "name": "Good", "method": "manual"}))
+            z.writestr("README.md", "# Good Broker")
+
+        manifest_dir = cat.extract_package_safely(good_zip, os.path.join(td, "out_good"), "brokers")
+        assert os.path.isfile(os.path.join(manifest_dir, "manifest.json"))
+
+    # 3. Catalog filtering and enrichment
+    mock_data = {
+        "schema_version": "1.0",
+        "generated_at": "2026-10-28T12:00:00Z",
+        "plugins": [
+            {"id": "b1", "type": "brokers", "name": "Broker One", "version": "1.2.0", "tier": 1, "description": "Removes people"},
+            {"id": "t1", "type": "themes", "name": "Dark Theme", "version": "1.0.0", "tier": 2, "description": "Accessible dark mode"},
+        ]
+    }
+    with tempfile.TemporaryDirectory() as td:
+        cache_file = os.path.join(td, "test_cache.json")
+        with open(cache_file, "w") as f:
+            json.dump({"data": mock_data, "cached_at": 9999999999.0, "etag": "test-etag"}, f)
+
+        orig_cache_fn = cat.get_catalog_cache_path
+        cat.get_catalog_cache_path = lambda: cache_file
+        try:
+            # Query all
+            res = cat.get_catalog()
+            assert res["total_available"] == 2
+            assert res["cache_status"] == "hit"
+
+            # Filter by category
+            res_brokers = cat.get_catalog(category="brokers")
+            assert len(res_brokers["plugins"]) == 1
+            assert res_brokers["plugins"][0]["id"] == "b1"
+
+            # Filter by search
+            res_search = cat.get_catalog(search="dark")
+            assert len(res_search["plugins"]) == 1
+            assert res_search["plugins"][0]["id"] == "t1"
+        finally:
+            cat.get_catalog_cache_path = orig_cache_fn
+
+
+
 @test(1, "interpreter.spec_jurisdiction_and_text_keys",
       "Specs take a jurisdiction, a legal language and per-language letters; keyed text ({\"$t\": ...}) loads and saves; LGPD is a known law.")
 def t_spec_jurisdiction():

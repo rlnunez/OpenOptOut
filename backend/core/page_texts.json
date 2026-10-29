@@ -1558,6 +1558,7 @@
    "text": "All",
    "where": [
     "pages/CaptchaQueue.jsx",
+    "pages/Plugins.jsx",
     "pages/WorkerFleet.jsx"
    ]
   },
@@ -2713,7 +2714,8 @@
    "text": "Brokers",
    "where": [
     "pages/DatabaseAdmin.jsx",
-    "pages/Letters.jsx"
+    "pages/Letters.jsx",
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -2756,6 +2758,12 @@
    "text": "Brokers tracked",
    "where": [
     "pages/Reporting.jsx"
+   ]
+  },
+  {
+   "text": "Browse the Community Marketplace tab or upload a .zip bundle.",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -2876,6 +2884,12 @@
    "text": "By site",
    "where": [
     "pages/DeadlineReport.jsx"
+   ]
+  },
+  {
+   "text": "By {author} · Type: {type}",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -3017,6 +3031,12 @@
    "text": "Capacity Planner",
    "where": [
     "pages/WorkerFleet.jsx"
+   ]
+  },
+  {
+   "text": "CAPTCHA",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -3451,6 +3471,12 @@
    ]
   },
   {
+   "text": "Clear filters",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "Clear in-memory buffer",
    "where": [
     "pages/SystemLogs.jsx"
@@ -3607,6 +3633,7 @@
     "pages/CaptchaQueue.jsx",
     "pages/Inboxes.jsx",
     "pages/Letters.jsx",
+    "pages/Plugins.jsx",
     "pages/Settings.jsx"
    ]
   },
@@ -3740,6 +3767,18 @@
    "text": "Command-line installations automatically generate a baseline master key in .env or secret.key. In this setup wizard, watch the Interactive Entropy Generator below create a custom high-entropy key from image shuffling, ambient physics, and keyboard timing, or paste your own custom key.",
    "where": [
     "pages/SetupWizard.jsx"
+   ]
+  },
+  {
+   "text": "Community",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
+   "text": "Community Marketplace",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -4971,6 +5010,12 @@
    ]
   },
   {
+   "text": "Curated",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "Current Active Fleet Capacity:",
    "where": [
     "components/CapacityPlanner.jsx"
@@ -5808,6 +5853,12 @@
    ]
   },
   {
+   "text": "Documentation",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "Documentation unavailable",
    "where": [
     "pages/PluginHelp.jsx"
@@ -6368,6 +6419,7 @@
     "components/Badge.jsx",
     "pages/AdminPanel.jsx",
     "pages/Login.jsx",
+    "pages/Plugins.jsx",
     "pages/SetupWizard.jsx",
     "pages/Signup.jsx"
    ]
@@ -7222,9 +7274,21 @@
    ]
   },
   {
+   "text": "Failed to install plugin from catalog",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "Failed to issue client certificate",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Failed to load community catalog",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -8927,6 +8991,12 @@
    ]
   },
   {
+   "text": "Install Plugin",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "Install start time",
    "where": [
     "pages/SystemUpdates.jsx"
@@ -8936,6 +9006,12 @@
    "text": "Install update",
    "where": [
     "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Installed",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -9335,6 +9411,12 @@
    "text": "Language Picker",
    "where": [
     "components/UserWelcomeModal.jsx"
+   ]
+  },
+  {
+   "text": "Languages",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -9807,6 +9889,12 @@
    "text": "Loading documentation…",
    "where": [
     "pages/PluginHelp.jsx"
+   ]
+  },
+  {
+   "text": "Loading marketplace…",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -11123,6 +11211,12 @@
    ]
   },
   {
+   "text": "No additional documentation provided for this plugin.",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "No answer within the {response_days} days the law gives them (due {fmt}).",
    "where": [
     "components/RemovalTimeline.jsx"
@@ -11352,6 +11446,12 @@
   },
   {
    "text": "No plugins installed yet.",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
+   "text": "No plugins match your search or filter.",
    "where": [
     "pages/Plugins.jsx"
    ]
@@ -11895,6 +11995,12 @@
    "text": "Offline",
    "where": [
     "pages/WorkerFleet.jsx"
+   ]
+  },
+  {
+   "text": "Offline / Air-Gapped Mode",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -13103,6 +13209,12 @@
    "text": "Plugin guide",
    "where": [
     "components/Sidebar.jsx"
+   ]
+  },
+  {
+   "text": "Plugin operation completed successfully.",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -14592,6 +14704,7 @@
   {
    "text": "Retry",
    "where": [
+    "pages/Plugins.jsx",
     "pages/WorkerFleet.jsx"
    ]
   },
@@ -15337,6 +15450,12 @@
    ]
   },
   {
+   "text": "Search plugins by name, author, or description…",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "Search provider: SearXNG (self-hosted, free)",
    "where": [
     "pages/WebSearchSettings.jsx"
@@ -16024,6 +16143,12 @@
    "text": "Show the history of requests to this site",
    "where": [
     "pages/Brokers.jsx"
+   ]
+  },
+  {
+   "text": "Showing cached community plugins. Network refresh unavailable.",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -17912,6 +18037,12 @@
    ]
   },
   {
+   "text": "Themes",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "There are two distinct needs here, and they call for different tools. **Proxies** mask the IP of the automation engine so brokers don't block your opt-out submissions. **VPNs** protect the privacy of an individual person's everyday browsing. Don't confuse the two — a consumer VPN is a poor fit for the automation engine, and a datacenter proxy does nothing for personal privacy.\n\nThese are informational recommendations to help you evaluate options, not endorsements. Pricing, ownership, and policies change — verify current details and read the provider's own terms before committing. Neither OpenOptOut nor its maintainers are affiliated with any provider below.\n\n*Last reviewed: July 2026. Provider pricing, ownership, and policies change frequently — re-verify before relying on any detail here.*\n\n---\n\n**PART 1 — Residential proxy providers (for the automation engine)**\n\nFor submitting opt-outs at scale, residential proxies are the effective choice. They route through real home-ISP IP addresses, so submissions look like an ordinary person. The app has built-in presets for the first four.\n\nThe single most important thing to check is **how the provider sources its IPs.** Ethical providers get explicit, informed consent from the people whose connections form the network (usually by paying them or bundling it into an app with a clear opt-in). Unethical ones acquire IPs through malware or hidden SDKs. Since you're routing opt-out traffic through these IPs, sourcing integrity is both an ethical and a reputational matter for your institution.\n\n- **Bright Data** — the largest residential network, with detailed compliance documentation and a published KYC process for customers. Enterprise-oriented, with granular geo-targeting. Higher price point; extensive controls. Has an app preset.\n- **Oxylabs** — enterprise-grade, strong compliance posture, good support and documentation. Similar tier to Bright Data. Has an app preset.\n- **Smartproxy / Decodo** — mid-market, more approachable pricing and a simpler dashboard. A common starting point for smaller deployments. Has an app preset.\n- **IPRoyal** — budget-friendly, pay-as-you-go options, sources IPs through its \"Pawns\" app where users are paid and opt in. Has an app preset.\n- **SOAX** — clean-IP focus with granular geo and consent-based sourcing. Well regarded; configure via the generic preset.\n\n**Practical notes for proxies:**\n- Match the proxy's geography to the residents you serve — U.S. brokers respond best to U.S. residential IPs, and some behave differently by region.\n- Choose *rotating* residential endpoints for pool mode, or *sticky sessions* if a broker's flow needs the same IP across several page loads.\n- Residential proxies are billed by bandwidth, not by request. Opt-out forms are light, so usage is typically modest, but monitor it on the provider dashboard.\n- Always use the \"Test proxy\" button first to confirm your exit IP, then run a small batch before scaling up.\n\n**What to avoid for the automation engine:** free proxy lists (often malware-sourced or logging your traffic), most datacenter proxies (brokers block these ranges wholesale), and consumer VPNs (shared exit IPs that are widely flagged).\n\n---\n\n**PART 2 — VPN providers (for individual privacy)**\n\nA VPN is the right tool for a *person* who wants to reduce tracking of their own browsing, hide their IP from the sites they visit, and encrypt traffic on untrusted networks (library Wi-Fi, hotels, airports). It is not what the automation engine uses, but patrons and staff often ask what to use personally, so it's worth having recommendations on hand.\n\nWhen evaluating a VPN, the things that actually matter for privacy are: an **independently audited no-logs policy**, ownership and jurisdiction you're comfortable with, modern protocols (WireGuard/OpenVPN), and a sustainable business model — if it's free, your data is usually the product.\n\n- **Mullvad** — widely regarded as a privacy gold standard. Flat €5/month, accepts cash and anonymous account numbers (no email required), no personal info collected, independently audited. Based in Sweden.\n- **Proton VPN** — from the makers of Proton Mail, audited no-logs policy, strong transparency, and a genuinely usable free tier (rare among trustworthy providers). Based in Switzerland; open-source apps.\n- **IVPN** — privacy-first, audited, minimal data collection, anonymous account IDs. Transparent ownership. A strong Mullvad alternative.\n- **Windscribe** — flexible, with a capable free tier; good for lighter needs. Read their logging policy to confirm it fits your threshold.\n\n**Free-tier caveat:** Proton VPN and Windscribe offer legitimate free tiers. Be cautious with *other* free VPNs — many monetize by logging and selling browsing data, which is the opposite of what someone seeking privacy wants. \"Free\" and \"private\" rarely coexist unless a trustworthy paid product is subsidizing the free tier.\n\n**For a library context:** Mullvad and Proton VPN are the easiest to recommend to patrons — Mullvad for its no-account-required model, Proton for its usable free tier and name recognition. Both let a person try the service without handing over personal information, which is itself a privacy win.\n\n---\n\n**One-line summary:** use *residential proxies* (Bright Data, Oxylabs, Smartproxy/Decodo, IPRoyal, SOAX) for the opt-out automation, and recommend *audited no-logs VPNs* (Mullvad, Proton VPN, IVPN) to individuals for their personal browsing privacy.",
    "where": [
     "pages/Help.jsx"
@@ -18788,9 +18919,21 @@
    ]
   },
   {
+   "text": "Update",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "Update address",
    "where": [
     "pages/ParentCompanies.jsx"
+   ]
+  },
+  {
+   "text": "Update available",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -18830,6 +18973,12 @@
    ]
   },
   {
+   "text": "Update to {v}",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "updated {when}",
    "where": [
     "components/ResidentAddresses.jsx"
@@ -18840,12 +18989,6 @@
    "where": [
     "components/ResidentAddresses.jsx",
     "pages/Settings.jsx"
-   ]
-  },
-  {
-   "text": "Upload a .zip bundle, or put a plugin folder in its type folder (plugins/<type>/<id>/).",
-   "where": [
-    "pages/Plugins.jsx"
    ]
   },
   {
@@ -19382,6 +19525,12 @@
    "text": "View broker list",
    "where": [
     "pages/BrokerSubmit.jsx"
+   ]
+  },
+  {
+   "text": "View details",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {

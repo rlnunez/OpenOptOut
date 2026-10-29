@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom'
 import {
   Puzzle, RefreshCw, Upload, Shield, AlertTriangle, CheckCircle2,
   XCircle, Play, Square, Trash2, ChevronDown, ChevronRight,
-  Lock, Cpu, Activity, FileWarning, Info, Package, Ban, Eye, ShieldAlert, ShieldCheck, Globe, BookOpen
+  Lock, Cpu, Activity, FileWarning, Info, Package, Ban, Eye, ShieldAlert, ShieldCheck, Globe, BookOpen,
+  Download, ArrowUpCircle, ExternalLink, Search, Sparkles
 } from 'lucide-react'
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
 import PluginUploadWizard from '../components/PluginUploadWizard'
+import Markdown from '../components/Markdown'
 import { tx, txn, txr } from '../i18n/tx'
 import { fmtDateTime } from '../i18n/format'
 import { detailText } from '../errorMessage'
@@ -524,11 +526,208 @@ function AuditModal({ plugin, onClose }) {
   )
 }
 
+// ── Catalog Plugin Card ───────────────────────────────────────────────────────
+function CatalogPluginCard({ item, onSelect, onInstall, canManage, installing }) {
+  const isInstalled = item.is_installed
+  const hasUpdate = item.has_update
+
+  return (
+    <div className="bg-slate-800 rounded-xl border border-slate-700/60 p-4 flex flex-col justify-between hover:border-slate-600 transition-colors">
+      <div>
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-slate-100 text-sm font-semibold truncate">{item.name}</p>
+              <span className="text-slate-400 font-mono text-xs">{"v"}{item.version}</span>
+              {item.tier === 1 && (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-[10px] font-medium">
+                  <Sparkles size={10} /> {tx("Curated")}
+                </span>
+              )}
+            </div>
+            <p className="text-slate-500 text-xs mt-0.5">
+              {item.author || tx("Community")} · <span className="font-mono">{item.type}</span>
+            </p>
+          </div>
+          {isInstalled && (
+            hasUpdate ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300 text-[11px] font-medium shrink-0">
+                <ArrowUpCircle size={11} /> {tx("Update available")}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[11px] font-medium shrink-0">
+                <CheckCircle2 size={11} /> {tx("Installed")}
+              </span>
+            )
+          )}
+        </div>
+        <p className="text-slate-400 text-xs line-clamp-2 mb-3">{item.description}</p>
+      </div>
+
+      <div className="flex items-center justify-between pt-3 border-t border-slate-700/50 gap-2">
+        <button
+          onClick={() => onSelect(item)}
+          className="text-xs text-shield-400 hover:text-shield-300 font-medium py-1 px-2 rounded-md hover:bg-slate-700/50 transition-colors"
+        >
+          {tx("View details")}
+        </button>
+
+        {canManage && (
+          isInstalled ? (
+            hasUpdate && (
+              <button
+                onClick={() => onInstall(item, true)}
+                disabled={installing}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-40 rounded-lg transition-colors"
+              >
+                {installing ? <RefreshCw size={11} className="animate-spin" /> : <ArrowUpCircle size={11} />}
+                {tx("Update")}
+              </button>
+            )
+          ) : (
+            <button
+              onClick={() => onInstall(item, false)}
+              disabled={installing}
+              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-white bg-shield-600 hover:bg-shield-700 disabled:opacity-40 rounded-lg transition-colors"
+            >
+              {installing ? <RefreshCw size={11} className="animate-spin" /> : <Download size={11} />}
+              {tx("Install")}
+            </button>
+          )
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Catalog Detail Modal ──────────────────────────────────────────────────────
+function CatalogDetailModal({ plugin, onClose, onInstall, canManage, installing }) {
+  if (!plugin) return null
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-slate-800 flex items-start justify-between gap-4 bg-slate-950/40">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 className="text-white text-lg font-semibold truncate">{plugin.name}</h2>
+              <span className="px-2 py-0.5 rounded-sm bg-slate-800 text-slate-300 text-xs font-mono">
+                {"v"}{plugin.version}
+              </span>
+              {plugin.tier === 1 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-xs font-medium">
+                  <Sparkles size={11} /> {tx("Curated")}
+                </span>
+              )}
+            </div>
+            <p className="text-slate-400 text-xs mt-1">
+              {tx("By {author} · Type: {type}", { author: plugin.author || tx("Community"), type: plugin.type })}
+              {plugin.repo && (
+                <>
+                  {" · "}
+                  <a
+                    href={`https://github.com/${plugin.repo}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-shield-400 hover:underline"
+                  >
+                    {plugin.repo} <ExternalLink size={10} />
+                  </a>
+                </>
+              )}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label={tx("Close")}
+            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+          >
+            <XCircle size={20} />
+          </button>
+        </div>
+
+        {/* Content Body */}
+        <div className="p-6 overflow-y-auto flex-1 space-y-4">
+          <p className="text-slate-300 text-sm leading-relaxed">{plugin.description}</p>
+
+          {plugin.readme ? (
+            <div className="pt-4 border-t border-slate-800">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                {tx("Documentation")}
+              </p>
+              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800/80 max-h-96 overflow-y-auto">
+                <Markdown content={plugin.readme} />
+              </div>
+            </div>
+          ) : (
+            <div className="pt-4 border-t border-slate-800 text-center py-6 text-slate-500 text-xs">
+              {tx("No additional documentation provided for this plugin.")}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/40 flex items-center justify-between gap-3">
+          <span className="text-xs text-slate-500 font-mono truncate max-w-xs">
+            {plugin.sha256 ? `SHA: ${plugin.sha256.substring(0, 16)}…` : ""}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-1.5 text-sm text-slate-300 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              {tx("Close")}
+            </button>
+            {canManage && (
+              plugin.is_installed ? (
+                plugin.has_update ? (
+                  <button
+                    onClick={() => onInstall(plugin, true)}
+                    disabled={installing}
+                    className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors"
+                  >
+                    {installing ? <RefreshCw size={13} className="animate-spin" /> : <ArrowUpCircle size={13} />}
+                    {tx("Update to {v}", { v: plugin.version })}
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                    <CheckCircle2 size={13} /> {tx("Installed")}
+                  </span>
+                )
+              ) : (
+                <button
+                  onClick={() => onInstall(plugin, false)}
+                  disabled={installing}
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  {installing ? <RefreshCw size={13} className="animate-spin" /> : <Download size={13} />}
+                  {tx("Install Plugin")}
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
+const MARKET_CATEGORIES = [
+  { id: 'all', label: 'All' },
+  { id: 'brokers', label: 'Brokers' },
+  { id: 'themes', label: 'Themes' },
+  { id: 'languages', label: 'Languages' },
+  { id: 'captcha', label: 'CAPTCHA' },
+  { id: 'email', label: 'Email' },
+]
+
 export default function Plugins() {
   const { user } = useAuth()
   const canManage = user?.role === 'super_admin'   // install / enable / disable / uninstall
   const canUpload = can(user, 'plugins.upload')
+  const [activeTab, setActiveTab] = useState('installed') // 'installed' | 'market'
   const [status, setStatus]     = useState(null)
   const [installed, setInstalled] = useState([])
   const [available, setAvailable] = useState([])
@@ -539,6 +738,17 @@ export default function Plugins() {
   const [showUpload, setShowUpload] = useState(false)
   const [types, setTypes] = useState([])
   const [violations, setViolations] = useState([])
+
+  // Marketplace state
+  const [catalog, setCatalog] = useState([])
+  const [catalogLoading, setCatalogLoading] = useState(false)
+  const [catalogError, setCatalogError] = useState('')
+  const [catalogOffline, setCatalogOffline] = useState(false)
+  const [catalogCategory, setCatalogCategory] = useState('all')
+  const [catalogSearch, setCatalogSearch] = useState('')
+  const [detailPlugin, setDetailPlugin] = useState(null)
+  const [catalogActionRunning, setCatalogActionRunning] = useState(false)
+  const [catalogToast, setCatalogToast] = useState('')
 
   const load = async () => {
     setLoading(true)
@@ -566,7 +776,25 @@ export default function Plugins() {
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { load() }, [])
+  const loadCatalog = async (forceRefresh = false) => {
+    setCatalogLoading(true)
+    setCatalogError('')
+    try {
+      const url = `/plugins/catalog?force_refresh=${forceRefresh}`
+      const res = await api.get(url)
+      setCatalog(res.data?.plugins || [])
+      setCatalogOffline(Boolean(res.data?.offline))
+    } catch (err) {
+      setCatalogError(detailText(err) || tx("Failed to load community catalog"))
+    } finally {
+      setCatalogLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+    loadCatalog(false)
+  }, [])
 
   const doInstall = async (path) => {
     await api.post(`/plugins/install?path=${encodeURIComponent(path)}`)
@@ -578,10 +806,42 @@ export default function Plugins() {
     await api.delete(`/plugins/${p.plugin_id}?remove_files=false`); load()
   }
 
+  const doCatalogInstall = async (plugin, isUpdate = false) => {
+    setCatalogActionRunning(true)
+    try {
+      const endpoint = isUpdate ? '/plugins/catalog/update' : '/plugins/catalog/install'
+      const res = await api.post(endpoint, { plugin_id: plugin.id })
+      setCatalogToast(res.data?.message || tx("Plugin operation completed successfully."))
+      setTimeout(() => setCatalogToast(''), 6000)
+      if (detailPlugin?.id === plugin.id) setDetailPlugin(null)
+      await load()
+      await loadCatalog(false)
+    } catch (err) {
+      alert(detailText(err) || tx("Failed to install plugin from catalog"))
+    } finally {
+      setCatalogActionRunning(false)
+    }
+  }
+
   // Installed plugins grouped by type, in the server's type order.
   const groups = (types.length ? types : [...new Set(installed.map(p => p.type))].map(t => ({ type: t, label: t, folder: `${t}/` })))
     .map(t => ({ ...t, plugins: installed.filter(p => p.type === t.type) }))
     .filter(g => g.plugins.length > 0)
+
+  // Catalog filtering
+  const updateCount = catalog.filter(p => p.has_update).length
+  const filteredCatalog = catalog.filter(p => {
+    if (catalogCategory !== 'all' && (p.type || '').toLowerCase() !== catalogCategory) return false
+    if (catalogSearch.trim()) {
+      const q = catalogSearch.toLowerCase()
+      const n = (p.name || '').toLowerCase()
+      const d = (p.description || '').toLowerCase()
+      const a = (p.author || '').toLowerCase()
+      const id = (p.id || '').toLowerCase()
+      if (!n.includes(q) && !d.includes(q) && !a.includes(q) && !id.includes(q)) return false
+    }
+    return true
+  })
 
   return (
     <div className="p-4 md:p-6 max-w-4xl">
@@ -601,7 +861,8 @@ export default function Plugins() {
               <Upload size={13} />{" "}{tx("Upload plugin")}
             </button>
           )}
-          <button onClick={load} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
+          <button onClick={() => { load(); if (activeTab === 'market') loadCatalog(true); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
             <RefreshCw size={13} />{" "}{tx("Refresh")}
           </button>
         </div>
@@ -611,76 +872,210 @@ export default function Plugins() {
       <MonitorBanner status={status} />
       <ViolationsFeed violations={violations} />
 
-      {loading ? <p className="text-slate-500 text-sm">{tx("Loading…")}</p> : (
-        <>
-          {/* Installed */}
-          <div className="mb-6">
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">
-              {tx("Installed ({length})", { length: installed.length })}
-            </p>
-            {installed.length === 0 ? (
-              <div className="text-center py-10 border border-dashed border-slate-700 rounded-xl">
-                <Package size={24} className="text-slate-700 mx-auto mb-2" />
-                <p className="text-slate-500 text-sm">{tx("No plugins installed yet.")}</p>
-                <p className="text-slate-600 text-xs mt-1">{tx("Upload a .zip bundle, or put a plugin folder in its type folder (plugins/<type>/<id>/).")}</p>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {groups.map(g => (
-                  <div key={g.type}>
-                    <p className="text-slate-500 text-xs mb-2">
-                      {g.label} <span className="font-mono text-slate-600">{tx("· plugins/")}{g.folder}</span>
-                    </p>
-                    <div className="space-y-3">
-                      {g.plugins.map(p => (
-                        <PluginCard key={p.plugin_id} plugin={p} permInfo={permInfo}
-                          onEnable={setEnableTarget} onDisable={doDisable}
-                          onUninstall={doUninstall} onViewAudit={setAuditTarget} canManage={canManage} />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+      {/* Tabs */}
+      <div className="flex border-b border-slate-700/60 mb-6 gap-2">
+        <button
+          onClick={() => setActiveTab('installed')}
+          className={`flex items-center gap-2 pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+            activeTab === 'installed'
+              ? 'border-shield-500 text-shield-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Package size={15} />
+          {tx("Installed")}
+          <span className="ms-1 px-1.5 py-0.5 rounded-full text-xs bg-slate-800 text-slate-300">
+            {installed.length}
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab('market')}
+          className={`flex items-center gap-2 pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+            activeTab === 'market'
+              ? 'border-shield-500 text-shield-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Globe size={15} />
+          {tx("Community Marketplace")}
+          {updateCount > 0 ? (
+            <span className="ms-1 px-1.5 py-0.5 rounded-full text-[11px] bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+              {updateCount}
+            </span>
+          ) : (
+            catalog.length > 0 && (
+              <span className="ms-1 px-1.5 py-0.5 rounded-full text-xs bg-slate-800 text-slate-400">
+                {catalog.length}
+              </span>
+            )
+          )}
+        </button>
+      </div>
 
-          {/* Available (on disk, not registered) */}
-          {available.length > 0 && (
-            <div>
+      {catalogToast && (
+        <div className="mb-4 px-4 py-2.5 rounded-xl border border-emerald-800 bg-emerald-950/30 text-emerald-300 text-xs flex items-center justify-between">
+          <span>{catalogToast}</span>
+          <button onClick={() => setCatalogToast('')} className="text-emerald-400 hover:text-white ms-2 font-bold">×</button>
+        </div>
+      )}
+
+      {activeTab === 'installed' ? (
+        loading ? <p className="text-slate-500 text-sm">{tx("Loading…")}</p> : (
+          <>
+            {/* Installed */}
+            <div className="mb-6">
               <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">
-                {tx("Discovered on disk ({length})", { length: available.length })}
+                {tx("Installed ({length})", { length: installed.length })}
               </p>
-              <div className="space-y-2">
-                {available.map(p => (
-                  <div key={p.plugin_id} className="flex items-center justify-between px-4 py-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-slate-200 text-sm truncate">{p.name}</p>
-                        <span className="text-slate-600 text-xs">{"v"}{p.version}</span>
-                        {!p.valid && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm border border-red-800 bg-red-900/20 text-red-300 text-[10px]">
-                            <XCircle size={9} />{" "}{tx("invalid")}
-                          </span>
+              {installed.length === 0 ? (
+                <div className="text-center py-10 border border-dashed border-slate-700 rounded-xl">
+                  <Package size={24} className="text-slate-700 mx-auto mb-2" />
+                  <p className="text-slate-500 text-sm">{tx("No plugins installed yet.")}</p>
+                  <p className="text-slate-600 text-xs mt-1">{tx("Browse the Community Marketplace tab or upload a .zip bundle.")}</p>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {groups.map(g => (
+                    <div key={g.type}>
+                      <p className="text-slate-500 text-xs mb-2">
+                        {g.label} <span className="font-mono text-slate-600">{tx("· plugins/")}{g.folder}</span>
+                      </p>
+                      <div className="space-y-3">
+                        {g.plugins.map(p => (
+                          <PluginCard key={p.plugin_id} plugin={p} permInfo={permInfo}
+                            onEnable={setEnableTarget} onDisable={doDisable}
+                            onUninstall={doUninstall} onViewAudit={setAuditTarget} canManage={canManage} />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Available (on disk, not registered) */}
+            {available.length > 0 && (
+              <div>
+                <p className="text-slate-400 text-xs font-medium uppercase tracking-wide mb-3">
+                  {tx("Discovered on disk ({length})", { length: available.length })}
+                </p>
+                <div className="space-y-2">
+                  {available.map(p => (
+                    <div key={p.plugin_id} className="flex items-center justify-between px-4 py-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-slate-200 text-sm truncate">{p.name}</p>
+                          <span className="text-slate-600 text-xs">{"v"}{p.version}</span>
+                          {!p.valid && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm border border-red-800 bg-red-900/20 text-red-300 text-[10px]">
+                              <XCircle size={9} />{" "}{tx("invalid")}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-slate-500 text-xs mt-0.5">
+                          {tx("{author} · {type_label} · {length} permissions", { author: p.author, type_label: p.type_label, length: p.permissions.length })}
+                          {p.legacy_location && <span className="text-amber-300/90">{" "}{tx("· will be moved to plugins/")}{p.destination}</span>}
+                        </p>
+                        {!p.valid && p.errors?.length > 0 && (
+                          <p className="text-red-400/80 text-xs mt-1">{p.errors.join('; ')}</p>
                         )}
                       </div>
-                      <p className="text-slate-500 text-xs mt-0.5">
-                        {tx("{author} · {type_label} · {length} permissions", { author: p.author, type_label: p.type_label, length: p.permissions.length })}
-                        {p.legacy_location && <span className="text-amber-300/90">{" "}{tx("· will be moved to plugins/")}{p.destination}</span>}
-                      </p>
-                      {!p.valid && p.errors?.length > 0 && (
-                        <p className="text-red-400/80 text-xs mt-1">{p.errors.join('; ')}</p>
-                      )}
+                      {canManage && <button onClick={() => doInstall(p.path)} disabled={!p.valid}
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white rounded-lg shrink-0">
+                        <Package size={11} />{" "}{tx("Install")}
+                      </button>}
                     </div>
-                    {canManage && <button onClick={() => doInstall(p.path)} disabled={!p.valid}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs bg-shield-600 hover:bg-shield-700 disabled:opacity-40 text-white rounded-lg shrink-0">
-                      <Package size={11} />{" "}{tx("Install")}
-                    </button>}
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
+            )}
+          </>
+        )
+      ) : (
+        /* Marketplace Tab */
+        <div className="space-y-5">
+          {catalogOffline && (
+            <div className="px-4 py-3 rounded-xl border border-amber-800 bg-amber-950/20 text-amber-300 text-xs flex items-center justify-between">
+              <div>
+                <p className="font-medium">{tx("Offline / Air-Gapped Mode")}</p>
+                <p className="text-amber-400/80 mt-0.5">{tx("Showing cached community plugins. Network refresh unavailable.")}</p>
+              </div>
+              <button
+                onClick={() => loadCatalog(true)}
+                className="px-2.5 py-1 bg-amber-900/40 hover:bg-amber-800/40 border border-amber-700/50 rounded-lg text-amber-200 text-xs font-medium"
+              >
+                {tx("Retry")}
+              </button>
             </div>
           )}
-        </>
+
+          {catalogError && (
+            <div className="px-4 py-3 rounded-xl border border-red-800 bg-red-950/20 text-red-300 text-xs">
+              {catalogError}
+            </div>
+          )}
+
+          {/* Search & Categories Bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input
+                type="text"
+                value={catalogSearch}
+                onChange={e => setCatalogSearch(e.target.value)}
+                placeholder={tx("Search plugins by name, author, or description…")}
+                className="w-full bg-slate-800 border border-slate-700/70 rounded-lg ps-9 pe-3 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-hidden focus:border-shield-500"
+              />
+            </div>
+
+            <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+              {MARKET_CATEGORIES.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => setCatalogCategory(c.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                    catalogCategory === c.id
+                      ? 'bg-shield-600 text-white'
+                      : 'bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700'
+                  }`}
+                >
+                  {c.id === 'all' ? tx("All") : c.id === 'brokers' ? tx("Brokers") : c.id === 'themes' ? tx("Themes") : c.id === 'languages' ? tx("Languages") : c.id === 'captcha' ? tx("CAPTCHA") : tx("Email")}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Catalog Grid */}
+          {catalogLoading ? (
+            <div className="text-center py-16 text-slate-500 text-sm flex items-center justify-center gap-2">
+              <RefreshCw size={15} className="animate-spin" /> {tx("Loading marketplace…")}
+            </div>
+          ) : filteredCatalog.length === 0 ? (
+            <div className="text-center py-14 border border-dashed border-slate-700 rounded-xl">
+              <Globe size={24} className="text-slate-700 mx-auto mb-2" />
+              <p className="text-slate-400 text-sm">{tx("No plugins match your search or filter.")}</p>
+              <button
+                onClick={() => { setCatalogSearch(''); setCatalogCategory('all'); }}
+                className="text-xs text-shield-400 hover:underline mt-2 inline-block"
+              >
+                {tx("Clear filters")}
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredCatalog.map(item => (
+                <CatalogPluginCard
+                  key={item.id}
+                  item={item}
+                  onSelect={setDetailPlugin}
+                  onInstall={doCatalogInstall}
+                  canManage={canManage}
+                  installing={catalogActionRunning}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {enableTarget && (
@@ -693,6 +1088,15 @@ export default function Plugins() {
       )}
       {showUpload && (
         <PluginUploadWizard onClose={() => setShowUpload(false)} onInstalled={load} />
+      )}
+      {detailPlugin && (
+        <CatalogDetailModal
+          plugin={detailPlugin}
+          onClose={() => setDetailPlugin(null)}
+          onInstall={doCatalogInstall}
+          canManage={canManage}
+          installing={catalogActionRunning}
+        />
       )}
     </div>
   )

@@ -8,13 +8,15 @@ ARG RCLONE_VERSION=v1.75.2
 # FROM below (Docker requires that placement, not just an earlier line).
 ARG PYTHON_BASE=python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258
 
-# Stage 0: Build rclone with patched Go runtime (remediating CVE-2026-111943)
-# and patched chi v5.4.0 (remediating CVE-2026-114437)
+# Stage 0: Build rclone with patched Go runtime (remediating CVE-2026-111943),
+# patched chi v5.4.0 (remediating CVE-2026-114437), and patched golang.org/x/net
+# v0.62.0 (remediating CVE-2026-97045 and CVE-2026-78661)
 FROM golang:1.27.3-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS rclone-builder
 ARG RCLONE_VERSION
 RUN git clone --depth 1 --branch ${RCLONE_VERSION} https://github.com/rclone/rclone.git /src/rclone
 WORKDIR /src/rclone
 RUN go get github.com/go-chi/chi/v5@v5.4.0 && \
+    go get golang.org/x/net@v0.62.0 && \
     CGO_ENABLED=0 go build -ldflags="-s -w" -o /go/bin/rclone .
 
 # Stage 1: compile the Python deps that ship no prebuilt wheels (python-ldap
