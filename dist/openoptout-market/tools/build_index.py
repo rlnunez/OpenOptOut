@@ -149,7 +149,7 @@ def build_catalog(plugins_path: str = "plugins.json", out_path: str = "index.jso
     with open(os.path.join(public_dir, "index.json"), "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2)
 
-    print(f"✅ Successfully compiled {len(catalog_plugins)} plugins into {out_path} and public/index.json")
+    print(f"[PASS] Successfully compiled {len(catalog_plugins)} plugins into {out_path} and public/index.json")
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ import os
 import re
 import sys
 
-ALLOWED_CATEGORIES = {"brokers", "captcha", "email", "languages", "themes"}
+ALLOWED_CATEGORIES = {"brokers", "captcha", "email", "languages", "themes", "letters"}
 ID_REGEX = re.compile(r"^[a-z0-9][a-z0-9_-]{1,63}$")
 REPO_REGEX = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
@@ -76,12 +76,12 @@ def main():
     target = sys.argv[1] if len(sys.argv) > 1 else "plugins.json"
     errors = validate_plugins_json(target)
     if errors:
-        print(f"❌ Validation failed for {target}:", file=sys.stderr)
+        print(f"[FAIL] Validation failed for {target}:", file=sys.stderr)
         for err in errors:
             print(f"  - {err}", file=sys.stderr)
         sys.exit(1)
     else:
-        print(f"✅ {target} is valid and ready for catalog indexing.")
+        print(f"[PASS] {target} is valid and ready for catalog indexing.")
         sys.exit(0)
 
 

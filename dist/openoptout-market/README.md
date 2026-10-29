@@ -17,6 +17,19 @@ Every plugin submitted to OpenOptOut must follow standardized conventions based 
 | `languages` | Regional UI translations and Right-to-Left (RTL) layout dictionaries. | [Language Pack Guide](docs/LANGUAGES.md) | [Language Example](docs/LANGUAGES.md#1-directory-structure) |
 | `captcha` | Sandboxed human-in-the-loop and external CAPTCHA solver bridges. | [CAPTCHA Solver Guide](docs/CAPTCHA.md) | [CAPTCHA Example](docs/CAPTCHA.md#1-directory-structure) |
 | `email` | Outbound opt-out delivery relays and confirmation parsers. | [Email Provider Guide](docs/EMAIL.md) | [Email Example](docs/EMAIL.md#1-directory-structure) |
+| `letters` | Statutory opt-out letter templates (CCPA, GDPR, LGPD, PIPEDA, US). | Pure data draft templates | Letter specs with legal citations |
+
+---
+
+## Official Core Category Repositories
+
+OpenOptOut maintains its Tier 1 curated plugins across dedicated category repositories:
+
+- **[openoptout-brokers](https://github.com/rlnunez/openoptout-brokers):** 80 official people-search and commercial data broker opt-out specs.
+- **[openoptout-languages](https://github.com/rlnunez/openoptout-languages):** 17 official language packs with full UI phrase translations and RTL layout support.
+- **[openoptout-email](https://github.com/rlnunez/openoptout-email):** 4 official email provider plugins (Gmail OAuth, Microsoft Outlook, Yahoo, and SMTP/IMAP).
+- **[openoptout-captcha](https://github.com/rlnunez/openoptout-captcha):** Official zero-PII challenge-scrubbed CAPTCHA solver service integration.
+- **[openoptout-letters](https://github.com/rlnunez/openoptout-letters):** 7 statutory opt-out letters (draft wording awaiting attorney review).
 
 ---
 
