@@ -1594,6 +1594,12 @@
    ]
   },
   {
+   "text": "All installed plugins are up to date.",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "All Levels",
    "where": [
     "pages/SystemLogs.jsx"
@@ -1688,6 +1694,12 @@
    "text": "Allow FIDO2 / WebAuthn",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Allow pre-release updates",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -3205,6 +3217,7 @@
   {
    "text": "Check for updates",
    "where": [
+    "pages/Plugins.jsx",
     "pages/SystemUpdates.jsx"
    ]
   },
@@ -3318,6 +3331,7 @@
     "components/SecretKeyBanner.jsx",
     "pages/Dashboard.jsx",
     "pages/EmailMonitor.jsx",
+    "pages/Plugins.jsx",
     "pages/Signup.jsx",
     "pages/StateRegistries.jsx"
    ]
@@ -7238,6 +7252,12 @@
    ]
   },
   {
+   "text": "Failed to check for updates",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "Failed to check for updates.",
    "where": [
     "pages/SystemUpdates.jsx"
@@ -7316,6 +7336,12 @@
    ]
   },
   {
+   "text": "Failed to load settings",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "Failed to remove security key.",
    "where": [
     "pages/Settings.jsx"
@@ -7391,6 +7417,12 @@
    "text": "Failed to save session duration and remember-me policies.",
    "where": [
     "pages/Settings.jsx"
+   ]
+  },
+  {
+   "text": "Failed to save settings",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -8500,6 +8532,18 @@
    ]
   },
   {
+   "text": "How often to check developer Git repositories for newer versions of installed plugins (default 24 hours).",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
+   "text": "How often to check marketplace index.json for newly released plugins (default 12 hours).",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "How OpenOptOut works",
    "where": [
     "pages/Help.jsx"
@@ -8918,6 +8962,12 @@
    ]
   },
   {
+   "text": "Include alpha, beta, and release candidates when checking developer repositories for updates.",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "Include old, inactive, and alias addresses",
    "where": [
     "pages/Settings.jsx"
@@ -9054,6 +9104,12 @@
    "text": "Installed into <0/>",
    "where": [
     "components/PluginUploadWizard.jsx"
+   ]
+  },
+  {
+   "text": "Installed plugins update check frequency (hours)",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -9946,6 +10002,12 @@
    ]
   },
   {
+   "text": "Loading settings…",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "Loading the page…",
    "where": [
     "components/LiveCaptcha.jsx"
@@ -10413,6 +10475,12 @@
    "text": "Mark read",
    "where": [
     "pages/BrokerUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Marketplace discovery frequency (hours)",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -13278,6 +13346,12 @@
    ]
   },
   {
+   "text": "Plugin Update Settings",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "Plugins",
    "where": [
     "components/Sidebar.jsx",
@@ -13422,6 +13496,12 @@
    "text": "Pre-release channel",
    "where": [
     "pages/SystemUpdates.jsx"
+   ]
+  },
+  {
+   "text": "Pre-release v{version}",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -15177,6 +15257,7 @@
   {
    "text": "Save settings",
    "where": [
+    "pages/Plugins.jsx",
     "pages/SystemUpdates.jsx"
    ]
   },
@@ -19039,6 +19120,24 @@
    ]
   },
   {
+   "text": "Update settings",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
+   "text": "Update settings saved successfully.",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
+   "text": "Update to v{version}",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
    "text": "Update to {v}",
    "where": [
     "pages/Plugins.jsx"
@@ -19609,6 +19708,12 @@
    "text": "View real-time removal rates, active scan records, and overall protection coverage.",
    "where": [
     "components/UserWelcomeModal.jsx"
+   ]
+  },
+  {
+   "text": "View release notes",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {
@@ -20996,6 +21101,18 @@
    "text": "{n} sites to check again",
    "where": [
     "pages/Dashboard.jsx"
+   ]
+  },
+  {
+   "text": "{n} update available from developer repositories.",
+   "where": [
+    "pages/Plugins.jsx"
+   ]
+  },
+  {
+   "text": "{n} updates available from developer repositories.",
+   "where": [
+    "pages/Plugins.jsx"
    ]
   },
   {

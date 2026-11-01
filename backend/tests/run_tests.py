@@ -15996,6 +15996,148 @@ def t_plugins_catalog_client():
             cat.get_catalog_cache_path = orig_cache_fn
 
 
+@test(1, "plugins.developer_repo_update_checking",
+      "Developer Git repo checking parses SemVer pre-releases, extracts monorepo and standalone tags, and honors admin pre-release settings.")
+def t_plugins_developer_repo_update_checking():
+    import json, os, tempfile
+    cat = _imp("plugins.catalog")
+
+    # 1. SemVer 2.0.0 Pre-release precedence
+    assert cat.is_newer_version("1.1.0", "1.0.0") is True
+    assert cat.is_newer_version("1.1.0-rc1", "1.0.0") is True
+    assert cat.is_newer_version("1.1.0", "1.1.0-rc1") is True
+    assert cat.is_newer_version("1.1.0-rc1", "1.1.0") is False
+    assert cat.is_newer_version("1.1.0-beta.2", "1.1.0-beta.1") is True
+    assert cat.is_newer_version("1.1.0-rc.1", "1.1.0-beta.9") is True
+    assert cat.is_newer_version("2.0.0-alpha", "1.9.9") is True
+    assert cat.is_newer_version("1.0.0", "1.0.0") is False
+
+    # 2. Pre-release detection
+    assert cat.is_prerelease_version("1.0.0-rc1") is True
+    assert cat.is_prerelease_version("v2.1.0-beta.3") is True
+    assert cat.is_prerelease_version("1.0.0-dev") is True
+    assert cat.is_prerelease_version("1.0.0") is False
+    assert cat.is_prerelease_version("v1.2.3") is False
+
+    # 3. Git tag extraction (monorepo & standalone)
+    assert cat.extract_version_from_tag("whitepages-v1.0.2", "whitepages") == "1.0.2"
+    assert cat.extract_version_from_tag("whitepages-1.0.2", "whitepages") == "1.0.2"
+    assert cat.extract_version_from_tag("whitepages/v1.0.3-rc1", "whitepages") == "1.0.3-rc1"
+    # Reject tags belonging to other plugins in the monorepo
+    assert cat.extract_version_from_tag("acxiom-v1.0.2", "whitepages") is None
+    assert cat.extract_version_from_tag("other-plugin-v2.0.0", "whitepages") is None
+    # Standalone repository tags
+    assert cat.extract_version_from_tag("v1.2.3") == "1.2.3"
+    assert cat.extract_version_from_tag("1.2.3") == "1.2.3"
+    assert cat.extract_version_from_tag("v1.2.3-alpha.1") == "1.2.3-alpha.1"
+
+    # 4. Settings persistence
+    with tempfile.TemporaryDirectory() as td:
+        s_file = os.path.join(td, "test_settings.json")
+        store = _imp("core.settings_store")
+        orig_s_file = store.SETTINGS_FILE
+        store.SETTINGS_FILE = s_file
+        try:
+            defaults = cat.get_update_settings()
+            assert defaults["catalog_check_hours"] == 12
+            assert defaults["installed_update_check_hours"] == 24
+            assert defaults["allow_prereleases"] is False
+
+            saved = cat.save_update_settings({"catalog_check_hours": 6, "allow_prereleases": True})
+            assert saved["catalog_check_hours"] == 6
+            assert saved["allow_prereleases"] is True
+
+            reloaded = cat.get_update_settings()
+            assert reloaded["catalog_check_hours"] == 6
+            assert reloaded["allow_prereleases"] is True
+        finally:
+            store.SETTINGS_FILE = orig_s_file
+
+    # 5. Simulated update checks against developer repo releases
+    mock_releases = [
+        {"tag_name": "whitepages-v1.1.0-rc1", "name": "whitepages 1.1.0-rc1", "prerelease": True, "html_url": "https://github.com/r/b/releases/tag/whitepages-v1.1.0-rc1"},
+        {"tag_name": "whitepages-v1.0.5", "name": "whitepages 1.0.5", "prerelease": False, "html_url": "https://github.com/r/b/releases/tag/whitepages-v1.0.5"},
+        {"tag_name": "acxiom-v2.0.0", "name": "acxiom 2.0.0", "prerelease": False, "html_url": "https://github.com/r/b/releases/tag/acxiom-v2.0.0"},
+    ]
+
+    # Without pre-releases: highest valid update for whitepages from 1.0.0 is 1.0.5
+    whitepages_tags = []
+    for rel in mock_releases:
+        ver = cat.extract_version_from_tag(rel["tag_name"], "whitepages")
+        if ver and not cat.is_prerelease_version(ver):
+            whitepages_tags.append((cat.parse_semver(ver), ver, rel["html_url"]))
+    whitepages_tags.sort(key=lambda x: x[0], reverse=True)
+    assert len(whitepages_tags) == 1
+    assert whitepages_tags[0][1] == "1.0.5"
+
+    # With pre-releases: highest valid update for whitepages from 1.0.0 is 1.1.0-rc1
+    whitepages_all = []
+    for rel in mock_releases:
+        ver = cat.extract_version_from_tag(rel["tag_name"], "whitepages")
+        if ver:
+            whitepages_all.append((cat.parse_semver(ver), ver, rel["html_url"]))
+    whitepages_all.sort(key=lambda x: x[0], reverse=True)
+    assert len(whitepages_all) == 2
+    assert whitepages_all[0][1] == "1.1.0-rc1"
+
+    # 6. CalVer / Date-based version number handling
+    # Developers who use dates (YYYY-MM-DD, YYYY.MM.DD, YYYYMMDD) for versions
+    assert cat.is_newer_version("2026-10-31", "2026-10-15") is True
+    assert cat.is_newer_version("2026.10.31", "2026.10.15") is True
+    assert cat.is_newer_version("20261031", "20261015") is True
+    assert cat.is_newer_version("2026-10-31", "2026.10.15") is True  # cross-format date comparison
+    assert cat.is_newer_version("2026.10.31.2", "2026.10.31.1") is True
+    assert cat.is_newer_version("2027.01.01", "2026.12.31") is True
+    assert cat.is_newer_version("2026.10.31", "2026.10.31") is False
+
+    # Date-based pre-releases
+    assert cat.is_prerelease_version("2026-10-31-rc1") is True
+    assert cat.is_prerelease_version("2026.10.31-beta") is True
+    assert cat.is_prerelease_version("2026-10-31") is False
+    assert cat.is_prerelease_version("2026.10.31") is False
+    assert cat.is_prerelease_version("20261031") is False
+    assert cat.is_newer_version("2026.10.31-rc1", "2026.10.15") is True
+    assert cat.is_newer_version("2026.10.31", "2026.10.31-rc1") is True
+    assert cat.is_newer_version("2026.10.31-rc1", "2026.10.31") is False
+
+    # Date-based tag extraction (standalone & monorepo prefixed)
+    assert cat.extract_version_from_tag("v2026.10.31") == "2026.10.31"
+    assert cat.extract_version_from_tag("2026-10-31") == "2026-10-31"
+    assert cat.extract_version_from_tag("v2026-10-31") == "2026-10-31"
+    assert cat.extract_version_from_tag("20261031") == "20261031"
+    assert cat.extract_version_from_tag("whitepages-v2026.10.31", "whitepages") == "2026.10.31"
+    assert cat.extract_version_from_tag("whitepages-2026-10-31", "whitepages") == "2026-10-31"
+    assert cat.extract_version_from_tag("whitepages-20261031", "whitepages") == "20261031"
+    assert cat.extract_version_from_tag("whitepages-2026-10-31-rc1", "whitepages") == "2026-10-31-rc1"
+    assert cat.extract_version_from_tag("acxiom-2026-10-31", "whitepages") is None
+
+    # Simulated developer repo with CalVer / date-based release tags
+    calver_releases = [
+        {"tag_name": "whitepages-2026-11-01-rc1", "name": "whitepages 2026-11-01-rc1", "prerelease": True, "html_url": "https://github.com/r/b/releases/tag/whitepages-2026-11-01-rc1"},
+        {"tag_name": "whitepages-2026-10-31", "name": "whitepages 2026-10-31", "prerelease": False, "html_url": "https://github.com/r/b/releases/tag/whitepages-2026-10-31"},
+        {"tag_name": "whitepages-2026-09-15", "name": "whitepages 2026-09-15", "prerelease": False, "html_url": "https://github.com/r/b/releases/tag/whitepages-2026-09-15"},
+    ]
+    # Current version is "2026-10-15". Stable check should select "2026-10-31"
+    stable_calver = []
+    for rel in calver_releases:
+        ver = cat.extract_version_from_tag(rel["tag_name"], "whitepages")
+        if ver and not cat.is_prerelease_version(ver):
+            stable_calver.append((cat.parse_semver(ver), ver))
+    stable_calver.sort(key=lambda x: x[0], reverse=True)
+    assert stable_calver[0][1] == "2026-10-31"
+    assert cat.is_newer_version(stable_calver[0][1], "2026-10-15") is True
+
+    # Pre-release check should select "2026-11-01-rc1"
+    all_calver = []
+    for rel in calver_releases:
+        ver = cat.extract_version_from_tag(rel["tag_name"], "whitepages")
+        if ver:
+            all_calver.append((cat.parse_semver(ver), ver))
+    all_calver.sort(key=lambda x: x[0], reverse=True)
+    assert all_calver[0][1] == "2026-11-01-rc1"
+    assert cat.is_newer_version(all_calver[0][1], "2026-10-31") is True
+
+
 
 @test(1, "interpreter.spec_jurisdiction_and_text_keys",
       "Specs take a jurisdiction, a legal language and per-language letters; keyed text ({\"$t\": ...}) loads and saves; LGPD is a known law.")

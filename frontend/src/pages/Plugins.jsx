@@ -4,7 +4,7 @@ import {
   Puzzle, RefreshCw, Upload, Shield, AlertTriangle, CheckCircle2,
   XCircle, Play, Square, Trash2, ChevronDown, ChevronRight,
   Lock, Cpu, Activity, FileWarning, Info, Package, Ban, Eye, ShieldAlert, ShieldCheck, Globe, BookOpen,
-  Download, ArrowUpCircle, ExternalLink, Search, Sparkles
+  Download, ArrowUpCircle, ExternalLink, Search, Sparkles, Sliders
 } from 'lucide-react'
 import api from '../api'
 import { useAuth, can } from '../hooks/useAuth'
@@ -392,7 +392,7 @@ function EnableModal({ plugin, permInfo, onClose, onEnabled }) {
 }
 
 // ── Plugin card ───────────────────────────────────────────────────────────────
-function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onViewAudit, canManage }) {
+function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onViewAudit, onUpdate, canManage }) {
   const [expanded, setExpanded] = useState(false)
   const st = STATUS_STYLES[plugin.status] || STATUS_STYLES.stopped
 
@@ -405,9 +405,31 @@ function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onView
               <Puzzle size={16} className="text-shield-400" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-slate-100 text-sm font-medium truncate">{plugin.name}</p>
                 <span className="text-slate-600 text-xs">{"v"}{plugin.version}</span>
+                {plugin.has_update && (
+                  plugin.is_prerelease ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 text-[11px] font-medium shrink-0">
+                      <Sparkles size={11} /> {tx("Pre-release v{version}", { version: plugin.update_version })}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300 text-[11px] font-medium shrink-0">
+                      <ArrowUpCircle size={11} /> {tx("Update to v{version}", { version: plugin.update_version })}
+                    </span>
+                  )
+                )}
+                {plugin.release_url && (
+                  <a
+                    href={plugin.release_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={tx("View release notes")}
+                    className="text-slate-400 hover:text-slate-200 transition-colors inline-flex items-center"
+                  >
+                    <ExternalLink size={11} />
+                  </a>
+                )}
               </div>
               <p className="text-slate-500 text-xs mt-0.5 line-clamp-2">{plugin.description}</p>
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
@@ -426,7 +448,15 @@ function PluginCard({ plugin, permInfo, onEnable, onDisable, onUninstall, onView
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+            {canManage && plugin.has_update && onUpdate && (
+              <button
+                onClick={() => onUpdate(plugin)}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors font-medium"
+              >
+                <ArrowUpCircle size={11} />{" "}{tx("Update")}
+              </button>
+            )}
             {/* Enabling, disabling and uninstalling stay with super admins. */}
             {canManage && (plugin.enabled ? (
               <button onClick={() => onDisable(plugin)}
@@ -713,6 +743,139 @@ function CatalogDetailModal({ plugin, onClose, onInstall, canManage, installing 
   )
 }
 
+// ── Update Settings Modal ─────────────────────────────────────────────────────
+function UpdateSettingsModal({ onClose, onSaved }) {
+  const [settings, setSettings] = useState({
+    catalog_check_hours: 12,
+    installed_update_check_hours: 24,
+    allow_prereleases: false,
+  })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    api.get('/plugins/settings')
+      .then(res => setSettings(res.data))
+      .catch(err => setError(detailText(err) || tx("Failed to load settings")))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+    try {
+      const res = await api.patch('/plugins/settings', settings)
+      if (onSaved) onSaved(res.data)
+      onClose()
+    } catch (err) {
+      setError(detailText(err) || tx("Failed to save settings"))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-slate-900 rounded-2xl border border-slate-700 max-w-md w-full overflow-hidden"
+        onClick={e => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-slate-700/50 flex items-center justify-between">
+          <h3 className="text-white font-semibold text-base">{tx("Plugin Update Settings")}</h3>
+          <button onClick={onClose} aria-label={tx("Close")} className="text-slate-400 hover:text-white">
+            <XCircle size={18} />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="p-6 text-center text-slate-500 text-sm">{tx("Loading settings…")}</div>
+        ) : (
+          <form onSubmit={handleSubmit} className="p-5 space-y-4">
+            {error && (
+              <div className="px-3 py-2 rounded-lg border border-red-800 bg-red-900/20 text-red-300 text-xs">
+                {error}
+              </div>
+            )}
+
+            <div>
+              <label htmlFor="cat-check-hours" className="block text-slate-300 text-xs font-medium mb-1">
+                {tx("Marketplace discovery frequency (hours)")}
+              </label>
+              <input
+                id="cat-check-hours"
+                type="number"
+                min="1"
+                max="168"
+                value={settings.catalog_check_hours}
+                onChange={e => setSettings({ ...settings, catalog_check_hours: Number(e.target.value) })}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-hidden focus:border-shield-500"
+              />
+              <p className="text-slate-500 text-[11px] mt-1">
+                {tx("How often to check marketplace index.json for newly released plugins (default 12 hours).")}
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="inst-check-hours" className="block text-slate-300 text-xs font-medium mb-1">
+                {tx("Installed plugins update check frequency (hours)")}
+              </label>
+              <input
+                id="inst-check-hours"
+                type="number"
+                min="1"
+                max="168"
+                value={settings.installed_update_check_hours}
+                onChange={e => setSettings({ ...settings, installed_update_check_hours: Number(e.target.value) })}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-hidden focus:border-shield-500"
+              />
+              <p className="text-slate-500 text-[11px] mt-1">
+                {tx("How often to check developer Git repositories for newer versions of installed plugins (default 24 hours).")}
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-slate-800">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.allow_prereleases}
+                  onChange={e => setSettings({ ...settings, allow_prereleases: e.target.checked })}
+                  className="mt-0.5 w-4 h-4 rounded-sm accent-purple-500"
+                />
+                <div>
+                  <span className="text-slate-200 text-sm font-medium">
+                    {tx("Allow pre-release updates")}
+                  </span>
+                  <p className="text-slate-500 text-xs mt-0.5">
+                    {tx("Include alpha, beta, and release candidates when checking developer repositories for updates.")}
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+              >
+                {tx("Cancel")}
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium text-white bg-shield-600 hover:bg-shield-700 rounded-lg disabled:opacity-50"
+              >
+                {saving && <RefreshCw size={12} className="animate-spin" />}
+                {tx("Save settings")}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 const MARKET_CATEGORIES = [
   { id: 'all', label: 'All' },
@@ -736,6 +899,8 @@ export default function Plugins() {
   const [enableTarget, setEnableTarget] = useState(null)
   const [auditTarget, setAuditTarget]   = useState(null)
   const [showUpload, setShowUpload] = useState(false)
+  const [showUpdateSettings, setShowUpdateSettings] = useState(false)
+  const [checkingUpdates, setCheckingUpdates] = useState(false)
   const [types, setTypes] = useState([])
   const [violations, setViolations] = useState([])
 
@@ -823,6 +988,34 @@ export default function Plugins() {
     }
   }
 
+  const handleCheckUpdates = async () => {
+    setCheckingUpdates(true)
+    try {
+      const res = await api.post('/plugins/updates/check')
+      const count = res.data?.total_updates || 0
+      if (count > 0) {
+        setCatalogToast(txn(count, "{n} update available from developer repositories.", "{n} updates available from developer repositories."))
+      } else {
+        setCatalogToast(tx("All installed plugins are up to date."))
+      }
+      setTimeout(() => setCatalogToast(''), 6000)
+      await load()
+    } catch (err) {
+      alert(detailText(err) || tx("Failed to check for updates"))
+    } finally {
+      setCheckingUpdates(false)
+    }
+  }
+
+  const doUpdatePlugin = (p) => {
+    const catItem = catalog.find(c => c.id === p.plugin_id)
+    if (catItem) {
+      doCatalogInstall(catItem, true)
+    } else if (p.release_url) {
+      window.open(p.release_url, '_blank')
+    }
+  }
+
   // Installed plugins grouped by type, in the server's type order.
   const groups = (types.length ? types : [...new Set(installed.map(p => p.type))].map(t => ({ type: t, label: t, folder: `${t}/` })))
     .map(t => ({ ...t, plugins: installed.filter(p => p.type === t.type) }))
@@ -850,7 +1043,7 @@ export default function Plugins() {
           <h1 className="text-white text-xl font-semibold">{tx("Plugins")}</h1>
           <p className="text-slate-400 text-sm mt-0.5">{tx("Extend OpenOptOut with sandboxed, permission-gated plugins")}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap items-center">
           <Link to="/plugin-help"
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
             <BookOpen size={13} />{" "}{tx("Docs")}
@@ -861,6 +1054,17 @@ export default function Plugins() {
               <Upload size={13} />{" "}{tx("Upload plugin")}
             </button>
           )}
+          {canManage && (
+            <button onClick={() => setShowUpdateSettings(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
+              <Sliders size={13} />{" "}{tx("Update settings")}
+            </button>
+          )}
+          <button onClick={handleCheckUpdates} disabled={checkingUpdates}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 disabled:opacity-50">
+            <RefreshCw size={13} className={checkingUpdates ? "animate-spin text-shield-400" : ""} />{" "}
+            {checkingUpdates ? tx("Checking…") : tx("Check for updates")}
+          </button>
           <button onClick={() => { load(); if (activeTab === 'market') loadCatalog(true); }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800">
             <RefreshCw size={13} />{" "}{tx("Refresh")}
@@ -944,7 +1148,8 @@ export default function Plugins() {
                         {g.plugins.map(p => (
                           <PluginCard key={p.plugin_id} plugin={p} permInfo={permInfo}
                             onEnable={setEnableTarget} onDisable={doDisable}
-                            onUninstall={doUninstall} onViewAudit={setAuditTarget} canManage={canManage} />
+                            onUninstall={doUninstall} onViewAudit={setAuditTarget}
+                            onUpdate={doUpdatePlugin} canManage={canManage} />
                         ))}
                       </div>
                     </div>
@@ -1088,6 +1293,16 @@ export default function Plugins() {
       )}
       {showUpload && (
         <PluginUploadWizard onClose={() => setShowUpload(false)} onInstalled={load} />
+      )}
+      {showUpdateSettings && (
+        <UpdateSettingsModal
+          onClose={() => setShowUpdateSettings(false)}
+          onSaved={() => {
+            setCatalogToast(tx("Update settings saved successfully."))
+            setTimeout(() => setCatalogToast(''), 4000)
+            load()
+          }}
+        />
       )}
       {detailPlugin && (
         <CatalogDetailModal

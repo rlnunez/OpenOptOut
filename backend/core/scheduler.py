@@ -178,6 +178,11 @@ def start_scheduler():
               replace_existing=True, misfire_grace_time=600,
               next_run_time=datetime.utcnow() + timedelta(minutes=3))
 
+    # Plugin & marketplace updates: periodic discovery check (12h default) + installed repo check (24h default)
+    s.add_job(plugin_updater_job, IntervalTrigger(hours=1), id="plugin_updater",
+              replace_existing=True, misfire_grace_time=1800,
+              next_run_time=datetime.utcnow() + timedelta(minutes=5))
+
     if not sc.get("enabled", False):
         s.start()
         _start_maintenance_monitor()
@@ -1049,6 +1054,15 @@ def system_updater_job():
         request_system_update(target_tag=target_tag)
     except Exception as e:
         log.warning("System updater job error: %s", e)
+
+
+def plugin_updater_job():
+    """Periodic job (hourly): check marketplace discovery (12h) and developer repo updates (24h)."""
+    try:
+        from ..plugins.catalog import run_periodic_plugin_checks
+        run_periodic_plugin_checks()
+    except Exception as e:
+        log.warning("Plugin updater job error: %s", e)
 
 
 def spec_helper_job():

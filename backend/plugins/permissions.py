@@ -366,6 +366,7 @@ class PluginManifest:
     # its manifest and spec text is written in (plugins/plugin_i18n.py).
     default_locale: str = "en"
     locales: list[str] = field(default_factory=list)
+    repo: str = ""
 
     def validate(self) -> list[str]:
         """Return a list of validation errors (empty = valid)."""
@@ -556,6 +557,7 @@ class PluginManifest:
             starts_enabled=bool(d.get("starts_enabled", True)),
             default_locale=d.get("default_locale", "en") or "en",
             locales=d.get("locales", []) or [],
+            repo=d.get("repo") or d.get("repository") or "",
         )
         # Manifests come from uploaded plugins. A number where text is expected
         # (e.g. "version": 1.0) used to crash validate() with AttributeError,
@@ -593,4 +595,5 @@ class PluginManifest:
             "starts_enabled": self.starts_enabled,
             "default_locale": self.default_locale,
             "locales": self.locales,
+            "repo": self.repo,
         }

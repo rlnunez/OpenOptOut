@@ -203,9 +203,20 @@ class PluginOut(BaseModel):
     pii_network_justification: str = ""
     crash_count: int
     last_error: Optional[str] = None
+    has_update: bool = False
+    update_version: Optional[str] = None
+    is_prerelease: bool = False
+    release_url: Optional[str] = None
+    repo: Optional[str] = None
 
     class Config:
         from_attributes = False
+
+
+class PluginSettingsUpdate(LimitedModel):
+    catalog_check_hours: Optional[int] = Field(None, ge=1, le=168)
+    installed_update_check_hours: Optional[int] = Field(None, ge=1, le=168)
+    allow_prereleases: Optional[bool] = None
 
 
 class EnableRequest(LimitedModel):
@@ -272,11 +283,20 @@ def plugin_system_status(_: User = Depends(require_permission("plugins.view"))):
 
 @router.get("")
 def list_plugins(db: Session = Depends(get_db), user: User = Depends(require_permission("plugins.view"))):
+    from ..plugins.catalog import get_cached_installed_updates
+    updates_map = get_cached_installed_updates()
     rows = db.query(InstalledPlugin).order_by(InstalledPlugin.installed_at.desc()).all()
     out = []
     for r in rows:
         manifest = json.loads(r.manifest_json)
         m = PluginManifest.from_dict(manifest)
+        u_info = updates_map.get(r.plugin_id, {})
+        has_update = bool(u_info.get("has_update", False))
+        update_version = u_info.get("latest_version") if has_update else None
+        is_prerelease = bool(u_info.get("is_prerelease", False)) if has_update else False
+        release_url = u_info.get("release_url") if has_update else None
+        repo = u_info.get("repo") or getattr(m, "repo", "") or None
+
         out.append(PluginOut(
             plugin_id=r.plugin_id, name=r.name, version=r.version, author=r.author,
             install_path=r.install_path or "", **_type_info(m),
@@ -292,6 +312,9 @@ def list_plugins(db: Session = Depends(get_db), user: User = Depends(require_per
             requires_pii_network_exception=manifest.get("requires_pii_network_exception", False),
             pii_network_justification=manifest.get("pii_network_justification", ""),
             crash_count=r.crash_count or 0, last_error=r.last_error,
+            has_update=has_update, update_version=update_version,
+            is_prerelease=is_prerelease, release_url=release_url,
+            repo=repo,
         ))
     return out
 
@@ -898,4 +921,65 @@ def update_catalog_plugin(
         return install_from_catalog(req.plugin_id, db=db, current_user=current_user, is_update=True)
     except CatalogError as e:
         raise HTTPException(e.status_code, e.message)
+
+
+@router.get("/settings")
+def get_plugin_update_settings(
+    _: User = Depends(require_permission("plugins.view")),
+):
+    """Get marketplace discovery check and developer repo update check intervals and settings."""
+    from ..plugins.catalog import get_update_settings
+    return get_update_settings()
+
+
+@router.patch("/settings")
+def update_plugin_settings(
+    req: PluginSettingsUpdate,
+    _: User = Depends(require_super_admin),
+):
+    """Configure marketplace discovery check and developer repo update check intervals and settings."""
+    from ..plugins.catalog import save_update_settings
+    return save_update_settings(req.model_dump(exclude_unset=True))
+
+
+@router.get("/updates")
+def get_installed_plugin_updates(
+    _: User = Depends(require_permission("plugins.view")),
+):
+    """Get cached update statuses for all installed plugins from developer repositories."""
+    from ..plugins.catalog import get_cached_installed_updates, get_plugin_updates_cache_path
+    cache_path = get_plugin_updates_cache_path()
+    checked_at = None
+    if os.path.isfile(cache_path):
+        try:
+            with open(cache_path, "r", encoding="utf-8") as f:
+                c_data = json.load(f)
+                checked_at = c_data.get("checked_at")
+        except Exception:
+            pass
+    updates = get_cached_installed_updates()
+    total_updates = sum(1 for u in updates.values() if u.get("has_update"))
+    return {
+        "checked_at": checked_at,
+        "updates": updates,
+        "total_updates": total_updates,
+    }
+
+
+@router.post("/updates/check")
+def check_for_installed_plugin_updates(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_permission("plugins.view")),
+):
+    """Trigger an immediate check of developer Git repositories for updates to installed plugins."""
+    from ..plugins.catalog import check_installed_plugins_updates
+    import time
+    updates = check_installed_plugins_updates(db=db, force_check=True)
+    total_updates = sum(1 for u in updates.values() if u.get("has_update"))
+    return {
+        "success": True,
+        "checked_at": time.time(),
+        "updates": updates,
+        "total_updates": total_updates,
+    }
 

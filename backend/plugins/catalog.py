@@ -42,7 +42,14 @@ class CatalogError(Exception):
 
 DEFAULT_CATALOG_URL = "https://rlnunez.github.io/openoptout-market/index.json"
 FALLBACK_CATALOG_URL = "https://raw.githubusercontent.com/rlnunez/openoptout-market/main/public/index.json"
-CATALOG_TTL_SECONDS = 14400  # 4 hours
+DEFAULT_CATALOG_CHECK_HOURS = 12
+DEFAULT_INSTALLED_CHECK_HOURS = 24
+
+DEFAULT_UPDATE_SETTINGS = {
+    "catalog_check_hours": DEFAULT_CATALOG_CHECK_HOURS,
+    "installed_update_check_hours": DEFAULT_INSTALLED_CHECK_HOURS,
+    "allow_prereleases": False,
+}
 
 MAX_PACKAGE_DOWNLOAD_BYTES = 50 * 1024 * 1024   # 50 MB
 MAX_PACKAGE_EXTRACTED_BYTES = 200 * 1024 * 1024 # 200 MB
@@ -52,6 +59,34 @@ PROHIBITED_DATA_EXTENSIONS = frozenset([
     ".py", ".pyc", ".pyo", ".pyd", ".sh", ".bash", ".zsh", ".exe", ".bin",
     ".so", ".dylib", ".dll", ".bat", ".cmd", ".vbs", ".ps1", ".jar"
 ])
+
+
+def get_update_settings() -> dict:
+    """Retrieve marketplace discovery and developer repo update settings."""
+    from ..core.settings_store import load_settings
+    settings = load_settings()
+    cfg = settings.get("plugins_updates", {})
+    return {
+        "catalog_check_hours": max(1, min(168, int(cfg.get("catalog_check_hours", DEFAULT_CATALOG_CHECK_HOURS)))),
+        "installed_update_check_hours": max(1, min(168, int(cfg.get("installed_update_check_hours", DEFAULT_INSTALLED_CHECK_HOURS)))),
+        "allow_prereleases": bool(cfg.get("allow_prereleases", False)),
+    }
+
+
+def save_update_settings(new_settings: dict) -> dict:
+    """Save marketplace discovery and developer repo update settings."""
+    from ..core.settings_store import load_settings, save_settings
+    settings = load_settings()
+    current = settings.get("plugins_updates", {})
+    if "catalog_check_hours" in new_settings and new_settings["catalog_check_hours"] is not None:
+        current["catalog_check_hours"] = max(1, min(168, int(new_settings["catalog_check_hours"])))
+    if "installed_update_check_hours" in new_settings and new_settings["installed_update_check_hours"] is not None:
+        current["installed_update_check_hours"] = max(1, min(168, int(new_settings["installed_update_check_hours"])))
+    if "allow_prereleases" in new_settings and new_settings["allow_prereleases"] is not None:
+        current["allow_prereleases"] = bool(new_settings["allow_prereleases"])
+    settings["plugins_updates"] = current
+    save_settings(settings)
+    return get_update_settings()
 
 
 def get_catalog_url() -> str:
@@ -81,16 +116,117 @@ def get_catalog_cache_path() -> str:
         return os.path.join(tempfile.gettempdir(), "openoptout_catalog_cache.json")
 
 
-def parse_semver(v: str) -> tuple:
-    """Parse '1.2.3' or 'v1.2.3' into integer tuple for version comparison."""
+def normalize_date_version(v: str) -> str:
+    """
+    Normalize CalVer / date-based version formats into dot-separated numerical versions.
+    Supports:
+    - ISO dates: '2026-10-31' -> '2026.10.31'
+    - ISO dates with prereleases or patch: '2026-10-31-rc1' -> '2026.10.31-rc1', '2026-10-31.1' -> '2026.10.31.1'
+    - Compact dates: '20261031' -> '2026.10.31'
+    - Standard semver strings ('1.2.3', 'v1.2.3') are returned unchanged (with 'v' stripped).
+    """
     clean = re.sub(r"^[vV]", "", (v or "").strip())
-    parts = []
-    for x in clean.split("."):
+    # Match YYYY-MM-DD pattern at start
+    m_iso = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})(.*)$", clean)
+    if m_iso:
+        y, m, d, rest = m_iso.groups()
+        if rest.startswith("-") and not rest.startswith("-0") and not rest[1:2].isdigit():
+            return f"{y}.{int(m)}.{int(d)}{rest}"
+        elif rest.startswith("."):
+            return f"{y}.{int(m)}.{int(d)}{rest}"
+        elif rest.startswith("-") and rest[1:].isdigit():
+            return f"{y}.{int(m)}.{int(d)}.{rest[1:]}"
+        return f"{y}.{int(m)}.{int(d)}{rest}"
+
+    # Match YYYYMMDD compact (8 digits starting with year >= 2000)
+    m_compact = re.match(r"^(\d{4})(\d{2})(\d{2})(.*)$", clean)
+    if m_compact and int(m_compact.group(1)) >= 2000:
+        y, m, d, rest = m_compact.groups()
+        return f"{y}.{int(m)}.{int(d)}{rest}"
+
+    return clean
+
+
+def parse_semver(v: str) -> tuple:
+    """
+    Parse '1.2.3', 'v1.2.3', date versions ('2026.10.31', '2026-10-31', '20261031'),
+    or pre-releases like '1.2.3-rc1' into comparable tuple.
+    Follows SemVer 2.0.0 precedence:
+    A normal version has higher precedence than a pre-release version with the same
+    major, minor, and patch (e.g. 1.0.0-rc1 < 1.0.0).
+    However, 1.0.1-rc1 > 1.0.0.
+    """
+    clean = normalize_date_version(v)
+    clean = re.sub(r"^[vV]", "", (clean or "").strip())
+    clean = clean.split("+")[0]  # strip build metadata
+    prerelease_part = None
+    if "-" in clean:
+        parts_main, prerelease_part = clean.split("-", 1)
+    else:
+        parts_main = clean
+
+    nums = []
+    for x in parts_main.split("."):
         m = re.match(r"^(\d+)", x)
-        parts.append(int(m.group(1)) if m else 0)
-    while len(parts) < 3:
-        parts.append(0)
-    return tuple(parts[:3])
+        nums.append(int(m.group(1)) if m else 0)
+    while len(nums) < 4:
+        nums.append(0)
+
+    if prerelease_part is None:
+        return (nums[0], nums[1], nums[2], nums[3], 1, ())
+
+    pre_tokens = []
+    for token in prerelease_part.split("."):
+        if token.isdigit():
+            pre_tokens.append((0, int(token)))
+        else:
+            pre_tokens.append((1, token.lower()))
+    return (nums[0], nums[1], nums[2], nums[3], 0, tuple(pre_tokens))
+
+
+def is_prerelease_version(v: str) -> bool:
+    """True if string indicates a pre-release version or tag."""
+    clean = normalize_date_version(v)
+    clean = re.sub(r"^[vV]", "", (clean or "").strip()).split("+")[0]
+    if "-" in clean:
+        return True
+    return bool(re.search(r"(?:alpha|beta|rc|dev|preview)", clean, re.IGNORECASE))
+
+
+def extract_version_from_tag(tag: str, plugin_id: Optional[str] = None) -> Optional[str]:
+    """
+    Extract clean SemVer or CalVer (date) version string from a Git tag.
+    Supports:
+    - Standard SemVer: 'v1.0.2', '1.0.2', 'v1.0.2-rc1'
+    - CalVer / dates: '2026.10.31', 'v2026-10-31', '2026-10-31', '20261031', '2026-10-31-rc1'
+    - Monorepo prefixed tags: 'whitepages-v1.0.2', 'whitepages-2026-10-31', 'whitepages/v2026.10.31'
+    Rejects tags prefixed with other plugin identifiers.
+    """
+    tag = (tag or "").strip()
+    if not tag:
+        return None
+
+    # Version pattern: standard semver OR ISO date YYYY-MM-DD OR compact date YYYYMMDD
+    ver_pattern = r"(?:\d+\.\d+(?:\.\d+)*(?:-[0-9A-Za-z.-]+)?|\d{4}-\d{1,2}-\d{1,2}(?:-[0-9A-Za-z.-]+|\.\d+)?|\d{8}(?:-[0-9A-Za-z.-]+|\.\d+)?)"
+
+    if plugin_id:
+        p_id = plugin_id.lower()
+        t_lower = tag.lower()
+        prefix_pattern = rf"^{re.escape(p_id)}[-/@]v?({ver_pattern})$"
+        m = re.match(prefix_pattern, t_lower)
+        if m:
+            matched_len = len(tag) - len(m.group(1))
+            return tag[matched_len:]
+
+        # Reject tags prefixed by another plugin
+        if re.match(rf"^[a-z0-9_-]+[-/@]v?{ver_pattern}$", t_lower):
+            return None
+
+    # Standalone / generic tag
+    m = re.match(rf"^v?({ver_pattern})$", tag, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    return None
 
 
 def is_newer_version(candidate: str, current: str) -> bool:
@@ -155,7 +291,8 @@ def get_catalog(
             log.warning("Could not read catalog cache: %s", e)
 
     now = time.time()
-    is_stale = (now - cached_at) > CATALOG_TTL_SECONDS
+    catalog_ttl = get_update_settings()["catalog_check_hours"] * 3600
+    is_stale = (now - cached_at) > catalog_ttl
     target_url = get_catalog_url()
     catalog_data = cached
     cache_status = "hit"
@@ -505,3 +642,324 @@ def install_from_catalog(
 
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+# ── Developer Git Repository Update Checking ──────────────────────────────────
+
+def get_plugin_updates_cache_path() -> str:
+    """Location of the cached developer repo updates."""
+    root = layout.plugins_root()
+    try:
+        os.makedirs(root, exist_ok=True)
+        return os.path.join(root, ".plugin_updates_cache.json")
+    except (OSError, PermissionError):
+        return os.path.join(tempfile.gettempdir(), "openoptout_plugin_updates_cache.json")
+
+
+def fetch_github_repo_releases(repo_slug: str, etag: Optional[str] = None) -> Tuple[Optional[List[dict]], Optional[str], Optional[str]]:
+    """
+    Fetch releases (or tags fallback) from a GitHub repository using safe_dns_context and ETag caching.
+    Returns (releases_list, new_etag, error_message).
+    If HTTP 304 (Not Modified), releases_list is None.
+    """
+    slug = re.sub(r"^https?://github\.com/", "", (repo_slug or "").strip().rstrip("/"))
+    slug = re.sub(r"\.git$", "", slug)
+    parts = slug.split("/")
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        return None, None, f"Invalid GitHub repository slug: {repo_slug!r}"
+
+    headers = {
+        "User-Agent": f"OpenOptOut/{get_version()} (Plugin Updater)",
+        "Accept": "application/vnd.github.v3+json",
+    }
+    github_token = os.getenv("GITHUB_TOKEN")
+    if github_token and github_token.strip():
+        headers["Authorization"] = f"Bearer {github_token.strip()}"
+
+    if etag:
+        headers["If-None-Match"] = etag
+
+    url = f"https://api.github.com/repos/{slug}/releases?per_page=30"
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with safe_dns_context():
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                new_etag = resp.headers.get("ETag")
+                raw = resp.read()
+                data = json.loads(raw.decode("utf-8"))
+                if isinstance(data, list) and len(data) > 0:
+                    return data, new_etag, None
+    except urllib.error.HTTPError as e:
+        if e.code == 304:
+            return None, etag, None
+        if e.code not in (404, 403):
+            return None, None, f"HTTP Error {e.code} fetching releases: {e.reason}"
+    except Exception as e:
+        return None, None, f"Network error fetching releases: {e}"
+
+    # Fallback to tags API if releases are empty or 404
+    tags_url = f"https://api.github.com/repos/{slug}/tags?per_page=30"
+    req_tags = urllib.request.Request(tags_url, headers=headers)
+    try:
+        with safe_dns_context():
+            with urllib.request.urlopen(req_tags, timeout=15) as resp:
+                new_etag = resp.headers.get("ETag")
+                raw = resp.read()
+                tags_data = json.loads(raw.decode("utf-8"))
+                if isinstance(tags_data, list):
+                    synth_releases = []
+                    for t in tags_data:
+                        t_name = t.get("name", "")
+                        synth_releases.append({
+                            "tag_name": t_name,
+                            "name": t_name,
+                            "prerelease": is_prerelease_version(t_name),
+                            "html_url": f"https://github.com/{slug}/releases/tag/{t_name}",
+                        })
+                    return synth_releases, new_etag, None
+    except urllib.error.HTTPError as e:
+        if e.code == 304:
+            return None, etag, None
+        return None, None, f"HTTP Error {e.code} fetching tags: {e.reason}"
+    except Exception as e:
+        return None, None, f"Network error fetching tags: {e}"
+
+    return [], None, None
+
+
+def check_installed_plugins_updates(db: Optional[Any] = None, force_check: bool = False) -> Dict[str, dict]:
+    """
+    Check installed plugins directly against their developer's Git repositories for updates.
+    Evaluates latest tags/releases, handles pre-releases according to admin settings,
+    and batches GitHub API requests by repository slug.
+    Returns map of plugin_id -> update_dict.
+    """
+    try:
+        from ..models.database import InstalledPlugin
+    except ImportError:
+        InstalledPlugin = None
+
+    settings = get_update_settings()
+    allow_prereleases = settings["allow_prereleases"]
+    check_interval = settings["installed_update_check_hours"] * 3600
+    cache_path = get_plugin_updates_cache_path()
+    now = time.time()
+
+    cached_data: dict = {}
+    if os.path.isfile(cache_path):
+        try:
+            with open(cache_path, "r", encoding="utf-8") as f:
+                cached_data = json.load(f)
+        except Exception as e:
+            log.warning("Could not read plugin updates cache: %s", e)
+
+    last_checked = cached_data.get("checked_at", 0.0)
+    if not force_check and (now - last_checked) < check_interval and "updates" in cached_data:
+        return cached_data.get("updates", {})
+
+    installed_rows = []
+    if db is not None and InstalledPlugin is not None:
+        try:
+            installed_rows = db.query(InstalledPlugin).all()
+        except Exception as e:
+            log.warning("Could not query InstalledPlugin: %s", e)
+    elif InstalledPlugin is not None:
+        try:
+            from ..models.database import SessionLocal
+            session = SessionLocal()
+            try:
+                installed_rows = session.query(InstalledPlugin).all()
+            finally:
+                session.close()
+        except Exception as e:
+            log.warning("Could not load SessionLocal for InstalledPlugin: %s", e)
+
+    if not installed_rows:
+        return {}
+
+    # Build catalog map for repo resolution fallback
+    cat = get_catalog(db=db, force_refresh=False)
+    cat_map = {p.get("id"): p for p in cat.get("plugins", [])}
+
+    repo_groups: Dict[str, List[Tuple[str, str, str]]] = {}
+    plugin_repo_map: Dict[str, str] = {}
+    updates: Dict[str, dict] = {}
+
+    for row in installed_rows:
+        p_id = row.plugin_id
+        current_ver = row.version or "1.0.0"
+        m_data = {}
+        if row.manifest_json:
+            try:
+                m_data = json.loads(row.manifest_json)
+            except Exception:
+                pass
+
+        repo = (m_data.get("repo") or m_data.get("repository") or "").strip()
+        if not repo and p_id in cat_map:
+            repo = (cat_map[p_id].get("repo") or "").strip()
+
+        if not repo:
+            src = m_data.get("source") or m_data.get("url") or ""
+            m_gh = re.search(r"github\.com/([^/]+/[^/#?]+)", src)
+            if m_gh:
+                repo = m_gh.group(1).rstrip(".git")
+
+        if repo:
+            repo_slug = re.sub(r"^https?://github\.com/", "", repo).rstrip("/").rstrip(".git")
+            plugin_repo_map[p_id] = repo_slug
+            repo_groups.setdefault(repo_slug, []).append((p_id, row.name, current_ver))
+        else:
+            updates[p_id] = {
+                "has_update": False,
+                "current_version": current_ver,
+                "latest_version": current_ver,
+                "is_prerelease": False,
+                "release_url": None,
+                "repo": None,
+                "checked_at": now,
+            }
+
+    repos_cache = cached_data.get("repos", {})
+
+    for repo_slug, plugins in repo_groups.items():
+        prev_repo_info = repos_cache.get(repo_slug, {})
+        cached_etag = prev_repo_info.get("etag") if not force_check else None
+        releases, new_etag, err = fetch_github_repo_releases(repo_slug, etag=cached_etag)
+
+        if err:
+            log.warning("Failed to fetch releases for %s: %s", repo_slug, err)
+            releases = prev_repo_info.get("releases", [])
+        elif releases is None:
+            # 304 Not Modified
+            releases = prev_repo_info.get("releases", [])
+        else:
+            repos_cache[repo_slug] = {
+                "etag": new_etag,
+                "releases": releases,
+                "fetched_at": now,
+            }
+
+        for p_id, p_name, current_ver in plugins:
+            candidates = []
+            for rel in (releases or []):
+                tag_name = rel.get("tag_name") or rel.get("name") or ""
+                ver_str = extract_version_from_tag(tag_name, plugin_id=p_id)
+                if not ver_str:
+                    continue
+
+                is_pre = bool(rel.get("prerelease")) or is_prerelease_version(ver_str)
+                if is_pre and not allow_prereleases:
+                    continue
+
+                try:
+                    sem_tuple = parse_semver(ver_str)
+                    candidates.append((sem_tuple, ver_str, is_pre, rel.get("html_url")))
+                except Exception:
+                    continue
+
+            candidates.sort(key=lambda c: c[0], reverse=True)
+
+            if candidates and candidates[0][0] > parse_semver(current_ver):
+                _, latest_ver, is_pre, rel_url = candidates[0]
+                updates[p_id] = {
+                    "has_update": True,
+                    "current_version": current_ver,
+                    "latest_version": latest_ver,
+                    "is_prerelease": is_pre,
+                    "release_url": rel_url,
+                    "repo": repo_slug,
+                    "checked_at": now,
+                }
+            else:
+                updates[p_id] = {
+                    "has_update": False,
+                    "current_version": current_ver,
+                    "latest_version": current_ver,
+                    "is_prerelease": False,
+                    "release_url": None,
+                    "repo": repo_slug,
+                    "checked_at": now,
+                }
+
+    save_data = {
+        "checked_at": now,
+        "allow_prereleases": allow_prereleases,
+        "repos": repos_cache,
+        "updates": updates,
+    }
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(cache_path)), exist_ok=True)
+        with open(cache_path, "w", encoding="utf-8") as f:
+            json.dump(save_data, f, indent=2)
+    except Exception as e:
+        log.warning("Could not write plugin updates cache: %s", e)
+
+    return updates
+
+
+def get_cached_installed_updates() -> Dict[str, dict]:
+    """Retrieve cached update information for installed plugins."""
+    cache_path = get_plugin_updates_cache_path()
+    if os.path.isfile(cache_path):
+        try:
+            with open(cache_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("updates", {})
+        except Exception:
+            pass
+    return {}
+
+
+def run_periodic_plugin_checks():
+    """
+    Periodic job invoked by the background scheduler.
+    1. Checks the community marketplace catalog for new plugins if catalog_check_hours have elapsed.
+    2. Checks developer Git repositories of installed plugins for updates if installed_update_check_hours have elapsed.
+    """
+    settings = get_update_settings()
+    now = time.time()
+
+    # 1. Catalog discovery check
+    cat_path = get_catalog_cache_path()
+    last_cat_check = 0.0
+    if os.path.isfile(cat_path):
+        try:
+            with open(cat_path, "r", encoding="utf-8") as f:
+                c_data = json.load(f)
+                last_cat_check = c_data.get("cached_at", 0.0)
+        except Exception:
+            pass
+
+    cat_interval = settings["catalog_check_hours"] * 3600
+    if (now - last_cat_check) >= cat_interval:
+        try:
+            log.info("Running scheduled marketplace catalog discovery check (interval %dh)", settings["catalog_check_hours"])
+            get_catalog(force_refresh=True)
+        except Exception as e:
+            log.warning("Scheduled catalog refresh error: %s", e)
+
+    # 2. Installed plugins developer repo check
+    updates_path = get_plugin_updates_cache_path()
+    last_inst_check = 0.0
+    if os.path.isfile(updates_path):
+        try:
+            with open(updates_path, "r", encoding="utf-8") as f:
+                u_data = json.load(f)
+                last_inst_check = u_data.get("checked_at", 0.0)
+        except Exception:
+            pass
+
+    inst_interval = settings["installed_update_check_hours"] * 3600
+    if (now - last_inst_check) >= inst_interval:
+        try:
+            from ..models.database import SessionLocal
+            db = SessionLocal()
+            try:
+                log.info("Running scheduled installed plugin update check against developer repos (interval %dh)", settings["installed_update_check_hours"])
+                check_installed_plugins_updates(db=db, force_check=True)
+            finally:
+                db.close()
+        except Exception as e:
+            log.warning("Scheduled installed plugin update check error: %s", e)
+

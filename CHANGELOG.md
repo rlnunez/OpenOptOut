@@ -9,6 +9,31 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ## [0.12.0] — 2026-10-28
 
+### Decentralized Developer Repository Updates & Configurable Polling
+- **Decentralized Developer Repository Checking (`backend/plugins/catalog.py`, `backend/routers/plugins.py`, `backend/core/scheduler.py`):**
+  - **Marketplace Discovery Polling:** Marketplace `index.json` is polled on an admin-configurable interval (default: every 12 hours, range: 1 to 168 hours) strictly for discovering newly published plugins.
+  - **Direct Git Developer Repository Checking:** Installed plugins are checked directly against their developer Git repositories on an admin-configurable interval (default: every 24 hours, range: 1 to 168 hours) for version updates via GitHub Releases and Git Tags APIs.
+  - **Rate-Limit & Monorepo Optimization:** Batches requests by developer repository slug (collapsing 80 brokers into a single GitHub API call to `rlnunez/openoptout-brokers`), with ETag conditional HTTP caching and optional `GITHUB_TOKEN` support.
+  - **SemVer 2.0.0 & CalVer (Date-Based Versioning) Support:**
+    - Full SemVer 2.0.0 precedence handling including pre-release identifiers (`1.0.1-rc1` > `1.0.0`, but `1.0.1` > `1.0.1-rc1`).
+    - CalVer / date-based version numbers: supports `YYYY-MM-DD`, `YYYY.MM.DD`, `YYYYMMDD`, date revisions (`YYYY-MM-DD.1`), and date-based pre-releases (`YYYY-MM-DD-rc1`, `YYYY.MM.DD-beta`). Cross-format date version comparisons are fully normalized.
+    - Git tag parsing handles monorepo tags (`{plugin_id}-v{version}`, `{plugin_id}-{version}`, `{plugin_id}/{version}`) and rejects mismatched monorepo prefixes, while seamlessly supporting standalone tags (`v{version}`, `{version}`).
+  - **Admin Pre-Release Control:**
+    - Configurable `allow_prereleases` setting (default `False`). When disabled, pre-releases (`-alpha`, `-beta`, `-rc`, `-dev`, `-preview`) are ignored in update checks. When enabled, pre-releases are eligible for update detection.
+    - Badging distinguishes stable releases (amber badge: `Update to v{version}`) from pre-releases (purple badge: `Pre-release v{version}`).
+  - **Backend API Endpoints:**
+    - `GET /api/plugins/settings`: Returns current check intervals and pre-release preference.
+    - `PATCH /api/plugins/settings`: Updates `catalog_check_hours`, `installed_update_check_hours`, and `allow_prereleases`.
+    - `GET /api/plugins/updates`: Returns cached update status for installed plugins.
+    - `POST /api/plugins/updates/check`: Triggers immediate developer repository check and updates cache.
+  - **Frontend UI & Accessibility (`frontend/src/pages/Plugins.jsx`):**
+    - Installed plugin cards display update badges with direct links to release notes.
+    - Added "Update settings" modal allowing operators to configure polling intervals and toggle pre-release updates.
+    - Added "Check for updates" header action with animated loading state.
+    - Universal localization across all 17 bundled language packs.
+  - **Automated Test Coverage:**
+    - Added `plugins.developer_repo_update_checking` test validating SemVer pre-releases, CalVer date versions (ISO, compact, dot-separated), monorepo tag extraction, pre-release filtering, settings persistence, and simulated developer release checking.
+
 ### Setup Wizard: Catalog Step & Recommended Protections Bundle (Roadmap Item 11)
 - **Wizard Recommended Protections Step (`backend/routers/wizard.py`, `frontend/src/pages/SetupWizard.jsx`):**
   - **Curated Protection Bundles (`PROTECTION_BUNDLES`):** Defined pre-curated protection bundles covering high-impact opt-out workflows:
