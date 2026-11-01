@@ -3550,5 +3550,8 @@
   "Update to v{version}": "Zaktualizuj do v{version}",
   "View release notes": "Zobacz informacje o wydaniu",
   "{n} update available from developer repositories.": "{n} dostępna aktualizacja z repozytoriów deweloperów.",
-  "{n} updates available from developer repositories.": "{n} dostępnych aktualizacji z repozytoriów deweloperów."
+  "{n} updates available from developer repositories.": "{n} dostępnych aktualizacji z repozytoriów deweloperów.",
+  "Apply pending plugin updates during this window": "Zastosuj oczekujące aktualizacje wtyczek w tym oknie",
+  "Auto-updates plugins": "Automatyczna aktualizacja wtyczek",
+  "Maintenance & updates {start}–{end}": "Konserwacja i aktualizacje {start}–{end}"
 }

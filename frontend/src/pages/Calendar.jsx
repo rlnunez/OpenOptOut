@@ -39,6 +39,7 @@ export default function Calendar() {
   const [mStart, setMStart] = useState('')
   const [mEnd, setMEnd] = useState('')
   const [mDesc, setMDesc] = useState('')
+  const [mApplyUpdates, setMApplyUpdates] = useState(false)
   const [savingMaint, setSavingMaint] = useState(false)
   const [noticeHours, setNoticeHours] = useState('24')
   const [savingNoticeHours, setSavingNoticeHours] = useState(false)
@@ -107,10 +108,12 @@ export default function Calendar() {
         start: mStart,
         end: mEnd,
         description: mDesc.trim() || undefined,
+        apply_plugin_updates: mApplyUpdates,
       })
       setMStart('')
       setMEnd('')
       setMDesc('')
+      setMApplyUpdates(false)
       setMsg(tx("Maintenance window scheduled."))
       window.dispatchEvent(new Event('maintenance-settings-changed'))
       load()
@@ -187,7 +190,14 @@ export default function Calendar() {
                 <p className="text-slate-400 text-xs mb-1">{d.getDate()}</p>
                 {evs.slice(0, 3).map((e, i) => (
                   <p key={i} title={e.title} dir="auto" className={`text-[11px] leading-tight px-1 py-0.5 mb-0.5 rounded border truncate ${KIND[e.kind].cls}`}>
-                    {e.kind === 'run' ? tx("Opt-outs {time}", { time: fmtClock(e.time) }) : e.kind === 'maintenance' ? tx("Maintenance {start}–{end}", { start: fmtClock(e.start_time), end: fmtClock(e.end_time) }) : e.title}</p>
+                    {e.kind === 'run'
+                      ? tx("Opt-outs {time}", { time: fmtClock(e.time) })
+                      : e.kind === 'maintenance'
+                      ? (e.apply_plugin_updates
+                        ? tx("Maintenance & updates {start}–{end}", { start: fmtClock(e.start_time), end: fmtClock(e.end_time) })
+                        : tx("Maintenance {start}–{end}", { start: fmtClock(e.start_time), end: fmtClock(e.end_time) }))
+                      : e.title}
+                  </p>
                 ))}
                 {evs.length > 3 && <p className="text-[11px] text-slate-400">{tx("+{v} more", { v: evs.length - 3 })}</p>}
               </div>
@@ -202,7 +212,14 @@ export default function Calendar() {
         {upcoming.length === 0 ? <p className="text-slate-400 text-sm">{tx("Nothing to check or chase yet.")}</p> : (
           <ul className="space-y-1 text-sm">{upcoming.map((e, i) => (
             <li key={i} className="flex gap-3"><span className="text-slate-400 w-28 shrink-0">{nice(e.date)}</span>
-              <span className={e.kind === 'deadline' ? 'text-amber-200' : e.kind === 'maintenance' ? 'text-purple-300' : 'text-slate-200'}>{e.title}</span></li>))}</ul>
+              <span className={e.kind === 'deadline' ? 'text-amber-200' : e.kind === 'maintenance' ? 'text-purple-300' : 'text-slate-200'}>
+                {e.title}
+                {e.kind === 'maintenance' && e.apply_plugin_updates && (
+                  <span className="ms-2 px-1.5 py-0.5 rounded text-[10px] bg-indigo-900/60 text-indigo-200 border border-indigo-500/50">
+                    {tx("Auto-updates plugins")}
+                  </span>
+                )}
+              </span></li>))}</ul>
         )}
       </section>
 
@@ -283,6 +300,17 @@ export default function Calendar() {
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200" />
               </div>
             </div>
+            <div className="mb-3">
+              <label className="flex items-center gap-2 text-slate-300 text-xs cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={mApplyUpdates}
+                  onChange={e => setMApplyUpdates(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-purple-600 focus:ring-purple-500 focus:ring-offset-slate-900 accent-purple-600"
+                />
+                <span>{tx("Apply pending plugin updates during this window")}</span>
+              </label>
+            </div>
             <button
               type="button"
               disabled={!mStart || !mEnd || savingMaint}
@@ -312,6 +340,11 @@ export default function Calendar() {
                             {isNotice && (
                               <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-900/60 text-amber-200 border border-amber-500/50">
                                 {tx("Notice active ({hours}h away)", { hours: data.maintenance_notice?.hours_until })}
+                              </span>
+                            )}
+                            {w.apply_plugin_updates && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-indigo-900/60 text-indigo-200 border border-indigo-500/50">
+                                {tx("Auto-updates plugins")}
                               </span>
                             )}
                           </div>

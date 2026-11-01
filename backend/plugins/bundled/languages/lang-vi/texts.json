@@ -3552,5 +3552,8 @@
   "Update to v{version}": "Cập nhật lên v{version}",
   "View release notes": "Xem ghi chú phát hành",
   "{n} update available from developer repositories.": "Có {n} bản cập nhật từ kho lưu trữ của nhà phát triển.",
-  "{n} updates available from developer repositories.": "Có {n} bản cập nhật từ kho lưu trữ của nhà phát triển."
+  "{n} updates available from developer repositories.": "Có {n} bản cập nhật từ kho lưu trữ của nhà phát triển.",
+  "Apply pending plugin updates during this window": "Áp dụng các bản cập nhật plugin đang chờ xử lý trong khung giờ này",
+  "Auto-updates plugins": "Tự động cập nhật plugin",
+  "Maintenance & updates {start}–{end}": "Bảo trì & cập nhật {start}–{end}"
 }

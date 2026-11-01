@@ -3552,5 +3552,8 @@
   "Update to v{version}": "Atualizar para v{version}",
   "View release notes": "Ver notas de versão",
   "{n} update available from developer repositories.": "{n} atualização disponível nos repositórios dos desenvolvedores.",
-  "{n} updates available from developer repositories.": "{n} atualizações disponíveis nos repositórios dos desenvolvedores."
+  "{n} updates available from developer repositories.": "{n} atualizações disponíveis nos repositórios dos desenvolvedores.",
+  "Apply pending plugin updates during this window": "Aplicar atualizações de plugins pendentes durante esta janela",
+  "Auto-updates plugins": "Atualiza plugins automaticamente",
+  "Maintenance & updates {start}–{end}": "Manutenção e atualizações {start}–{end}"
 }

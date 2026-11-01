@@ -963,3 +963,84 @@ def run_periodic_plugin_checks():
         except Exception as e:
             log.warning("Scheduled installed plugin update check error: %s", e)
 
+
+def apply_pending_plugin_updates(
+    db: Any,
+    current_user: Any = None
+) -> dict:
+    """
+    Check for pending plugin updates and apply them automatically.
+    Intended to be called during scheduled maintenance windows when apply_plugin_updates is enabled.
+    Updates are recorded in PluginAuditLog with action='maintenance_update'.
+    """
+    try:
+        from ..models.database import InstalledPlugin, PluginAuditLog
+    except ImportError:
+        InstalledPlugin = None
+        PluginAuditLog = None
+
+    if db is None or InstalledPlugin is None:
+        return {"applied": [], "failed": [], "skipped": []}
+
+    installed = db.query(InstalledPlugin).all()
+    if not installed:
+        return {"applied": [], "failed": [], "skipped": []}
+
+    # Retrieve current update status against developer repos and catalog
+    updates = check_installed_plugins_updates(db=db, force_check=True)
+    applied = []
+    failed = []
+    skipped = []
+
+    actor_id = getattr(current_user, "id", None)
+
+    for row in installed:
+        p_id = row.plugin_id
+        u_info = updates.get(p_id, {})
+        if not u_info.get("has_update"):
+            skipped.append(p_id)
+            continue
+
+        target_ver = u_info.get("latest_version")
+        try:
+            log.info("Maintenance window auto-updating plugin '%s' -> v%s", p_id, target_ver)
+            res = install_from_catalog(p_id, db=db, current_user=current_user, is_update=True)
+            if PluginAuditLog is not None:
+                db.add(PluginAuditLog(
+                    plugin_id=p_id,
+                    action="maintenance_update",
+                    actor_id=actor_id,
+                    detail=f"Automated update to v{res.get('version', target_ver)} during scheduled maintenance window"
+                ))
+                db.commit()
+            applied.append({
+                "plugin_id": p_id,
+                "version": res.get("version", target_ver),
+                "name": row.name,
+            })
+        except Exception as e:
+            log.warning("Failed to auto-update plugin '%s' in maintenance window: %s", p_id, e)
+            if PluginAuditLog is not None:
+                try:
+                    db.add(PluginAuditLog(
+                        plugin_id=p_id,
+                        action="maintenance_update_failed",
+                        actor_id=actor_id,
+                        detail=f"Failed to update to v{target_ver} during maintenance window: {e}"
+                    ))
+                    db.commit()
+                except Exception:
+                    pass
+            failed.append({
+                "plugin_id": p_id,
+                "target_version": target_ver,
+                "error": str(e),
+            })
+
+    return {
+        "applied": applied,
+        "failed": failed,
+        "skipped": skipped,
+    }
+
+

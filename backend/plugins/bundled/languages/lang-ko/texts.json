@@ -3552,5 +3552,8 @@
   "Update to v{version}": "v{version}(으)로 업데이트",
   "View release notes": "릴리스 정보 보기",
   "{n} update available from developer repositories.": "개발자 저장소에서 {n}개의 업데이트를 사용할 수 있습니다.",
-  "{n} updates available from developer repositories.": "개발자 저장소에서 {n}개의 업데이트를 사용할 수 있습니다."
+  "{n} updates available from developer repositories.": "개발자 저장소에서 {n}개의 업데이트를 사용할 수 있습니다.",
+  "Apply pending plugin updates during this window": "이 유지보수 기간 동안 보류 중인 플러그인 업데이트 적용",
+  "Auto-updates plugins": "플러그인 자동 업데이트",
+  "Maintenance & updates {start}–{end}": "유지보수 및 업데이트 {start}–{end}"
 }

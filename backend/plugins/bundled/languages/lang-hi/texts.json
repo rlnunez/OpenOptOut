@@ -3552,5 +3552,8 @@
   "Update to v{version}": "v{version} पर अपडेट करें",
   "View release notes": "रिलीज़ नोट्स देखें",
   "{n} update available from developer repositories.": "डेवलपर रिपॉजिटरी से {n} अपडेट उपलब्ध है।",
-  "{n} updates available from developer repositories.": "डेवलपर रिपॉजिटरी से {n} अपडेट उपलब्ध हैं।"
+  "{n} updates available from developer repositories.": "डेवलपर रिपॉजिटरी से {n} अपडेट उपलब्ध हैं।",
+  "Apply pending plugin updates during this window": "इस अंतराल के दौरान लंबित प्लगइन अपडेट लागू करें",
+  "Auto-updates plugins": "प्लगइन्स को स्वतः अपडेट करता है",
+  "Maintenance & updates {start}–{end}": "रखरखाव और अपडेट {start}–{end}"
 }

@@ -3550,5 +3550,8 @@
   "Update to v{version}": "Оновити до v{version}",
   "View release notes": "Переглянути примітки до випуску",
   "{n} update available from developer repositories.": "Доступно {n} оновлення з репозиторіїв розробників.",
-  "{n} updates available from developer repositories.": "Доступно {n} оновлень з репозиторіїв розробників."
+  "{n} updates available from developer repositories.": "Доступно {n} оновлень з репозиторіїв розробників.",
+  "Apply pending plugin updates during this window": "Застосувати очікувані оновлення плагінів під час цього вікна",
+  "Auto-updates plugins": "Автооновлення плагінів",
+  "Maintenance & updates {start}–{end}": "Технічне обслуговування та оновлення {start}–{end}"
 }

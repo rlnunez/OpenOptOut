@@ -3552,5 +3552,8 @@
   "Update to v{version}": "تحديث إلى v{version}",
   "View release notes": "عرض ملاحظات الإصدار",
   "{n} update available from developer repositories.": "{n} تحديث متوفر من مستودعات المطورين.",
-  "{n} updates available from developer repositories.": "{n} تحديثات متوفرة من مستودعات المطورين."
+  "{n} updates available from developer repositories.": "{n} تحديثات متوفرة من مستودعات المطورين.",
+  "Apply pending plugin updates during this window": "تطبيق تحديثات الإضافات المعلقة خلال هذه الفترة",
+  "Auto-updates plugins": "تحديث الإضافات تلقائيًا",
+  "Maintenance & updates {start}–{end}": "صيانة وتحديثات {start}–{end}"
 }

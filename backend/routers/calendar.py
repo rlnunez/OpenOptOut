@@ -39,6 +39,7 @@ class MaintenanceWindowCreate(LimitedModel):
     start: str = Field(..., max_length=50)
     end: str = Field(..., max_length=50)
     description: Optional[str] = Field("Host server updates and backups", max_length=TEXT_MAX)
+    apply_plugin_updates: bool = Field(False, description="Whether to apply pending plugin updates during this maintenance window")
 
 
 class MaintenanceSettingsUpdate(LimitedModel):

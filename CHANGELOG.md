@@ -9,6 +9,19 @@ Each completed roadmap item is cross-referenced with its architectural milestone
 
 ## [0.12.0] — 2026-10-28
 
+### Scheduled Maintenance Windows: Automated Plugin Updates Integration
+- **Maintenance Windows Plugin Updates (`backend/routers/calendar.py`, `backend/core/calendar_plan.py`, `backend/core/scheduler.py`, `backend/plugins/catalog.py`):**
+  - **Additive Maintenance Window Option:** Added `apply_plugin_updates: bool = False` to `MaintenanceWindowCreate` and window specifications in `openoptout_settings.json`.
+  - **Downtime Execution & Deduping:** When the background scheduler monitor enters an active maintenance window that has `apply_plugin_updates` enabled, pending plugin updates are automatically checked and applied once per scheduled window.
+  - **Audit Logging:** Automated updates executed during downtime are logged to `PluginAuditLog` with action `maintenance_update` (or `maintenance_update_failed`), recording the version applied or the failure detail.
+  - **Calendar UI Integration (`frontend/src/pages/Calendar.jsx`):**
+    - Added an accessible "Apply pending plugin updates during this window" checkbox to the maintenance window scheduling form.
+    - Added an "Auto-updates plugins" indigo badge to scheduled windows in the window list and upcoming events.
+    - Displaying "Maintenance & updates {start}–{end}" on month view cells for maintenance windows with automated updates enabled.
+    - Full localization across all 17 bundled language packs (`texts.json`).
+  - **Test Verification:**
+    - Updated `calendar.maintenance_windows_plan_and_downtime` test suite in `backend/tests/run_tests.py` to verify `apply_plugin_updates` validation, calendar event rendering, deduplicated execution upon entering maintenance windows, and the catalog update helper.
+
 ### Decentralized Developer Repository Updates & Configurable Polling
 - **Decentralized Developer Repository Checking (`backend/plugins/catalog.py`, `backend/routers/plugins.py`, `backend/core/scheduler.py`):**
   - **Marketplace Discovery Polling:** Marketplace `index.json` is polled on an admin-configurable interval (default: every 12 hours, range: 1 to 168 hours) strictly for discovering newly published plugins.

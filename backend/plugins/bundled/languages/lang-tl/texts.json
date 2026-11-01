@@ -3552,5 +3552,8 @@
   "Update to v{version}": "I-update sa v{version}",
   "View release notes": "Tingnan ang mga tala sa release",
   "{n} update available from developer repositories.": "{n} update ang available mula sa mga repository ng developer.",
-  "{n} updates available from developer repositories.": "{n} na mga update ang available mula sa mga repository ng developer."
+  "{n} updates available from developer repositories.": "{n} na mga update ang available mula sa mga repository ng developer.",
+  "Apply pending plugin updates during this window": "Ilapat ang mga nakabinbing update ng plugin sa panahong ito",
+  "Auto-updates plugins": "Awtomatikong nag-a-update ng mga plugin",
+  "Maintenance & updates {start}–{end}": "Pagpapanatili at mga update {start}–{end}"
 }

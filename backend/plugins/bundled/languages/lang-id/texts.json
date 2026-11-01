@@ -3551,5 +3551,8 @@
   "Update to v{version}": "Perbarui ke v{version}",
   "View release notes": "Lihat catatan rilis",
   "{n} update available from developer repositories.": "{n} pembaruan tersedia dari repositori pengembang.",
-  "{n} updates available from developer repositories.": "{n} pembaruan tersedia dari repositori pengembang."
+  "{n} updates available from developer repositories.": "{n} pembaruan tersedia dari repositori pengembang.",
+  "Apply pending plugin updates during this window": "Terapkan pembaruan plugin yang tertunda selama jendela ini",
+  "Auto-updates plugins": "Pembaruan otomatis plugin",
+  "Maintenance & updates {start}–{end}": "Pemeliharaan & pembaruan {start}–{end}"
 }

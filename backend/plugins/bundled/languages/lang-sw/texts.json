@@ -3550,5 +3550,8 @@
   "Update to v{version}": "Sasisha hadi v{version}",
   "View release notes": "Tazama madokezo ya toleo",
   "{n} update available from developer repositories.": "Sasisho {n} linapatikana kutoka hazina za wasanidi programu.",
-  "{n} updates available from developer repositories.": "Masasisho {n} yanapatikana kutoka hazina za wasanidi programu."
+  "{n} updates available from developer repositories.": "Masasisho {n} yanapatikana kutoka hazina za wasanidi programu.",
+  "Apply pending plugin updates during this window": "Tekeleza masasisho yanayosubiri ya programu-jalizi wakati wa dirisha hili",
+  "Auto-updates plugins": "Husasisha programu-jalizi kiotomatiki",
+  "Maintenance & updates {start}–{end}": "Matengenezo na masasisho {start}–{end}"
 }

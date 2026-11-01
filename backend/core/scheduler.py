@@ -24,6 +24,7 @@ UUID_RE = re.compile(
 )
 
 _in_maintenance: bool = False
+_last_plugin_update_window_id: Optional[str] = None
 _maintenance_monitor_thread: Optional[threading.Thread] = None
 _maintenance_stop_event = threading.Event()
 
@@ -42,11 +43,12 @@ def check_maintenance_windows(now: Optional[datetime] = None) -> bool:
     Resumes the scheduler if exiting a maintenance window.
     Returns True if currently in a maintenance window, else False.
     """
-    global _in_maintenance
+    global _in_maintenance, _last_plugin_update_window_id
     in_win, win = is_downtime_active(now=now)
     s = get_scheduler()
 
     if in_win:
+        win_id = win.get("id") if win else None
         if not _in_maintenance:
             _in_maintenance = True
             desc = win.get("description", "Host server updates and backups") if win else "Downtime"
@@ -62,6 +64,23 @@ def check_maintenance_windows(now: Optional[datetime] = None) -> bool:
                 get_worker_registry().set_fleet_drain(True)
             except Exception as e:
                 log.debug("Worker registry drain broadcast skipped: %s", e)
+
+        # Apply pending plugin updates if configured for this window
+        if win and win.get("apply_plugin_updates") and win_id and _last_plugin_update_window_id != win_id:
+            _last_plugin_update_window_id = win_id
+            log.info("Applying pending plugin updates during maintenance window %s", win_id)
+            try:
+                from ..models.database import SessionLocal
+                from ..plugins.catalog import apply_pending_plugin_updates
+                db = SessionLocal()
+                try:
+                    res = apply_pending_plugin_updates(db)
+                    log.info("Maintenance window plugin updates applied: %d, failed: %d", len(res.get("applied", [])), len(res.get("failed", [])))
+                finally:
+                    db.close()
+            except Exception as e:
+                log.error("Error applying plugin updates in maintenance window %s: %s", win_id, e)
+
         return True
     else:
         if _in_maintenance:

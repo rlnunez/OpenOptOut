@@ -3552,5 +3552,8 @@
   "Update to v{version}": "更新至 v{version}",
   "View release notes": "查看发布说明",
   "{n} update available from developer repositories.": "开发者仓库有 {n} 个可用更新。",
-  "{n} updates available from developer repositories.": "开发者仓库有 {n} 个可用更新。"
+  "{n} updates available from developer repositories.": "开发者仓库有 {n} 个可用更新。",
+  "Apply pending plugin updates during this window": "在此维护窗口期间应用待处理的插件更新",
+  "Auto-updates plugins": "自动更新插件",
+  "Maintenance & updates {start}–{end}": "维护与更新 {start}–{end}"
 }

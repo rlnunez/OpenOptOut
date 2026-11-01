@@ -685,7 +685,7 @@ def t_calendar_maintenance_windows():
 
     # 1. Validation & cleaning
     raw = [
-        {"start": "2026-10-25T02:00:00", "end": "2026-10-25T05:00:00", "description": "Host server updates and backups"},
+        {"start": "2026-10-25T02:00:00", "end": "2026-10-25T05:00:00", "description": "Host server updates and backups", "apply_plugin_updates": True},
         {"start": "2026-10-26T05:00:00", "end": "2026-10-26T02:00:00"}, # inverted
         {"start": "not-a-date", "end": "2026-10-25T05:00:00"},          # malformed
         {"start": "2026-10-27T01:00:00Z", "end": "2026-10-27T03:00:00Z", "description": "Storage backup"}
@@ -693,8 +693,10 @@ def t_calendar_maintenance_windows():
     cleaned = cal.clean_maintenance_windows(raw)
     assert len(cleaned) == 2, f"expected 2 valid windows, got {len(cleaned)}"
     assert cleaned[0]["description"] == "Host server updates and backups"
+    assert cleaned[0]["apply_plugin_updates"] is True
     assert cleaned[0]["id"].startswith("mw-")
     assert cleaned[1]["description"] == "Storage backup"
+    assert cleaned[1]["apply_plugin_updates"] is False
 
     # 2. In-window detection
     sc = {"enabled": True, "run_time": "02:00", "maintenance_windows": cleaned}
@@ -722,6 +724,7 @@ def t_calendar_maintenance_windows():
     maint_evs = [e for e in ev if e.get("kind") == "maintenance"]
     assert len(maint_evs) >= 1, "maintenance event missing from upcoming"
     assert maint_evs[0]["start_time"] == "02:00" and maint_evs[0]["end_time"] == "05:00"
+    assert maint_evs[0]["apply_plugin_updates"] is True
 
     # 5. .ics feed export
     ics = cal.to_ics(ev, now=_dt.datetime(2026, 10, 24))
@@ -730,27 +733,43 @@ def t_calendar_maintenance_windows():
     assert "DTEND:20261025T050000Z" in ics
     assert "Host server updates and backups" in ics
 
-    # 6. Scheduler transition simulation
+    # 6. Scheduler transition simulation & plugin update trigger
     try:
         sched = _imp("core.scheduler")
         # Test check_maintenance_windows transitions with simulated now
         orig_in = sched._in_maintenance
+        orig_last_win = getattr(sched, "_last_plugin_update_window_id", None)
+        sched._last_plugin_update_window_id = None
         try:
-            # Inside window: should detect and pause
+            # Inside window: should detect, pause, and record update trigger for window
             in_m = sched.check_maintenance_windows(now=t_inside)
             assert in_m is True
             assert sched._in_maintenance is True
+            assert sched._last_plugin_update_window_id == cleaned[0]["id"]
+            # Calling again inside same window is deduped
+            in_m_again = sched.check_maintenance_windows(now=t_inside)
+            assert in_m_again is True
+            assert sched._last_plugin_update_window_id == cleaned[0]["id"]
             # Outside window: should detect end and resume
             in_m2 = sched.check_maintenance_windows(now=t_after)
             assert in_m2 is False
             assert sched._in_maintenance is False
         finally:
             sched._in_maintenance = orig_in
+            sched._last_plugin_update_window_id = orig_last_win
     except Exception as e:
         # Scheduler import may skip if optional deps missing
         pass
 
-    # 7. Advance downtime notice banner & notice hours
+    # 7. Plugin catalog maintenance update helper
+    try:
+        cat = _imp("plugins.catalog")
+        res_none = cat.apply_pending_plugin_updates(None)
+        assert res_none == {"applied": [], "failed": [], "skipped": []}
+    except Exception:
+        pass
+
+    # 8. Advance downtime notice banner & notice hours
     # Default: 24 hours in advance
     t_10h_before = _dt.datetime(2026, 10, 24, 16, 0)
     t_30h_before = _dt.datetime(2026, 10, 23, 20, 0)

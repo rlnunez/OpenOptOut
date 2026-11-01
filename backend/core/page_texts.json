@@ -2063,6 +2063,12 @@
    ]
   },
   {
+   "text": "Apply pending plugin updates during this window",
+   "where": [
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
    "text": "Apply — change {would_change}",
    "where": [
     "pages/BrokerPriority.jsx"
@@ -2272,6 +2278,12 @@
    "text": "Auto-scroll",
    "where": [
     "pages/SystemLogs.jsx"
+   ]
+  },
+  {
+   "text": "Auto-updates plugins",
+   "where": [
+    "pages/Calendar.jsx"
    ]
   },
   {
@@ -10269,6 +10281,12 @@
    "text": "Maintenance",
    "where": [
     "pages/Branding.jsx",
+    "pages/Calendar.jsx"
+   ]
+  },
+  {
+   "text": "Maintenance & updates {start}–{end}",
+   "where": [
     "pages/Calendar.jsx"
    ]
   },

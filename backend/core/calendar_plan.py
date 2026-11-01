@@ -74,11 +74,13 @@ def clean_maintenance_windows(windows) -> list:
             wid = f"mw-{int(time.time())}-{secrets.token_hex(4)}"
         seen_ids.add(wid)
         desc = str(w.get("description") or "Host server updates and backups").strip()[:400]
+        apply_updates = bool(w.get("apply_plugin_updates", False))
         out.append({
             "id": wid,
             "start": start_dt.isoformat(),
             "end": end_dt.isoformat(),
             "description": desc or "Host server updates and backups",
+            "apply_plugin_updates": apply_updates,
         })
     out.sort(key=lambda x: x["start"])
     return out
@@ -257,6 +259,7 @@ def upcoming(db, member_ids: Iterable[int], sc: dict, start: Optional[date] = No
                     "start_iso": w.get("start"),
                     "end_iso": w.get("end"),
                     "description": w.get("description", "Host server updates and backups"),
+                    "apply_plugin_updates": bool(w.get("apply_plugin_updates", False)),
                 })
                 d_cursor += timedelta(days=1)
 
