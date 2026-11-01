@@ -68,7 +68,7 @@ In short:
 2. Describe the opt-out with the fixed step vocabulary (`STEP_KINDS`) and member fields (`KNOWN_FIELDS`). Use `contact_email` for "where should we reply" boxes, and `listing_url` for "link to your listing". Wherever a person must take over, add a `pause_for_human` step with plain instructions.
 3. Set `jurisdiction` and `legal_language` for brokers outside the US (for example, `FR`/`fr` or `BR`/`pt-BR`).
 4. Fill in `source`. Leave `last_verified` empty unless you actually ran the flow against the live site.
-5. Bump `manifest.version` on every change.
+5. Bump `manifest.version` on every change. Use Git Releases to publish updates (mark pre-releases explicitly so the update checker knows without guessing).
 6. Run `broker-plugins/tools/validate.py` and the tests.
 
 **Never test against a live broker with real personal details.** The app's rehearsal, `core/spec_drafter.rehearse()`, runs steps with made-up details and stops before the final click. Use it, or the safe form in `core/interpreter/live_test.py`.

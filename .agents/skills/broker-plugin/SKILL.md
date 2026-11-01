@@ -55,6 +55,7 @@ OpenOptOut is an AGPL-3.0 tool handling sensitive personal data, including child
 ## 4. Write `manifest.json`
 
 - Make `id`, `broker_id` and the folder name identical, with `"type": "brokers"`, a plain-language `description`, and a `version` you bump on every change.
+- **Git releases and versioning:** When publishing updates, use Git Releases (e.g. GitHub Releases) and mark pre-releases explicitly (`prerelease: true`). While the update engine falls back to tag suffixes like `-rc`, `-beta`, `-alpha`, `-dev`, or `-preview`, the release feature takes out the guesswork for instances checking for updates. For monorepos, use `{plugin_id}-v{version}` tags.
 - **Bot mitigation & unchecked brokers:** If the broker's page blocks automated access (Cloudflare, bot walls) or has not been verified live by hand, set `"starts_enabled": false`. The broker will install turned off until confirmed by an admin.
 
 ## 5. Translations

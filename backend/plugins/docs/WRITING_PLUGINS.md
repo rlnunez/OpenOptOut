@@ -196,6 +196,17 @@ Zip the plugin directory (with `manifest.json` at the root or inside one top-lev
 
 Bundles are refused if they contain absolute paths, `..` segments, symbolic links, more than 5,000 files, or more than 50 MB compressed / 200 MB extracted.
 
+### Publishing & Git Release Recommendations
+
+OpenOptOut instances check developer Git repositories directly (default: every 24 hours) for plugin updates. While instances can fall back on parsing tag names with `-rc`, `-beta`, `-alpha`, `-dev`, or `-preview` (or CalVer equivalents like `2026.11.01-rc1`), **we strongly recommend using your Git repository's Releases feature (e.g. GitHub Releases)**:
+
+- **Takes guesswork out of the system:** A Git release explicitly defines a `prerelease: true/false` flag. The update checker reads this metadata directly rather than having to guess whether a tag is ready for production.
+- **Admin pre-release control:** Administrators can choose whether their instance accepts pre-releases or only stable updates. Using the official release feature ensures experimental or test builds are never accidentally presented as stable releases.
+- **Direct link to release notes:** The updater displays a direct link to the release's web page so operators can review the changelog before updating.
+- **Tag conventions:**
+  - **Single-plugin repository:** Use standard SemVer tags (e.g. `v1.2.0`, `1.2.0`) or CalVer dates (`2026.11.01`, `2026-11-01`). For pre-releases, tag with `v1.2.0-rc1` and mark the release as "Set as a pre-release" in Git.
+  - **Monorepo (multiple plugins in one repo):** Prefix the tag with the plugin's `manifest.id`, such as `{plugin_id}-v{version}` (e.g. `spokeo-v1.2.0` or `spokeo-v1.2.0-rc1`). The update checker uses this prefix to match only the target plugin and safely ignore releases for other plugins in the monorepo.
+
 ### Rules your code is checked against
 
 Permissions each type may request (host methods each need one of these, so this is also the API surface available to the type):

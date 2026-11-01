@@ -34,6 +34,9 @@ Each completed roadmap item is cross-referenced with its architectural milestone
   - **Admin Pre-Release Control:**
     - Configurable `allow_prereleases` setting (default `False`). When disabled, pre-releases (`-alpha`, `-beta`, `-rc`, `-dev`, `-preview`) are ignored in update checks. When enabled, pre-releases are eligible for update detection.
     - Badging distinguishes stable releases (amber badge: `Update to v{version}`) from pre-releases (purple badge: `Pre-release v{version}`).
+  - **Developer Documentation & Git Releases Recommendation:**
+    - Documented guidance across developer manuals (`backend/plugins/docs/WRITING_PLUGINS.md`, `backend/plugins/docs/PLUGIN_API_REFERENCE.md`, `broker-plugins/README.md`, `.agents/skills/broker-plugin/SKILL.md`, and `AGENTS.md`) recommending that plugin authors publish through official Git Releases (e.g. GitHub Releases) with explicit `prerelease: true/false` flags.
+    - Clarified that while the engine falls back to heuristic parsing on tag suffixes (`-rc`, `-beta`, `-alpha`, `-dev`, `-preview`), Git Releases eliminate guesswork and ensure reliable categorization and changelog linking.
   - **Backend API Endpoints:**
     - `GET /api/plugins/settings`: Returns current check intervals and pre-release preference.
     - `PATCH /api/plugins/settings`: Updates `catalog_check_hours`, `installed_update_check_hours`, and `allow_prereleases`.

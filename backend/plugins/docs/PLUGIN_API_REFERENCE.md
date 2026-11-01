@@ -187,6 +187,15 @@ Every plugin bundle must contain a `manifest.json` at its root.
 | `default_locale` | `string` | No | Language the manifest and spec text is written in (default `en`). See [Translating plugin text](#translating-plugin-text). |
 | `locales` | `list[string]` | No | Languages the plugin carries in `locales/<code>.json`. Each listed file must exist. |
 
+### Versioning, Git Releases & Pre-Release Publishing
+
+OpenOptOut instances regularly inspect developer Git repositories for plugin updates. While the update engine supports appendix-based pre-release fallback parsing (`-rc`, `-beta`, `-alpha`, `-dev`, `-preview`), **developers are strongly encouraged to use the repository's Git Releases feature** (e.g., GitHub Releases):
+
+1. **Explicit Metadata:** Setting the release flag (`prerelease: true/false`) in Git eliminates guesswork for the update engine and ensures that pre-releases are properly separated from stable production releases.
+2. **Administrator Governance:** Administrators can toggle whether pre-releases are accepted or ignored (`allow_prereleases`). Using the explicit release feature ensures test releases are never inadvertently pushed to conservative production instances.
+3. **Changelog Linkage:** Published releases link directly to release notes and changelogs in the OpenOptOut administrative UI.
+4. **Monorepo Tagging:** When maintaining multiple plugins in a single Git repository, tag releases with `{plugin_id}-v{version}` (or `{plugin_id}-{version}`, `{plugin_id}/{version}`). Standalone repositories can tag directly with `v{version}` or `{version}`.
+
 ### Translating plugin text
 
 A plugin's description, a broker's `instructions` and the text of `pause_for_human` steps are shown to people, so they can be translated. Nothing that is sent to a broker or matched on a broker's page is translated here (see [Jurisdiction and legal language](#jurisdiction-and-legal-language)).
