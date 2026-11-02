@@ -83,7 +83,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
       - name: Install scanners
@@ -116,13 +116,13 @@ jobs:
 
       - name: Upload Semgrep results
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('semgrep.sarif') != ''
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: semgrep.sarif
           category: semgrep
       - name: Upload Bandit results
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('bandit.sarif') != ''
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: bandit.sarif
           category: bandit
@@ -161,7 +161,7 @@ jobs:
 
       - name: Upload Gitleaks results
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('gitleaks.sarif') != ''
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: gitleaks.sarif
           category: gitleaks
@@ -191,7 +191,7 @@ jobs:
           python3 .github/security/sarif_summary.py "OSV-Scanner (dependencies)" osv.sarif >> "$GITHUB_STEP_SUMMARY"
       - name: Upload OSV-Scanner results
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('osv.sarif') != ''
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: osv.sarif
           category: osv-scanner
@@ -252,25 +252,25 @@ jobs:
 
       - name: Upload Trivy results
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('trivy-config.sarif') != ''
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: trivy-config.sarif
           category: trivy-config
       - name: Upload Hadolint results (backend)
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('hadolint-backend.sarif') != ''
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: hadolint-backend.sarif
           category: hadolint-backend
       - name: Upload Hadolint results (frontend)
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('hadolint-frontend.sarif') != ''
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: hadolint-frontend.sarif
           category: hadolint-frontend
       - name: Upload ShellCheck results
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('shellcheck.sarif') != ''
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: shellcheck.sarif
           category: shellcheck
@@ -287,7 +287,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
       - name: Install workflow analysis tools
@@ -303,7 +303,7 @@ jobs:
           actionlint -color
       - name: Upload zizmor results
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('zizmor.sarif') != ''
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: zizmor.sarif
           category: zizmor
@@ -440,13 +440,13 @@ jobs:
 
       - name: Upload Trivy image results (backend)
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('trivy-image-api.sarif') != ''
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: trivy-image-api.sarif
           category: trivy-image-api
       - name: Upload Trivy image results (frontend)
         if: always() && env.CAN_UPLOAD == 'true' && hashFiles('trivy-image-web.sarif') != ''
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: trivy-image-web.sarif
           category: trivy-image-web
