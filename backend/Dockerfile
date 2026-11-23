@@ -11,7 +11,7 @@ ARG PYTHON_BASE=python:3.12-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e
 # Stage 0: Build rclone with patched Go runtime (remediating CVE-2026-111943),
 # patched chi v5.4.0 (remediating CVE-2026-114437), and patched golang.org/x/net
 # v0.62.0 (remediating CVE-2026-97045 and CVE-2026-78661)
-FROM golang:1.27.3-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS rclone-builder
+FROM golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea AS rclone-builder
 ARG RCLONE_VERSION
 RUN git clone --depth 1 --branch ${RCLONE_VERSION} https://github.com/rclone/rclone.git /src/rclone
 WORKDIR /src/rclone
